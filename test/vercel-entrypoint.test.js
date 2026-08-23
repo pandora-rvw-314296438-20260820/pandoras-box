@@ -47,7 +47,7 @@ test("Vercel selects the callable source entrypoint instead of dist/http-server"
   assert.equal(packageJson.main, "vercel-entrypoint.js");
   assert.equal(vercelConfig.buildCommand, "npm run build");
   assert.equal(vercelConfig.framework, "express");
-  assert.equal(vercelConfig.env.PANDORA_TRUSTED_EXTERNAL_REVIEW_APP_ID, "842251");
+  assert.equal(vercelConfig.env.PANDORA_TRUSTED_EXTERNAL_REVIEW_APP_ID, undefined);
   assert.equal(
     vercelConfig.functions["api/operator.ts"].includeFiles,
     "{supabase/migrations/**,docs/status/**,SOURCE_AUTHORITY_POLICY.json}",
