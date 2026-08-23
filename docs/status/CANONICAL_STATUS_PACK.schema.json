@@ -1,0 +1,529 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/banataosystems/Pandoras-box/docs/status/CANONICAL_STATUS_PACK.schema.json",
+  "title": "Pandoras-box canonical status pack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "statusPackSchemaVersion", "planVersion", "generatedAt", "expiresAt",
+    "observedThrough", "freshness", "authoritative", "status", "project", "authority",
+    "evidence", "pullRequests", "proofLadder", "conflicts", "unknowns", "blockers",
+    "nextAction", "currentPhase", "phases", "progress", "tasks", "nextTask", "blocked",
+    "readyParallel", "drift", "goals", "canonicalJsonSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "statusPackSchemaVersion": { "const": "1.0.0" },
+    "planVersion": { "const": "canonical-status-pack-v1" },
+    "generatedAt": { "$ref": "#/$defs/dateTime" },
+    "expiresAt": { "$ref": "#/$defs/dateTime" },
+    "observedThrough": { "$ref": "#/$defs/dateTime" },
+    "freshness": { "$ref": "#/$defs/freshness" },
+    "authoritative": { "type": "boolean" },
+    "status": { "enum": ["current", "stale", "conflicted", "unavailable"] },
+    "project": { "$ref": "#/$defs/project" },
+    "authority": { "$ref": "#/$defs/authority" },
+    "evidence": { "$ref": "#/$defs/evidence" },
+    "pullRequests": { "$ref": "#/$defs/pullRequests" },
+    "proofLadder": { "$ref": "#/$defs/proofLadder" },
+    "conflicts": {
+      "type": "array",
+      "maxItems": 32,
+      "items": { "$ref": "#/$defs/conflict" }
+    },
+    "unknowns": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 7,
+      "items": { "enum": ["memory", "github", "vercel", "supabase", "android", "independentReview", "ownerAuthorization"] }
+    },
+    "blockers": { "$ref": "#/$defs/boundedStrings" },
+    "nextAction": { "$ref": "#/$defs/boundedString" },
+    "currentPhase": { "$ref": "#/$defs/phase" },
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "prefixItems": [{ "$ref": "#/$defs/phase" }],
+      "items": false
+    },
+    "progress": { "$ref": "#/$defs/progress" },
+    "tasks": {
+      "type": "array",
+      "minItems": 5,
+      "prefixItems": [
+        { "$ref": "#/$defs/task" }, { "$ref": "#/$defs/task" }, { "$ref": "#/$defs/task" },
+        { "$ref": "#/$defs/task" }, { "$ref": "#/$defs/task" }
+      ],
+      "items": false
+    },
+    "nextTask": { "oneOf": [{ "$ref": "#/$defs/task" }, { "type": "null" }] },
+    "blocked": { "type": "array", "maxItems": 5, "items": { "$ref": "#/$defs/task" } },
+    "readyParallel": { "type": "array", "maxItems": 0 },
+    "drift": { "$ref": "#/$defs/boundedStrings" },
+    "goals": {
+      "type": "array",
+      "minItems": 6,
+      "prefixItems": [
+        { "allOf": [{ "$ref": "#/$defs/goal" }, { "type": "object", "properties": { "id": { "const": "canonical-status" } } }] },
+        { "allOf": [{ "$ref": "#/$defs/goal" }, { "type": "object", "properties": { "id": { "const": "pr-triage-41" } } }] },
+        { "allOf": [{ "$ref": "#/$defs/goal" }, { "type": "object", "properties": { "id": { "const": "owner-worker-clean-main" } } }] },
+        { "allOf": [{ "$ref": "#/$defs/goal" }, { "type": "object", "properties": { "id": { "const": "exact-release-binding" } } }] },
+        { "allOf": [{ "$ref": "#/$defs/goal" }, { "type": "object", "properties": { "id": { "const": "physical-android" } } }] },
+        { "allOf": [{ "$ref": "#/$defs/goal" }, { "type": "object", "properties": { "id": { "const": "commercial-pilot" } } }] }
+      ],
+      "items": false
+    },
+    "canonicalJsonSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "authoritative": { "const": true } }, "required": ["authoritative"] },
+      "then": { "$ref": "#/$defs/currentAuthoritativeState" }
+    },
+    {
+      "if": { "properties": { "status": { "const": "current" } }, "required": ["status"] },
+      "then": {
+        "allOf": [
+          { "type": "object", "properties": { "authoritative": { "const": true } } },
+          { "$ref": "#/$defs/currentAuthoritativeState" }
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "dateTime": { "type": "string", "format": "date-time" },
+    "sha40": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "uuid": { "type": "string", "format": "uuid" },
+    "boundedString": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "boundedStrings": {
+      "type": "array", "uniqueItems": true, "maxItems": 64,
+      "items": { "$ref": "#/$defs/boundedString" }
+    },
+    "nullableString": { "type": ["string", "null"], "maxLength": 1024 },
+    "nullableDateTime": { "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }] },
+    "nullableSha40": { "oneOf": [{ "$ref": "#/$defs/sha40" }, { "type": "null" }] },
+    "nullableSha256": { "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+    "nullableUuid": { "oneOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
+    "freshness": {
+      "type": "object", "additionalProperties": false,
+      "required": ["generatedAtValid", "expiresAtValid", "generatedBeforeExpiry", "currentAtGeneration", "windowMs"],
+      "properties": {
+        "generatedAtValid": { "type": "boolean" },
+        "expiresAtValid": { "type": "boolean" },
+        "generatedBeforeExpiry": { "type": "boolean" },
+        "currentAtGeneration": { "type": "boolean" },
+        "windowMs": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "project": {
+      "type": "object", "additionalProperties": false,
+      "required": ["key", "repository", "branch"],
+      "properties": {
+        "key": { "const": "mcpmaster-pandoras-box" },
+        "repository": { "const": "banataosystems/Pandoras-box" },
+        "branch": { "const": "main" }
+      }
+    },
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": ["policySha256", "historicalSurfaceRegistrySha256"],
+      "properties": {
+        "policySha256": { "$ref": "#/$defs/sha256" },
+        "historicalSurfaceRegistrySha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "unavailableEvidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ok", "provider", "observedAt", "errorCode"],
+      "properties": {
+        "ok": { "const": false },
+        "provider": { "enum": ["memory", "github", "vercel", "supabase", "android", "independentReview", "ownerAuthorization"] },
+        "observedAt": { "$ref": "#/$defs/dateTime" },
+        "errorCode": { "type": "string", "pattern": "^[A-Z]+(?:_[A-Z]+)*_STATUS_UNAVAILABLE$", "maxLength": 96 }
+      }
+    },
+    "memoryEvidence": {
+      "oneOf": [
+        { "allOf": [{ "$ref": "#/$defs/unavailableEvidence" }, { "type": "object", "properties": { "provider": { "const": "memory" }, "errorCode": { "const": "MEMORY_STATUS_UNAVAILABLE" } } }] },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["ok", "healthStatus", "contextState", "fresh", "approvedRecordIds", "conflicts"],
+          "properties": {
+            "ok": { "const": true }, "provider": { "const": "memory" },
+            "observedAt": { "$ref": "#/$defs/dateTime" },
+            "healthStatus": { "type": "string", "maxLength": 128 },
+            "authentication": { "type": ["string", "boolean", "object", "null"] },
+            "contextState": { "enum": ["healthy", "degraded"] }, "fresh": { "type": "boolean" },
+            "approvedRecordIds": { "type": "array", "uniqueItems": true, "maxItems": 100, "items": { "type": "string", "maxLength": 128 } },
+            "freshestRecordAt": { "$ref": "#/$defs/nullableDateTime" },
+            "conflicts": {
+              "type": "array", "maxItems": 100,
+              "items": {
+                "type": "object", "additionalProperties": false, "required": ["subject", "reason"],
+                "properties": { "subject": { "type": "string", "maxLength": 256 }, "reason": { "type": "string", "maxLength": 512 } }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "checkIdentity": {
+      "type": "object", "additionalProperties": false, "required": ["name", "appId"],
+      "properties": { "name": { "type": "string", "maxLength": 128 }, "appId": { "type": "integer", "minimum": 1 } }
+    },
+    "protectedMainPolicy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["strictRequiredChecks", "approvingReviewCount", "dismissStaleReviews", "requireLastPushApproval", "bypassAllowancesEmpty", "conversationResolution", "enforceAdmins", "forcePushesDisabled", "deletionsDisabled"],
+      "properties": {
+        "strictRequiredChecks": { "type": "boolean" }, "approvingReviewCount": { "type": ["integer", "null"], "minimum": 0 },
+        "dismissStaleReviews": { "type": "boolean" }, "requireLastPushApproval": { "type": "boolean" },
+        "bypassAllowancesEmpty": { "type": "boolean" }, "conversationResolution": { "type": "boolean" },
+        "enforceAdmins": { "type": "boolean" }, "forcePushesDisabled": { "type": "boolean" }, "deletionsDisabled": { "type": "boolean" }
+      }
+    },
+    "sourceArtifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["verified", "provider", "observedAt", "artifactId", "artifactUrl", "artifactName", "artifactSha256", "runId", "runAttempt", "workflowId", "workflowPath", "event", "jobId", "checkRunId", "checkSuiteId", "sourceSha", "sourceTreeSha"],
+      "properties": {
+        "verified": { "type": "boolean" }, "provider": { "const": "github" }, "observedAt": { "$ref": "#/$defs/dateTime" },
+        "artifactId": { "type": "string", "pattern": "^[1-9][0-9]{0,19}$" }, "artifactUrl": { "type": "string", "maxLength": 512 },
+        "artifactName": { "type": "string", "maxLength": 128 }, "artifactSha256": { "$ref": "#/$defs/sha256" },
+        "runId": { "type": "integer", "minimum": 1 }, "runAttempt": { "type": "integer", "minimum": 1 },
+        "workflowId": { "type": "integer", "minimum": 1 }, "workflowPath": { "type": "string", "maxLength": 256 },
+        "event": { "type": "string", "maxLength": 32 }, "jobId": { "type": "integer", "minimum": 1 },
+        "checkRunId": { "type": "integer", "minimum": 1 }, "checkSuiteId": { "type": "integer", "minimum": 1 },
+        "sourceSha": { "$ref": "#/$defs/sha40" }, "sourceTreeSha": { "$ref": "#/$defs/sha40" }
+      }
+    },
+    "mobileArtifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["verified", "provider", "observedAt", "artifactId", "artifactUrl", "artifactName", "artifactSha256", "apkSha256", "artifactCreatedAt", "artifactExpiresAt", "runId", "runAttempt", "runCompletedAt", "workflowId", "workflowPath", "event", "jobId", "checkRunId", "checkSuiteId", "sourceSha", "sourceTreeSha", "productionOrigin", "receiptCapturedAt"],
+      "properties": {
+        "verified": { "type": "boolean" }, "provider": { "const": "github" }, "observedAt": { "$ref": "#/$defs/dateTime" },
+        "artifactId": { "type": "string", "pattern": "^[1-9][0-9]{0,19}$" }, "artifactUrl": { "type": "string", "maxLength": 512 },
+        "artifactName": { "type": "string", "maxLength": 160 }, "artifactSha256": { "$ref": "#/$defs/sha256" }, "apkSha256": { "$ref": "#/$defs/sha256" },
+        "artifactCreatedAt": { "$ref": "#/$defs/dateTime" }, "artifactExpiresAt": { "$ref": "#/$defs/dateTime" },
+        "runId": { "type": "integer", "minimum": 1 }, "runAttempt": { "type": "integer", "minimum": 1 }, "runCompletedAt": { "$ref": "#/$defs/dateTime" },
+        "workflowId": { "type": "integer", "minimum": 1 }, "workflowPath": { "type": "string", "maxLength": 256 }, "event": { "type": "string", "maxLength": 32 },
+        "jobId": { "type": "integer", "minimum": 1 }, "checkRunId": { "type": "integer", "minimum": 1 }, "checkSuiteId": { "type": "integer", "minimum": 1 },
+        "sourceSha": { "$ref": "#/$defs/sha40" }, "sourceTreeSha": { "$ref": "#/$defs/sha40" },
+        "productionOrigin": { "const": "https://mcpmaster.vercel.app" }, "receiptCapturedAt": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "githubEvidence": {
+      "oneOf": [
+        { "allOf": [{ "$ref": "#/$defs/unavailableEvidence" }, { "type": "object", "properties": { "provider": { "const": "github" }, "errorCode": { "const": "GITHUB_STATUS_UNAVAILABLE" } } }] },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["ok", "repository", "mainSha", "mainTreeSha", "openPullRequestCount", "triageInventoryCount", "triageExactHeadMatches", "exactIntegrationChecks", "protectionHasExactCheckIdentities", "protectedMainPolicyExact", "trustedExternalReviewConfigured", "trustedExternalReviewAppId", "trustedExternalReviewVerified", "sourceArtifactProviderReadback", "mobileArtifactProviderReadback"],
+          "properties": {
+            "ok": { "const": true }, "provider": { "const": "github" }, "observedAt": { "$ref": "#/$defs/dateTime" },
+            "repository": { "const": "banataosystems/Pandoras-box" }, "mainSha": { "$ref": "#/$defs/sha40" }, "mainTreeSha": { "$ref": "#/$defs/sha40" },
+            "openPullRequestCount": { "type": "integer", "minimum": 0 }, "triageInventoryCount": { "type": "integer", "minimum": 0, "maximum": 41 },
+            "triageExactHeadMatches": { "type": "boolean" }, "requiredChecks": { "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/checkIdentity" } },
+            "protectionHasExactCheckIdentities": { "type": "boolean" }, "protectedMainPolicyExact": { "type": "boolean" },
+            "protectedMainPolicy": { "$ref": "#/$defs/protectedMainPolicy" }, "protectedWorkflowBindingsExact": { "type": "boolean" },
+            "exactIntegrationChecks": { "enum": ["success", "failure", "pending", "unavailable"] },
+            "trustedExternalReviewConfigured": { "type": "boolean" }, "trustedExternalReviewAppId": { "type": ["integer", "null"], "minimum": 1 },
+            "trustedExternalReviewVerified": { "type": "boolean" },
+            "sourceArtifactProviderReadback": { "oneOf": [{ "$ref": "#/$defs/sourceArtifact" }, { "type": "null" }] },
+            "mobileArtifactProviderReadback": { "oneOf": [{ "$ref": "#/$defs/mobileArtifact" }, { "type": "null" }] }
+          }
+        }
+      ]
+    },
+    "vercelEvidence": {
+      "oneOf": [
+        { "allOf": [{ "$ref": "#/$defs/unavailableEvidence" }, { "type": "object", "properties": { "provider": { "const": "vercel" }, "errorCode": { "const": "VERCEL_STATUS_UNAVAILABLE" } } }] },
+        {
+          "type": "object", "additionalProperties": false, "required": ["ok"],
+          "properties": {
+            "ok": { "const": true }, "provider": { "const": "vercel" }, "observedAt": { "$ref": "#/$defs/dateTime" },
+            "projectId": { "$ref": "#/$defs/nullableString" }, "deploymentId": { "$ref": "#/$defs/nullableString" }, "deploymentUrl": { "$ref": "#/$defs/nullableString" },
+            "productionUrl": { "$ref": "#/$defs/nullableString" }, "sourceSha": { "$ref": "#/$defs/nullableSha40" }, "gitRepository": { "$ref": "#/$defs/nullableString" },
+            "gitBranch": { "$ref": "#/$defs/nullableString" }, "rollbackDeploymentId": { "$ref": "#/$defs/nullableString" }, "rollbackSourceSha": { "$ref": "#/$defs/nullableSha40" },
+            "rollbackVerified": { "type": "boolean" }, "rollbackVerifiedCandidateDeploymentId": { "$ref": "#/$defs/nullableString" }, "rollbackRestoredDeploymentId": { "$ref": "#/$defs/nullableString" },
+            "productionObservedAt": { "$ref": "#/$defs/nullableDateTime" },
+            "rollbackTransitionEvidenceId": { "$ref": "#/$defs/nullableUuid" }, "rollbackTransitionExternalId": { "$ref": "#/$defs/nullableString" },
+            "rollbackTransitionSourceUrl": { "$ref": "#/$defs/nullableString" }, "rollbackTransitionAliasSourceUrl": { "$ref": "#/$defs/nullableString" },
+            "rollbackTransitionAliasPreResponseSha256": { "$ref": "#/$defs/nullableSha256" }, "rollbackTransitionAliasPreObservedAt": { "$ref": "#/$defs/nullableDateTime" },
+            "rollbackTransitionAliasPostResponseSha256": { "$ref": "#/$defs/nullableSha256" }, "rollbackTransitionAliasPostObservedAt": { "$ref": "#/$defs/nullableDateTime" },
+            "rollbackTransitionRouteProbeContract": { "$ref": "#/$defs/nullableString" }, "rollbackTransitionRouteProbeSha256": { "$ref": "#/$defs/nullableSha256" },
+            "rollbackTransitionRouteProbeObservedAt": { "$ref": "#/$defs/nullableDateTime" }, "rollbackTransitionObservedAt": { "$ref": "#/$defs/nullableDateTime" },
+            "rollbackRestorationEvidenceId": { "$ref": "#/$defs/nullableUuid" }, "rollbackRestorationExternalId": { "$ref": "#/$defs/nullableString" },
+            "rollbackRestorationSourceUrl": { "$ref": "#/$defs/nullableString" }, "rollbackRestorationAliasSourceUrl": { "$ref": "#/$defs/nullableString" },
+            "rollbackRestorationAliasPreResponseSha256": { "$ref": "#/$defs/nullableSha256" }, "rollbackRestorationAliasPreObservedAt": { "$ref": "#/$defs/nullableDateTime" },
+            "rollbackRestorationAliasPostResponseSha256": { "$ref": "#/$defs/nullableSha256" }, "rollbackRestorationAliasPostObservedAt": { "$ref": "#/$defs/nullableDateTime" },
+            "rollbackRestorationRouteProbeContract": { "$ref": "#/$defs/nullableString" }, "rollbackRestorationRouteProbeSha256": { "$ref": "#/$defs/nullableSha256" },
+            "rollbackRestorationRouteProbeObservedAt": { "$ref": "#/$defs/nullableDateTime" }, "rollbackRestorationObservedAt": { "$ref": "#/$defs/nullableDateTime" },
+            "productionAlias": { "$ref": "#/$defs/nullableString" }, "productionAliasSourceUrl": { "$ref": "#/$defs/nullableString" },
+            "productionAliasLiveRead": { "type": "boolean" }, "productionTarget": { "$ref": "#/$defs/nullableString" }, "providerReadback": { "type": "boolean" },
+            "productionVerified": { "type": "boolean" }, "productionVerifiedDeploymentId": { "$ref": "#/$defs/nullableString" }
+          }
+        }
+      ]
+    },
+    "supabaseEvidence": {
+      "oneOf": [
+        { "allOf": [{ "$ref": "#/$defs/unavailableEvidence" }, { "type": "object", "properties": { "provider": { "const": "supabase" }, "errorCode": { "const": "SUPABASE_STATUS_UNAVAILABLE" } } }] },
+        {
+          "type": "object", "additionalProperties": false, "required": ["ok"],
+          "properties": {
+            "ok": { "const": true }, "provider": { "const": "supabase" }, "observedAt": { "$ref": "#/$defs/dateTime" },
+            "projectRef": { "$ref": "#/$defs/nullableString" }, "projectStatus": { "type": "string", "maxLength": 64 },
+            "managementApiVersionReadback": { "type": "boolean" }, "providerDatabaseReceiptReadback": { "type": "boolean" },
+            "sourceArtifactDatabaseReceiptPresent": { "type": "boolean" }, "sourceArtifactBoundToLiveVersions": { "type": "boolean" },
+            "exactAppliedBytesProven": { "type": "boolean" }, "providerReadback": { "type": "boolean" }, "sourceSha": { "$ref": "#/$defs/nullableSha40" },
+            "migrationVersionParity": { "enum": ["match", "mismatch"] }, "migrationByteParity": { "const": "not_provider_reconstructable" },
+            "migrationParity": { "enum": ["source_artifact_bound_to_live_versions", "receipt_missing_or_mismatched", "mismatch"] },
+            "expectedMigrationCount": { "type": "integer", "minimum": 0 }, "appliedMigrationCount": { "type": "integer", "minimum": 0 },
+            "expectedAppliedChainSha256": { "$ref": "#/$defs/sha256" }, "appliedChainSha256": { "$ref": "#/$defs/sha256" },
+            "expectedSourceChainSha256": { "$ref": "#/$defs/sha256" }, "sourceArtifactChainSha256": { "$ref": "#/$defs/nullableSha256" },
+            "sourceArtifactExternalId": { "$ref": "#/$defs/nullableString" }, "sourceArtifactSha256": { "$ref": "#/$defs/nullableSha256" },
+            "sourceArtifactSourceTreeSha": { "$ref": "#/$defs/nullableSha40" }, "providerDatabaseCapturedVersionChainSha256": { "$ref": "#/$defs/nullableSha256" },
+            "providerSourceChainSha256": { "type": "null" }
+          }
+        }
+      ]
+    },
+    "ciArtifactReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["databaseCaptured", "storageAuthority", "externalId", "sourceUrl", "artifactName", "artifactSha256", "apkSha256", "sourceSha", "sourceTreeSha", "productionOrigin", "wifiEvidenceId", "mobileDataEvidenceId", "capturedAt"],
+      "properties": {
+        "databaseCaptured": { "type": "boolean" }, "storageAuthority": { "const": "IMMUTABLE_PHYSICAL_ANDROID_RECEIPT" },
+        "externalId": { "type": "string", "pattern": "^[1-9][0-9]{0,19}$" }, "sourceUrl": { "type": "string", "maxLength": 512 },
+        "artifactName": { "type": "string", "maxLength": 160 }, "artifactSha256": { "$ref": "#/$defs/sha256" }, "apkSha256": { "$ref": "#/$defs/sha256" },
+        "sourceSha": { "$ref": "#/$defs/sha40" }, "sourceTreeSha": { "$ref": "#/$defs/sha40" }, "productionOrigin": { "const": "https://mcpmaster.vercel.app" },
+        "wifiEvidenceId": { "$ref": "#/$defs/uuid" }, "mobileDataEvidenceId": { "$ref": "#/$defs/uuid" }, "capturedAt": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "physicalRun": {
+      "type": "object", "additionalProperties": false,
+      "required": ["network", "verified", "receiptId", "receiptSha256", "observerId", "observerKeyFingerprint", "signatureBasisSha256", "providerObservationIndex", "observedAt", "capturedAt", "artifactSha256", "completedSteps"],
+      "properties": {
+        "network": { "enum": ["wifi", "mobile_data"] }, "verified": { "type": "boolean" }, "receiptId": { "$ref": "#/$defs/uuid" },
+        "receiptSha256": { "$ref": "#/$defs/sha256" }, "observerId": { "type": "string", "maxLength": 128 },
+        "observerKeyFingerprint": { "$ref": "#/$defs/sha256" }, "signatureBasisSha256": { "$ref": "#/$defs/sha256" },
+        "providerObservationIndex": { "type": "integer", "minimum": 1, "maximum": 2 }, "observedAt": { "$ref": "#/$defs/dateTime" }, "capturedAt": { "$ref": "#/$defs/dateTime" },
+        "artifactSha256": { "$ref": "#/$defs/sha256" },
+        "completedSteps": {
+          "type": "array", "minItems": 6,
+          "prefixItems": [
+            { "const": "owner_authenticate" }, { "const": "submit_owner_command" }, { "const": "observe_durable_dispatch" },
+            { "const": "observe_worker_01_claim" }, { "const": "observe_exact_provider_result" }, { "const": "observe_proof_in_owner_read" }
+          ], "items": false
+        }
+      }
+    },
+    "androidEvidence": {
+      "oneOf": [
+        { "allOf": [{ "$ref": "#/$defs/unavailableEvidence" }, { "type": "object", "properties": { "provider": { "const": "android" }, "errorCode": { "const": "ANDROID_STATUS_UNAVAILABLE" } } }] },
+        {
+          "type": "object", "additionalProperties": false, "required": ["ok"],
+          "properties": {
+            "ok": { "const": true }, "provider": { "const": "android" }, "observedAt": { "$ref": "#/$defs/dateTime" },
+            "authority": { "const": "PHYSICAL_ANDROID_OBSERVER" }, "storageAuthority": { "const": "IMMUTABLE_PHYSICAL_ANDROID_RECEIPT" },
+            "providerReadback": { "type": "boolean" }, "sourceSha": { "$ref": "#/$defs/sha40" }, "sourceTreeSha": { "$ref": "#/$defs/sha40" },
+            "deploymentId": { "$ref": "#/$defs/boundedString" }, "artifactSha256": { "$ref": "#/$defs/sha256" }, "productionOrigin": { "const": "https://mcpmaster.vercel.app" },
+            "ciArtifactDatabaseReceipt": { "$ref": "#/$defs/ciArtifactReceipt" }, "deviceIdHash": { "$ref": "#/$defs/sha256" },
+            "packageName": { "const": "com.banataosystems.pandora_mobile" }, "ownerPlanId": { "$ref": "#/$defs/uuid" }, "ownerDispatchId": { "$ref": "#/$defs/uuid" },
+            "workerEvidenceSha256": { "$ref": "#/$defs/sha256" }, "verificationEvidenceId": { "$ref": "#/$defs/uuid" }, "reviewerRuntimeProofId": { "$ref": "#/$defs/uuid" },
+            "wifi": { "allOf": [{ "$ref": "#/$defs/physicalRun" }, { "type": "object", "properties": { "network": { "const": "wifi" }, "providerObservationIndex": { "const": 1 } } }] },
+            "mobileData": { "allOf": [{ "$ref": "#/$defs/physicalRun" }, { "type": "object", "properties": { "network": { "const": "mobile_data" }, "providerObservationIndex": { "const": 2 } } }] }
+          }
+        }
+      ]
+    },
+    "independentReviewEvidence": {
+      "oneOf": [
+        { "allOf": [{ "$ref": "#/$defs/unavailableEvidence" }, { "type": "object", "properties": { "provider": { "const": "independentReview" }, "errorCode": { "const": "INDEPENDENTREVIEW_STATUS_UNAVAILABLE" } } }] },
+        {
+          "type": "object", "additionalProperties": false, "required": ["ok"],
+          "properties": {
+            "ok": { "const": true }, "provider": { "const": "independentReview" }, "observedAt": { "$ref": "#/$defs/dateTime" }, "verified": { "type": "boolean" },
+            "authority": { "const": "INDEPENDENT_REVIEWER" }, "receiptId": { "$ref": "#/$defs/uuid" }, "receiptSha256": { "$ref": "#/$defs/sha256" },
+            "sourceSha": { "$ref": "#/$defs/sha40" }, "sourceTreeSha": { "$ref": "#/$defs/sha40" }, "productionDeploymentId": { "$ref": "#/$defs/boundedString" },
+            "rollbackDeploymentId": { "$ref": "#/$defs/boundedString" }, "supabaseMigrationChainSha256": { "$ref": "#/$defs/sha256" },
+            "reviewerKeyFingerprint": { "$ref": "#/$defs/sha256" }, "reviewedAt": { "$ref": "#/$defs/dateTime" }, "capturedAt": { "$ref": "#/$defs/dateTime" }
+          }
+        }
+      ]
+    },
+    "ownerAuthorizationEvidence": {
+      "oneOf": [
+        { "allOf": [{ "$ref": "#/$defs/unavailableEvidence" }, { "type": "object", "properties": { "provider": { "const": "ownerAuthorization" }, "errorCode": { "const": "OWNERAUTHORIZATION_STATUS_UNAVAILABLE" } } }] },
+        {
+          "type": "object", "additionalProperties": false, "required": ["ok"],
+          "properties": {
+            "ok": { "const": true }, "provider": { "const": "ownerAuthorization" }, "observedAt": { "$ref": "#/$defs/dateTime" }, "verified": { "type": "boolean" },
+            "authority": { "const": "OWNER_AUTHORIZATION" }, "receiptId": { "$ref": "#/$defs/uuid" }, "ownerUserId": { "$ref": "#/$defs/uuid" },
+            "sourceSha": { "$ref": "#/$defs/sha40" }, "productionDeploymentId": { "$ref": "#/$defs/boundedString" }, "reviewReceiptId": { "$ref": "#/$defs/uuid" },
+            "reviewReceiptSha256": { "$ref": "#/$defs/sha256" }, "authorizedAt": { "$ref": "#/$defs/dateTime" }, "capturedAt": { "$ref": "#/$defs/dateTime" },
+            "aal": { "const": "aal2" }, "sessionId": { "$ref": "#/$defs/uuid" }, "mfaVerifiedAt": { "$ref": "#/$defs/dateTime" }
+          }
+        }
+      ]
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["memory", "github", "vercel", "supabase", "android", "independentReview", "ownerAuthorization"],
+      "properties": {
+        "memory": { "$ref": "#/$defs/memoryEvidence" }, "github": { "$ref": "#/$defs/githubEvidence" },
+        "vercel": { "$ref": "#/$defs/vercelEvidence" }, "supabase": { "$ref": "#/$defs/supabaseEvidence" },
+        "android": { "$ref": "#/$defs/androidEvidence" }, "independentReview": { "$ref": "#/$defs/independentReviewEvidence" },
+        "ownerAuthorization": { "$ref": "#/$defs/ownerAuthorizationEvidence" }
+      }
+    },
+    "decisionCounts": {
+      "type": "object", "additionalProperties": false, "required": ["land", "consolidate", "archive", "close"],
+      "properties": { "land": { "const": 1 }, "consolidate": { "const": 9 }, "archive": { "const": 31 }, "close": { "const": 0 } }
+    },
+    "pullRequests": {
+      "type": "object", "additionalProperties": false,
+      "required": ["observedOpen", "observedRegistryItems", "triaged", "denominator", "counts", "exactHeadMatches", "observedAt"],
+      "properties": {
+        "observedOpen": { "type": ["integer", "null"], "minimum": 0 }, "observedRegistryItems": { "type": ["integer", "null"], "minimum": 0, "maximum": 41 },
+        "triaged": { "const": 41 }, "denominator": { "const": 41 }, "counts": { "$ref": "#/$defs/decisionCounts" },
+        "exactHeadMatches": { "type": "boolean" }, "observedAt": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "proofLadder": {
+      "type": "object", "additionalProperties": false,
+      "required": ["documented", "implemented", "tested", "deployed", "productionVerified"],
+      "properties": {
+        "documented": { "type": "boolean" }, "implemented": { "type": "boolean" }, "tested": { "type": "boolean" },
+        "deployed": { "type": "boolean" }, "productionVerified": { "type": "boolean" }
+      }
+    },
+    "conflict": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "githubMainSha", "vercelSourceSha"],
+          "properties": { "id": { "const": "source-deployment-sha-mismatch" }, "githubMainSha": { "$ref": "#/$defs/sha40" }, "vercelSourceSha": { "$ref": "#/$defs/sha40" } }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["id", "expectedRepository", "observedRepository"],
+          "properties": { "id": { "const": "noncanonical-vercel-git-link" }, "expectedRepository": { "const": "banataosystems/Pandoras-box" }, "observedRepository": { "type": "string", "maxLength": 256 } }
+        }
+      ]
+    },
+    "phase": {
+      "type": "object", "additionalProperties": false, "required": ["id", "name", "status", "completedTasks", "gatingTasks"],
+      "properties": {
+        "id": { "const": "canonical-convergence" }, "name": { "const": "Canonical source-to-customer proof" },
+        "status": { "enum": ["complete", "blocked", "active"] }, "completedTasks": { "type": "integer", "minimum": 0, "maximum": 5 }, "gatingTasks": { "const": 5 }
+      }
+    },
+    "progress": {
+      "type": "object", "additionalProperties": false, "required": ["completed", "total", "percent"],
+      "properties": { "completed": { "type": "integer", "minimum": 0, "maximum": 5 }, "total": { "const": 5 }, "percent": { "type": "integer", "minimum": 0, "maximum": 100 } }
+    },
+    "task": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "title", "phase", "repository", "declaredStatus", "status", "dependencyReady", "missingDependencies", "blockerIds", "evidenceIds", "blocksPhaseExit", "builderAgent", "reviewerAgent"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^STATUS-[1-5]$" }, "title": { "$ref": "#/$defs/boundedString" }, "phase": { "const": "canonical-convergence" },
+        "repository": { "const": "banataosystems/Pandoras-box" }, "declaredStatus": { "enum": ["complete", "blocked"] }, "status": { "enum": ["complete", "blocked"] },
+        "dependencyReady": { "type": "boolean" }, "missingDependencies": { "type": "array", "maxItems": 0 }, "blockerIds": { "$ref": "#/$defs/boundedStrings" },
+        "evidenceIds": { "type": "array", "maxItems": 0 }, "blocksPhaseExit": { "const": true }, "builderAgent": { "const": "ProjectOS" }, "reviewerAgent": { "const": "independent-review" }
+      }
+    },
+    "goal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "title", "state", "evidence", "blockers", "owner", "nextAction"],
+      "properties": {
+        "id": { "enum": ["canonical-status", "pr-triage-41", "owner-worker-clean-main", "exact-release-binding", "physical-android", "commercial-pilot"] },
+        "title": { "$ref": "#/$defs/boundedString" }, "state": { "enum": ["complete", "ready", "blocked"] },
+        "evidence": { "$ref": "#/$defs/boundedStrings" }, "blockers": { "$ref": "#/$defs/boundedStrings" },
+        "owner": { "enum": ["ProjectOS", "owner"] }, "nextAction": { "$ref": "#/$defs/boundedString" }
+      }
+    },
+    "currentAuthoritativeState": {
+      "type": "object",
+      "properties": {
+        "status": { "const": "current" },
+        "freshness": {
+          "type": "object",
+          "properties": {
+            "generatedAtValid": { "const": true }, "expiresAtValid": { "const": true },
+            "generatedBeforeExpiry": { "const": true }, "currentAtGeneration": { "const": true }, "windowMs": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "proofLadder": {
+          "type": "object",
+          "properties": {
+            "documented": { "const": true }, "implemented": { "const": true }, "tested": { "const": true },
+            "deployed": { "const": true }, "productionVerified": { "const": true }
+          }
+        },
+        "conflicts": { "type": "array", "maxItems": 0 }, "unknowns": { "type": "array", "maxItems": 0 }, "blockers": { "type": "array", "maxItems": 0 },
+        "pullRequests": { "type": "object", "properties": { "observedRegistryItems": { "const": 41 }, "exactHeadMatches": { "const": true } } },
+        "evidence": {
+          "type": "object",
+          "properties": {
+            "memory": {
+              "type": "object",
+              "properties": {
+                "ok": { "const": true }, "healthStatus": { "const": "projectos-connected" }, "contextState": { "const": "healthy" },
+                "fresh": { "const": true }, "approvedRecordIds": { "type": "array", "minItems": 1 }, "conflicts": { "type": "array", "maxItems": 0 }
+              }
+            },
+            "github": {
+              "type": "object",
+              "properties": {
+                "ok": { "const": true }, "triageInventoryCount": { "const": 41 }, "triageExactHeadMatches": { "const": true },
+                "exactIntegrationChecks": { "const": "success" }, "protectionHasExactCheckIdentities": { "const": true },
+                "protectedMainPolicyExact": { "const": true }, "trustedExternalReviewConfigured": { "const": true },
+                "trustedExternalReviewVerified": { "const": true },
+                "sourceArtifactProviderReadback": { "type": "object", "properties": { "verified": { "const": true } } },
+                "mobileArtifactProviderReadback": { "type": "object", "properties": { "verified": { "const": true } } }
+              }
+            },
+            "vercel": {
+              "type": "object",
+              "properties": {
+                "ok": { "const": true }, "providerReadback": { "const": true }, "gitRepository": { "const": "banataosystems/Pandoras-box" },
+                "deploymentId": { "type": "string", "minLength": 1 }, "rollbackDeploymentId": { "type": "string", "minLength": 1 },
+                "rollbackVerified": { "const": true }, "productionAlias": { "const": "mcpmaster.vercel.app" },
+                "productionAliasLiveRead": { "const": true }, "productionTarget": { "const": "production" }, "productionVerified": { "const": true }
+              }
+            },
+            "supabase": {
+              "type": "object",
+              "properties": {
+                "ok": { "const": true }, "projectStatus": { "const": "ACTIVE_HEALTHY" }, "managementApiVersionReadback": { "const": true },
+                "providerDatabaseReceiptReadback": { "const": true }, "sourceArtifactDatabaseReceiptPresent": { "const": true },
+                "sourceArtifactBoundToLiveVersions": { "const": true }, "exactAppliedBytesProven": { "const": false },
+                "providerReadback": { "const": false }, "migrationVersionParity": { "const": "match" },
+                "migrationByteParity": { "const": "not_provider_reconstructable" }, "migrationParity": { "const": "source_artifact_bound_to_live_versions" }
+              }
+            },
+            "android": {
+              "type": "object",
+              "properties": {
+                "ok": { "const": true }, "authority": { "const": "PHYSICAL_ANDROID_OBSERVER" },
+                "storageAuthority": { "const": "IMMUTABLE_PHYSICAL_ANDROID_RECEIPT" }, "providerReadback": { "const": true },
+                "wifi": { "type": "object", "properties": { "verified": { "const": true }, "network": { "const": "wifi" } } },
+                "mobileData": { "type": "object", "properties": { "verified": { "const": true }, "network": { "const": "mobile_data" } } }
+              }
+            },
+            "independentReview": { "type": "object", "properties": { "ok": { "const": true }, "verified": { "const": true }, "authority": { "const": "INDEPENDENT_REVIEWER" } } },
+            "ownerAuthorization": { "type": "object", "properties": { "ok": { "const": true }, "verified": { "const": true }, "authority": { "const": "OWNER_AUTHORIZATION" }, "aal": { "const": "aal2" } } }
+          }
+        },
+        "goals": {
+          "type": "array", "minItems": 6,
+          "prefixItems": [
+            { "type": "object", "properties": { "state": { "const": "complete" }, "blockers": { "type": "array", "maxItems": 0 } } },
+            { "type": "object", "properties": { "state": { "const": "complete" }, "blockers": { "type": "array", "maxItems": 0 } } },
+            { "type": "object", "properties": { "state": { "const": "complete" }, "blockers": { "type": "array", "maxItems": 0 } } },
+            { "type": "object", "properties": { "state": { "const": "complete" }, "blockers": { "type": "array", "maxItems": 0 } } },
+            { "type": "object", "properties": { "state": { "const": "complete" }, "blockers": { "type": "array", "maxItems": 0 } } },
+            { "type": "object", "properties": { "state": { "const": "ready" } } }
+          ]
+        }
+      }
+    }
+  }
+}

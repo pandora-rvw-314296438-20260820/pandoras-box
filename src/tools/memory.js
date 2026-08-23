@@ -8,6 +8,7 @@ const memory_governance_1 = require("./memory-governance");
 const memory_evidence_intake_1 = require("./memory-evidence-intake");
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_MAX_RESPONSE_BYTES = 500000;
+const DEFAULT_CANONICAL_MAX_AGE_MS = 86_400_000;
 const NamespaceSchema = zod_1.z.enum(['real_life', 'au']);
 const RuntimeConfigurationSchema = zod_1.z.object({
     baseUrl: zod_1.z.string().min(1),
@@ -33,7 +34,7 @@ const CanonicalContextArgsSchema = zod_1.z.object({
     currentTask: zod_1.z.string().trim().min(1).max(2000).optional(),
     maxItems: zod_1.z.number().int().min(1).max(50).default(25),
     /** Approved records older than this force a degraded result. */
-    maxAgeMs: zod_1.z.number().int().min(60000).optional(),
+    maxAgeMs: zod_1.z.number().int().min(60000).default(DEFAULT_CANONICAL_MAX_AGE_MS),
     /** Include unreviewed drafts in the response for reviewer inspection. */
     includeProposed: zod_1.z.boolean().default(false),
 });
@@ -291,7 +292,7 @@ exports.memoryTools = {
         },
     },
     'memory.canonicalContext': {
-        description: 'Recover governed canonical project context from Pandora Memory. Returns approved records only, surfaces unresolved conflicts, and fails closed to GitHub and Supabase when approved memory is unavailable or stale',
+        description: 'Recover governed canonical project context from Pandora Memory. Defaults to a 24-hour freshness gate, returns approved records only, surfaces unresolved conflicts, and fails closed to GitHub and Supabase when approved memory is unavailable or stale',
         parameters: {
             type: 'object',
             properties: {
@@ -316,7 +317,8 @@ exports.memoryTools = {
                 maxAgeMs: {
                     type: 'integer',
                     minimum: 60000,
-                    description: 'Approved records older than this force a degraded result',
+                    default: DEFAULT_CANONICAL_MAX_AGE_MS,
+                    description: 'Approved records older than this force a degraded result; defaults to 24 hours',
                 },
                 includeProposed: {
                     type: 'boolean',

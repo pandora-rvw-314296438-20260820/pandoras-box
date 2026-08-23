@@ -1,7 +1,7 @@
 name: pandora_mobile
 publish_to: none
-description: Canonical mobile operator client for Pandora / MCPMaster.
-version: 0.1.1+2
+description: Premium owner and admin control center for Pandora's Box.
+version: 0.3.0-rc.2+5
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -19,3 +19,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/brand/pandora-product-mark-ui-1024.png

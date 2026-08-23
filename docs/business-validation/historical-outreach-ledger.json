@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "1.0.0",
+  "authority": "historical_evidence_only",
+  "source": {
+    "pullRequest": 61,
+    "exactHead": "48dc181db42ed8459f604911b93a6339a1514059",
+    "path": "docs/business-validation/worker-8/W8-E002-outreach-register.csv",
+    "sha256": "aaabfeec0793988a2ae08a6bbbd63b7aaa407369c8121947b922fcc640406bfe",
+    "batchId": "W8-E002-B1",
+    "observedAt": "2026-08-19T22:59:05+08:00"
+  },
+  "summaryAtSnapshot": {
+    "attempted": 11,
+    "noImmediateHardBounceObserved": 10,
+    "hardBounceObserved": 1,
+    "replacementAttempts": 1,
+    "substantiveRepliesObserved": 0,
+    "completedInterviewsObserved": 0,
+    "offersObserved": 0,
+    "paymentsObserved": 0
+  },
+  "currentState": {
+    "replyState": "unverified_operator_observation_zero_substantive_replies",
+    "receiptState": "opaque_provider_receipt_not_persisted",
+    "offlineInterviewState": "unknown",
+    "gmailProviderReadbackAt": "2026-08-23T14:54:20.692Z",
+    "labeledThreadsRead": 11,
+    "outboundInvitationMessages": 11,
+    "automatedHardBounceResponses": 1,
+    "contactValidity": "must_revalidate_before_owner_authorized_followup",
+    "hardBounceRetry": "prohibited_without_new_verified_contact_route"
+  },
+  "records": [
+    {
+      "accountCode": "W8-TA-001",
+      "subsegment": "HVAC",
+      "outreachObservation": "INVITATION_SENT",
+      "deliveryObservation": "NO_HARD_BOUNCE_OBSERVED",
+      "interviewObservation": "AWAITING_SUBSTANTIVE_REPLY",
+      "evidenceLevel": "RESEARCH",
+      "providerEvidenceDigest": "c78074a9fce2e937f9003129a22fcadc198dbdd45fec572dea3b57572f07124a"
+    },
+    {
+      "accountCode": "W8-TA-004",
+      "subsegment": "pest_control_recurring_maintenance",
+      "outreachObservation": "INVITATION_SENT",
+      "deliveryObservation": "NO_HARD_BOUNCE_OBSERVED",
+      "interviewObservation": "AWAITING_SUBSTANTIVE_REPLY",
+      "evidenceLevel": "RESEARCH",
+      "providerEvidenceDigest": "d77184407ad47ae89eaa95bf1dab70ceeb8cea82f31dd815ef82a758ef569b4b"
+    },
+    {
+      "accountCode": "W8-TA-005",
+      "subsegment": "pest_control",
+      "outreachObservation": "INVITATION_SENT",
+      "deliveryObservation": "NO_HARD_BOUNCE_OBSERVED",
+      "interviewObservation": "AWAITING_SUBSTANTIVE_REPLY",
+      "evidenceLevel": "RESEARCH",
+      "providerEvidenceDigest": "08839d036f3cacb0dd4aafdf9d2ec174fc48f29370c272f06c5c5c4c9c25529d"
+    },
+    {
+      "accountCode": "W8-TA-006",
+      "subsegment": "pest_control",
+      "outreachObservation": "INVITATION_SENT",
+      "deliveryObservation": "NO_HARD_BOUNCE_OBSERVED",
+      "interviewObservation": "AWAITING_SUBSTANTIVE_REPLY",
+      "evidenceLevel": "RESEARCH",
+      "providerEvidenceDigest": "71eacc16a747f95775d2c9454c14a65f6b8a6e7d3c063c2a251884edc87e6af8"
+    },
+    {
+      "accountCode": "W8-TA-003",
+      "subsegment": "HVAC_refrigeration_appliance_repair",
+      "outreachObservation": "INVITATION_SENT",
+      "deliveryObservation": "NO_HARD_BOUNCE_OBSERVED",
+      "interviewObservation": "AWAITING_SUBSTANTIVE_REPLY",
+      "evidenceLevel": "RESEARCH",
+      "providerEvidenceDigest": "fd10901e30db8ae51cc6079b5d708b7882f666bfc99ed1d54de016cb8bc5b3b1"
+    },
+    {
+      "accountCode": "W8-TA-008",
+      "subsegment": "HVAC_refrigeration",
+      "outreachObservation": "INVITATION_SENT",
+      "deliveryObservation": "NO_HARD_BOUNCE_OBSERVED",
+      "interviewObservation": "AWAITING_SUBSTANTIVE_REPLY",
+      "evidenceLevel": "RESEARCH",
+      "providerEvidenceDigest": "d5a1c6c6e70f18d90b08fd2ba2e5bf3ba76b65d75b711d260d88aa596c1e8546"
+    },
+    {
+      "accountCode": "W8-TA-011",
+      "subsegment": "appliance_repair",
+      "outreachObservation": "INVITATION_FAILED",
+      "deliveryObservation": "HARD_BOUNCE_550_5_1_1",
+      "interviewObservation": "NOT_DELIVERED",
+      "evidenceLevel": "RESEARCH",
+      "providerEvidenceDigest": "dc234af7ba062d6fff004e4baaf0f5d7cd5ef5c92e9d3036ea9401cca48f750a"
+    },
+    {
+      "accountCode": "W8-TA-012",
+      "subsegment": "appliance_electronics_repair",
+      "outreachObservation": "INVITATION_SENT",
+      "deliveryObservation": "NO_HARD_BOUNCE_OBSERVED",
+      "interviewObservation": "AWAITING_SUBSTANTIVE_REPLY",
+      "evidenceLevel": "RESEARCH",
+      "providerEvidenceDigest": "7f58f0d0c31a1f7973b5bca9cf1a2581601e3ef0ecbc8ec99d160ed1a319e820"
+    },
+    {
+      "accountCode": "W8-TA-013",
+      "subsegment": "appliance_electronics_repair",
+      "outreachObservation": "INVITATION_SENT",
+      "deliveryObservation": "NO_HARD_BOUNCE_OBSERVED",
+      "interviewObservation": "AWAITING_SUBSTANTIVE_REPLY",
+      "evidenceLevel": "RESEARCH",
+      "providerEvidenceDigest": "6de143218010f9f947e8cc82e1a7974e465c61463420b7db42236da7e626cda1"
+    },
+    {
+      "accountCode": "W8-TA-014",
+      "subsegment": "waterproofing_retrofitting",
+      "outreachObservation": "INVITATION_SENT",
+      "deliveryObservation": "NO_HARD_BOUNCE_OBSERVED",
+      "interviewObservation": "AWAITING_SUBSTANTIVE_REPLY",
+      "evidenceLevel": "RESEARCH",
+      "providerEvidenceDigest": "58fb3aa7c096d33beecb3dce15a941ff8849e717f655088bb6ddc88174b9013c"
+    },
+    {
+      "accountCode": "W8-TA-015",
+      "subsegment": "refrigeration_air_conditioning",
+      "outreachObservation": "INVITATION_SENT",
+      "deliveryObservation": "NO_HARD_BOUNCE_OBSERVED",
+      "interviewObservation": "AWAITING_SUBSTANTIVE_REPLY",
+      "evidenceLevel": "RESEARCH",
+      "providerEvidenceDigest": "3bf6a2768b58c752a4c5dcf5b183ffdff237b7c7179f043b6b1b867ebfe50f0d"
+    }
+  ]
+}

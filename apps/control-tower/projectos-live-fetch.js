@@ -15,6 +15,7 @@ window.fetch = async function projectOSLiveFetch(input, init = {}) {
 
   const legacyStatusRequest = pathname === '/control-tower/projectos-status.json';
   const projectOSRequest = legacyStatusRequest
+    || pathname === '/api/operator/status'
     || pathname === '/api/projectos'
     || pathname === '/api/projectos-status';
 
@@ -28,7 +29,7 @@ window.fetch = async function projectOSLiveFetch(input, init = {}) {
   headers.set('accept', 'application/json');
   headers.delete('x-vercel-oidc-token');
 
-  const target = legacyStatusRequest ? '/api/projectos' : input;
+  const target = legacyStatusRequest ? '/api/operator/status' : input;
   return nativeFetch(target, {
     ...init,
     headers,

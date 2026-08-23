@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 
 const {
   EvidenceCandidateArgsSchema,
+  EVIDENCE_CANDIDATE_SUBMIT_SCOPE,
   submitEvidenceCandidate,
   IDEMPOTENCY_CONFLICT_CODE,
 } = require("../src/tools/memory-evidence-intake.js");
@@ -44,7 +45,7 @@ const config = {
   baseUrl: "https://pandorasbox-memory.vercel.app",
   oidcToken: "test-oidc-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
   allowedNamespaces: ["real_life"],
-  grantedScopes: ["memory:read", "memory:write"],
+  grantedScopes: ["memory:read", EVIDENCE_CANDIDATE_SUBMIT_SCOPE],
   allowMutations: true,
   timeoutMs: 1000,
   maxResponseBytes: 100000,
@@ -54,6 +55,7 @@ function successBody(overrides = {}) {
   return {
     ok: true,
     candidate_id: "11111111-1111-4111-8111-111111111111",
+    review_item_id: "22222222-2222-4222-8222-222222222222",
     status: "pending_review",
     idempotency_key: validArgs().idempotencyKey,
     namespace: "real_life",
@@ -62,8 +64,19 @@ function successBody(overrides = {}) {
     proof_stage: "tested",
     deduplicated: false,
     created_at: "2026-08-14T11:00:00Z",
+    canonical_memory_written: false,
+    privacy_policy: "metadata_only_v1",
     ...overrides,
   };
+}
+
+function assertResponseContractFailure(error) {
+  const failure = JSON.parse(error.message);
+  assert.equal(error.status, 502);
+  assert.equal(failure.safeErrorCode, "response_contract_error");
+  assert.equal(failure.validationCategory, "response_contract");
+  assert.equal(failure.retryable, false);
+  return true;
 }
 
 test("candidate schema requires a project identity and exact proof stage", () => {
@@ -74,13 +87,14 @@ test("candidate schema requires a project identity and exact proof stage", () =>
   assert.throws(() => EvidenceCandidateArgsSchema.parse({ ...validArgs(), summary: "x".repeat(1801) }));
 });
 
-test("memory tool and manifest expose governed write semantics", () => {
+test("memory tool and manifest expose candidate-scoped governed write semantics", () => {
   assert.ok(memoryTools["memory.submitEvidenceCandidate"]);
   const manifest = getToolManifest("memory.submitEvidenceCandidate");
   assert.equal(manifest.provider, "memory");
   assert.equal(manifest.risk, "write");
   assert.equal(manifest.mutation, true);
-  assert.deepEqual(manifest.requiredProviderScopes, ["memory:write"]);
+  assert.equal(EVIDENCE_CANDIDATE_SUBMIT_SCOPE, "memory:evidence-candidate:submit");
+  assert.deepEqual(manifest.requiredProviderScopes, [EVIDENCE_CANDIDATE_SUBMIT_SCOPE]);
 });
 
 test("submission is bounded, OIDC-authenticated, and remains pending review", async () => {
@@ -88,7 +102,7 @@ test("submission is bounded, OIDC-authenticated, and remains pending review", as
   const result = await submitEvidenceCandidate(validArgs(), config, async (url, init) => {
     observed = { url, init, body: JSON.parse(init.body) };
     return new Response(JSON.stringify(successBody()), {
-      status: 200,
+      status: 202,
       headers: { "content-type": "application/json" },
     });
   });
@@ -105,16 +119,16 @@ test("submission is bounded, OIDC-authenticated, and remains pending review", as
 });
 
 test("response identity and proof stage are bound to the submitted candidate", async () => {
-  for (const [name, override, pattern] of [
-    ["namespace", { namespace: "au" }, /namespace mismatch/],
-    ["proof stage", { proof_stage: "production_verified" }, /proof-stage mismatch/],
-    ["idempotency", { idempotency_key: "different-key-123456789" }, /idempotency mismatch/],
-    ["project key", { project_key: "memory" }, /project-key mismatch/],
+  for (const [name, override] of [
+    ["namespace", { namespace: "au" }],
+    ["proof stage", { proof_stage: "production_verified" }],
+    ["idempotency", { idempotency_key: "different-key-123456789" }],
+    ["project key", { project_key: "memory" }],
   ]) {
     await assert.rejects(
       () => submitEvidenceCandidate(validArgs(), config, async () =>
-        new Response(JSON.stringify(successBody(override)), { status: 200 })),
-      pattern,
+        new Response(JSON.stringify(successBody(override)), { status: 202 })),
+      assertResponseContractFailure,
       name,
     );
   }
@@ -150,45 +164,38 @@ test("server-resolved canonical project identity is returned once validated", as
 
 test("substituted or malformed canonical project identity fails closed", async () => {
   const withId = { ...validArgs(), projectId: CANONICAL_PROJECT_ID };
-  // projectId-only input, so the project_key equality gate is skipped and the
-  // canonical-format gate is the one under test.
   const { projectKey, ...idOnly } = withId;
-  for (const [name, args, override, pattern] of [
+  for (const [name, args, override] of [
     [
       "substituted project id",
       withId,
       { project_id: "43f619bb-ecc2-4a9a-bd56-424325eb81ac" },
-      /project-id mismatch/,
     ],
     [
       "missing canonical project id",
       validArgs(),
       { project_id: null },
-      /canonical project id is invalid/,
     ],
     [
       "malformed canonical project id",
       validArgs(),
       { project_id: "not-a-uuid" },
-      /canonical project id is invalid/,
     ],
     [
       "malformed canonical project key",
       idOnly,
       { project_key: "NOT A KEY" },
-      /canonical project key is invalid/,
     ],
     [
       "missing canonical project key",
       idOnly,
       { project_key: null },
-      /canonical project key is invalid/,
     ],
   ]) {
     await assert.rejects(
       () => submitEvidenceCandidate(args, config, async () =>
-        new Response(JSON.stringify(successBody(override)), { status: 200 })),
-      pattern,
+        new Response(JSON.stringify(successBody(override)), { status: 202 })),
+      assertResponseContractFailure,
       name,
     );
   }
@@ -223,6 +230,47 @@ test("backend 409 is classified as an explicit idempotency conflict", async () =
       `status ${status}`,
     );
   }
+});
+
+test("Memory marks only contract-proven rejections as pre-side-effect outcomes", async () => {
+  for (const [status, body] of [
+    [408, { ok: false, error: "provider_timeout" }],
+    [429, { ok: false, error: "provider_rate_limited" }],
+    [500, { ok: false, error: "provider_server_error" }],
+    [200, { ok: false, error: "evidence_candidate_invalid" }],
+  ]) {
+    await assert.rejects(
+      () => submitEvidenceCandidate(validArgs(), config, async () =>
+        new Response(JSON.stringify(body), { status })),
+      (error) => {
+        assert.equal(error.providerOutcome, "ambiguous", `HTTP ${status}`);
+        return true;
+      },
+    );
+  }
+
+  await assert.rejects(
+    () => submitEvidenceCandidate(validArgs(), config, async () =>
+      new Response(JSON.stringify({ ok: false, error: "evidence_candidate_invalid" }), {
+        status: 400,
+      })),
+    (error) => {
+      assert.equal(error.providerOutcome, "failed_before_side_effects");
+      return true;
+    },
+  );
+});
+
+test("a positive 2xx acknowledgement remains provider success when local response validation fails", async () => {
+  await assert.rejects(
+    () => submitEvidenceCandidate(validArgs(), config, async () =>
+      new Response(JSON.stringify({ ok: true, status: "malformed" }), { status: 200 })),
+    (error) => {
+      assert.equal(error.providerOutcome, "succeeded");
+      assertResponseContractFailure(error);
+      return true;
+    },
+  );
 });
 
 test("direct identifiers and credential signatures are rejected before network I/O", async () => {
@@ -265,22 +313,29 @@ test("privacy boundary rejects broader identifiers, secrets, nesting, and encode
   }
 });
 
-test("write scope is fail-closed and non-pending responses are rejected", async () => {
+test("candidate-submit scope is fail-closed and broad memory write alone is rejected", async () => {
   await assert.rejects(
     () => submitEvidenceCandidate(validArgs(), { ...config, grantedScopes: ["memory:read"] }, async () => {
       throw new Error("must not call");
     }),
-    /write scope is not granted/,
+    /evidence-candidate submit scope is not granted/,
+  );
+
+  await assert.rejects(
+    () => submitEvidenceCandidate(validArgs(), { ...config, grantedScopes: ["memory:write"] }, async () => {
+      throw new Error("must not call");
+    }),
+    /evidence-candidate submit scope is not granted/,
   );
 
   await assert.rejects(
     () => submitEvidenceCandidate(validArgs(), config, async () =>
       new Response(JSON.stringify({ ok: true, status: "hard_canon" }), { status: 200 })),
-    /did not remain pending review/,
+    assertResponseContractFailure,
   );
 });
 
-test("governed executeTool path is inert by default and works only with explicit mutation plus write scope", async () => {
+test("governed executeTool path requires explicit mutation plus candidate-submit scope", async () => {
   const toolConfig = { memory: { ...config } };
 
   await assert.rejects(
@@ -292,9 +347,9 @@ test("governed executeTool path is inert by default and works only with explicit
 
   await assert.rejects(
     () => executeTool("memory.submitEvidenceCandidate", validArgs(), {
-      memory: { ...config, grantedScopes: ["memory:read"] },
+      memory: { ...config, grantedScopes: ["memory:read", "memory:write"] },
     }),
-    /missing required scope.*memory:write/,
+    /missing required scope.*memory:evidence-candidate:submit/,
   );
 
   const originalFetch = globalThis.fetch;

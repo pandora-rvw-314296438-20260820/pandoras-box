@@ -79,10 +79,30 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260817145929_add_vercel_async_git_link_queue.sql',
     '20260820090000_add_pandora_outcome_lifecycle_contracts.sql',
     '20260821024500_projectos_owner_read_completion.sql',
+    '20260823143000_add_governed_owner_worker_dispatch.sql',
+    '20260823150000_add_safe_execution_terminal_outcomes.sql',
+    '20260823153000_harden_governed_worker_lease_and_key_binding.sql',
+    '20260823153552_canonical_release_status_readback.sql',
+    '20260823155000_add_governed_worker_reviewer_attestation.sql',
+    '20260823160000_add_canonical_release_attestations.sql',
+    '20260823163000_harden_execution_plan_context_immutability.sql',
+    '20260823164000_harden_governed_worker_validation_boundaries.sql',
+    '20260823170000_add_immutable_physical_android_receipts.sql',
+    '20260823171000_harden_owner_worker_external_authority.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820090000_add_pandora_outcome_lifecycle_contracts.sql',
     '20260821024500_projectos_owner_read_completion.sql',
+    '20260823143000_add_governed_owner_worker_dispatch.sql',
+    '20260823150000_add_safe_execution_terminal_outcomes.sql',
+    '20260823153000_harden_governed_worker_lease_and_key_binding.sql',
+    '20260823153552_canonical_release_status_readback.sql',
+    '20260823155000_add_governed_worker_reviewer_attestation.sql',
+    '20260823160000_add_canonical_release_attestations.sql',
+    '20260823163000_harden_execution_plan_context_immutability.sql',
+    '20260823164000_harden_governed_worker_validation_boundaries.sql',
+    '20260823170000_add_immutable_physical_android_receipts.sql',
+    '20260823171000_harden_owner_worker_external_authority.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(

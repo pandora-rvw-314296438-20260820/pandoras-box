@@ -168,3 +168,45 @@ test("missing own URL data fails closed without reading inherited or accessor UR
   assert.equal(inheritedUrlReads, 0);
   assert.equal(inheritedQueryReads, 0);
 });
+
+test("authenticated calls do not enumerate Vercel accessor-backed request state", async () => {
+  const trapped = trappedRequest({
+    method: "POST",
+    originalUrl: "/mcp",
+  });
+  trapped.request.headers.authorization = "Bearer test-token";
+  trapped.request.body = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "tools/list",
+    params: {},
+  };
+  const response = responseRecorder();
+  const authenticated = createProjectOsMcpHandler({
+    organizationId: ORGANIZATION_ID,
+    allowedOrigins: [RESOURCE_ORIGIN],
+    authenticator: {
+      async authenticate(header) {
+        assert.equal(header, "Bearer test-token");
+        return {
+          userId: "11111111-1111-4111-8111-111111111111",
+          accessToken: "test-token",
+          scopes: ["openid", "email", "profile"],
+        };
+      },
+    },
+    membershipResolver: {
+      async resolve(organizationId, userId) {
+        return { organizationId, userId, role: "owner" };
+      },
+    },
+    workloadToken: async () => "unused-workload-token",
+    ledger: {},
+  });
+
+  await authenticated(trapped.request, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.ok(Array.isArray(response.body.result.tools));
+  assert.deepEqual(trapped.reads(), { queryReads: 0, urlGetterReads: 0 });
+});

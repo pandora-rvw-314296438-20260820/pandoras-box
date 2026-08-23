@@ -4,13 +4,17 @@
   "framework": "express",
   "env": {
     "PANDORA_MEMORY_BASE_URL": "https://pandorasbox-memory.vercel.app",
-    "PANDORA_MEMORY_GRANTED_SCOPES": "memory:health,memory:read,memory:write",
+    "PANDORA_MEMORY_GRANTED_SCOPES": "memory:health,memory:read,memory:evidence-candidate:submit",
     "PANDORA_MEMORY_ALLOW_MUTATIONS": "true",
     "PROJECTOS_MCP_RESOURCE_ORIGIN": "https://mcpmaster.vercel.app",
     "MCPMASTER_GITHUB_ACCOUNT_ID": "github-primary",
     "FLUTTERFLOW_ACCOUNTS_JSON": "[{\"id\":\"pandora-mobile\",\"label\":\"Pandora Mobile (FlutterFlow)\",\"tokenEnv\":\"FLUTTERFLOW_API_TOKEN\",\"allowedProjectIds\":[\"pandoras-box-gj9hnb\"],\"grantedScopes\":[\"projects:read\",\"project_schema:read\"]}]"
   },
   "functions": {
+    "api/operator.ts": {
+      "includeFiles": ["supabase/migrations/**", "docs/status/**", "SOURCE_AUTHORITY_POLICY.json"],
+      "maxDuration": 60
+    },
     "api/oauth-consent.ts": {
       "includeFiles": "public/oauth/**",
       "maxDuration": 10
@@ -36,6 +40,8 @@
     }
   ],
   "rewrites": [
+    {"source": "/control-tower/projectos-status.json", "destination": "/api/operator/status"},
+    {"source": "/control-tower/release.json", "destination": "/api/operator/status"},
     {"source": "/", "destination": "/control-tower/index.html"},
     {"source": "/health", "destination": "/api/health"},
     {"source": "/mcp", "destination": "/api/mcp"},

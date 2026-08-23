@@ -1,0 +1,455 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/banataosystems/Pandoras-box/docs/releases/canonical/release-evidence.schema.json",
+  "title": "Canonical release evidence requirements",
+  "description": "A source-controlled requirements contract. It cannot issue provider, reviewer, owner, rollback, or physical-device proof.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "repository",
+    "releaseDecision",
+    "sourceAuthority",
+    "sourceBinding",
+    "vercel",
+    "supabase",
+    "requiredChecks",
+    "rollbackRehearsal",
+    "physicalJourney",
+    "independentReview",
+    "ownerAuthorization"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "kind": { "const": "canonical_release_evidence_requirements" },
+    "repository": { "const": "banataosystems/Pandoras-box" },
+    "releaseDecision": { "const": "not_ready" },
+    "sourceAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "describesRequirementsOnly",
+        "mayIssueProviderProof",
+        "mayIssueReviewerProof",
+        "mayIssueOwnerAuthorization",
+        "mayAuthorizeRelease"
+      ],
+      "properties": {
+        "authority": { "const": "SOURCE_CONTROLLED" },
+        "describesRequirementsOnly": { "const": true },
+        "mayIssueProviderProof": { "const": false },
+        "mayIssueReviewerProof": { "const": false },
+        "mayIssueOwnerAuthorization": { "const": false },
+        "mayAuthorizeRelease": { "const": false }
+      }
+    },
+    "sourceBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "required", "sourceSha", "treeSha", "status"],
+      "properties": {
+        "mode": { "const": "ci_exact_integration_sha" },
+        "required": { "const": true },
+        "sourceSha": { "type": "null" },
+        "treeSha": { "type": "null" },
+        "status": { "const": "pending_ci_binding" }
+      }
+    },
+    "vercel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "projectId", "productionAlias", "productionDeployment", "rollbackDeployment"],
+      "properties": {
+        "provider": { "const": "vercel" },
+        "projectId": { "const": "prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk" },
+        "productionAlias": { "const": "https://mcpmaster.vercel.app" },
+        "productionDeployment": { "$ref": "#/$defs/productionDeployment" },
+        "rollbackDeployment": { "$ref": "#/$defs/rollbackDeployment" }
+      }
+    },
+    "supabase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["projectRef", "sourceMigrationChain", "appliedMigrationChain"],
+      "properties": {
+        "projectRef": { "const": "jcyqixttuebxqqfkjonq" },
+        "sourceMigrationChain": { "$ref": "#/$defs/sourceMigrationChain" },
+        "appliedMigrationChain": { "$ref": "#/$defs/appliedMigrationChain" }
+      }
+    },
+    "requiredChecks": {
+      "type": "array",
+      "minItems": 5,
+      "prefixItems": [
+        { "$ref": "#/$defs/node24Check" },
+        { "$ref": "#/$defs/externalReviewCheck" },
+        { "$ref": "#/$defs/canonicalReleaseSourceContractCheck" },
+        { "$ref": "#/$defs/windowsWorkerContractCheck" },
+        { "$ref": "#/$defs/exactSourceFlutterAndroidCheck" }
+      ],
+      "items": false
+    },
+    "rollbackRehearsal": { "$ref": "#/$defs/rollbackRehearsal" },
+    "physicalJourney": { "$ref": "#/$defs/physicalJourney" },
+    "independentReview": { "$ref": "#/$defs/independentReview" },
+    "ownerAuthorization": { "$ref": "#/$defs/ownerAuthorization" }
+  },
+  "$defs": {
+    "pendingStatus": { "const": "pending_external_receipt" },
+    "nullReceipt": { "type": "null" },
+    "productionDeployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "requiredCount",
+        "target",
+        "bindToSourceSha",
+        "deploymentId",
+        "sourceSha",
+        "status",
+        "receipt"
+      ],
+      "properties": {
+        "authority": { "const": "VERCEL_PROVIDER" },
+        "requiredCount": { "const": 1 },
+        "target": { "const": "production" },
+        "bindToSourceSha": { "const": true },
+        "deploymentId": { "type": "null" },
+        "sourceSha": { "type": "null" },
+        "status": { "$ref": "#/$defs/pendingStatus" },
+        "receipt": { "$ref": "#/$defs/nullReceipt" }
+      }
+    },
+    "rollbackDeployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "mustDifferFromProduction",
+        "providerReadRequired",
+        "deploymentId",
+        "sourceSha",
+        "status",
+        "receipt"
+      ],
+      "properties": {
+        "authority": { "const": "VERCEL_PROVIDER" },
+        "mustDifferFromProduction": { "const": true },
+        "providerReadRequired": { "const": true },
+        "deploymentId": { "type": "null" },
+        "sourceSha": { "type": "null" },
+        "status": { "$ref": "#/$defs/pendingStatus" },
+        "receipt": { "$ref": "#/$defs/nullReceipt" }
+      }
+    },
+    "sourceMigrationChain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "orderedMigrations",
+        "sourceChainSha256",
+        "expectedAppliedChainSha256",
+        "status"
+      ],
+      "properties": {
+        "mode": { "const": "computed_in_ci" },
+        "orderedMigrations": { "type": "null" },
+        "sourceChainSha256": { "type": "null" },
+        "expectedAppliedChainSha256": { "type": "null" },
+        "status": { "const": "pending_ci_binding" }
+      }
+    },
+    "appliedMigrationChain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "exactOrderedMatchRequired",
+        "orderedVersions",
+        "appliedChainSha256",
+        "status",
+        "receipt"
+      ],
+      "properties": {
+        "authority": { "const": "SUPABASE_PROVIDER" },
+        "exactOrderedMatchRequired": { "const": true },
+        "orderedVersions": { "type": "null" },
+        "appliedChainSha256": { "type": "null" },
+        "status": { "$ref": "#/$defs/pendingStatus" },
+        "receipt": { "$ref": "#/$defs/nullReceipt" }
+      }
+    },
+    "repositoryCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "authority", "producer", "command", "status", "receipt"],
+      "properties": {
+        "name": { "type": "string" },
+        "authority": { "const": "GITHUB_ACTIONS_PROVIDER" },
+        "producer": { "const": "repository_workflow" },
+        "command": { "type": "string", "minLength": 1 },
+        "status": { "$ref": "#/$defs/pendingStatus" },
+        "receipt": { "$ref": "#/$defs/nullReceipt" }
+      }
+    },
+    "node24Check": {
+      "allOf": [
+        { "$ref": "#/$defs/repositoryCheck" },
+        {
+          "type": "object",
+          "properties": {
+            "name": { "const": "node24" },
+            "command": { "const": "npm run check && npm test && npm audit --omit=dev --audit-level=high" }
+          }
+        }
+      ]
+    },
+    "externalReviewCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "authority", "producer", "command", "status", "receipt"],
+      "properties": {
+        "name": { "const": "external-review" },
+        "authority": { "const": "TRUSTED_EXTERNAL_REVIEW_PROVIDER" },
+        "producer": { "const": "unconfigured" },
+        "command": { "type": "null" },
+        "status": { "$ref": "#/$defs/pendingStatus" },
+        "receipt": { "$ref": "#/$defs/nullReceipt" }
+      }
+    },
+    "canonicalReleaseSourceContractCheck": {
+      "allOf": [
+        { "$ref": "#/$defs/repositoryCheck" },
+        {
+          "type": "object",
+          "properties": {
+            "name": { "const": "canonical-release-source-contract" },
+            "command": { "const": "node scripts/verify-canonical-release-evidence.mjs --mode repository && node --test test/canonical-release-evidence.test.js && npm run check && npm test && npm audit --omit=dev --audit-level=high && npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts" }
+          }
+        }
+      ]
+    },
+    "windowsWorkerContractCheck": {
+      "allOf": [
+        { "$ref": "#/$defs/repositoryCheck" },
+        {
+          "type": "object",
+          "properties": {
+            "name": { "const": "Windows worker contract" },
+            "command": { "const": "npm run test:worker" }
+          }
+        }
+      ]
+    },
+    "exactSourceFlutterAndroidCheck": {
+      "allOf": [
+        { "$ref": "#/$defs/repositoryCheck" },
+        {
+          "type": "object",
+          "properties": {
+            "name": { "const": "Exact source / Flutter / Android" },
+            "command": { "const": "python3 -m unittest discover -s apps/pandora-mobile/tool -p 'test_*.py' && dart format --output=none --set-exit-if-changed lib test && flutter analyze && flutter test --reporter expanded && flutter build web --release && flutter build apk --debug" }
+          }
+        }
+      ]
+    },
+    "rollbackRehearsal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "environment",
+        "providerReadRequired",
+        "candidateDeploymentId",
+        "rollbackDeploymentId",
+        "distinctDeploymentsRequired",
+        "requiredSequence",
+        "requiredRouteProbes",
+        "restorationRequired",
+        "status",
+        "receipt"
+      ],
+      "properties": {
+        "authority": { "const": "VERCEL_PROVIDER" },
+        "environment": { "const": "production_alias" },
+        "providerReadRequired": { "const": true },
+        "candidateDeploymentId": { "type": "null" },
+        "rollbackDeploymentId": { "type": "null" },
+        "distinctDeploymentsRequired": { "const": true },
+        "requiredSequence": {
+          "type": "array",
+          "minItems": 5,
+          "prefixItems": [
+            { "const": "record_candidate_deployment" },
+            { "const": "transition_to_rollback_deployment" },
+            { "const": "verify_rollback_routes" },
+            { "const": "restore_candidate_deployment" },
+            { "const": "verify_restored_routes" }
+          ],
+          "items": false
+        },
+        "requiredRouteProbes": {
+          "type": "array",
+          "minItems": 3,
+          "prefixItems": [
+            { "$ref": "#/$defs/healthProbe" },
+            { "$ref": "#/$defs/mcpBoundaryProbe" },
+            { "$ref": "#/$defs/oauthMetadataProbe" }
+          ],
+          "items": false
+        },
+        "restorationRequired": { "const": true },
+        "status": { "$ref": "#/$defs/pendingStatus" },
+        "receipt": { "$ref": "#/$defs/nullReceipt" }
+      }
+    },
+    "healthProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["route", "methods", "expectedStatuses", "semanticContract"],
+      "properties": {
+        "route": { "const": "/health" },
+        "methods": { "const": ["GET"] },
+        "expectedStatuses": { "const": [200] },
+        "semanticContract": { "const": "healthy_json" }
+      }
+    },
+    "mcpBoundaryProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["route", "methods", "expectedStatuses", "semanticContract"],
+      "properties": {
+        "route": { "const": "/mcp" },
+        "methods": { "const": ["GET", "POST"] },
+        "expectedStatuses": { "const": [401] },
+        "semanticContract": { "const": "unauthenticated_bearer_boundary" }
+      }
+    },
+    "oauthMetadataProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["route", "methods", "expectedStatuses", "semanticContract"],
+      "properties": {
+        "route": { "const": "/.well-known/oauth-protected-resource/mcp" },
+        "methods": { "const": ["GET"] },
+        "expectedStatuses": { "const": [200] },
+        "semanticContract": { "const": "oauth_resource_metadata" }
+      }
+    },
+    "physicalJourney": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "sameBuildAcrossNetworks", "mustFollowRollbackRestoration", "bindTo", "requiredSteps", "runs"],
+      "properties": {
+        "platform": { "const": "physical_android" },
+        "sameBuildAcrossNetworks": { "const": true },
+        "mustFollowRollbackRestoration": { "const": true },
+        "bindTo": {
+          "type": "array",
+          "minItems": 8,
+          "prefixItems": [
+            { "const": "source_sha" },
+            { "const": "source_tree_sha" },
+            { "const": "production_deployment_id" },
+            { "const": "rollback_restoration_receipt_sha256" },
+            { "const": "rollback_restoration_completed_at" },
+            { "const": "android_artifact_sha256" },
+            { "const": "github_android_artifact_digest_sha256" },
+            { "const": "production_origin" }
+          ],
+          "items": false
+        },
+        "requiredSteps": {
+          "type": "array",
+          "minItems": 6,
+          "prefixItems": [
+            { "const": "owner_authenticate" },
+            { "const": "submit_owner_command" },
+            { "const": "observe_durable_dispatch" },
+            { "const": "observe_worker_01_claim" },
+            { "const": "observe_exact_provider_result" },
+            { "const": "observe_proof_in_owner_read" }
+          ],
+          "items": false
+        },
+        "runs": {
+          "type": "array",
+          "minItems": 2,
+          "prefixItems": [
+            { "$ref": "#/$defs/wifiJourneyRun" },
+            { "$ref": "#/$defs/mobileDataJourneyRun" }
+          ],
+          "items": false
+        }
+      }
+    },
+    "wifiJourneyRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network", "authority", "status", "receipt"],
+      "properties": {
+        "network": { "const": "wifi" },
+        "authority": { "const": "PHYSICAL_ANDROID_OBSERVER" },
+        "status": { "$ref": "#/$defs/pendingStatus" },
+        "receipt": { "$ref": "#/$defs/nullReceipt" }
+      }
+    },
+    "mobileDataJourneyRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network", "authority", "status", "receipt"],
+      "properties": {
+        "network": { "const": "mobile_data" },
+        "authority": { "const": "PHYSICAL_ANDROID_OBSERVER" },
+        "status": { "$ref": "#/$defs/pendingStatus" },
+        "receipt": { "$ref": "#/$defs/nullReceipt" }
+      }
+    },
+    "independentReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "bindTo", "status", "receipt"],
+      "properties": {
+        "authority": { "const": "INDEPENDENT_REVIEWER" },
+        "bindTo": {
+          "type": "array",
+          "minItems": 5,
+          "prefixItems": [
+            { "const": "source_sha" },
+            { "const": "source_tree_sha" },
+            { "const": "production_deployment_id" },
+            { "const": "rollback_deployment_id" },
+            { "const": "supabase_migration_chain_sha256" }
+          ],
+          "items": false
+        },
+        "status": { "$ref": "#/$defs/pendingStatus" },
+        "receipt": { "$ref": "#/$defs/nullReceipt" }
+      }
+    },
+    "ownerAuthorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authority", "bindTo", "status", "receipt"],
+      "properties": {
+        "authority": { "const": "OWNER_AUTHORIZATION" },
+        "bindTo": {
+          "type": "array",
+          "minItems": 3,
+          "prefixItems": [
+            { "const": "source_sha" },
+            { "const": "production_deployment_id" },
+            { "const": "review_receipt_sha256" }
+          ],
+          "items": false
+        },
+        "status": { "$ref": "#/$defs/pendingStatus" },
+        "receipt": { "$ref": "#/$defs/nullReceipt" }
+      }
+    }
+  }
+}

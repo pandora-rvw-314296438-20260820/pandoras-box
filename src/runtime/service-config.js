@@ -291,10 +291,11 @@ function memoryScopes() {
         : ['memory:health', 'memory:read'];
     const invalid = scopes.filter((scope) => scope !== 'memory:health'
         && scope !== 'memory:read'
-        && scope !== 'memory:write');
+        && scope !== 'memory:write'
+        && scope !== 'memory:evidence-candidate:submit');
     if (invalid.length > 0) {
         throw new MissingConfigurationError('memory', [
-            'valid PANDORA_MEMORY_GRANTED_SCOPES (memory:health,memory:read,memory:write)',
+            'valid PANDORA_MEMORY_GRANTED_SCOPES (memory:health,memory:read,memory:write,memory:evidence-candidate:submit)',
         ]);
     }
     return scopes;

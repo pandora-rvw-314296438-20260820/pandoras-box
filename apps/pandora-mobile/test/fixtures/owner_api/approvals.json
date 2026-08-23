@@ -1,0 +1,17 @@
+[
+  {
+    "id": "approval-fixture-1",
+    "projectId": "project-fixture-1",
+    "whatWillHappen": "Publish a reviewed candidate",
+    "whyINeedYou": "An owner decision is required.",
+    "whatWillChange": "The release alias would move.",
+    "whatCouldGoWrong": "The candidate could regress.",
+    "howWeCanUndoIt": "Restore the prior alias.",
+    "riskLevel": "HIGH",
+    "reversible": true,
+    "extraIdentityCheckRequired": false,
+    "decision": "pending",
+    "expiresAt": "2030-08-14T01:00:00Z",
+    "createdAt": "2026-08-14T01:00:00Z"
+  }
+]

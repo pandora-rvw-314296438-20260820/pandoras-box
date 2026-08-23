@@ -1,0 +1,14 @@
+{
+  "state": "protected",
+  "plainStatus": "Protected",
+  "policy": {
+    "mandatory_control_layer": true,
+    "require_owner_release_approval": true
+  },
+  "integrations": [],
+  "auditIntegrity": {
+    "valid": true,
+    "checkedAt": "2026-08-14T01:00:00Z"
+  },
+  "mfaRequiredForApproval": false
+}

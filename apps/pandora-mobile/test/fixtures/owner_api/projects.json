@@ -1,0 +1,16 @@
+[
+  {
+    "id": "project-fixture-1",
+    "name": "Pandora Mobile",
+    "plainPurpose": "A private owner control surface.",
+    "phase": "Foundation",
+    "progressPercent": 42,
+    "progressVerified": false,
+    "plainStatus": "active",
+    "whatIsStoppingUs": null,
+    "whatIWillDoNext": "Verify the exact candidate.",
+    "repository": "example/pandora",
+    "dataFreshness": "fresh",
+    "lastVerifiedAt": "2026-08-14T01:00:00Z"
+  }
+]

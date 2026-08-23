@@ -4,6 +4,8 @@ import { loadOperatorPublicConfig } from '../src/operator-public-config.js';
 import { SupabaseBearerAuthenticator } from '../apps/meta-business-mcp/src/auth/supabase-bearer.js';
 import { SupabaseOrganizationMembershipResolver } from '../apps/meta-business-mcp/src/auth/membership.js';
 import { createOperatorApiApp } from '../apps/meta-business-mcp/src/operator/api.js';
+import { createCanonicalStatusProviderFromEnvironment } from '../src/projectos/canonical-status-provider.js';
+import { WorkerPlanContextProvider } from '../src/projectos/worker-plan-context-provider.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
 
@@ -20,6 +22,8 @@ function runtime() {
     supabaseUrl: publicConfig.supabaseUrl,
     publishableKey: publicConfig.supabasePublishableKey,
   });
+  const statusProvider = createCanonicalStatusProviderFromEnvironment();
+  const workerContextProvider = new WorkerPlanContextProvider();
   app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -28,12 +32,23 @@ function runtime() {
     ...publicConfig,
     authenticator,
     membershipResolver,
+    statusProvider,
+    workerContextProvider,
     runtimeFactory: (embeddedConfig: unknown) => createHttpApp(embeddedConfig as any),
   }));
   return app;
 }
 
 export default function operator(request: any, response: any) {
+  const platformOidc = process.env.VERCEL === '1'
+    ? request.headers?.['x-vercel-oidc-token']
+    : undefined;
+  Object.defineProperty(request, '__canonicalVercelOidcToken', {
+    configurable: false,
+    enumerable: false,
+    writable: false,
+    value: typeof platformOidc === 'string' ? platformOidc : undefined,
+  });
   request.url = String(request.url || '/').replace(/^\/api\/operator(?=\/|\?|$)/, '') || '/';
   return runtime()(request, response);
 }

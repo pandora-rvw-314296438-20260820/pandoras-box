@@ -241,6 +241,10 @@ function deriveProjects() {
 function readiness(candidate) {
   return Boolean(
     candidate.projection
+    && candidate.projection.authoritative === true
+    && candidate.projection.status === 'current'
+    && Number.isFinite(Date.parse(candidate.projection.expiresAt || ''))
+    && Date.parse(candidate.projection.expiresAt) > Date.now()
     && candidate.health?.status === 'healthy'
     && candidate.health.protectedRoutesConfigured === true
     && candidate.health.durableLedgerConfigured === true

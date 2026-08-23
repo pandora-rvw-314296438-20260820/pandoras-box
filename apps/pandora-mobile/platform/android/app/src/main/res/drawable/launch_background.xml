@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Porcelain splash. The generated template hardcodes @android:color/white in
+  both light and dark, which produces a white flash before a black window in
+  dark mode. Using the canvas token keeps the first frame continuous.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/pandora_canvas" />
+</layer-list>

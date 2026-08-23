@@ -1,0 +1,5 @@
+{
+  "code": "FIXTURE_CONFLICT",
+  "plainMessage": "That item changed before Pandora could continue.",
+  "requestId": "request-fixture-1"
+}

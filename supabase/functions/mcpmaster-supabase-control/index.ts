@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "npm:jose@5.10.0";
+import { routeForCanonicalReleaseCapture } from "./canonical-release-capture-routes.mjs";
 import { assertProductionVercelClaims } from "./identity-policy.mjs";
 
 const CONTROL_ORGANIZATION_ID = "2270b266-59da-4c39-bfd9-9f8d08352af0";
@@ -21,7 +22,10 @@ type ControlRpc =
   | "get_projectos_checkpoint"
   | "list_projectos_events"
   | "verify_projectos_event_chain"
-  | "consume_runtime_rate_limit";
+  | "consume_runtime_rate_limit"
+  | "get_canonical_release_status"
+  | "capture_canonical_supabase_release_receipt"
+  | "capture_canonical_vercel_rehearsal_receipt";
 
 type ControlAction =
   | "catalog"
@@ -38,7 +42,10 @@ type ControlAction =
   | "projectos_checkpoint_get"
   | "projectos_event_list"
   | "projectos_event_verify"
-  | "runtime_rate_limit_consume";
+  | "runtime_rate_limit_consume"
+  | "canonical_release_status"
+  | "canonical_supabase_receipt_capture"
+  | "canonical_vercel_rehearsal_capture";
 
 interface ControlRoute {
   action: ControlAction;
@@ -52,7 +59,10 @@ interface ControlRoute {
     | "checkpoint"
     | "events"
     | "verification"
-    | "rateLimit";
+    | "rateLimit"
+    | "releaseEvidence"
+    | "supabaseReceipt"
+    | "vercelRehearsalReceipt";
 }
 
 function response(status: number, body: Record<string, unknown>): Response {
@@ -185,6 +195,9 @@ function requiredInteger(
 }
 
 function routeForInput(input: Record<string, unknown>): ControlRoute | undefined {
+  const canonicalCapture = routeForCanonicalReleaseCapture(input);
+  if (canonicalCapture) return canonicalCapture as ControlRoute;
+
   if (input.action === "catalog") {
     return {
       action: "catalog",
@@ -413,6 +426,25 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     };
   }
 
+  if (input.action === "canonical_release_status") {
+    const repository = requiredString(input, "repository");
+    const sourceSha = requiredString(input, "sourceSha");
+    if (
+      repository !== "banataosystems/Pandoras-box"
+      || !sourceSha
+      || !/^[0-9a-f]{40}$/.test(sourceSha)
+    ) return undefined;
+    return {
+      action: "canonical_release_status",
+      rpc: "get_canonical_release_status",
+      responseKey: "releaseEvidence",
+      params: {
+        p_repository: repository,
+        p_source_sha: sourceSha,
+      },
+    };
+  }
+
   return undefined;
 }
 
@@ -458,11 +490,21 @@ Deno.serve(async (request: Request) => {
       return response(200, { ok: true, accounts: payload });
     }
 
-    if (route.responseKey === "checkpoint") {
+    if (
+      route.responseKey === "checkpoint"
+      || route.responseKey === "releaseEvidence"
+    ) {
       if (payload !== null && (!payload || typeof payload !== "object" || Array.isArray(payload))) {
         return response(502, { ok: false, error: "control_operation_unavailable" });
       }
-      return response(200, { ok: true, checkpoint: payload });
+      return response(200, { ok: true, [route.responseKey]: payload });
+    }
+
+    if (route.responseKey === "supabaseReceipt" || route.responseKey === "vercelRehearsalReceipt") {
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+        return response(502, { ok: false, error: "control_operation_unavailable" });
+      }
+      return response(200, { ok: true, [route.responseKey]: payload });
     }
 
     if (route.responseKey === "events" || route.responseKey === "plans") {

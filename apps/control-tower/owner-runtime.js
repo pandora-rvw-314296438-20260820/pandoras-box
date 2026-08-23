@@ -21,11 +21,11 @@ async function request(path, options = {}) {
 }
 
 async function loadProjection() {
-  const response = await fetch('/control-tower/projectos-status.json', {
+  const response = await fetch('/api/operator/status', {
     credentials: 'same-origin', cache: 'no-store', headers: { accept: 'application/json' },
   });
   const projection = await response.json().catch(() => null);
-  if (!response.ok || projection?.schemaVersion !== '1.0.0' || !Array.isArray(projection?.tasks)) {
+  if (![200, 503].includes(response.status) || projection?.schemaVersion !== '1.0.0' || !Array.isArray(projection?.tasks)) {
     throw new Error('The current project status is unavailable');
   }
   return projection;

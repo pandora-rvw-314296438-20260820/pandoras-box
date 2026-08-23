@@ -1,9 +1,0 @@
-{
-  "release": "owner-first-header-render-hotfix",
-  "issue": 153,
-  "pullRequest": 154,
-  "reviewedHead": "cafc49dc596ccfbf01a47c99af45e83834c3ff93",
-  "mergedSourceCommit": "501b55430e94756d95aadba0644a6266379918aa",
-  "releaseTriggerIssue": 155,
-  "requestedAt": "2026-08-06T13:46:59Z"
-}

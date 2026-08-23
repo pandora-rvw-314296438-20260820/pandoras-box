@@ -4,10 +4,12 @@
 **Effective date:** 2026-08-08  
 **Canonical repository:** `banataosystems/Pandoras-box`  
 **Canonical project key:** `mcpmaster-pandoras-box`  
-**Instruction status:** Canonical active-project instruction; source recovery incomplete  
+**Instruction status:** Canonical mission and governance; dated operational sections historical
 **Portfolio contract:** `BANATAO_25000_BUSINESSES_MASTER_INSTRUCTION.md` in `banataosystems/Pandoras-box`
 
 ---
+
+> **Operational-status notice:** The dated state, roadmap, and immediate-action sections below are preserved as historical 2026-08-08 context. They are not a current status surface or work queue. Current operational truth must come from authenticated `/api/operator/status`.
 
 ## 1. Mission
 
@@ -17,7 +19,9 @@ Operate as the governed execution control plane for the entire Banatao Systems p
 
 This is the portfolio nervous system. It must schedule and verify the work that makes 25,000 personalized business systems possible, while preventing mass automation from turning into mass misinformation, security exposure, uncontrolled spending, or unreviewed production changes.
 
-## 3. Current verified state
+## 3. Historical verified-state snapshot (2026-08-08)
+
+Historical only; do not use this section as current operational truth. Read authenticated `/api/operator/status` for the current state.
 
 As of 2026-08-08, the running Vercel MCPMaster system exists and the Memory workload identity/grant are recorded, but the ChatGPT/Pandora MCP machine endpoint is intercepted by Vercel Authentication and returns HTTP 401 before application code executes. The new GitHub repository is a recovery target, not yet a complete source recovery. Existing production, candidate, audit, and rollback evidence must be preserved during recovery.
 
@@ -79,9 +83,11 @@ Fail closed. Require workload identity, scoped project grants, authenticated own
 
 ## 11. Dependencies and integration boundaries
 
-Pandora Memory is the operating source of truth; GitHub is the source mirror; Vercel hosts MCPMaster; Supabase MCPMaster Meta holds control-plane state. Provider adapters must never receive broader scopes than required. The 25K program may depend on ProjectOS for orchestration but public business runtimes may not.
+Authenticated `/api/operator/status` is the current operational-status authority. Pandora Memory provides governed planning and learning context; GitHub is the source mirror; Vercel hosts MCPMaster; Supabase MCPMaster Meta holds control-plane state. Provider adapters must never receive broader scopes than required. The 25K program may depend on ProjectOS for orchestration but public business runtimes may not.
 
-## 12. Dependency-ordered roadmap
+## 12. Historical dependency-ordered roadmap (2026-08-08)
+
+Historical planning context only. It does not supersede the current authenticated status pack or establish today’s execution order.
 
 ### Phase 0 — Restore machine connectivity
 Remove the unintended Vercel Authentication interception from the machine-only MCP route or establish a supported protection-bypass endpoint; verify correct-principal health/search and wrong-principal denial.
@@ -124,10 +130,12 @@ For every durable instruction, roadmap, architecture change, release manifest, o
 
 Proceed with safe, reversible, no-cost connected work without asking the owner to use a desktop, terminal, CLI, local repository, or developer console. Stop only for missing permission/credential, new spending, destructive production/data action, public/legal/contractual commitment, regulated activation, non-preauthorized production release, or unavoidable external confirmation.
 
-## 16. Immediate highest-value safe action
+## 16. Historical immediate highest-value safe action (2026-08-08)
+
+Historical action only; it is not the current next action unless authenticated `/api/operator/status` independently confirms it.
 
 Repair `MCP-PANDORA-CONNECTION-001` at the Vercel protection boundary, then verify positive and negative identity paths before using the connector to write or report project state.
 
-## 17. Required status report
+## 17. Current status reporting rule
 
-After substantial work, update Pandora Memory first and report: **What changed · Evidence · Current phase · Done · In progress · Blocked · Risks · Next autonomous action.**
+After substantial work, retrieve authenticated `/api/operator/status` and report: **What changed · Evidence · Current phase · Done · In progress · Blocked · Risks · Next autonomous action.** Pandora Memory may retain governed context and learning, but it must not supersede the authenticated operational status pack.

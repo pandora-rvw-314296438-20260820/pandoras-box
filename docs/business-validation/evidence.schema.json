@@ -1,0 +1,587 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://banataosystems.example/schemas/business-validation-evidence-v1.json",
+  "title": "Pandora privacy-safe interview and paid-pilot evidence",
+  "description": "Raw transcripts, message bodies, contact details, names, credentials, customer records, financial documents, and confidential workflow content are prohibited.",
+  "oneOf": [
+    { "$ref": "#/$defs/interview" },
+    { "$ref": "#/$defs/pilot" }
+  ],
+  "$defs": {
+    "opaqueEvidenceRef": {
+      "type": "string",
+      "maxLength": 160,
+      "pattern": "^(sha256:[0-9a-f]{64}|provider-evidence:[0-9a-f]{64}|approved-store:[A-Za-z0-9][A-Za-z0-9._-]{0,127})$"
+    },
+    "providerBackedEvidenceRef": {
+      "type": "string",
+      "maxLength": 82,
+      "pattern": "^provider-evidence:[0-9a-f]{64}$"
+    },
+    "sha40": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "deploymentBinding": {
+      "type": "string",
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$"
+    },
+    "canonicalCheckReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "authority", "conclusion", "sourceSha", "checkRunId", "checkSuiteId", "appId", "providerEvidenceRef"],
+      "properties": {
+        "name": {
+          "enum": ["node24", "external-review", "canonical-release-source-contract", "Windows worker contract", "Exact source / Flutter / Android"]
+        },
+        "authority": { "enum": ["GITHUB_ACTIONS_PROVIDER", "TRUSTED_EXTERNAL_REVIEW_PROVIDER"] },
+        "conclusion": { "const": "success" },
+        "sourceSha": { "$ref": "#/$defs/sha40" },
+        "checkRunId": { "type": "integer", "minimum": 1 },
+        "checkSuiteId": { "type": "integer", "minimum": 1 },
+        "appId": { "type": "integer", "minimum": 1 },
+        "providerEvidenceRef": { "$ref": "#/$defs/providerBackedEvidenceRef" }
+      }
+    },
+    "physicalJourneyRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network", "receiptId", "receiptSha256", "sourceSha", "sourceTreeSha", "productionDeploymentId", "restorationReceiptId", "apkSha256", "observedAt", "capturedAt"],
+      "properties": {
+        "network": { "enum": ["wifi", "mobile_data"] },
+        "receiptId": { "$ref": "#/$defs/uuid" },
+        "receiptSha256": { "$ref": "#/$defs/sha256" },
+        "sourceSha": { "$ref": "#/$defs/sha40" },
+        "sourceTreeSha": { "$ref": "#/$defs/sha40" },
+        "productionDeploymentId": { "$ref": "#/$defs/deploymentBinding" },
+        "restorationReceiptId": { "$ref": "#/$defs/uuid" },
+        "apkSha256": { "$ref": "#/$defs/sha256" },
+        "observedAt": { "type": "string", "format": "date-time" },
+        "capturedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "canonicalStatusReleaseReceipt": {
+      "type": "object",
+      "description": "A bounded projection of one authenticated canonical status response. Shape and hashes are insufficient: the runtime validator must independently verify this receipt against the authenticated status authority.",
+      "additionalProperties": false,
+      "required": ["receiptId", "authority", "providerEvidenceRef", "receiptSha256", "payload"],
+      "properties": {
+        "receiptId": { "$ref": "#/$defs/uuid" },
+        "authority": { "const": "AUTHENTICATED_CANONICAL_STATUS" },
+        "providerEvidenceRef": { "$ref": "#/$defs/providerBackedEvidenceRef" },
+        "receiptSha256": { "$ref": "#/$defs/sha256" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "kind", "authoritative", "status", "verifiedAt", "capturedAt", "expiresAt", "source", "requiredChecks", "independentReview", "productionDeployment", "rollbackRehearsal", "supabaseMigrationChain", "androidArtifact", "physicalJourney"],
+          "properties": {
+            "schemaVersion": { "const": "1.0.0" },
+            "kind": { "const": "canonical_status_release_receipt" },
+            "authoritative": { "const": true },
+            "status": { "const": "current" },
+            "verifiedAt": { "type": "string", "format": "date-time" },
+            "capturedAt": { "type": "string", "format": "date-time" },
+            "expiresAt": { "type": "string", "format": "date-time" },
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["repository", "branch", "sha", "treeSha"],
+              "properties": {
+                "repository": { "const": "banataosystems/Pandoras-box" },
+                "branch": { "const": "main" },
+                "sha": { "$ref": "#/$defs/sha40" },
+                "treeSha": { "$ref": "#/$defs/sha40" }
+              }
+            },
+            "requiredChecks": {
+              "type": "array",
+              "minItems": 5,
+              "maxItems": 5,
+              "items": false,
+              "prefixItems": [
+                {
+                  "allOf": [
+                    { "$ref": "#/$defs/canonicalCheckReceipt" },
+                    { "properties": { "name": { "const": "node24" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
+                  ]
+                },
+                {
+                  "allOf": [
+                    { "$ref": "#/$defs/canonicalCheckReceipt" },
+                    { "properties": { "name": { "const": "external-review" }, "authority": { "const": "TRUSTED_EXTERNAL_REVIEW_PROVIDER" }, "appId": { "not": { "const": 15368 } } } }
+                  ]
+                },
+                {
+                  "allOf": [
+                    { "$ref": "#/$defs/canonicalCheckReceipt" },
+                    { "properties": { "name": { "const": "canonical-release-source-contract" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
+                  ]
+                },
+                {
+                  "allOf": [
+                    { "$ref": "#/$defs/canonicalCheckReceipt" },
+                    { "properties": { "name": { "const": "Windows worker contract" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
+                  ]
+                },
+                {
+                  "allOf": [
+                    { "$ref": "#/$defs/canonicalCheckReceipt" },
+                    { "properties": { "name": { "const": "Exact source / Flutter / Android" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
+                  ]
+                }
+              ]
+            },
+            "independentReview": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["authority", "receiptId", "receiptSha256", "reviewerKeyFingerprint", "sourceSha", "sourceTreeSha", "productionDeploymentId", "rollbackDeploymentId", "supabaseMigrationChainSha256", "reviewedAt"],
+              "properties": {
+                "authority": { "const": "INDEPENDENT_REVIEWER" },
+                "receiptId": { "$ref": "#/$defs/uuid" },
+                "receiptSha256": { "$ref": "#/$defs/sha256" },
+                "reviewerKeyFingerprint": { "$ref": "#/$defs/sha256" },
+                "sourceSha": { "$ref": "#/$defs/sha40" },
+                "sourceTreeSha": { "$ref": "#/$defs/sha40" },
+                "productionDeploymentId": { "$ref": "#/$defs/deploymentBinding" },
+                "rollbackDeploymentId": { "$ref": "#/$defs/deploymentBinding" },
+                "supabaseMigrationChainSha256": { "$ref": "#/$defs/sha256" },
+                "reviewedAt": { "type": "string", "format": "date-time" }
+              }
+            },
+            "productionDeployment": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["authority", "deploymentId", "sourceSha", "observedAt"],
+              "properties": {
+                "authority": { "const": "VERCEL_PROVIDER" },
+                "deploymentId": { "$ref": "#/$defs/deploymentBinding" },
+                "sourceSha": { "$ref": "#/$defs/sha40" },
+                "observedAt": { "type": "string", "format": "date-time" }
+              }
+            },
+            "rollbackRehearsal": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["authority", "candidateDeploymentId", "candidateSourceSha", "rollbackDeploymentId", "rollbackSourceSha", "transitionReceiptId", "transitionReceiptSha256", "transitionObservedAt", "restorationReceiptId", "restorationReceiptSha256", "restorationObservedAt", "restoredDeploymentId", "restoredSourceSha"],
+              "properties": {
+                "authority": { "const": "VERCEL_PROVIDER" },
+                "candidateDeploymentId": { "$ref": "#/$defs/deploymentBinding" },
+                "candidateSourceSha": { "$ref": "#/$defs/sha40" },
+                "rollbackDeploymentId": { "$ref": "#/$defs/deploymentBinding" },
+                "rollbackSourceSha": { "$ref": "#/$defs/sha40" },
+                "transitionReceiptId": { "$ref": "#/$defs/uuid" },
+                "transitionReceiptSha256": { "$ref": "#/$defs/sha256" },
+                "transitionObservedAt": { "type": "string", "format": "date-time" },
+                "restorationReceiptId": { "$ref": "#/$defs/uuid" },
+                "restorationReceiptSha256": { "$ref": "#/$defs/sha256" },
+                "restorationObservedAt": { "type": "string", "format": "date-time" },
+                "restoredDeploymentId": { "$ref": "#/$defs/deploymentBinding" },
+                "restoredSourceSha": { "$ref": "#/$defs/sha40" }
+              }
+            },
+            "supabaseMigrationChain": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["authority", "receiptId", "receiptSha256", "sourceSha", "sourceTreeSha", "sourceChainSha256", "expectedAppliedVersionChainSha256", "appliedVersionChainSha256", "observedAt"],
+              "properties": {
+                "authority": { "const": "SUPABASE_PROVIDER" },
+                "receiptId": { "$ref": "#/$defs/uuid" },
+                "receiptSha256": { "$ref": "#/$defs/sha256" },
+                "sourceSha": { "$ref": "#/$defs/sha40" },
+                "sourceTreeSha": { "$ref": "#/$defs/sha40" },
+                "sourceChainSha256": { "$ref": "#/$defs/sha256" },
+                "expectedAppliedVersionChainSha256": { "$ref": "#/$defs/sha256" },
+                "appliedVersionChainSha256": { "$ref": "#/$defs/sha256" },
+                "observedAt": { "type": "string", "format": "date-time" }
+              }
+            },
+            "androidArtifact": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["authority", "artifactName", "artifactId", "packageName", "apkSha256", "githubArtifactDigestSha256", "sourceSha", "sourceTreeSha", "checkRunId", "checkSuiteId", "providerEvidenceRef"],
+              "properties": {
+                "authority": { "const": "GITHUB_ACTIONS_PROVIDER" },
+                "artifactName": { "const": "pandora-android-apk" },
+                "artifactId": { "type": "integer", "minimum": 1 },
+                "packageName": { "const": "com.banataosystems.pandora_mobile" },
+                "apkSha256": { "$ref": "#/$defs/sha256" },
+                "githubArtifactDigestSha256": { "$ref": "#/$defs/sha256" },
+                "sourceSha": { "$ref": "#/$defs/sha40" },
+                "sourceTreeSha": { "$ref": "#/$defs/sha40" },
+                "checkRunId": { "type": "integer", "minimum": 1 },
+                "checkSuiteId": { "type": "integer", "minimum": 1 },
+                "providerEvidenceRef": { "$ref": "#/$defs/providerBackedEvidenceRef" }
+              }
+            },
+            "physicalJourney": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["authority", "storageAuthority", "sourceSha", "sourceTreeSha", "productionDeploymentId", "restorationReceiptId", "apkSha256", "wifi", "mobileData"],
+              "properties": {
+                "authority": { "const": "PHYSICAL_ANDROID_OBSERVER" },
+                "storageAuthority": { "const": "IMMUTABLE_PHYSICAL_ANDROID_RECEIPT" },
+                "sourceSha": { "$ref": "#/$defs/sha40" },
+                "sourceTreeSha": { "$ref": "#/$defs/sha40" },
+                "productionDeploymentId": { "$ref": "#/$defs/deploymentBinding" },
+                "restorationReceiptId": { "$ref": "#/$defs/uuid" },
+                "apkSha256": { "$ref": "#/$defs/sha256" },
+                "wifi": {
+                  "allOf": [
+                    { "$ref": "#/$defs/physicalJourneyRun" },
+                    { "properties": { "network": { "const": "wifi" } } }
+                  ]
+                },
+                "mobileData": {
+                  "allOf": [
+                    { "$ref": "#/$defs/physicalJourneyRun" },
+                    { "properties": { "network": { "const": "mobile_data" } } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "privacyFlags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "containsRawTranscript",
+        "containsContactDetails",
+        "containsPersonalIdentifiers",
+        "containsSecrets",
+        "containsCustomerRecords",
+        "containsFinancialDocuments"
+      ],
+      "properties": {
+        "containsRawTranscript": { "const": false },
+        "containsContactDetails": { "const": false },
+        "containsPersonalIdentifiers": { "const": false },
+        "containsSecrets": { "const": false },
+        "containsCustomerRecords": { "const": false },
+        "containsFinancialDocuments": { "const": false }
+      }
+    },
+    "interview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "recordType",
+        "interviewId",
+        "participantCode",
+        "observedAt",
+        "consentState",
+        "segmentCode",
+        "participantRole",
+        "qualified",
+        "recentWorkflowWindowDays",
+        "problemSummary",
+        "frequency",
+        "currentWorkaroundSummary",
+        "costSignal",
+        "urgency",
+        "decisionProcessSummary",
+        "budgetSignal",
+        "willingnessToPaySignal",
+        "behavioralCommitments",
+        "disconfirmingEvidence",
+        "evidenceLevel",
+        "evidenceRefs",
+        "privacy"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "recordType": { "const": "interview" },
+        "interviewId": { "type": "string", "pattern": "^BV-I-[0-9]{4}$" },
+        "participantCode": { "type": "string", "pattern": "^BV-P-[A-Z0-9]{4,12}$" },
+        "observedAt": { "type": "string", "format": "date-time" },
+        "consentState": { "const": "documented" },
+        "segmentCode": { "type": "string", "pattern": "^[a-z0-9_]{3,80}$" },
+        "participantRole": {
+          "enum": ["buyer", "workflow_owner", "direct_user", "buyer_and_user", "other"]
+        },
+        "qualified": { "type": "boolean" },
+        "qualificationBasis": { "type": "string", "maxLength": 300 },
+        "recentWorkflowWindowDays": { "type": "integer", "minimum": 0, "maximum": 30 },
+        "problemSummary": { "type": "string", "minLength": 1, "maxLength": 600 },
+        "frequency": {
+          "enum": ["daily", "multiple_weekly", "weekly", "monthly", "less_frequent", "unknown"]
+        },
+        "currentWorkaroundSummary": { "type": "string", "maxLength": 600 },
+        "costSignal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "currency", "amount", "period"],
+          "properties": {
+            "state": { "enum": ["unknown", "qualitative", "customer_estimate", "measured"] },
+            "currency": { "type": ["string", "null"], "pattern": "^[A-Z]{3}$" },
+            "amount": { "type": ["number", "null"], "minimum": 0 },
+            "period": { "enum": ["event", "week", "month", "year", null] }
+          }
+        },
+        "urgency": { "enum": ["none", "this_quarter", "this_month", "this_week", "immediate", "unknown"] },
+        "decisionProcessSummary": { "type": "string", "maxLength": 500 },
+        "budgetSignal": { "enum": ["none", "hypothetical", "prior_spend", "range_shared", "procurement_requested", "unknown"] },
+        "willingnessToPaySignal": { "enum": ["weak", "moderate", "strong_unpaid", "unknown"] },
+        "behavioralCommitments": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 6,
+          "items": { "enum": ["workflow_walkthrough", "staff_time", "buyer_introduction", "pilot_discussion", "follow_up", "none"] }
+        },
+        "objections": {
+          "type": "array",
+          "maxItems": 10,
+          "items": { "type": "string", "maxLength": 180 }
+        },
+        "desiredOutcomeSummary": { "type": "string", "maxLength": 500 },
+        "disconfirmingEvidence": { "type": "string", "maxLength": 500 },
+        "evidenceLevel": { "enum": ["hypothesis", "qualitative", "behavioral"] },
+        "evidenceRefs": {
+          "type": "array",
+          "maxItems": 10,
+          "items": { "$ref": "#/$defs/opaqueEvidenceRef" }
+        },
+        "privacy": { "$ref": "#/$defs/privacyFlags" }
+      }
+    },
+    "pilot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "recordType",
+        "pilotId",
+        "accountCode",
+        "observedAt",
+        "state",
+        "scope",
+        "technicalGate",
+        "commercialAuthorization",
+        "price",
+        "payment",
+        "outcome",
+        "economics",
+        "privacy"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "recordType": { "const": "pilot" },
+        "pilotId": { "type": "string", "pattern": "^BV-PILOT-[0-9]{4}$" },
+        "accountCode": { "type": "string", "pattern": "^BV-A-[A-Z0-9]{4,12}$" },
+        "observedAt": { "type": "string", "format": "date-time" },
+        "state": { "enum": ["draft", "owner_authorized_offer", "offered", "accepted", "paid", "active", "completed", "refused", "cancelled", "refunded"] },
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["locations", "workflows", "maxOperatingUsers", "liveMeasurementDays", "intakeMethodCode"],
+          "properties": {
+            "locations": { "const": 1 },
+            "workflows": { "const": 1 },
+            "maxOperatingUsers": { "type": "integer", "minimum": 1, "maximum": 5 },
+            "liveMeasurementDays": { "type": "integer", "minimum": 1, "maximum": 30 },
+            "intakeMethodCode": { "type": "string", "pattern": "^[a-z0-9_]{3,80}$" }
+          }
+        },
+        "technicalGate": {
+          "type": "object",
+          "$comment": "A true gate is accepted only when the runtime independently verifies the provider-backed canonical receipt, its payload digest, exact cross-bindings, and chronology.",
+          "additionalProperties": false,
+          "required": ["passed", "canonicalReceipt"],
+          "properties": {
+            "passed": { "type": "boolean" },
+            "canonicalReceipt": {
+              "oneOf": [
+                { "$ref": "#/$defs/canonicalStatusReleaseReceipt" },
+                { "type": "null" }
+              ]
+            }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "passed": { "const": true } }, "required": ["passed"] },
+              "then": {
+                "properties": {
+                  "canonicalReceipt": { "$ref": "#/$defs/canonicalStatusReleaseReceipt" }
+                }
+              }
+            }
+          ]
+        },
+        "commercialAuthorization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ownerAuthorized", "termsEvidenceRef"],
+          "properties": {
+            "ownerAuthorized": { "type": "boolean" },
+            "termsEvidenceRef": { "oneOf": [{ "$ref": "#/$defs/opaqueEvidenceRef" }, { "type": "null" }] }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "ownerAuthorized": { "const": true } }, "required": ["ownerAuthorized"] },
+              "then": {
+                "properties": {
+                  "termsEvidenceRef": { "$ref": "#/$defs/opaqueEvidenceRef" }
+                }
+              }
+            }
+          ]
+        },
+        "price": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["currency", "amount", "status"],
+          "properties": {
+            "currency": { "const": "PHP" },
+            "amount": { "type": "number", "minimum": 0 },
+            "status": { "enum": ["hypothesis", "quoted", "countered", "accepted", "rejected"] }
+          }
+        },
+        "payment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "amount", "providerEvidenceRef"],
+          "properties": {
+            "state": { "enum": ["not_requested", "requested", "paid", "refused", "refunded", "unknown"] },
+            "amount": { "type": ["number", "null"], "minimum": 0 },
+            "providerEvidenceRef": { "oneOf": [{ "$ref": "#/$defs/opaqueEvidenceRef" }, { "type": "null" }] }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "state": { "const": "paid" } }, "required": ["state"] },
+              "then": {
+                "properties": {
+                  "amount": { "type": "number", "exclusiveMinimum": 0 },
+                  "providerEvidenceRef": { "$ref": "#/$defs/providerBackedEvidenceRef" }
+                }
+              }
+            }
+          ]
+        },
+        "outcome": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["activationState", "eligibleAttempts", "successfulOutcomes", "failedOutcomes", "retries", "manualRescues", "supportMinutes", "continuationDecision", "customerDecisionEvidenceRef", "evidenceRefs"],
+          "properties": {
+            "activationState": { "enum": ["not_started", "activated", "failed", "unknown"] },
+            "eligibleAttempts": { "type": "integer", "minimum": 0 },
+            "successfulOutcomes": { "type": "integer", "minimum": 0 },
+            "failedOutcomes": { "type": "integer", "minimum": 0 },
+            "retries": { "type": "integer", "minimum": 0 },
+            "manualRescues": { "type": "integer", "minimum": 0 },
+            "supportMinutes": { "type": "integer", "minimum": 0 },
+            "continuationDecision": { "enum": ["pending", "continue", "renew", "expand", "cancel", "refund", "unknown"] },
+            "customerDecisionEvidenceRef": { "oneOf": [{ "$ref": "#/$defs/opaqueEvidenceRef" }, { "type": "null" }] },
+            "evidenceRefs": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/opaqueEvidenceRef" } }
+          }
+        },
+        "economics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "currency", "inferenceCost", "runtimeCost", "thirdPartyCost", "variableSupportCost", "evidenceRefs"],
+          "properties": {
+            "state": { "enum": ["not_measured", "partial", "measured"] },
+            "currency": { "const": "PHP" },
+            "inferenceCost": { "type": ["number", "null"], "minimum": 0 },
+            "runtimeCost": { "type": ["number", "null"], "minimum": 0 },
+            "thirdPartyCost": { "type": ["number", "null"], "minimum": 0 },
+            "variableSupportCost": { "type": ["number", "null"], "minimum": 0 },
+            "evidenceRefs": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/opaqueEvidenceRef" } }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "state": { "const": "measured" } }, "required": ["state"] },
+              "then": {
+                "properties": {
+                  "inferenceCost": { "type": "number" },
+                  "runtimeCost": { "type": "number" },
+                  "thirdPartyCost": { "type": "number" },
+                  "variableSupportCost": { "type": "number" },
+                  "evidenceRefs": { "minItems": 1 }
+                }
+              }
+            }
+          ]
+        },
+        "privacy": { "$ref": "#/$defs/privacyFlags" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "enum": ["owner_authorized_offer", "offered", "accepted", "paid", "active", "completed"] } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "technicalGate": { "properties": { "passed": { "const": true } } },
+              "commercialAuthorization": { "properties": { "ownerAuthorized": { "const": true } } }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "state": { "enum": ["paid", "active", "completed"] } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "technicalGate": { "properties": { "passed": { "const": true } } },
+              "commercialAuthorization": {
+                "properties": {
+                  "ownerAuthorized": { "const": true },
+                  "termsEvidenceRef": { "$ref": "#/$defs/opaqueEvidenceRef" }
+                }
+              },
+              "price": {
+                "properties": {
+                  "amount": { "type": "number", "exclusiveMinimum": 0 },
+                  "status": { "const": "accepted" }
+                }
+              },
+              "payment": {
+                "properties": {
+                  "state": { "const": "paid" },
+                  "amount": { "type": "number", "exclusiveMinimum": 0 },
+                  "providerEvidenceRef": { "$ref": "#/$defs/providerBackedEvidenceRef" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "payment": {
+                "properties": { "state": { "const": "paid" } },
+                "required": ["state"]
+              }
+            },
+            "required": ["payment"]
+          },
+          "then": {
+            "properties": {
+              "technicalGate": { "properties": { "passed": { "const": true } } },
+              "commercialAuthorization": {
+                "properties": {
+                  "ownerAuthorized": { "const": true },
+                  "termsEvidenceRef": { "$ref": "#/$defs/opaqueEvidenceRef" }
+                }
+              },
+              "price": {
+                "properties": {
+                  "amount": { "type": "number", "exclusiveMinimum": 0 },
+                  "status": { "const": "accepted" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "id": "project-fixture-1",
+  "name": "Pandora Mobile",
+  "plainPurpose": "A private owner control surface.",
+  "phase": "Foundation",
+  "progressPercent": 42,
+  "progressVerified": false,
+  "plainStatus": "active",
+  "dataFreshness": "fresh",
+  "lastVerifiedAt": "2026-08-14T01:00:00Z",
+  "objective": "Make owner operations calm and safe on a phone.",
+  "roadmapVersion": "fixture-v1",
+  "phases": [
+    {
+      "phase_key": "foundation",
+      "name": "Foundation",
+      "status": "active",
+      "exit_criteria": "Exact-head checks pass."
+    }
+  ],
+  "tasks": [
+    {
+      "task_key": "fixture-task",
+      "title": "Verify candidate",
+      "status": "in_progress",
+      "risk_class": "R1"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "fixture-evidence",
+      "evidence_type": "ci_run",
+      "provider": "fixture",
+      "status": "passed",
+      "verdict": "tested",
+      "observed_at": "2026-08-14T01:00:00Z"
+    }
+  ],
+  "currentState": {
+    "fixtureOnly": true
+  }
+}

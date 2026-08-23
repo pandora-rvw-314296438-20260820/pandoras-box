@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Graphite splash. Resolves @color/pandora_canvas from values-night, so the
+  splash matches the dark canvas instead of flashing white.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/pandora_canvas" />
+</layer-list>

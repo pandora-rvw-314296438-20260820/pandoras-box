@@ -2,12 +2,16 @@ name: ProjectOS security regression
 
 on:
   pull_request:
+  merge_group:
+    types: [checks_requested]
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: projectos-security-${{ github.workflow }}-${{ github.ref }}
@@ -18,23 +22,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Check out exact pull-request head
-        if: github.event_name == 'pull_request'
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-
-      - name: Check out exact event SHA
-        if: github.event_name != 'pull_request'
-        uses: actions/checkout@v4
+      - name: Check out exact integration SHA
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 1
           persist-credentials: false
 
       - name: Verify exact source checkout
         env:
-          EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_SHA: ${{ github.sha }}
         run: |
           actual_sha="$(git rev-parse HEAD)"
           {
@@ -46,11 +43,11 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           test "$actual_sha" = "$EXPECTED_SHA"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24.x'
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run check
       - run: npm test
       - run: npm audit --omit=dev --audit-level=high

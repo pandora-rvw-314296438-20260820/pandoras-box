@@ -57,6 +57,10 @@ const ProjectListSchema = zod_1.z.union([
     zod_1.z.array(ProjectSchema),
     zod_1.z.object({ projects: zod_1.z.array(ProjectSchema) }).passthrough(),
 ]);
+const MigrationSchema = zod_1.z.object({
+    version: zod_1.z.string().regex(/^\d{14}$/),
+    name: zod_1.z.string().min(1).max(240),
+}).passthrough();
 const AccountArgsSchema = zod_1.z.object({
     accountId: zod_1.z.string().min(1),
 });
@@ -152,6 +156,19 @@ class SupabaseMCPServer {
             throw new SupabaseManagementError(`Supabase account ${account.id} is not allowed to access project ${projectRef}`, 403);
         }
         return normalizeProject(project);
+    }
+    async listMigrations(accountId, projectRef) {
+        const account = this.account(accountId);
+        this.assertProjectRefAllowed(account, projectRef);
+        const migrations = zod_1.z.array(MigrationSchema).max(10000).parse(await this.request(account, `/projects/${encodeURIComponent(projectRef)}/database/migrations`, 'GET'));
+        const versions = new Set();
+        for (const migration of migrations) {
+            if (versions.has(migration.version)) {
+                throw new SupabaseManagementError(`Supabase returned duplicate migration version ${migration.version}`, 502);
+            }
+            versions.add(migration.version);
+        }
+        return migrations.map((migration) => ({ version: migration.version, name: migration.name }));
     }
     async pauseProject(accountId, projectRef, confirmation) {
         const account = this.account(accountId);

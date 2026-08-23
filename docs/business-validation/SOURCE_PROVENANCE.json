@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "1.0.0",
+  "canonicalRepository": "banataosystems/Pandoras-box",
+  "consolidationDate": "2026-08-23",
+  "snapshot": {
+    "asOfDate": "2026-08-23",
+    "authority": "dated_commercial_evidence_snapshot",
+    "liveOperationalStatusAuthority": "/api/operator/status"
+  },
+  "currentKnownTruth": {
+    "main": {
+      "branch": "main",
+      "sha": "5a630893f2102064dcb2c7c72a3374042e6b4542"
+    },
+    "pullRequestTriage": {
+      "denominator": 41,
+      "state": "triage_decisions_complete",
+      "observedAt": "2026-08-23T13:30:00Z",
+      "evidenceRef": "docs/status/OPEN_PR_TRIAGE.json"
+    },
+    "production": {
+      "sourceSha": "bbfb769d475107badb5d7beafede6c775325e98a",
+      "state": "still_on_prior_source",
+      "evidenceState": "vercel_provider_readback_confirmed",
+      "deploymentId": "dpl_GCaZeb57HaEhCdGMDfDq9uMQQpPY",
+      "providerReadbackAt": "2026-08-23T14:54:20.692Z",
+      "replacementDeploymentRollbackBinding": "pending_provider_readback"
+    },
+    "physicalAndroidJourney": {
+      "wifi": "pending_exact_proof",
+      "mobileData": "pending_exact_proof",
+      "deploymentBinding": "pending_exact_proof"
+    },
+    "commercialReadbackAfterHistoricalSnapshot": {
+      "authority": "unverified_operator_observation",
+      "receiptState": "opaque_provider_receipt_not_persisted",
+      "observedAt": "2026-08-23T14:54:20.692Z",
+      "scope": "11 historical-batch labeled threads",
+      "outboundInvitations": 11,
+      "automatedHardBounceResponses": 1,
+      "substantiveReplies": 0,
+      "offlineInterviewState": "unknown"
+    }
+  },
+  "historicalSource": {
+    "pullRequest": 61,
+    "exactHead": "48dc181db42ed8459f604911b93a6339a1514059",
+    "parentSha": "8dc7ed9cd1dc85d3071a23631aaa7c990a411e44",
+    "claimedBaselineMainSha": "c2cc635383b78d457d1731294a6f5b306d85f6be",
+    "snapshotObservedThrough": "2026-08-19T22:59:05+08:00",
+    "authority": "historical_evidence_only",
+    "artifacts": [
+      {
+        "path": "docs/business-validation/worker-8/COMMERCIAL_EVIDENCE_BASELINE.md",
+        "sha256": "2fa1f01f8c5702573823e92ecf06f6e977632f973fc7b2ced2e596031f80c446"
+      },
+      {
+        "path": "docs/business-validation/worker-8/W8-E002-outreach-register.csv",
+        "sha256": "aaabfeec0793988a2ae08a6bbbd63b7aaa407369c8121947b922fcc640406bfe"
+      },
+      {
+        "path": "docs/business-validation/worker-8/experiment-ledger.csv",
+        "sha256": "5ad5b198d54985bd7412c5e81fa33b65d7cdaa33b5978fb42180b02d443cdfe4"
+      },
+      {
+        "path": "docs/business-validation/worker-8/interview-evidence.schema.json",
+        "sha256": "c57fbce993a4b687e57035207420af646af93ef23793119ad49408086773ed3d"
+      },
+      {
+        "path": "docs/business-validation/worker-8/outcome-contribution-ledger.csv",
+        "sha256": "7f58535b0b1630594763a60ec96d5306690b24fb9bce3e9a07f788f0d4887688"
+      },
+      {
+        "path": "docs/business-validation/worker-8/target-account-hypotheses.csv",
+        "sha256": "f86796518dc5f9a78e9067ca7c8080e3c20764adec9e840a5af8db83023ada19"
+      },
+      {
+        "path": "docs/business-validation/worker-8/ARTIFACT_MANIFEST.sha256",
+        "sha256": "9eb50af4c0b8bbf0bcabe603c9bccc634b0c2542681bf5ed2c84870cd7c46e38"
+      }
+    ]
+  },
+  "privacyTransform": {
+    "retained": [
+      "pseudonymous_account_code",
+      "normalized_subsegment",
+      "bounded_outreach_observation",
+      "provider_evidence_digest",
+      "observed_at"
+    ],
+    "omitted": [
+      "public_business_name",
+      "source_url",
+      "mailbox_or_contact_detail",
+      "message_body",
+      "free_text_notes"
+    ],
+    "originalPreservation": "git object at historicalSource.exactHead",
+    "currentAuthority": "CURRENT_HANDOFF.md is a dated commercial snapshot; authenticated /api/operator/status is the live operational authority"
+  }
+}

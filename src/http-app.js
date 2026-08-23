@@ -17,6 +17,7 @@ const service_config_js_1 = require("./runtime/service-config.js");
 const tool_policy_js_1 = require("./runtime/tool-policy.js");
 const runtime_security_resolver_js_1 = require("./runtime/runtime-security-resolver.js");
 const execution_ledger_client_js_1 = require("./runtime/execution-ledger-client.js");
+const provider_execution_state_machine_js_1 = require("./runtime/provider-execution-state-machine.js");
 const runtime_rate_limit_client_js_1 = require("./runtime/runtime-rate-limit-client.js");
 const VERSION = '1.3.0-observability';
 const MAX_AUDIT_EVENTS = 500;
@@ -67,6 +68,14 @@ function bearerToken(request) {
     return match?.[1]?.trim();
 }
 function vercelOidcToken(request) {
+    const descriptor = Object.getOwnPropertyDescriptor(request, '__canonicalVercelOidcToken');
+    if (descriptor
+        && descriptor.enumerable === false
+        && descriptor.writable === false
+        && typeof descriptor.value === 'string'
+        && descriptor.value.trim()) {
+        return descriptor.value.trim();
+    }
     return request.header('x-vercel-oidc-token') || process.env.VERCEL_OIDC_TOKEN || undefined;
 }
 const requestIds = new WeakMap();
@@ -150,6 +159,28 @@ function resultSummary(result) {
     if (typeof result === 'string')
         return { type: 'string', length: result.length };
     return { type: typeof result };
+}
+function boundedProviderFailure(error) {
+    const failure = error?.failure;
+    if (!failure || typeof failure !== 'object' || Array.isArray(failure))
+        return undefined;
+    try {
+        const message = JSON.stringify(failure);
+        if (message !== error.message || Buffer.byteLength(message, 'utf8') > 1000)
+            return undefined;
+        return {
+            status: Number.isInteger(error.status) && error.status >= 400 && error.status <= 599
+                ? error.status
+                : 503,
+            code: typeof failure.safeErrorCode === 'string'
+                ? failure.safeErrorCode
+                : 'provider_execution_failed',
+            message,
+        };
+    }
+    catch {
+        return undefined;
+    }
 }
 async function resolveRuntimeSecurity(config, request, resolver) {
     let remote;
@@ -343,6 +374,12 @@ function planResponse(entry, plan) {
     };
 }
 function createHttpApp(config = loadRuntimeConfig(), runtimeSecurityResolver = new runtime_security_resolver_js_1.RuntimeSecurityResolver(), executionLedger = new execution_ledger_client_js_1.ExecutionLedgerClient(), runtimeRateLimiter = new runtime_rate_limit_client_js_1.RuntimeRateLimitClient(), connectionMetadataProvider = service_config_js_1.buildProviderConnectionMetadata, toolExecutor = async (tool, args, context) => (0, index_js_1.executeTool)(tool, args, (0, service_config_js_1.buildToolConfiguration)(tool, context))) {
+    const providerExecution = (0, provider_execution_state_machine_js_1.createProviderExecutionStateMachine)({
+        execute: toolExecutor,
+        ledger: executionLedger,
+    });
+    executionLedger = providerExecution.ledger;
+    toolExecutor = providerExecution.execute;
     const app = (0, express_1.default)();
     const localAuditEvents = [];
     const runtimeMetrics = {
@@ -359,6 +396,42 @@ function createHttpApp(config = loadRuntimeConfig(), runtimeSecurityResolver = n
     };
     app.disable('x-powered-by');
     app.set('trust proxy', 1);
+    app.use((request, response, next) => {
+        providerExecution.run(() => {
+            const requestState = providerExecution.currentState();
+            const originalJson = response.json.bind(response);
+            const originalStatus = response.status.bind(response);
+            response.status = function governedStatus(value) {
+                const outcomeStatus = requestState?.execution?.error?.status;
+                return originalStatus(value === 500 && Number.isInteger(outcomeStatus)
+                    ? outcomeStatus
+                    : value);
+            };
+            response.json = function governedJson(value) {
+                let prepared;
+                try {
+                    prepared = providerExecution.preparePresentation(value, 'http_response_shaping_failed');
+                }
+                catch (error) {
+                    providerExecution.recordResponseFailure(error, 'http_response_shaping_failed', requestState?.execution?.durablePlanId);
+                    throw error;
+                }
+                try {
+                    return originalJson(prepared);
+                }
+                catch (error) {
+                    providerExecution.recordResponseFailure(error, 'http_response_delivery_failed', requestState?.execution?.durablePlanId);
+                    throw error;
+                }
+            };
+            response.once('close', () => {
+                if (response.writableEnded)
+                    return;
+                providerExecution.recordResponseFailureForState(requestState, new Error('HTTP connection closed before response completion'), 'http_connection_closed', requestState?.execution?.durablePlanId);
+            });
+            next();
+        });
+    });
     app.use(createRequestTelemetry(runtimeMetrics));
     app.use((0, helmet_1.default)({ contentSecurityPolicy: false }));
     app.use((0, cors_1.default)(createCorsOptions(config)));
@@ -825,10 +898,21 @@ function createHttpApp(config = loadRuntimeConfig(), runtimeSecurityResolver = n
             });
             return;
         }
-        console.error(error);
+        const providerFailure = boundedProviderFailure(error);
+        if (providerFailure) {
+            response.status(providerFailure.status).json({
+                ok: false,
+                error: { code: providerFailure.code, message: providerFailure.message },
+            });
+            return;
+        }
+        console.error(JSON.stringify({
+            event: 'http_internal_error',
+            errorType: error instanceof Error ? error.name : 'unknown',
+        }));
         response.status(500).json({
             ok: false,
-            error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Unknown error' },
+            error: { code: 'INTERNAL_ERROR', message: 'An internal ProjectOS error occurred.' },
         });
     });
     return app;

@@ -7,11 +7,14 @@ exports.handleProjectOsMcp = handleProjectOsMcp;
 
 const { randomUUID } = require("node:crypto");
 const { ExecutionLedgerClient } = require("./runtime/execution-ledger-client.js");
+const {
+    createProviderExecutionStateMachine,
+} = require("./runtime/provider-execution-state-machine.js");
 const { buildToolConfiguration } = require("./runtime/service-config.js");
 const { classifyToolRisk } = require("./runtime/tool-policy.js");
 const { resolveVercelWorkloadToken } = require("./runtime/vercel-workload-identity.js");
 const { executeTool, getAllTools, toolRegistry } = require("./tools/index.js");
-const { executionPayloadHash } = require("./http-app.js");
+const { executionPayloadHash } = require("./runtime/execution-payload.js");
 const { loadOperatorPublicConfig } = require("./operator-public-config.js");
 const {
     canApproveProjectOsPlan,
@@ -168,10 +171,16 @@ async function jsonBody(request) {
     }
 }
 
+function structuredToolContent(value) {
+    if (value && typeof value === "object" && !Array.isArray(value)) return value;
+    if (Array.isArray(value)) return { items: value };
+    return { value: value ?? null };
+}
+
 function toolResult(value) {
     return {
         content: [{ type: "text", text: JSON.stringify(value) }],
-        structuredContent: value,
+        structuredContent: structuredToolContent(value),
     };
 }
 
@@ -407,6 +416,48 @@ async function createDurablePlan(tool, toolArgs, dependencies) {
     });
 }
 
+function executionResultSummary(tool, result) {
+    if (tool === "memory.submitEvidenceCandidate" && result && typeof result === "object") {
+        return {
+            type: "memory_evidence_candidate",
+            candidateId: result.candidateId,
+            reviewItemId: result.reviewItemId,
+            status: result.status,
+            deduplicated: result.deduplicated === true,
+            namespace: result.namespace,
+            projectId: result.projectId,
+            projectKey: result.projectKey,
+            proofStage: result.proofStage,
+            canonicalPromoted: result.canonicalPromoted === true,
+            privacyScanVersion: result.privacyScanVersion,
+        };
+    }
+    return {
+        type: result === null ? "null" : Array.isArray(result) ? "array" : typeof result,
+    };
+}
+
+function safeMcpErrorMessage(error, status) {
+    const failure = error?.failure;
+    if (failure && typeof failure === "object" && !Array.isArray(failure)) {
+        try {
+            const serialized = JSON.stringify(failure);
+            if (serialized === error.message && Buffer.byteLength(serialized, "utf8") <= 1000) {
+                return serialized;
+            }
+        } catch {
+            // Fall through to the bounded generic response.
+        }
+    }
+    if (status >= 400 && status < 500 && error instanceof Error) {
+        const message = error.message.trim();
+        if (message && Buffer.byteLength(message, "utf8") <= 1000) return message;
+    }
+    return status >= 500
+        ? "ProjectOS provider execution failed; consult the governed audit record."
+        : "ProjectOS request failed.";
+}
+
 async function callTool(name, args, actor, dependencies) {
     assertToolScope(name, actor);
     const plannedTool = legacyPlannedTool(name);
@@ -495,7 +546,7 @@ async function callTool(name, args, actor, dependencies) {
                     planId: claimed.planId,
                     status: "completed",
                     durationMs: Math.max(0, dependencies.now() - startedAt),
-                    resultSummary: { type: typeof result },
+                    resultSummary: executionResultSummary(claimed.tool, result),
                 });
                 return toolResult({ planId: claimed.planId, result });
             } catch (error) {
@@ -514,8 +565,17 @@ async function callTool(name, args, actor, dependencies) {
 }
 
 function createProjectOsMcpHandler(overrides = {}) {
-    const dependencies = { ...defaultDependencies(), ...overrides };
-    return async function projectOsMcpHandler(request, response) {
+    const initialDependencies = { ...defaultDependencies(), ...overrides };
+    const providerExecution = createProviderExecutionStateMachine({
+        execute: initialDependencies.execute,
+        ledger: initialDependencies.ledger,
+    });
+    const dependencies = {
+        ...initialDependencies,
+        execute: providerExecution.execute,
+        ledger: providerExecution.ledger,
+    };
+    const coreHandler = async function projectOsMcpCoreHandler(request, response) {
         applyMcpBaseHeaders(request, response);
         try {
             applyMcpCors(request, response, dependencies.allowedOrigins);
@@ -532,7 +592,7 @@ function createProjectOsMcpHandler(overrides = {}) {
             if (!authorization) {
                 throw Object.assign(new Error("A valid bearer access token is required"), { status: 401 });
             }
-            const current = await actorFor({ ...request, headers: { ...request.headers, authorization } }, dependencies);
+            const current = await actorFor({ headers: { authorization } }, dependencies);
             if (request.method !== "POST") {
                 response.setHeader("Allow", MCP_ALLOWED_METHODS);
                 rpcError(response, null, -32600, "Method not allowed", 405);
@@ -580,10 +640,40 @@ function createProjectOsMcpHandler(overrides = {}) {
                 Number.isInteger(error?.rpcCode)
                     ? error.rpcCode
                     : status === 401 ? -32001 : status >= 500 ? -32603 : -32000,
-                error instanceof Error ? error.message : "ProjectOS MCP request failed",
+                safeMcpErrorMessage(error, status),
                 status,
             );
         }
+    };
+    return function projectOsMcpHandler(request, response) {
+        return providerExecution.run(() => {
+            const requestState = providerExecution.currentState();
+            const originalJson = response.json.bind(response);
+            response.json = function governedJson(value) {
+                let prepared;
+                try {
+                    prepared = providerExecution.preparePresentation(value, "mcp_response_shaping_failed");
+                }
+                catch (error) {
+                    providerExecution.recordResponseFailure(error, "mcp_response_shaping_failed", requestState?.execution?.durablePlanId);
+                    throw error;
+                }
+                try {
+                    return originalJson(prepared);
+                }
+                catch (error) {
+                    providerExecution.recordResponseFailure(error, "mcp_response_delivery_failed", requestState?.execution?.durablePlanId);
+                    throw error;
+                }
+            };
+            if (typeof response.once === "function") {
+                response.once("close", () => {
+                    if (response.writableEnded || response.ended) return;
+                    providerExecution.recordResponseFailureForState(requestState, new Error("MCP connection closed before response completion"), "mcp_connection_closed", requestState?.execution?.durablePlanId);
+                });
+            }
+            return coreHandler(request, response);
+        });
     };
 }
 

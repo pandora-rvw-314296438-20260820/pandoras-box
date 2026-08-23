@@ -1,0 +1,92 @@
+name: Canonical release evidence
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: canonical-release-evidence-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-source-contract:
+    name: canonical-release-source-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      EXPECTED_SOURCE_SHA: ${{ github.sha }}
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove the checkout is exact and clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Use the repository Node runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install the locked dependency graph without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Verify the source-only release contract
+        run: node scripts/verify-canonical-release-evidence.mjs --mode repository
+
+      - name: Run focused release-contract tests
+        run: node --test test/canonical-release-evidence.test.js
+
+      - name: Run the complete repository check
+        run: npm run check
+
+      - name: Run every repository test
+        run: npm test
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Type-check all governed Edge functions in isolation
+        run: npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts
+
+      - name: Re-prove the checkout before binding it
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Emit source-only SHA, tree, and migration binding
+        run: >-
+          node scripts/verify-canonical-release-evidence.mjs
+          --mode source-binding
+          --expected-sha "$EXPECTED_SOURCE_SHA"
+          --output "${{ runner.temp }}/canonical-release-source-binding.json"
+
+      - name: Upload the source-only binding
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: canonical-release-source-${{ github.sha }}
+          path: ${{ runner.temp }}/canonical-release-source-binding.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Confirm candidate CI did not mutate source
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=all)"

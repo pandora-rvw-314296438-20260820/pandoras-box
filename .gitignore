@@ -2,7 +2,10 @@ node_modules/
 dist/
 apps/meta-business-mcp/dist/
 packages/shared-security/dist/
+supabase/.temp/
 coverage/
+__pycache__/
+*.pyc
 *.log
 .env
 .env.*

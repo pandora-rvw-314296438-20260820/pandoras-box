@@ -4,7 +4,7 @@ Canonical recovery repository for MCPMaster / Pandora's-box.
 
 ## Source authority
 
-Pandora Memory hard-canon state is the operating source of truth. The canonical source repository for MCPMaster / Pandora's-box is `banataosystems/Pandoras-box`; the canonical Memory source repository is `banataosystems/pandoras-box-memory`.
+Pandora Memory hard-canon records are the contextual authority consumed by the live status pack; they are not a standalone current-status surface. The canonical source repository for MCPMaster / Pandora's-box is `banataosystems/Pandoras-box`; the canonical Memory source repository is `banataosystems/pandoras-box-memory`.
 
 Every repository under the legacy `mbanatao/*` owner namespace is **operationally blacklisted**. Those repositories may be read only for historical provenance, source recovery, hash comparison, parent lineage, deployment evidence, and rollback evidence. They must not determine current state, become a default Git remote, receive normal new work, or authorize a new release.
 
@@ -13,11 +13,15 @@ Human governance record: `docs/governance/DEPRECATED_SOURCE_DENYLIST.md`
 
 Legacy Vercel hostnames or deployment metadata containing `mbanatao` do not make the old Git repositories canonical. Existing network aliases may remain temporarily for OAuth, runtime continuity, or rollback until separately migrated and verified.
 
-## Current state
+## Current status
 
-This repository was initialized on 2026-08-08 as the replacement GitHub recovery target after the prior `mbanatao` GitHub account became unavailable.
+The only current status surface is the authenticated `GET /api/operator/status` canonical pack. It refreshes provider evidence on demand, is never cached as current, and returns HTTP `503` with explicit blockers whenever Memory freshness, GitHub integration-SHA checks, separately trusted external review, Vercel source/deployment/rollback binding, Supabase parity, or production journey proof is missing.
 
-The authoritative running system remains the Vercel `mcpmaster` project while source recovery and connection repair are performed. Do not infer source parity merely from a Vercel deployment or legacy Git metadata.
+Pack contract: `docs/status/CANONICAL_STATUS_PACK.md`
+Exact 41-PR convergence registry: `docs/status/OPEN_PR_TRIAGE.json`
+Preserved stale surfaces: `docs/status/HISTORICAL_STATUS_SURFACES.json`
+
+`RECOVERY_STATUS.md`, `DEPLOYMENT_TARGET.md`, the checked-in Control Tower status/release JSON files, and dated roadmap execution sections are historical evidence. They must not determine current state or authorize work.
 
 ## Recovery rules
 

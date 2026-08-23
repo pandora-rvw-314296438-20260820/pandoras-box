@@ -1,0 +1,21 @@
+# Canonical repository text normalization.
+# Exact-source verification requires platform-independent working-tree bytes.
+* text=auto eol=lf
+
+# Binary artifacts remain byte-preserved.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.jar binary
+*.apk binary
+*.aab binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary

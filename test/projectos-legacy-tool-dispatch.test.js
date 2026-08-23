@@ -155,6 +155,50 @@ test("cached direct read names execute through server-side provider configuratio
   ]);
 });
 
+test("MCP structured content wraps provider arrays and primitives in object envelopes", async () => {
+  const args = {
+    owner: "banataosystems",
+    repo: "Pandoras-box",
+    pathSegments: ["pulls"],
+  };
+  const cases = [
+    {
+      providerValue: [{ number: 65 }, { number: 55 }],
+      structuredContent: { items: [{ number: 65 }, { number: 55 }] },
+    },
+    {
+      providerValue: "ready",
+      structuredContent: { value: "ready" },
+    },
+    {
+      providerValue: null,
+      structuredContent: { value: null },
+    },
+  ];
+
+  for (const testCase of cases) {
+    const handler = createProjectOsMcpHandler(dependencies({
+      async toolConfiguration() { return { fixture: true }; },
+      async execute() { return testCase.providerValue; },
+    }));
+    const response = await invoke(handler, request("tools/call", {
+      name: "github.read-repository-api",
+      arguments: args,
+    }));
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(
+      JSON.parse(response.body.result.content[0].text),
+      testCase.providerValue,
+    );
+    assert.deepEqual(
+      response.body.result.structuredContent,
+      testCase.structuredContent,
+    );
+    assert.equal(Array.isArray(response.body.result.structuredContent), false);
+  }
+});
+
 test("cached plan aliases bind the underlying mutation without executing it", async () => {
   const calls = [];
   const args = {

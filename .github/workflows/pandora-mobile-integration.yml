@@ -1,58 +1,285 @@
-name: Pandora mobile integration
+name: Pandora mobile exact-source gate
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
-    paths:
-      - 'apps/pandora-mobile/**'
-      - '.github/workflows/pandora-mobile-integration.yml'
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
+
+concurrency:
+  group: pandora-mobile-${{ github.sha }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    name: Exact source / Flutter / Android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    outputs:
+      android-artifact-id: ${{ steps.android_provider_locator.outputs.artifact_id }}
+      android-artifact-name: ${{ steps.android_provider_locator.outputs.artifact_name }}
+      android-artifact-api-url: ${{ steps.android_provider_locator.outputs.artifact_api_url }}
+      android-artifact-digest-sha256: ${{ steps.android_provider_locator.outputs.artifact_digest_sha256 }}
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      FLUTTER_VERSION: '3.47.0'
+      EXPECTED_APP_VERSION: '0.3.0-rc.2+5'
+      ANDROID_ARTIFACT_NAME: pandora-mobile-android-validation-${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4.3.1
-      - uses: subosito/flutter-action@v2.23.0
+      - name: Check out the exact candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          channel: stable
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+
+      - name: Verify exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+      - name: Guard the single read-only mobile lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .github/workflows/pandora-mobile-diagnostic-apk.yml
+          test ! -e .github/workflows/pandora-mobile-exact-head-gate.yml
+          test ! -e .github/workflows/pandora-mobile-format-context-once.yml
+          grep -Fq '  contents: read' \
+            .github/workflows/pandora-mobile-integration.yml
+          ! grep -Eq \
+            'contents:[[:space:]]+write|statuses:[[:space:]]+write|git[[:space:]]+push|gh[[:space:]]+release' \
+            .github/workflows/pandora-mobile-integration.yml
+          grep -Fq \
+            'cp -R ../apps/pandora-mobile/platform ./platform' \
+            .github/workflows/pandora-mobile-integration.yml
+
+      - name: Verify the pinned mobile brand asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_asset=apps/pandora-mobile/assets/brand/pandora-product-mark-ui-1024.png
+          expected=8a35b74baec47b960a42bb74587f9c531d6cbf8d45f16061836a9e63f00efcc5
+          test "$(sha256sum "$app_asset" | cut -d ' ' -f1)" = "$expected"
+
+      - name: Scan the candidate for private-key literals
+        shell: bash
+        run: >-
+          bash apps/pandora-mobile/tool/check_private_key_literals.sh
+          apps/pandora-mobile
+          .github/workflows/pandora-mobile-integration.yml
+
+      - name: Test the bounded Android manifest tool
+        run: >-
+          python3 -m unittest discover
+          -s apps/pandora-mobile/tool
+          -p 'test_*.py'
+
+      - name: Install pinned JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '17.0.20+8'
+
+      - name: Install pinned Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - name: Materialize disposable Flutter platforms
+
+      - name: Materialize disposable Android and Web platforms
         shell: bash
         run: |
           set -euo pipefail
           rm -rf .pandora-mobile-build
           mkdir .pandora-mobile-build
           cd .pandora-mobile-build
-          flutter create --platforms=android,web --org com.banataosystems --project-name pandora_mobile .
-          rm -rf lib test pubspec.yaml
+          flutter create \
+            --platforms=android,web \
+            --org com.banataosystems \
+            --project-name pandora_mobile \
+            .
+          cp -R ../apps/pandora-mobile/platform/android/. ./android/
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
           cp -R ../apps/pandora-mobile/lib ./lib
           cp -R ../apps/pandora-mobile/test ./test
+          cp -R ../apps/pandora-mobile/assets ./assets
+          cp -R ../apps/pandora-mobile/platform ./platform
           cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
-      - name: Resolve dependencies
+          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+          python3 ../apps/pandora-mobile/tool/configure_validation_android.py \
+            android/app/src/main/AndroidManifest.xml
+
+      - name: Resolve the exact lockfile
         working-directory: .pandora-mobile-build
-        run: flutter pub get
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+
+      - name: Format
+        working-directory: .pandora-mobile-build
+        run: dart format --output=none --set-exit-if-changed lib test
+
       - name: Analyze
         working-directory: .pandora-mobile-build
         run: flutter analyze
+
       - name: Test
         working-directory: .pandora-mobile-build
-        run: flutter test
-      - name: Build web
+        run: flutter test --reporter expanded
+
+      - name: Build non-production Web candidate
         working-directory: .pandora-mobile-build
-        run: flutter build web --release
-      - name: Build Android debug APK
+        run: >-
+          flutter build web --release
+          --dart-define=PANDORA_SOURCE_REVISION=${{ env.SOURCE_SHA }}
+          --dart-define=PANDORA_APP_VERSION=${{ env.EXPECTED_APP_VERSION }}
+
+      - name: Build non-production Android candidate
         working-directory: .pandora-mobile-build
-        run: flutter build apk --debug
-      - name: Upload web artifact
-        uses: actions/upload-artifact@v7
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = \
+            "$EXPECTED_APP_VERSION"
+          flutter build apk --debug \
+            --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
+            --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
+
+      - name: Inspect Android identity and permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=.pandora-mobile-build/build/app/outputs/flutter-apk/app-debug.apk
+          evidence=.pandora-mobile-build/android-package-evidence
+          mkdir -p "$evidence"
+          aapt="${ANDROID_HOME:?}/build-tools/36.0.0/aapt"
+          apksigner="${ANDROID_HOME:?}/build-tools/36.0.0/apksigner"
+          test -x "$aapt"
+          test -x "$apksigner"
+          "$aapt" dump badging "$apk" > "$evidence/badging.txt"
+          "$aapt" dump permissions "$apk" > "$evidence/permissions.txt"
+          "$apksigner" verify --verbose --print-certs "$apk" > "$evidence/signing.txt"
+          grep -Fq "package: name='com.banataosystems.pandora_mobile'" \
+            "$evidence/badging.txt"
+          grep -Fq "versionCode='5'" "$evidence/badging.txt"
+          grep -Fq "versionName='0.3.0-rc.2'" "$evidence/badging.txt"
+          grep -Fq "application-label:'Pandora'" "$evidence/badging.txt"
+          if grep -Eiq \
+            'ACCESS_(FINE|COARSE|BACKGROUND)_LOCATION|READ_CONTACTS|WRITE_CONTACTS|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_|CAMERA|RECORD_AUDIO|BLUETOOTH_(SCAN|CONNECT|ADVERTISE)|QUERY_ALL_PACKAGES|REQUEST_INSTALL_PACKAGES|SYSTEM_ALERT_WINDOW' \
+            "$evidence/permissions.txt"; then
+            echo 'Unexpected sensitive Android permission detected.' >&2
+            exit 1
+          fi
+
+      - name: Bind artifacts to the exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=.pandora-mobile-build/build/app/outputs/flutter-apk/app-debug.apk
+          web=.pandora-mobile-build/build/web
+          evidence=.pandora-mobile-build/android-package-evidence
+          {
+            echo "source_sha=${SOURCE_SHA}"
+            echo "source_tree=$(git rev-parse HEAD^{tree})"
+            echo "workflow_run_id=${GITHUB_RUN_ID}"
+            echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "android_artifact_name=${ANDROID_ARTIFACT_NAME}"
+            echo "app_version=${EXPECTED_APP_VERSION}"
+            echo "flutter_version=${FLUTTER_VERSION}"
+            echo 'runner_image=ubuntu-24.04'
+            echo 'java_version=17.0.20+8'
+            echo 'android_platform=android-36'
+            echo 'android_build_tools=36.0.0'
+            echo 'artifact_class=validation-candidate'
+            echo 'production_release=false'
+            echo 'physical_device_verified=false'
+            echo 'wifi_journey_verified=false'
+            echo 'mobile_data_journey_verified=false'
+            echo 'authenticated_owner_journey_verified=false'
+            echo 'rollback_verified=false'
+            echo "apk_sha256=$(sha256sum "$apk" | cut -d ' ' -f1)"
+            echo "apk_size_bytes=$(stat -c '%s' "$apk")"
+            echo "web_tree_sha256=$(find "$web" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d ' ' -f1)"
+            echo "android_badging_sha256=$(sha256sum "$evidence/badging.txt" | cut -d ' ' -f1)"
+            echo "android_permissions_sha256=$(sha256sum "$evidence/permissions.txt" | cut -d ' ' -f1)"
+            echo "android_signing_sha256=$(sha256sum "$evidence/signing.txt" | cut -d ' ' -f1)"
+          } > .pandora-mobile-build/pandora-mobile-artifact-manifest.txt
+
+      - name: Upload Web validation candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
-          name: pandora-mobile-web
-          path: .pandora-mobile-build/build/web
-      - name: Upload Android artifact
-        uses: actions/upload-artifact@v7
+          name: pandora-mobile-web-validation
+          path: |
+            .pandora-mobile-build/build/web
+            .pandora-mobile-build/pandora-mobile-artifact-manifest.txt
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Upload Android validation candidate
+        id: upload_android_validation
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
-          name: pandora-mobile-android-debug
-          path: .pandora-mobile-build/build/app/outputs/flutter-apk/app-debug.apk
+          name: ${{ env.ANDROID_ARTIFACT_NAME }}
+          path: |
+            .pandora-mobile-build/build/app/outputs/flutter-apk/app-debug.apk
+            .pandora-mobile-build/pandora-mobile-artifact-manifest.txt
+            .pandora-mobile-build/android-package-evidence
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Publish the Android provider locator
+        id: android_provider_locator
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.upload_android_validation.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload_android_validation.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          [[ "$ARTIFACT_ID" =~ ^[1-9][0-9]{0,19}$ ]]
+          [[ "$ARTIFACT_DIGEST" =~ ^[0-9a-f]{64}$ ]]
+          artifact_api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}"
+          {
+            echo "artifact_id=${ARTIFACT_ID}"
+            echo "artifact_name=${ANDROID_ARTIFACT_NAME}"
+            echo "artifact_api_url=${artifact_api_url}"
+            echo "artifact_digest_sha256=${ARTIFACT_DIGEST}"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo '### Android validation artifact provider locator'
+            echo
+            echo "- Artifact ID: \`${ARTIFACT_ID}\`"
+            echo "- Artifact name: \`${ANDROID_ARTIFACT_NAME}\`"
+            echo "- Artifact API URL: \`${artifact_api_url}\`"
+            echo "- GitHub artifact digest: \`sha256:${ARTIFACT_DIGEST}\`"
+            echo "- Source SHA: \`${SOURCE_SHA}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload visual failures
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: pandora-mobile-visual-failures
+          path: .pandora-mobile-build/test/failures
+          if-no-files-found: ignore
+          include-hidden-files: true
+          retention-days: 7

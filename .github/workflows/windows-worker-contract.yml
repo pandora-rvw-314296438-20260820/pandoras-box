@@ -1,0 +1,41 @@
+name: Windows Worker Contract
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  worker-contract:
+    name: Windows worker contract
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Preserve repository LF bytes
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Verify exact checkout
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne '${{ github.sha }}') { exit 1 }
+          if (git status --porcelain --untracked-files=all) { exit 1 }
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run test:worker
+      - name: Confirm tests did not mutate source
+        shell: pwsh
+        run: if (git status --porcelain --untracked-files=all) { exit 1 }

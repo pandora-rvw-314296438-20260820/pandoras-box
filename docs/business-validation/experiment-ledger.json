@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "1.0.0",
+  "asOfDate": "2026-08-23",
+  "commercialProof": {
+    "problemValidation": "not_currently_proven",
+    "willingnessToPay": "not_currently_proven",
+    "paidPilot": "not_currently_proven",
+    "retention": "not_measurable",
+    "unitEconomics": "not_measurable",
+    "currentExternalEvidenceState": "unverified_operator_observation_zero_substantive_replies_offline_state_unknown"
+  },
+  "experiments": [
+    {
+      "id": "BV-H001",
+      "name": "PR 61 research outreach snapshot",
+      "state": "historical_complete",
+      "authority": "historical_evidence_only",
+      "observedAt": "2026-08-19T22:59:05+08:00",
+      "result": {
+        "attempts": 11,
+        "noImmediateHardBounceObserved": 10,
+        "hardBounceObserved": 1,
+        "substantiveRepliesObserved": 0,
+        "completedInterviewsObserved": 0
+      },
+      "evidenceRef": "historical-outreach-ledger.json"
+    },
+    {
+      "id": "BV-E001",
+      "name": "Ten qualified problem interviews",
+      "state": "ready_after_owner_and_sequence_gate",
+      "currentKitRecords": 0,
+      "externalOrOfflineState": "zero_email_replies_observed_offline_interviews_unknown",
+      "sampleTarget": 10,
+      "passGate": {
+        "independentRepeatedWeeklyPain": 3,
+        "behavioralCommitments": 2
+      },
+      "authorizationRequired": [
+        "owner_authorized_outreach_batch",
+        "lawful_revalidated_contact_route",
+        "participant_consent_for_structured_summary"
+      ],
+      "nextAction": "After the physical Android sequence gate and owner authorization, recruit and conduct neutral interviews using CURRENT_HANDOFF.md."
+    },
+    {
+      "id": "BV-E002",
+      "name": "One comparable scoped paid-pilot offer",
+      "state": "blocked",
+      "currentKitOfferRecords": 0,
+      "externalOrOfflineState": "unknown_not_read_back",
+      "startingPriceHypothesis": {
+        "currency": "PHP",
+        "amount": 15000,
+        "status": "untested_unquoted_unauthorized"
+      },
+      "blockedBy": [
+        "BV-E001_problem_gate",
+        "exact_test_deployment_rollback_binding",
+        "physical_android_wifi_and_mobile_data_proof",
+        "owner_approved_terms_billing_and_recipient"
+      ],
+      "passSignal": "accepted real-money pilot or serious price/scope negotiation tied to a real decision process"
+    },
+    {
+      "id": "BV-E003",
+      "name": "First paid outcome and D30 continuation",
+      "state": "not_started",
+      "currentKitPaymentRecords": 0,
+      "externalOrOfflineState": "unknown_not_read_back",
+      "requiredEvidence": [
+        "provider_payment_or_refusal_reference",
+        "exact_activation_and_outcome_reference",
+        "direct_variable_costs_and_support_minutes",
+        "customer_continuation_cancellation_or_refund_decision"
+      ],
+      "nextAction": "Start only after BV-E002 is owner-authorized and accepted."
+    }
+  ]
+}

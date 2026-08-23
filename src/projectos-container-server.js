@@ -13,6 +13,8 @@ const express_1 = __importDefault(require("express"));
 const http_server_js_1 = require("./http-server.js");
 const operator_public_config_js_1 = require("./operator-public-config.js");
 const memory_js_1 = require("./tools/memory.js");
+const canonical_status_provider_js_1 = require("./projectos/canonical-status-provider.js");
+const worker_plan_context_provider_js_1 = require("./projectos/worker-plan-context-provider.js");
 const CANONICAL_MEMORY_ORIGIN = 'https://pandorasbox-memory.vercel.app';
 const MEMORY_HEALTH_TTL_MS = 5 * 60 * 1000;
 const MEMORY_DEGRADED_TTL_MS = 30 * 1000;
@@ -141,9 +143,25 @@ function createContainerOperatorRuntime(environment) {
         supabaseUrl: config.supabaseUrl,
         publishableKey: config.supabasePublishableKey,
     });
+    const statusProvider = (0, canonical_status_provider_js_1.createCanonicalStatusProviderFromEnvironment)({
+        env: environment,
+    });
+    const workerContextProvider = new worker_plan_context_provider_js_1.WorkerPlanContextProvider();
     const runtime = (0, express_1.default)();
     runtime.disable('x-powered-by');
     runtime.set('trust proxy', 1);
+    runtime.use((request, _response, next) => {
+        const platformOidc = environment.VERCEL === '1'
+            ? request.headers?.['x-vercel-oidc-token']
+            : undefined;
+        Object.defineProperty(request, '__canonicalVercelOidcToken', {
+            configurable: false,
+            enumerable: false,
+            writable: false,
+            value: typeof platformOidc === 'string' ? platformOidc : undefined,
+        });
+        next();
+    });
     runtime.use(express_1.default.json({ limit: '256kb' }));
     runtime.use(createOperatorApiApp({
         authenticator,
@@ -153,6 +171,8 @@ function createContainerOperatorRuntime(environment) {
         supabasePublishableKey: config.supabasePublishableKey,
         allowedOrigins: config.allowedOrigins,
         requestsPerMinute: config.requestsPerMinute,
+        statusProvider,
+        workerContextProvider,
         runtimeFactory: (embeddedConfig) => (0, http_server_js_1.createHttpApp)(embeddedConfig),
     }));
     return runtime;
@@ -207,6 +227,20 @@ function createProjectOsContainerApp(environment = process.env) {
     });
     app.use('/api/operator', createContainerOperatorRuntime(environment));
     app.use('/api', (0, http_server_js_1.createHttpApp)());
+    app.get([
+        '/control-tower/projectos-status.json',
+        '/control-tower/release.json',
+    ], (_request, response) => {
+        response.setHeader('Cache-Control', 'no-store');
+        response.status(410).json({
+            ok: false,
+            error: {
+                code: 'HISTORICAL_STATUS_SURFACE_GONE',
+                message: 'This static snapshot is historical. Use the authenticated canonical status endpoint.',
+            },
+            supersededBy: '/api/operator/status',
+        });
+    });
     app.use('/control-tower', express_1.default.static(controlTowerDirectory, {
         fallthrough: true,
         index: false,

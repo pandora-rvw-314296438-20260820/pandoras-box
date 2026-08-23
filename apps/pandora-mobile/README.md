@@ -1,28 +1,64 @@
 # Pandora Mobile
 
-Canonical Flutter operator client for MCPMaster / Pandora.
+Pandora Mobile is the authenticated Flutter owner and admin control surface for
+Pandora / MCPMaster. Its canonical source is `banataosystems/Pandoras-box`.
 
-## Runtime authority
+## Runtime boundary
 
-- Source: `banataosystems/Pandoras-box`
-- Owner/operator API: `https://mcpmaster.vercel.app/api/operator`
-- Auth project: `https://jcyqixttuebxqqfkjonq.supabase.co`
-- Pandora Memory: `https://pandorasbox-memory.vercel.app`
+- Authentication and owner data use Supabase project
+  `jcyqixttuebxqqfkjonq`.
+- The only owner API base is the Supabase `pandora-owner-api` Edge Function.
+- There is no fallback host. Reads and writes fail closed when that contract is
+  unavailable.
+- The app embeds only the public Supabase publishable key. Service-role keys,
+  provider tokens, private identity material, and worker credentials are never
+  mobile configuration.
 
-The app embeds only the public Supabase publishable key already present in the canonical server public configuration. It must never contain service-role keys, GitHub tokens, Vercel tokens, private KYC material, or any other server secret.
+Authentication uses the current Supabase user session JWT. Organization context
+uses the canonical organization ID by default and may be overridden only for an
+authorized environment with `PANDORA_ORGANIZATION_ID`.
 
-## Supported owner surfaces
+## Exact-source verification
 
-`GET /home`, `/projects`, `/projects/:id`, `/connections`, `/approvals`, `/activity`, `/safety`, `/actions`; `POST /ask`, `/actions/:id/run`, `/approvals/:id/decide`.
+The protected `verify-exact-source` action has a dedicated mobile contract. It
+always supplies:
 
-Authentication uses the current Supabase user session JWT. Organization context uses the canonical organization ID by default and can be overridden with `--dart-define=PANDORA_ORGANIZATION_ID=...` for an authorized environment.
+- a required ProjectOS `projectId`;
+- an exact 40-character hexadecimal commit `exactSha`;
+- either `node_regression` or `supabase_migration_replay` as `jobClass`; and
+- an optional `maxRuntimeSeconds` bounded to 30–1800 seconds.
 
-## Security behavior
+The client submits this write once with an idempotency key. A timeout, HTTP 5xx,
+unreadable success response, or other ambiguous result locks the form and sends
+the owner to Activity; the app does not retry the write or claim execution.
+Server-side authorization, plan approval, worker dispatch, evidence review, and
+final verification remain authoritative.
 
-The UI has no unauthenticated operational routes. It never weakens ProjectOS authorization. Approval decisions are submitted to the canonical backend and fail closed when the server requires stronger authentication or refuses the operation.
+Other supported surfaces are `GET /home`, `/projects`, `/projects/:id`,
+`/connections`, `/approvals`, `/activity`, `/safety`, and `/actions`; plus
+`POST /ask`, `/actions/:id/run`, and `/approvals/:id/decide`. Approval decisions
+record `approve` or `reject`; they do not directly execute protected work.
 
-## Build
+## Verification build
 
-The repository CI creates disposable Android/Web platform scaffolding around this source and runs `flutter pub get`, `flutter analyze`, `flutter test`, `flutter build web --release`, and `flutter build apk --debug`.
+`.github/workflows/pandora-mobile-integration.yml` is the single mobile gate. It
+has read-only repository permission, checks out the exact candidate SHA, uses
+pinned Flutter 3.47.0, enforces the lockfile, formats, analyzes, runs all tests
+and committed golden comparisons, builds Web and a debug-signed Android APK,
+checks package identity and sensitive permissions, then writes an artifact
+manifest bound to that source SHA and tree.
 
-A passing build is not production verification. Native authenticated journeys, API authorization behavior, deployment identity, and rollback proof remain separate release gates.
+The artifacts are validation candidates, not production releases. Their
+manifest explicitly records physical-device, Wi-Fi, mobile-data, authenticated
+journey, and rollback verification as false. Those gates can become true only
+after a real Android device completes both network journeys against the intended
+deployed backend and the evidence is read back.
+
+For a local package checkout with Flutter 3.47.0 available:
+
+```text
+flutter pub get --enforce-lockfile
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test --reporter expanded
+```

@@ -1,0 +1,9 @@
+[
+  {
+    "id": "activity-fixture-1",
+    "type": "candidate.tested",
+    "actor": "system",
+    "summary": "The exact candidate passed its checks.",
+    "happenedAt": "2026-08-14T11:42:06Z"
+  }
+]

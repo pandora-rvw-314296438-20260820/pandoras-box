@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Porcelain canvas. Must stay byte-equal to PandoraPalette.porcelain.canvas in
+  lib/core/design/pandora_tokens.dart. The parity is enforced by
+  test/platform/android_canvas_parity_test.dart.
+-->
+<resources>
+    <color name="pandora_canvas">#FFF6F5F2</color>
+</resources>

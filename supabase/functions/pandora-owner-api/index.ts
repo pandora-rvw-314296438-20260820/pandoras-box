@@ -1,5 +1,8 @@
 import "jsr:@supabase/functions-js@2.4.5/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2.57.2";
+import {
+  createClient,
+  type SupabaseClient,
+} from "jsr:@supabase/supabase-js@2.57.2";
 import {
   allowedCorsOrigin,
   automaticIntakeWindow,
@@ -11,6 +14,11 @@ import {
   parseAllowedOrigins,
   type OwnerConnectionAction,
 } from "./contract.ts";
+import {
+  CANONICAL_REPOSITORY,
+  normalizeWorkerCommand,
+  reconcileOwnerWorkerCommand,
+} from "./command-pipeline.mjs";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -68,6 +76,15 @@ const ACTION_CATALOG = {
     request:
       "Check the database setup and current status without making changes.",
   },
+  "verify-exact-source": {
+    title: "Verify exact source",
+    description:
+      "Run an approved, isolated verification job for one exact source version.",
+    provider: "Worker-01",
+    risk: "WRITE",
+    request:
+      "Prepare an isolated verification plan for the exact source SHA. Do not run it before the exact plan is approved and fresh Memory context is attached.",
+  },
   "pause-service": {
     title: "Pause service",
     description: "Temporarily stop this service from receiving new requests.",
@@ -88,13 +105,21 @@ const ACTION_CATALOG = {
 } as const;
 
 type JsonRecord = Record<string, unknown>;
+type UntypedSupabaseClient = SupabaseClient<
+  any,
+  "public",
+  "public",
+  any,
+  any
+>;
 type UserContext = {
   userId: string;
   organizationId: string;
   role: string;
   aal: string;
   isAnonymous: boolean;
-  client: ReturnType<typeof createClient>;
+  authorization: string;
+  client: UntypedSupabaseClient;
 };
 
 function response(
@@ -254,6 +279,7 @@ async function authenticate(req: Request): Promise<UserContext> {
     aal: textValue(claims.aal, "aal1"),
     isAnonymous: claims.is_anonymous === true ||
       authData.user.is_anonymous === true,
+    authorization,
     client,
   };
 }
@@ -755,11 +781,54 @@ async function approvals(context: UserContext, limit: number) {
       ]),
     );
   }
-  return rows.filter((row) => {
+  const ordinary = rows.filter((row) => {
     const risk = risks.get(textValue(row.step_id));
     return !(["R3", "R4"].includes(risk || "") &&
       row.requested_by === context.userId);
   }).map((row) => approvalSummary(row, risks.get(textValue(row.step_id))));
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: plans, error: planError } = await admin.rpc(
+    "list_execution_plans",
+    {
+      p_organization_id: context.organizationId,
+      p_limit: Math.min(limit, 100),
+    },
+  );
+  if (planError) throw new Error("BACKEND_READ_FAILED");
+  const governed = (Array.isArray(plans) ? plans : [])
+    .map(asRecord)
+    .filter((plan) =>
+      plan.tool === "projectos.worker.verify" &&
+      plan.risk === "write" && plan.status === "pending_approval"
+    )
+    .map((plan) => ({
+      id: textValue(plan.planId),
+      projectId: textValue(plan.projectId) || null,
+      whatWillHappen: "Verify one exact source SHA on the isolated Worker-01 path.",
+      whyINeedYou: "Protected compute cannot start without your exact-plan approval.",
+      whatWillChange: "No production mutation is allowed.",
+      whatCouldGoWrong:
+        "Mismatched, expired, unsigned, or ambiguous work remains blocked.",
+      howWeCanUndoIt: "Disable worker delivery before a lease is sealed.",
+      riskLevel: ownerRiskLabel("WRITE"),
+      reversible: true,
+      extraIdentityCheckRequired: false,
+      decision: "pending",
+      expiresAt: plan.expiresAt ?? null,
+      createdAt: plan.createdAt ?? null,
+      advanced: {
+        kind: "worker_execution_plan",
+        intakeId: plan.intakeId ?? null,
+        repository: asRecord(plan.args).repository ?? null,
+        exactSha: asRecord(plan.args).exactSha ?? null,
+        jobClass: asRecord(plan.args).jobClass ?? null,
+        payloadHash: plan.payloadHash ?? null,
+        memoryContextReady: plan.memoryContextRecorded === true,
+      },
+    }));
+  return [...governed, ...ordinary].slice(0, limit);
 }
 
 async function activity(context: UserContext, limit: number) {
@@ -1094,12 +1163,202 @@ async function completeConnectedServicesRead(
   };
 }
 
+function createOwnerWorkerAdapter(context: UserContext) {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return {
+    async listPlans(input: JsonRecord) {
+      const { data, error } = await admin.rpc("list_execution_plans", {
+        p_organization_id: input.organizationId,
+        p_limit: input.limit,
+      });
+      if (error) throw new Error("WORKER_PLAN_READ_FAILED");
+      return Array.isArray(data) ? data : [];
+    },
+    async createPlan(input: JsonRecord) {
+      const { data, error } = await admin.rpc(
+        "projectos_create_or_get_worker_plan",
+        {
+          p_organization_id: input.organizationId,
+          p_intake_id: input.intakeId,
+          p_args: input.args,
+          p_payload_hash: input.payloadHash,
+          p_expires_at: input.expiresAt,
+        },
+      );
+      if (error) throw new Error("WORKER_PLAN_CREATE_FAILED");
+      return asRecord(data);
+    },
+    async ensurePlanContext(input: JsonRecord) {
+      // Supabase Edge cannot mint Vercel workload identity. It delegates only
+      // the durable plan id to the authenticated Vercel operator route, which
+      // rereads the exact plan, hydrates Pandora Memory, attaches the context,
+      // and verifies readback. No caller-supplied tool or args cross this seam.
+      const planId = textValue(input.planId);
+      if (!/^[0-9a-f-]{36}$/i.test(planId)) return false;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+      try {
+        const result = await fetch(
+          `https://mcpmaster.vercel.app/api/operator/worker-plans/${encodeURIComponent(planId)}/context`,
+          {
+            method: "POST",
+            headers: {
+              authorization: context.authorization,
+              "content-type": "application/json",
+              accept: "application/json",
+            },
+            body: "{}",
+            redirect: "error",
+            signal: controller.signal,
+          },
+        );
+        const declared = Number(result.headers.get("content-length") || "0");
+        if (Number.isFinite(declared) && declared > 65536) return false;
+        const responseBody = await result.text();
+        if (new TextEncoder().encode(responseBody).byteLength > 65536) {
+          return false;
+        }
+        if (!result.ok) return false;
+        const decoded = asRecord(JSON.parse(responseBody));
+        const attached = asRecord(decoded.context);
+        return decoded.ok === true && attached.planId === planId &&
+          attached.requestId === input.requestId &&
+          attached.status === "available" &&
+          /^[0-9a-f]{64}$/.test(textValue(attached.contextHash));
+      } catch {
+        return false;
+      } finally {
+        clearTimeout(timeout);
+      }
+    },
+    async getDispatch(input: JsonRecord) {
+      const { data, error } = await admin.rpc(
+        "get_governed_worker_execution",
+        {
+          p_organization_id: input.organizationId,
+          p_plan_id: input.planId,
+        },
+      );
+      if (error) throw new Error("WORKER_DISPATCH_READ_FAILED");
+      const readback = asRecord(data);
+      if (!Object.keys(readback).length) return null;
+      return {
+        ...readback,
+        status: readback.dispatchStatus,
+      };
+    },
+  };
+}
+
+async function governedWorkerExecution(
+  context: UserContext,
+  planIdValue: string,
+) {
+  const planId = planIdValue.trim().toLowerCase();
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+      planId,
+    )
+  ) {
+    throw new Error("INVALID_WORKER_PLAN_ID");
+  }
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await admin.rpc("get_governed_worker_execution", {
+    p_organization_id: context.organizationId,
+    p_plan_id: planId,
+  });
+  if (error) throw new Error("WORKER_PLAN_READ_FAILED");
+  const execution = asRecord(data);
+  if (!Object.keys(execution).length || textValue(execution.planId) !== planId) {
+    throw new Error("WORKER_PLAN_NOT_FOUND");
+  }
+  const args = asRecord(execution.args);
+  const result = asRecord(execution.resultSummary);
+  const planStatus = textValue(execution.planStatus, "unknown");
+  const dispatchStatus = textValue(execution.dispatchStatus, "not_created");
+  const workerIdentity = textValue(execution.workerIdentity) || null;
+  const providerResultObserved = Boolean(
+    textValue(execution.evidenceSha256) && Object.keys(result).length,
+  );
+  const finalProofAvailable = Boolean(
+    textValue(execution.verificationEvidenceId) &&
+      textValue(execution.verifierRuntimeProofId) &&
+      textValue(execution.verifiedOutcome) &&
+      textValue(execution.verifiedAt),
+  );
+  const lifecycleStage = finalProofAvailable
+    ? "final_proof_available"
+    : dispatchStatus === "ambiguous"
+    ? "reconciliation_required"
+    : providerResultObserved
+    ? "provider_result_observed"
+    : workerIdentity
+    ? "worker_01_claim_observed"
+    : ["staged", "queued"].includes(dispatchStatus)
+    ? "durable_dispatch_observed"
+    : planStatus === "pending_approval"
+    ? "owner_approval_required"
+    : "plan_recorded";
+
+  // Deliberately omit job payload/signature and raw stdout/stderr. This is the
+  // bounded owner proof projection for one exact plan, not a private worker log.
+  return {
+    planId,
+    intakeId: textValue(execution.intakeId) || null,
+    planStatus,
+    dispatchId: textValue(execution.dispatchId) || null,
+    dispatchStatus,
+    lifecycleStage,
+    exactSource: {
+      repository: textValue(args.repository),
+      sourceSha: textValue(args.exactSha),
+      jobClass: textValue(args.jobClass),
+    },
+    workerClaim: {
+      label: "Worker-01",
+      observed: workerIdentity !== null,
+      identity: workerIdentity,
+      leaseExpiresAt: textValue(execution.leaseExpiresAt) || null,
+    },
+    providerResult: {
+      observed: providerResultObserved,
+      evidenceSha256: textValue(execution.evidenceSha256) || null,
+      sourceTreeSha: textValue(result.sourceTreeSha) || null,
+      outcome: textValue(result.outcome) || null,
+      exitCode: typeof result.exitCode === "number" ? result.exitCode : null,
+      testsDiscovered: typeof result.testsDiscovered === "number"
+        ? result.testsDiscovered
+        : null,
+      startedAt: textValue(result.startedAt) || null,
+      completedAt: textValue(result.completedAt) || null,
+    },
+    finalProof: {
+      available: finalProofAvailable,
+      outcome: textValue(execution.verifiedOutcome) || null,
+      verificationEvidenceId:
+        textValue(execution.verificationEvidenceId) || null,
+      reviewerRuntimeProofId:
+        textValue(execution.verifierRuntimeProofId) || null,
+      verifiedAt: textValue(execution.verifiedAt) || null,
+    },
+    terminal: ["completed", "failed", "expired", "denied"].includes(
+      planStatus,
+    ) || dispatchStatus === "ambiguous",
+    errorCode: textValue(execution.errorCode) || null,
+  };
+}
+
 async function acceptIntake(
   context: UserContext,
   body: JsonRecord,
   fallbackMessage?: string,
   idempotencyKey?: string | null,
   operationName = "ask",
+  workerCommand?: JsonRecord | null,
 ) {
   if (context.isAnonymous) throw new Error("PERMANENT_ACCOUNT_REQUIRED");
   const message = textValue(body.message, fallbackMessage || "");
@@ -1140,18 +1399,50 @@ async function acceptIntake(
   const idempotency = await sha256Hex(
     `${context.organizationId}:${context.userId}:${actionKey}`,
   );
-  const { data, error } = await context.client.rpc("projectos_accept_intake", {
-    p_organization_id: context.organizationId,
-    p_requester_id: context.userId,
-    p_request_text: message,
-    p_project_key: projectKey,
-    p_project_name: null,
-    p_repository: null,
-    p_request_type: "work",
-    p_source: "api",
-    p_idempotency_key: idempotency,
-  });
-  if (error) throw new Error("INTAKE_FAILED");
+  let data: unknown;
+  let error: unknown;
+  if (workerCommand) {
+    const normalizedCommand = normalizeWorkerCommand(workerCommand);
+    const requestFingerprint = await sha256Hex(JSON.stringify({
+      operation: operationName,
+      projectKey,
+      command: normalizedCommand,
+    }));
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const result = await admin.rpc("projectos_accept_governed_worker_intake", {
+      p_organization_id: context.organizationId,
+      p_requester_id: context.userId,
+      p_request_text: message,
+      p_project_key: projectKey,
+      p_idempotency_key: idempotency,
+      p_request_fingerprint: requestFingerprint,
+    });
+    data = result.data;
+    error = result.error;
+  } else {
+    const result = await context.client.rpc("projectos_accept_intake", {
+      p_organization_id: context.organizationId,
+      p_requester_id: context.userId,
+      p_request_text: message,
+      p_project_key: projectKey,
+      p_project_name: null,
+      p_repository: null,
+      p_request_type: "work",
+      p_source: "api",
+      p_idempotency_key: idempotency,
+    });
+    data = result.data;
+    error = result.error;
+  }
+  if (error) {
+    const intakeError = textValue(asRecord(error).message).toLowerCase();
+    if (intakeError.includes("owner_idempotency_conflict")) {
+      throw new Error("OWNER_IDEMPOTENCY_CONFLICT");
+    }
+    throw new Error("INTAKE_FAILED");
+  }
   const result = asRecord(data);
   const intake = asRecord(result.intake);
   const acceptedProject = asRecord(result.project);
@@ -1160,6 +1451,14 @@ async function acceptIntake(
     return await completeConnectedServicesRead(
       context, intake, acceptedProject, idempotency,
     );
+  }
+  if (workerCommand) {
+    return await reconcileOwnerWorkerCommand({
+      context,
+      intake,
+      command: workerCommand,
+      adapter: createOwnerWorkerAdapter(context),
+    });
   }
   return {
     reply:
@@ -1201,6 +1500,61 @@ async function decide(
     : "";
   if (!requested) throw new Error("INVALID_DECISION");
   const reason = textValue(body.reason) || null;
+  const workerDecision = await context.client.rpc(
+    "decide_governed_worker_execution_plan",
+    {
+      p_organization_id: context.organizationId,
+      p_plan_id: approvalId,
+      p_decision: requested === "approved" ? "approve" : "deny",
+    },
+  );
+  if (workerDecision.error) {
+    const workerError = textValue(
+      asRecord(workerDecision.error).message,
+    ).toLowerCase();
+    if (workerError.includes("memory_context")) {
+      throw new Error("WORKER_MEMORY_CONTEXT_REQUIRED");
+    }
+    if (
+      workerError.includes("cannot") || workerError.includes("expired") ||
+      workerError.includes("mismatch") || workerError.includes("dispatch")
+    ) {
+      throw new Error("APPROVAL_CONFLICT");
+    }
+    throw new Error("APPROVAL_DECISION_FAILED");
+  }
+  const governed = asRecord(workerDecision.data);
+  if (governed.kind === "worker_execution_plan") {
+    const workerStatus = textValue(governed.status);
+    return {
+      ok: true,
+      decision: requested,
+      approval: {
+        id: approvalId,
+        projectId: null,
+        whatWillHappen: "Run the exact approved source verification on Worker-01.",
+        whyINeedYou: "This uses protected compute and must stay bound to the exact plan.",
+        whatWillChange: "No production mutation is allowed.",
+        whatCouldGoWrong: "A mismatched or ambiguous worker result will remain blocked.",
+        howWeCanUndoIt: "Disable delivery; queued work remains durable and historical.",
+        riskLevel: "Protected change",
+        reversible: true,
+        extraIdentityCheckRequired: false,
+        decision: requested,
+        expiresAt: null,
+        createdAt: null,
+        advanced: {
+          kind: "worker_execution_plan",
+          planId: governed.planId ?? approvalId,
+          intakeId: governed.intakeId ?? null,
+          status: workerStatus,
+          dispatchId: governed.dispatchId ?? null,
+          dispatchStatus: governed.dispatchStatus ?? null,
+          idempotentReplay: governed.idempotentReplay === true,
+        },
+      },
+    };
+  }
   const { data, error } = await context.client.rpc("decide_approval", {
     approval_id: approvalId,
     requested_decision: requested,
@@ -1289,6 +1643,14 @@ Deno.serve(async (req: Request) => {
         ),
       );
     }
+    if (req.method === "GET" && /^\/worker-plans\/[^/]+$/.test(route)) {
+      return send(
+        await governedWorkerExecution(
+          context,
+          decodeURIComponent(route.split("/")[2]),
+        ),
+      );
+    }
     if (req.method === "GET" && route === "/safety") {
       return send(await safety(context));
     }
@@ -1354,23 +1716,35 @@ Deno.serve(async (req: Request) => {
       const body = await bodyJson(req);
       const projectId = textValue(body.projectId ?? body.projectKey) || null;
       const ownerOutcome = textValue(body.message);
+      const workerCommand = actionId === "verify-exact-source"
+        ? normalizeWorkerCommand({
+          repository: CANONICAL_REPOSITORY,
+          exactSha: body.exactSha,
+          jobClass: body.jobClass,
+          maxRuntimeSeconds: body.maxRuntimeSeconds,
+        })
+        : null;
+      if (workerCommand && !projectId) throw new Error("PROJECT_REQUIRED");
       return send(
         await acceptIntake(
           context,
           {
             ...body,
             projectId,
-            message: `${action.request}${
-              projectId ? ` Project: ${projectId}.` : ""
-            }${
-              ownerOutcome
-                ? ` The owner described this outcome: ${ownerOutcome}`
-                : ""
-            }`,
+            message: workerCommand
+              ? `${action.request} Repository: ${workerCommand.repository}. Exact source SHA: ${workerCommand.exactSha}. Job class: ${workerCommand.jobClass}.`
+              : `${action.request}${
+                projectId ? ` Project: ${projectId}.` : ""
+              }${
+                ownerOutcome
+                  ? ` The owner described this outcome: ${ownerOutcome}`
+                  : ""
+              }`,
           },
           undefined,
           req.headers.get("idempotency-key"),
           `action:${actionId}`,
+          workerCommand,
         ),
         202,
       );
@@ -1424,11 +1798,23 @@ Deno.serve(async (req: Request) => {
         "INVALID_DECISION",
         "INVALID_IDEMPOTENCY_KEY",
         "INVALID_QUERY",
+        "INVALID_WORKER_COMMAND",
+        "NONCANONICAL_REPOSITORY",
+        "INVALID_EXACT_SHA",
+        "INVALID_JOB_CLASS",
+        "INVALID_MAX_RUNTIME",
+        "INVALID_WORKER_REVIEW_REQUEST",
+        "INVALID_WORKER_REVIEW_ROUTE",
+        "INVALID_WORKER_PLAN_ID",
+        "PROJECT_REQUIRED",
         "BODY_TOO_LARGE",
       ]
         .includes(code)
     ) {
       return reject(400, code, "Please check that information and try again.");
+    }
+    if (code === "WORKER_PLAN_NOT_FOUND") {
+      return reject(404, code, "That exact worker plan was not found.");
     }
     if (
       [
@@ -1444,12 +1830,43 @@ Deno.serve(async (req: Request) => {
     if (code === "APPROVAL_CONFLICT") {
       return reject(409, code, "That approval is no longer available.");
     }
+    if (code === "WORKER_REVIEW_NOT_REVIEWABLE") {
+      return reject(
+        409,
+        code,
+        "That worker result is not available for independent review.",
+      );
+    }
+    if (code === "OWNER_IDEMPOTENCY_CONFLICT") {
+      return reject(
+        409,
+        code,
+        "That retry key is already bound to a different exact command.",
+      );
+    }
+    if (code === "WORKER_MEMORY_CONTEXT_REQUIRED") {
+      return reject(
+        409,
+        code,
+        "Fresh Pandora Memory context must be attached before this exact plan can run.",
+      );
+    }
     if (code === "CONNECTION_ACTION_NOT_AVAILABLE") {
       return reject(
         409,
         code,
         "That connection action is not available in its current state.",
       );
+    }
+    if (code === "WORKER_REVIEW_FINALIZATION_AMBIGUOUS") {
+      return send({
+        code,
+        plainMessage:
+          "Pandora cannot confirm the terminal review state. Reconcile the recorded dispatch before any further action.",
+        requestId,
+        retryable: false,
+        reconciliationRequired: true,
+      }, 503);
     }
     console.error(JSON.stringify({ requestId, code }));
     return reject(

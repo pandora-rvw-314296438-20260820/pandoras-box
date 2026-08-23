@@ -91,6 +91,9 @@ function clearPrivilegedCallerHeaders(request) {
     delete request.headers['x-vercel-sc-headers'];
 }
 function requiredOperatorScope(request) {
+    if (request.method === 'POST'
+        && /^\/worker-plans\/[0-9a-f-]+\/context$/i.test(request.path))
+        return 'projectos:plan';
     if (request.method === 'POST' && request.path === '/tools/plan')
         return 'projectos:plan';
     if (request.method === 'POST' && request.path === '/tools/approve')
@@ -273,6 +276,88 @@ function createOperatorApiApp(options) {
         request.headers.authorization = `Bearer ${internalAdminToken}`;
         delete request.headers.origin;
         next();
+    });
+    router.get('/status', async (request, response) => {
+        noStore(response);
+        try {
+            const pack = await options.statusProvider?.refresh?.({
+                vercelOidcToken: request.__canonicalVercelOidcToken,
+            });
+            if (!pack || typeof pack !== 'object' || pack.schemaVersion !== '1.0.0') {
+                response.status(503).json({
+                    schemaVersion: '1.0.0',
+                    authoritative: false,
+                    status: 'unavailable',
+                    blockers: ['canonical-status-provider-unavailable'],
+                    error: {
+                        code: 'CANONICAL_STATUS_UNAVAILABLE',
+                        message: 'The canonical status providers did not return a valid pack.',
+                    },
+                });
+                return;
+            }
+            response.status(pack.authoritative === true ? 200 : 503).json(pack);
+        }
+        catch {
+            response.status(503).json({
+                schemaVersion: '1.0.0',
+                authoritative: false,
+                status: 'unavailable',
+                blockers: ['canonical-status-provider-unavailable'],
+                error: {
+                    code: 'CANONICAL_STATUS_UNAVAILABLE',
+                    message: 'The canonical status pack could not be refreshed.',
+                },
+            });
+        }
+    });
+    router.post('/worker-plans/:planId/context', async (request, response) => {
+        noStore(response);
+        const current = actor(response);
+        if (!current || !APPROVER_ROLES.has(current.membership.role)) {
+            response.status(403).json({
+                ok: false,
+                error: {
+                    code: 'OWNER_ROLE_REQUIRED',
+                    message: 'Only an owner or admin may prepare an exact worker plan for approval.',
+                },
+            });
+            return;
+        }
+        if (request.body && typeof request.body === 'object'
+            && Object.keys(request.body).length > 0) {
+            response.status(400).json({
+                ok: false,
+                error: {
+                    code: 'WORKER_CONTEXT_BODY_NOT_ALLOWED',
+                    message: 'The plan identity is read from the durable ledger, not request fields.',
+                },
+            });
+            return;
+        }
+        try {
+            const context = await options.workerContextProvider?.attachExactPlan?.(request.params.planId);
+            if (!context || context.planId !== request.params.planId) {
+                throw new Error('WORKER_CONTEXT_PROVIDER_UNAVAILABLE');
+            }
+            response.json({ ok: true, context });
+        }
+        catch (error) {
+            const code = error instanceof Error ? error.message : 'WORKER_CONTEXT_UNAVAILABLE';
+            const notFound = code === 'WORKER_PLAN_NOT_FOUND';
+            const invalid = code === 'WORKER_PLAN_ID_INVALID' || code === 'WORKER_PLAN_IDENTITY_MISMATCH';
+            response.status(notFound ? 404 : invalid ? 409 : 503).json({
+                ok: false,
+                error: {
+                    code: notFound ? code : invalid ? code : 'WORKER_CONTEXT_UNAVAILABLE',
+                    message: notFound
+                        ? 'That exact worker plan was not found.'
+                        : invalid
+                            ? 'The worker plan identity did not match the governed contract.'
+                            : 'Fresh Pandora Memory context could not be attached to this plan.',
+                },
+            });
+        }
     });
     router.use(embeddedRuntime);
     return router;

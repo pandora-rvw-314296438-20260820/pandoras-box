@@ -1,0 +1,51 @@
+import 'package:flutter/material.dart';
+
+import '../core/data/pandora_repository.dart';
+import '../core/design/pandora_theme.dart';
+import '../core/design/pandora_tokens.dart';
+import '../core/diagnostics/diagnostics_store.dart';
+import '../core/security/pandora_auth.dart';
+import '../features/auth/auth_gate.dart';
+import 'pandora_dependencies.dart';
+
+class PandoraApp extends StatefulWidget {
+  const PandoraApp({
+    super.key,
+    required this.auth,
+    required this.repository,
+    required this.diagnostics,
+  });
+
+  final PandoraAuth auth;
+  final PandoraRepository repository;
+  final DiagnosticsStore diagnostics;
+
+  @override
+  State<PandoraApp> createState() => _PandoraAppState();
+}
+
+class _PandoraAppState extends State<PandoraApp> {
+  @override
+  void dispose() {
+    widget.repository.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => PandoraDependencies(
+        auth: widget.auth,
+        repository: widget.repository,
+        diagnostics: widget.diagnostics,
+        child: MaterialApp(
+          title: "Pandora's Box",
+          // Opaque task-switcher and window colour. A transparent value here
+          // lets the black Android window underlay show through.
+          color: PandoraPalette.porcelain.canvas,
+          debugShowCheckedModeBanner: false,
+          themeMode: ThemeMode.system,
+          theme: PandoraTheme.porcelain,
+          darkTheme: PandoraTheme.graphite,
+          home: const AuthGate(),
+        ),
+      );
+}

@@ -6,3 +6,30 @@ verify_jwt = true
 # workload bearer first.
 [functions.mcpmaster-supabase-control]
 verify_jwt = false
+
+# A caller-supplied, externally issued one-shot worker JWT is verified by the
+# gateway and forwarded unchanged to PostgREST. The candidate runtime has no
+# service role, worker issuer key, or control-envelope signing key.
+[functions.pandora-worker-dispatch]
+verify_jwt = true
+
+# Supabase verifies the externally issued reviewer JWT before any rate-limit or
+# identity work; the exact Authorization bearer is forwarded to PostgREST.
+[functions.pandora-reviewer-attestation]
+verify_jwt = true
+
+# The release-review endpoint uses the same Authorization-only external
+# authority boundary; custom unverified authority headers are forbidden.
+[functions.pandora-release-review-attestation]
+verify_jwt = true
+
+# The gateway and function both validate the Supabase user JWT; the RPC also
+# binds auth.uid(), active owner membership, and the AAL2 claim.
+[functions.pandora-release-owner-authorization]
+verify_jwt = true
+
+# A caller-supplied, externally issued one-shot authority JWT is verified by
+# the gateway and forwarded unchanged to PostgREST. The candidate runtime has
+# no minting credential; the DB binds and consumes the exact issuer/JTI/request.
+[functions.pandora-physical-android-attestation]
+verify_jwt = true

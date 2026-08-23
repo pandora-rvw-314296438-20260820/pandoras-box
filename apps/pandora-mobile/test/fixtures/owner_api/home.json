@@ -1,0 +1,26 @@
+{
+  "systemHealth": {
+    "state": "needs_attention",
+    "label": "Needs attention",
+    "lastCheckedAt": "2026-08-14T01:00:00Z"
+  },
+  "priority": {
+    "id": "approval-fixture-1",
+    "projectId": "project-fixture-1",
+    "whatWillHappen": "Publish the reviewed mobile foundation",
+    "whyINeedYou": "A protected release needs an owner decision.",
+    "whatWillChange": "The reviewed candidate would become available.",
+    "howWeCanUndoIt": "Restore the prior release alias.",
+    "riskLevel": "HIGH",
+    "reversible": true,
+    "decision": "pending",
+    "expiresAt": "2030-08-14T01:00:00Z"
+  },
+  "counters": {
+    "approvals": 1,
+    "activeProjects": 1,
+    "needsAttention": 1
+  },
+  "topProjects": [],
+  "recentActivity": []
+}

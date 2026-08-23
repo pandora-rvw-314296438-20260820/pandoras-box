@@ -314,6 +314,9 @@ function replacePlansFromLive(payload) {
       createdAt: Date.parse(remote.createdAt || "") || Date.now(),
       expiresAt: Date.parse(remote.expiresAt || "") || Date.now(),
       payloadHash: remote.payloadHash,
+      terminalOutcome: remote.terminalOutcome && typeof remote.terminalOutcome === "object"
+        ? remote.terminalOutcome
+        : null,
       reversible: remote.risk !== "destructive",
       confirmation: expectedConfirmation(tool, args),
     };
@@ -374,6 +377,10 @@ function liveReadiness(candidate = state.live) {
     candidate
     && candidate.error === null
     && candidate.projectos
+    && candidate.projectos.authoritative === true
+    && candidate.projectos.status === "current"
+    && Number.isFinite(Date.parse(candidate.projectos.expiresAt || ""))
+    && Date.parse(candidate.projectos.expiresAt) > Date.now()
     && candidate.health?.status === "healthy"
     && candidate.health.protectedRoutesConfigured === true
     && candidate.health.durableLedgerConfigured === true
@@ -410,7 +417,7 @@ function updateModeFromReadiness() {
 
 async function loadProjectOSProjection() {
   try {
-    const response = await fetch("/control-tower/projectos-status.json", {
+    const response = await fetch("/api/operator/status", {
       method: "GET",
       credentials: "same-origin",
       cache: "no-store",
@@ -418,14 +425,14 @@ async function loadProjectOSProjection() {
     });
     const projection = await response.json().catch(() => null);
     if (
-      !response.ok
+      ![200, 503].includes(response.status)
       || !projection
       || projection.schemaVersion !== "1.0.0"
       || !projection.progress
       || !Array.isArray(projection.phases)
       || !Array.isArray(projection.tasks)
     ) {
-      throw new Error("The canonical ProjectOS projection is unavailable or invalid");
+      throw new Error("The canonical status pack is unavailable or invalid");
     }
     return projection;
   } catch (error) {
@@ -616,7 +623,8 @@ function connectionRow(connection) {
 }
 
 function planRow(plan) {
-  return `<button class="list-row row-button" data-action="plan" data-id="${plan.id}">${badge(RISK[plan.risk].label, plan.risk)}<span class="list-main"><span class="list-title">${esc(TOOLS.find((tool) => tool.name === plan.tool)?.label || plan.tool)}</span><span class="list-detail">${esc(plan.target)}</span></span><span class="list-meta">${esc(expiry(plan))}<br>${esc(short(plan.id))}</span></button>`;
+  const reconciliation = plan.terminalOutcome?.terminalClassification === "reconciliation_required";
+  return `<button class="list-row row-button" data-action="plan" data-id="${plan.id}">${badge(RISK[plan.risk].label, plan.risk)}${reconciliation ? badge("RECONCILIATION REQUIRED", "danger") : ""}<span class="list-main"><span class="list-title">${esc(TOOLS.find((tool) => tool.name === plan.tool)?.label || plan.tool)}</span><span class="list-detail">${esc(plan.target)}</span></span><span class="list-meta">${esc(expiry(plan))}<br>${esc(short(plan.id))}</span></button>`;
 }
 
 function auditRow(event) {
@@ -959,7 +967,7 @@ app.addEventListener("click", async (event) => {
     if (connection) state.sheet = { kind: "detail", eyebrow: "PROVIDER CONNECTION", title: connection.label, body: `<div class="alert ${state.mode === "live" ? "healthy" : "warning"}"><strong>Connection configured</strong><p>Credential material remains in Vault and is never returned to this interface. Provider execution still fails closed if the credential is unavailable or rejected.</p></div><div class="list">${detailRow("Provider", connection.provider)}${detailRow("Account", connection.account)}${detailRow("Mutation switch", connection.mutations ? "enabled" : "disabled")}${detailRow("Credential state", connection.lastSuccess)}</div><div class="scope-list">${connection.scopes.map((scope) => badge(scope, "neutral")).join("")}</div><div class="card-title">ALLOWLISTED TARGETS</div><div class="list">${allConnectionTargets(connection).map((item) => detailRow("Target", item)).join("")}</div>` };
     render();
   }
-  if (action === "plan") { const plan = PLANS.find((item) => item.id === target.dataset.id); if (plan) { state.sheet = { kind: "detail", eyebrow: "EXECUTION PLAN", title: TOOLS.find((item) => item.name === plan.tool)?.label || plan.tool, body: `<div class="action-top">${badge(RISK[plan.risk].label, plan.risk)}${badge(plan.status.toUpperCase().replaceAll("_", " "), "neutral")}</div><div class="list">${detailRow("Target", plan.target)}${detailRow("Plan ID", plan.id)}${detailRow("Request ID", plan.requestId)}${detailRow("Payload hash", plan.payloadHash)}${detailRow("Expiry", expiry(plan))}</div>${plan.status === "approved" ? `<div class="alert warning" style="margin-top:12px"><strong>Approved and ready</strong><p>Execution performs one atomic claim. It is never automatically retried.</p></div><button class="button ${plan.risk === "destructive" ? "danger" : "warning"}" style="width:100%;margin-top:12px" data-action="execute-plan" data-id="${plan.id}">Execute once</button>` : ""}` }; render(); } }
+  if (action === "plan") { const plan = PLANS.find((item) => item.id === target.dataset.id); if (plan) { const terminal = plan.terminalOutcome; const reconciliation = terminal?.terminalClassification === "reconciliation_required"; state.sheet = { kind: "detail", eyebrow: "EXECUTION PLAN", title: TOOLS.find((item) => item.name === plan.tool)?.label || plan.tool, body: `<div class="action-top">${badge(RISK[plan.risk].label, plan.risk)}${badge(plan.status.toUpperCase().replaceAll("_", " "), "neutral")}${reconciliation ? badge("RECONCILIATION REQUIRED", "danger") : ""}</div>${reconciliation ? `<div class="alert danger" style="margin-top:12px"><strong>Provider outcome is not safe to repeat</strong><p>This plan is terminal and was not completed successfully. Reconcile the exact provider outcome before creating any new plan. Automatic retry is disabled.</p></div>` : ""}<div class="list">${detailRow("Target", plan.target)}${detailRow("Plan ID", plan.id)}${detailRow("Request ID", plan.requestId)}${detailRow("Payload hash", plan.payloadHash)}${detailRow("Expiry", expiry(plan))}${terminal ? detailRow("Terminal classification", terminal.terminalClassification) : ""}${terminal ? detailRow("Retry contract", terminal.retryContract) : ""}</div>${plan.status === "approved" ? `<div class="alert warning" style="margin-top:12px"><strong>Approved and ready</strong><p>Execution performs one atomic claim. It is never automatically retried.</p></div><button class="button ${plan.risk === "destructive" ? "danger" : "warning"}" style="width:100%;margin-top:12px" data-action="execute-plan" data-id="${plan.id}">Execute once</button>` : ""}` }; render(); } }
   if (action === "audit-event") { const item = AUDIT.find((entry) => String(entry.seq) === target.dataset.seq); if (item) { state.sheet = { kind: "detail", eyebrow: `AUDIT SEQUENCE ${item.seq}`, title: item.event.replaceAll("_", " "), body: `<div class="action-top">${badge(RISK[item.risk]?.label || "RUNTIME", RISK[item.risk]?.className || "neutral")}${badge(item.status.toUpperCase(), item.status === "failed" || item.status === "denied" ? "danger" : "healthy")}</div><p class="action-description">${esc(item.detail)}</p><div class="list">${detailRow("Tool", item.tool)}${detailRow("Occurred", new Date(item.at).toISOString())}${detailRow("Sequence", String(item.seq))}</div>` }; render(); } }
   if (action === "live-mode") await refreshLive();
   if (action === "theme") { state.theme = target.dataset.value; localStorage.setItem("mcpmaster-theme", state.theme); render(); }

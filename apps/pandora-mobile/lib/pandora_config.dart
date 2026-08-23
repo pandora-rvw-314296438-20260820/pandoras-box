@@ -22,27 +22,27 @@ class PandoraConfig {
         'https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/pandora-owner-api',
   );
 
-  // Retain the canonical Vercel route as failover for the future runtime that
-  // includes api/operator. Authorization still fails closed on 401/403.
-  static const ownerApiFallbackBaseUrl = String.fromEnvironment(
-    'PANDORA_OWNER_API_FALLBACK_BASE_URL',
-    defaultValue: 'https://mcpmaster.vercel.app/api/operator',
-  );
-
   static const organizationId = String.fromEnvironment(
     'PANDORA_ORGANIZATION_ID',
     defaultValue: '2270b266-59da-4c39-bfd9-9f8d08352af0',
   );
 
-  static List<String> get ownerApiBaseUrls {
-    final values = <String>[
-      ownerApiBaseUrl,
-      ownerApiFallbackBaseUrl,
-    ];
-    final seen = <String>{};
-    return values
-        .map((value) => value.trim().replaceFirst(RegExp(r'/+$'), ''))
-        .where((value) => value.isNotEmpty && seen.add(value))
-        .toList(growable: false);
-  }
+  static const appVersion = String.fromEnvironment(
+    'PANDORA_APP_VERSION',
+    defaultValue: '0.3.0-rc.2+5',
+  );
+  static String get releaseLabel => '${appVersion.split('+').first} Owner Test';
+  static const artifactClass = 'Owner Test — Android debug signed';
+  static const productionRelease = false;
+
+  static const sourceRevision = String.fromEnvironment(
+    'PANDORA_SOURCE_REVISION',
+    defaultValue: 'local-development',
+  );
+
+  // A fallback is intentionally absent. The Vercel operator route implements
+  // a different contract, and retrying a mutation after an ambiguous outcome
+  // could duplicate work. Contract parity must be proven before another base
+  // can be offered explicitly.
+  static const ownerApiEndpointLabel = 'Supabase owner API';
 }

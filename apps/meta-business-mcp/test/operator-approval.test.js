@@ -3,6 +3,7 @@ const test = require('node:test');
 
 const express = require('express');
 const { createOperatorApiApp } = require('../dist/operator/api.js');
+const { createHttpApp } = require('../../../dist/http-app.js');
 
 const USER_ID = 'e5f5744e-554b-4f92-aad2-3f58ae6a33ad';
 const ORGANIZATION_ID = '2270b266-59da-4c39-bfd9-9f8d08352af0';
@@ -194,6 +195,85 @@ test('operator approval accepts the exact OAuth action scope without AAL2', asyn
     assert.equal(response.status, 200);
   });
   assert.equal(seen.length, 1);
+});
+
+test('operator bridge preserves only the platform-captured OIDC token for the real durable ledger', async () => {
+  const trustedToken = 'trusted-platform-workload-token-'.padEnd(80, 't');
+  const observedTokens = [];
+  const ledger = {
+    async createPlan(token, input) {
+      observedTokens.push(token);
+      return {
+        planId: PLAN_ID,
+        requestId: input.requestId,
+        tool: input.tool,
+        risk: input.risk,
+        args: input.args,
+        payloadHash: input.payloadHash,
+        status: 'pending',
+        expiresAt: input.expiresAt,
+      };
+    },
+  };
+  const app = express();
+  app.use(express.json());
+  app.use((request, _response, next) => {
+    Object.defineProperty(request, '__canonicalVercelOidcToken', {
+      configurable: false,
+      enumerable: false,
+      writable: false,
+      value: trustedToken,
+    });
+    next();
+  });
+  app.use(createOperatorApiApp({
+    authenticator: {
+      async authenticate() {
+        return {
+          userId: USER_ID,
+          accessToken: ACCESS_TOKEN,
+          scopeClaimsPresent: true,
+          scopes: ['openid', 'projectos:plan'],
+        };
+      },
+    },
+    membershipResolver: {
+      async resolve() {
+        return { organizationId: ORGANIZATION_ID, userId: USER_ID, role: 'owner' };
+      },
+    },
+    organizationId: ORGANIZATION_ID,
+    supabaseUrl: 'https://example.supabase.co',
+    supabasePublishableKey: 'sb_publishable_testkey012345678901234567890',
+    allowedOrigins: ['https://mcpmaster.vercel.app'],
+    requestsPerMinute: 100,
+    runtimeFactory: (config) => createHttpApp(
+      config,
+      { async resolve() { return { allowedOrigins: ['https://mcpmaster.vercel.app'] }; } },
+      ledger,
+      { async consume() { return { allowed: true }; } },
+      async () => [],
+      async () => ({}),
+    ),
+  }));
+
+  await withServer(app, async (origin) => {
+    const response = await fetch(`${origin}/tools/plan`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${ACCESS_TOKEN}`,
+        'content-type': 'application/json',
+        'x-vercel-oidc-token': 'attacker-controlled-token',
+      },
+      body: JSON.stringify({
+        tool: 'github.get-repository',
+        args: { owner: 'banataosystems', repo: 'Pandoras-box' },
+      }),
+    });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).durable, true);
+  });
+  assert.deepEqual(observedTokens, [trustedToken]);
 });
 
 test('operator OAuth scopes remain separated across read, plan, and execute actions', async () => {

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Graphite canvas. Must stay byte-equal to PandoraPalette.graphite.canvas in
+  lib/core/design/pandora_tokens.dart. Premium charcoal, deliberately not pure
+  black and never the platform default.
+-->
+<resources>
+    <color name="pandora_canvas">#FF121317</color>
+</resources>

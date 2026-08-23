@@ -1,0 +1,202 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "canonical_release_evidence_requirements",
+  "repository": "banataosystems/Pandoras-box",
+  "releaseDecision": "not_ready",
+  "sourceAuthority": {
+    "authority": "SOURCE_CONTROLLED",
+    "describesRequirementsOnly": true,
+    "mayIssueProviderProof": false,
+    "mayIssueReviewerProof": false,
+    "mayIssueOwnerAuthorization": false,
+    "mayAuthorizeRelease": false
+  },
+  "sourceBinding": {
+    "mode": "ci_exact_integration_sha",
+    "required": true,
+    "sourceSha": null,
+    "treeSha": null,
+    "status": "pending_ci_binding"
+  },
+  "vercel": {
+    "provider": "vercel",
+    "projectId": "prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk",
+    "productionAlias": "https://mcpmaster.vercel.app",
+    "productionDeployment": {
+      "authority": "VERCEL_PROVIDER",
+      "requiredCount": 1,
+      "target": "production",
+      "bindToSourceSha": true,
+      "deploymentId": null,
+      "sourceSha": null,
+      "status": "pending_external_receipt",
+      "receipt": null
+    },
+    "rollbackDeployment": {
+      "authority": "VERCEL_PROVIDER",
+      "mustDifferFromProduction": true,
+      "providerReadRequired": true,
+      "deploymentId": null,
+      "sourceSha": null,
+      "status": "pending_external_receipt",
+      "receipt": null
+    }
+  },
+  "supabase": {
+    "projectRef": "jcyqixttuebxqqfkjonq",
+    "sourceMigrationChain": {
+      "mode": "computed_in_ci",
+      "orderedMigrations": null,
+      "sourceChainSha256": null,
+      "expectedAppliedChainSha256": null,
+      "status": "pending_ci_binding"
+    },
+    "appliedMigrationChain": {
+      "authority": "SUPABASE_PROVIDER",
+      "exactOrderedMatchRequired": true,
+      "orderedVersions": null,
+      "appliedChainSha256": null,
+      "status": "pending_external_receipt",
+      "receipt": null
+    }
+  },
+  "requiredChecks": [
+    {
+      "name": "node24",
+      "authority": "GITHUB_ACTIONS_PROVIDER",
+      "producer": "repository_workflow",
+      "command": "npm run check && npm test && npm audit --omit=dev --audit-level=high",
+      "status": "pending_external_receipt",
+      "receipt": null
+    },
+    {
+      "name": "external-review",
+      "authority": "TRUSTED_EXTERNAL_REVIEW_PROVIDER",
+      "producer": "unconfigured",
+      "command": null,
+      "status": "pending_external_receipt",
+      "receipt": null
+    },
+    {
+      "name": "canonical-release-source-contract",
+      "authority": "GITHUB_ACTIONS_PROVIDER",
+      "producer": "repository_workflow",
+      "command": "node scripts/verify-canonical-release-evidence.mjs --mode repository && node --test test/canonical-release-evidence.test.js && npm run check && npm test && npm audit --omit=dev --audit-level=high && npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts",
+      "status": "pending_external_receipt",
+      "receipt": null
+    },
+    {
+      "name": "Windows worker contract",
+      "authority": "GITHUB_ACTIONS_PROVIDER",
+      "producer": "repository_workflow",
+      "command": "npm run test:worker",
+      "status": "pending_external_receipt",
+      "receipt": null
+    },
+    {
+      "name": "Exact source / Flutter / Android",
+      "authority": "GITHUB_ACTIONS_PROVIDER",
+      "producer": "repository_workflow",
+      "command": "python3 -m unittest discover -s apps/pandora-mobile/tool -p 'test_*.py' && dart format --output=none --set-exit-if-changed lib test && flutter analyze && flutter test --reporter expanded && flutter build web --release && flutter build apk --debug",
+      "status": "pending_external_receipt",
+      "receipt": null
+    }
+  ],
+  "rollbackRehearsal": {
+    "authority": "VERCEL_PROVIDER",
+    "environment": "production_alias",
+    "providerReadRequired": true,
+    "candidateDeploymentId": null,
+    "rollbackDeploymentId": null,
+    "distinctDeploymentsRequired": true,
+    "requiredSequence": [
+      "record_candidate_deployment",
+      "transition_to_rollback_deployment",
+      "verify_rollback_routes",
+      "restore_candidate_deployment",
+      "verify_restored_routes"
+    ],
+    "requiredRouteProbes": [
+      {
+        "route": "/health",
+        "methods": ["GET"],
+        "expectedStatuses": [200],
+        "semanticContract": "healthy_json"
+      },
+      {
+        "route": "/mcp",
+        "methods": ["GET", "POST"],
+        "expectedStatuses": [401],
+        "semanticContract": "unauthenticated_bearer_boundary"
+      },
+      {
+        "route": "/.well-known/oauth-protected-resource/mcp",
+        "methods": ["GET"],
+        "expectedStatuses": [200],
+        "semanticContract": "oauth_resource_metadata"
+      }
+    ],
+    "restorationRequired": true,
+    "status": "pending_external_receipt",
+    "receipt": null
+  },
+  "physicalJourney": {
+    "platform": "physical_android",
+    "sameBuildAcrossNetworks": true,
+    "mustFollowRollbackRestoration": true,
+    "bindTo": [
+      "source_sha",
+      "source_tree_sha",
+      "production_deployment_id",
+      "rollback_restoration_receipt_sha256",
+      "rollback_restoration_completed_at",
+      "android_artifact_sha256",
+      "github_android_artifact_digest_sha256",
+      "production_origin"
+    ],
+    "requiredSteps": [
+      "owner_authenticate",
+      "submit_owner_command",
+      "observe_durable_dispatch",
+      "observe_worker_01_claim",
+      "observe_exact_provider_result",
+      "observe_proof_in_owner_read"
+    ],
+    "runs": [
+      {
+        "network": "wifi",
+        "authority": "PHYSICAL_ANDROID_OBSERVER",
+        "status": "pending_external_receipt",
+        "receipt": null
+      },
+      {
+        "network": "mobile_data",
+        "authority": "PHYSICAL_ANDROID_OBSERVER",
+        "status": "pending_external_receipt",
+        "receipt": null
+      }
+    ]
+  },
+  "independentReview": {
+    "authority": "INDEPENDENT_REVIEWER",
+    "bindTo": [
+      "source_sha",
+      "source_tree_sha",
+      "production_deployment_id",
+      "rollback_deployment_id",
+      "supabase_migration_chain_sha256"
+    ],
+    "status": "pending_external_receipt",
+    "receipt": null
+  },
+  "ownerAuthorization": {
+    "authority": "OWNER_AUTHORIZATION",
+    "bindTo": [
+      "source_sha",
+      "production_deployment_id",
+      "review_receipt_sha256"
+    ],
+    "status": "pending_external_receipt",
+    "receipt": null
+  }
+}

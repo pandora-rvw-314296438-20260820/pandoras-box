@@ -1,0 +1,17 @@
+{
+  "reply": "Pandora recorded the request and will prepare a plan.",
+  "needsApproval": true,
+  "actionId": "action-fixture-1",
+  "approvalId": "approval-fixture-1",
+  "status": {
+    "whatChanged": "A governed intake record was created.",
+    "whereWeAre": "Planning",
+    "whatIsDone": "The request was accepted.",
+    "whatIsHappeningNow": "Pandora is checking preconditions.",
+    "whatIsStoppingUs": null,
+    "whatIWillDoNext": "Show the plan before any protected change."
+  },
+  "advanced": {
+    "fixtureOnly": true
+  }
+}

@@ -1,14 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ExecutionLedgerClient = exports.ExecutionLedgerError = void 0;
+exports.ExecutionLedgerClient = exports.ExecutionLedgerFinalizationError = exports.ExecutionLedgerError = void 0;
 const zod_1 = require("zod");
 const mandatory_intake_js_1 = require("./mandatory-intake.js");
 const plan_memory_context_js_1 = require("./plan-memory-context.js");
 const plan_context_ledger_client_js_1 = require("./plan-context-ledger-client.js");
 const DEFAULT_CONTROL_URL = 'https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/mcpmaster-supabase-control';
 const DEFAULT_TIMEOUT_MS = 10000;
+const MAX_TIMEOUT_MS = 30000;
 const DEFAULT_MAX_RESPONSE_BYTES = 512000;
-const FINALIZATION_RETRY_ATTEMPTS = 3;
 const RiskSchema = zod_1.z.enum(['read', 'write', 'destructive']);
 const PlanStatusSchema = zod_1.z.enum([
     'pending_approval',
@@ -17,7 +17,10 @@ const PlanStatusSchema = zod_1.z.enum([
     'completed',
     'failed',
     'expired',
+    'denied',
 ]);
+const FinalPlanStatusSchema = zod_1.z.enum(['completed', 'failed']);
+const PlanIdSchema = zod_1.z.string().uuid();
 const IntakeLifecycleStatusSchema = zod_1.z.enum([
     'accepted',
     'analyzing',
@@ -28,6 +31,38 @@ const IntakeLifecycleStatusSchema = zod_1.z.enum([
     'rejected',
 ]);
 const ProjectKeySchema = zod_1.z.string().regex(/^[a-z0-9][a-z0-9._-]{0,79}$/);
+const TerminalOutcomeSchema = zod_1.z.object({
+    schemaVersion: zod_1.z.literal('1.0.0'),
+    terminalClassification: zod_1.z.enum([
+        'succeeded',
+        'reconciliation_required',
+        'failed_without_side_effect',
+        'failed_unknown',
+    ]),
+    providerOutcome: zod_1.z.enum([
+        'not_executed',
+        'failed_before_side_effects',
+        'ambiguous',
+        'succeeded',
+    ]),
+    mutationState: zod_1.z.string().regex(/^[A-Z0-9_]{1,80}$/),
+    downstreamProcessingOutcome: zod_1.z.string().regex(/^[a-z0-9][a-z0-9._:-]{0,79}$/),
+    safeErrorCode: zod_1.z.string().regex(/^[a-z0-9][a-z0-9._:-]{0,79}$/).optional(),
+    retryable: zod_1.z.boolean(),
+    automaticRetryAllowed: zod_1.z.literal(false),
+    retryContract: zod_1.z.enum([
+        'do_not_repeat_provider_mutation',
+        'same_immutable_idempotency_identity_only',
+        'reconcile_before_retry',
+        'normal_retry_policy',
+        'not_retryable',
+    ]),
+    reconciliationRequired: zod_1.z.boolean(),
+    providerIdempotencySupported: zod_1.z.boolean(),
+    payloadHash: zod_1.z.string().regex(/^[0-9a-f]{64}$/).optional(),
+    idempotencyIdentityHash: zod_1.z.string().regex(/^[0-9a-f]{64}$/).optional(),
+    evidencePolicy: zod_1.z.literal('privacy_safe_summary_only_v1'),
+});
 const PlanSchema = zod_1.z.object({
     planId: zod_1.z.string().uuid(),
     requestId: zod_1.z.string().uuid(),
@@ -42,6 +77,7 @@ const PlanSchema = zod_1.z.object({
     claimedAt: zod_1.z.string().nullable().optional(),
     completedAt: zod_1.z.string().nullable().optional(),
     durationMs: zod_1.z.number().int().nonnegative().nullable().optional(),
+    terminalOutcome: TerminalOutcomeSchema.optional(),
     intakeId: zod_1.z.string().uuid().optional(),
     projectId: zod_1.z.string().uuid().optional(),
     projectKey: ProjectKeySchema.optional(),
@@ -53,7 +89,7 @@ const PlanSchema = zod_1.z.object({
 const PlanResponseSchema = zod_1.z.object({ ok: zod_1.z.literal(true), plan: PlanSchema });
 const PlanListResponseSchema = zod_1.z.object({
     ok: zod_1.z.literal(true),
-    plans: zod_1.z.array(PlanSchema),
+    plans: zod_1.z.array(PlanSchema).max(500),
 });
 const AuditEventSchema = zod_1.z.object({
     sequence: zod_1.z.number().int().positive(),
@@ -91,6 +127,28 @@ class ExecutionLedgerError extends Error {
     }
 }
 exports.ExecutionLedgerError = ExecutionLedgerError;
+class ExecutionLedgerFinalizationError extends ExecutionLedgerError {
+    constructor(input) {
+        const failure = Object.freeze({
+            schemaVersion: '1.0.0',
+            safeErrorCode: 'execution_finalization_ambiguous',
+            summary: 'ProjectOS execution outcome requires durable ledger reconciliation',
+            planId: input.planId,
+            expectedStatus: input.expectedStatus,
+            observedStatus: input.observedStatus ?? null,
+            retryable: false,
+            reconciliationRequired: true,
+            timestamp: new Date().toISOString(),
+        });
+        super(JSON.stringify(failure), 503);
+        this.name = 'ExecutionLedgerFinalizationError';
+        this.code = failure.safeErrorCode;
+        this.retryable = false;
+        this.reconciliationRequired = true;
+        this.failure = failure;
+    }
+}
+exports.ExecutionLedgerFinalizationError = ExecutionLedgerFinalizationError;
 function validatedEndpoint(raw) {
     const endpoint = new URL(raw);
     if (endpoint.protocol !== 'https:'
@@ -104,14 +162,136 @@ function validatedEndpoint(raw) {
     }
     return endpoint.toString();
 }
-function delay(milliseconds) {
-    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+function boundedPositiveInteger(value, fallback, maximum) {
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) && parsed > 0
+        ? Math.min(parsed, maximum)
+        : fallback;
+}
+function safeLedgerErrorCode(value) {
+    return typeof value === 'string' && /^[a-z0-9][a-z0-9._:-]{0,79}$/.test(value)
+        ? value
+        : 'request_failed';
+}
+function parsedObject(value) {
+    if (typeof value !== 'string' || Buffer.byteLength(value, 'utf8') > 1000)
+        return undefined;
+    try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+            ? parsed
+            : undefined;
+    }
+    catch {
+        return undefined;
+    }
+}
+function expectedTerminalOutcome(input, finalStatus) {
+    if (finalStatus === 'completed') {
+        const summary = input?.resultSummary && typeof input.resultSummary === 'object'
+            ? input.resultSummary
+            : {};
+        return {
+            terminalClassification: 'succeeded',
+            providerOutcome: 'succeeded',
+            retryContract: 'do_not_repeat_provider_mutation',
+            reconciliationRequired: false,
+            automaticRetryAllowed: false,
+            payloadHash: typeof summary.payloadHash === 'string' ? summary.payloadHash : undefined,
+            idempotencyIdentityHash: typeof summary.idempotencyIdentityHash === 'string'
+                ? summary.idempotencyIdentityHash
+                : undefined,
+        };
+    }
+    const failure = parsedObject(input?.error);
+    if (!failure || ![
+        'reconciliation_required',
+        'failed_without_side_effect',
+    ].includes(failure.terminalClassification)) {
+        return {
+            terminalClassification: 'failed_unknown',
+            providerOutcome: 'ambiguous',
+            retryContract: 'reconcile_before_retry',
+            reconciliationRequired: true,
+            automaticRetryAllowed: false,
+        };
+    }
+    return {
+        terminalClassification: failure.terminalClassification,
+        providerOutcome: failure.providerOutcome,
+        retryContract: failure.retryContract,
+        reconciliationRequired: failure.reconciliationRequired,
+        automaticRetryAllowed: false,
+        payloadHash: typeof failure.payloadHash === 'string' ? failure.payloadHash : undefined,
+        idempotencyIdentityHash: typeof failure.idempotencyIdentityHash === 'string'
+            ? failure.idempotencyIdentityHash
+            : undefined,
+    };
+}
+function assertTerminalOutcomeReadback(plan, input, finalStatus) {
+    const actual = plan?.terminalOutcome;
+    const expected = expectedTerminalOutcome(input, finalStatus);
+    if (!actual) {
+        throw new ExecutionLedgerError('Execution ledger terminal outcome readback is missing', 502);
+    }
+    for (const key of [
+        'terminalClassification',
+        'providerOutcome',
+        'retryContract',
+        'reconciliationRequired',
+        'automaticRetryAllowed',
+    ]) {
+        if (actual[key] !== expected[key]) {
+            throw new ExecutionLedgerError('Execution ledger terminal outcome readback mismatch', 502);
+        }
+    }
+    for (const key of ['payloadHash', 'idempotencyIdentityHash']) {
+        if (expected[key] !== undefined && actual[key] !== expected[key]) {
+            throw new ExecutionLedgerError('Execution ledger terminal identity readback mismatch', 502);
+        }
+    }
+    return plan;
+}
+async function readBoundedResponse(response, maxBytes) {
+    const declaredLength = Number(response.headers?.get('content-length') || '0');
+    if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+        throw new ExecutionLedgerError('Execution ledger response is too large');
+    }
+    if (response.body && typeof response.body.getReader === 'function') {
+        const reader = response.body.getReader();
+        const chunks = [];
+        let total = 0;
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done)
+                    break;
+                if (!value)
+                    continue;
+                total += value.byteLength;
+                if (total > maxBytes) {
+                    await reader.cancel().catch(() => undefined);
+                    throw new ExecutionLedgerError('Execution ledger response is too large');
+                }
+                chunks.push(Buffer.from(value));
+            }
+        }
+        finally {
+            reader.releaseLock?.();
+        }
+        return Buffer.concat(chunks).toString('utf8');
+    }
+    const body = await response.text();
+    if (Buffer.byteLength(body, 'utf8') > maxBytes) {
+        throw new ExecutionLedgerError('Execution ledger response is too large');
+    }
+    return body;
 }
 class ExecutionLedgerClient {
     constructor(options = {}) {
         this.endpoint = validatedEndpoint(options.endpoint || DEFAULT_CONTROL_URL);
-        this.timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
-        this.maxResponseBytes = options.maxResponseBytes || DEFAULT_MAX_RESPONSE_BYTES;
+        this.timeoutMs = boundedPositiveInteger(options.timeoutMs, DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
+        this.maxResponseBytes = boundedPositiveInteger(options.maxResponseBytes, DEFAULT_MAX_RESPONSE_BYTES, DEFAULT_MAX_RESPONSE_BYTES);
         this.fetchFn = options.fetchFn || globalThis.fetch;
         this.enforceMandatoryIntake = (0, mandatory_intake_js_1.shouldEnforceMandatoryIntake)();
         this.intakeProvider = options.intakeProvider === undefined
@@ -216,32 +396,55 @@ class ExecutionLedgerClient {
         return PlanResponseSchema.parse(parsed).plan;
     }
     async finishPlan(vercelOidcToken, input) {
+        const planId = PlanIdSchema.safeParse(input?.planId);
+        if (!planId.success) {
+            throw new ExecutionLedgerError('Execution plan ID is invalid', 400);
+        }
+        const finalStatus = FinalPlanStatusSchema.safeParse(input?.status);
+        if (!finalStatus.success) {
+            throw new ExecutionLedgerError('Execution plan final status is invalid', 400);
+        }
         let lastError;
-        for (let attempt = 1; attempt <= FINALIZATION_RETRY_ATTEMPTS; attempt += 1) {
-            try {
-                const parsed = await this.request(vercelOidcToken, {
-                    action: 'execution_plan_finish',
-                    ...input,
-                });
-                return PlanResponseSchema.parse(parsed).plan;
+        try {
+            const parsed = await this.request(vercelOidcToken, {
+                action: 'execution_plan_finish',
+                ...input,
+                planId: planId.data,
+                status: finalStatus.data,
+            });
+            const plan = PlanResponseSchema.parse(parsed).plan;
+            if (plan.planId !== planId.data || plan.status !== finalStatus.data) {
+                throw new ExecutionLedgerError('Execution ledger returned a mismatched finalization response', 502);
             }
-            catch (error) {
-                lastError = error;
-                if (attempt < FINALIZATION_RETRY_ATTEMPTS) {
-                    await delay(50 * attempt);
-                }
+        }
+        catch (error) {
+            lastError = error;
+        }
+        let observedStatus = null;
+        try {
+            const plans = await this.listPlans(vercelOidcToken, 500);
+            const observed = plans.find((plan) => plan.planId === planId.data);
+            observedStatus = observed?.status ?? null;
+            if (observed && observed.status === finalStatus.data) {
+                return assertTerminalOutcomeReadback(observed, input, finalStatus.data);
             }
+        }
+        catch (error) {
+            lastError = error;
         }
         console.error(JSON.stringify({
             event: 'execution_audit_reconciliation_required',
-            planId: input.planId,
-            finalStatus: input.status,
-            attempts: FINALIZATION_RETRY_ATTEMPTS,
+            planId: planId.data,
+            finalStatus: finalStatus.data,
+            observedStatus,
+            attempts: 1,
             errorType: lastError instanceof Error ? lastError.name : 'unknown',
         }));
-        // The provider operation may already have completed. Do not convert a real
-        // provider success into a false failure that could encourage a duplicate retry.
-        return undefined;
+        throw new ExecutionLedgerFinalizationError({
+            planId: planId.data,
+            expectedStatus: finalStatus.data,
+            observedStatus,
+        });
     }
     async listAudit(vercelOidcToken, limit) {
         const parsed = await this.request(vercelOidcToken, {
@@ -289,20 +492,12 @@ class ExecutionLedgerClient {
                 signal: controller.signal,
                 redirect: 'error',
             });
-            const declaredLength = Number(response.headers?.get('content-length') || '0');
-            if (Number.isFinite(declaredLength) && declaredLength > this.maxResponseBytes) {
-                throw new ExecutionLedgerError('Execution ledger response is too large');
-            }
-            const body = await response.text();
-            if (Buffer.byteLength(body, 'utf8') > this.maxResponseBytes) {
-                throw new ExecutionLedgerError('Execution ledger response is too large');
-            }
+            const body = await readBoundedResponse(response, this.maxResponseBytes);
             if (!response.ok) {
                 let code = 'request_failed';
                 try {
                     const parsed = JSON.parse(body);
-                    if (typeof parsed.error === 'string')
-                        code = parsed.error;
+                    code = safeLedgerErrorCode(parsed.error);
                 }
                 catch {
                     // Preserve normalized error without provider response content.

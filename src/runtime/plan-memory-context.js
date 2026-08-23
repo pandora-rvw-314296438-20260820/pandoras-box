@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PandoraPlanMemoryContextProvider = void 0;
+exports.canonicalPlanMemoryContextJson = canonicalPlanMemoryContextJson;
 exports.hashPlanMemoryContextEnvelope = hashPlanMemoryContextEnvelope;
 exports.createUnavailablePlanMemoryContext = createUnavailablePlanMemoryContext;
 exports.shouldHydratePlanMemoryContext = shouldHydratePlanMemoryContext;
@@ -34,6 +35,29 @@ const SAFE_IDENTIFIER_KEYS = new Set([
 ]);
 function sha256(value) {
     return (0, node_crypto_1.createHash)('sha256').update(value, 'utf8').digest('hex');
+}
+// Canonical context JSON is compact JSON with array order preserved and every
+// object key recursively sorted. The privileged database boundary implements
+// the same byte contract with C-collation key order before accepting the hash.
+function canonicalPlanMemoryContextJson(value) {
+    if (value === null)
+        return 'null';
+    if (Array.isArray(value)) {
+        return `[${value.map((item) => canonicalPlanMemoryContextJson(item)).join(',')}]`;
+    }
+    if (typeof value === 'object') {
+        return `{${Object.keys(value)
+            .sort((left, right) => Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8')))
+            .map((key) => `${JSON.stringify(key)}:${canonicalPlanMemoryContextJson(value[key])}`)
+            .join(',')}}`;
+    }
+    if (typeof value === 'string' || typeof value === 'boolean') {
+        return JSON.stringify(value);
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return JSON.stringify(value);
+    }
+    throw new TypeError('Plan context contains a non-JSON value');
 }
 function boundedText(value, maximum = MAX_HIGHLIGHT_LENGTH) {
     if (typeof value !== 'string')
@@ -123,7 +147,7 @@ function emptyEnvelope(now, tool, identifiers, queryHash, failure) {
     };
 }
 function hashPlanMemoryContextEnvelope(envelope) {
-    return sha256(JSON.stringify(envelope));
+    return sha256(canonicalPlanMemoryContextJson(envelope));
 }
 function createUnavailablePlanMemoryContext(input, error, now = new Date()) {
     const identifiers = safeIdentifiers(input.args);

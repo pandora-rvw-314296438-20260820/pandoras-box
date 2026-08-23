@@ -1,0 +1,10 @@
+[
+  {
+    "id": "verify-health",
+    "title": "Verify health",
+    "description": "Create a governed read-only health check.",
+    "risk": "LOW",
+    "extraIdentityCheckRequired": false,
+    "executionMode": "plan_first"
+  }
+]
