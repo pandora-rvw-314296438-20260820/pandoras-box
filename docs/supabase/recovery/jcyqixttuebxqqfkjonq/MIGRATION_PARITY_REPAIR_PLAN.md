@@ -21,6 +21,24 @@ without rewriting or deleting production history.
 - Production schema and Edge Function still require AAL2 for ordinary owner
   approval at the start of this repair.
 
+## 2026-08-23 immutable-identity reconciliation
+
+The provider ledger now contains 59 immutable identities through
+`20260821024500_projectos_owner_read_completion`. Source preserves all 59:
+
+- the AAL1 migration uses its exact provider version,
+  `20260813014555_remove_projectos_approval_aal2.sql`; the earlier
+  `20260812034825` source identity remains recorded only as provenance;
+- three temporary Vercel hotfix migrations are represented by comment-only,
+  content-addressed alignment records because their live bodies exercised
+  privileged Vault/token/network operations and must not be republished;
+- the provider ledger was not deleted, rewritten, or repaired in place; and
+- twelve newer source migrations remain forward-only production changes.
+
+The original replay JSON files remain immutable evidence. The reconciled
+71-file replay is recorded separately in
+`pglite-replay-result-20260823-source-alignment.json`.
+
 ## Scope
 
 1. Recover the canonical timestamp and executable semantics of all 48 SQL

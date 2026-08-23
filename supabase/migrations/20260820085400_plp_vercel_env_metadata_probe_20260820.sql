@@ -1,0 +1,16 @@
+-- SOURCE-ALIGNMENT RECORD ONLY.
+--
+-- Immutable provider identity:
+--   version: 20260820085400
+--   name: plp_vercel_env_metadata_probe_20260820
+--   recorded statement bytes: 3138
+--   recorded statement SHA-256:
+--     24f57a5d536dbf7c2987d013dbe9859e245f3629884ed9a256c573c70b484fdd
+--   historical object: private.plp_vercel_env_metadata_probe_20260820()
+--
+-- The live statement implemented a temporary privileged Vercel environment
+-- probe and referenced Vault, authorization, bearer-token, and HTTP paths.
+-- Its exact provider identity and content digest are preserved above, but its
+-- sensitive operational body is intentionally not republished or recreated.
+-- This comment-only record aligns source history without restoring an obsolete
+-- deployment capability. The live migration ledger remains immutable.

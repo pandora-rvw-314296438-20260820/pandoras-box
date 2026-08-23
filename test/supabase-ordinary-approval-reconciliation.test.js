@@ -11,7 +11,7 @@ const ownerApi = readFileSync(
 const migration = readFileSync(
   join(
     root,
-    "supabase/migrations/20260812034825_remove_projectos_approval_aal2.sql",
+    "supabase/migrations/20260813014555_remove_projectos_approval_aal2.sql",
   ),
   "utf8",
 );

@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.1.0",
+  "schema_version": "2.2.0",
   "artifact_type": "supabase_secret_safe_migration_parity_manifest",
   "project_ref": "jcyqixttuebxqqfkjonq",
   "canonical_repository": "banataosystems/Pandoras-box",
@@ -18,6 +18,11 @@
     "historical_identity_count": 50,
     "active_file_count": 52,
     "applied_change_count": 2,
+    "live_identity_count": 59,
+    "source_file_count": 71,
+    "source_live_identity_coverage": 59,
+    "source_only_forward_count": 12,
+    "identity_only_source_record_count": 3,
     "raw_provider_payloads_committed": false,
     "live_secret_or_verifier_literals_committed": false,
     "historical_sensitive_exposure_remediated": false,
@@ -25,22 +30,49 @@
   },
   "validation": {
     "result_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/pglite-replay-result.json",
+    "reconciled_result_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/pglite-replay-result-20260823-source-alignment.json",
     "engine": "PGlite 0.5.4 / PostgreSQL 18.3",
     "provider_equivalence": false,
     "migration_count": 52,
     "chain_sha256": "77e2dbe177cac4eddd8b6de03bc98cd98c4c4d2bfd5a0dfd7bde6cff174a56fb",
+    "reconciled_migration_count": 71,
+    "reconciled_chain_sha256": "cae96323eebc781a3ba6b6c668093792fed04bff144f52a296182a833bd52d59",
     "authorization_smoke": "pass",
     "database_rollback_smoke": "pass"
   },
   "live_chain": {
     "first": "20260724010000",
-    "last": "20260813105011",
+    "last": "20260821024500",
     "historical_recovery_last": "20260810104737",
-    "migration_count": 52,
+    "migration_count": 59,
+    "captured_payloads_through": "20260813105011",
     "executable_payload_count": 48,
     "placeholder_foundation_count": 2,
     "exact_payload_bytes": 267883,
-    "ordered_payload_digest_sha256": "4bcda759df90293b8f29f830e03700fc93f6830e45a1c4e021e8f2dd38e91c78"
+    "ordered_payload_digest_sha256": "4bcda759df90293b8f29f830e03700fc93f6830e45a1c4e021e8f2dd38e91c78",
+    "ordered_version_chain_sha256": "03b95e147f9edb9b903a669d870d435a4e21597fde2fb354fadb9267cf9c347c"
+  },
+  "identity_reconciliation": {
+    "observed_at": "2026-08-23",
+    "production_history_rewritten": false,
+    "legacy_aal1_source_version": "20260812034825",
+    "provider_aal1_version": "20260813014555",
+    "shared_post_capture_paths": [
+      "supabase/migrations/20260817145550_add_vercel_control_adapter.sql",
+      "supabase/migrations/20260817145659_add_vercel_git_binding_clear.sql",
+      "supabase/migrations/20260817145929_add_vercel_async_git_link_queue.sql",
+      "supabase/migrations/20260821024500_projectos_owner_read_completion.sql"
+    ],
+    "legacy_recovery_chain_sha256": "77e2dbe177cac4eddd8b6de03bc98cd98c4c4d2bfd5a0dfd7bde6cff174a56fb",
+    "reconciled_recovery_chain_sha256": "fd919e3a587bd5e910154eec815c05e0074c2ccbe079e427de1030bcf2001c93",
+    "legacy_aug17_chain_sha256": "aed27b85780da567ee8b3939e72b6d6d3318d4fe1d088081e18c71bed6c38b04",
+    "reconciled_aug17_chain_sha256": "fd612a0dfbf34ab462112898b3050f39fb1c4d2a62b371961e719944c8cea390",
+    "current_source_replay_chain_sha256": "cae96323eebc781a3ba6b6c668093792fed04bff144f52a296182a833bd52d59",
+    "current_source_receipt_chain_sha256": "fa1757bc60f9a05ba1062ca7663eac6f22fe5ba8bc70064b7352082e3bf11854",
+    "expected_applied_receipt_chain_sha256": "0f032de8df0f3b002b6036539805159e7343ad83ab89f363bda369372b8b1f51",
+    "replay_chain_delimiter": "filename:sha256\\n",
+    "receipt_chain_delimiter": "filename\\tsha256\\n",
+    "live_only_sensitive_bodies_republished": false
   },
   "provenance": {
     "evidence_commit": "f73c477d6eb2e287c59c895bc1c5017ab4b17980",
@@ -789,10 +821,13 @@
     }
   ],
   "pending_change": {
-    "version": "20260812034825",
+    "version": "20260813014555",
     "provider_version": "20260813014555",
+    "legacy_source_version": "20260812034825",
+    "legacy_source_path_at_capture": "supabase/migrations/20260812034825_remove_projectos_approval_aal2.sql",
+    "legacy_source_path_expected_absent": true,
     "name": "remove_projectos_approval_aal2",
-    "path": "supabase/migrations/20260812034825_remove_projectos_approval_aal2.sql",
+    "path": "supabase/migrations/20260813014555_remove_projectos_approval_aal2.sql",
     "bytes": 3472,
     "sha256": "8e9acf74b5ee5ea552697989768afc5aac938b92947e3495c2deecde30dadd31",
     "live_at_capture": true,
@@ -826,6 +861,47 @@
       "production_deployment_changed": false
     }
   },
+  "source_alignment_records": [
+    {
+      "version": "20260820085400",
+      "name": "plp_vercel_env_metadata_probe_20260820",
+      "path": "supabase/migrations/20260820085400_plp_vercel_env_metadata_probe_20260820.sql",
+      "classification": "sensitive_obsolete_identity_only",
+      "historical_object": "private.plp_vercel_env_metadata_probe_20260820()",
+      "provider_bytes": 3138,
+      "provider_sha256": "24f57a5d536dbf7c2987d013dbe9859e245f3629884ed9a256c573c70b484fdd",
+      "active_bytes": 823,
+      "active_sha256": "d2f4d6d41fd7a648aee133440c4e904fcd632aed9c03456bb96c6d45dacc6d85",
+      "live_at_capture": true,
+      "executable_body_republished": false
+    },
+    {
+      "version": "20260820085633",
+      "name": "plp_hotfix_preview_env_bridge_20260820",
+      "path": "supabase/migrations/20260820085633_plp_hotfix_preview_env_bridge_20260820.sql",
+      "classification": "sensitive_obsolete_identity_only",
+      "historical_object": "private.plp_configure_hotfix_preview_env_20260820()",
+      "provider_bytes": 8989,
+      "provider_sha256": "0a6b798086353e7b59611fad936263dca3d8e508e13486a97df5a01b208dd266",
+      "active_bytes": 828,
+      "active_sha256": "771e06efc18e67b30cfaf5ecf858ca417d93a671356ccb743fdce6bef8dc65b4",
+      "live_at_capture": true,
+      "executable_body_republished": false
+    },
+    {
+      "version": "20260820085705",
+      "name": "plp_hotfix_preview_deploy_20260820",
+      "path": "supabase/migrations/20260820085705_plp_hotfix_preview_deploy_20260820.sql",
+      "classification": "sensitive_obsolete_identity_only",
+      "historical_object": "private.plp_deploy_hotfix_preview_20260820()",
+      "provider_bytes": 3135,
+      "provider_sha256": "a08e911410cbb0c35f5d07b10c1d522c14c4ee4c0435343dba27e2c9adec86b0",
+      "active_bytes": 816,
+      "active_sha256": "35a08c3d746ccaee2dcd19a5a942b94ac7e77f0267bed484ddb3dbb92ab81722",
+      "live_at_capture": true,
+      "executable_body_republished": false
+    }
+  ],
   "release_gates": [
     "full_replay_pass",
     "catalog_assertions_pass",

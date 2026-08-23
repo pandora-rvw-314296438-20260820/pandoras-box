@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0.0",
+  "evidence_observed_at": "2026-08-23",
+  "engine": {
+    "name": "pglite",
+    "package_version": "0.5.4",
+    "postgres_server_version_num": "180003"
+  },
+  "provider_equivalence": false,
+  "migration_count": 71,
+  "chain_sha256": "cae96323eebc781a3ba6b6c668093792fed04bff144f52a296182a833bd52d59",
+  "identity_reconciliation": {
+    "live_identity_count": 59,
+    "source_live_identity_coverage": 59,
+    "source_only_forward_count": 12,
+    "provider_history_rewritten": false,
+    "sensitive_live_only_bodies_republished": false,
+    "aal1_provider_version": "20260813014555",
+    "identity_only_versions": [
+      "20260820085400",
+      "20260820085633",
+      "20260820085705"
+    ]
+  },
+  "assertions": {
+    "catalog_replay": "pass",
+    "authorization_smoke": "pass",
+    "database_rollback_smoke": "pass",
+    "governed_worker_smoke": "pass",
+    "canonical_release_attestation_smoke": "pass",
+    "credential_literals_in_alignment_records": false
+  }
+}

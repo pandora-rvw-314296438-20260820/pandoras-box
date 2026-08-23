@@ -1,0 +1,16 @@
+-- SOURCE-ALIGNMENT RECORD ONLY.
+--
+-- Immutable provider identity:
+--   version: 20260820085705
+--   name: plp_hotfix_preview_deploy_20260820
+--   recorded statement bytes: 3135
+--   recorded statement SHA-256:
+--     a08e911410cbb0c35f5d07b10c1d522c14c4ee4c0435343dba27e2c9adec86b0
+--   historical object: private.plp_deploy_hotfix_preview_20260820()
+--
+-- The live statement implemented a temporary privileged preview deployment
+-- helper and referenced Vault, authorization, bearer-token, and HTTP paths.
+-- Its exact provider identity and content digest are preserved above, but its
+-- sensitive operational body is intentionally not republished or recreated.
+-- This comment-only record aligns source history without restoring an obsolete
+-- deployment capability. The live migration ledger remains immutable.

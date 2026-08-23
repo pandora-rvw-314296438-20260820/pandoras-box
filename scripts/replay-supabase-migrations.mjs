@@ -2098,7 +2098,7 @@ async function rollbackSmoke(db) {
     'utf8',
   );
   const aal1 = await readFile(
-    join(migrationRoot, '20260812034825_remove_projectos_approval_aal2.sql'),
+    join(migrationRoot, '20260813014555_remove_projectos_approval_aal2.sql'),
     'utf8',
   );
   const definition = async () => (await db.query(`

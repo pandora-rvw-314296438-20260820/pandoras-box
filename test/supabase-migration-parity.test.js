@@ -25,6 +25,15 @@ const currentReplayResult = JSON.parse(
     'utf8',
   ),
 );
+const reconciledReplayResult = JSON.parse(
+  readFileSync(
+    join(
+      evidenceRoot,
+      'pglite-replay-result-20260823-source-alignment.json',
+    ),
+    'utf8',
+  ),
+);
 
 function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
@@ -46,6 +55,22 @@ function chainSha256(filenames) {
   return sha256(Buffer.from(chain));
 }
 
+function receiptSourceChainSha256(filenames) {
+  const chain = filenames
+    .map((filename) => {
+      const source = readFileSync(join(migrationRoot, filename));
+      return `${filename}\t${sha256(source)}\n`;
+    })
+    .join('');
+  return sha256(Buffer.from(chain));
+}
+
+function receiptVersionChainSha256(filenames) {
+  return sha256(
+    Buffer.from(filenames.map((filename) => `${filename.slice(0, 14)}\n`).join('')),
+  );
+}
+
 test('active Supabase history preserves the captured 52-file recovery chain and appends governed changes', () => {
   const files = readdirSync(migrationRoot)
     .filter((name) => /^\d{14}_.+\.sql$/.test(name))
@@ -57,6 +82,15 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   ].sort();
   const capturedSet = new Set(capturedFiles);
   const appendedFiles = files.filter((filename) => !capturedSet.has(filename));
+  const liveIdentityFiles = [
+    ...manifest.history.map((entry) => basename(entry.active.path)),
+    basename(manifest.pending_change.path),
+    basename(manifest.source_authority_change.path),
+    ...manifest.identity_reconciliation.shared_post_capture_paths.map((path) =>
+      basename(path),
+    ),
+    ...manifest.source_alignment_records.map((entry) => basename(entry.path)),
+  ].sort();
   const replaySnapshotLast = '20260817145929_add_vercel_async_git_link_queue.sql';
   const historicalCurrentFiles = files.filter((filename) => filename <= replaySnapshotLast);
   const postSnapshotFiles = files.filter((filename) => filename > replaySnapshotLast);
@@ -77,6 +111,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260817145550_add_vercel_control_adapter.sql',
     '20260817145659_add_vercel_git_binding_clear.sql',
     '20260817145929_add_vercel_async_git_link_queue.sql',
+    '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
+    '20260820085633_plp_hotfix_preview_env_bridge_20260820.sql',
+    '20260820085705_plp_hotfix_preview_deploy_20260820.sql',
     '20260820090000_add_pandora_outcome_lifecycle_contracts.sql',
     '20260821024500_projectos_owner_read_completion.sql',
     '20260823143000_add_governed_owner_worker_dispatch.sql',
@@ -91,6 +128,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260823171000_harden_owner_worker_external_authority.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
+    '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
+    '20260820085633_plp_hotfix_preview_env_bridge_20260820.sql',
+    '20260820085705_plp_hotfix_preview_deploy_20260820.sql',
     '20260820090000_add_pandora_outcome_lifecycle_contracts.sql',
     '20260821024500_projectos_owner_read_completion.sql',
     '20260823143000_add_governed_owner_worker_dispatch.sql',
@@ -110,11 +150,23 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     recoveryReplayResult.migration_count + appendedFiles.length - postSnapshotFiles.length,
   );
   assert.equal(manifest.live_chain.first, '20260724010000');
-  assert.equal(manifest.live_chain.last, '20260813105011');
+  assert.equal(manifest.live_chain.last, '20260821024500');
   assert.equal(manifest.live_chain.historical_recovery_last, '20260810104737');
-  assert.equal(manifest.live_chain.migration_count, 52);
-  assert.equal(manifest.pending_change.version, '20260812034825');
+  assert.equal(manifest.live_chain.migration_count, 59);
+  assert.equal(manifest.invariants.live_identity_count, 59);
+  assert.equal(manifest.invariants.source_file_count, files.length);
+  assert.equal(manifest.invariants.source_live_identity_coverage, 59);
+  assert.equal(manifest.invariants.source_only_forward_count, files.length - 59);
+  assert.equal(liveIdentityFiles.length, manifest.invariants.live_identity_count);
+  assert.equal(new Set(liveIdentityFiles).size, liveIdentityFiles.length);
+  assert.ok(liveIdentityFiles.every((filename) => files.includes(filename)));
+  assert.equal(
+    receiptVersionChainSha256(liveIdentityFiles),
+    manifest.live_chain.ordered_version_chain_sha256,
+  );
+  assert.equal(manifest.pending_change.version, '20260813014555');
   assert.equal(manifest.pending_change.provider_version, '20260813014555');
+  assert.equal(manifest.pending_change.legacy_source_version, '20260812034825');
   assert.equal(manifest.pending_change.live_at_capture, true);
   assert.equal(manifest.source_authority_change.version, '20260813105011');
   assert.equal(manifest.source_authority_change.provider_version, '20260813105011');
@@ -150,10 +202,43 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   );
 
   assert.equal(recoveryReplayResult.migration_count, manifest.invariants.active_file_count);
-  assert.equal(chainSha256(capturedFiles), recoveryReplayResult.chain_sha256);
+  assert.equal(
+    recoveryReplayResult.chain_sha256,
+    manifest.identity_reconciliation.legacy_recovery_chain_sha256,
+  );
+  assert.equal(
+    chainSha256(capturedFiles),
+    manifest.identity_reconciliation.reconciled_recovery_chain_sha256,
+  );
   assert.equal(
     chainSha256(historicalCurrentFiles),
+    manifest.identity_reconciliation.reconciled_aug17_chain_sha256,
+  );
+  assert.equal(
     currentReplayResult.chain_sha256,
+    manifest.identity_reconciliation.legacy_aug17_chain_sha256,
+  );
+  assert.equal(
+    chainSha256(files),
+    manifest.identity_reconciliation.current_source_replay_chain_sha256,
+  );
+  assert.equal(
+    receiptSourceChainSha256(files),
+    manifest.identity_reconciliation.current_source_receipt_chain_sha256,
+  );
+  assert.equal(
+    receiptVersionChainSha256(files),
+    manifest.identity_reconciliation.expected_applied_receipt_chain_sha256,
+  );
+  assert.equal(reconciledReplayResult.migration_count, files.length);
+  assert.equal(reconciledReplayResult.chain_sha256, chainSha256(files));
+  assert.equal(
+    reconciledReplayResult.chain_sha256,
+    manifest.validation.reconciled_chain_sha256,
+  );
+  assert.equal(
+    reconciledReplayResult.migration_count,
+    manifest.validation.reconciled_migration_count,
   );
   assert.equal(currentReplayResult.provider_equivalence, false);
   assert.equal(manifest.validation.authorization_smoke, 'pass');
@@ -170,6 +255,43 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     canonical_fxpass_binding: 'active',
     mixed_case_repository_insert: 'denied',
   });
+});
+
+test('live-only privileged hotfix identities are preserved without republishing executable bodies', () => {
+  assert.equal(manifest.invariants.identity_only_source_record_count, 3);
+  assert.equal(manifest.identity_reconciliation.production_history_rewritten, false);
+  assert.equal(manifest.identity_reconciliation.live_only_sensitive_bodies_republished, false);
+  assert.equal(
+    existsSync(
+      join(repositoryRoot, manifest.pending_change.legacy_source_path_at_capture),
+    ),
+    false,
+  );
+  assert.equal(manifest.pending_change.legacy_source_path_expected_absent, true);
+  assert.equal(existsSync(join(repositoryRoot, manifest.pending_change.path)), true);
+
+  assert.deepEqual(
+    manifest.source_alignment_records.map((entry) => entry.version),
+    ['20260820085400', '20260820085633', '20260820085705'],
+  );
+
+  for (const entry of manifest.source_alignment_records) {
+    const payload = readFileSync(join(repositoryRoot, entry.path));
+    const source = payload.toString('utf8');
+    const executableLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('--'));
+
+    assert.equal(entry.classification, 'sensitive_obsolete_identity_only');
+    assert.equal(entry.live_at_capture, true);
+    assert.equal(entry.executable_body_republished, false);
+    assert.equal(payload.length, entry.active_bytes, entry.version);
+    assert.equal(sha256(payload), entry.active_sha256, entry.version);
+    assert.match(source, /SOURCE-ALIGNMENT RECORD ONLY/);
+    assert.match(source, new RegExp(entry.provider_sha256));
+    assert.deepEqual(executableLines, [], entry.version);
+  }
 });
 
 test('credential-bearing historical payloads are replaced with database-only values', () => {

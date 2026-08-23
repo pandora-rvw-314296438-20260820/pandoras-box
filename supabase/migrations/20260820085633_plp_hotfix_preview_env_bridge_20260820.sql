@@ -1,0 +1,16 @@
+-- SOURCE-ALIGNMENT RECORD ONLY.
+--
+-- Immutable provider identity:
+--   version: 20260820085633
+--   name: plp_hotfix_preview_env_bridge_20260820
+--   recorded statement bytes: 8989
+--   recorded statement SHA-256:
+--     0a6b798086353e7b59611fad936263dca3d8e508e13486a97df5a01b208dd266
+--   historical object: private.plp_configure_hotfix_preview_env_20260820()
+--
+-- The live statement implemented a temporary privileged preview-environment
+-- bridge and referenced Vault, authorization, bearer-token, and HTTP paths.
+-- Its exact provider identity and content digest are preserved above, but its
+-- sensitive operational body is intentionally not republished or recreated.
+-- This comment-only record aligns source history without restoring an obsolete
+-- deployment capability. The live migration ledger remains immutable.
