@@ -71,40 +71,41 @@ class EmptyContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSurface(
-    child: Semantics(
-      label: '$title. $message',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.xl),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 38,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+        child: Semantics(
+          label: '$title. $message',
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.xl),
+            child: Column(
+              children: [
+                Icon(
+                  icon,
+                  size: 38,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(height: PandoraSpacing.md),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: PandoraSpacing.xs),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                if (actionLabel != null && onAction != null) ...[
+                  const SizedBox(height: PandoraSpacing.lg),
+                  OutlinedButton(
+                      onPressed: onAction, child: Text(actionLabel!)),
+                ],
+              ],
             ),
-            const SizedBox(height: PandoraSpacing.md),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: PandoraSpacing.xs),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: PandoraSpacing.lg),
-              OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
-            ],
-          ],
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 class ErrorContent extends StatelessWidget {
@@ -123,45 +124,45 @@ class ErrorContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSurface(
-    child: Semantics(
-      liveRegion: true,
-      label: '$title. $message',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.lg),
-        child: Column(
-          children: [
-            Icon(
-              Icons.cloud_off_outlined,
-              size: 38,
-              color: context.pandoraPalette.attention,
+        child: Semantics(
+          liveRegion: true,
+          label: '$title. $message',
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.lg),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.cloud_off_outlined,
+                  size: 38,
+                  color: context.pandoraPalette.attention,
+                ),
+                const SizedBox(height: PandoraSpacing.md),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: PandoraSpacing.xs),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                if (onRetry != null) ...[
+                  const SizedBox(height: PandoraSpacing.lg),
+                  FilledButton.tonalIcon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: Text(retryLabel),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: PandoraSpacing.md),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: PandoraSpacing.xs),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: PandoraSpacing.lg),
-              FilledButton.tonalIcon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: Text(retryLabel),
-              ),
-            ],
-          ],
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 class DegradedContentNotice extends StatelessWidget {
@@ -176,35 +177,36 @@ class DegradedContentNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSurface(
-    child: Semantics(
-      liveRegion: true,
-      label: 'Showing saved information. $message',
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.history_rounded, color: context.pandoraPalette.attention),
-          const SizedBox(width: PandoraSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Showing saved information',
-                  style: Theme.of(context).textTheme.titleSmall,
+        child: Semantics(
+          liveRegion: true,
+          label: 'Showing saved information. $message',
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.history_rounded,
+                  color: context.pandoraPalette.attention),
+              const SizedBox(width: PandoraSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Showing saved information',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: PandoraSpacing.xxs),
+                    Text(message),
+                    const SizedBox(height: PandoraSpacing.sm),
+                    OutlinedButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Check live state'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: PandoraSpacing.xxs),
-                Text(message),
-                const SizedBox(height: PandoraSpacing.sm),
-                OutlinedButton.icon(
-                  onPressed: onRetry,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Check live state'),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }

@@ -27,44 +27,46 @@ PandoraApiClient clientWith(
   int maxResponseBytes = 1024 * 1024,
   DiagnosticsStore? diagnostics,
   String? token = 'fixture-session-token',
-}) => PandoraApiClient(
-  baseUri: Uri.parse('https://example.invalid/functions/v1/owner'),
-  organizationId: 'organization-fixture-1',
-  sessionTokenProvider: _TokenProvider(token),
-  httpClient: httpClient,
-  timeout: timeout,
-  maxResponseBytes: maxResponseBytes,
-  diagnostics: diagnostics ?? DiagnosticsStore(),
-);
+}) =>
+    PandoraApiClient(
+      baseUri: Uri.parse('https://example.invalid/functions/v1/owner'),
+      organizationId: 'organization-fixture-1',
+      sessionTokenProvider: _TokenProvider(token),
+      httpClient: httpClient,
+      timeout: timeout,
+      maxResponseBytes: maxResponseBytes,
+      diagnostics: diagnostics ?? DiagnosticsStore(),
+    );
 
 Map<String, Object?> canonicalIntakeStatus() => <String, Object?>{
-  'whatChanged': 'A governed intake record was created.',
-  'whereWeAre': 'Planning',
-  'whatIsDone': 'The request was accepted.',
-  'whatIsHappeningNow': 'Pandora is checking preconditions.',
-  'whatIsStoppingUs': null,
-  'whatIWillDoNext': 'Show the plan before any protected change.',
-};
+      'whatChanged': 'A governed intake record was created.',
+      'whereWeAre': 'Planning',
+      'whatIsDone': 'The request was accepted.',
+      'whatIsHappeningNow': 'Pandora is checking preconditions.',
+      'whatIsStoppingUs': null,
+      'whatIWillDoNext': 'Show the plan before any protected change.',
+    };
 
 Map<String, Object?> approvalDecisionResponse({
   Object? ok = true,
   String decision = 'approved',
   String approvalId = 'approval-fixture-1',
   String approvalDecision = 'approved',
-}) => <String, Object?>{
-  'ok': ok,
-  'decision': decision,
-  'approval': <String, Object?>{
-    'id': approvalId,
-    'whatWillHappen': 'Publish the candidate',
-    'whyINeedYou': 'Owner decision required',
-    'whatWillChange': 'Release alias',
-    'howWeCanUndoIt': 'Restore prior alias',
-    'riskLevel': 'HIGH',
-    'reversible': true,
-    'decision': approvalDecision,
-  },
-};
+}) =>
+    <String, Object?>{
+      'ok': ok,
+      'decision': decision,
+      'approval': <String, Object?>{
+        'id': approvalId,
+        'whatWillHappen': 'Publish the candidate',
+        'whyINeedYou': 'Owner decision required',
+        'whatWillChange': 'Release alias',
+        'howWeCanUndoIt': 'Restore prior alias',
+        'riskLevel': 'HIGH',
+        'reversible': true,
+        'decision': approvalDecision,
+      },
+    };
 
 String? header(http.Request request, String name) {
   final normalized = name.toLowerCase();
@@ -644,7 +646,7 @@ void main() {
             'code': 'PRIVATE_DETAIL',
             'plainMessage':
                 'Contact owner@example.com with Bearer private-token at '
-                'https://example.invalid/retry?access_token=private.',
+                    'https://example.invalid/retry?access_token=private.',
           }),
           400,
         ),

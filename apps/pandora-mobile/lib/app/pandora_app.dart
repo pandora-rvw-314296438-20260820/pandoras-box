@@ -33,19 +33,19 @@ class _PandoraAppState extends State<PandoraApp> {
 
   @override
   Widget build(BuildContext context) => PandoraDependencies(
-    auth: widget.auth,
-    repository: widget.repository,
-    diagnostics: widget.diagnostics,
-    child: MaterialApp(
-      title: "Pandora's Box",
-      // Opaque task-switcher and window colour. A transparent value here
-      // lets the black Android window underlay show through.
-      color: PandoraPalette.porcelain.canvas,
-      debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
-      theme: PandoraTheme.porcelain,
-      darkTheme: PandoraTheme.graphite,
-      home: const AuthGate(),
-    ),
-  );
+        auth: widget.auth,
+        repository: widget.repository,
+        diagnostics: widget.diagnostics,
+        child: MaterialApp(
+          title: "Pandora's Box",
+          // Opaque task-switcher and window colour. A transparent value here
+          // lets the black Android window underlay show through.
+          color: PandoraPalette.porcelain.canvas,
+          debugShowCheckedModeBanner: false,
+          themeMode: ThemeMode.system,
+          theme: PandoraTheme.porcelain,
+          darkTheme: PandoraTheme.graphite,
+          home: const AuthGate(),
+        ),
+      );
 }

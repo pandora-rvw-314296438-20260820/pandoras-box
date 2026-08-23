@@ -58,186 +58,186 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   List<ProjectSummary> _visible(List<ProjectSummary> projects) {
     final query = _search.text.trim().toLowerCase();
-    final visible = projects
-        .where((project) {
-          if (!_showInternal && !isOwnerVisibleProject(project)) return false;
-          final ownerState = resolveOwnerProjectState(project);
-          final matchesQuery =
-              query.isEmpty ||
-              '${project.name} ${project.purpose} ${project.phase} ${ownerState.label}'
-                  .toLowerCase()
-                  .contains(query);
-          if (!matchesQuery) return false;
-          return switch (_filter) {
-            ProjectFilter.all => true,
-            ProjectFilter.needsMe =>
-              ownerState == OwnerProjectState.ownerActionRequired,
-            ProjectFilter.working => ownerState == OwnerProjectState.executing,
-            ProjectFilter.blocked => ownerState == OwnerProjectState.blocked,
-            ProjectFilter.stale =>
-              project.freshness.state != FreshnessState.fresh,
-            ProjectFilter.productionVerified =>
-              project.evidenceState(EvidenceStage.productionVerified) ==
-                  EvidenceClaimState.verified,
-          };
-        })
-        .toList(growable: true);
+    final visible = projects.where((project) {
+      if (!_showInternal && !isOwnerVisibleProject(project)) return false;
+      final ownerState = resolveOwnerProjectState(project);
+      final matchesQuery = query.isEmpty ||
+          '${project.name} ${project.purpose} ${project.phase} ${ownerState.label}'
+              .toLowerCase()
+              .contains(query);
+      if (!matchesQuery) return false;
+      return switch (_filter) {
+        ProjectFilter.all => true,
+        ProjectFilter.needsMe =>
+          ownerState == OwnerProjectState.ownerActionRequired,
+        ProjectFilter.working => ownerState == OwnerProjectState.executing,
+        ProjectFilter.blocked => ownerState == OwnerProjectState.blocked,
+        ProjectFilter.stale => project.freshness.state != FreshnessState.fresh,
+        ProjectFilter.productionVerified =>
+          project.evidenceState(EvidenceStage.productionVerified) ==
+              EvidenceClaimState.verified,
+      };
+    }).toList(growable: true);
     visible.sort(_compareProjectAttention);
     return List<ProjectSummary>.unmodifiable(visible);
   }
 
   @override
   Widget build(BuildContext context) => PandoraPage(
-    title: 'Projects',
-    subtitle: 'Business systems first; technical workstreams on demand.',
-    onRefresh: () => _controller!.refresh(),
-    child: AnimatedBuilder(
-      animation: _controller!,
-      builder: (context, _) {
-        final controller = _controller!;
-        if (controller.isLoading && controller.data == null) {
-          return const ContentSkeleton(lines: 6);
-        }
-        if (controller.error != null && controller.data == null) {
-          return ErrorContent(
-            title: 'Projects could not load',
-            message: _safeError(controller.error),
-            onRetry: controller.load,
-          );
-        }
-        final allProjects = controller.data ?? const <ProjectSummary>[];
-        final ownerProjects = allProjects
-            .where(isOwnerVisibleProject)
-            .toList(growable: false);
-        final projects = _visible(allProjects);
-        final blocked = ownerProjects
-            .where(
-              (project) =>
-                  resolveOwnerProjectState(project) ==
-                  OwnerProjectState.blocked,
-            )
-            .length;
-        final working = ownerProjects
-            .where(
-              (project) =>
-                  resolveOwnerProjectState(project) ==
-                  OwnerProjectState.executing,
-            )
-            .length;
-        final productionVerified = ownerProjects
-            .where(
-              (project) =>
-                  project.evidenceState(EvidenceStage.productionVerified) ==
-                  EvidenceClaimState.verified,
-            )
-            .length;
+        title: 'Projects',
+        subtitle: 'Business systems first; technical workstreams on demand.',
+        onRefresh: () => _controller!.refresh(),
+        child: AnimatedBuilder(
+          animation: _controller!,
+          builder: (context, _) {
+            final controller = _controller!;
+            if (controller.isLoading && controller.data == null) {
+              return const ContentSkeleton(lines: 6);
+            }
+            if (controller.error != null && controller.data == null) {
+              return ErrorContent(
+                title: 'Projects could not load',
+                message: _safeError(controller.error),
+                onRetry: controller.load,
+              );
+            }
+            final allProjects = controller.data ?? const <ProjectSummary>[];
+            final ownerProjects = allProjects
+                .where(isOwnerVisibleProject)
+                .toList(growable: false);
+            final projects = _visible(allProjects);
+            final blocked = ownerProjects
+                .where(
+                  (project) =>
+                      resolveOwnerProjectState(project) ==
+                      OwnerProjectState.blocked,
+                )
+                .length;
+            final working = ownerProjects
+                .where(
+                  (project) =>
+                      resolveOwnerProjectState(project) ==
+                      OwnerProjectState.executing,
+                )
+                .length;
+            final productionVerified = ownerProjects
+                .where(
+                  (project) =>
+                      project.evidenceState(EvidenceStage.productionVerified) ==
+                      EvidenceClaimState.verified,
+                )
+                .length;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (controller.degradedReason != null ||
-                controller.error != null) ...[
-              DegradedContentNotice(
-                message: controller.degradedReason ?? controller.error!.message,
-                onRetry: controller.refresh,
-              ),
-              const SizedBox(height: PandoraSpacing.md),
-            ],
-            OwnerMetricGrid(
-              metrics: [
-                OwnerMetric(
-                  label: 'Owner projects',
-                  value: '${ownerProjects.length}',
-                  icon: Icons.workspaces_outline,
-                  tone: PandoraStatusTone.informative,
-                ),
-                OwnerMetric(
-                  label: 'Working now',
-                  value: '$working',
-                  icon: Icons.play_circle_outline_rounded,
-                  tone: working > 0
-                      ? PandoraStatusTone.informative
-                      : PandoraStatusTone.neutral,
-                ),
-                OwnerMetric(
-                  label: 'Blocked',
-                  value: '$blocked',
-                  icon: Icons.block_rounded,
-                  tone: blocked > 0
-                      ? PandoraStatusTone.critical
-                      : PandoraStatusTone.neutral,
-                ),
-                OwnerMetric(
-                  label: 'Production verified',
-                  value: '$productionVerified',
-                  icon: Icons.verified_outlined,
-                  tone: PandoraStatusTone.verified,
-                ),
-              ],
-            ),
-            const SizedBox(height: PandoraSpacing.md),
-            PandoraSurface(
-              title: 'Search portfolio',
-              subtitle: 'Internal recovery and ingestion records stay hidden in Simple view.',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TextField(
-                    controller: _search,
-                    onChanged: (_) => setState(() {}),
-                    decoration: const InputDecoration(
-                      labelText: 'Search projects',
-                      prefixIcon: Icon(Icons.search_rounded),
-                    ),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (controller.degradedReason != null ||
+                    controller.error != null) ...[
+                  DegradedContentNotice(
+                    message:
+                        controller.degradedReason ?? controller.error!.message,
+                    onRetry: controller.refresh,
                   ),
-                  const SizedBox(height: PandoraSpacing.sm),
-                  Wrap(
-                    spacing: PandoraSpacing.xs,
-                    runSpacing: PandoraSpacing.xs,
+                  const SizedBox(height: PandoraSpacing.md),
+                ],
+                OwnerMetricGrid(
+                  metrics: [
+                    OwnerMetric(
+                      label: 'Owner projects',
+                      value: '${ownerProjects.length}',
+                      icon: Icons.workspaces_outline,
+                      tone: PandoraStatusTone.informative,
+                    ),
+                    OwnerMetric(
+                      label: 'Working now',
+                      value: '$working',
+                      icon: Icons.play_circle_outline_rounded,
+                      tone: working > 0
+                          ? PandoraStatusTone.informative
+                          : PandoraStatusTone.neutral,
+                    ),
+                    OwnerMetric(
+                      label: 'Blocked',
+                      value: '$blocked',
+                      icon: Icons.block_rounded,
+                      tone: blocked > 0
+                          ? PandoraStatusTone.critical
+                          : PandoraStatusTone.neutral,
+                    ),
+                    OwnerMetric(
+                      label: 'Production verified',
+                      value: '$productionVerified',
+                      icon: Icons.verified_outlined,
+                      tone: PandoraStatusTone.verified,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: PandoraSpacing.md),
+                PandoraSurface(
+                  title: 'Search portfolio',
+                  subtitle:
+                      'Internal recovery and ingestion records stay hidden in Simple view.',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      for (final filter in ProjectFilter.values)
-                        FilterChip(
-                          label: Text(filter.label),
-                          selected: _filter == filter,
-                          onSelected: (_) => setState(() => _filter = filter),
+                      TextField(
+                        controller: _search,
+                        onChanged: (_) => setState(() {}),
+                        decoration: const InputDecoration(
+                          labelText: 'Search projects',
+                          prefixIcon: Icon(Icons.search_rounded),
                         ),
-                      FilterChip(
-                        label: const Text('Professional: internal'),
-                        selected: _showInternal,
-                        onSelected: (value) =>
-                            setState(() => _showInternal = value),
+                      ),
+                      const SizedBox(height: PandoraSpacing.sm),
+                      Wrap(
+                        spacing: PandoraSpacing.xs,
+                        runSpacing: PandoraSpacing.xs,
+                        children: [
+                          for (final filter in ProjectFilter.values)
+                            FilterChip(
+                              label: Text(filter.label),
+                              selected: _filter == filter,
+                              onSelected: (_) =>
+                                  setState(() => _filter = filter),
+                            ),
+                          FilterChip(
+                            label: const Text('Professional: internal'),
+                            selected: _showInternal,
+                            onSelected: (value) =>
+                                setState(() => _showInternal = value),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: PandoraSpacing.xl),
-            OwnerSectionHeading(
-              title: _showInternal ? 'All project records' : 'Portfolio',
-              subtitle: projects.isEmpty
-                  ? 'No projects match the current view.'
-                  : '${projects.length} project${projects.length == 1 ? '' : 's'} · owner action, blockers, and active work first',
-            ),
-            const SizedBox(height: PandoraSpacing.sm),
-            if (projects.isEmpty)
-              EmptyContent(
-                title: 'No matching projects',
-                message: _search.text.isEmpty && _filter == ProjectFilter.all
-                    ? 'No verified projects were returned for this view.'
-                    : 'Try another search or filter.',
-              )
-            else
-              for (var index = 0; index < projects.length; index++) ...[
-                _ProjectCard(project: projects[index]),
-                if (index != projects.length - 1)
-                  const SizedBox(height: PandoraSpacing.sm),
+                ),
+                const SizedBox(height: PandoraSpacing.xl),
+                OwnerSectionHeading(
+                  title: _showInternal ? 'All project records' : 'Portfolio',
+                  subtitle: projects.isEmpty
+                      ? 'No projects match the current view.'
+                      : '${projects.length} project${projects.length == 1 ? '' : 's'} · owner action, blockers, and active work first',
+                ),
+                const SizedBox(height: PandoraSpacing.sm),
+                if (projects.isEmpty)
+                  EmptyContent(
+                    title: 'No matching projects',
+                    message: _search.text.isEmpty &&
+                            _filter == ProjectFilter.all
+                        ? 'No verified projects were returned for this view.'
+                        : 'Try another search or filter.',
+                  )
+                else
+                  for (var index = 0; index < projects.length; index++) ...[
+                    _ProjectCard(project: projects[index]),
+                    if (index != projects.length - 1)
+                      const SizedBox(height: PandoraSpacing.sm),
+                  ],
               ],
-          ],
-        );
-      },
-    ),
-  );
+            );
+          },
+        ),
+      );
 }
 
 class _ProjectCard extends StatelessWidget {
@@ -276,8 +276,7 @@ class _ProjectCard extends StatelessWidget {
                   ),
                   StatusBadge(
                     label: compactProofSummary(project),
-                    tone:
-                        project.evidenceState(
+                    tone: project.evidenceState(
                               EvidenceStage.productionVerified,
                             ) ==
                             EvidenceClaimState.verified

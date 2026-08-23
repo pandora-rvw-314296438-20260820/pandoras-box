@@ -45,10 +45,10 @@ class FakeRepository implements PandoraRepository {
   bool failing = false;
 
   RepositorySnapshot<T> _snapshot<T>(T data) => RepositorySnapshot<T>(
-    data: data,
-    source: RepositorySource.network,
-    fetchedAt: DateTime.utc(2026, 8, 14),
-  );
+        data: data,
+        source: RepositorySource.network,
+        fetchedAt: DateTime.utc(2026, 8, 14),
+      );
 
   void _guard() {
     if (failing) {
@@ -151,14 +151,16 @@ class FakeRepository implements PandoraRepository {
     required String message,
     String? projectId,
     String? idempotencyKey,
-  }) => throw UnimplementedError();
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<ApprovalDecisionResult> decideApproval({
     required String approvalId,
     required ApprovalDecision decision,
     String reason = '',
-  }) => throw UnimplementedError();
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<IntakeReceipt> runAction({
@@ -166,7 +168,8 @@ class FakeRepository implements PandoraRepository {
     String? projectId,
     String? message,
     String? idempotencyKey,
-  }) => throw UnimplementedError();
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<IntakeReceipt> verifyExactSource({
@@ -175,26 +178,28 @@ class FakeRepository implements PandoraRepository {
     required WorkerJobClass jobClass,
     int? maxRuntimeSeconds,
     String? idempotencyKey,
-  }) => throw UnimplementedError();
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<WorkerExecutionStatus> workerExecution({
     required String planId,
-  }) async => WorkerExecutionStatus(
-    planId: planId,
-    planStatus: 'completed',
-    dispatchStatus: 'completed',
-    lifecycleStage: 'final_proof_available',
-    repository: 'banataosystems/Pandoras-box',
-    sourceSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    jobClass: 'node_regression',
-    workerClaimObserved: true,
-    workerLabel: 'Worker-01',
-    workerIdentity: 'worker-01',
-    providerResultObserved: true,
-    finalProofAvailable: true,
-    terminal: true,
-  );
+  }) async =>
+      WorkerExecutionStatus(
+        planId: planId,
+        planStatus: 'completed',
+        dispatchStatus: 'completed',
+        lifecycleStage: 'final_proof_available',
+        repository: 'banataosystems/Pandoras-box',
+        sourceSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        jobClass: 'node_regression',
+        workerClaimObserved: true,
+        workerLabel: 'Worker-01',
+        workerIdentity: 'worker-01',
+        providerResultObserved: true,
+        finalProofAvailable: true,
+        terminal: true,
+      );
 
   @override
   void clearReadOnlyCache() {}

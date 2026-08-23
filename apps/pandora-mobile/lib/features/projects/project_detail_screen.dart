@@ -44,57 +44,57 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: PandoraPage(
-      title: canonicalOwnerProjectLabel(widget.project),
-      subtitle: widget.project.purpose,
-      onRefresh: () => _controller!.refresh(),
-      child: AnimatedBuilder(
-        animation: _controller!,
-        builder: (context, _) {
-          final controller = _controller!;
-          if (controller.isLoading && controller.data == null) {
-            return _LoadingProjectSnapshot(project: widget.project);
-          }
-          if (controller.error != null && controller.data == null) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _ProjectSnapshot(summary: widget.project),
-                const SizedBox(height: PandoraSpacing.md),
-                ErrorContent(
-                  title: 'Latest project detail could not load',
-                  message: _safeError(controller.error),
-                  onRetry: controller.load,
-                ),
-              ],
-            );
-          }
-          final detail = controller.data;
-          if (detail == null) {
-            return const EmptyContent(
-              title: 'No verified detail',
-              message: 'Pandora returned no project detail.',
-            );
-          }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (controller.degradedReason != null ||
-                  controller.error != null) ...[
-                DegradedContentNotice(
-                  message:
-                      controller.degradedReason ?? controller.error!.message,
-                  onRetry: controller.refresh,
-                ),
-                const SizedBox(height: PandoraSpacing.md),
-              ],
-              _DetailContent(detail: detail),
-            ],
-          );
-        },
-      ),
-    ),
-  );
+        body: PandoraPage(
+          title: canonicalOwnerProjectLabel(widget.project),
+          subtitle: widget.project.purpose,
+          onRefresh: () => _controller!.refresh(),
+          child: AnimatedBuilder(
+            animation: _controller!,
+            builder: (context, _) {
+              final controller = _controller!;
+              if (controller.isLoading && controller.data == null) {
+                return _LoadingProjectSnapshot(project: widget.project);
+              }
+              if (controller.error != null && controller.data == null) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _ProjectSnapshot(summary: widget.project),
+                    const SizedBox(height: PandoraSpacing.md),
+                    ErrorContent(
+                      title: 'Latest project detail could not load',
+                      message: _safeError(controller.error),
+                      onRetry: controller.load,
+                    ),
+                  ],
+                );
+              }
+              final detail = controller.data;
+              if (detail == null) {
+                return const EmptyContent(
+                  title: 'No verified detail',
+                  message: 'Pandora returned no project detail.',
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (controller.degradedReason != null ||
+                      controller.error != null) ...[
+                    DegradedContentNotice(
+                      message: controller.degradedReason ??
+                          controller.error!.message,
+                      onRetry: controller.refresh,
+                    ),
+                    const SizedBox(height: PandoraSpacing.md),
+                  ],
+                  _DetailContent(detail: detail),
+                ],
+              );
+            },
+          ),
+        ),
+      );
 }
 
 class _LoadingProjectSnapshot extends StatelessWidget {
@@ -104,20 +104,21 @@ class _LoadingProjectSnapshot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      _ProjectSnapshot(summary: project),
-      const SizedBox(height: PandoraSpacing.md),
-      const OwnerSignal(
-        label: 'Refreshing',
-        value: 'The last usable summary stays visible while Pandora checks deeper evidence.',
-        icon: Icons.sync_rounded,
-        tone: PandoraStatusTone.informative,
-      ),
-      const SizedBox(height: PandoraSpacing.md),
-      const ContentSkeleton(lines: 4),
-    ],
-  );
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _ProjectSnapshot(summary: project),
+          const SizedBox(height: PandoraSpacing.md),
+          const OwnerSignal(
+            label: 'Refreshing',
+            value:
+                'The last usable summary stays visible while Pandora checks deeper evidence.',
+            icon: Icons.sync_rounded,
+            tone: PandoraStatusTone.informative,
+          ),
+          const SizedBox(height: PandoraSpacing.md),
+          const ContentSkeleton(lines: 4),
+        ],
+      );
 }
 
 class _ProjectSnapshot extends StatelessWidget {
@@ -132,8 +133,7 @@ class _ProjectSnapshot extends StatelessWidget {
     return OwnerBriefingHero(
       eyebrow: 'Current project truth',
       title: state.label,
-      message:
-          summary.nextAction ??
+      message: summary.nextAction ??
           (summary.phase == 'Phase not verified'
               ? 'No verified next autonomous action is recorded yet.'
               : summary.phase),
@@ -167,12 +167,10 @@ class _DetailContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tasks = detail.tasks;
-    final done = tasks
-        .where((item) => item.state == ProjectTaskState.complete)
-        .toList();
-    final blocked = tasks
-        .where((item) => item.state == ProjectTaskState.blocked)
-        .toList();
+    final done =
+        tasks.where((item) => item.state == ProjectTaskState.complete).toList();
+    final blocked =
+        tasks.where((item) => item.state == ProjectTaskState.blocked).toList();
     final inProgress = tasks
         .where(
           (item) =>
@@ -189,9 +187,8 @@ class _DetailContent extends StatelessWidget {
               item.state == ProjectTaskState.cancelled,
         )
         .toList();
-    final unknown = tasks
-        .where((item) => item.state == ProjectTaskState.unknown)
-        .toList();
+    final unknown =
+        tasks.where((item) => item.state == ProjectTaskState.unknown).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -302,11 +299,9 @@ class _DetailContent extends StatelessWidget {
               ? const Text('No active evidence was returned.')
               : Column(
                   children: [
-                    for (
-                      var index = 0;
-                      index < detail.evidence.length;
-                      index++
-                    ) ...[
+                    for (var index = 0;
+                        index < detail.evidence.length;
+                        index++) ...[
                       _EvidenceRow(item: detail.evidence[index]),
                       if (index != detail.evidence.length - 1) const Divider(),
                     ],
@@ -331,47 +326,48 @@ class _TaskSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-    clipBehavior: Clip.antiAlias,
-    child: ExpansionTile(
-      initiallyExpanded: initiallyExpanded,
-      title: Text(title),
-      subtitle: Text('${tasks.length} task${tasks.length == 1 ? '' : 's'}'),
-      childrenPadding: const EdgeInsets.fromLTRB(
-        PandoraSpacing.lg,
-        0,
-        PandoraSpacing.lg,
-        PandoraSpacing.md,
-      ),
-      children: [
-        for (var index = 0; index < tasks.length; index++) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.sm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  tasks[index].title,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: PandoraSpacing.xxs),
-                Text(tasks[index].status),
-                const SizedBox(height: PandoraSpacing.xs),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: StatusBadge(
-                    label: tasks[index].risk.label,
-                    tone: statusToneFor(tasks[index].risk.label),
-                    compact: true,
-                  ),
-                ),
-              ],
-            ),
+        clipBehavior: Clip.antiAlias,
+        child: ExpansionTile(
+          initiallyExpanded: initiallyExpanded,
+          title: Text(title),
+          subtitle: Text('${tasks.length} task${tasks.length == 1 ? '' : 's'}'),
+          childrenPadding: const EdgeInsets.fromLTRB(
+            PandoraSpacing.lg,
+            0,
+            PandoraSpacing.lg,
+            PandoraSpacing.md,
           ),
-          if (index != tasks.length - 1) const Divider(),
-        ],
-      ],
-    ),
-  );
+          children: [
+            for (var index = 0; index < tasks.length; index++) ...[
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: PandoraSpacing.sm),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      tasks[index].title,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: PandoraSpacing.xxs),
+                    Text(tasks[index].status),
+                    const SizedBox(height: PandoraSpacing.xs),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: StatusBadge(
+                        label: tasks[index].risk.label,
+                        tone: statusToneFor(tasks[index].risk.label),
+                        compact: true,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (index != tasks.length - 1) const Divider(),
+            ],
+          ],
+        ),
+      );
 }
 
 class _EvidenceRow extends StatelessWidget {
@@ -381,37 +377,37 @@ class _EvidenceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.sm),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(providerIconFor(item.provider), size: 20),
-        const SizedBox(width: PandoraSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(item.type),
-              const SizedBox(height: PandoraSpacing.xxs),
-              Text(
-                [
-                  item.provider,
-                  ownerRelativeTime(item.observedAt),
-                ].where((value) => value.isNotEmpty).join(' · '),
-                style: Theme.of(context).textTheme.bodySmall,
+        padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.sm),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(providerIconFor(item.provider), size: 20),
+            const SizedBox(width: PandoraSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.type),
+                  const SizedBox(height: PandoraSpacing.xxs),
+                  Text(
+                    [
+                      item.provider,
+                      ownerRelativeTime(item.observedAt),
+                    ].where((value) => value.isNotEmpty).join(' · '),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: PandoraSpacing.xs),
+                  StatusBadge(
+                    label: item.verdict ?? item.status,
+                    tone: statusToneFor(item.verdict ?? item.status),
+                    compact: true,
+                  ),
+                ],
               ),
-              const SizedBox(height: PandoraSpacing.xs),
-              StatusBadge(
-                label: item.verdict ?? item.status,
-                tone: statusToneFor(item.verdict ?? item.status),
-                compact: true,
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 String _safeError(Object? error) {
