@@ -40,122 +40,119 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: PandoraPage(
-          title: 'Connections',
-          subtitle: 'Provider health, capability, and verified freshness.',
-          actions: [
-            IconButton(
-              tooltip: 'Refresh Connections',
-              onPressed: () => _controller?.refresh(),
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-          ],
-          onRefresh: () => _controller!.refresh(),
-          child: AnimatedBuilder(
-            animation: _controller!,
-            builder: (context, _) {
-              final controller = _controller!;
-              if (controller.isLoading && controller.data == null) {
-                return const ContentSkeleton(lines: 6);
-              }
-              if (controller.error != null && controller.data == null) {
-                return ErrorContent(
-                  title: 'Connections could not load',
-                  message: controller.error!.message,
-                  onRetry: controller.load,
-                );
-              }
-              final raw = controller.data ?? const <ConnectionSummary>[];
-              final items = deduplicateConnections(raw);
-              if (items.isEmpty) {
-                return const EmptyContent(
-                  title: 'No connections returned',
-                  message:
-                      'Pandora has not returned a verified connection list.',
-                );
-              }
-              final changeReady =
-                  items.where((connection) => connection.canChange).length;
-              final needsAttention = items
-                  .where(
-                      (connection) => connectionAttentionRank(connection) >= 3)
-                  .length;
-              final healthy = items
-                  .where(
-                      (connection) => connectionAttentionRank(connection) == 1)
-                  .length;
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (controller.degradedReason != null ||
-                      controller.error != null) ...[
-                    DegradedContentNotice(
-                      message: controller.degradedReason ??
-                          controller.error!.message,
-                      onRetry: controller.refresh,
-                    ),
-                    const SizedBox(height: PandoraSpacing.md),
-                  ],
-                  OwnerBriefingHero(
-                    eyebrow: 'Provider posture',
-                    title: needsAttention == 0
-                        ? 'Connected services are ready'
-                        : '$needsAttention connection${needsAttention == 1 ? '' : 's'} need attention',
-                    message:
-                        'Capabilities are shown without exposing credentials or secret values.',
-                    icon: needsAttention == 0
-                        ? Icons.cable_rounded
-                        : Icons.warning_amber_rounded,
-                    tone: needsAttention == 0
-                        ? PandoraStatusTone.verified
-                        : PandoraStatusTone.attention,
-                    statusLabel: raw.length == items.length
-                        ? '${items.length} providers'
-                        : '${items.length} unique providers · ${raw.length - items.length} duplicate record${raw.length - items.length == 1 ? '' : 's'} collapsed',
-                  ),
-                  const SizedBox(height: PandoraSpacing.md),
-                  OwnerMetricGrid(
-                    metrics: [
-                      OwnerMetric(
-                        label: 'Healthy',
-                        value: '$healthy',
-                        icon: Icons.check_circle_outline_rounded,
-                        tone: PandoraStatusTone.verified,
-                      ),
-                      OwnerMetric(
-                        label: 'Change-ready',
-                        value: '$changeReady',
-                        icon: Icons.edit_note_rounded,
-                        tone: PandoraStatusTone.informative,
-                      ),
-                      OwnerMetric(
-                        label: 'Needs attention',
-                        value: '$needsAttention',
-                        icon: Icons.warning_amber_rounded,
-                        tone: needsAttention > 0
-                            ? PandoraStatusTone.attention
-                            : PandoraStatusTone.neutral,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: PandoraSpacing.xl),
-                  const OwnerSectionHeading(
-                    title: 'Connected services',
-                    subtitle: 'Attention-first, with capability and freshness.',
-                  ),
-                  const SizedBox(height: PandoraSpacing.sm),
-                  for (var index = 0; index < items.length; index++) ...[
-                    _ConnectionCard(connection: items[index]),
-                    if (index != items.length - 1)
-                      const SizedBox(height: PandoraSpacing.sm),
-                  ],
-                ],
-              );
-            },
-          ),
+    body: PandoraPage(
+      title: 'Connections',
+      subtitle: 'Provider health, capability, and verified freshness.',
+      actions: [
+        IconButton(
+          tooltip: 'Refresh Connections',
+          onPressed: () => _controller?.refresh(),
+          icon: const Icon(Icons.refresh_rounded),
         ),
-      );
+      ],
+      onRefresh: () => _controller!.refresh(),
+      child: AnimatedBuilder(
+        animation: _controller!,
+        builder: (context, _) {
+          final controller = _controller!;
+          if (controller.isLoading && controller.data == null) {
+            return const ContentSkeleton(lines: 6);
+          }
+          if (controller.error != null && controller.data == null) {
+            return ErrorContent(
+              title: 'Connections could not load',
+              message: controller.error!.message,
+              onRetry: controller.load,
+            );
+          }
+          final raw = controller.data ?? const <ConnectionSummary>[];
+          final items = deduplicateConnections(raw);
+          if (items.isEmpty) {
+            return const EmptyContent(
+              title: 'No connections returned',
+              message: 'Pandora has not returned a verified connection list.',
+            );
+          }
+          final changeReady = items
+              .where((connection) => connection.canChange)
+              .length;
+          final needsAttention = items
+              .where((connection) => connectionAttentionRank(connection) >= 3)
+              .length;
+          final healthy = items
+              .where((connection) => connectionAttentionRank(connection) == 1)
+              .length;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (controller.degradedReason != null ||
+                  controller.error != null) ...[
+                DegradedContentNotice(
+                  message:
+                      controller.degradedReason ?? controller.error!.message,
+                  onRetry: controller.refresh,
+                ),
+                const SizedBox(height: PandoraSpacing.md),
+              ],
+              OwnerBriefingHero(
+                eyebrow: 'Provider posture',
+                title: needsAttention == 0
+                    ? 'Connected services are ready'
+                    : '$needsAttention connection${needsAttention == 1 ? '' : 's'} need attention',
+                message: 'Capabilities are shown without exposing credentials or secret values.',
+                icon: needsAttention == 0
+                    ? Icons.cable_rounded
+                    : Icons.warning_amber_rounded,
+                tone: needsAttention == 0
+                    ? PandoraStatusTone.verified
+                    : PandoraStatusTone.attention,
+                statusLabel: raw.length == items.length
+                    ? '${items.length} providers'
+                    : '${items.length} unique providers · ${raw.length - items.length} duplicate record${raw.length - items.length == 1 ? '' : 's'} collapsed',
+              ),
+              const SizedBox(height: PandoraSpacing.md),
+              OwnerMetricGrid(
+                metrics: [
+                  OwnerMetric(
+                    label: 'Healthy',
+                    value: '$healthy',
+                    icon: Icons.check_circle_outline_rounded,
+                    tone: PandoraStatusTone.verified,
+                  ),
+                  OwnerMetric(
+                    label: 'Change-ready',
+                    value: '$changeReady',
+                    icon: Icons.edit_note_rounded,
+                    tone: PandoraStatusTone.informative,
+                  ),
+                  OwnerMetric(
+                    label: 'Needs attention',
+                    value: '$needsAttention',
+                    icon: Icons.warning_amber_rounded,
+                    tone: needsAttention > 0
+                        ? PandoraStatusTone.attention
+                        : PandoraStatusTone.neutral,
+                  ),
+                ],
+              ),
+              const SizedBox(height: PandoraSpacing.xl),
+              const OwnerSectionHeading(
+                title: 'Connected services',
+                subtitle: 'Attention-first, with capability and freshness.',
+              ),
+              const SizedBox(height: PandoraSpacing.sm),
+              for (var index = 0; index < items.length; index++) ...[
+                _ConnectionCard(connection: items[index]),
+                if (index != items.length - 1)
+                  const SizedBox(height: PandoraSpacing.sm),
+              ],
+            ],
+          );
+        },
+      ),
+    ),
+  );
 }
 
 class _ConnectionCard extends StatelessWidget {
@@ -165,36 +162,36 @@ class _ConnectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSurface(
-        title: connection.name,
-        subtitle: connection.purpose,
-        leading: Icon(providerIconFor(connection.name)),
-        trailing: StatusBadge(
-          label: connection.status,
-          tone: statusToneFor(connection.status),
-          compact: true,
+    title: connection.name,
+    subtitle: connection.purpose,
+    leading: Icon(providerIconFor(connection.name)),
+    trailing: StatusBadge(
+      label: connection.status,
+      tone: statusToneFor(connection.status),
+      compact: true,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OwnerSignal(
+          label: 'Verified capability',
+          value: connection.canChange
+              ? 'Read access and governed changes'
+              : connection.canRead
+              ? 'Read access only'
+              : 'No verified access',
+          icon: connection.canChange
+              ? Icons.edit_note_rounded
+              : connection.canRead
+              ? Icons.visibility_outlined
+              : Icons.link_off_rounded,
+          tone: connection.canChange || connection.canRead
+              ? PandoraStatusTone.informative
+              : PandoraStatusTone.attention,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            OwnerSignal(
-              label: 'Verified capability',
-              value: connection.canChange
-                  ? 'Read access and governed changes'
-                  : connection.canRead
-                      ? 'Read access only'
-                      : 'No verified access',
-              icon: connection.canChange
-                  ? Icons.edit_note_rounded
-                  : connection.canRead
-                      ? Icons.visibility_outlined
-                      : Icons.link_off_rounded,
-              tone: connection.canChange || connection.canRead
-                  ? PandoraStatusTone.informative
-                  : PandoraStatusTone.attention,
-            ),
-            const SizedBox(height: PandoraSpacing.sm),
-            FreshnessLabel(freshness: connection.freshness),
-          ],
-        ),
-      );
+        const SizedBox(height: PandoraSpacing.sm),
+        FreshnessLabel(freshness: connection.freshness),
+      ],
+    ),
+  );
 }

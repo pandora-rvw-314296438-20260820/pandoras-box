@@ -4,17 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('exact-source command stays explicit, bounded, and single-send', () {
-    final repositoryContract =
-        File('lib/core/data/pandora_repository.dart').readAsStringSync();
-    final remoteRepository =
-        File('lib/core/data/remote_pandora_repository.dart').readAsStringSync();
-    final httpClient =
-        File('lib/core/network/pandora_api_client.dart').readAsStringSync();
+    final repositoryContract = File('lib/core/data/pandora_repository.dart')
+        .readAsStringSync();
+    final remoteRepository = File(
+      'lib/core/data/remote_pandora_repository.dart',
+    ).readAsStringSync();
+    final httpClient = File('lib/core/network/pandora_api_client.dart')
+        .readAsStringSync();
     final verificationCard = File(
       'lib/features/command/exact_source_verification_card.dart',
     ).readAsStringSync();
-    final commandScreen =
-        File('lib/features/command/command_screen.dart').readAsStringSync();
+    final commandScreen = File('lib/features/command/command_screen.dart')
+        .readAsStringSync();
 
     expect(repositoryContract, contains("'node_regression'"));
     expect(repositoryContract, contains("'supabase_migration_replay'"));

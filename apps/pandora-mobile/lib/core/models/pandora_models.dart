@@ -97,16 +97,17 @@ enum EvidenceStage {
   productionVerified;
 
   String get label => switch (this) {
-        documented => 'Documented',
-        implemented => 'Implemented',
-        tested => 'Tested',
-        deployed => 'Deployed',
-        productionVerified => 'Production verified',
-      };
+    documented => 'Documented',
+    implemented => 'Implemented',
+    tested => 'Tested',
+    deployed => 'Deployed',
+    productionVerified => 'Production verified',
+  };
 
   static EvidenceStage? parse(Object? value) {
-    final normalized =
-        jsonText(value).toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+    final normalized = jsonText(value)
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z]'), '');
     return switch (normalized) {
       'documented' || 'planned' => documented,
       'implemented' || 'built' => implemented,
@@ -124,10 +125,10 @@ enum EvidenceClaimState {
   notChecked;
 
   String get label => switch (this) {
-        verified => 'Verified',
-        failed => 'Failed',
-        notChecked => 'Not checked',
-      };
+    verified => 'Verified',
+    failed => 'Failed',
+    notChecked => 'Not checked',
+  };
 
   static EvidenceClaimState parse(Object? value) {
     final normalized = jsonText(value).toLowerCase();
@@ -161,10 +162,10 @@ enum FreshnessState {
   notChecked;
 
   String get label => switch (this) {
-        fresh => 'Fresh',
-        stale => 'Stale',
-        notChecked => 'Not checked',
-      };
+    fresh => 'Fresh',
+    stale => 'Stale',
+    notChecked => 'Not checked',
+  };
 
   static FreshnessState parse(Object? value) {
     final normalized = jsonText(value).toLowerCase();
@@ -250,9 +251,9 @@ class ProjectSummary {
     final display = value == value.roundToDouble()
         ? value.toInt().toString()
         : value
-            .toStringAsFixed(2)
-            .replaceFirst(RegExp(r'0+$'), '')
-            .replaceFirst(RegExp(r'\.$'), '');
+              .toStringAsFixed(2)
+              .replaceFirst(RegExp(r'0+$'), '')
+              .replaceFirst(RegExp(r'\.$'), '');
     return '$display% verified';
   }
 
@@ -269,21 +270,19 @@ class ProjectSummary {
     final progress = jsonDouble(
       firstJsonValue(json, const ['progressPercent', 'progress_percent']),
     );
-    final validProgress = progress != null &&
+    final validProgress =
+        progress != null &&
             progress.isFinite &&
             progress >= 0 &&
             progress <= 100
         ? progress
         : null;
     return ProjectSummary(
-      id: requiredJsonText(
-          json,
-          const [
-            'id',
-            'projectKey',
-            'project_key',
-          ],
-          field: 'project.id'),
+      id: requiredJsonText(json, const [
+        'id',
+        'projectKey',
+        'project_key',
+      ], field: 'project.id'),
       name: requiredJsonText(json, const ['name'], field: 'project.name'),
       purpose: jsonText(
         firstJsonValue(json, const ['plainPurpose', 'purpose', 'objective']),
@@ -298,7 +297,8 @@ class ProjectSummary {
         fallback: 'Not verified',
       ),
       progressPercent: validProgress,
-      progressVerified: json['progressVerified'] == true &&
+      progressVerified:
+          json['progressVerified'] == true &&
           validProgress != null &&
           freshness.isFresh,
       blocker: _nullableText(
@@ -358,9 +358,9 @@ enum ProjectTaskState {
   unknown;
 
   bool get isActive => switch (this) {
-        ready || inProgress || waitingReview || waitingApproval => true,
-        _ => false,
-      };
+    ready || inProgress || waitingReview || waitingApproval => true,
+    _ => false,
+  };
 
   static ProjectTaskState parse(Object? value) {
     return switch (value) {
@@ -490,12 +490,12 @@ enum ActionRisk {
   notChecked;
 
   String get label => switch (this) {
-        low => 'Low risk',
-        medium => 'Medium risk',
-        high => 'High risk',
-        critical => 'Critical risk',
-        notChecked => 'Risk not checked',
-      };
+    low => 'Low risk',
+    medium => 'Medium risk',
+    high => 'High risk',
+    critical => 'Critical risk',
+    notChecked => 'Risk not checked',
+  };
 
   static ActionRisk parse(Object? value) {
     final normalized = jsonText(value).toLowerCase();
@@ -573,37 +573,22 @@ class IntakeStatus {
   factory IntakeStatus.fromJson(Object? value) {
     final json = asJsonMap(value);
     return IntakeStatus(
-      whatChanged: requiredJsonText(
-          json,
-          const <String>[
-            'whatChanged',
-          ],
-          field: 'intake.status.whatChanged'),
-      whereWeAre: requiredJsonText(
-          json,
-          const <String>[
-            'whereWeAre',
-          ],
-          field: 'intake.status.whereWeAre'),
-      whatIsDone: requiredJsonText(
-          json,
-          const <String>[
-            'whatIsDone',
-          ],
-          field: 'intake.status.whatIsDone'),
-      whatIsHappeningNow: requiredJsonText(
-          json,
-          const <String>[
-            'whatIsHappeningNow',
-          ],
-          field: 'intake.status.whatIsHappeningNow'),
+      whatChanged: requiredJsonText(json, const <String>[
+        'whatChanged',
+      ], field: 'intake.status.whatChanged'),
+      whereWeAre: requiredJsonText(json, const <String>[
+        'whereWeAre',
+      ], field: 'intake.status.whereWeAre'),
+      whatIsDone: requiredJsonText(json, const <String>[
+        'whatIsDone',
+      ], field: 'intake.status.whatIsDone'),
+      whatIsHappeningNow: requiredJsonText(json, const <String>[
+        'whatIsHappeningNow',
+      ], field: 'intake.status.whatIsHappeningNow'),
       whatIsStoppingUs: _nullableText(json['whatIsStoppingUs']),
-      whatIWillDoNext: requiredJsonText(
-          json,
-          const <String>[
-            'whatIWillDoNext',
-          ],
-          field: 'intake.status.whatIWillDoNext'),
+      whatIWillDoNext: requiredJsonText(json, const <String>[
+        'whatIWillDoNext',
+      ], field: 'intake.status.whatIWillDoNext'),
     );
   }
 }
@@ -640,19 +625,13 @@ class IntakeReceipt {
       );
     }
     return IntakeReceipt(
-      reply: requiredJsonText(
-          json,
-          const <String>[
-            'reply',
-          ],
-          field: 'intake.reply'),
+      reply: requiredJsonText(json, const <String>[
+        'reply',
+      ], field: 'intake.reply'),
       needsApproval: needsApproval,
-      actionId: requiredJsonText(
-          json,
-          const <String>[
-            'actionId',
-          ],
-          field: 'intake.actionId'),
+      actionId: requiredJsonText(json, const <String>[
+        'actionId',
+      ], field: 'intake.actionId'),
       approvalId: approvalId,
       requestId: requestId,
       status: IntakeStatus.fromJson(json['status']),
@@ -718,58 +697,45 @@ class WorkerExecutionStatus {
     final providerResult = asJsonMap(json['providerResult']);
     final finalProof = asJsonMap(json['finalProof']);
     return WorkerExecutionStatus(
-      planId: requiredJsonText(
-        json,
-        const <String>['planId'],
-        field: 'workerExecution.planId',
-      ),
-      planStatus: requiredJsonText(
-        json,
-        const <String>['planStatus'],
-        field: 'workerExecution.planStatus',
-      ),
-      dispatchStatus: requiredJsonText(
-        json,
-        const <String>['dispatchStatus'],
-        field: 'workerExecution.dispatchStatus',
-      ),
-      lifecycleStage: requiredJsonText(
-        json,
-        const <String>['lifecycleStage'],
-        field: 'workerExecution.lifecycleStage',
-      ),
-      repository: requiredJsonText(
-        exactSource,
-        const <String>['repository'],
-        field: 'workerExecution.exactSource.repository',
-      ),
-      sourceSha: requiredJsonText(
-        exactSource,
-        const <String>['sourceSha'],
-        field: 'workerExecution.exactSource.sourceSha',
-      ),
-      jobClass: requiredJsonText(
-        exactSource,
-        const <String>['jobClass'],
-        field: 'workerExecution.exactSource.jobClass',
-      ),
+      planId: requiredJsonText(json, const <String>[
+        'planId',
+      ], field: 'workerExecution.planId'),
+      planStatus: requiredJsonText(json, const <String>[
+        'planStatus',
+      ], field: 'workerExecution.planStatus'),
+      dispatchStatus: requiredJsonText(json, const <String>[
+        'dispatchStatus',
+      ], field: 'workerExecution.dispatchStatus'),
+      lifecycleStage: requiredJsonText(json, const <String>[
+        'lifecycleStage',
+      ], field: 'workerExecution.lifecycleStage'),
+      repository: requiredJsonText(exactSource, const <String>[
+        'repository',
+      ], field: 'workerExecution.exactSource.repository'),
+      sourceSha: requiredJsonText(exactSource, const <String>[
+        'sourceSha',
+      ], field: 'workerExecution.exactSource.sourceSha'),
+      jobClass: requiredJsonText(exactSource, const <String>[
+        'jobClass',
+      ], field: 'workerExecution.exactSource.jobClass'),
       dispatchId: _nullableText(json['dispatchId']),
       workerClaimObserved: jsonBool(workerClaim['observed']),
       workerLabel: jsonText(workerClaim['label'], fallback: 'Worker-01'),
       workerIdentity: _nullableText(workerClaim['identity']),
       providerResultObserved: jsonBool(providerResult['observed']),
-      workerEvidenceSha256:
-          _nullableText(providerResult['evidenceSha256']),
+      workerEvidenceSha256: _nullableText(providerResult['evidenceSha256']),
       sourceTreeSha: _nullableText(providerResult['sourceTreeSha']),
       providerOutcome: _nullableText(providerResult['outcome']),
       testsDiscovered: providerResult['testsDiscovered'] is num
           ? (providerResult['testsDiscovered'] as num).toInt()
           : null,
       finalProofAvailable: jsonBool(finalProof['available']),
-      verificationEvidenceId:
-          _nullableText(finalProof['verificationEvidenceId']),
-      reviewerRuntimeProofId:
-          _nullableText(finalProof['reviewerRuntimeProofId']),
+      verificationEvidenceId: _nullableText(
+        finalProof['verificationEvidenceId'],
+      ),
+      reviewerRuntimeProofId: _nullableText(
+        finalProof['reviewerRuntimeProofId'],
+      ),
       verifiedOutcome: _nullableText(finalProof['outcome']),
       verifiedAt: jsonDateTime(finalProof['verifiedAt']),
       terminal: jsonBool(json['terminal']),
@@ -778,14 +744,14 @@ class WorkerExecutionStatus {
   }
 
   String get plainStage => switch (lifecycleStage) {
-        'owner_approval_required' => 'Waiting for owner approval',
-        'durable_dispatch_observed' => 'Durable dispatch recorded',
-        'worker_01_claim_observed' => 'Worker-01 claim observed',
-        'provider_result_observed' => 'Exact provider result observed',
-        'final_proof_available' => 'Independent final proof is available',
-        'reconciliation_required' => 'Result needs reconciliation',
-        _ => 'Governed plan recorded',
-      };
+    'owner_approval_required' => 'Waiting for owner approval',
+    'durable_dispatch_observed' => 'Durable dispatch recorded',
+    'worker_01_claim_observed' => 'Worker-01 claim observed',
+    'provider_result_observed' => 'Exact provider result observed',
+    'final_proof_available' => 'Independent final proof is available',
+    'reconciliation_required' => 'Result needs reconciliation',
+    _ => 'Governed plan recorded',
+  };
 }
 
 enum ApprovalState {
@@ -797,13 +763,13 @@ enum ApprovalState {
   unknown;
 
   static ApprovalState parse(Object? value) => switch (value) {
-        'pending' => pending,
-        'approved' => approved,
-        'denied' => denied,
-        'expired' => expired,
-        'revoked' => revoked,
-        _ => unknown,
-      };
+    'pending' => pending,
+    'approved' => approved,
+    'denied' => denied,
+    'expired' => expired,
+    'revoked' => revoked,
+    _ => unknown,
+  };
 }
 
 class ApprovalSummary {
@@ -1217,10 +1183,11 @@ bool requiredJsonBool(JsonMap json, String key, {required String field}) {
   return value;
 }
 
-List<String> _stringList(Object? value) => asJsonList(value)
-    .map(jsonText)
-    .where((item) => item.isNotEmpty)
-    .toList(growable: false);
+List<String> _stringList(Object? value) =>
+    asJsonList(value)
+        .map(jsonText)
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
 
 List<EvidenceStageStatus> _evidenceStageStatuses(JsonMap json) {
   final raw = firstJsonValue(json, const <String>[

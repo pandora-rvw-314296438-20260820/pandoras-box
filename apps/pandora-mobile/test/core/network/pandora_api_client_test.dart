@@ -27,46 +27,44 @@ PandoraApiClient clientWith(
   int maxResponseBytes = 1024 * 1024,
   DiagnosticsStore? diagnostics,
   String? token = 'fixture-session-token',
-}) =>
-    PandoraApiClient(
-      baseUri: Uri.parse('https://example.invalid/functions/v1/owner'),
-      organizationId: 'organization-fixture-1',
-      sessionTokenProvider: _TokenProvider(token),
-      httpClient: httpClient,
-      timeout: timeout,
-      maxResponseBytes: maxResponseBytes,
-      diagnostics: diagnostics ?? DiagnosticsStore(),
-    );
+}) => PandoraApiClient(
+  baseUri: Uri.parse('https://example.invalid/functions/v1/owner'),
+  organizationId: 'organization-fixture-1',
+  sessionTokenProvider: _TokenProvider(token),
+  httpClient: httpClient,
+  timeout: timeout,
+  maxResponseBytes: maxResponseBytes,
+  diagnostics: diagnostics ?? DiagnosticsStore(),
+);
 
 Map<String, Object?> canonicalIntakeStatus() => <String, Object?>{
-      'whatChanged': 'A governed intake record was created.',
-      'whereWeAre': 'Planning',
-      'whatIsDone': 'The request was accepted.',
-      'whatIsHappeningNow': 'Pandora is checking preconditions.',
-      'whatIsStoppingUs': null,
-      'whatIWillDoNext': 'Show the plan before any protected change.',
-    };
+  'whatChanged': 'A governed intake record was created.',
+  'whereWeAre': 'Planning',
+  'whatIsDone': 'The request was accepted.',
+  'whatIsHappeningNow': 'Pandora is checking preconditions.',
+  'whatIsStoppingUs': null,
+  'whatIWillDoNext': 'Show the plan before any protected change.',
+};
 
 Map<String, Object?> approvalDecisionResponse({
   Object? ok = true,
   String decision = 'approved',
   String approvalId = 'approval-fixture-1',
   String approvalDecision = 'approved',
-}) =>
-    <String, Object?>{
-      'ok': ok,
-      'decision': decision,
-      'approval': <String, Object?>{
-        'id': approvalId,
-        'whatWillHappen': 'Publish the candidate',
-        'whyINeedYou': 'Owner decision required',
-        'whatWillChange': 'Release alias',
-        'howWeCanUndoIt': 'Restore prior alias',
-        'riskLevel': 'HIGH',
-        'reversible': true,
-        'decision': approvalDecision,
-      },
-    };
+}) => <String, Object?>{
+  'ok': ok,
+  'decision': decision,
+  'approval': <String, Object?>{
+    'id': approvalId,
+    'whatWillHappen': 'Publish the candidate',
+    'whyINeedYou': 'Owner decision required',
+    'whatWillChange': 'Release alias',
+    'howWeCanUndoIt': 'Restore prior alias',
+    'riskLevel': 'HIGH',
+    'reversible': true,
+    'decision': approvalDecision,
+  },
+};
 
 String? header(http.Request request, String name) {
   final normalized = name.toLowerCase();
@@ -144,101 +142,106 @@ void main() {
     },
   );
 
-  test('exact-source verification sends the complete bounded contract once',
-      () async {
-    var calls = 0;
-    late http.Request captured;
-    final api = clientWith(
-      MockClient((request) async {
-        calls += 1;
-        captured = request;
-        return http.Response(
-          jsonEncode(<String, Object?>{
-            'reply': 'Verification plan recorded.',
-            'needsApproval': true,
-            'actionId': 'action-exact-source-1',
-            'approvalId': 'approval-exact-source-1',
-            'status': canonicalIntakeStatus(),
-          }),
-          202,
-          headers: <String, String>{
-            'x-request-id': 'request-exact-source-1',
-          },
-        );
-      }),
-    );
-    final repository = RemotePandoraRepository(client: api);
+  test(
+    'exact-source verification sends the complete bounded contract once',
+    () async {
+      var calls = 0;
+      late http.Request captured;
+      final api = clientWith(
+        MockClient((request) async {
+          calls += 1;
+          captured = request;
+          return http.Response(
+            jsonEncode(<String, Object?>{
+              'reply': 'Verification plan recorded.',
+              'needsApproval': true,
+              'actionId': 'action-exact-source-1',
+              'approvalId': 'approval-exact-source-1',
+              'status': canonicalIntakeStatus(),
+            }),
+            202,
+            headers: <String, String>{'x-request-id': 'request-exact-source-1'},
+          );
+        }),
+      );
+      final repository = RemotePandoraRepository(client: api);
 
-    final receipt = await repository.verifyExactSource(
-      projectId: 'project-canonical-1',
-      exactSha: 'ABCDEF0123456789ABCDEF0123456789ABCDEF01',
-      jobClass: WorkerJobClass.supabaseMigrationReplay,
-      maxRuntimeSeconds: 1800,
-      idempotencyKey: 'pandora:test:exact-source:1',
-    );
-
-    final body = (jsonDecode(captured.body) as Map).cast<String, Object?>();
-    expect(calls, 1);
-    expect(captured.method, 'POST');
-    expect(
-      captured.url.path,
-      '/functions/v1/owner/actions/verify-exact-source/run',
-    );
-    expect(header(captured, 'Idempotency-Key'), 'pandora:test:exact-source:1');
-    expect(body, <String, Object?>{
-      'projectId': 'project-canonical-1',
-      'exactSha': 'abcdef0123456789abcdef0123456789abcdef01',
-      'jobClass': 'supabase_migration_replay',
-      'maxRuntimeSeconds': 1800,
-      'clientMode': 'simple',
-    });
-    expect(receipt.actionId, 'action-exact-source-1');
-    repository.dispose();
-  });
-
-  test('exact-source verification rejects invalid input before networking',
-      () async {
-    var calls = 0;
-    final api = clientWith(
-      MockClient((request) async {
-        calls += 1;
-        return http.Response('{}', 500);
-      }),
-    );
-    final repository = RemotePandoraRepository(client: api);
-
-    await expectLater(
-      repository.verifyExactSource(
+      final receipt = await repository.verifyExactSource(
         projectId: 'project-canonical-1',
-        exactSha: 'main',
-        jobClass: WorkerJobClass.nodeRegression,
-      ),
-      throwsA(
-        isA<PandoraApiError>().having(
-          (error) => error.code,
-          'code',
-          'INVALID_EXACT_SHA',
+        exactSha: 'ABCDEF0123456789ABCDEF0123456789ABCDEF01',
+        jobClass: WorkerJobClass.supabaseMigrationReplay,
+        maxRuntimeSeconds: 1800,
+        idempotencyKey: 'pandora:test:exact-source:1',
+      );
+
+      final body = (jsonDecode(captured.body) as Map).cast<String, Object?>();
+      expect(calls, 1);
+      expect(captured.method, 'POST');
+      expect(
+        captured.url.path,
+        '/functions/v1/owner/actions/verify-exact-source/run',
+      );
+      expect(
+        header(captured, 'Idempotency-Key'),
+        'pandora:test:exact-source:1',
+      );
+      expect(body, <String, Object?>{
+        'projectId': 'project-canonical-1',
+        'exactSha': 'abcdef0123456789abcdef0123456789abcdef01',
+        'jobClass': 'supabase_migration_replay',
+        'maxRuntimeSeconds': 1800,
+        'clientMode': 'simple',
+      });
+      expect(receipt.actionId, 'action-exact-source-1');
+      repository.dispose();
+    },
+  );
+
+  test(
+    'exact-source verification rejects invalid input before networking',
+    () async {
+      var calls = 0;
+      final api = clientWith(
+        MockClient((request) async {
+          calls += 1;
+          return http.Response('{}', 500);
+        }),
+      );
+      final repository = RemotePandoraRepository(client: api);
+
+      await expectLater(
+        repository.verifyExactSource(
+          projectId: 'project-canonical-1',
+          exactSha: 'main',
+          jobClass: WorkerJobClass.nodeRegression,
         ),
-      ),
-    );
-    await expectLater(
-      repository.verifyExactSource(
-        projectId: 'project-canonical-1',
-        exactSha: List<String>.filled(40, 'a').join(),
-        jobClass: WorkerJobClass.nodeRegression,
-        maxRuntimeSeconds: 1801,
-      ),
-      throwsA(
-        isA<PandoraApiError>().having(
-          (error) => error.code,
-          'code',
-          'INVALID_MAX_RUNTIME_SECONDS',
+        throwsA(
+          isA<PandoraApiError>().having(
+            (error) => error.code,
+            'code',
+            'INVALID_EXACT_SHA',
+          ),
         ),
-      ),
-    );
-    expect(calls, 0);
-    repository.dispose();
-  });
+      );
+      await expectLater(
+        repository.verifyExactSource(
+          projectId: 'project-canonical-1',
+          exactSha: List<String>.filled(40, 'a').join(),
+          jobClass: WorkerJobClass.nodeRegression,
+          maxRuntimeSeconds: 1801,
+        ),
+        throwsA(
+          isA<PandoraApiError>().having(
+            (error) => error.code,
+            'code',
+            'INVALID_MAX_RUNTIME_SECONDS',
+          ),
+        ),
+      );
+      expect(calls, 0);
+      repository.dispose();
+    },
+  );
 
   test('ambiguous exact-source response is never retried', () async {
     var calls = 0;
@@ -641,7 +644,7 @@ void main() {
             'code': 'PRIVATE_DETAIL',
             'plainMessage':
                 'Contact owner@example.com with Bearer private-token at '
-                    'https://example.invalid/retry?access_token=private.',
+                'https://example.invalid/retry?access_token=private.',
           }),
           400,
         ),

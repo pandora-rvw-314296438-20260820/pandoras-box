@@ -84,17 +84,15 @@ class _VerificationRepository extends FakeRepository {
 }
 
 Widget _subject(_VerificationRepository repository) => PandoraDependencies(
-      auth: const FakeAuth(),
-      repository: repository,
-      diagnostics: DiagnosticsStore(),
-      child: testApp(
-        child: const Scaffold(
-          body: SingleChildScrollView(
-            child: ExactSourceVerificationCard(),
-          ),
-        ),
-      ),
-    );
+  auth: const FakeAuth(),
+  repository: repository,
+  diagnostics: DiagnosticsStore(),
+  child: testApp(
+    child: const Scaffold(
+      body: SingleChildScrollView(child: ExactSourceVerificationCard()),
+    ),
+  ),
+);
 
 Future<void> _fillRequiredFields(
   WidgetTester tester, {
@@ -123,49 +121,50 @@ Future<void> _fillRequiredFields(
 }
 
 void main() {
-  testWidgets('submits every exact-source field through the dedicated contract',
-      (tester) async {
-    final repository = _VerificationRepository();
-    await setTestSurface(tester, logicalSize: const Size(430, 1200));
-    await tester.pumpWidget(_subject(repository));
-    await _fillRequiredFields(tester);
+  testWidgets(
+    'submits every exact-source field through the dedicated contract',
+    (tester) async {
+      final repository = _VerificationRepository();
+      await setTestSurface(tester, logicalSize: const Size(430, 1200));
+      await tester.pumpWidget(_subject(repository));
+      await _fillRequiredFields(tester);
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('exact-source-submit')),
-    );
-    await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('exact-source-submit')),
+      );
+      await tester.pumpAndSettle();
 
-    expect(repository.calls, 1);
-    expect(repository.projectId, 'project-canonical-1');
-    expect(repository.exactSha, _exactSha);
-    expect(repository.jobClass, WorkerJobClass.supabaseMigrationReplay);
-    expect(repository.maxRuntimeSeconds, 900);
-    expect(
-        repository.idempotencyKey, startsWith('pandora:verify-exact-source:'));
-    expect(find.text('Verification plan recorded.'), findsOneWidget);
-    expect(repository.workerReads, 1);
-    expect(find.text('Independent final proof is available'), findsOneWidget);
-    expect(find.text('Worker-01 claim: observed.'), findsOneWidget);
-    expect(
-      find.text('Final reviewer proof: available in this owner read.'),
-      findsOneWidget,
-    );
-  });
+      expect(repository.calls, 1);
+      expect(repository.projectId, 'project-canonical-1');
+      expect(repository.exactSha, _exactSha);
+      expect(repository.jobClass, WorkerJobClass.supabaseMigrationReplay);
+      expect(repository.maxRuntimeSeconds, 900);
+      expect(
+        repository.idempotencyKey,
+        startsWith('pandora:verify-exact-source:'),
+      );
+      expect(find.text('Verification plan recorded.'), findsOneWidget);
+      expect(repository.workerReads, 1);
+      expect(find.text('Independent final proof is available'), findsOneWidget);
+      expect(find.text('Worker-01 claim: observed.'), findsOneWidget);
+      expect(
+        find.text('Final reviewer proof: available in this owner read.'),
+        findsOneWidget,
+      );
+    },
+  );
 
-  testWidgets('a safe retry reuses the same exact idempotency key',
-      (tester) async {
+  testWidgets('a safe retry reuses the same exact idempotency key', (
+    tester,
+  ) async {
     final repository = _VerificationRepository(transientFailure: true);
     await setTestSurface(tester, logicalSize: const Size(430, 1200));
     await tester.pumpWidget(_subject(repository));
     await _fillRequiredFields(tester, selectMigrationReplay: false);
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('exact-source-submit')),
-    );
+    await tester.tap(find.byKey(const ValueKey<String>('exact-source-submit')));
     await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const ValueKey<String>('exact-source-submit')),
-    );
+    await tester.tap(find.byKey(const ValueKey<String>('exact-source-submit')));
     await tester.pumpAndSettle();
 
     expect(repository.calls, 2);
@@ -173,16 +172,15 @@ void main() {
     expect(repository.workerReads, 1);
   });
 
-  testWidgets('locks the write after an ambiguous outcome without retry UI',
-      (tester) async {
+  testWidgets('locks the write after an ambiguous outcome without retry UI', (
+    tester,
+  ) async {
     final repository = _VerificationRepository(ambiguous: true);
     await setTestSurface(tester, logicalSize: const Size(430, 1200));
     await tester.pumpWidget(_subject(repository));
     await _fillRequiredFields(tester, selectMigrationReplay: false);
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('exact-source-submit')),
-    );
+    await tester.tap(find.byKey(const ValueKey<String>('exact-source-submit')));
     await tester.pumpAndSettle();
 
     expect(repository.calls, 1);

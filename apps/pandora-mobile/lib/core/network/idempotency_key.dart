@@ -2,8 +2,8 @@ import 'dart:math';
 
 class IdempotencyKeyFactory {
   IdempotencyKeyFactory({Random? random, DateTime Function()? clock})
-      : _random = random ?? Random.secure(),
-        _clock = clock ?? DateTime.now;
+    : _random = random ?? Random.secure(),
+      _clock = clock ?? DateTime.now;
 
   final Random _random;
   final DateTime Function() _clock;

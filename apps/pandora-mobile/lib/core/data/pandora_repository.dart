@@ -31,14 +31,14 @@ class RepositorySnapshot<T> {
       isCached || (staleAfter != null && !staleAfter!.isAfter(now));
 
   RepositorySnapshot<T> asDegradedCache(String reason) => RepositorySnapshot<T>(
-        data: data,
-        source: RepositorySource.memoryCache,
-        fetchedAt: fetchedAt,
-        verifiedAt: verifiedAt,
-        staleAfter: staleAfter,
-        requestId: requestId,
-        degradedReason: reason,
-      );
+    data: data,
+    source: RepositorySource.memoryCache,
+    fetchedAt: fetchedAt,
+    verifiedAt: verifiedAt,
+    staleAfter: staleAfter,
+    requestId: requestId,
+    degradedReason: reason,
+  );
 }
 
 enum ApprovalDecision {
@@ -120,33 +120,36 @@ class SafetyOverview {
     }
     final ordered = unique.values.toList(growable: true)
       ..sort(
-        (left, right) => _integrationAttentionRank(right)
-            .compareTo(_integrationAttentionRank(left)),
+        (left, right) =>
+            _integrationAttentionRank(right)
+                .compareTo(_integrationAttentionRank(left)),
       );
-    final items = ordered.map((json) {
-      final provider = jsonText(json['provider'], fallback: 'Service');
-      final truth = _integrationTruth(json);
-      final explanation = switch (truth) {
-        ProviderTruthState.healthy =>
-          'Fresh verification says this service is healthy.',
-        ProviderTruthState.degraded =>
-          'Fresh verification shows partial impairment.',
-        ProviderTruthState.down =>
-          'Fresh verification shows this service is failing.',
-        ProviderTruthState.stale =>
-          'A previous state exists, but its verification has expired.',
-        ProviderTruthState.unknown =>
-          'No reliable current health state is available.',
-        ProviderTruthState.notConfigured =>
-          'This service is intentionally not configured here.',
-      };
-      return SafetyItem.fromJson(<String, Object?>{
-        'id': 'integration-${normalizeProviderKey(provider)}',
-        'title': provider,
-        'plainStatus': truth.label,
-        'explanation': explanation,
-      });
-    }).toList(growable: false);
+    final items = ordered
+        .map((json) {
+          final provider = jsonText(json['provider'], fallback: 'Service');
+          final truth = _integrationTruth(json);
+          final explanation = switch (truth) {
+            ProviderTruthState.healthy =>
+              'Fresh verification says this service is healthy.',
+            ProviderTruthState.degraded =>
+              'Fresh verification shows partial impairment.',
+            ProviderTruthState.down =>
+              'Fresh verification shows this service is failing.',
+            ProviderTruthState.stale =>
+              'A previous state exists, but its verification has expired.',
+            ProviderTruthState.unknown =>
+              'No reliable current health state is available.',
+            ProviderTruthState.notConfigured =>
+              'This service is intentionally not configured here.',
+          };
+          return SafetyItem.fromJson(<String, Object?>{
+            'id': 'integration-${normalizeProviderKey(provider)}',
+            'title': provider,
+            'plainStatus': truth.label,
+            'explanation': explanation,
+          });
+        })
+        .toList(growable: false);
     return <SafetySection>[
       SafetySection(
         id: 'integrations',
@@ -247,9 +250,7 @@ abstract interface class PandoraRepository {
     String? idempotencyKey,
   });
 
-  Future<WorkerExecutionStatus> workerExecution({
-    required String planId,
-  });
+  Future<WorkerExecutionStatus> workerExecution({required String planId});
 
   Future<ApprovalDecisionResult> decideApproval({
     required String approvalId,

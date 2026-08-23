@@ -17,17 +17,17 @@ class RemotePandoraRepository
     ReadOnlyMemoryCache? cache,
     IdempotencyKeyFactory? idempotencyKeys,
     DateTime Function()? clock,
-  })  : _client = client,
-        _cache = cache ?? ReadOnlyMemoryCache(),
-        _idempotencyKeys = idempotencyKeys ?? IdempotencyKeyFactory(),
-        _clock = clock ?? DateTime.now;
+  }) : _client = client,
+       _cache = cache ?? ReadOnlyMemoryCache(),
+       _idempotencyKeys = idempotencyKeys ?? IdempotencyKeyFactory(),
+       _clock = clock ?? DateTime.now;
 
   final PandoraApiClient _client;
   final ReadOnlyMemoryCache _cache;
   final IdempotencyKeyFactory _idempotencyKeys;
   final DateTime Function() _clock;
   final StreamController<AuthorizationInvalidation>
-      _authorizationInvalidations =
+  _authorizationInvalidations =
       StreamController<AuthorizationInvalidation>.broadcast(sync: true);
   var _authorizationGeneration = 0;
   var _authorizationInvalid = false;
@@ -314,11 +314,7 @@ class RemotePandoraRepository
     }
 
     final response = await _postJson(
-      pathSegments: const <String>[
-        'actions',
-        'verify-exact-source',
-        'run',
-      ],
+      pathSegments: const <String>['actions', 'verify-exact-source', 'run'],
       operation: 'exact-source.submit',
       routeTemplate: '/actions/verify-exact-source/run',
       idempotencyKey:
@@ -332,10 +328,7 @@ class RemotePandoraRepository
       },
     );
     return _parse(response, '/actions/verify-exact-source/run', () {
-      final json = _requiredMap(
-        response,
-        '/actions/verify-exact-source/run',
-      );
+      final json = _requiredMap(response, '/actions/verify-exact-source/run');
       return IntakeReceipt.fromJson(json, requestId: response.requestId);
     }, mutationOutcomeMayBeUnknown: true);
   }
@@ -467,15 +460,13 @@ class RemotePandoraRepository
   PandoraApiError _ambiguousParseError(
     PandoraApiResponse response,
     String code,
-  ) =>
-      PandoraApiError(
-        kind: PandoraApiErrorKind.ambiguousMutation,
-        message:
-            'Pandora received the request, but this app could not confirm its resulting state.',
-        code: code,
-        statusCode: response.statusCode,
-        requestId: response.requestId,
-      );
+  ) => PandoraApiError(
+    kind: PandoraApiErrorKind.ambiguousMutation,
+    message: 'Pandora received the request, but this app could not confirm its resulting state.',
+    code: code,
+    statusCode: response.statusCode,
+    requestId: response.requestId,
+  );
 
   void _recordParseFailure(
     PandoraApiResponse response,
@@ -499,15 +490,14 @@ class RemotePandoraRepository
     PandoraApiResponse response, {
     DateTime? verifiedAt,
     DateTime? staleAfter,
-  }) =>
-      RepositorySnapshot<T>(
-        data: data,
-        source: RepositorySource.network,
-        fetchedAt: _clock(),
-        verifiedAt: verifiedAt,
-        staleAfter: staleAfter,
-        requestId: response.requestId,
-      );
+  }) => RepositorySnapshot<T>(
+    data: data,
+    source: RepositorySource.network,
+    fetchedAt: _clock(),
+    verifiedAt: verifiedAt,
+    staleAfter: staleAfter,
+    requestId: response.requestId,
+  );
 
   Map<String, Object?> _requiredMap(
     PandoraApiResponse response,
@@ -534,14 +524,13 @@ class RemotePandoraRepository
     PandoraApiResponse response,
     String code,
     String message,
-  ) =>
-      PandoraApiError(
-        kind: PandoraApiErrorKind.contract,
-        message: message,
-        code: code,
-        statusCode: response.statusCode,
-        requestId: response.requestId,
-      );
+  ) => PandoraApiError(
+    kind: PandoraApiErrorKind.contract,
+    message: message,
+    code: code,
+    statusCode: response.statusCode,
+    requestId: response.requestId,
+  );
 
   static bool _canUseCache(PandoraApiError error) =>
       error.kind == PandoraApiErrorKind.unavailable ||
@@ -611,15 +600,14 @@ class RemotePandoraRepository
     required String operation,
     required String routeTemplate,
     Map<String, String>? queryParameters,
-  }) =>
-      _guardAuthorization(
-        () => _client.getJson(
-          pathSegments: pathSegments,
-          operation: operation,
-          routeTemplate: routeTemplate,
-          queryParameters: queryParameters,
-        ),
-      );
+  }) => _guardAuthorization(
+    () => _client.getJson(
+      pathSegments: pathSegments,
+      operation: operation,
+      routeTemplate: routeTemplate,
+      queryParameters: queryParameters,
+    ),
+  );
 
   Future<PandoraApiResponse> _postJson({
     required List<String> pathSegments,
@@ -627,16 +615,15 @@ class RemotePandoraRepository
     required String routeTemplate,
     required Map<String, Object?> body,
     String? idempotencyKey,
-  }) =>
-      _guardAuthorization(
-        () => _client.postJson(
-          pathSegments: pathSegments,
-          operation: operation,
-          routeTemplate: routeTemplate,
-          body: body,
-          idempotencyKey: idempotencyKey,
-        ),
-      );
+  }) => _guardAuthorization(
+    () => _client.postJson(
+      pathSegments: pathSegments,
+      operation: operation,
+      routeTemplate: routeTemplate,
+      body: body,
+      idempotencyKey: idempotencyKey,
+    ),
+  );
 
   Future<T> _guardAuthorization<T>(Future<T> Function() operation) async {
     final identityEpoch = _identityEpoch;

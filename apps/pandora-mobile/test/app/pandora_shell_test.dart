@@ -49,23 +49,23 @@ class _Repository implements PandoraRepository {
   int activityCalls = 0;
 
   RepositorySnapshot<T> _snapshot<T>(T data) => RepositorySnapshot<T>(
-        data: data,
-        source: RepositorySource.network,
-        fetchedAt: DateTime.utc(2026, 8, 14),
-      );
+    data: data,
+    source: RepositorySource.network,
+    fetchedAt: DateTime.utc(2026, 8, 14),
+  );
 
   RepositorySnapshot<HomeSummary> _homeSnapshot() => _snapshot(
-        const HomeSummary(
-          healthState: 'protected',
-          healthLabel: 'Protected',
-          freshness: FreshnessInfo(state: FreshnessState.notChecked),
-          approvalCount: 0,
-          activeProjectCount: 0,
-          needsAttentionCount: 0,
-          topProjects: <ProjectSummary>[],
-          recentActivity: <AuditEvent>[],
-        ),
-      );
+    const HomeSummary(
+      healthState: 'protected',
+      healthLabel: 'Protected',
+      freshness: FreshnessInfo(state: FreshnessState.notChecked),
+      approvalCount: 0,
+      activeProjectCount: 0,
+      needsAttentionCount: 0,
+      topProjects: <ProjectSummary>[],
+      recentActivity: <AuditEvent>[],
+    ),
+  );
 
   @override
   Future<RepositorySnapshot<HomeSummary>> home() async {
@@ -104,45 +104,41 @@ class _Repository implements PandoraRepository {
   @override
   Future<RepositorySnapshot<List<ConnectionSummary>>> connections({
     bool allowCached = false,
-  }) async =>
-      _snapshot(const <ConnectionSummary>[]);
+  }) async => _snapshot(const <ConnectionSummary>[]);
 
   @override
   Future<RepositorySnapshot<ProjectDetail>> project(
     String id, {
     bool allowCached = false,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<RepositorySnapshot<SafetyOverview>> safety() async => _snapshot(
-        const SafetyOverview(
-          state: 'not_checked',
-          status: 'Not checked',
-          auditChain: AuditChainStatus(
-            valid: false,
-            label: 'Audit chain needs attention',
-          ),
-          sections: <SafetySection>[],
-          extraIdentityCheckAdvertised: false,
-        ),
-      );
+    const SafetyOverview(
+      state: 'not_checked',
+      status: 'Not checked',
+      auditChain: AuditChainStatus(
+        valid: false,
+        label: 'Audit chain needs attention',
+      ),
+      sections: <SafetySection>[],
+      extraIdentityCheckAdvertised: false,
+    ),
+  );
 
   @override
   Future<IntakeReceipt> ask({
     required String message,
     String? projectId,
     String? idempotencyKey,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<ApprovalDecisionResult> decideApproval({
     required String approvalId,
     required ApprovalDecision decision,
     String reason = '',
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<IntakeReceipt> runAction({
@@ -150,8 +146,7 @@ class _Repository implements PandoraRepository {
     String? projectId,
     String? message,
     String? idempotencyKey,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<IntakeReceipt> verifyExactSource({
@@ -160,13 +155,10 @@ class _Repository implements PandoraRepository {
     required WorkerJobClass jobClass,
     int? maxRuntimeSeconds,
     String? idempotencyKey,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
-  Future<WorkerExecutionStatus> workerExecution({
-    required String planId,
-  }) =>
+  Future<WorkerExecutionStatus> workerExecution({required String planId}) =>
       throw UnimplementedError();
 
   @override
@@ -227,12 +219,12 @@ class _AuthorizationRepository extends _Repository
   }
 
   void invalidate(int generation) => _invalidations.add(
-        AuthorizationInvalidation(
-          generation: generation,
-          kind: PandoraApiErrorKind.forbidden,
-          message: 'Owner access changed.',
-        ),
-      );
+    AuthorizationInvalidation(
+      generation: generation,
+      kind: PandoraApiErrorKind.forbidden,
+      message: 'Owner access changed.',
+    ),
+  );
 
   Future<void> close() => _invalidations.close();
 }
@@ -306,16 +298,16 @@ class _ConflictApprovalRepository extends _Repository {
   var approvalLoads = 0;
 
   ApprovalSummary get _pending => ApprovalSummary(
-        id: 'approval-conflict-fixture',
-        action: 'Publish a candidate',
-        reason: 'Owner decision required.',
-        change: 'A release alias would move.',
-        risk: ActionRisk.high,
-        reversible: false,
-        decision: 'Pending',
-        state: ApprovalState.pending,
-        expiresAt: DateTime.now().add(const Duration(hours: 1)),
-      );
+    id: 'approval-conflict-fixture',
+    action: 'Publish a candidate',
+    reason: 'Owner decision required.',
+    change: 'A release alias would move.',
+    risk: ActionRisk.high,
+    reversible: false,
+    decision: 'Pending',
+    state: ApprovalState.pending,
+    expiresAt: DateTime.now().add(const Duration(hours: 1)),
+  );
 
   @override
   Future<RepositorySnapshot<List<ApprovalSummary>>> approvals() async {

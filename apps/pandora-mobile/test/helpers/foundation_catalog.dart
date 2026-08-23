@@ -46,71 +46,70 @@ class FoundationCatalog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Foundation'),
-          actions: [
-            IconButton(
-              tooltip: 'Refresh foundation',
-              onPressed: () {},
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-          ],
+    appBar: AppBar(
+      title: const Text('Foundation'),
+      actions: [
+        IconButton(
+          tooltip: 'Refresh foundation',
+          onPressed: () {},
+          icon: const Icon(Icons.refresh_rounded),
         ),
-        body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(PandoraSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Center(child: PandoraMark(size: 72)),
-                const SizedBox(height: PandoraSpacing.md),
-                PandoraSurface(
-                  title: 'Owner briefing',
-                  subtitle:
-                      'Plain language, verified state, one safe next step.',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      ],
+    ),
+    body: SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(PandoraSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Center(child: PandoraMark(size: 72)),
+            const SizedBox(height: PandoraSpacing.md),
+            PandoraSurface(
+              title: 'Owner briefing',
+              subtitle: 'Plain language, verified state, one safe next step.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Wrap(
+                    spacing: PandoraSpacing.xs,
+                    runSpacing: PandoraSpacing.xs,
                     children: [
-                      const Wrap(
-                        spacing: PandoraSpacing.xs,
-                        runSpacing: PandoraSpacing.xs,
-                        children: [
-                          StatusBadge(
-                            label: 'Protected',
-                            tone: PandoraStatusTone.verified,
-                          ),
-                          StatusBadge(
-                            label: 'Needs attention',
-                            tone: PandoraStatusTone.attention,
-                          ),
-                          StatusBadge(
-                            label: 'Blocked',
-                            tone: PandoraStatusTone.critical,
-                          ),
-                        ],
+                      StatusBadge(
+                        label: 'Protected',
+                        tone: PandoraStatusTone.verified,
                       ),
-                      const SizedBox(height: PandoraSpacing.md),
-                      const ProofLadder(stages: stages),
-                      const SizedBox(height: PandoraSpacing.md),
-                      FreshnessLabel(
-                        freshness: FreshnessInfo(
-                          state: FreshnessState.fresh,
-                          lastVerifiedAt: DateTime.utc(2026, 8, 14),
-                        ),
-                        now: DateTime.utc(2026, 8, 14, 1),
+                      StatusBadge(
+                        label: 'Needs attention',
+                        tone: PandoraStatusTone.attention,
+                      ),
+                      StatusBadge(
+                        label: 'Blocked',
+                        tone: PandoraStatusTone.critical,
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: PandoraSpacing.md),
-                ErrorContent(
-                  title: 'Could not refresh',
-                  message: 'Your last verified information is still visible.',
-                  onRetry: () {},
-                ),
-              ],
+                  const SizedBox(height: PandoraSpacing.md),
+                  const ProofLadder(stages: stages),
+                  const SizedBox(height: PandoraSpacing.md),
+                  FreshnessLabel(
+                    freshness: FreshnessInfo(
+                      state: FreshnessState.fresh,
+                      lastVerifiedAt: DateTime.utc(2026, 8, 14),
+                    ),
+                    now: DateTime.utc(2026, 8, 14, 1),
+                  ),
+                ],
+              ),
             ),
-          ),
+            const SizedBox(height: PandoraSpacing.md),
+            ErrorContent(
+              title: 'Could not refresh',
+              message: 'Your last verified information is still visible.',
+              onRetry: () {},
+            ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
