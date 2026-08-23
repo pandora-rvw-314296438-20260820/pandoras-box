@@ -12,7 +12,7 @@
   },
   "functions": {
     "api/operator.ts": {
-      "includeFiles": ["supabase/migrations/**", "docs/status/**", "SOURCE_AUTHORITY_POLICY.json"],
+      "includeFiles": "{supabase/migrations/**,docs/status/**,SOURCE_AUTHORITY_POLICY.json}",
       "maxDuration": 60
     },
     "api/oauth-consent.ts": {

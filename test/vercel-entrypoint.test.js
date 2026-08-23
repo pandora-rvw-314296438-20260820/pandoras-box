@@ -47,6 +47,10 @@ test("Vercel selects the callable source entrypoint instead of dist/http-server"
   assert.equal(packageJson.main, "vercel-entrypoint.js");
   assert.equal(vercelConfig.buildCommand, "npm run build");
   assert.equal(vercelConfig.framework, "express");
+  assert.equal(
+    vercelConfig.functions["api/operator.ts"].includeFiles,
+    "{supabase/migrations/**,docs/status/**,SOURCE_AUTHORITY_POLICY.json}",
+  );
   assert.equal(typeof entrypoint, "function");
   assert.match(ignored, /^dist\/$/m);
   assert.match(ignored, /^apps\/meta-business-mcp\/dist\/$/m);
