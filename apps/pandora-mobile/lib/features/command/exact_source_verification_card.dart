@@ -8,6 +8,7 @@ import '../../core/data/pandora_repository.dart';
 import '../../core/design/pandora_tokens.dart';
 import '../../core/models/pandora_models.dart';
 import '../../core/network/idempotency_key.dart';
+import '../../core/network/pandora_api_error.dart';
 import '../../core/widgets/pandora_surface.dart';
 
 class ExactSourceVerificationCard extends StatefulWidget {
