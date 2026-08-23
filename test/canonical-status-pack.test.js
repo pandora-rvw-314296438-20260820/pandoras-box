@@ -12,6 +12,7 @@ const {
 } = require('../dist/projectos/canonical-status-pack.js');
 const {
   GITHUB_ACTIONS_APP_ID,
+  REQUIRED_CHECK_BINDINGS,
   REQUIRED_CHECK_IDENTITIES,
   REPOSITORY_CHECK_IDENTITIES,
   REQUIRED_CHECK_WORKFLOW_PATHS,
@@ -20,6 +21,8 @@ const {
   readGitHubStatus,
   readMobileArtifactProviderReadback,
   readSourceArtifactProviderReadback,
+  TRUSTED_EXTERNAL_REVIEW_APP_ID,
+  TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT,
 } = require('../dist/projectos/canonical-status-provider.js');
 const registry = require('../docs/status/OPEN_PR_TRIAGE.json');
 
@@ -32,7 +35,6 @@ const SOURCE_ARTIFACT_SHA256 = '7'.repeat(64);
 const MOBILE_ARTIFACT_ID = '987654321';
 const MOBILE_ARTIFACT_SHA256 = 'c'.repeat(64);
 const MOBILE_APK_SHA256 = 'd'.repeat(64);
-const TRUSTED_EXTERNAL_REVIEW_APP_ID = 424242;
 const statusSchema = JSON.parse(readFileSync(
   require.resolve('../docs/status/CANONICAL_STATUS_PACK.schema.json'),
   'utf8',
@@ -72,6 +74,7 @@ function evidence() {
       protectedMainPolicyExact: true,
       trustedExternalReviewConfigured: true,
       trustedExternalReviewAppId: TRUSTED_EXTERNAL_REVIEW_APP_ID,
+      trustedExternalReviewProviderContext: TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT,
       trustedExternalReviewVerified: true,
       sourceArtifactProviderReadback: {
         verified: true,
@@ -479,6 +482,19 @@ test('trusted external review is separate from candidate-controlled GitHub Actio
   });
   assert.equal(spoofedPack.proofLadder.tested, false);
   assert.ok(spoofedPack.blockers.includes('github-trusted-external-review-not-green'));
+
+  const wrongContext = evidence();
+  wrongContext.github.trustedExternalReviewProviderContext = 'external-review';
+  const wrongContextPack = buildCanonicalStatusPack({
+    generatedAt: '2026-08-23T14:00:00.000Z',
+    expiresAt: '2026-08-23T14:05:00.000Z',
+    authorityPolicySha256: AUTHORITY_HASH,
+    historicalSurfaceRegistrySha256: HISTORICAL_HASH,
+    triage: triage(),
+    evidence: wrongContext,
+  });
+  assert.equal(wrongContextPack.proofLadder.tested, false);
+  assert.ok(wrongContextPack.blockers.includes('github-trusted-external-review-not-green'));
 });
 
 test('deployment authority requires fresh GitHub source-artifact provider readback', () => {
@@ -1009,6 +1025,12 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
   const requested = [];
   let includeUnknownProtected = false;
   let strictProtection = true;
+  let externalProtectionContext = TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT;
+  let externalProtectionAppId = TRUSTED_EXTERNAL_REVIEW_APP_ID;
+  let externalCheckContext = TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT;
+  let externalCheckAppId = TRUSTED_EXTERNAL_REVIEW_APP_ID;
+  let externalCheckHeadSha = MAIN_SHA;
+  let externalCheckConclusion = 'success';
   const fetchFn = async (url) => {
     requested.push(String(url));
     let body;
@@ -1017,11 +1039,9 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
         required_status_checks: {
           strict: strictProtection,
           checks: [
-            ...REQUIRED_CHECK_IDENTITIES.map((context) => ({
-              context,
-              app_id: context === 'external-review'
-                ? TRUSTED_EXTERNAL_REVIEW_APP_ID
-                : GITHUB_ACTIONS_APP_ID,
+            ...REQUIRED_CHECK_BINDINGS.map(({ name, providerContext, appId }) => ({
+              context: name === 'external-review' ? externalProtectionContext : providerContext,
+              app_id: name === 'external-review' ? externalProtectionAppId : appId,
             })),
             ...(includeUnknownProtected
               ? [{ context: 'future-protected-check', app_id: 424242 }]
@@ -1044,16 +1064,17 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
     } else if (String(url).includes('/check-runs')) {
       body = {
         check_runs: [
-          ...REQUIRED_CHECK_IDENTITIES.map((name, index) => ({
+          ...REQUIRED_CHECK_BINDINGS.map(({ name, providerContext, appId }, index) => ({
             id: 7000 + index,
-            name,
-            head_sha: MAIN_SHA,
+            name: name === 'external-review' ? externalCheckContext : providerContext,
+            head_sha: name === 'external-review' ? externalCheckHeadSha : MAIN_SHA,
             app: name === 'external-review'
-              ? { id: TRUSTED_EXTERNAL_REVIEW_APP_ID, slug: 'independent-review-provider' }
+              ? { id: externalCheckAppId, slug: 'vercel' }
               : { id: GITHUB_ACTIONS_APP_ID, slug: 'github-actions' },
             check_suite: { id: 8000 + index },
             status: 'completed',
-            conclusion: 'success',
+            conclusion: name === 'external-review' ? externalCheckConclusion : 'success',
+            output: name === 'external-review' ? { title: 'Review Complete' } : { title: 'Repository gate' },
             completed_at: '2026-08-23T14:00:00Z',
           })),
           ...(includeUnknownProtected
@@ -1072,7 +1093,7 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
     } else if (String(url).includes('/actions/runs?')) {
       body = {
         workflow_runs: REPOSITORY_CHECK_IDENTITIES.map((name) => ({
-          check_suite_id: 8000 + REQUIRED_CHECK_IDENTITIES.indexOf(name),
+          check_suite_id: 8000 + REQUIRED_CHECK_BINDINGS.findIndex((binding) => binding.name === name),
           path: REQUIRED_CHECK_WORKFLOW_PATHS[name],
           head_sha: MAIN_SHA,
           head_branch: 'main',
@@ -1122,9 +1143,59 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
   assert.equal(result.protectedWorkflowBindingsExact, true);
   assert.equal(result.exactIntegrationChecks, 'success');
   assert.equal(result.trustedExternalReviewConfigured, true);
+  assert.equal(result.trustedExternalReviewAppId, TRUSTED_EXTERNAL_REVIEW_APP_ID);
+  assert.equal(result.trustedExternalReviewProviderContext, TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT);
   assert.equal(result.trustedExternalReviewVerified, true);
   assert.equal(result.requiredChecks.length, REQUIRED_CHECK_IDENTITIES.length);
+  assert.deepEqual(
+    result.requiredChecks,
+    REQUIRED_CHECK_BINDINGS.map(({ name, providerContext, appId }) => ({ name, providerContext, appId })),
+  );
   assert.ok(requested.some((url) => url.includes('pulls?state=all')));
+
+  externalProtectionContext = 'external-review';
+  externalCheckContext = 'external-review';
+  const oldPlaceholderContext = await readGitHubStatus({
+    env: {
+      VERCEL_OIDC_TOKEN: 'oidc-test-token',
+      PANDORA_TRUSTED_EXTERNAL_REVIEW_APP_ID: String(TRUSTED_EXTERNAL_REVIEW_APP_ID),
+    },
+    fetchFn,
+    resolver: {
+      async resolve() {
+        return {
+          token: 'github-test-token',
+          baseUrl: 'https://api.github.test',
+          allowedRepositories: ['banataosystems/Pandoras-box'],
+        };
+      },
+    },
+  });
+  assert.equal(oldPlaceholderContext.protectionHasExactCheckIdentities, false);
+  assert.equal(oldPlaceholderContext.trustedExternalReviewVerified, false);
+  externalProtectionContext = TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT;
+  externalCheckContext = TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT;
+
+  externalCheckHeadSha = 'f'.repeat(40);
+  const wrongReviewSha = await readGitHubStatus({
+    env: {
+      VERCEL_OIDC_TOKEN: 'oidc-test-token',
+      PANDORA_TRUSTED_EXTERNAL_REVIEW_APP_ID: String(TRUSTED_EXTERNAL_REVIEW_APP_ID),
+    },
+    fetchFn,
+    resolver: {
+      async resolve() {
+        return {
+          token: 'github-test-token',
+          baseUrl: 'https://api.github.test',
+          allowedRepositories: ['banataosystems/Pandoras-box'],
+        };
+      },
+    },
+  });
+  assert.equal(wrongReviewSha.protectionHasExactCheckIdentities, true);
+  assert.equal(wrongReviewSha.trustedExternalReviewVerified, false);
+  externalCheckHeadSha = MAIN_SHA;
 
   const actionsAsReviewer = await readGitHubStatus({
     env: {

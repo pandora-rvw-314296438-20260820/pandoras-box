@@ -20,14 +20,33 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_BYTES = 2_000_000;
 const GITHUB_ACTIONS_APP_ID = 15368;
 const TRUSTED_EXTERNAL_REVIEW_IDENTITY = "external-review";
+const TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT = "Vercel Agent Review";
+const TRUSTED_EXTERNAL_REVIEW_APP_ID = 8329;
 const TRUSTED_EXTERNAL_REVIEW_APP_ID_ENV = "PANDORA_TRUSTED_EXTERNAL_REVIEW_APP_ID";
-const REQUIRED_CHECK_IDENTITIES = Object.freeze([
-  "node24",
-  "external-review",
-  "canonical-release-source-contract",
-  "Windows worker contract",
-  "Exact source / Flutter / Android",
+const REQUIRED_CHECK_BINDINGS = Object.freeze([
+  Object.freeze({ name: "node24", providerContext: "node24", appId: GITHUB_ACTIONS_APP_ID }),
+  Object.freeze({
+    name: TRUSTED_EXTERNAL_REVIEW_IDENTITY,
+    providerContext: TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT,
+    appId: TRUSTED_EXTERNAL_REVIEW_APP_ID,
+  }),
+  Object.freeze({
+    name: "canonical-release-source-contract",
+    providerContext: "canonical-release-source-contract",
+    appId: GITHUB_ACTIONS_APP_ID,
+  }),
+  Object.freeze({
+    name: "Windows worker contract",
+    providerContext: "Windows worker contract",
+    appId: GITHUB_ACTIONS_APP_ID,
+  }),
+  Object.freeze({
+    name: "Exact source / Flutter / Android",
+    providerContext: "Exact source / Flutter / Android",
+    appId: GITHUB_ACTIONS_APP_ID,
+  }),
 ]);
+const REQUIRED_CHECK_IDENTITIES = Object.freeze(REQUIRED_CHECK_BINDINGS.map(({ name }) => name));
 const REPOSITORY_CHECK_IDENTITIES = Object.freeze(
   REQUIRED_CHECK_IDENTITIES.filter((name) => name !== TRUSTED_EXTERNAL_REVIEW_IDENTITY),
 );
@@ -46,11 +65,8 @@ function exactMainWorkflowPath(value, expected) {
 }
 
 function trustedExternalReviewAppId(env) {
-  const raw = env?.[TRUSTED_EXTERNAL_REVIEW_APP_ID_ENV];
-  if (!/^[1-9][0-9]{0,15}$/.test(String(raw || ""))) return null;
-  const appId = Number(raw);
-  return Number.isSafeInteger(appId) && appId !== GITHUB_ACTIONS_APP_ID
-    ? appId
+  return env?.[TRUSTED_EXTERNAL_REVIEW_APP_ID_ENV] === String(TRUSTED_EXTERNAL_REVIEW_APP_ID)
+    ? TRUSTED_EXTERNAL_REVIEW_APP_ID
     : null;
 }
 
@@ -603,20 +619,15 @@ async function readGitHubStatus({ env, fetchFn, resolver, releaseEvidence }) {
   const externalReviewAppId = trustedExternalReviewAppId(env);
   const trustedExternalReviewConfigured = externalReviewAppId !== null;
   const expectedProtectionIdentities = new Map(
-    REQUIRED_CHECK_IDENTITIES.map((name) => [
-      name,
-      name === TRUSTED_EXTERNAL_REVIEW_IDENTITY
-        ? externalReviewAppId
-        : GITHUB_ACTIONS_APP_ID,
-    ]),
+    REQUIRED_CHECK_BINDINGS.map(({ providerContext, appId }) => [providerContext, appId]),
   );
   const protectionHasExactIdentities = protectedChecksWellFormed
     && trustedExternalReviewConfigured
-    && protectedChecks.length === REQUIRED_CHECK_IDENTITIES.length
+    && protectedChecks.length === REQUIRED_CHECK_BINDINGS.length
     && protectedChecks.every((entry) => expectedProtectionIdentities.get(entry.context) === entry.app_id)
-    && REQUIRED_CHECK_IDENTITIES.every((name) => protectedChecks.some(
-      (entry) => entry?.context === name
-        && entry?.app_id === expectedProtectionIdentities.get(name),
+    && REQUIRED_CHECK_BINDINGS.every(({ providerContext, appId }) => protectedChecks.some(
+      (entry) => entry?.context === providerContext
+        && entry?.app_id === appId,
     ));
   const repositoryProtectionIdentitiesPresent = protectedChecksWellFormed
     && REPOSITORY_CHECK_IDENTITIES.every((name) => protectedChecks.some(
@@ -671,7 +682,7 @@ async function readGitHubStatus({ env, fetchFn, resolver, releaseEvidence }) {
       ? "failure"
       : "pending_or_missing";
   const trustedExternalReviewCheck = trustedExternalReviewConfigured
-    ? latestChecks.get(`${TRUSTED_EXTERNAL_REVIEW_IDENTITY}:${externalReviewAppId}`)
+    ? latestChecks.get(`${TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT}:${externalReviewAppId}`)
     : null;
   const trustedExternalReviewVerified = protectionHasExactIdentities
     && trustedExternalReviewCheck?.app?.id === externalReviewAppId
@@ -680,7 +691,8 @@ async function readGitHubStatus({ env, fetchFn, resolver, releaseEvidence }) {
     && trustedExternalReviewCheck.app.slug !== "github-actions"
     && trustedExternalReviewCheck.head_sha === mainSha
     && trustedExternalReviewCheck.status === "completed"
-    && trustedExternalReviewCheck.conclusion === "success";
+    && trustedExternalReviewCheck.conclusion === "success"
+    && trustedExternalReviewCheck.output?.title === "Review Complete";
   const [sourceArtifactProviderReadback, mobileArtifactProviderReadback] = await Promise.all([
     readSourceArtifactProviderReadback({
       origin,
@@ -715,7 +727,16 @@ async function readGitHubStatus({ env, fetchFn, resolver, releaseEvidence }) {
     openPullRequestCount: pulls.filter((pull) => pull.state === "open").length,
     triageInventoryCount,
     triageExactHeadMatches,
-    requiredChecks: protectedChecks.map((entry) => ({ name: entry.context, appId: entry.app_id })),
+    requiredChecks: protectedChecks.map((entry) => {
+      const binding = REQUIRED_CHECK_BINDINGS.find(
+        ({ providerContext, appId }) => providerContext === entry.context && appId === entry.app_id,
+      );
+      return {
+        name: binding?.name || entry.context,
+        providerContext: entry.context,
+        appId: entry.app_id,
+      };
+    }),
     protectionHasExactCheckIdentities: protectionHasExactIdentities,
     protectedMainPolicyExact,
     protectedMainPolicy: {
@@ -735,6 +756,7 @@ async function readGitHubStatus({ env, fetchFn, resolver, releaseEvidence }) {
     exactIntegrationChecks,
     trustedExternalReviewConfigured,
     trustedExternalReviewAppId: externalReviewAppId,
+    trustedExternalReviewProviderContext: TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT,
     trustedExternalReviewVerified,
     sourceArtifactProviderReadback,
     mobileArtifactProviderReadback,
@@ -1053,8 +1075,11 @@ module.exports = {
   migrationSourceChainSha256,
   migrationVersionChainSha256,
   GITHUB_ACTIONS_APP_ID,
+  REQUIRED_CHECK_BINDINGS,
   REQUIRED_CHECK_IDENTITIES,
   REPOSITORY_CHECK_IDENTITIES,
   REQUIRED_CHECK_WORKFLOW_PATHS,
+  TRUSTED_EXTERNAL_REVIEW_APP_ID,
   TRUSTED_EXTERNAL_REVIEW_APP_ID_ENV,
+  TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT,
 };

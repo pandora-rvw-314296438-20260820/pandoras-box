@@ -3,6 +3,8 @@
 const { createHash } = require("node:crypto");
 
 const CANONICAL_REPOSITORY = "banataosystems/Pandoras-box";
+const TRUSTED_EXTERNAL_REVIEW_APP_ID = 8329;
+const TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT = "Vercel Agent Review";
 const PROOF_STAGES = Object.freeze([
   "documented",
   "implemented",
@@ -365,9 +367,8 @@ function buildCanonicalStatusPack(input) {
     && triageComplete);
   const implemented = documented && githubAvailable;
   const trustedExternalReviewCurrent = github.trustedExternalReviewConfigured === true
-    && Number.isSafeInteger(github.trustedExternalReviewAppId)
-    && github.trustedExternalReviewAppId > 0
-    && github.trustedExternalReviewAppId !== 15368
+    && github.trustedExternalReviewAppId === TRUSTED_EXTERNAL_REVIEW_APP_ID
+    && github.trustedExternalReviewProviderContext === TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT
     && github.trustedExternalReviewVerified === true;
   const tested = implemented
     && github.exactIntegrationChecks === "success"

@@ -12,11 +12,11 @@ const PROVIDER_BACKED_EVIDENCE_REF = /^provider-evidence:[0-9a-f]{64}$/;
 const CANONICAL_RECEIPT_AUTHORITY = "AUTHENTICATED_CANONICAL_STATUS";
 const GITHUB_ACTIONS_APP_ID = 15368;
 const REQUIRED_CHECKS = Object.freeze([
-  Object.freeze({ name: "node24", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
-  Object.freeze({ name: "external-review", authority: "TRUSTED_EXTERNAL_REVIEW_PROVIDER", appId: null }),
-  Object.freeze({ name: "canonical-release-source-contract", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
-  Object.freeze({ name: "Windows worker contract", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
-  Object.freeze({ name: "Exact source / Flutter / Android", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
+  Object.freeze({ name: "node24", providerContext: "node24", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
+  Object.freeze({ name: "external-review", providerContext: "Vercel Agent Review", authority: "TRUSTED_EXTERNAL_REVIEW_PROVIDER", appId: 8329 }),
+  Object.freeze({ name: "canonical-release-source-contract", providerContext: "canonical-release-source-contract", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
+  Object.freeze({ name: "Windows worker contract", providerContext: "Windows worker contract", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
+  Object.freeze({ name: "Exact source / Flutter / Android", providerContext: "Exact source / Flutter / Android", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
 ]);
 const PAID_PILOT_STATES = new Set(["paid", "active", "completed"]);
 const OWNER_GATED_STATES = new Set([
@@ -185,11 +185,9 @@ function validateTechnicalGate(gate, recordObservedAt, verifyCanonicalStatusRece
     const checkEvidenceRefs = new Set();
     checks.forEach((check, index) => {
       const required = REQUIRED_CHECKS[index];
-      const expectedApp = required.appId === null
-        ? Number.isSafeInteger(check?.appId) && check.appId > 0 && check.appId !== GITHUB_ACTIONS_APP_ID
-        : check?.appId === required.appId;
       if (!isRecord(check)
         || check.name !== required.name
+        || check.providerContext !== required.providerContext
         || check.authority !== required.authority
         || check.conclusion !== "success"
         || check.sourceSha !== source?.sha
@@ -197,7 +195,7 @@ function validateTechnicalGate(gate, recordObservedAt, verifyCanonicalStatusRece
         || check.checkRunId <= 0
         || !Number.isSafeInteger(check.checkSuiteId)
         || check.checkSuiteId <= 0
-        || !expectedApp
+        || check.appId !== required.appId
         || !PROVIDER_BACKED_EVIDENCE_REF.test(check.providerEvidenceRef || "")) {
         issues.push(`$.technicalGate.canonicalReceipt.payload.requiredChecks[${index}]: exact successful provider check binding required`);
       }

@@ -46,12 +46,13 @@ function paidPilotEvidence() {
   const appliedVersionChainSha256 = '6'.repeat(64);
   const requiredChecks = REQUIRED_CHECKS.map((check, index) => ({
     name: check.name,
+    providerContext: check.providerContext,
     authority: check.authority,
     conclusion: 'success',
     sourceSha,
     checkRunId: 101 + index,
     checkSuiteId: 201 + index,
-    appId: check.appId ?? 424242,
+    appId: check.appId,
     providerEvidenceRef: `provider-evidence:${String(index + 1).repeat(64)}`,
   }));
   const payload = {
@@ -394,6 +395,12 @@ test('evidence schema excludes raw customer material and binds paid claims to pr
     canonicalPayload.properties.requiredChecks.prefixItems.map((item) => item.allOf[1].properties.name.const),
     REQUIRED_CHECKS.map((check) => check.name),
   );
+  assert.deepEqual(
+    canonicalPayload.properties.requiredChecks.prefixItems.map(
+      (item) => item.allOf[1].properties.providerContext.const,
+    ),
+    REQUIRED_CHECKS.map((check) => check.providerContext),
+  );
   assert.equal(canonicalPayload.properties.requiredChecks.items, false);
   assert.ok(canonicalPayload.required.includes('independentReview'));
   assert.ok(canonicalPayload.required.includes('rollbackRehearsal'));
@@ -423,6 +430,10 @@ test('evidence schema excludes raw customer material and binds paid claims to pr
     duplicateCheck.technicalGate.canonicalReceipt.payload.requiredChecks[0],
   );
   assert.equal(validateSchema(duplicateCheck), false);
+
+  const wrongExternalProvider = structuredClone(validPilot);
+  wrongExternalProvider.technicalGate.canonicalReceipt.payload.requiredChecks[1].providerContext = 'external-review';
+  assert.equal(validateSchema(wrongExternalProvider), false);
 
   const missingRestoration = structuredClone(validPilot);
   delete missingRestoration.technicalGate.canonicalReceipt.payload.rollbackRehearsal.restorationReceiptId;

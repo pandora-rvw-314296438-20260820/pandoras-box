@@ -169,8 +169,12 @@
       ]
     },
     "checkIdentity": {
-      "type": "object", "additionalProperties": false, "required": ["name", "appId"],
-      "properties": { "name": { "type": "string", "maxLength": 128 }, "appId": { "type": "integer", "minimum": 1 } }
+      "type": "object", "additionalProperties": false, "required": ["name", "providerContext", "appId"],
+      "properties": {
+        "name": { "type": "string", "maxLength": 128 },
+        "providerContext": { "type": "string", "maxLength": 128 },
+        "appId": { "type": "integer", "minimum": 1 }
+      }
     },
     "protectedMainPolicy": {
       "type": "object", "additionalProperties": false,
@@ -216,7 +220,7 @@
         { "allOf": [{ "$ref": "#/$defs/unavailableEvidence" }, { "type": "object", "properties": { "provider": { "const": "github" }, "errorCode": { "const": "GITHUB_STATUS_UNAVAILABLE" } } }] },
         {
           "type": "object", "additionalProperties": false,
-          "required": ["ok", "repository", "mainSha", "mainTreeSha", "openPullRequestCount", "triageInventoryCount", "triageExactHeadMatches", "exactIntegrationChecks", "protectionHasExactCheckIdentities", "protectedMainPolicyExact", "trustedExternalReviewConfigured", "trustedExternalReviewAppId", "trustedExternalReviewVerified", "sourceArtifactProviderReadback", "mobileArtifactProviderReadback"],
+          "required": ["ok", "repository", "mainSha", "mainTreeSha", "openPullRequestCount", "triageInventoryCount", "triageExactHeadMatches", "exactIntegrationChecks", "protectionHasExactCheckIdentities", "protectedMainPolicyExact", "trustedExternalReviewConfigured", "trustedExternalReviewAppId", "trustedExternalReviewProviderContext", "trustedExternalReviewVerified", "sourceArtifactProviderReadback", "mobileArtifactProviderReadback"],
           "properties": {
             "ok": { "const": true }, "provider": { "const": "github" }, "observedAt": { "$ref": "#/$defs/dateTime" },
             "repository": { "const": "banataosystems/Pandoras-box" }, "mainSha": { "$ref": "#/$defs/sha40" }, "mainTreeSha": { "$ref": "#/$defs/sha40" },
@@ -226,6 +230,7 @@
             "protectedMainPolicy": { "$ref": "#/$defs/protectedMainPolicy" }, "protectedWorkflowBindingsExact": { "type": "boolean" },
             "exactIntegrationChecks": { "enum": ["success", "failure", "pending", "unavailable"] },
             "trustedExternalReviewConfigured": { "type": "boolean" }, "trustedExternalReviewAppId": { "type": ["integer", "null"], "minimum": 1 },
+            "trustedExternalReviewProviderContext": { "const": "Vercel Agent Review" },
             "trustedExternalReviewVerified": { "type": "boolean" },
             "sourceArtifactProviderReadback": { "oneOf": [{ "$ref": "#/$defs/sourceArtifact" }, { "type": "null" }] },
             "mobileArtifactProviderReadback": { "oneOf": [{ "$ref": "#/$defs/mobileArtifact" }, { "type": "null" }] }
@@ -475,6 +480,8 @@
                 "ok": { "const": true }, "triageInventoryCount": { "const": 41 }, "triageExactHeadMatches": { "const": true },
                 "exactIntegrationChecks": { "const": "success" }, "protectionHasExactCheckIdentities": { "const": true },
                 "protectedMainPolicyExact": { "const": true }, "trustedExternalReviewConfigured": { "const": true },
+                "trustedExternalReviewAppId": { "const": 8329 },
+                "trustedExternalReviewProviderContext": { "const": "Vercel Agent Review" },
                 "trustedExternalReviewVerified": { "const": true },
                 "sourceArtifactProviderReadback": { "type": "object", "properties": { "verified": { "const": true } } },
                 "mobileArtifactProviderReadback": { "type": "object", "properties": { "verified": { "const": true } } }

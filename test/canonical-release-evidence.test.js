@@ -297,6 +297,23 @@ test("candidate workflow is immutable, integration-SHA-bound, secretless, and re
 });
 
 test("required checks are an exact ordered set and cannot be marked passed in source", () => {
+  const exact = contractFixture();
+  assert.deepEqual(exact.requiredChecks[1], {
+    name: "external-review",
+    authority: "TRUSTED_EXTERNAL_REVIEW_PROVIDER",
+    producer: "vercel_agent_github_app",
+    providerContext: "Vercel Agent Review",
+    appId: 8329,
+    command: null,
+    status: "pending_external_receipt",
+    receipt: null,
+  });
+  for (const [index, check] of exact.requiredChecks.entries()) {
+    if (index === 1) continue;
+    assert.equal("providerContext" in check, false);
+    assert.equal("appId" in check, false);
+  }
+
   const missing = contractFixture();
   missing.requiredChecks.pop();
   assert.throws(() => releaseEvidence.validateSourceContract(missing), /exact required set/);
@@ -322,4 +339,18 @@ test("required checks are an exact ordered set and cannot be marked passed in so
   const weakenedCommand = contractFixture();
   weakenedCommand.requiredChecks[0].command = "npm test";
   assert.equal(validateSourceSchema(weakenedCommand), false);
+
+  for (const [field, replacement] of [
+    ["producer", "repository_workflow"],
+    ["providerContext", "external-review"],
+    ["appId", 15368],
+  ]) {
+    const wrongProvider = contractFixture();
+    wrongProvider.requiredChecks[1][field] = replacement;
+    assert.throws(
+      () => releaseEvidence.validateSourceContract(wrongProvider),
+      new RegExp(`external-review ${field} is not exact`),
+    );
+    assert.equal(validateSourceSchema(wrongProvider), false);
+  }
 });

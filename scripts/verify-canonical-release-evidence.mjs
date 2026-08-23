@@ -24,7 +24,9 @@ export const REQUIRED_CHECKS = Object.freeze([
   Object.freeze({
     name: "external-review",
     authority: "TRUSTED_EXTERNAL_REVIEW_PROVIDER",
-    producer: "unconfigured",
+    producer: "vercel_agent_github_app",
+    providerContext: "Vercel Agent Review",
+    appId: 8329,
     command: null,
   }),
   Object.freeze({
@@ -330,16 +332,16 @@ export function validateSourceContract(contract) {
   assert(Array.isArray(contract.requiredChecks), "requiredChecks must be an array");
   assert(contract.requiredChecks.length === expectedChecks.length, "requiredChecks must contain the exact required set");
   contract.requiredChecks.forEach((check, index) => {
+    const expected = expectedChecks[index];
+    assert(check?.name === expected.name, `requiredChecks[${index}].name must be ${expected.name}`);
     assertExactKeys(
       check,
-      ["name", "authority", "producer", "command", "status", "receipt"],
+      [...Object.keys(expected), "status", "receipt"],
       `requiredChecks[${index}]`,
     );
-    const expected = expectedChecks[index];
-    assert(check.name === expected.name, `requiredChecks[${index}].name must be ${expected.name}`);
-    assert(check.authority === expected.authority, `${check.name} authority is not exact`);
-    assert(check.producer === expected.producer, `${check.name} producer is not exact`);
-    assert(check.command === expected.command, `${check.name} command is not exact`);
+    for (const [key, value] of Object.entries(expected).filter(([key]) => key !== "name")) {
+      assert(check[key] === value, `${check.name} ${key} is not exact`);
+    }
     assertPendingReceipt(check, expected.authority, `requiredChecks[${index}]`);
   });
 
@@ -458,6 +460,23 @@ export function validateSchemaContract(schema) {
     "schema.requiredChecks.prefixItems",
   );
   assert(schema.properties?.requiredChecks?.items === false, "schema required checks must be exact and ordered");
+  assertArrayEquals(
+    schema.$defs?.externalReviewCheck?.required,
+    ["name", "authority", "producer", "providerContext", "appId", "command", "status", "receipt"],
+    "schema.externalReviewCheck.required",
+  );
+  assert(
+    schema.$defs?.externalReviewCheck?.properties?.producer?.const === "vercel_agent_github_app",
+    "schema must pin the external-review producer",
+  );
+  assert(
+    schema.$defs?.externalReviewCheck?.properties?.providerContext?.const === "Vercel Agent Review",
+    "schema must pin the external-review provider context",
+  );
+  assert(
+    schema.$defs?.externalReviewCheck?.properties?.appId?.const === 8329,
+    "schema must pin the external-review GitHub App",
+  );
   assert(
     schema.$defs?.physicalJourney?.properties?.mustFollowRollbackRestoration?.const === true,
     "schema physical journey must follow rollback restoration",

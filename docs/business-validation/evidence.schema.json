@@ -38,11 +38,12 @@
     "canonicalCheckReceipt": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "authority", "conclusion", "sourceSha", "checkRunId", "checkSuiteId", "appId", "providerEvidenceRef"],
+      "required": ["name", "providerContext", "authority", "conclusion", "sourceSha", "checkRunId", "checkSuiteId", "appId", "providerEvidenceRef"],
       "properties": {
         "name": {
           "enum": ["node24", "external-review", "canonical-release-source-contract", "Windows worker contract", "Exact source / Flutter / Android"]
         },
+        "providerContext": { "type": "string", "minLength": 1, "maxLength": 128 },
         "authority": { "enum": ["GITHUB_ACTIONS_PROVIDER", "TRUSTED_EXTERNAL_REVIEW_PROVIDER"] },
         "conclusion": { "const": "success" },
         "sourceSha": { "$ref": "#/$defs/sha40" },
@@ -111,31 +112,31 @@
                 {
                   "allOf": [
                     { "$ref": "#/$defs/canonicalCheckReceipt" },
-                    { "properties": { "name": { "const": "node24" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
+                    { "properties": { "name": { "const": "node24" }, "providerContext": { "const": "node24" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
                   ]
                 },
                 {
                   "allOf": [
                     { "$ref": "#/$defs/canonicalCheckReceipt" },
-                    { "properties": { "name": { "const": "external-review" }, "authority": { "const": "TRUSTED_EXTERNAL_REVIEW_PROVIDER" }, "appId": { "not": { "const": 15368 } } } }
+                    { "properties": { "name": { "const": "external-review" }, "providerContext": { "const": "Vercel Agent Review" }, "authority": { "const": "TRUSTED_EXTERNAL_REVIEW_PROVIDER" }, "appId": { "const": 8329 } } }
                   ]
                 },
                 {
                   "allOf": [
                     { "$ref": "#/$defs/canonicalCheckReceipt" },
-                    { "properties": { "name": { "const": "canonical-release-source-contract" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
+                    { "properties": { "name": { "const": "canonical-release-source-contract" }, "providerContext": { "const": "canonical-release-source-contract" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
                   ]
                 },
                 {
                   "allOf": [
                     { "$ref": "#/$defs/canonicalCheckReceipt" },
-                    { "properties": { "name": { "const": "Windows worker contract" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
+                    { "properties": { "name": { "const": "Windows worker contract" }, "providerContext": { "const": "Windows worker contract" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
                   ]
                 },
                 {
                   "allOf": [
                     { "$ref": "#/$defs/canonicalCheckReceipt" },
-                    { "properties": { "name": { "const": "Exact source / Flutter / Android" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
+                    { "properties": { "name": { "const": "Exact source / Flutter / Android" }, "providerContext": { "const": "Exact source / Flutter / Android" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
                   ]
                 }
               ]
