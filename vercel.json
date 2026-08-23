@@ -8,6 +8,7 @@
     "PANDORA_MEMORY_ALLOW_MUTATIONS": "true",
     "PROJECTOS_MCP_RESOURCE_ORIGIN": "https://mcpmaster.vercel.app",
     "MCPMASTER_GITHUB_ACCOUNT_ID": "github-primary",
+    "PANDORA_TRUSTED_EXTERNAL_REVIEW_APP_ID": "842251",
     "FLUTTERFLOW_ACCOUNTS_JSON": "[{\"id\":\"pandora-mobile\",\"label\":\"Pandora Mobile (FlutterFlow)\",\"tokenEnv\":\"FLUTTERFLOW_API_TOKEN\",\"allowedProjectIds\":[\"pandoras-box-gj9hnb\"],\"grantedScopes\":[\"projects:read\",\"project_schema:read\"]}]"
   },
   "functions": {
