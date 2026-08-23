@@ -164,15 +164,15 @@ test("MCP structured content wraps provider arrays and primitives in object enve
   const cases = [
     {
       providerValue: [{ number: 65 }, { number: 55 }],
-      structuredContent: { items: [{ number: 65 }, { number: 55 }] },
+      structuredContent: { result: [{ number: 65 }, { number: 55 }] },
     },
     {
       providerValue: "ready",
-      structuredContent: { value: "ready" },
+      structuredContent: { result: "ready" },
     },
     {
       providerValue: null,
-      structuredContent: { value: null },
+      structuredContent: { result: null },
     },
   ];
 
