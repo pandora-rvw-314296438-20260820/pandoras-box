@@ -8,6 +8,7 @@ exports.inspectToolConfiguration = inspectToolConfiguration;
 const tool_catalog_js_1 = require("./tool-catalog.js");
 const github_control_resolver_js_1 = require("./github-control-resolver.js");
 const supabase_control_resolver_js_1 = require("./supabase-control-resolver.js");
+const crypto_1 = require("node:crypto");
 /**
  * Canonical Pandora Memory origin, fixed by owner decision on 2026-08-06
  * (CONFLICT-001). The Vercel identity, service principal, Supabase binding,
@@ -94,8 +95,8 @@ function childDeletionCapabilityKeyring() {
         throw new MissingConfigurationError('supabase', [`${CHILD_DELETION_SIGNING_KEYS_ENV} with exact activeKeyId, reservationKeyId, and keys fields`]);
     }
     const entries = Object.entries(parsed.keys);
-    if (entries.length < 1 || entries.length > 8) {
-        throw new MissingConfigurationError('supabase', [`${CHILD_DELETION_SIGNING_KEYS_ENV} with 1 to 8 verification keys`]);
+    if (entries.length < 2 || entries.length > 8) {
+        throw new MissingConfigurationError('supabase', [`${CHILD_DELETION_SIGNING_KEYS_ENV} with 2 to 8 verification keys`]);
     }
     const keys = {};
     for (const [keyId, encoded] of entries) {
@@ -124,6 +125,24 @@ function childDeletionCapabilityKeyring() {
         reservationKeyId: parsed.reservationKeyId,
         keys,
     };
+}
+function childDeletionConfigurationFingerprint(keyring) {
+    const orderedKeys = {
+        [keyring.activeKeyId]: keyring.keys[keyring.activeKeyId],
+        [keyring.reservationKeyId]: keyring.keys[keyring.reservationKeyId],
+    };
+    for (const keyId of Object.keys(keyring.keys)
+        .filter((candidate) => candidate !== keyring.activeKeyId
+        && candidate !== keyring.reservationKeyId)
+        .sort()) {
+        orderedKeys[keyId] = keyring.keys[keyId];
+    }
+    const canonical = JSON.stringify({
+        activeKeyId: keyring.activeKeyId,
+        reservationKeyId: keyring.reservationKeyId,
+        keys: orderedKeys,
+    });
+    return (0, crypto_1.createHash)('sha256').update(canonical, 'utf8').digest('hex');
 }
 function buildGitHubEnvironmentConfiguration() {
     return {
@@ -284,8 +303,17 @@ function sanitizeProviderConnections(github, supabase, flutterflow) {
                         activeKeyId: supabase.childDeletionCapabilityKeyring.activeKeyId,
                         reservationKeyId: supabase.childDeletionCapabilityKeyring.reservationKeyId,
                         verificationKeyIds: Object.keys(supabase.childDeletionCapabilityKeyring.keys).sort(),
+                        verificationKeyCount: Object.keys(supabase.childDeletionCapabilityKeyring.keys).length,
+                        configurationFingerprintSha256: childDeletionConfigurationFingerprint(supabase.childDeletionCapabilityKeyring),
                     }
-                    : { configured: false, activeKeyId: null, reservationKeyId: null, verificationKeyIds: [] },
+                    : {
+                        configured: false,
+                        activeKeyId: null,
+                        reservationKeyId: null,
+                        verificationKeyIds: [],
+                        verificationKeyCount: 0,
+                        configurationFingerprintSha256: null,
+                    },
             },
         })),
         ...(flutterflow?.accounts || []).map((account) => ({

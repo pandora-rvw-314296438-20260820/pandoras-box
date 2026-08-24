@@ -150,6 +150,17 @@ const SupabaseChildDatabaseQueryArgsSchema = SupabaseAccountArgsSchema.extend({
     bodySha256: zod_1.z.string().regex(/^[a-f0-9]{64}$/),
     confirmation: zod_1.z.string().min(1),
 }).strict();
+const SupabaseChildDatabaseReadQueryArgsSchema = SupabaseAccountArgsSchema.extend({
+    parentProjectRef: SupabaseProjectRefSchema,
+    branchId: SupabaseBranchUuidSchema,
+    childProjectRef: SupabaseProjectRefSchema,
+    sql: zod_1.z.string().min(1).max(CHILD_DATABASE_QUERY_MAX_BYTES)
+        .refine((value) => Buffer.byteLength(value, 'utf8') <= CHILD_DATABASE_QUERY_MAX_BYTES, 'SQL query exceeds the UTF-8 byte limit'),
+    parameters: zod_1.z.array(zod_1.z.unknown().refine((value) => isBoundedJsonParameter(value), 'SQL parameter must be bounded JSON')).max(100)
+        .refine((value) => serializedByteLength(value) <= CHILD_DATABASE_PARAMETERS_MAX_BYTES, 'SQL parameters exceed the serialized byte limit'),
+    bodySha256: zod_1.z.string().regex(/^[a-f0-9]{64}$/),
+    confirmation: zod_1.z.string().min(1),
+}).strict();
 const SupabaseChildBranchDeleteArgsSchema = SupabaseAccountArgsSchema.extend({
     parentProjectRef: SupabaseProjectRefSchema,
     branchId: SupabaseBranchUuidSchema,
@@ -561,11 +572,11 @@ async function ensureDeletableChildBranchBinding(account, configuration, parentP
     const child = await readBoundChildProjectIfPresent(account, configuration, childProjectRef, parent.organizationSlug, phase, fetchFn);
     return { parent, branch: collisions[0], child };
 }
-function childDatabaseProviderBody(input) {
+function childDatabaseProviderBody(input, readOnly = false) {
     return {
         query: input.sql,
         parameters: input.parameters,
-        read_only: false,
+        read_only: readOnly,
     };
 }
 function childDatabaseBodySha256(body) {
@@ -924,6 +935,20 @@ function childQueryConfiguration(configuration) {
         maxResponseBytes: Math.min(configuredLimit, CHILD_DATABASE_RESPONSE_MAX_BYTES),
     };
 }
+function sanitizedChildReadFailure(error) {
+    const message = error instanceof Error ? error.message : '';
+    const providerStatus = /^Supabase Management API request failed with ([1-5][0-9]{2})$/.exec(message);
+    if (providerStatus) {
+        return new Error(`Child database read-only reconciliation failed with provider status ${providerStatus[1]}`);
+    }
+    if (message === 'Supabase Management API request timed out') {
+        return new Error('Child database read-only reconciliation request timed out');
+    }
+    if (message === 'Supabase Management API response exceeded size limit') {
+        return new Error('Child database read-only reconciliation response exceeded size limit');
+    }
+    return new Error('Child database read-only reconciliation request failed');
+}
 async function readSupabaseProjectIfPresent(account, configuration, childProjectRef, fetchFn) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), configuration.timeoutMs || DEFAULT_TIMEOUT_MS);
@@ -1051,6 +1076,31 @@ async function executeSupabaseProviderApiTool(tool, args, configuration, fetchFn
             const binding = await ensureChildBranchBinding(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, 'query preflight', providerFetch);
             const result = await supabaseRequest(account, childQueryConfiguration(configuration), `/projects/${encodeURIComponent(input.childProjectRef)}/database/query`, 'POST', {}, body, providerFetch);
             await ensureChildBranchBinding(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, 'query postflight', providerFetch, binding);
+            return result;
+        }
+        case 'supabase.read-child-database-query': {
+            const input = SupabaseChildDatabaseReadQueryArgsSchema.parse(args);
+            const account = supabaseAccount(configuration, input.accountId);
+            assertSupabaseMutationAllowed(account);
+            if (input.parentProjectRef === input.childProjectRef) {
+                throw new Error('Child project ref must differ from its allowlisted parent project ref');
+            }
+            const body = childDatabaseProviderBody(input, true);
+            const computedBodySha256 = childDatabaseBodySha256(body);
+            if (input.bodySha256 !== computedBodySha256) {
+                throw new Error(`Child database read-only bodySha256 must exactly equal ${computedBodySha256}`);
+            }
+            const expected = `POST READ-ONLY CHILD DATABASE ${input.parentProjectRef}:${input.branchId}:${input.childProjectRef} BODY_SHA256 ${computedBodySha256}`;
+            assertConfirmation(input.confirmation, expected);
+            const binding = await ensureChildBranchBinding(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, 'read-only reconciliation preflight', providerFetch);
+            let result;
+            try {
+                result = await supabaseRequest(account, childQueryConfiguration(configuration), `/projects/${encodeURIComponent(input.childProjectRef)}/database/query`, 'POST', {}, body, providerFetch);
+            }
+            catch (error) {
+                throw sanitizedChildReadFailure(error);
+            }
+            await ensureChildBranchBinding(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, 'read-only reconciliation postflight', providerFetch, binding);
             return result;
         }
         case 'supabase.prepare-child-deletion-reconciliation': {
@@ -1358,6 +1408,32 @@ exports.supabaseProviderApiTools = {
                 confirmation: {
                     type: 'string',
                     description: 'POST CHILD DATABASE parentProjectRef:branchId:childProjectRef BODY_SHA256 bodySha256',
+                },
+            },
+            required: ['accountId', 'parentProjectRef', 'branchId', 'childProjectRef', 'sql', 'parameters', 'bodySha256', 'confirmation'],
+        },
+    },
+    'supabase.read-child-database-query': {
+        description: 'Run one approved, mechanically read-only SQL reconciliation with read_only=true against an exact healthy data-less disposable child project only after proving its UUID branch and project binding to an allowlisted parent before and after dispatch; the ProjectOS plan and body hash bind the exact reconciliation query while the downstream provider still enforces its own database permission',
+        parameters: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+                ...accountProperty,
+                parentProjectRef: { type: 'string', pattern: '^[a-z0-9]{20}$', description: 'Exact allowlisted parent project ref' },
+                branchId: { type: 'string', pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', description: 'Exact provider-returned child branch UUID' },
+                childProjectRef: { type: 'string', pattern: '^[a-z0-9]{20}$', description: 'Exact child project ref from the verified parent branch inventory' },
+                sql: { type: 'string', minLength: 1, maxLength: CHILD_DATABASE_QUERY_MAX_BYTES, description: 'Exact reconciliation SQL bytes to send as the provider body query field' },
+                parameters: {
+                    type: 'array',
+                    maxItems: 100,
+                    items: {},
+                    description: `Bounded JSON parameters; serialized array must not exceed ${CHILD_DATABASE_PARAMETERS_MAX_BYTES} UTF-8 bytes`,
+                },
+                bodySha256: { type: 'string', pattern: '^[a-f0-9]{64}$', description: 'SHA-256 of the exact UTF-8 JSON provider body {"query":sql,"parameters":parameters,"read_only":true}' },
+                confirmation: {
+                    type: 'string',
+                    description: 'POST READ-ONLY CHILD DATABASE parentProjectRef:branchId:childProjectRef BODY_SHA256 bodySha256',
                 },
             },
             required: ['accountId', 'parentProjectRef', 'branchId', 'childProjectRef', 'sql', 'parameters', 'bodySha256', 'confirmation'],

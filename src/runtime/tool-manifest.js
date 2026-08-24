@@ -52,6 +52,9 @@ const entries = [
     // that the downstream Supabase token has effective DB/environment access;
     // every provider response remains authoritative and fail-closed.
     manifest('supabase.write-child-database-query', 'supabase', 'write', true, 'branch', ['projects:read', 'projects:write'], { confirmationKind: 'supabase-child-database-query' }),
+    // The provider request is mechanically read-only, but it remains plan-gated
+    // because it is an authenticated POST that can inspect child database data.
+    manifest('supabase.read-child-database-query', 'supabase', 'write', true, 'branch', ['projects:read', 'projects:write'], { confirmationKind: 'supabase-child-database-read-query' }),
     manifest('supabase.prepare-child-deletion-reconciliation', 'supabase', 'read', false, 'branch', ['projects:read']),
     manifest('supabase.delete-child-branch', 'supabase', 'destructive', true, 'branch', ['projects:read', 'projects:write'], { confirmationKind: 'supabase-child-branch-delete' }),
     manifest('supabase.read-child-deletion-reconciliation', 'supabase', 'read', false, 'branch', ['projects:read']),
@@ -124,6 +127,29 @@ function expectedConfirmation(toolName, args) {
                 .digest('hex');
             return bodySha256 === computedBodySha256
                 ? `POST CHILD DATABASE ${parentProjectRef}:${branchId}:${childProjectRef} BODY_SHA256 ${bodySha256}`
+                : undefined;
+        }
+        case 'supabase-child-database-read-query': {
+            const parentProjectRef = typeof args.parentProjectRef === 'string'
+                ? args.parentProjectRef
+                : undefined;
+            const branchId = typeof args.branchId === 'string'
+                ? args.branchId
+                : undefined;
+            const childProjectRef = typeof args.childProjectRef === 'string'
+                ? args.childProjectRef
+                : undefined;
+            const sql = typeof args.sql === 'string' ? args.sql : undefined;
+            const parameters = Array.isArray(args.parameters) ? args.parameters : undefined;
+            const bodySha256 = typeof args.bodySha256 === 'string' ? args.bodySha256 : undefined;
+            if (!parentProjectRef || !branchId || !childProjectRef || sql === undefined || !parameters || !bodySha256)
+                return undefined;
+            const serializedBody = JSON.stringify({ query: sql, parameters, read_only: true });
+            const computedBodySha256 = (0, crypto_1.createHash)('sha256')
+                .update(serializedBody, 'utf8')
+                .digest('hex');
+            return bodySha256 === computedBodySha256
+                ? `POST READ-ONLY CHILD DATABASE ${parentProjectRef}:${branchId}:${childProjectRef} BODY_SHA256 ${bodySha256}`
                 : undefined;
         }
         case 'supabase-child-branch-delete': {

@@ -74,6 +74,11 @@ test("tools/list preserves cached provider reads and durable plan aliases", asyn
     tools.get("projectos_plan_supabase_write-child-database-query").inputSchema.additionalProperties,
     false,
   );
+  assert.ok(tools.has("projectos_plan_supabase_read-child-database-query"));
+  assert.equal(
+    tools.get("projectos_plan_supabase_read-child-database-query").inputSchema.additionalProperties,
+    false,
+  );
   assert.ok(tools.has("projectos_plan_supabase_delete-child-branch"));
   assert.equal(
     tools.get("projectos_plan_supabase_delete-child-branch").inputSchema.additionalProperties,

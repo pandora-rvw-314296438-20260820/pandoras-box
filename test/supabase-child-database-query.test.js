@@ -26,6 +26,7 @@ const {
 } = require("../dist/http-app.js");
 
 const QUERY_TOOL = "supabase.write-child-database-query";
+const READ_QUERY_TOOL = "supabase.read-child-database-query";
 const PREPARE_DELETE_TOOL = "supabase.prepare-child-deletion-reconciliation";
 const DELETE_TOOL = "supabase.delete-child-branch";
 const RECONCILE_TOOL = "supabase.read-child-deletion-reconciliation";
@@ -56,6 +57,16 @@ const TEST_KEYRING = {
     [TEST_RESERVATION_KEY_ID]: TEST_RESERVATION_KEY,
   },
 };
+const TEST_TWO_KEYRING = {
+  activeKeyId: TEST_SIGNING_KEY_ID,
+  reservationKeyId: TEST_RESERVATION_KEY_ID,
+  keys: {
+    [TEST_SIGNING_KEY_ID]: TEST_SIGNING_KEY,
+    [TEST_RESERVATION_KEY_ID]: TEST_RESERVATION_KEY,
+  },
+};
+const TEST_TWO_KEYRING_FINGERPRINT =
+  "c94b68324dee0389ed1631c521f793e3eb49698ba1061944eaf6b38407882b58";
 
 function configuration(overrides = {}) {
   const {
@@ -84,6 +95,10 @@ function queryProviderBody(input) {
   return { query: input.sql, parameters: input.parameters, read_only: false };
 }
 
+function readQueryProviderBody(input) {
+  return { query: input.sql, parameters: input.parameters, read_only: true };
+}
+
 function sha256(value) {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
@@ -102,8 +117,16 @@ function queryBodySha256(input) {
   return sha256(JSON.stringify(queryProviderBody(input)));
 }
 
+function readQueryBodySha256(input) {
+  return sha256(JSON.stringify(readQueryProviderBody(input)));
+}
+
 function queryConfirmation(input) {
   return `POST CHILD DATABASE ${input.parentProjectRef}:${input.branchId}:${input.childProjectRef} BODY_SHA256 ${input.bodySha256}`;
+}
+
+function readQueryConfirmation(input) {
+  return `POST READ-ONLY CHILD DATABASE ${input.parentProjectRef}:${input.branchId}:${input.childProjectRef} BODY_SHA256 ${input.bodySha256}`;
 }
 
 function validQueryArgs(overrides = {}) {
@@ -121,6 +144,25 @@ function validQueryArgs(overrides = {}) {
   }
   if (!Object.prototype.hasOwnProperty.call(overrides, "confirmation")) {
     value.confirmation = queryConfirmation(value);
+  }
+  return value;
+}
+
+function validReadQueryArgs(overrides = {}) {
+  const value = {
+    accountId: ACCOUNT_ID,
+    parentProjectRef: PARENT,
+    branchId: BRANCH_ID,
+    childProjectRef: CHILD,
+    sql: "select $1::integer as governed_child_reconciliation_probe",
+    parameters: [1],
+    ...overrides,
+  };
+  if (!Object.prototype.hasOwnProperty.call(overrides, "bodySha256")) {
+    value.bodySha256 = readQueryBodySha256(value);
+  }
+  if (!Object.prototype.hasOwnProperty.call(overrides, "confirmation")) {
+    value.confirmation = readQueryConfirmation(value);
   }
   return value;
 }
@@ -372,6 +414,7 @@ function jsonResponse(body, status = 200, headers = {}) {
 test("manifests, schemas, confirmations, body bytes, and plan payloads bind both child routes", () => {
   for (const [tool, risk, confirmationKind] of [
     [QUERY_TOOL, "write", "supabase-child-database-query"],
+    [READ_QUERY_TOOL, "write", "supabase-child-database-read-query"],
     [DELETE_TOOL, "destructive", "supabase-child-branch-delete"],
   ]) {
     const manifest = getToolManifest(tool);
@@ -419,12 +462,18 @@ test("manifests, schemas, confirmations, body bytes, and plan payloads bind both
     "accountId", "parentProjectRef", "branchId", "childProjectRef",
     "sql", "parameters", "bodySha256", "confirmation",
   ]);
+  assert.deepEqual(supabaseProviderApiTools[READ_QUERY_TOOL].parameters.required, [
+    "accountId", "parentProjectRef", "branchId", "childProjectRef",
+    "sql", "parameters", "bodySha256", "confirmation",
+  ]);
   assert.deepEqual(supabaseProviderApiTools[DELETE_TOOL].parameters.required, [
     "accountId", "parentProjectRef", "branchId", "childProjectRef",
     "deletionCapability", "confirmation",
   ]);
-  for (const forbidden of ["method", "pathSegments", "query", "read_only", "body"]) {
-    assert.equal(supabaseProviderApiTools[QUERY_TOOL].parameters.properties[forbidden], undefined);
+  for (const tool of [QUERY_TOOL, READ_QUERY_TOOL]) {
+    for (const forbidden of ["method", "pathSegments", "query", "read_only", "body"]) {
+      assert.equal(supabaseProviderApiTools[tool].parameters.properties[forbidden], undefined);
+    }
   }
 
   const queryInput = validQueryArgs();
@@ -437,6 +486,14 @@ test("manifests, schemas, confirmations, body bytes, and plan payloads bind both
   const deleteInput = validDeleteArgs();
   assert.equal(expectedConfirmation(DELETE_TOOL, deleteInput), deleteConfirmation(deleteInput));
   assert.equal(highImpactReason(QUERY_TOOL, queryInput), undefined);
+  const readQueryInput = validReadQueryArgs();
+  assert.equal(readQueryInput.bodySha256, readQueryBodySha256(readQueryInput));
+  assert.equal(expectedConfirmation(READ_QUERY_TOOL, readQueryInput), readQueryConfirmation(readQueryInput));
+  assert.equal(
+    expectedConfirmation(READ_QUERY_TOOL, { ...readQueryInput, bodySha256: "0".repeat(64) }),
+    undefined,
+  );
+  assert.equal(highImpactReason(READ_QUERY_TOOL, readQueryInput), undefined);
   assert.equal(highImpactReason(DELETE_TOOL, deleteInput), undefined);
 
   const baseHash = executionPayloadHash(QUERY_TOOL, queryInput);
@@ -448,6 +505,16 @@ test("manifests, schemas, confirmations, body bytes, and plan payloads bind both
     { parameters: [2] },
   ]) {
     assert.notEqual(executionPayloadHash(QUERY_TOOL, validQueryArgs(mutation)), baseHash);
+  }
+  const readBaseHash = executionPayloadHash(READ_QUERY_TOOL, readQueryInput);
+  for (const mutation of [
+    { parentProjectRef: OTHER_PARENT },
+    { branchId: OTHER_BRANCH_ID },
+    { childProjectRef: SIBLING },
+    { sql: "select 2" },
+    { parameters: [2] },
+  ]) {
+    assert.notEqual(executionPayloadHash(READ_QUERY_TOOL, validReadQueryArgs(mutation)), readBaseHash);
   }
   assert.notEqual(
     executionPayloadHash(DELETE_TOOL, validDeleteArgs({ branchId: OTHER_BRANCH_ID })),
@@ -522,8 +589,12 @@ test("ProjectOS rejects either missing logical scope before provider I/O", async
     return jsonResponse({});
   };
   try {
-    for (const tool of [QUERY_TOOL, DELETE_TOOL]) {
-      const args = tool === QUERY_TOOL ? validQueryArgs() : validDeleteArgs();
+    for (const tool of [QUERY_TOOL, READ_QUERY_TOOL, DELETE_TOOL]) {
+      const args = tool === QUERY_TOOL
+        ? validQueryArgs()
+        : tool === READ_QUERY_TOOL
+          ? validReadQueryArgs()
+          : validDeleteArgs();
       for (const missing of LOGICAL_SCOPES) {
         await assert.rejects(
           executeTool(tool, args, {
@@ -600,6 +671,181 @@ test("exact parent, UUID branch, child identity, and body hash permit only the h
   assert.deepEqual(result, { result: [{ governed_child_probe: 1 }] });
   assert.equal(calls.length, 7);
   assert.equal(calls.filter((call) => call.method === "POST").length, 1);
+});
+
+test("read-only reconciliation is plan-gated, exact-child-bound, and sends read_only true once", async () => {
+  const calls = [];
+  const input = validReadQueryArgs();
+  const providerResult = [{ governed_child_reconciliation_probe: 1 }];
+  const result = await executeSupabaseProviderApiTool(
+    READ_QUERY_TOOL,
+    input,
+    configuration(),
+    async (url, init) => {
+      calls.push({ url, method: init.method, body: init.body });
+      switch (calls.length) {
+        case 1:
+        case 5:
+          assert.equal(url, `https://api.supabase.com/v1/projects/${PARENT}`);
+          return jsonResponse(projectRecord(PARENT));
+        case 2:
+        case 6:
+          assert.equal(url, `https://api.supabase.com/v1/projects/${PARENT}/branches`);
+          return jsonResponse([branchRecord()]);
+        case 3:
+        case 7:
+          assert.equal(url, `https://api.supabase.com/v1/projects/${CHILD}`);
+          return jsonResponse(projectRecord(CHILD));
+        case 4:
+          assert.equal(url, `https://api.supabase.com/v1/projects/${CHILD}/database/query`);
+          assert.equal(init.method, "POST");
+          assert.deepEqual(JSON.parse(init.body), readQueryProviderBody(input));
+          assert.equal(JSON.parse(init.body).read_only, true);
+          assert.equal(sha256(init.body), input.bodySha256);
+          return jsonResponse(providerResult, 201);
+        default:
+          throw new Error("unexpected provider request");
+      }
+    },
+  );
+  assert.deepEqual(result, providerResult);
+  assert.equal(calls.length, 7);
+  assert.equal(calls.filter((call) => call.method === "POST").length, 1);
+});
+
+test("read-only reconciliation rejects caller/body/scope drift before its POST", async () => {
+  for (const mutation of [
+    { read_only: true },
+    { method: "POST" },
+    { pathSegments: ["database", "query"] },
+    { bodySha256: "0".repeat(64) },
+    { confirmation: "POST READ-ONLY CHILD DATABASE wrong" },
+    { childProjectRef: PARENT },
+    { unexpected: true },
+  ]) {
+    let calls = 0;
+    await assert.rejects(
+      () => executeSupabaseProviderApiTool(
+        READ_QUERY_TOOL,
+        validReadQueryArgs(mutation),
+        configuration(),
+        async () => {
+          calls += 1;
+          return jsonResponse({});
+        },
+      ),
+    );
+    assert.equal(calls, 0, JSON.stringify(mutation));
+  }
+
+  let disabledCalls = 0;
+  await assert.rejects(
+    () => executeSupabaseProviderApiTool(
+      READ_QUERY_TOOL,
+      validReadQueryArgs(),
+      configuration({ allowMutations: false }),
+      async () => {
+        disabledCalls += 1;
+        return jsonResponse({});
+      },
+    ),
+    /Mutations are disabled/,
+  );
+  assert.equal(disabledCalls, 0);
+
+  let calls = 0;
+  await assert.rejects(
+    () => executeSupabaseProviderApiTool(
+      READ_QUERY_TOOL,
+      validReadQueryArgs(),
+      configuration(),
+      async () => {
+        calls += 1;
+        return calls === 1
+          ? jsonResponse(projectRecord(PARENT))
+          : jsonResponse([branchRecord({ is_default: true })]);
+      },
+    ),
+    /not uniquely bound.*read-only reconciliation preflight/,
+  );
+  assert.equal(calls, 2);
+});
+
+test("read-only reconciliation sanitizes provider failure and never retries or postflights", async () => {
+  const fixtures = [
+    {
+      name: "provider 403",
+      response: () => jsonResponse({ message: "secret provider detail must not escape" }, 403),
+      expected: /read-only reconciliation failed with provider status 403/,
+      forbidden: /secret provider detail/,
+    },
+    {
+      name: "transport failure",
+      response: () => { throw new Error("secret transport detail must not escape"); },
+      expected: /read-only reconciliation request failed/,
+      forbidden: /secret transport detail/,
+    },
+    {
+      name: "declared oversize",
+      response: () => jsonResponse({}, 201, { "content-length": "1000001" }),
+      expected: /read-only reconciliation response exceeded size limit/,
+    },
+  ];
+  for (const fixture of fixtures) {
+    let calls = 0;
+    let posts = 0;
+    let rejection;
+    try {
+      await executeSupabaseProviderApiTool(
+        READ_QUERY_TOOL,
+        validReadQueryArgs(),
+        configuration(),
+        async (_url, init) => {
+          calls += 1;
+          if (init.method === "POST") {
+            posts += 1;
+            return fixture.response();
+          }
+          if (calls === 1) return jsonResponse(projectRecord(PARENT));
+          if (calls === 2) return jsonResponse([branchRecord()]);
+          return jsonResponse(projectRecord(CHILD));
+        },
+      );
+    } catch (error) {
+      rejection = error;
+    }
+    assert.ok(rejection instanceof Error, fixture.name);
+    assert.match(rejection.message, fixture.expected, fixture.name);
+    if (fixture.forbidden) assert.doesNotMatch(rejection.message, fixture.forbidden, fixture.name);
+    assert.equal(calls, 4, fixture.name);
+    assert.equal(posts, 1, fixture.name);
+  }
+});
+
+test("read-only reconciliation reports postflight drift after exactly one provider POST", async () => {
+  let calls = 0;
+  let posts = 0;
+  await assert.rejects(
+    () => executeSupabaseProviderApiTool(
+      READ_QUERY_TOOL,
+      validReadQueryArgs(),
+      configuration(),
+      async (_url, init) => {
+        calls += 1;
+        if (init.method === "POST") {
+          posts += 1;
+          return jsonResponse([{ governed_child_reconciliation_probe: 1 }], 201);
+        }
+        if (calls === 1) return jsonResponse(projectRecord(PARENT));
+        if (calls === 2) return jsonResponse([branchRecord()]);
+        if (calls === 3) return jsonResponse(projectRecord(CHILD));
+        return jsonResponse(projectRecord(PARENT, ORGANIZATION, "PAUSED"));
+      },
+    ),
+    /(?:not ACTIVE_HEALTHY|changed after its bound snapshot).*read-only reconciliation postflight/,
+  );
+  assert.equal(calls, 5);
+  assert.equal(posts, 1);
 });
 
 test("sibling, swapped, name-only, conflicting, duplicate, and parent drift fail before query dispatch", async () => {
@@ -848,6 +1094,7 @@ test("malformed branch inventories fail closed for query, prepare, delete, and r
   ];
   const routes = [
     { tool: QUERY_TOOL, args: validQueryArgs() },
+    { tool: READ_QUERY_TOOL, args: validReadQueryArgs() },
     { tool: PREPARE_DELETE_TOOL, args: validPreparationArgs() },
     { tool: DELETE_TOOL, args: validDeleteArgs() },
     { tool: RECONCILE_TOOL, args: validReconciliationArgs() },
@@ -2519,12 +2766,12 @@ test("service configuration validates the dedicated keyring and exposes only non
       allowedProjectRefs: [PARENT],
       grantedScopes: LOGICAL_SCOPES,
     }]);
-    process.env.SUPABASE_CHILD_DELETION_CAPABILITY_KEYS_JSON = JSON.stringify(TEST_KEYRING);
+    process.env.SUPABASE_CHILD_DELETION_CAPABILITY_KEYS_JSON = JSON.stringify(TEST_TWO_KEYRING);
     const reservation = async (input) => validReservationIntent(input);
     const built = await buildToolConfiguration(DELETE_TOOL, {
       destructiveCapabilityReservation: reservation,
     });
-    assert.deepEqual(built.supabase.childDeletionCapabilityKeyring, TEST_KEYRING);
+    assert.deepEqual(built.supabase.childDeletionCapabilityKeyring, TEST_TWO_KEYRING);
     assert.equal(built.supabase.destructiveCapabilityReservation, reservation);
     assert.deepEqual(inspectToolConfiguration(DELETE_TOOL), { configured: true, missing: [] });
 
@@ -2541,6 +2788,48 @@ test("service configuration validates the dedicated keyring and exposes only non
     assert.doesNotMatch(serialized, new RegExp(TEST_RESERVATION_KEY));
     assert.match(serialized, new RegExp(TEST_SIGNING_KEY_ID));
     assert.match(serialized, new RegExp(TEST_RESERVATION_KEY_ID));
+    const childDeletionMetadata = connections
+      .find((connection) => connection.provider === "supabase")
+      .capabilitySigning.childDeletion;
+    assert.deepEqual(childDeletionMetadata, {
+      configured: true,
+      activeKeyId: TEST_SIGNING_KEY_ID,
+      reservationKeyId: TEST_RESERVATION_KEY_ID,
+      verificationKeyIds: [TEST_SIGNING_KEY_ID, TEST_RESERVATION_KEY_ID].sort(),
+      verificationKeyCount: 2,
+      configurationFingerprintSha256: TEST_TWO_KEYRING_FINGERPRINT,
+    });
+    assert.doesNotMatch(serialized, new RegExp(sha256(TEST_SIGNING_KEY)));
+    assert.doesNotMatch(serialized, new RegExp(sha256(TEST_RESERVATION_KEY)));
+
+    const replacementSigningKey = Buffer.alloc(32, 0x44).toString("base64url");
+    process.env.SUPABASE_CHILD_DELETION_CAPABILITY_KEYS_JSON = JSON.stringify({
+      ...TEST_TWO_KEYRING,
+      keys: {
+        [TEST_SIGNING_KEY_ID]: replacementSigningKey,
+        [TEST_RESERVATION_KEY_ID]: TEST_RESERVATION_KEY,
+      },
+    });
+    const replaced = await buildToolConfiguration(DELETE_TOOL, {
+      destructiveCapabilityReservation: reservation,
+    });
+    const replacedMetadata = sanitizeProviderConnections({
+      id: "github-test",
+      label: "GitHub test",
+      login: "github-test",
+      allowMutations: false,
+      grantedScopes: [],
+      allowedRepositories: [],
+    }, replaced.supabase)
+      .find((connection) => connection.provider === "supabase")
+      .capabilitySigning.childDeletion;
+    assert.equal(replacedMetadata.activeKeyId, TEST_SIGNING_KEY_ID);
+    assert.equal(replacedMetadata.reservationKeyId, TEST_RESERVATION_KEY_ID);
+    assert.equal(replacedMetadata.verificationKeyCount, 2);
+    assert.notEqual(
+      replacedMetadata.configurationFingerprintSha256,
+      TEST_TWO_KEYRING_FINGERPRINT,
+    );
 
     delete process.env.SUPABASE_CHILD_DELETION_CAPABILITY_KEYS_JSON;
     assert.deepEqual(inspectToolConfiguration(DELETE_TOOL), {
