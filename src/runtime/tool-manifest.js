@@ -6,6 +6,7 @@ exports.expectedConfirmation = expectedConfirmation;
 exports.assertManifestConfirmation = assertManifestConfirmation;
 exports.highImpactReason = highImpactReason;
 exports.assertHighImpactPolicy = assertHighImpactPolicy;
+const crypto_1 = require("node:crypto");
 function manifest(name, provider, risk, mutation, scope, requiredProviderScopes, options = {}) {
     return {
         name,
@@ -47,6 +48,12 @@ const entries = [
     manifest('supabase.restore-project', 'supabase', 'write', true, 'project', ['projects:write']),
     manifest('supabase.read-project-api', 'supabase', 'read', false, 'project', ['projects:read'], { confirmationKind: 'supabase-project-api' }),
     manifest('supabase.write-project-api', 'supabase', 'write', true, 'project', ['projects:write'], { confirmationKind: 'supabase-project-api', highImpactCapable: true }),
+    // These are ProjectOS connector-policy scopes. Passing them does not prove
+    // that the downstream Supabase token has effective DB/environment access;
+    // every provider response remains authoritative and fail-closed.
+    manifest('supabase.write-child-database-query', 'supabase', 'write', true, 'branch', ['projects:read', 'projects:write'], { confirmationKind: 'supabase-child-database-query' }),
+    manifest('supabase.delete-child-branch', 'supabase', 'destructive', true, 'branch', ['projects:read', 'projects:write'], { confirmationKind: 'supabase-child-branch-delete' }),
+    manifest('supabase.read-child-deletion-reconciliation', 'supabase', 'read', false, 'branch', ['projects:read']),
     manifest('supabase.delete-project-api', 'supabase', 'destructive', true, 'project', ['projects:write'], { confirmationKind: 'supabase-project-api', highImpactCapable: true }),
     manifest('supabase.read-organization-api', 'supabase', 'read', false, 'organization', ['organizations:read'], { confirmationKind: 'supabase-organization-api' }),
     manifest('supabase.write-organization-api', 'supabase', 'write', true, 'organization', ['organizations:write'], { confirmationKind: 'supabase-organization-api', highImpactCapable: true }),
@@ -94,6 +101,45 @@ function expectedConfirmation(toolName, args) {
         case 'supabase-project-api': {
             const projectRef = typeof args.projectRef === 'string' ? args.projectRef : undefined;
             return method && projectRef ? `${method} PROJECT ${projectRef}${suffix}` : undefined;
+        }
+        case 'supabase-child-database-query': {
+            const parentProjectRef = typeof args.parentProjectRef === 'string'
+                ? args.parentProjectRef
+                : undefined;
+            const branchId = typeof args.branchId === 'string'
+                ? args.branchId
+                : undefined;
+            const childProjectRef = typeof args.childProjectRef === 'string'
+                ? args.childProjectRef
+                : undefined;
+            const sql = typeof args.sql === 'string' ? args.sql : undefined;
+            const parameters = Array.isArray(args.parameters) ? args.parameters : undefined;
+            const bodySha256 = typeof args.bodySha256 === 'string' ? args.bodySha256 : undefined;
+            if (!parentProjectRef || !branchId || !childProjectRef || sql === undefined || !parameters || !bodySha256)
+                return undefined;
+            const serializedBody = JSON.stringify({ query: sql, parameters, read_only: false });
+            const computedBodySha256 = (0, crypto_1.createHash)('sha256')
+                .update(serializedBody, 'utf8')
+                .digest('hex');
+            return bodySha256 === computedBodySha256
+                ? `POST CHILD DATABASE ${parentProjectRef}:${branchId}:${childProjectRef} BODY_SHA256 ${bodySha256}`
+                : undefined;
+        }
+        case 'supabase-child-branch-delete': {
+            const parentProjectRef = typeof args.parentProjectRef === 'string'
+                ? args.parentProjectRef
+                : undefined;
+            const branchId = typeof args.branchId === 'string'
+                ? args.branchId
+                : undefined;
+            const childProjectRef = typeof args.childProjectRef === 'string'
+                ? args.childProjectRef
+                : undefined;
+            return parentProjectRef
+                && branchId
+                && childProjectRef
+                ? `DELETE CHILD BRANCH ${parentProjectRef}:${branchId}:${childProjectRef}`
+                : undefined;
         }
         case 'supabase-organization-api': {
             const organizationSlug = typeof args.organizationSlug === 'string'

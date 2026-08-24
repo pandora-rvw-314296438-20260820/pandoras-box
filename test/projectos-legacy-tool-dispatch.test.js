@@ -69,6 +69,21 @@ test("tools/list preserves cached provider reads and durable plan aliases", asyn
   assert.ok(tools.has("github.read-repository-api"));
   assert.ok(tools.has("flutterflow.inspect-readiness"));
   assert.ok(tools.has("projectos_plan_github_write-repository-api"));
+  assert.ok(tools.has("projectos_plan_supabase_write-child-database-query"));
+  assert.equal(
+    tools.get("projectos_plan_supabase_write-child-database-query").inputSchema.additionalProperties,
+    false,
+  );
+  assert.ok(tools.has("projectos_plan_supabase_delete-child-branch"));
+  assert.equal(
+    tools.get("projectos_plan_supabase_delete-child-branch").inputSchema.additionalProperties,
+    false,
+  );
+  assert.ok(tools.has("supabase.read-child-deletion-reconciliation"));
+  assert.equal(
+    tools.get("supabase.read-child-deletion-reconciliation").inputSchema.additionalProperties,
+    false,
+  );
   assert.ok(tools.has("projectos_approve_plan"));
   assert.ok(tools.has("projectos_list_audit"));
   assert.ok(tools.has("projectos_verify_audit"));
