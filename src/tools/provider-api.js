@@ -14,6 +14,17 @@ const CHILD_DATABASE_PARAMETERS_MAX_BYTES = 65536;
 const CHILD_DATABASE_RESPONSE_MAX_BYTES = 1000000;
 const CHILD_DELETE_RECONCILIATION_ATTEMPTS = 4;
 const CHILD_DELETE_RECONCILIATION_DELAY_MS = 250;
+const CHILD_DELETE_AUTHORIZATION_TTL_MS = 10 * 60 * 1000;
+const CHILD_DELETE_RECONCILIATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const CHILD_DELETE_MINIMUM_RESERVATION_WINDOW_MS = 120 * 1000;
+const CHILD_DELETE_CAPABILITY_SCHEMA_VERSION = 'supabase-child-deletion-capability-v3';
+const CHILD_DELETE_CAPABILITY_ACTION = 'delete-and-reconcile-child-branch';
+const CHILD_DELETE_RESERVATION_INTENT_SCHEMA_VERSION = 'projectos-destructive-capability-reservation-intent-v1';
+const CHILD_DELETE_RESERVATION_RECEIPT_SCHEMA_VERSION = 'projectos-destructive-capability-reservation-receipt-v2';
+const CHILD_DELETE_RESERVATION_PROVIDER = 'projectos_capability_reservation';
+const CHILD_DELETE_RESERVATION_EVENT_TYPE = 'supabase_child_branch_delete_reserved';
+const CONTROL_PROJECT_REF = 'jcyqixttuebxqqfkjonq';
+const CONTROL_ORGANIZATION_ID = '2270b266-59da-4c39-bfd9-9f8d08352af0';
 const ReadMethodSchema = zod_1.z.enum(['GET', 'HEAD']).default('GET');
 const WriteMethodSchema = zod_1.z.enum(['POST', 'PUT', 'PATCH']);
 const PathSegmentsSchema = zod_1.z.array(zod_1.z.string().min(1).max(512)
@@ -143,15 +154,33 @@ const SupabaseChildBranchDeleteArgsSchema = SupabaseAccountArgsSchema.extend({
     parentProjectRef: SupabaseProjectRefSchema,
     branchId: SupabaseBranchUuidSchema,
     childProjectRef: SupabaseProjectRefSchema,
+    deletionCapability: zod_1.z.object({
+        schemaVersion: zod_1.z.literal(CHILD_DELETE_CAPABILITY_SCHEMA_VERSION),
+        action: zod_1.z.literal(CHILD_DELETE_CAPABILITY_ACTION),
+        signingKeyId: zod_1.z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/),
+        reservationKeyId: zod_1.z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/),
+        accountId: zod_1.z.string().min(1),
+        organizationSlug: zod_1.z.string().regex(/^[a-z0-9]{20}$/),
+        parentProjectRef: SupabaseProjectRefSchema,
+        parentStatus: zod_1.z.string().min(1).max(80),
+        branchId: SupabaseBranchUuidSchema,
+        childProjectRef: SupabaseProjectRefSchema,
+        operationNonce: zod_1.z.string().regex(/^[a-f0-9]{64}$/),
+        issuedAt: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
+        deleteAuthorizationExpiresAt: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
+        reconciliationExpiresAt: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
+        membershipSnapshotSha256: zod_1.z.string().regex(/^[a-f0-9]{64}$/),
+        proof: zod_1.z.string().regex(/^[a-f0-9]{64}$/),
+    }).strict(),
     confirmation: zod_1.z.string().min(1),
 }).strict();
-const SupabaseChildDeletionReconciliationArgsSchema = SupabaseAccountArgsSchema.extend({
+const SupabaseChildDeletionPreparationArgsSchema = SupabaseAccountArgsSchema.extend({
     parentProjectRef: SupabaseProjectRefSchema,
     branchId: SupabaseBranchUuidSchema,
     childProjectRef: SupabaseProjectRefSchema,
-    expectedParentOrganizationSlug: zod_1.z.string().min(1).max(160),
-    expectedParentStatus: zod_1.z.string().min(1).max(80),
-    reconciliationProof: zod_1.z.string().regex(/^[a-f0-9]{64}$/),
+}).strict();
+const SupabaseChildDeletionReconciliationArgsSchema = SupabaseChildDeletionPreparationArgsSchema.extend({
+    deletionCapability: SupabaseChildBranchDeleteArgsSchema.shape.deletionCapability,
 }).strict();
 function encodeSegments(segments) {
     return segments.map((segment) => encodeURIComponent(segment)).join('/');
@@ -365,11 +394,39 @@ async function ensureBranchAllowed(account, configuration, projectRef, branchIdO
         throw new Error(`Branch ${branchIdOrRef} is not visible under allowed project ${projectRef}`);
 }
 function childBranchRecords(data) {
-    if (Array.isArray(data))
-        return data;
-    if (data && typeof data === 'object' && Array.isArray(data.branches))
-        return data.branches;
-    return [];
+    const records = Array.isArray(data)
+        ? data
+        : data
+            && typeof data === 'object'
+            && !Array.isArray(data)
+            && Object.keys(data).length === 1
+            && Array.isArray(data.branches)
+            ? data.branches
+            : undefined;
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    const projectRef = /^[a-z0-9]{20}$/;
+    if (!records
+        || records.some((candidate) => !candidate
+            || typeof candidate !== 'object'
+            || Array.isArray(candidate)
+            || !uuid.test(candidate.id || '')
+            || !projectRef.test(candidate.project_ref || '')
+            || !projectRef.test(candidate.parent_project_ref || '')
+            || (candidate.ref !== undefined
+                && (typeof candidate.ref !== 'string' || !projectRef.test(candidate.ref)))
+            || (candidate.name !== undefined && typeof candidate.name !== 'string')
+            || (candidate.is_default !== undefined && typeof candidate.is_default !== 'boolean')
+            || (candidate.persistent !== undefined && typeof candidate.persistent !== 'boolean')
+            || (candidate.with_data !== undefined && typeof candidate.with_data !== 'boolean')
+            || (candidate.status !== undefined && typeof candidate.status !== 'string')
+            || (candidate.preview_project_status !== undefined && typeof candidate.preview_project_status !== 'string')
+            || (candidate.deletion_scheduled_at !== undefined
+                && candidate.deletion_scheduled_at !== null
+                && typeof candidate.deletion_scheduled_at !== 'string')
+            || (candidate.created_at !== undefined && typeof candidate.created_at !== 'string'))) {
+        throw new Error('Supabase child branch inventory is malformed');
+    }
+    return records;
 }
 function childBranchCollides(candidate, branchId, childProjectRef) {
     if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate))
@@ -404,9 +461,17 @@ function exactDeletableChildBranchMatch(candidate, parentProjectRef, branchId, c
         && branch.project_ref === childProjectRef
         && (branch.ref === undefined || branch.ref === childProjectRef)
         && branch.parent_project_ref === parentProjectRef
+        && typeof branch.name === 'string'
+        && branch.name.length > 0
         && branch.is_default === false
         && branch.persistent === false
-        && branch.with_data === false;
+        && branch.with_data === false
+        && typeof branch.status === 'string'
+        && branch.status.length > 0
+        && typeof branch.preview_project_status === 'string'
+        && branch.preview_project_status.length > 0
+        && typeof branch.created_at === 'string'
+        && Number.isFinite(Date.parse(branch.created_at));
 }
 function sameProjectSnapshot(left, right) {
     return left.ref === right.ref
@@ -429,7 +494,9 @@ async function readAllowedParentProject(account, configuration, parentProjectRef
         : undefined;
     if (ref !== parentProjectRef
         || typeof organizationSlug !== 'string'
+        || !/^[a-z0-9]{20}$/.test(organizationSlug)
         || typeof status !== 'string'
+        || status.length === 0
         || (account.allowedOrganizationSlugs.length > 0
             && !account.allowedOrganizationSlugs.includes(organizationSlug))) {
         throw new Error(`Allowed parent project ${parentProjectRef} identity drifted during ${phase}`);
@@ -456,7 +523,9 @@ async function readBoundChildProject(account, configuration, childProjectRef, or
         : undefined;
     if (ref !== childProjectRef
         || observedOrganization !== organizationSlug
+        || !/^[a-z0-9]{20}$/.test(observedOrganization)
         || typeof status !== 'string'
+        || status.length === 0
         || (account.allowedOrganizationSlugs.length > 0
             && !account.allowedOrganizationSlugs.includes(observedOrganization))) {
         throw new Error(`Child project ${childProjectRef} identity drifted during ${phase}`);
@@ -481,16 +550,16 @@ async function ensureChildBranchBinding(account, configuration, parentProjectRef
     const child = await readBoundChildProject(account, configuration, childProjectRef, parent.organizationSlug, phase, fetchFn, expectedBinding?.child, true);
     return { parent, child };
 }
-async function ensureDeletableChildBranchBinding(account, configuration, parentProjectRef, branchId, childProjectRef, fetchFn) {
-    const parent = await readAllowedParentProject(account, configuration, parentProjectRef, 'delete preflight', fetchFn);
+async function ensureDeletableChildBranchBinding(account, configuration, parentProjectRef, branchId, childProjectRef, fetchFn, phase = 'delete preflight', expectedParentSnapshot) {
+    const parent = await readAllowedParentProject(account, configuration, parentProjectRef, phase, fetchFn, expectedParentSnapshot);
     const data = await supabaseRequest(account, configuration, `/projects/${encodeURIComponent(parentProjectRef)}/branches`, 'GET', {}, undefined, fetchFn);
     const collisions = childBranchRecords(data).filter((candidate) => childBranchCollides(candidate, branchId, childProjectRef));
     if (collisions.length !== 1
         || !exactDeletableChildBranchMatch(collisions[0], parentProjectRef, branchId, childProjectRef)) {
-        throw new Error(`Child project ${childProjectRef} is not uniquely bound to deletable branch ${branchId} under allowed parent ${parentProjectRef} during delete preflight`);
+        throw new Error(`Child project ${childProjectRef} is not uniquely bound to deletable branch ${branchId} under allowed parent ${parentProjectRef} during ${phase}`);
     }
-    const child = await readBoundChildProjectIfPresent(account, configuration, childProjectRef, parent.organizationSlug, 'delete preflight', fetchFn);
-    return { parent, child };
+    const child = await readBoundChildProjectIfPresent(account, configuration, childProjectRef, parent.organizationSlug, phase, fetchFn);
+    return { parent, branch: collisions[0], child };
 }
 function childDatabaseProviderBody(input) {
     return {
@@ -504,27 +573,347 @@ function childDatabaseBodySha256(body) {
         .update(JSON.stringify(body), 'utf8')
         .digest('hex');
 }
-function childDeletionReconciliationProof(account, parentProjectRef, branchId, childProjectRef, parentSnapshot) {
-    const canonical = JSON.stringify({
-        schemaVersion: 'supabase-child-deletion-reconciliation-v1',
+function childDeletionMembershipSnapshot(binding) {
+    const branch = binding.branch;
+    return {
+        parent: {
+            ref: binding.parent.ref,
+            organizationSlug: binding.parent.organizationSlug,
+            status: binding.parent.status,
+        },
+        branch: {
+            id: branch.id,
+            name: typeof branch.name === 'string' ? branch.name : null,
+            projectRef: branch.project_ref,
+            parentProjectRef: branch.parent_project_ref,
+            ref: typeof branch.ref === 'string' ? branch.ref : null,
+            isDefault: branch.is_default,
+            persistent: branch.persistent,
+            withData: branch.with_data,
+            status: typeof branch.status === 'string' ? branch.status : null,
+            previewProjectStatus: typeof branch.preview_project_status === 'string'
+                ? branch.preview_project_status
+                : null,
+            deletionScheduledAt: typeof branch.deletion_scheduled_at === 'string'
+                ? branch.deletion_scheduled_at
+                : null,
+            createdAt: typeof branch.created_at === 'string' ? branch.created_at : null,
+        },
+        child: binding.child
+            ? {
+                ref: binding.child.ref,
+                organizationSlug: binding.child.organizationSlug,
+                status: binding.child.status,
+            }
+            : null,
+    };
+}
+function childDeletionMembershipSnapshotSha256(binding) {
+    return (0, crypto_1.createHash)('sha256')
+        .update(JSON.stringify(childDeletionMembershipSnapshot(binding)), 'utf8')
+        .digest('hex');
+}
+function childDeletionCapabilityPayload(capability) {
+    return {
+        schemaVersion: capability.schemaVersion,
+        action: capability.action,
+        signingKeyId: capability.signingKeyId,
+        reservationKeyId: capability.reservationKeyId,
+        accountId: capability.accountId,
+        organizationSlug: capability.organizationSlug,
+        parentProjectRef: capability.parentProjectRef,
+        parentStatus: capability.parentStatus,
+        branchId: capability.branchId,
+        childProjectRef: capability.childProjectRef,
+        operationNonce: capability.operationNonce,
+        issuedAt: capability.issuedAt,
+        deleteAuthorizationExpiresAt: capability.deleteAuthorizationExpiresAt,
+        reconciliationExpiresAt: capability.reconciliationExpiresAt,
+        membershipSnapshotSha256: capability.membershipSnapshotSha256,
+    };
+}
+function childDeletionSigningKey(configuration, keyId) {
+    const keyring = configuration.childDeletionCapabilityKeyring;
+    if (!keyring
+        || typeof keyring !== 'object'
+        || typeof keyring.activeKeyId !== 'string'
+        || !keyring.keys
+        || typeof keyring.keys !== 'object'
+        || Array.isArray(keyring.keys)) {
+        throw new Error('Child deletion capability signing keyring is not configured');
+    }
+    const encoded = keyring.keys[keyId];
+    if (typeof encoded !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(encoded)) {
+        throw new Error(`Child deletion capability signing key ${keyId} is unavailable`);
+    }
+    const decoded = Buffer.from(encoded, 'base64url');
+    if (decoded.length !== 32 || decoded.toString('base64url') !== encoded) {
+        throw new Error(`Child deletion capability signing key ${keyId} is invalid`);
+    }
+    return decoded;
+}
+function childDeletionOperationNonce(account, configuration, reservationKeyId, organizationSlug, parentProjectRef, branchId, childProjectRef) {
+    return (0, crypto_1.createHmac)('sha256', childDeletionSigningKey(configuration, reservationKeyId))
+        .update(JSON.stringify({
+        schemaVersion: 'supabase-child-deletion-target-v1',
+        action: CHILD_DELETE_CAPABILITY_ACTION,
         accountId: account.id,
+        organizationSlug,
         parentProjectRef,
         branchId,
         childProjectRef,
-        parentOrganizationSlug: parentSnapshot.organizationSlug,
-        parentStatus: parentSnapshot.status,
-    });
-    return (0, crypto_1.createHmac)('sha256', account.token)
+    }), 'utf8')
+        .digest('hex');
+}
+function childDeletionCapabilityProof(configuration, capability) {
+    const canonical = JSON.stringify(childDeletionCapabilityPayload(capability));
+    return (0, crypto_1.createHmac)('sha256', childDeletionSigningKey(configuration, capability.signingKeyId))
         .update(canonical, 'utf8')
         .digest('hex');
 }
-function assertChildDeletionReconciliationProof(actual, expected) {
+function assertChildDeletionCapabilityProof(actual, expected) {
     const actualBytes = Buffer.from(actual, 'hex');
     const expectedBytes = Buffer.from(expected, 'hex');
     if (actualBytes.length !== expectedBytes.length
         || !(0, crypto_1.timingSafeEqual)(actualBytes, expectedBytes)) {
-        throw new Error('Child deletion reconciliation proof is invalid');
+        throw new Error('Child deletion capability proof is invalid');
     }
+}
+function issueChildDeletionCapability(account, configuration, parentProjectRef, branchId, childProjectRef, binding) {
+    const issuedAtMs = Date.now();
+    const signingKeyId = configuration.childDeletionCapabilityKeyring?.activeKeyId;
+    const reservationKeyId = configuration.childDeletionCapabilityKeyring?.reservationKeyId;
+    if (typeof signingKeyId !== 'string'
+        || typeof reservationKeyId !== 'string'
+        || signingKeyId === reservationKeyId) {
+        throw new Error('Child deletion capability signing keyring is not configured');
+    }
+    const capability = {
+        schemaVersion: CHILD_DELETE_CAPABILITY_SCHEMA_VERSION,
+        action: CHILD_DELETE_CAPABILITY_ACTION,
+        signingKeyId,
+        reservationKeyId,
+        accountId: account.id,
+        organizationSlug: binding.parent.organizationSlug,
+        parentProjectRef,
+        parentStatus: binding.parent.status,
+        branchId,
+        childProjectRef,
+        operationNonce: childDeletionOperationNonce(account, configuration, reservationKeyId, binding.parent.organizationSlug, parentProjectRef, branchId, childProjectRef),
+        issuedAt: new Date(issuedAtMs).toISOString(),
+        deleteAuthorizationExpiresAt: new Date(issuedAtMs + CHILD_DELETE_AUTHORIZATION_TTL_MS).toISOString(),
+        reconciliationExpiresAt: new Date(issuedAtMs + CHILD_DELETE_RECONCILIATION_TTL_MS).toISOString(),
+        membershipSnapshotSha256: childDeletionMembershipSnapshotSha256(binding),
+    };
+    return {
+        ...capability,
+        proof: childDeletionCapabilityProof(configuration, capability),
+    };
+}
+function assertChildDeletionCapability(account, configuration, capability, input, purpose) {
+    if (capability.accountId !== account.id
+        || capability.parentProjectRef !== input.parentProjectRef
+        || capability.branchId !== input.branchId
+        || capability.childProjectRef !== input.childProjectRef) {
+        throw new Error('Child deletion capability target is invalid');
+    }
+    if (capability.signingKeyId === capability.reservationKeyId) {
+        throw new Error('Child deletion capability proof and reservation keys must be role-separated');
+    }
+    if (purpose === 'delete'
+        && capability.reservationKeyId !== configuration.childDeletionCapabilityKeyring?.reservationKeyId) {
+        throw new Error('Child deletion capability reservation key is no longer authoritative');
+    }
+    if (purpose === 'delete'
+        && capability.signingKeyId !== configuration.childDeletionCapabilityKeyring?.activeKeyId) {
+        throw new Error('Child deletion capability signing key is no longer active for DELETE authorization');
+    }
+    const expectedNonce = childDeletionOperationNonce(account, configuration, capability.reservationKeyId, capability.organizationSlug, input.parentProjectRef, input.branchId, input.childProjectRef);
+    if (capability.operationNonce !== expectedNonce) {
+        throw new Error('Child deletion capability operation nonce is invalid');
+    }
+    assertChildDeletionCapabilityProof(capability.proof, childDeletionCapabilityProof(configuration, capability));
+    const issuedAtMs = Date.parse(capability.issuedAt);
+    const deleteExpiresAtMs = Date.parse(capability.deleteAuthorizationExpiresAt);
+    const reconcileExpiresAtMs = Date.parse(capability.reconciliationExpiresAt);
+    if (!Number.isFinite(issuedAtMs)
+        || !Number.isFinite(deleteExpiresAtMs)
+        || !Number.isFinite(reconcileExpiresAtMs)
+        || deleteExpiresAtMs - issuedAtMs !== CHILD_DELETE_AUTHORIZATION_TTL_MS
+        || reconcileExpiresAtMs - issuedAtMs !== CHILD_DELETE_RECONCILIATION_TTL_MS
+        || issuedAtMs > Date.now() + 30000) {
+        throw new Error('Child deletion capability time bounds are invalid');
+    }
+    const expiresAtMs = purpose === 'delete' ? deleteExpiresAtMs : reconcileExpiresAtMs;
+    if (Date.now() >= expiresAtMs) {
+        throw new Error(`Child deletion capability is expired for ${purpose}`);
+    }
+}
+function stableReservationValue(value) {
+    if (Array.isArray(value))
+        return value.map(stableReservationValue);
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value)
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([key, nested]) => [key, stableReservationValue(nested)]));
+    }
+    return value;
+}
+function childDeletionReservationDeliveryId(input) {
+    return (0, crypto_1.createHash)('sha256')
+        .update(JSON.stringify({
+        reservationDomain: 'projectos-supabase-child-branch-delete-v1',
+        parentProjectRef: input.parentProjectRef,
+        branchId: input.branchId,
+        childProjectRef: input.childProjectRef,
+    }), 'utf8')
+        .digest('hex');
+}
+function assertChildDeletionReservationIntent(intent, input) {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    const binding = intent && typeof intent === 'object' && !Array.isArray(intent)
+        ? intent.payloadBinding
+        : undefined;
+    const redacted = intent && typeof intent === 'object' && !Array.isArray(intent)
+        ? intent.payloadRedacted
+        : undefined;
+    const exactIntentKeys = ['deliveryId', 'eventType', 'payloadBinding', 'payloadHash', 'payloadRedacted', 'provider', 'schemaVersion'];
+    const exactBindingKeys = [
+        'accountId', 'action', 'branchId', 'capabilitySchemaVersion', 'childProjectRef',
+        'deleteAuthorizationExpiresAt', 'issuedAt', 'membershipSnapshotSha256', 'operationNonce',
+        'organizationSlug', 'parentProjectRef', 'parentStatus', 'reconciliationExpiresAt',
+        'reservationKeyId', 'schemaVersion',
+        'signingKeyId', 'sourceIntakeId', 'sourcePayloadHash', 'sourcePlanId', 'sourceRequestId',
+    ];
+    const exactRedactedKeys = [
+        'reservationDomain', 'schemaVersion', 'sourcePayloadHash',
+        'sourcePlanId', 'sourceRequestId', 'targetDigest',
+    ];
+    if (!intent
+        || typeof intent !== 'object'
+        || Array.isArray(intent)
+        || JSON.stringify(Object.keys(intent).sort()) !== JSON.stringify(exactIntentKeys)
+        || intent.schemaVersion !== CHILD_DELETE_RESERVATION_INTENT_SCHEMA_VERSION
+        || intent.provider !== CHILD_DELETE_RESERVATION_PROVIDER
+        || intent.eventType !== CHILD_DELETE_RESERVATION_EVENT_TYPE
+        || intent.deliveryId !== childDeletionReservationDeliveryId(input)
+        || !/^[a-f0-9]{64}$/.test(intent.payloadHash || '')
+        || !binding
+        || typeof binding !== 'object'
+        || Array.isArray(binding)
+        || JSON.stringify(Object.keys(binding).sort()) !== JSON.stringify(exactBindingKeys)
+        || binding.schemaVersion !== 'projectos-destructive-capability-reservation-v1'
+        || binding.action !== input.deletionCapability.action
+        || binding.capabilitySchemaVersion !== input.deletionCapability.schemaVersion
+        || binding.signingKeyId !== input.deletionCapability.signingKeyId
+        || binding.reservationKeyId !== input.deletionCapability.reservationKeyId
+        || binding.accountId !== input.accountId
+        || binding.organizationSlug !== input.deletionCapability.organizationSlug
+        || binding.parentProjectRef !== input.parentProjectRef
+        || binding.parentStatus !== input.deletionCapability.parentStatus
+        || binding.branchId !== input.branchId
+        || binding.childProjectRef !== input.childProjectRef
+        || binding.operationNonce !== input.deletionCapability.operationNonce
+        || binding.membershipSnapshotSha256 !== input.deletionCapability.membershipSnapshotSha256
+        || binding.issuedAt !== input.deletionCapability.issuedAt
+        || binding.deleteAuthorizationExpiresAt !== input.deletionCapability.deleteAuthorizationExpiresAt
+        || binding.reconciliationExpiresAt !== input.deletionCapability.reconciliationExpiresAt
+        || !uuid.test(binding.sourcePlanId || '')
+        || !uuid.test(binding.sourceRequestId || '')
+        || !uuid.test(binding.sourceIntakeId || '')
+        || binding.sourcePayloadHash !== (0, crypto_1.createHash)('sha256')
+            .update(JSON.stringify({ tool: 'supabase.delete-child-branch', args: stableReservationValue(input) }), 'utf8')
+            .digest('hex')
+        || !redacted
+        || typeof redacted !== 'object'
+        || Array.isArray(redacted)
+        || JSON.stringify(Object.keys(redacted).sort()) !== JSON.stringify(exactRedactedKeys)
+        || redacted.schemaVersion !== 'projectos-destructive-capability-reservation-redacted-v1'
+        || redacted.reservationDomain !== 'projectos-supabase-child-branch-delete-v1'
+        || redacted.targetDigest !== intent.deliveryId
+        || redacted.sourcePlanId !== binding.sourcePlanId
+        || redacted.sourceRequestId !== binding.sourceRequestId
+        || redacted.sourcePayloadHash !== binding.sourcePayloadHash
+        || intent.payloadHash !== (0, crypto_1.createHash)('sha256')
+            .update(JSON.stringify(stableReservationValue(binding)), 'utf8')
+            .digest('hex')) {
+        throw new Error('Durable child deletion capability reservation intent is missing or invalid');
+    }
+    return intent;
+}
+function exactExternalReservationRow(row, intent) {
+    const exactKeys = [
+        'delivery_id', 'event_type', 'external_created_at', 'id', 'organization_id',
+        'payload_hash', 'payload_redacted', 'process_error', 'process_status', 'processed_at',
+        'project_id', 'provider', 'received_at', 'repository',
+    ];
+    return row
+        && typeof row === 'object'
+        && !Array.isArray(row)
+        && JSON.stringify(Object.keys(row).sort()) === JSON.stringify(exactKeys)
+        && ((Number.isSafeInteger(row.id) && row.id > 0) || (typeof row.id === 'string' && /^[1-9][0-9]*$/.test(row.id)))
+        && row.organization_id === CONTROL_ORGANIZATION_ID
+        && row.project_id === null
+        && row.provider === intent.provider
+        && row.delivery_id === intent.deliveryId
+        && row.event_type === intent.eventType
+        && row.repository === null
+        && row.external_created_at === null
+        && row.payload_hash === intent.payloadHash
+        && JSON.stringify(stableReservationValue(row.payload_redacted)) === JSON.stringify(stableReservationValue(intent.payloadRedacted))
+        && row.process_status === 'processed'
+        && row.process_error === null
+        && typeof row.received_at === 'string'
+        && Number.isFinite(Date.parse(row.received_at))
+        && typeof row.processed_at === 'string'
+        && Number.isFinite(Date.parse(row.processed_at))
+        && Date.parse(row.processed_at) >= Date.parse(row.received_at);
+}
+async function reserveChildDeletionCapability(account, configuration, intent, input, fetchFn) {
+    assertChildDeletionReservationIntent(intent, input);
+    const controlProject = await supabaseRequest(account, configuration, `/projects/${CONTROL_PROJECT_REF}`, 'GET', {}, undefined, fetchFn);
+    if (!controlProject
+        || typeof controlProject !== 'object'
+        || Array.isArray(controlProject)
+        || controlProject.ref !== CONTROL_PROJECT_REF
+        || controlProject.organization_slug !== input.deletionCapability.organizationSlug
+        || controlProject.status !== 'ACTIVE_HEALTHY') {
+        throw new Error('ProjectOS control project identity or health drifted before durable reservation');
+    }
+    const body = {
+        query: "insert into public.projectos_external_events (organization_id,project_id,provider,delivery_id,event_type,repository,external_created_at,payload_hash,payload_redacted,process_status,processed_at) values ($1::uuid,null,$2::text,$3::text,$4::text,null,null,$5::text,$6::jsonb,'processed',clock_timestamp()) on conflict (organization_id,provider,delivery_id) do nothing returning jsonb_build_object('id',id,'organization_id',organization_id,'project_id',project_id,'provider',provider,'delivery_id',delivery_id,'event_type',event_type,'repository',repository,'external_created_at',external_created_at,'payload_hash',payload_hash,'payload_redacted',payload_redacted,'process_status',process_status,'process_error',process_error,'received_at',received_at,'processed_at',processed_at) as reservation",
+        parameters: [
+            CONTROL_ORGANIZATION_ID,
+            intent.provider,
+            intent.deliveryId,
+            intent.eventType,
+            intent.payloadHash,
+            intent.payloadRedacted,
+        ],
+        read_only: false,
+    };
+    const result = await supabaseRequest(account, childQueryConfiguration(configuration), `/projects/${CONTROL_PROJECT_REF}/database/query`, 'POST', {}, body, fetchFn);
+    const row = Array.isArray(result) && result.length === 1
+        && result[0]
+        && typeof result[0] === 'object'
+        && !Array.isArray(result[0])
+        && Object.keys(result[0]).length === 1
+        ? result[0].reservation
+        : undefined;
+    if (!exactExternalReservationRow(row, intent)) {
+        throw new Error('Durable child deletion capability reservation was not proven');
+    }
+    return {
+        schemaVersion: CHILD_DELETE_RESERVATION_RECEIPT_SCHEMA_VERSION,
+        controlProjectRef: CONTROL_PROJECT_REF,
+        eventId: row.id,
+        provider: row.provider,
+        deliveryId: row.delivery_id,
+        eventType: row.event_type,
+        payloadHash: row.payload_hash,
+        receivedAt: new Date(row.received_at).toISOString(),
+        processedAt: new Date(row.processed_at).toISOString(),
+    };
 }
 function childQueryConfiguration(configuration) {
     const configuredLimit = Number.isFinite(configuration.maxResponseBytes)
@@ -584,7 +973,11 @@ async function readBoundChildProjectIfPresent(account, configuration, childProje
     const status = project && typeof project === 'object' && !Array.isArray(project) && typeof project.status === 'string'
         ? project.status
         : undefined;
-    if (ref !== childProjectRef || observedOrganization !== organizationSlug) {
+    if (ref !== childProjectRef
+        || observedOrganization !== organizationSlug
+        || !/^[a-z0-9]{20}$/.test(observedOrganization)
+        || typeof status !== 'string'
+        || status.length === 0) {
         throw new Error(`Child project ${childProjectRef} identity drifted during ${phase}`);
     }
     return { ref, organizationSlug: observedOrganization, status };
@@ -660,6 +1053,47 @@ async function executeSupabaseProviderApiTool(tool, args, configuration, fetchFn
             await ensureChildBranchBinding(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, 'query postflight', providerFetch, binding);
             return result;
         }
+        case 'supabase.prepare-child-deletion-reconciliation': {
+            const input = SupabaseChildDeletionPreparationArgsSchema.parse(args);
+            const account = supabaseAccount(configuration, input.accountId);
+            const activeSigningKeyId = configuration.childDeletionCapabilityKeyring?.activeKeyId;
+            const reservationKeyId = configuration.childDeletionCapabilityKeyring?.reservationKeyId;
+            if (typeof activeSigningKeyId !== 'string'
+                || typeof reservationKeyId !== 'string'
+                || activeSigningKeyId === reservationKeyId) {
+                throw new Error('Child deletion capability signing keyring is not configured');
+            }
+            childDeletionSigningKey(configuration, activeSigningKeyId);
+            childDeletionSigningKey(configuration, reservationKeyId);
+            if (input.parentProjectRef === input.childProjectRef) {
+                throw new Error('Child project ref must differ from its allowlisted parent project ref');
+            }
+            const binding = await ensureDeletableChildBranchBinding(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, providerFetch, 'deletion capability preparation');
+            if (!binding.child) {
+                throw new Error(`Child project ${input.childProjectRef} is absent during deletion capability preparation`);
+            }
+            const deletionCapability = issueChildDeletionCapability(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, binding);
+            return {
+                parentSnapshot: binding.parent,
+                membershipSnapshotSha256: deletionCapability.membershipSnapshotSha256,
+                deletionCapability,
+                deleteArgs: {
+                    accountId: input.accountId,
+                    parentProjectRef: input.parentProjectRef,
+                    branchId: input.branchId,
+                    childProjectRef: input.childProjectRef,
+                    deletionCapability,
+                    confirmation: `DELETE CHILD BRANCH ${input.parentProjectRef}:${input.branchId}:${input.childProjectRef}`,
+                },
+                reconciliationArgs: {
+                    accountId: input.accountId,
+                    parentProjectRef: input.parentProjectRef,
+                    branchId: input.branchId,
+                    childProjectRef: input.childProjectRef,
+                    deletionCapability,
+                },
+            };
+        }
         case 'supabase.delete-child-branch': {
             const input = SupabaseChildBranchDeleteArgsSchema.parse(args);
             const account = supabaseAccount(configuration, input.accountId);
@@ -669,12 +1103,46 @@ async function executeSupabaseProviderApiTool(tool, args, configuration, fetchFn
             }
             const expected = `DELETE CHILD BRANCH ${input.parentProjectRef}:${input.branchId}:${input.childProjectRef}`;
             assertConfirmation(input.confirmation, expected);
-            const binding = await ensureDeletableChildBranchBinding(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, providerFetch);
-            const reconciliationProof = childDeletionReconciliationProof(account, input.parentProjectRef, input.branchId, input.childProjectRef, binding.parent);
+            assertChildDeletionCapability(account, configuration, input.deletionCapability, input, 'delete');
+            if (typeof configuration.destructiveCapabilityReservation !== 'function') {
+                throw new Error('Durable child deletion capability reservation authority is missing');
+            }
+            const expectedParentSnapshot = {
+                ref: input.parentProjectRef,
+                organizationSlug: input.deletionCapability.organizationSlug,
+                status: input.deletionCapability.parentStatus,
+            };
+            const binding = await ensureDeletableChildBranchBinding(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, providerFetch, 'delete preflight', expectedParentSnapshot);
+            if (!binding.child
+                || childDeletionMembershipSnapshotSha256(binding) !== input.deletionCapability.membershipSnapshotSha256) {
+                throw new Error('Child deletion target drifted after capability preparation');
+            }
+            // Provider reads can consume the entire authorization window. Recheck
+            // the signed deadline before reserving the one permitted DELETE.
+            assertChildDeletionCapability(account, configuration, input.deletionCapability, input, 'delete');
+            // Reserve enough signed lifetime for the bounded control-project
+            // read/write, three post-reservation target reads, and the one
+            // DELETE. A later timeout still burns the target and fails closed.
+            if (Date.parse(input.deletionCapability.deleteAuthorizationExpiresAt) - Date.now() < CHILD_DELETE_MINIMUM_RESERVATION_WINDOW_MS) {
+                throw new Error('Child deletion capability has insufficient time remaining for durable reservation');
+            }
+            const reservationIntent = await configuration.destructiveCapabilityReservation(input);
+            const reservationReceipt = await reserveChildDeletionCapability(account, configuration, reservationIntent, input, providerFetch);
+            // The durable reservation burns this exact target even if any
+            // subsequent check fails. Re-read the complete provider binding so
+            // drift during reservation can never reach DELETE.
+            const postReservationBinding = await ensureDeletableChildBranchBinding(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, providerFetch, 'delete post-reservation preflight', expectedParentSnapshot);
+            if (!postReservationBinding.child
+                || childDeletionMembershipSnapshotSha256(postReservationBinding) !== input.deletionCapability.membershipSnapshotSha256) {
+                throw new Error('Child deletion target drifted after durable reservation');
+            }
+            // The post-reservation reads can consume time. No provider DELETE
+            // is allowed without this final signed-deadline check.
+            assertChildDeletionCapability(account, configuration, input.deletionCapability, input, 'delete');
             const deleteReceipt = await supabaseRequest(account, configuration, `/branches/${encodeURIComponent(input.branchId)}`, 'DELETE', { force: 'true' }, undefined, providerFetch);
             let reconciliation;
             try {
-                reconciliation = await reconcileDeletedChild(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, binding.parent, providerFetch);
+                reconciliation = await reconcileDeletedChild(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, postReservationBinding.parent, providerFetch);
             }
             catch (error) {
                 reconciliation = {
@@ -685,34 +1153,32 @@ async function executeSupabaseProviderApiTool(tool, args, configuration, fetchFn
             }
             return {
                 deleteReceipt,
+                reservationReceipt,
                 reconciliation: {
                     ...reconciliation,
                     parentProjectRef: input.parentProjectRef,
                     branchId: input.branchId,
                     childProjectRef: input.childProjectRef,
                 },
-                parentSnapshot: binding.parent,
+                parentSnapshot: postReservationBinding.parent,
                 reconciliationArgs: {
                     accountId: input.accountId,
                     parentProjectRef: input.parentProjectRef,
                     branchId: input.branchId,
                     childProjectRef: input.childProjectRef,
-                    expectedParentOrganizationSlug: binding.parent.organizationSlug,
-                    expectedParentStatus: binding.parent.status,
-                    reconciliationProof,
+                    deletionCapability: input.deletionCapability,
                 },
             };
         }
         case 'supabase.read-child-deletion-reconciliation': {
             const input = SupabaseChildDeletionReconciliationArgsSchema.parse(args);
             const account = supabaseAccount(configuration, input.accountId);
+            assertChildDeletionCapability(account, configuration, input.deletionCapability, input, 'reconciliation');
             const expectedParentSnapshot = {
                 ref: input.parentProjectRef,
-                organizationSlug: input.expectedParentOrganizationSlug,
-                status: input.expectedParentStatus,
+                organizationSlug: input.deletionCapability.organizationSlug,
+                status: input.deletionCapability.parentStatus,
             };
-            const expectedProof = childDeletionReconciliationProof(account, input.parentProjectRef, input.branchId, input.childProjectRef, expectedParentSnapshot);
-            assertChildDeletionReconciliationProof(input.reconciliationProof, expectedProof);
             const state = await readChildDeletionState(account, configuration, input.parentProjectRef, input.branchId, input.childProjectRef, expectedParentSnapshot, providerFetch);
             return {
                 ...state,
@@ -767,12 +1233,7 @@ async function executeSupabaseProviderApiTool(tool, args, configuration, fetchFn
             return supabaseRequest(account, configuration, `/branches/${encodeURIComponent(input.branchIdOrRef)}${encodedSuffix(input.pathSegments)}`, input.method, input.query, input.body, providerFetch);
         }
         case 'supabase.delete-branch-api': {
-            const input = SupabaseBranchDeleteArgsSchema.parse(args);
-            const account = supabaseAccount(configuration, input.accountId);
-            assertSupabaseMutationAllowed(account);
-            await ensureBranchAllowed(account, configuration, input.projectRef, input.branchIdOrRef, providerFetch);
-            assertConfirmation(input.confirmation, `DELETE BRANCH ${input.projectRef}:${input.branchIdOrRef}${rawSuffix(input.pathSegments)}`);
-            return supabaseRequest(account, configuration, `/branches/${encodeURIComponent(input.branchIdOrRef)}${encodedSuffix(input.pathSegments)}`, 'DELETE', input.query, input.body, providerFetch);
+            throw new Error('Generic Supabase branch deletion is disabled; use the exact prepare, delete-child, and reconciliation capability flow');
         }
         default:
             throw new Error(`Unknown Supabase provider API tool: ${tool}`);
@@ -793,6 +1254,34 @@ const genericProperties = {
         description: 'Provider path segments after the selected repository/project/organization/branch',
     },
     query: { type: 'object', additionalProperties: true, description: 'Query parameters' },
+};
+const childDeletionCapabilitySchema = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+        schemaVersion: { type: 'string', const: CHILD_DELETE_CAPABILITY_SCHEMA_VERSION },
+        action: { type: 'string', const: CHILD_DELETE_CAPABILITY_ACTION },
+        signingKeyId: { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' },
+        reservationKeyId: { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' },
+        accountId: { type: 'string' },
+        organizationSlug: { type: 'string', pattern: '^[a-z0-9]{20}$' },
+        parentProjectRef: { type: 'string', pattern: '^[a-z0-9]{20}$' },
+        parentStatus: { type: 'string', minLength: 1, maxLength: 80 },
+        branchId: { type: 'string', pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' },
+        childProjectRef: { type: 'string', pattern: '^[a-z0-9]{20}$' },
+        operationNonce: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+        issuedAt: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$' },
+        deleteAuthorizationExpiresAt: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$' },
+        reconciliationExpiresAt: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$' },
+        membershipSnapshotSha256: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+        proof: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+    },
+    required: [
+        'schemaVersion', 'action', 'signingKeyId', 'reservationKeyId', 'accountId', 'organizationSlug',
+        'parentProjectRef', 'parentStatus', 'branchId', 'childProjectRef',
+        'operationNonce', 'issuedAt', 'deleteAuthorizationExpiresAt',
+        'reconciliationExpiresAt', 'membershipSnapshotSha256', 'proof',
+    ],
 };
 exports.githubProviderApiTools = {
     'github.read-repository-api': {
@@ -874,8 +1363,8 @@ exports.supabaseProviderApiTools = {
             required: ['accountId', 'parentProjectRef', 'branchId', 'childProjectRef', 'sql', 'parameters', 'bodySha256', 'confirmation'],
         },
     },
-    'supabase.delete-child-branch': {
-        description: 'Force-delete one exact disposable child branch by provider UUID using only DELETE /branches/{uuid}?force=true after proving its allowlisted-parent binding; returns the exact delete receipt plus bounded read-only reconciliation and never retries DELETE',
+    'supabase.prepare-child-deletion-reconciliation': {
+        description: 'Issue a signed, time-bounded deletion/reconciliation capability before any DELETE by proving the exact allowlisted parent, branch UUID, child project, organization, and membership snapshot; performs provider reads only',
         parameters: {
             type: 'object',
             additionalProperties: false,
@@ -884,13 +1373,28 @@ exports.supabaseProviderApiTools = {
                 parentProjectRef: { type: 'string', pattern: '^[a-z0-9]{20}$', description: 'Exact allowlisted parent project ref' },
                 branchId: { type: 'string', pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', description: 'Exact provider-returned child branch UUID' },
                 childProjectRef: { type: 'string', pattern: '^[a-z0-9]{20}$', description: 'Exact child project ref from the verified parent branch inventory' },
+            },
+            required: ['accountId', 'parentProjectRef', 'branchId', 'childProjectRef'],
+        },
+    },
+    'supabase.delete-child-branch': {
+        description: 'Force-delete one exact disposable child branch by provider UUID using only DELETE /branches/{uuid}?force=true after validating a separately pre-issued signed capability, atomically burning its durable one-shot reservation, and revalidating unchanged membership; returns the exact receipt plus bounded reconciliation and never retries DELETE. Once reserved, failure or ambiguity requires read-only reconciliation and separately owner-authorized manual recovery rather than a new automated DELETE plan.',
+        parameters: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+                ...accountProperty,
+                parentProjectRef: { type: 'string', pattern: '^[a-z0-9]{20}$', description: 'Exact allowlisted parent project ref' },
+                branchId: { type: 'string', pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', description: 'Exact provider-returned child branch UUID' },
+                childProjectRef: { type: 'string', pattern: '^[a-z0-9]{20}$', description: 'Exact child project ref from the verified parent branch inventory' },
+                deletionCapability: childDeletionCapabilitySchema,
                 confirmation: { type: 'string', description: 'DELETE CHILD BRANCH parentProjectRef:branchId:childProjectRef' },
             },
-            required: ['accountId', 'parentProjectRef', 'branchId', 'childProjectRef', 'confirmation'],
+            required: ['accountId', 'parentProjectRef', 'branchId', 'childProjectRef', 'deletionCapability', 'confirmation'],
         },
     },
     'supabase.read-child-deletion-reconciliation': {
-        description: 'Reconcile terminal deletion for one exact parent/UUID/child binding without mutating or returning provider records; returns only bounded presence booleans and exact requested identities and can be called repeatedly after one DELETE receipt',
+        description: 'Reconcile terminal deletion for one exact parent/UUID/child binding using the signed capability issued before DELETE; performs reads only, returns bounded presence booleans, and remains repeatable after an accepted-but-response-lost DELETE',
         parameters: {
             type: 'object',
             additionalProperties: false,
@@ -899,11 +1403,9 @@ exports.supabaseProviderApiTools = {
                 parentProjectRef: { type: 'string', pattern: '^[a-z0-9]{20}$', description: 'Exact statically allowlisted parent project ref' },
                 branchId: { type: 'string', pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', description: 'Exact provider-returned child branch UUID from the delete receipt chain' },
                 childProjectRef: { type: 'string', pattern: '^[a-z0-9]{20}$', description: 'Exact child project ref from the delete receipt chain' },
-                expectedParentOrganizationSlug: { type: 'string', minLength: 1, maxLength: 160, description: 'Exact parent organization snapshot captured before DELETE' },
-                expectedParentStatus: { type: 'string', minLength: 1, maxLength: 80, description: 'Exact parent status snapshot captured before DELETE' },
-                reconciliationProof: { type: 'string', pattern: '^[a-f0-9]{64}$', description: 'Server-generated HMAC capability returned only by the bound delete operation; prevents arbitrary child-ref probing' },
+                deletionCapability: childDeletionCapabilitySchema,
             },
-            required: ['accountId', 'parentProjectRef', 'branchId', 'childProjectRef', 'expectedParentOrganizationSlug', 'expectedParentStatus', 'reconciliationProof'],
+            required: ['accountId', 'parentProjectRef', 'branchId', 'childProjectRef', 'deletionCapability'],
         },
     },
     'supabase.delete-project-api': {
@@ -961,7 +1463,7 @@ exports.supabaseProviderApiTools = {
         },
     },
     'supabase.delete-branch-api': {
-        description: 'Call any DELETE Management API endpoint under a branch verified against an allowlisted project; classified as destructive',
+        description: 'Disabled legacy generic branch-deletion route; exact child teardown requires the prepare, delete-child, and reconciliation capability flow',
         parameters: {
             type: 'object',
             properties: { ...projectProperties, branchIdOrRef: { type: 'string' }, ...genericProperties, body: {}, confirmation: { type: 'string' } },

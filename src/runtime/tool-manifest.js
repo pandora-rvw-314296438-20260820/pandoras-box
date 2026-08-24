@@ -52,6 +52,7 @@ const entries = [
     // that the downstream Supabase token has effective DB/environment access;
     // every provider response remains authoritative and fail-closed.
     manifest('supabase.write-child-database-query', 'supabase', 'write', true, 'branch', ['projects:read', 'projects:write'], { confirmationKind: 'supabase-child-database-query' }),
+    manifest('supabase.prepare-child-deletion-reconciliation', 'supabase', 'read', false, 'branch', ['projects:read']),
     manifest('supabase.delete-child-branch', 'supabase', 'destructive', true, 'branch', ['projects:read', 'projects:write'], { confirmationKind: 'supabase-child-branch-delete' }),
     manifest('supabase.read-child-deletion-reconciliation', 'supabase', 'read', false, 'branch', ['projects:read']),
     manifest('supabase.delete-project-api', 'supabase', 'destructive', true, 'project', ['projects:write'], { confirmationKind: 'supabase-project-api', highImpactCapable: true }),

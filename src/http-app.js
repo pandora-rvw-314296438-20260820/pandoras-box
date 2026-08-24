@@ -4,6 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.executionPayloadHash = executionPayloadHash;
+exports.destructiveCapabilityReservationDeliveryId = destructiveCapabilityReservationDeliveryId;
+exports.createDestructiveCapabilityReservationIntent = createDestructiveCapabilityReservationIntent;
 exports.createHttpApp = createHttpApp;
 exports.startHttpServer = startHttpServer;
 const crypto_1 = require("crypto");
@@ -131,6 +133,102 @@ function stableValue(value) {
 function executionPayloadHash(tool, args) {
     const canonical = JSON.stringify({ tool, args: stableValue(args) });
     return (0, crypto_1.createHash)('sha256').update(canonical, 'utf8').digest('hex');
+}
+function destructiveCapabilityReservationDeliveryId(tool, args) {
+    if (tool !== 'supabase.delete-child-branch')
+        throw new Error('Destructive capability reservations are only defined for child-branch deletion');
+    const capability = args && typeof args === 'object' && !Array.isArray(args)
+        ? args.deletionCapability
+        : undefined;
+    if (!capability || typeof capability !== 'object' || Array.isArray(capability)
+        || capability.schemaVersion !== 'supabase-child-deletion-capability-v3'
+        || capability.action !== 'delete-and-reconcile-child-branch'
+        || typeof capability.operationNonce !== 'string'
+        || !/^[a-f0-9]{64}$/.test(capability.operationNonce)
+        || typeof capability.organizationSlug !== 'string'
+        || !/^[a-z0-9]{20}$/.test(capability.organizationSlug)
+        || capability.accountId !== args.accountId
+        || capability.parentProjectRef !== args.parentProjectRef
+        || capability.branchId !== args.branchId
+        || capability.childProjectRef !== args.childProjectRef) {
+        throw new Error('Delete-child execution requires an exact pre-issued deletion capability');
+    }
+    const canonical = JSON.stringify({
+        reservationDomain: 'projectos-supabase-child-branch-delete-v1',
+        parentProjectRef: capability.parentProjectRef,
+        branchId: capability.branchId,
+        childProjectRef: capability.childProjectRef,
+    });
+    return (0, crypto_1.createHash)('sha256').update(canonical, 'utf8').digest('hex');
+}
+function createDestructiveCapabilityReservationIntent(claimedPlan) {
+    if (claimedPlan.tool !== 'supabase.delete-child-branch')
+        return undefined;
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    if (!uuidPattern.test(claimedPlan.planId || '')
+        || !uuidPattern.test(claimedPlan.requestId || '')
+        || !uuidPattern.test(claimedPlan.intakeId || '')
+        || claimedPlan.status !== 'executing'
+        || claimedPlan.risk !== 'destructive'
+        || !claimedPlan.args
+        || typeof claimedPlan.args !== 'object'
+        || Array.isArray(claimedPlan.args)
+        || !/^[a-f0-9]{64}$/.test(claimedPlan.payloadHash || '')
+        || claimedPlan.payloadHash !== executionPayloadHash(claimedPlan.tool, claimedPlan.args)) {
+        throw new execution_ledger_client_js_1.ExecutionLedgerError('Delete-child plan is missing its durable reservation binding', 409);
+    }
+    const capability = claimedPlan.args.deletionCapability;
+    if (!capability
+        || typeof capability !== 'object'
+        || Array.isArray(capability)
+        || typeof capability.signingKeyId !== 'string'
+        || typeof capability.reservationKeyId !== 'string'
+        || typeof capability.membershipSnapshotSha256 !== 'string'
+        || !/^[a-f0-9]{64}$/.test(capability.membershipSnapshotSha256)) {
+        throw new execution_ledger_client_js_1.ExecutionLedgerError('Delete-child plan capability binding is invalid', 409);
+    }
+    const deliveryId = destructiveCapabilityReservationDeliveryId(claimedPlan.tool, claimedPlan.args);
+    const payloadBinding = {
+        schemaVersion: 'projectos-destructive-capability-reservation-v1',
+        action: capability.action,
+        capabilitySchemaVersion: capability.schemaVersion,
+        signingKeyId: capability.signingKeyId,
+        reservationKeyId: capability.reservationKeyId,
+        accountId: capability.accountId,
+        organizationSlug: capability.organizationSlug,
+        parentProjectRef: capability.parentProjectRef,
+        parentStatus: capability.parentStatus,
+        branchId: capability.branchId,
+        childProjectRef: capability.childProjectRef,
+        operationNonce: capability.operationNonce,
+        membershipSnapshotSha256: capability.membershipSnapshotSha256,
+        issuedAt: capability.issuedAt,
+        deleteAuthorizationExpiresAt: capability.deleteAuthorizationExpiresAt,
+        reconciliationExpiresAt: capability.reconciliationExpiresAt,
+        sourcePlanId: claimedPlan.planId,
+        sourceRequestId: claimedPlan.requestId,
+        sourceIntakeId: claimedPlan.intakeId,
+        sourcePayloadHash: claimedPlan.payloadHash,
+    };
+    const payloadRedacted = {
+        schemaVersion: 'projectos-destructive-capability-reservation-redacted-v1',
+        reservationDomain: 'projectos-supabase-child-branch-delete-v1',
+        targetDigest: deliveryId,
+        sourcePlanId: claimedPlan.planId,
+        sourceRequestId: claimedPlan.requestId,
+        sourcePayloadHash: claimedPlan.payloadHash,
+    };
+    return {
+        schemaVersion: 'projectos-destructive-capability-reservation-intent-v1',
+        provider: 'projectos_capability_reservation',
+        deliveryId,
+        eventType: 'supabase_child_branch_delete_reserved',
+        payloadHash: (0, crypto_1.createHash)('sha256')
+            .update(JSON.stringify(stableValue(payloadBinding)), 'utf8')
+            .digest('hex'),
+        payloadBinding,
+        payloadRedacted,
+    };
 }
 function assertBoundLedgerPlan(plan, planId, status) {
     if (!plan || plan.planId !== planId || plan.status !== status) {
@@ -559,6 +657,7 @@ function createHttpApp(config = loadRuntimeConfig(), runtimeSecurityResolver = n
         let tool = 'unknown';
         let risk = 'write';
         let claimedPlanId;
+        let claimedExecutionPlan;
         let oidcToken;
         try {
             oidcToken = vercelOidcToken(request);
@@ -584,6 +683,7 @@ function createHttpApp(config = loadRuntimeConfig(), runtimeSecurityResolver = n
                     throw new execution_ledger_client_js_1.ExecutionLedgerError('Execution plan payload hash mismatch');
                 }
                 claimedPlanId = claimed.planId;
+                claimedExecutionPlan = claimed;
                 id = claimed.requestId;
                 tool = claimed.tool;
                 risk = claimed.risk;
@@ -668,6 +768,7 @@ function createHttpApp(config = loadRuntimeConfig(), runtimeSecurityResolver = n
                         throw new execution_ledger_client_js_1.ExecutionLedgerError('Execution plan payload hash mismatch');
                     }
                     claimedPlanId = claimed.planId;
+                    claimedExecutionPlan = claimed;
                     id = claimed.requestId;
                 }
                 else if ((0, tool_policy_js_1.requiresApproval)(tool)) {
@@ -694,7 +795,20 @@ function createHttpApp(config = loadRuntimeConfig(), runtimeSecurityResolver = n
             const entry = index_js_1.toolRegistry[tool];
             if (!entry)
                 throw new service_config_js_1.UnknownToolError(tool);
-            const result = await toolExecutor(tool, args, { vercelOidcToken: oidcToken });
+            let destructiveCapabilityReservationUsed = false;
+            const destructiveCapabilityReservation = claimedExecutionPlan
+                ? () => {
+                    if (destructiveCapabilityReservationUsed) {
+                        throw new execution_ledger_client_js_1.ExecutionLedgerError('Destructive capability reservation intent is one-shot per execution', 409);
+                    }
+                    destructiveCapabilityReservationUsed = true;
+                    return createDestructiveCapabilityReservationIntent(claimedExecutionPlan);
+                }
+                : undefined;
+            const result = await toolExecutor(tool, args, {
+                vercelOidcToken: oidcToken,
+                destructiveCapabilityReservation,
+            });
             const durationMs = Date.now() - startedAt;
             if (claimedPlanId && oidcToken) {
                 await executionLedger.finishPlan(oidcToken, {

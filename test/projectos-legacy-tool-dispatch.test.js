@@ -79,6 +79,11 @@ test("tools/list preserves cached provider reads and durable plan aliases", asyn
     tools.get("projectos_plan_supabase_delete-child-branch").inputSchema.additionalProperties,
     false,
   );
+  assert.ok(tools.has("supabase.prepare-child-deletion-reconciliation"));
+  assert.equal(
+    tools.get("supabase.prepare-child-deletion-reconciliation").inputSchema.additionalProperties,
+    false,
+  );
   assert.ok(tools.has("supabase.read-child-deletion-reconciliation"));
   assert.equal(
     tools.get("supabase.read-child-deletion-reconciliation").inputSchema.additionalProperties,
