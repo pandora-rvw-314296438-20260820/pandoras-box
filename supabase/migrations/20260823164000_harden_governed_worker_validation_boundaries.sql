@@ -3,6 +3,10 @@
 -- already been applied: malformed durable rows fail validation rather than
 -- being silently normalized or grandfathered.
 
+begin;
+set local lock_timeout = '5s';
+set local statement_timeout = '5min';
+
 create or replace function private.projectos_json_object_has_exact_nonnull_keys(
   p_value jsonb,
   p_required_keys text[]
@@ -116,62 +120,18 @@ alter table private.execution_dispatch_outbox
 alter table private.execution_dispatch_outbox
   validate constraint execution_dispatch_outbox_result_summary_contract;
 
--- Canonical context JSON is compact JSON with array order preserved and every
--- object key recursively sorted by bytewise (C-collation) order. Scalar JSON
--- uses PostgreSQL jsonb text encoding. The Node producer uses the same bytes.
-create or replace function private.projectos_canonical_context_json(
-  p_value jsonb
-)
-returns text
-language plpgsql
-immutable
-strict
-security invoker
-set search_path = ''
-as $$
-declare
-  canonical text;
-begin
-  case jsonb_typeof(p_value)
-    when 'object' then
-      select '{' || coalesce(string_agg(
-        to_jsonb(entry.key)::text || ':' ||
-          private.projectos_canonical_context_json(entry.value),
-        ',' order by entry.key collate "C"
-      ), '') || '}'
-      into canonical
-      from jsonb_each(p_value) entry;
-      return canonical;
-    when 'array' then
-      select '[' || coalesce(string_agg(
-        private.projectos_canonical_context_json(entry.value),
-        ',' order by entry.ordinality
-      ), '') || ']'
-      into canonical
-      from jsonb_array_elements(p_value) with ordinality entry(value, ordinality);
-      return canonical;
-    else
-      return p_value::text;
-  end case;
-end;
-$$;
-
-revoke all on function private.projectos_canonical_context_json(jsonb)
-  from public, anon, authenticated, service_role, projectos_reviewer_ingest;
-
+-- Hash provenance is versioned in 20260823163000. Historical evidence keeps
+-- its original digest bytes and is validated with its recorded serializer;
+-- every new attachment is explicitly stamped with the canonical contract.
 alter table private.execution_plan_contexts
   add constraint execution_plan_contexts_hash_matches_envelope
   check (
-    context_hash = encode(
-      extensions.digest(
-        convert_to(
-          private.projectos_canonical_context_json(context_envelope),
-          'UTF8'
-        ),
-        'sha256'
-      ),
-      'hex'
+    canonical_context_hash = private.projectos_context_json_sha256(
+      private.projectos_canonical_context_json(context_envelope)
     )
+    and private.projectos_context_hash_matches_contract(
+      context_hash, context_envelope, hash_contract
+    ) is true
   ) not valid;
 
 alter table private.execution_plan_contexts
@@ -226,3 +186,5 @@ create trigger governed_worker_review_attestations_immutable
 before update or delete on private.governed_worker_review_attestations
 for each row execute function
   private.reject_governed_worker_review_attestation_mutation();
+
+commit;

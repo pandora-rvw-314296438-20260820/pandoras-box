@@ -347,7 +347,7 @@ async function governedWorkerSmoke(db) {
     status: 'available',
     namespace: 'real_life',
     queryHash: sha256(`worker-replay:${tool}`),
-    queryBasis: { tool },
+    queryBasis: { tool, identifiers: {} },
     counts: {
       projectContext: 1,
       riskWarnings: 0,
@@ -355,7 +355,13 @@ async function governedWorkerSmoke(db) {
       recentEvents: 1,
       semanticMatches: 1,
     },
-    highlights: {},
+    highlights: {
+      project: ['Governed replay fixture'],
+      risks: [],
+      openLoops: [],
+      recent: [],
+      semantic: [],
+    },
     warnings: [],
     retrievedAt: new Date().toISOString(),
   });
@@ -547,8 +553,8 @@ async function governedWorkerSmoke(db) {
         JSON.stringify({ ...registrationContext.envelope, warnings: ['changed'] }),
       ],
     ),
-    (error) => error?.code === '22023',
-    'same-hash changed context bypassed canonical hash verification',
+    (error) => error?.code === '55000',
+    'same-hash changed context bypassed immutable replay validation',
   );
   const changedContextEnvelope = {
     ...registrationContext.envelope,
@@ -579,8 +585,8 @@ async function governedWorkerSmoke(db) {
         JSON.stringify(registrationContext.envelope),
       ],
     ),
-    (error) => error?.code === '22023',
-    'supplied context hash was not derived from the canonical envelope',
+    (error) => error?.code === '55000',
+    'different-hash context bypassed immutable replay validation',
   );
 
   const approvedWithoutContextRequestId = '11111111-1111-4111-8111-111111111112';

@@ -17,6 +17,15 @@ const workerMigration = readFileSync(
   ),
   "utf8",
 );
+const contextMigration = readFileSync(
+  join(
+    root,
+    "supabase",
+    "migrations",
+    "20260823163000_harden_execution_plan_context_immutability.sql",
+  ),
+  "utf8",
+);
 const hardeningMigration = readFileSync(
   join(
     root,
@@ -60,6 +69,15 @@ const workerValidatorSql = sqlSection(
   workerMigration,
   "create or replace function private.projectos_worker_plan_payload_hash",
   "create or replace function public.projectos_accept_governed_worker_intake",
+);
+const canonicalContextSql = sqlFunction(
+  contextMigration,
+  "private.projectos_canonical_context_json",
+);
+const contextHashContractSql = sqlSection(
+  contextMigration,
+  "-- BEGIN EXECUTION PLAN CONTEXT HASH CONTRACT",
+  "-- END EXECUTION PLAN CONTEXT HASH CONTRACT",
 );
 
 const ids = {
@@ -210,7 +228,7 @@ test("real SQL replay keeps plan, job, and result validation total and fail-clos
       );
 
       create table private.execution_plan_contexts (
-        id uuid primary key default gen_random_uuid(),
+        plan_id uuid primary key default gen_random_uuid(),
         context_hash text not null,
         context_envelope jsonb not null
       );
@@ -229,6 +247,8 @@ test("real SQL replay keeps plan, job, and result validation total and fail-clos
       );
     `);
 
+    await db.exec(canonicalContextSql);
+    await db.exec(contextHashContractSql);
     await db.exec(workerValidatorSql);
     await db.exec(hardeningMigration);
 
@@ -311,6 +331,17 @@ test("real SQL replay keeps plan, job, and result validation total and fail-clos
   } finally {
     await db.close();
   }
+});
+
+test("context hash validation is provenance-sensitive and always derives canonical bytes", () => {
+  assert.match(
+    hardeningMigration,
+    /canonical_context_hash = private\.projectos_context_json_sha256\([\s\S]*private\.projectos_canonical_context_json\(context_envelope\)[\s\S]*and private\.projectos_context_hash_matches_contract\([\s\S]*context_hash, context_envelope, hash_contract/,
+  );
+  assert.doesNotMatch(
+    hardeningMigration,
+    /context_hash\s*=\s*encode\([\s\S]*projectos_canonical_context_json\(context_envelope\)/,
+  );
 });
 
 test("privileged helper and immutable receipt boundaries are explicit", () => {
