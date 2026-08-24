@@ -112,6 +112,12 @@ const FULL_CAPACITY_SECTIONS = [
 const APPROVED_MEMORY_CAPABILITY_SEMANTIC_HASH =
   "69cd91cb776249d22fa5050fa6826318748ea3b4d4fa68c96c509d9b51242dbd";
 
+const SANITIZED_LIVE_HASH_FIXTURE = Object.freeze({
+  totalRows: 3729,
+  legacyNodeRows: 3728,
+  legacyPostgresRows: 1,
+});
+
 function sha256(value) {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
@@ -235,6 +241,83 @@ function fullCapacityEnvelope({
   return unavailable
     ? { ...base, failure }
     : base;
+}
+
+function legacyV1UnavailableEnvelope() {
+  const envelope = legacyV1Envelope();
+  envelope.status = "unavailable";
+  envelope.counts = Object.fromEntries(
+    Object.keys(envelope.counts).map((key) => [key, 0]),
+  );
+  envelope.highlights = Object.fromEntries(
+    Object.keys(envelope.highlights).map((key) => [key, []]),
+  );
+  envelope.warnings = ["memory_context_unavailable"];
+  envelope.failure = { type: "PandoraMemoryError", status: 503 };
+  return envelope;
+}
+
+function valueAtPath(value, path) {
+  return path.reduce((current, key) => current[key], value);
+}
+
+function wrongJsonType(value) {
+  if (Array.isArray(value)) return {};
+  if (value !== null && typeof value === "object") return [];
+  if (typeof value === "string") return 0;
+  if (typeof value === "number") return "not-a-number";
+  if (typeof value === "boolean") return "not-a-boolean";
+  return "unexpected";
+}
+
+function requiredKeyMutationCases(base, parentPath, keys, family) {
+  const cases = [];
+  for (const key of keys) {
+    const missing = structuredClone(base);
+    delete valueAtPath(missing, parentPath)[key];
+    cases.push({ name: `${family}.${key}:missing`, envelope: missing });
+
+    const jsonNull = structuredClone(base);
+    valueAtPath(jsonNull, parentPath)[key] = null;
+    cases.push({ name: `${family}.${key}:json-null`, envelope: jsonNull });
+
+    const unknown = structuredClone(base);
+    const unknownParent = valueAtPath(unknown, parentPath);
+    unknownParent[`__unexpected_${key}`] = unknownParent[key];
+    delete unknownParent[key];
+    cases.push({
+      name: `${family}.${key}:unknown-equal-cardinality`,
+      envelope: unknown,
+    });
+
+    const wrongType = structuredClone(base);
+    const wrongTypeParent = valueAtPath(wrongType, parentPath);
+    wrongTypeParent[key] = wrongJsonType(wrongTypeParent[key]);
+    cases.push({ name: `${family}.${key}:wrong-type`, envelope: wrongType });
+  }
+  return cases;
+}
+
+function identifierMutationCases(base, identifiersPath, family) {
+  const original = valueAtPath(base, identifiersPath);
+  const key = Object.keys(original)[0];
+
+  const unknown = structuredClone(base);
+  const unknownIdentifiers = valueAtPath(unknown, identifiersPath);
+  unknownIdentifiers.__unexpected_identifier = unknownIdentifiers[key];
+  delete unknownIdentifiers[key];
+
+  const jsonNull = structuredClone(base);
+  valueAtPath(jsonNull, identifiersPath)[key] = null;
+
+  const wrongType = structuredClone(base);
+  valueAtPath(wrongType, identifiersPath)[key] = { nested: "value" };
+
+  return [
+    { name: `${family}:unknown-equal-cardinality`, envelope: unknown },
+    { name: `${family}.${key}:json-null`, envelope: jsonNull },
+    { name: `${family}.${key}:wrong-type`, envelope: wrongType },
+  ];
 }
 
 async function createHashContractDb() {
@@ -361,7 +444,7 @@ test("hash classification is atomic and uses bounded production locks", () => {
   assert.match(migration, /revoke all on table private\.execution_plan_contexts from service_role;\n\ncommit;\s*$/);
 });
 
-test("production-shaped legacy hashes classify 3716 plus 1 without rewriting evidence", async () => {
+test(`production-shaped legacy hashes classify ${SANITIZED_LIVE_HASH_FIXTURE.legacyNodeRows} plus ${SANITIZED_LIVE_HASH_FIXTURE.legacyPostgresRows} without rewriting evidence`, async () => {
   const db = await createHashContractDb();
   const envelope = legacyV1Envelope();
   const encodedEnvelope = JSON.stringify(envelope);
@@ -381,7 +464,7 @@ test("production-shaped legacy hashes classify 3716 plus 1 without rewriting evi
       `insert into private.execution_plan_contexts
         (plan_id, context_hash, context_envelope)
        select extensions.gen_random_uuid(), $1::text, $2::jsonb
-       from generate_series(1, 3716)`,
+       from generate_series(1, ${SANITIZED_LIVE_HASH_FIXTURE.legacyNodeRows})`,
       [legacyNodeHash, encodedEnvelope],
     );
     const providerTextRow = await db.query(
@@ -402,7 +485,10 @@ test("production-shaped legacy hashes classify 3716 plus 1 without rewriting evi
       from private.execution_plan_contexts
       order by plan_id
     `);
-    assert.equal(exactEvidenceBefore.rows.length, 3717);
+    assert.equal(
+      exactEvidenceBefore.rows.length,
+      SANITIZED_LIVE_HASH_FIXTURE.totalRows,
+    );
 
     await db.exec(atomicHashContractSql);
     await db.exec(contextHashConstraintSql);
@@ -424,7 +510,7 @@ test("production-shaped legacy hashes classify 3716 plus 1 without rewriting evi
     assert.deepEqual(classified.rows, [
       {
         hash_contract: "legacy-js-json-stringify-envelope-v1",
-        count: 3716,
+        count: SANITIZED_LIVE_HASH_FIXTURE.legacyNodeRows,
       },
       {
         hash_contract: "legacy-postgres-jsonb-text-sha256-v1",
@@ -443,9 +529,9 @@ test("production-shaped legacy hashes classify 3716 plus 1 without rewriting evi
       from private.execution_plan_contexts
     `, [legacyNodeHash, providerTextHash]);
     assert.deepEqual(originalHashes.rows, [{
-      node_rows: 3716,
-      provider_text_rows: 1,
-      canonical_derived_rows: 3717,
+      node_rows: SANITIZED_LIVE_HASH_FIXTURE.legacyNodeRows,
+      provider_text_rows: SANITIZED_LIVE_HASH_FIXTURE.legacyPostgresRows,
+      canonical_derived_rows: SANITIZED_LIVE_HASH_FIXTURE.totalRows,
     }]);
     const validatedConstraint = await db.query(`
       select convalidated
@@ -556,6 +642,10 @@ test("database behavior permits only first pending attachment and exact replay",
   const fullUnavailableStatusRequestId = "e64e43b4-c04c-4cf7-a01b-c11b081fe82a";
   const legacyReplayPlanId = "7d9e3357-1acf-4f5a-bd36-7b50abcfb028";
   const legacyReplayRequestId = "aef2c688-d1aa-420f-b8bc-44df08e44fb7";
+  const v1EmptyPlanId = "c296d5ea-ab13-4cba-8f7f-c860c3d16013";
+  const v1EmptyRequestId = "069ef3b5-f91d-46de-a1e0-3d798b9b5f3d";
+  const v1UnavailablePlanId = "bb8b39c3-38a0-42eb-b7ec-caf46a0b06f9";
+  const v1UnavailableRequestId = "75be82f8-d04e-45b0-a584-306710134e7a";
   const envelope = {
     schemaVersion: "1.0.0",
     source: "pandora-memory",
@@ -632,12 +722,12 @@ test("database behavior permits only first pending attachment and exact replay",
       JSON.stringify(contextEnvelope),
     ],
   );
-  const expectDatabaseError = async (operation, code, message) => {
+  const expectDatabaseError = async (operation, code, message, description) => {
     await assert.rejects(operation, (error) => {
       assert.equal(error.code, code);
       assert.match(error.message, message);
       return true;
-    });
+    }, description);
   };
 
   try {
@@ -733,6 +823,12 @@ test("database behavior permits only first pending attachment and exact replay",
         ('${fullUnavailableStatusPlanId}', '${organizationId}', '${fullUnavailableStatusRequestId}',
          'projectos.worker.verify', 'read', '${"4".repeat(64)}',
          'pending_approval', now() + interval '10 minutes'),
+        ('${v1EmptyPlanId}', '${organizationId}', '${v1EmptyRequestId}',
+         'projectos.worker.verify', 'read', '${"6".repeat(64)}',
+         'pending_approval', now() + interval '10 minutes'),
+        ('${v1UnavailablePlanId}', '${organizationId}', '${v1UnavailableRequestId}',
+         'projectos.worker.verify', 'read', '${"7".repeat(64)}',
+         'pending_approval', now() + interval '10 minutes'),
         ('${legacyReplayPlanId}', '${organizationId}', '${legacyReplayRequestId}',
          'projectos.worker.verify', 'write', '${"5".repeat(64)}',
          'approved', now() + interval '10 minutes');
@@ -812,6 +908,190 @@ test("database behavior permits only first pending attachment and exact replay",
     );
     assert.equal(historicalReplay.rows[0].context.contextHash, legacyReplayHash);
 
+    const v1UnavailableMatrixBase = legacyV1UnavailableEnvelope();
+    const v1ShapeMatrix = [
+      ...requiredKeyMutationCases(
+        envelope,
+        [],
+        [
+          "schemaVersion", "status", "source", "namespace", "retrievedAt",
+          "queryHash", "queryBasis", "counts", "highlights", "warnings",
+        ],
+        "v1.top",
+      ),
+      ...requiredKeyMutationCases(
+        envelope,
+        ["queryBasis"],
+        ["tool", "identifiers"],
+        "v1.queryBasis",
+      ),
+      ...identifierMutationCases(
+        envelope,
+        ["queryBasis", "identifiers"],
+        "v1.identifiers",
+      ),
+      ...requiredKeyMutationCases(
+        envelope,
+        ["counts"],
+        Object.keys(envelope.counts),
+        "v1.counts",
+      ),
+      ...requiredKeyMutationCases(
+        envelope,
+        ["highlights"],
+        Object.keys(envelope.highlights),
+        "v1.highlights",
+      ),
+      ...requiredKeyMutationCases(
+        v1UnavailableMatrixBase,
+        [],
+        ["failure"],
+        "v1.top",
+      ),
+      ...requiredKeyMutationCases(
+        v1UnavailableMatrixBase,
+        ["failure"],
+        ["type"],
+        "v1.failure",
+      ),
+    ];
+    const v1NullWarning = structuredClone(envelope);
+    v1NullWarning.warnings = [null];
+    v1ShapeMatrix.push({
+      name: "v1.warnings.element:json-null",
+      envelope: v1NullWarning,
+    });
+    const v1WrongTypeWarning = structuredClone(envelope);
+    v1WrongTypeWarning.warnings = [{ unexpected: true }];
+    v1ShapeMatrix.push({
+      name: "v1.warnings.element:wrong-type",
+      envelope: v1WrongTypeWarning,
+    });
+
+    const v2AvailableMatrixBase = fullCapacityEnvelope();
+    const v2UnavailableMatrixBase = fullCapacityEnvelope({
+      unavailable: true,
+    });
+    const v2ShapeMatrix = [
+      ...requiredKeyMutationCases(
+        v2AvailableMatrixBase,
+        [],
+        [
+          "schemaVersion", "status", "source", "namespace", "retrievedAt",
+          "queryHash", "queryBasis", "counts", "highlights", "retrieval",
+          "capabilityContract", "fallbackRequired", "warnings",
+        ],
+        "v2.available.top",
+      ),
+      ...requiredKeyMutationCases(
+        v2AvailableMatrixBase,
+        ["queryBasis"],
+        ["tool", "identifiers"],
+        "v2.queryBasis",
+      ),
+      ...identifierMutationCases(
+        v2AvailableMatrixBase,
+        ["queryBasis", "identifiers"],
+        "v2.identifiers",
+      ),
+      ...requiredKeyMutationCases(
+        v2AvailableMatrixBase,
+        ["counts"],
+        Object.keys(v2AvailableMatrixBase.counts),
+        "v2.counts",
+      ),
+      ...requiredKeyMutationCases(
+        v2AvailableMatrixBase,
+        ["highlights"],
+        Object.keys(v2AvailableMatrixBase.highlights),
+        "v2.highlights",
+      ),
+      ...requiredKeyMutationCases(
+        v2AvailableMatrixBase,
+        ["retrieval"],
+        Object.keys(v2AvailableMatrixBase.retrieval),
+        "v2.available.retrieval",
+      ),
+      ...requiredKeyMutationCases(
+        v2AvailableMatrixBase,
+        ["capabilityContract"],
+        Object.keys(v2AvailableMatrixBase.capabilityContract),
+        "v2.verified.capabilityContract",
+      ),
+      ...requiredKeyMutationCases(
+        v2UnavailableMatrixBase,
+        [],
+        ["failure"],
+        "v2.unavailable.top",
+      ),
+      ...requiredKeyMutationCases(
+        v2UnavailableMatrixBase,
+        ["retrieval"],
+        Object.keys(v2UnavailableMatrixBase.retrieval),
+        "v2.unavailable.retrieval",
+      ),
+      ...requiredKeyMutationCases(
+        v2UnavailableMatrixBase,
+        ["capabilityContract"],
+        Object.keys(v2UnavailableMatrixBase.capabilityContract),
+        "v2.unavailable.capabilityContract",
+      ),
+      ...requiredKeyMutationCases(
+        v2UnavailableMatrixBase,
+        ["failure"],
+        ["type"],
+        "v2.failure",
+      ),
+    ];
+    const v2NullWarning = structuredClone(v2AvailableMatrixBase);
+    v2NullWarning.warnings = [null];
+    v2ShapeMatrix.push({
+      name: "v2.warnings.element:json-null",
+      envelope: v2NullWarning,
+    });
+    const v2WrongTypeWarning = structuredClone(v2AvailableMatrixBase);
+    v2WrongTypeWarning.warnings = [{ unexpected: true }];
+    v2ShapeMatrix.push({
+      name: "v2.warnings.element:wrong-type",
+      envelope: v2WrongTypeWarning,
+    });
+    const v2UnknownFailureKey = structuredClone(v2UnavailableMatrixBase);
+    v2UnknownFailureKey.failure.__unexpected_code =
+      v2UnknownFailureKey.failure.code;
+    delete v2UnknownFailureKey.failure.code;
+    v2ShapeMatrix.push({
+      name: "v2.failure.code:unknown-equal-cardinality",
+      envelope: v2UnknownFailureKey,
+    });
+    const v2NullFailureCode = structuredClone(v2UnavailableMatrixBase);
+    v2NullFailureCode.failure.code = null;
+    v2ShapeMatrix.push({
+      name: "v2.failure.code:json-null",
+      envelope: v2NullFailureCode,
+    });
+    const v2WrongTypeFailureCode = structuredClone(v2UnavailableMatrixBase);
+    v2WrongTypeFailureCode.failure.code = 503;
+    v2ShapeMatrix.push({
+      name: "v2.failure.code:wrong-type",
+      envelope: v2WrongTypeFailureCode,
+    });
+
+    assert.equal(v1ShapeMatrix.length, 101);
+    assert.equal(v2ShapeMatrix.length, 276);
+    for (const shapeCase of [...v1ShapeMatrix, ...v2ShapeMatrix]) {
+      await expectDatabaseError(
+        attach(
+          pendingPlanId,
+          pendingRequestId,
+          hashPlanMemoryContextEnvelope(shapeCase.envelope),
+          shapeCase.envelope,
+        ),
+        "22023",
+        /invalid/,
+        shapeCase.name,
+      );
+    }
+
     const v1WithoutWarnings = { ...envelope };
     delete v1WithoutWarnings.warnings;
     const v1WithNullTool = {
@@ -837,6 +1117,39 @@ test("database behavior permits only first pending attachment and exact replay",
       ...envelope,
       failure: { type: "PandoraMemoryError", status: 503 },
     };
+    const v1WithImpossibleRetrievedAt = {
+      ...envelope,
+      retrievedAt: "2026-02-30T00:00:00.000Z",
+    };
+    const v1AvailableWithoutSignal = structuredClone(envelope);
+    v1AvailableWithoutSignal.counts = Object.fromEntries(
+      Object.keys(v1AvailableWithoutSignal.counts).map((key) => [key, 0]),
+    );
+    v1AvailableWithoutSignal.highlights = Object.fromEntries(
+      Object.keys(v1AvailableWithoutSignal.highlights).map((key) => [key, []]),
+    );
+    const v1EmptyWithSignal = {
+      ...envelope,
+      status: "empty",
+    };
+    const v1UnavailableWithSignal = {
+      ...envelope,
+      status: "unavailable",
+      warnings: ["memory_context_unavailable"],
+      failure: { type: "PandoraMemoryError", status: 503 },
+    };
+    const v1UnavailableWithExtraWarning = structuredClone(
+      v1AvailableWithoutSignal,
+    );
+    v1UnavailableWithExtraWarning.status = "unavailable";
+    v1UnavailableWithExtraWarning.warnings = [
+      "memory_context_unavailable",
+      "unexpected_warning",
+    ];
+    v1UnavailableWithExtraWarning.failure = {
+      type: "PandoraMemoryError",
+      status: 503,
+    };
     for (const invalidV1 of [
       v1WithoutWarnings,
       v1WithNullTool,
@@ -844,6 +1157,11 @@ test("database behavior permits only first pending attachment and exact replay",
       v1WithTooManyHighlights,
       v1UnavailableWithoutFailure,
       v1AvailableWithFailure,
+      v1WithImpossibleRetrievedAt,
+      v1AvailableWithoutSignal,
+      v1EmptyWithSignal,
+      v1UnavailableWithSignal,
+      v1UnavailableWithExtraWarning,
     ]) {
       await expectDatabaseError(
         attach(
@@ -856,6 +1174,22 @@ test("database behavior permits only first pending attachment and exact replay",
         /invalid context envelope contract/,
       );
     }
+
+    const validV1Empty = structuredClone(v1AvailableWithoutSignal);
+    validV1Empty.status = "empty";
+    await attach(
+      v1EmptyPlanId,
+      v1EmptyRequestId,
+      hashPlanMemoryContextEnvelope(validV1Empty),
+      validV1Empty,
+    );
+    const validV1Unavailable = legacyV1UnavailableEnvelope();
+    await attach(
+      v1UnavailablePlanId,
+      v1UnavailableRequestId,
+      hashPlanMemoryContextEnvelope(validV1Unavailable),
+      validV1Unavailable,
+    );
     const wrongPlanTool = {
       ...envelope,
       queryBasis: {
@@ -1042,12 +1376,24 @@ test("database behavior permits only first pending attachment and exact replay",
     };
     const unavailableWithExtraRetrieval = structuredClone(fullUnavailable);
     unavailableWithExtraRetrieval.retrieval.mode = "unexpected";
+    const unavailableWithExtraWarning = structuredClone(fullUnavailable);
+    unavailableWithExtraWarning.warnings.push("unexpected_warning");
     await expectDatabaseError(
       attach(
         fullUnavailablePlanId,
         fullUnavailableRequestId,
         hashPlanMemoryContextEnvelope(unavailableWithExtraRetrieval),
         unavailableWithExtraRetrieval,
+      ),
+      "22023",
+      /invalid full-capacity context envelope/,
+    );
+    await expectDatabaseError(
+      attach(
+        fullUnavailablePlanId,
+        fullUnavailableRequestId,
+        hashPlanMemoryContextEnvelope(unavailableWithExtraWarning),
+        unavailableWithExtraWarning,
       ),
       "22023",
       /invalid full-capacity context envelope/,
@@ -1187,7 +1533,7 @@ test("database behavior permits only first pending attachment and exact replay",
     const audit = await db.query(
       "select count(*)::integer as count from private.test_execution_audit_events",
     );
-    assert.equal(audit.rows[0].count, 5);
+    assert.equal(audit.rows[0].count, 7);
   } finally {
     await db.close();
   }

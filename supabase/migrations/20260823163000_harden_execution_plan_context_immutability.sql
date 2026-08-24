@@ -705,7 +705,8 @@ begin
        (p_value -> 'failure') ? 'code'
        and p_value #>> '{failure,type}' is distinct from 'MemoryCapabilityContractError'
      )
-     or not ((p_value -> 'warnings') @> '["memory_context_unavailable"]'::jsonb)
+     or p_value -> 'warnings'
+       is distinct from '["memory_context_unavailable"]'::jsonb
      or exists (
        select 1 from unnest(count_keys) key(name)
        where p_value -> 'counts' -> key.name is distinct from '0'::jsonb
@@ -762,6 +763,7 @@ declare
   count_key text;
   count_value numeric;
   warning_count integer;
+  retrieved_timestamp timestamptz;
   canonical_context text;
   derived_context_hash text;
   v1_count_keys constant text[] := array[
@@ -846,6 +848,12 @@ begin
     raise exception 'invalid context envelope contract' using errcode = '22023';
   end if;
 
+  begin
+    retrieved_timestamp := (p_context_envelope ->> 'retrievedAt')::timestamptz;
+  exception when others then
+    raise exception 'invalid context envelope contract' using errcode = '22023';
+  end;
+
   context_schema_version := p_context_envelope ->> 'schemaVersion';
   if context_schema_version = '1.0.0' then
     if private.projectos_legacy_node_context_json(p_context_envelope) is null
@@ -881,6 +889,48 @@ begin
         raise exception 'invalid context counts' using errcode = '22023';
       end if;
     end loop;
+
+    if p_context_envelope ->> 'status' = 'available' then
+      if not (
+        exists (
+          select 1
+          from unnest(v1_count_keys) key(name)
+          where (p_context_envelope -> 'counts' ->> key.name)::numeric > 0
+        )
+        or exists (
+          select 1
+          from unnest(v1_highlight_keys) key(name)
+          where jsonb_array_length(
+            p_context_envelope -> 'highlights' -> key.name
+          ) > 0
+        )
+      ) then
+        raise exception 'invalid context envelope contract'
+          using errcode = '22023';
+      end if;
+    elsif p_context_envelope ->> 'status' in ('empty', 'unavailable') then
+      if exists (
+        select 1
+        from unnest(v1_count_keys) key(name)
+        where (p_context_envelope -> 'counts' ->> key.name)::numeric > 0
+      ) or exists (
+        select 1
+        from unnest(v1_highlight_keys) key(name)
+        where jsonb_array_length(
+          p_context_envelope -> 'highlights' -> key.name
+        ) > 0
+      ) then
+        raise exception 'invalid context envelope contract'
+          using errcode = '22023';
+      end if;
+    end if;
+
+    if p_context_envelope ->> 'status' = 'unavailable'
+       and p_context_envelope -> 'warnings'
+         is distinct from '["memory_context_unavailable"]'::jsonb then
+      raise exception 'invalid context envelope contract'
+        using errcode = '22023';
+    end if;
   elsif private.projectos_full_capacity_context_is_valid(p_context_envelope)
       is not true then
     raise exception 'invalid full-capacity context envelope' using errcode = '22023';
