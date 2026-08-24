@@ -3,8 +3,8 @@
 const { createHash } = require("node:crypto");
 
 const CANONICAL_REPOSITORY = "banataosystems/Pandoras-box";
-const TRUSTED_EXTERNAL_REVIEW_APP_ID = 8329;
-const TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT = "Vercel Agent Review";
+const TRUSTED_EXTERNAL_REVIEW_APP_ID = 4658204;
+const TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT = "external-review";
 const PROOF_STAGES = Object.freeze([
   "documented",
   "implemented",

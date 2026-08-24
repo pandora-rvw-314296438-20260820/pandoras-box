@@ -24,9 +24,9 @@ export const REQUIRED_CHECKS = Object.freeze([
   Object.freeze({
     name: "external-review",
     authority: "TRUSTED_EXTERNAL_REVIEW_PROVIDER",
-    producer: "vercel_agent_github_app",
-    providerContext: "Vercel Agent Review",
-    appId: 8329,
+    producer: "pandora_main_gate_github_app",
+    providerContext: "external-review",
+    appId: 4658204,
     command: null,
   }),
   Object.freeze({
@@ -466,15 +466,15 @@ export function validateSchemaContract(schema) {
     "schema.externalReviewCheck.required",
   );
   assert(
-    schema.$defs?.externalReviewCheck?.properties?.producer?.const === "vercel_agent_github_app",
+    schema.$defs?.externalReviewCheck?.properties?.producer?.const === "pandora_main_gate_github_app",
     "schema must pin the external-review producer",
   );
   assert(
-    schema.$defs?.externalReviewCheck?.properties?.providerContext?.const === "Vercel Agent Review",
+    schema.$defs?.externalReviewCheck?.properties?.providerContext?.const === "external-review",
     "schema must pin the external-review provider context",
   );
   assert(
-    schema.$defs?.externalReviewCheck?.properties?.appId?.const === 8329,
+    schema.$defs?.externalReviewCheck?.properties?.appId?.const === 4658204,
     "schema must pin the external-review GitHub App",
   );
   assert(

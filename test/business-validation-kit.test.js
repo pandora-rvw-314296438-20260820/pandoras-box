@@ -432,7 +432,7 @@ test('evidence schema excludes raw customer material and binds paid claims to pr
   assert.equal(validateSchema(duplicateCheck), false);
 
   const wrongExternalProvider = structuredClone(validPilot);
-  wrongExternalProvider.technicalGate.canonicalReceipt.payload.requiredChecks[1].providerContext = 'external-review';
+  wrongExternalProvider.technicalGate.canonicalReceipt.payload.requiredChecks[1].providerContext = 'Vercel Agent Review';
   assert.equal(validateSchema(wrongExternalProvider), false);
 
   const missingRestoration = structuredClone(validPilot);

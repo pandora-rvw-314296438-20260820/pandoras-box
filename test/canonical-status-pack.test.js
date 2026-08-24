@@ -484,7 +484,7 @@ test('trusted external review is separate from candidate-controlled GitHub Actio
   assert.ok(spoofedPack.blockers.includes('github-trusted-external-review-not-green'));
 
   const wrongContext = evidence();
-  wrongContext.github.trustedExternalReviewProviderContext = 'external-review';
+  wrongContext.github.trustedExternalReviewProviderContext = 'Vercel Agent Review';
   const wrongContextPack = buildCanonicalStatusPack({
     generatedAt: '2026-08-23T14:00:00.000Z',
     expiresAt: '2026-08-23T14:05:00.000Z',
@@ -1069,7 +1069,7 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
             name: name === 'external-review' ? externalCheckContext : providerContext,
             head_sha: name === 'external-review' ? externalCheckHeadSha : MAIN_SHA,
             app: name === 'external-review'
-              ? { id: externalCheckAppId, slug: 'vercel' }
+              ? { id: externalCheckAppId, slug: 'pandora-main-gate-314296438' }
               : { id: GITHUB_ACTIONS_APP_ID, slug: 'github-actions' },
             check_suite: { id: 8000 + index },
             status: 'completed',
@@ -1153,8 +1153,8 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
   );
   assert.ok(requested.some((url) => url.includes('pulls?state=all')));
 
-  externalProtectionContext = 'external-review';
-  externalCheckContext = 'external-review';
+  externalProtectionContext = 'Vercel Agent Review';
+  externalCheckContext = 'Vercel Agent Review';
   const oldPlaceholderContext = await readGitHubStatus({
     env: {
       VERCEL_OIDC_TOKEN: 'oidc-test-token',
@@ -1175,6 +1175,29 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
   assert.equal(oldPlaceholderContext.trustedExternalReviewVerified, false);
   externalProtectionContext = TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT;
   externalCheckContext = TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT;
+
+  externalProtectionAppId = 8329;
+  externalCheckAppId = 8329;
+  const legacyVercelApp = await readGitHubStatus({
+    env: {
+      VERCEL_OIDC_TOKEN: 'oidc-test-token',
+      PANDORA_TRUSTED_EXTERNAL_REVIEW_APP_ID: String(TRUSTED_EXTERNAL_REVIEW_APP_ID),
+    },
+    fetchFn,
+    resolver: {
+      async resolve() {
+        return {
+          token: 'github-test-token',
+          baseUrl: 'https://api.github.test',
+          allowedRepositories: ['banataosystems/Pandoras-box'],
+        };
+      },
+    },
+  });
+  assert.equal(legacyVercelApp.protectionHasExactCheckIdentities, false);
+  assert.equal(legacyVercelApp.trustedExternalReviewVerified, false);
+  externalProtectionAppId = TRUSTED_EXTERNAL_REVIEW_APP_ID;
+  externalCheckAppId = TRUSTED_EXTERNAL_REVIEW_APP_ID;
 
   externalCheckHeadSha = 'f'.repeat(40);
   const wrongReviewSha = await readGitHubStatus({

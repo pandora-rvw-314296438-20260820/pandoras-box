@@ -67,14 +67,14 @@ the current protected base instead of testing only the unmerged PR head. On a
 push to `main`, it is the literal canonical source SHA used by release evidence.
 
 The candidate repository does not produce the logical `external-review` gate.
-That gate is bound exactly to provider context `Vercel Agent Review` from the
-Vercel Agent GitHub App (`appId: 8329`, producer
-`vercel_agent_github_app`). Candidate-controlled workflows may not declare
+That gate is bound exactly to provider context `external-review` from the
+dedicated Pandora Main Gate GitHub App (`appId: 4658204`, producer
+`pandora_main_gate_github_app`). Candidate-controlled workflows may not declare
 either identity or publish Checks/Statuses. A missing, pending, unsuccessful,
 wrong-app, or wrong-context receipt leaves the pack non-authoritative. GitHub
 Actions App `15368` is never accepted as independent review authority.
 Runtime activation accepts only
-`PANDORA_TRUSTED_EXTERNAL_REVIEW_APP_ID=8329`; the value remains provider
+`PANDORA_TRUSTED_EXTERNAL_REVIEW_APP_ID=4658204`; the value remains provider
 configuration and is not source-controlled in `vercel.json`.
 
 The canonical status GitHub credential must be able to read Actions artifacts,

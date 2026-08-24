@@ -118,7 +118,7 @@
                 {
                   "allOf": [
                     { "$ref": "#/$defs/canonicalCheckReceipt" },
-                    { "properties": { "name": { "const": "external-review" }, "providerContext": { "const": "Vercel Agent Review" }, "authority": { "const": "TRUSTED_EXTERNAL_REVIEW_PROVIDER" }, "appId": { "const": 8329 } } }
+                    { "properties": { "name": { "const": "external-review" }, "providerContext": { "const": "external-review" }, "authority": { "const": "TRUSTED_EXTERNAL_REVIEW_PROVIDER" }, "appId": { "const": 4658204 } } }
                   ]
                 },
                 {

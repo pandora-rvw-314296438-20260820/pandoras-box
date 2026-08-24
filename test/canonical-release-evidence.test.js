@@ -301,9 +301,9 @@ test("required checks are an exact ordered set and cannot be marked passed in so
   assert.deepEqual(exact.requiredChecks[1], {
     name: "external-review",
     authority: "TRUSTED_EXTERNAL_REVIEW_PROVIDER",
-    producer: "vercel_agent_github_app",
-    providerContext: "Vercel Agent Review",
-    appId: 8329,
+    producer: "pandora_main_gate_github_app",
+    providerContext: "external-review",
+    appId: 4658204,
     command: null,
     status: "pending_external_receipt",
     receipt: null,
@@ -342,7 +342,7 @@ test("required checks are an exact ordered set and cannot be marked passed in so
 
   for (const [field, replacement] of [
     ["producer", "repository_workflow"],
-    ["providerContext", "external-review"],
+    ["providerContext", "Vercel Agent Review"],
     ["appId", 15368],
   ]) {
     const wrongProvider = contractFixture();

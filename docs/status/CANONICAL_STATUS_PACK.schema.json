@@ -230,7 +230,7 @@
             "protectedMainPolicy": { "$ref": "#/$defs/protectedMainPolicy" }, "protectedWorkflowBindingsExact": { "type": "boolean" },
             "exactIntegrationChecks": { "enum": ["success", "failure", "pending", "unavailable"] },
             "trustedExternalReviewConfigured": { "type": "boolean" }, "trustedExternalReviewAppId": { "type": ["integer", "null"], "minimum": 1 },
-            "trustedExternalReviewProviderContext": { "const": "Vercel Agent Review" },
+            "trustedExternalReviewProviderContext": { "const": "external-review" },
             "trustedExternalReviewVerified": { "type": "boolean" },
             "sourceArtifactProviderReadback": { "oneOf": [{ "$ref": "#/$defs/sourceArtifact" }, { "type": "null" }] },
             "mobileArtifactProviderReadback": { "oneOf": [{ "$ref": "#/$defs/mobileArtifact" }, { "type": "null" }] }
@@ -480,8 +480,8 @@
                 "ok": { "const": true }, "triageInventoryCount": { "const": 41 }, "triageExactHeadMatches": { "const": true },
                 "exactIntegrationChecks": { "const": "success" }, "protectionHasExactCheckIdentities": { "const": true },
                 "protectedMainPolicyExact": { "const": true }, "trustedExternalReviewConfigured": { "const": true },
-                "trustedExternalReviewAppId": { "const": 8329 },
-                "trustedExternalReviewProviderContext": { "const": "Vercel Agent Review" },
+                "trustedExternalReviewAppId": { "const": 4658204 },
+                "trustedExternalReviewProviderContext": { "const": "external-review" },
                 "trustedExternalReviewVerified": { "const": true },
                 "sourceArtifactProviderReadback": { "type": "object", "properties": { "verified": { "const": true } } },
                 "mobileArtifactProviderReadback": { "type": "object", "properties": { "verified": { "const": true } } }

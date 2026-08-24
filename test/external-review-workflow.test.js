@@ -49,9 +49,9 @@ test("candidate-controlled workflows cannot produce the trusted external-review 
   assert.deepEqual(requirement, {
     name: "external-review",
     authority: "TRUSTED_EXTERNAL_REVIEW_PROVIDER",
-    producer: "vercel_agent_github_app",
-    providerContext: "Vercel Agent Review",
-    appId: 8329,
+    producer: "pandora_main_gate_github_app",
+    providerContext: "external-review",
+    appId: 4658204,
     command: null,
     status: "pending_external_receipt",
     receipt: null,

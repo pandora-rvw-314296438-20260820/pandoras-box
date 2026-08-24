@@ -13,7 +13,7 @@ const CANONICAL_RECEIPT_AUTHORITY = "AUTHENTICATED_CANONICAL_STATUS";
 const GITHUB_ACTIONS_APP_ID = 15368;
 const REQUIRED_CHECKS = Object.freeze([
   Object.freeze({ name: "node24", providerContext: "node24", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
-  Object.freeze({ name: "external-review", providerContext: "Vercel Agent Review", authority: "TRUSTED_EXTERNAL_REVIEW_PROVIDER", appId: 8329 }),
+  Object.freeze({ name: "external-review", providerContext: "external-review", authority: "TRUSTED_EXTERNAL_REVIEW_PROVIDER", appId: 4658204 }),
   Object.freeze({ name: "canonical-release-source-contract", providerContext: "canonical-release-source-contract", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
   Object.freeze({ name: "Windows worker contract", providerContext: "Windows worker contract", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
   Object.freeze({ name: "Exact source / Flutter / Android", providerContext: "Exact source / Flutter / Android", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),

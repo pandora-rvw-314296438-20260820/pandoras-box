@@ -215,9 +215,9 @@
       "properties": {
         "name": { "const": "external-review" },
         "authority": { "const": "TRUSTED_EXTERNAL_REVIEW_PROVIDER" },
-        "producer": { "const": "vercel_agent_github_app" },
-        "providerContext": { "const": "Vercel Agent Review" },
-        "appId": { "const": 8329 },
+        "producer": { "const": "pandora_main_gate_github_app" },
+        "providerContext": { "const": "external-review" },
+        "appId": { "const": 4658204 },
         "command": { "type": "null" },
         "status": { "$ref": "#/$defs/pendingStatus" },
         "receipt": { "$ref": "#/$defs/nullReceipt" }
