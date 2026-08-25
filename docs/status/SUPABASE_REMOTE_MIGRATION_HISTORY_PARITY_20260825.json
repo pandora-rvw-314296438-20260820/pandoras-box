@@ -1,0 +1,775 @@
+{
+    "mode": "remote_history_receipts_without_replaying_temporary_recovery_surfaces",
+    "reason": "Supabase production had audited recovery migrations absent from canonical source; receipt files restore migration-version parity without recreating retired credential or provider bridges.",
+    "baseSha": "bd9bcb9b85a1e7e5a15d1ae219f62c2dce972284",
+    "entries": [
+        {
+            "name": "temporary_github_supabase_provider_probe",
+            "version": "20260825010700",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "59bdbb9b306868d876d0c5f971b9ffd9cd3353be3e961f56c39df5e5e724592b",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_github_recovery_control",
+            "version": "20260825011349",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "ad2909170415113f70d453ec489f87b2b7b915fdc224f49d83ba86229aca687a",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_temporary_github_supabase_probe",
+            "version": "20260825012101",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "e2aee4f2edcfbb03195fa65190b5e65ea6005a1098e3790ea35816de7602d91d",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_temporary_github_recovery_control",
+            "version": "20260825012206",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "95db020f7173df4cb713868f9dba137b83d5c018be74d1e65ec8c23c4d59fab2",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_github_transport",
+            "version": "20260825012833",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "4918f173a42853ba87fe7c92d737fb4860e5f0a1872ca3fdb0ad39014ed1fd4b",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_github_bundle_token_rpc",
+            "version": "20260825012954",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "3bea4b160c95a5280f1ba5e9f2177864913ca08eafd84d21f0106287c582208a",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_vercel_share_fetch_probe",
+            "version": "20260825014059",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "d8ca8b28de5d45a1908961b137dae29ecb69ecc9145f46043384297f80c52429",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_temporary_pandora_recovery_transports",
+            "version": "20260825014634",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "5082f8007bbc1a26b504ed09b44c9176bf1742110e75663a1ae8ce3696d91792",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_github_recovery_token_rpc",
+            "version": "20260825024817",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "42ae2bbfee9314a56850cfb26b3b951fa4a2b467c5c04997066f999f3732f468",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_internal_control",
+            "version": "20260825030911",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "43e219a633c23ff791533d30206feabebda838914f231a2591b8e242c69c1706",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_github_api_bridge",
+            "version": "20260825031436",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "b983263b199da344eb47620f794c74346814e000eb256311584c555b84f1f2e8",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_vercel_api_bridge",
+            "version": "20260825032616",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "4ffd783cb6af9c8e9869e84df81c2b7346c4c0a946cc79acd830f592f3edf866",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_exact_recovery_github_vault_rpc",
+            "version": "20260825032639",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "3bea4b160c95a5280f1ba5e9f2177864913ca08eafd84d21f0106287c582208a",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_github_token_rpc_v2",
+            "version": "20260825034055",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "352f5ba6e260e631351a26bfe6e07838fc85b9f3e5ffc0296231f7a19c89e4db",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_github_token_rpc_v3",
+            "version": "20260825035900",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "ad41e3aec9bb865aaedfcc9e9c59d013f6916415c59c57528bb58f6bfdb910a1",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_all_temporary_pandora_recovery_token_bridges",
+            "version": "20260825040040",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "f8657f103d4a68c252f7bc2355d776bca5e2de9d839a900c675853d0c806789a",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_protect_recovered_github_main",
+            "version": "20260825040833",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "7ed44b74e8d741e53fe96c6b11d84f3185a07e12696858bd43330f3cab0082d9",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_direct_vault_headers_20260825",
+            "version": "20260825041131",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "ca965bf1cf62135730ff19d1f5b2d2e75f279452bbe8efaf994d590da601b225",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_token_rpc_v2",
+            "version": "20260825041833",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "3bea4b160c95a5280f1ba5e9f2177864913ca08eafd84d21f0106287c582208a",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_gitlab_recovery_receipts",
+            "version": "20260825043713",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "fdcf618e066bca55aa6bc98f23dcf294de1624875adec93ab8e8c1250e1bec78",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_temporary_pandora_recovery_token_rpc_v2",
+            "version": "20260825044358",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "4be2ce37ca3fb5f15a1e2c00c9a105f993950fe160b523d37e68a4188d977264",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_token_bridge_20260825",
+            "version": "20260825051146",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "290b90de3cf0bad7c0dd727bde5eb90e39194b216989af385c71f24f5b2efa8d",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_chunk_stage",
+            "version": "20260825052321",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "c5470586acda1dca028e435ff66c080ebae6729eed4c7fe29a28a0f9019dcd90",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_resend_recovery_token",
+            "version": "20260825053919",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "0cc309032ca96e51bad43e16342016f03f26b6336e38a4f785202246566bee18",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_recovery_github_job_log_tail_20260825",
+            "version": "20260825055352",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "ed3eadcf14ed94027eedb82067003759d4d57e86587102d4622a93e5b69bb333",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_install_github_recovery_secret_caller_20260825",
+            "version": "20260825060241",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "b06e52e612d39f9671b0b80f3cdc2a7ae5c9a63932489d3ae1cab65990cf60c5",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_bundle_chunks_20260825",
+            "version": "20260825061421",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "6bc6ccac236d3e95d3e33a573ae34d250aeb023919be3d5b95b5b81f77c88a00",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_recovery_vault_bridge_20260825",
+            "version": "20260825061425",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "58982930922f9276cfbb4b9d92a724f666e6b158667518df4d878639fb7ee8c4",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_temporary_recovery_vault_bridge_20260825",
+            "version": "20260825061557",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "6e1c97e6162cc2061e0413643d24901dd61ca856f9d3d4792798cf7fcc6c418e",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_recovery_gitlab_vault_bridge_20260825",
+            "version": "20260825061749",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "7fe1591ac4df91cf7160cff11cd6e38f5768c6277a4ff9a37f5c3c69d593ce1b",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_temporary_recovery_gitlab_vault_bridge_20260825",
+            "version": "20260825061911",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "d05ef7f9d75a27926febfd352023c7ecfc39e57ac64cea700de2622f1c3a991b",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_recovery_vercel_vault_bridge_20260825",
+            "version": "20260825062031",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "52b6abeacd15a18c698cf0e55f7f89f8bcc9aa3b056a433d4fe2fcbe43effcf9",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_temporary_recovery_vercel_vault_bridge_20260825",
+            "version": "20260825062349",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "d0749c85073994f38a1d6a39bcb0e45386f9c21037753fef0e80a425b16ff5fa",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "cleanup_pandora_recovery_database_surfaces_20260825",
+            "version": "20260825062435",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "1b905c5acfd68557a27455c0ff20a75192a7d919c6955f455c62cdfb6709bf1c",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_final_provider_verification_tokens_20260825",
+            "version": "20260825062903",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "9481f0ef91ca62f4aeb838c7b101be4f0329551ecd170853edfe531a2b4d6c69",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_temporary_final_provider_verification_tokens_20260825",
+            "version": "20260825063055",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "9a5bd6250065f384e61a8fdead43c24519f98fa057f666a9538f1d7d2460fd5e",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_mailbox_state_20260825",
+            "version": "20260825064702",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "5bed005041b9a8c52dbbb21189d5acd40713a01caf2b04716a6d8fbebe080b2e",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_vercel_promotion_control",
+            "version": "20260825070728",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "a74c6f4bab1768faf7f0cbd7fc8342e4c48287c1dc118838068a64e657f16392",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "adjust_mcpmaster_vercel_promotion_no_body",
+            "version": "20260825070844",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "3611ab1827c26dfc15089e149febbb0ebf2222f1d1182b2f8056c115289bce67",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "adjust_mcpmaster_vercel_promotion_empty_body",
+            "version": "20260825070932",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "3dc3936ee8e0c16080b37144bf45971a0e86da2ea6e1003d2009c47fc54c0401",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_vercel_project_inspect",
+            "version": "20260825071026",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "77865f3c4dceb091daed0e9067c975ac5e415b55d2cb6ba568cf3e9e570e6fa9",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_vercel_production_redeploy",
+            "version": "20260825071118",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "1ce96bc391b27ae5b25d9a273ad444af0fca373711b679a4a60081b76e8d4674",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_vercel_candidate_file_index",
+            "version": "20260825071240",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "c1106a74e960fb931865891b9578bf2c6668a093e41fccf48cb192bd742f846e",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_vercel_env_target_inspect",
+            "version": "20260825071320",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "fc28a5336f444469dcd8ddd27d3e561a423c0694ba3f7a56a24e22b758755e12",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_github_recovery_repository_inspect",
+            "version": "20260825071614",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "305f3f2a982040ffd391587fc70bf89a173c44f1829649c46af53431d433c8a5",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_recovery_provider_secret_bridge",
+            "version": "20260825072057",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "278dfb722558dd9981d4cefb1ac24aa9c9a6c08a9c986639752493328687990b",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_recovery_deployment_receipt",
+            "version": "20260825072157",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "3f04802540d8a6b30fbee5841a7fb332d6e00b3a67cd082f42fb07762e230e3e",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_vercel_alias_control",
+            "version": "20260825073010",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "8ea83d735dc706df30279370620315561da54fea725085682b03306f3a9c4ca8",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "cleanup_mcpmaster_recovery_deployment_controls",
+            "version": "20260825073148",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "40c064dcaf8eca53f26266f92be1c010636eb349ce66a46ef145736b2e7181be",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_legacy_pandora_recovery_vercel_api_bridge",
+            "version": "20260825073300",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "086a4e30ca0774603353220c41bc8aba0f789343d80cff5e2a3438dbe9318112",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_actions_secret_bridge",
+            "version": "20260825073616",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "b65622701f804b40b144bfeb9c95c9f8fd1bb55471f99363616f2c53d987758d",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_recovery_actions_status",
+            "version": "20260825073905",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "4b933cae1cb06857de72a792396b34071c0984a4895f90313dacfe110f4453e4",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_recovery_actions_run_inspect",
+            "version": "20260825074000",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "602487bbd5d6dc9b67d8d896866fd627a75dabc2137aa8e8f84472944e567c08",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_recovery_check_suite_inspect",
+            "version": "20260825074050",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "090948eb713f72b804e35b9ea0b2334682d4b1a49a8d78f0adf7f27aa4a48f2d",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_recovery_workflow_file_read",
+            "version": "20260825074130",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "8487c339e89dfbbdcc08a66997ffb7ec2e74160c2f05da869f90634c31fa9ebc",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_recovery_workflow_repair",
+            "version": "20260825074316",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "80c3cce3f9cc5b483257a3ab28903c4c4ad61744ec6f528ccf31fcc0fdb5144c",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_recovery_api_workflow_repair",
+            "version": "20260825074754",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "a42d1eb31955f65f8d98cb141fc631186a504b78ababf3f40d753fd143c7a2a9",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_recovery_actions_cancel",
+            "version": "20260825074844",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "438a1abe5a2e72dd846ebfe377a15d1d259cc992e8e3b18789f0fc3589612836",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_recovery_alias_rollback",
+            "version": "20260825075404",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "f5e693347d58e61d204aa62475b947a3e60b1838181ec177445cd754cce6d301",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_emergency_stable_alias",
+            "version": "20260825075544",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "7b3246311531c7075afa77204350960fb5da643648fb047e8a627f2bd46235d8",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_include_control_tower_patch",
+            "version": "20260825075748",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "a33d1b15c22166b8cc73e1c9cb755084a1f994af14479609b2801b6f3b6bff9b",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_vercel_token_rpc_20260825",
+            "version": "20260825082612",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "d28a373407bb43a41e432fb8bf082234c6349b25af10add5f30167f5b3680f3b",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_vercel_deploy_receipts_20260825",
+            "version": "20260825082659",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "16593956c232e0e733c8ec8033a257f6884ac3789283577aa2582bcd586b7eba",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_temporary_recovery_token_rpcs_20260825",
+            "version": "20260825083721",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "5c6f1a0047cf75c023a1ab21a3a3a6d91d70d264b3dbb347a396f09abddb038f",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_github_exact_recovery_token_rpc_20260825",
+            "version": "20260825083848",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "3029f9070ec52f0f847e758fa785994d80d81c5c07f8ce6a81eee42c33f4ba9a",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_github_exact_recovery_receipts_20260825",
+            "version": "20260825083924",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "6fe5480c210d0af114a01b3db801ba4597db90ceea9df88a85a93c271cd47a51",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_temporary_github_exact_recovery_token_rpc_20260825",
+            "version": "20260825084511",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "b4012c52a0d1d9dfa95d892f868615e7a53dc486413c845cafd562fddf9fab0a",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_canonical_control_plane_foundation_v1",
+            "version": "20260825085155",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "87024f81944cdb6eae5b9a65a1e08cf96331683b53deea46de07658f8e2cb23a",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_canonical_control_plane_write_api_v1",
+            "version": "20260825085440",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "12f6efb780ed80d5a9718057a7f5105047e4ab69f2a35886fa0f5beceaf433fa",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_canonical_control_plane_read_api_v1",
+            "version": "20260825085636",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "ed5c3e928356356a0afdd24c7d4ce71be60533b4ea1c125d252775163f9ef63b",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_vercel_probe_20260825",
+            "version": "20260825085741",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "895981455a33e2273ef548479a25489653473e3b04e4642ffb61da1ea96d4e0d",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_canonical_control_plane_seed_truth_20260825",
+            "version": "20260825090322",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "39771fdaf063f31b1be45762508dc6318aa7a3f74f12d367cb65dc4cc9d56461",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_vercel_token_bridge_rpc_20260825",
+            "version": "20260825090411",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "29e4cab9ffab4b391c563d3e22646c6a6dab288606e41bb71403c1702fa915d3",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_canonical_control_plane_provider_bindings_20260825",
+            "version": "20260825090414",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "c802d0a7c8e61f937a2a2b5111de1fd67c71c1bef9bb47ae2f5375d8d48003bc",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "grant_temporary_mcpmaster_vercel_nonce_rpc_20260825",
+            "version": "20260825090454",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "4c493df353b70caa24af2a92a2b22b2a3a777add3df2701d62f2d64c816d1ed2",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "verify_temporary_mcpmaster_vercel_bridge_rpcs_20260825",
+            "version": "20260825090512",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "f701a64186c4ad499392f52b868f91617397dbf3a4b3397ff54f0ceb98140023",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_mcpmaster_vercel_bridge_read_contract_20260825",
+            "version": "20260825090526",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "5580bd934e5261d221719c2e63e4abed5d8e3bb7b91b5610e0c29c18e6009b68",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_canonical_control_plane_reconciler_v1",
+            "version": "20260825090629",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "d1c5ea693db745ca9e6c335b77ff3e819203099080b3bceca283c67a9aabb30a",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_recovery_surface_cleanup_v1",
+            "version": "20260825090925",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "32116cfd3910f37f6558d6805fdec4f5b80de79a59aa618431cd7022d3003876",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_control_plane_fresh_production_gate_v1",
+            "version": "20260825091236",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "d80b76bce20678c84481c4e02236a05d65f358529038cbee54f113963737384c",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_control_plane_security_and_index_hardening_v1",
+            "version": "20260825091601",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "25e544a77d1d2091fbc12d9422f275788b7c66891b0ea35c65a5bf0bd687db52",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_retire_credential_return_and_emergency_bypass_rpcs_v1",
+            "version": "20260825092106",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "52ae1165fc51e7b519690e3b5fb3f522041f0a7749c5840de861a2a258a12f30",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_control_plane_final_fingerprints_and_resources_20260825",
+            "version": "20260825092630",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "6b11f27abcc17d1986fc368066858b80869e45d72d25970c88ba32976e033cd6",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_control_plane_integration_health_and_auth_v1",
+            "version": "20260825093539",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "2e0c20e5b7087cdc08d0bf469999352c26f95f730c8dda65fe2a6e799eddc7a4",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_control_plane_idempotency_collision_guards_v1",
+            "version": "20260825093815",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "65d1460f4a950c6433c627bc9e15df242aa38caa7cb59014c06f3f0a5e108a20",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_control_plane_stale_health_normalization_v1",
+            "version": "20260825093947",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "96b26904b7a540ba1834589eb65f21cd26f09df2404e35d015bcd737dd12ed9c",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_reconciler_collision_safe_keys_v1",
+            "version": "20260825094026",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "2b949421fba041983eaadedfd0fea1312d384362fefb3a6d06576304a1887c03",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_control_plane_final_database_fingerprint_20260825",
+            "version": "20260825094124",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "0b280a0f720011d8d498aa5c555652556ca139d5ea1c395755ddf08b5af622a1",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_control_plane_service_only_api_and_explicit_denies_v1",
+            "version": "20260825094226",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "40a0323a854dfd287a0931dc0335e12a478d420f147242b865494de8f0d342dd",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_projectos_fk_indexes_and_policy_efficiency_v1",
+            "version": "20260825094454",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "17634dfb7d9d79805f1535dadd4c4e76811721f5f540e7bc7da1d1788d3b98c3",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_control_plane_definitive_fingerprint_and_provider_exceptions_20260825",
+            "version": "20260825094954",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "1cf27cea21aee1e16196af9785ff3b3d3482bfe1fbede1e9812bcc8442eb580f",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_security_advisor_exception_review_20260825",
+            "version": "20260825095302",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "483fc7cc77c42b860d15f1c8bd33e5d6a32a01f69cb28c1292a1b5c11f1bc3c6",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_resilience_attestation_and_cleanup_v2",
+            "version": "20260825112739",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "d7926f01df4cf33ed2ba285e4ded7a81bc64d2327263cb09496fb7121d184c5c",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_control_plane_readiness_service_only_v2",
+            "version": "20260825113057",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "110dea1a762ccadcb8f709cc19617c762e93328767cc983fe8dcc03405f18826",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_integration_github_transport_20260825",
+            "version": "20260825131312",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "7b6d33bf8d307df06a4027d7dfcdc7bcafa9285633ffb9f3c0556ace8c65a4b8",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_integration_github_installation_transport_20260825",
+            "version": "20260825132427",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "c2c39a6a027b776c2044cb75be60ecaf6d2ad292a41ff2fcd481cd3fd2338e19",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_storage_upload_gate_20260825",
+            "version": "20260825134724",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "84c929660ab0fba5548fc57bbf3e3b718d0b42d5d01279c282681ab962be9c3b",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_storage_internal_transport_20260825",
+            "version": "20260825135220",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "0867504d3a564496b4c5a1f817cc085cfa5969923a13c9aabd233bf5b4023af2",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_recovery_storage_stage_marker_20260825",
+            "version": "20260825135244",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "354b7196c9ba5fb4b21cf615bb6ec4cd5c07503c34229feef033fc081a8c03f4",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_supabase_storage_recovery_artifact_and_transport_cleanup_20260825",
+            "version": "20260825135430",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "00700ec4cf59175cb9848d81a76299a531bfb145b3ad58ec3b781d442d646a2f",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_integration_github_api_version_20260310",
+            "version": "20260825135850",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "12304e952eccfb42dedea5b666d59823bded95c2a83d2a3de1cfe0f884446ca7",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_independent_github_reviewer_transport_20260825",
+            "version": "20260825141500",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "647fcd06a56dc8e199a50faed08fc2a5ed26eb6db79372ae60e3be0cd3d36e44",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_github_app_installation_control_20260825",
+            "version": "20260825144140",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "3cbec60b0e28fa268f8f678a39d32348a2ea7e0e2766c16a6ca95f0f9aba4ff6",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_exact_integration_promotion_controller_20260825",
+            "version": "20260825144753",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "1148cdc137f4cc2a11b272b22bc84a06c6649eda44920ada291cc8ec9e16f0c9",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_owner_emergency_source_promotion_20260825",
+            "version": "20260825150030",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "355734263da31908826a10c71d0cc7c25ab258f4a17861e6cccf43570dc5efe0",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_exact_vercel_deployment_control_20260825",
+            "version": "20260825150301",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "ace3493f42762a740d93343809ca2e82a527886d34397e2bf7b37fcd6f57036f",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_install_exact_vercel_actions_secret_20260825",
+            "version": "20260825150859",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "987b6ade9cf8c398bbd6808e103c63e693a9a35dc3231ea72d73386a2de02416",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_artifact_backed_resilience_mode_v3",
+            "version": "20260825161259",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "8378104aa1f50b1f97460378556bcf1d0b39387c1017ee87eac25018eb5c470e",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "fix_pandora_owner_emergency_compare_path",
+            "version": "20260825170340",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "7901285482d9b360df6656072158ca894d5fdbc664adf649a18d90cf38f12851",
+            "originalStatementCount": 1
+        }
+    ],
+    "projectRef": "jcyqixttuebxqqfkjonq",
+    "repository": "pandora-rvw-314296438-20260820/pandoras-box",
+    "generatedAt": "2026-08-25T17:15:27.687Z",
+    "schemaVersion": 1,
+    "migrationCount": 109
+}
