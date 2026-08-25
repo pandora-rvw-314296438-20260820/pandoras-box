@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  VERCEL_ORG_ID: team_IcdJUnzLi5wUN1GD8ALHyjF7
+  VERCEL_TEAM_ID: team_IcdJUnzLi5wUN1GD8ALHyjF7
   VERCEL_PROJECT_ID: prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk
 
 jobs:
@@ -40,30 +40,9 @@ jobs:
       - name: Build and test recovered source
         run: npm test
 
-      - name: Bind existing Vercel project
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p .vercel
-          printf '%s\n' "{\"orgId\":\"$VERCEL_ORG_ID\",\"projectId\":\"$VERCEL_PROJECT_ID\"}" > .vercel/project.json
-          npx --yes vercel@59.3.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Deploy exact source to existing Vercel production project
+        run: node scripts/vercel-recovered-production-deploy.mjs
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deploy to existing production project
-        id: deploy
-        shell: bash
-        run: |
-          set -euo pipefail
-          deployment_url="$(npx --yes vercel@59.3.0 deploy --prod --yes --token="$VERCEL_TOKEN" | tail -n 1)"
-          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
-          echo "Deployed $deployment_url"
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-
-      - name: Verify recovered production health
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 "${{ steps.deploy.outputs.url }}/health"
-          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 "https://mcpmaster.vercel.app/health"
+          VERCEL_TEAM_ID: ${{ env.VERCEL_TEAM_ID }}
+          VERCEL_PROJECT_ID: ${{ env.VERCEL_PROJECT_ID }}
