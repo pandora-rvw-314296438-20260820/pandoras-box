@@ -258,7 +258,7 @@ class _VerifiedHome extends StatelessWidget {
           subtitle: summary.countersVerified
               ? 'Verified operational signals.'
               : 'Operational counters have not been verified.',
-          leading: const Icon(Icons.monitoring_outlined),
+          leading: const Icon(Icons.insights_outlined),
           child: Semantics(
             container: true,
             label: summary.countersVerified
