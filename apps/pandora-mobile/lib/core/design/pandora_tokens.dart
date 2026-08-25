@@ -118,21 +118,20 @@ class PandoraPalette extends ThemeExtension<PandoraPalette> {
     Color? subtleSurface,
     Color? strongSurface,
     Color? outlineSoft,
-  }) =>
-      PandoraPalette(
-        canvas: canvas ?? this.canvas,
-        verified: verified ?? this.verified,
-        onVerified: onVerified ?? this.onVerified,
-        attention: attention ?? this.attention,
-        onAttention: onAttention ?? this.onAttention,
-        critical: critical ?? this.critical,
-        onCritical: onCritical ?? this.onCritical,
-        informative: informative ?? this.informative,
-        onInformative: onInformative ?? this.onInformative,
-        subtleSurface: subtleSurface ?? this.subtleSurface,
-        strongSurface: strongSurface ?? this.strongSurface,
-        outlineSoft: outlineSoft ?? this.outlineSoft,
-      );
+  }) => PandoraPalette(
+    canvas: canvas ?? this.canvas,
+    verified: verified ?? this.verified,
+    onVerified: onVerified ?? this.onVerified,
+    attention: attention ?? this.attention,
+    onAttention: onAttention ?? this.onAttention,
+    critical: critical ?? this.critical,
+    onCritical: onCritical ?? this.onCritical,
+    informative: informative ?? this.informative,
+    onInformative: onInformative ?? this.onInformative,
+    subtleSurface: subtleSurface ?? this.subtleSurface,
+    strongSurface: strongSurface ?? this.strongSurface,
+    outlineSoft: outlineSoft ?? this.outlineSoft,
+  );
 
   @override
   PandoraPalette lerp(ThemeExtension<PandoraPalette>? other, double t) {

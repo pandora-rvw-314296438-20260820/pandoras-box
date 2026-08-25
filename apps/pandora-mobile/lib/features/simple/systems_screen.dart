@@ -70,106 +70,101 @@ class _SystemsScreenState extends State<SystemsScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraPage(
-        title: 'Systems',
-        subtitle: 'What Pandora is building, running, and connected to.',
-        onRefresh: _load,
-        child: _loading
-            ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(PandoraSpacing.xl),
-                  child: CircularProgressIndicator(),
+    title: 'Systems',
+    subtitle: 'What Pandora is building, running, and connected to.',
+    onRefresh: _load,
+    child: _loading
+        ? const Center(
+            child: Padding(
+              padding: EdgeInsets.all(PandoraSpacing.xl),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        : _error != null
+        ? PandoraSurface(
+            title: 'Systems unavailable',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(_error!),
+                const SizedBox(height: PandoraSpacing.sm),
+                OutlinedButton.icon(
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Check again'),
                 ),
-              )
-            : _error != null
-                ? PandoraSurface(
-                    title: 'Systems unavailable',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(_error!),
-                        const SizedBox(height: PandoraSpacing.sm),
-                        OutlinedButton.icon(
-                          onPressed: _load,
-                          icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Check again'),
-                        ),
-                      ],
-                    ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      PandoraSurface(
-                        title: 'My Systems',
-                        subtitle: '${_projects.length} verified system records.',
-                        child: _projects.isEmpty
-                            ? const Text('No systems are available yet.')
-                            : Column(
-                                children: [
-                                  for (final project in _projects)
-                                    ListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: const CircleAvatar(
-                                        child: Icon(Icons.layers_outlined),
-                                      ),
-                                      title: Text(project.name),
-                                      subtitle: Text(
-                                        '${project.status} · ${project.purpose}',
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      trailing: const Icon(
-                                        Icons.chevron_right_rounded,
-                                      ),
-                                      onTap: () => _openSystems(
-                                        context,
-                                        ProjectDetailScreen(project: project),
-                                      ),
-                                    ),
-                                ],
+              ],
+            ),
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PandoraSurface(
+                title: 'My Systems',
+                subtitle: '${_projects.length} verified system records.',
+                child: _projects.isEmpty
+                    ? const Text('No systems are available yet.')
+                    : Column(
+                        children: [
+                          for (final project in _projects)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const CircleAvatar(
+                                child: Icon(Icons.layers_outlined),
                               ),
-                      ),
-                      const SizedBox(height: PandoraSpacing.md),
-                      PandoraSurface(
-                        title: 'Connections',
-                        subtitle:
-                            'Services Pandora can read or change within approved scope.',
-                        child: _connections.isEmpty
-                            ? const Text('No connections are currently verified.')
-                            : Column(
-                                children: [
-                                  for (final connection in _connections)
-                                    ListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: Icon(
-                                        connection.freshness.isFresh
-                                            ? Icons.link_rounded
-                                            : Icons.link_off_rounded,
-                                      ),
-                                      title: Text(connection.name),
-                                      subtitle: Text(connection.status),
-                                      trailing: Text(
-                                        connection.canChange
-                                            ? 'Read + change'
-                                            : connection.canRead
-                                                ? 'Read'
-                                                : 'No access',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelMedium,
-                                      ),
-                                    ),
-                                ],
+                              title: Text(project.name),
+                              subtitle: Text(
+                                '${project.status} · ${project.purpose}',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
+                              trailing: const Icon(Icons.chevron_right_rounded),
+                              onTap: () => _openSystems(
+                                context,
+                                ProjectDetailScreen(project: project),
+                              ),
+                            ),
+                        ],
                       ),
-                      const SizedBox(height: PandoraSpacing.md),
-                      OutlinedButton.icon(
-                        onPressed: () =>
-                            _openSystems(context, const ConnectionsScreen()),
-                        icon: const Icon(Icons.settings_input_component_outlined),
-                        label: const Text('Connection details'),
+              ),
+              const SizedBox(height: PandoraSpacing.md),
+              PandoraSurface(
+                title: 'Connections',
+                subtitle: 'Services Pandora can read or change within approved scope.',
+                child: _connections.isEmpty
+                    ? const Text('No connections are currently verified.')
+                    : Column(
+                        children: [
+                          for (final connection in _connections)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(
+                                connection.freshness.isFresh
+                                    ? Icons.link_rounded
+                                    : Icons.link_off_rounded,
+                              ),
+                              title: Text(connection.name),
+                              subtitle: Text(connection.status),
+                              trailing: Text(
+                                connection.canChange
+                                    ? 'Read + change'
+                                    : connection.canRead
+                                    ? 'Read'
+                                    : 'No access',
+                                style: Theme.of(context).textTheme.labelMedium,
+                              ),
+                            ),
+                        ],
                       ),
-                    ],
-                  ),
-      );
+              ),
+              const SizedBox(height: PandoraSpacing.md),
+              OutlinedButton.icon(
+                onPressed: () =>
+                    _openSystems(context, const ConnectionsScreen()),
+                icon: const Icon(Icons.settings_input_component_outlined),
+                label: const Text('Connection details'),
+              ),
+            ],
+          ),
+  );
 }

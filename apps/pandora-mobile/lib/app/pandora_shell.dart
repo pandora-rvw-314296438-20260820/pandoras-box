@@ -35,16 +35,16 @@ class _PandoraShellState extends State<PandoraShell> {
   }
 
   Widget _page(int index) => _pages.putIfAbsent(
-        index,
-        () => switch (index) {
-          0 => const SimpleHomeScreen(),
-          1 => const SystemsScreen(),
-          2 => const AskPandoraScreen(),
-          3 => const ApprovalsScreen(),
-          4 => const MoreScreen(),
-          _ => const SimpleHomeScreen(),
-        },
-      );
+    index,
+    () => switch (index) {
+      0 => const SimpleHomeScreen(),
+      1 => const SystemsScreen(),
+      2 => const AskPandoraScreen(),
+      3 => const ApprovalsScreen(),
+      4 => const MoreScreen(),
+      _ => const SimpleHomeScreen(),
+    },
+  );
 
   void _select(int value) {
     if (value == _index) return;
@@ -86,11 +86,7 @@ class _PandoraShellState extends State<PandoraShell> {
         Icons.notifications_none_rounded,
         Icons.notifications_rounded,
       ),
-      _Destination(
-        'More',
-        Icons.more_horiz_rounded,
-        Icons.more_horiz_rounded,
-      ),
+      _Destination('More', Icons.more_horiz_rounded, Icons.more_horiz_rounded),
     ];
     final body = IndexedStack(
       index: _index,
@@ -114,9 +110,7 @@ class _PandoraShellState extends State<PandoraShell> {
                     onDestinationSelected: _select,
                     labelType: NavigationRailLabelType.all,
                     destinations: [
-                      for (var index = 0;
-                          index < destinations.length;
-                          index++)
+                      for (var index = 0; index < destinations.length; index++)
                         NavigationRailDestination(
                           icon: _DestinationIcon(
                             destination: destinations[index],
@@ -175,10 +169,7 @@ class _PandoraShellState extends State<PandoraShell> {
 }
 
 class _DestinationIcon extends StatelessWidget {
-  const _DestinationIcon({
-    required this.destination,
-    required this.selected,
-  });
+  const _DestinationIcon({required this.destination, required this.selected});
 
   final _Destination destination;
   final bool selected;

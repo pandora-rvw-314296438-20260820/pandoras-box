@@ -7,19 +7,19 @@ abstract final class PandoraTheme {
 
   /// Warm neutral premium canvas rather than sterile pure white.
   static ThemeData get porcelain => _build(
-        brightness: Brightness.light,
-        palette: PandoraPalette.porcelain,
-        background: PandoraPalette.porcelain.canvas,
-        surface: const Color(0xFFFFFFFF),
-      );
+    brightness: Brightness.light,
+    palette: PandoraPalette.porcelain,
+    background: PandoraPalette.porcelain.canvas,
+    surface: const Color(0xFFFFFFFF),
+  );
 
   /// Premium charcoal rather than pure black or the bare Android underlay.
   static ThemeData get graphite => _build(
-        brightness: Brightness.dark,
-        palette: PandoraPalette.graphite,
-        background: PandoraPalette.graphite.canvas,
-        surface: const Color(0xFF17181D),
-      );
+    brightness: Brightness.dark,
+    palette: PandoraPalette.graphite,
+    background: PandoraPalette.graphite.canvas,
+    surface: const Color(0xFF17181D),
+  );
 
   static ThemeData _build({
     required Brightness brightness,

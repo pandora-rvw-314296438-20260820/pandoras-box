@@ -87,86 +87,85 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraPage(
-        title: "Pandora's Box",
-        showProductMark: true,
-        onRefresh: _load,
-        actions: [
-          IconButton(
-            tooltip: 'Open Settings',
-            onPressed: () => _openHome(context, const SettingsScreen()),
-            icon: const Icon(Icons.tune_rounded),
-          ),
-        ],
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Good morning. Here’s your business today.',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: PandoraSpacing.xs),
-            Text(
-              'Tell Pandora the result you want. Technical complexity stays behind the scenes.',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-            const SizedBox(height: PandoraSpacing.xl),
-            PandoraSurface(
-              title: 'What do you want Pandora to do?',
-              subtitle: 'Describe the business result in ordinary language.',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TextField(
-                    controller: _intent,
-                    minLines: 2,
-                    maxLines: 5,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      hintText: 'Build a booking system for my business…',
-                      prefixIcon: Icon(Icons.auto_awesome_rounded),
-                    ),
-                  ),
-                  const SizedBox(height: PandoraSpacing.sm),
-                  FilledButton.icon(
-                    onPressed: _ask,
-                    icon: const Icon(Icons.arrow_forward_rounded),
-                    label: const Text('Ask Pandora'),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: PandoraSpacing.xl),
-            if (_loading)
-              const PandoraSurface(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: PandoraSpacing.xl),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              )
-            else if (_error != null)
-              PandoraSurface(
-                title: 'Current state unavailable',
-                subtitle: 'Pandora will not invent business status.',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(_error!),
-                    const SizedBox(height: PandoraSpacing.sm),
-                    OutlinedButton.icon(
-                      onPressed: _load,
-                      icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Check again'),
-                    ),
-                  ],
-                ),
-              )
-            else
-              _VerifiedHome(summary: _summary!),
-          ],
+    title: "Pandora's Box",
+    showProductMark: true,
+    onRefresh: _load,
+    actions: [
+      IconButton(
+        tooltip: 'Open Settings',
+        onPressed: () => _openHome(context, const SettingsScreen()),
+        icon: const Icon(Icons.tune_rounded),
+      ),
+    ],
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Good morning. Here’s your business today.',
+          style: Theme.of(context).textTheme.headlineMedium,
         ),
-      );
+        const SizedBox(height: PandoraSpacing.xs),
+        Text(
+          'Tell Pandora the result you want. Technical complexity stays behind the scenes.',
+          style: Theme.of(context).textTheme.bodyLarge
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: PandoraSpacing.xl),
+        PandoraSurface(
+          title: 'What do you want Pandora to do?',
+          subtitle: 'Describe the business result in ordinary language.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _intent,
+                minLines: 2,
+                maxLines: 5,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  hintText: 'Build a booking system for my business…',
+                  prefixIcon: Icon(Icons.auto_awesome_rounded),
+                ),
+              ),
+              const SizedBox(height: PandoraSpacing.sm),
+              FilledButton.icon(
+                onPressed: _ask,
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: const Text('Ask Pandora'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: PandoraSpacing.xl),
+        if (_loading)
+          const PandoraSurface(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: PandoraSpacing.xl),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          )
+        else if (_error != null)
+          PandoraSurface(
+            title: 'Current state unavailable',
+            subtitle: 'Pandora will not invent business status.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(_error!),
+                const SizedBox(height: PandoraSpacing.sm),
+                OutlinedButton.icon(
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Check again'),
+                ),
+              ],
+            ),
+          )
+        else
+          _VerifiedHome(summary: _summary!),
+      ],
+    ),
+  );
 }
 
 class _VerifiedHome extends StatelessWidget {
@@ -176,7 +175,8 @@ class _VerifiedHome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final recommendation = summary.priority?.reason ??
+    final recommendation =
+        summary.priority?.reason ??
         (summary.topProjects.isNotEmpty
             ? summary.topProjects.first.nextAction
             : null);
@@ -206,8 +206,8 @@ class _VerifiedHome extends StatelessWidget {
                 summary.priority?.action ??
                     (summary.countersVerified
                         ? summary.approvalCount == 0
-                            ? 'Nothing needs your decision right now.'
-                            : '${summary.approvalCount} decision${summary.approvalCount == 1 ? '' : 's'} waiting.'
+                              ? 'Nothing needs your decision right now.'
+                              : '${summary.approvalCount} decision${summary.approvalCount == 1 ? '' : 's'} waiting.'
                         : 'Decision state is not verified.'),
               ),
               if (summary.priority != null) ...[
@@ -334,8 +334,7 @@ class _VerifiedHome extends StatelessWidget {
           subtitle: 'The safest useful next move based on verified context.',
           leading: const Icon(Icons.lightbulb_outline_rounded),
           child: Text(
-            recommendation ??
-                'No recommendation is verified yet. Ask Pandora what should happen next.',
+            recommendation ?? 'No recommendation is verified yet. Ask Pandora what should happen next.',
           ),
         ),
         const SizedBox(height: PandoraSpacing.md),
@@ -379,19 +378,18 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: PandoraSpacing.xs),
-        child: Column(
-          children: [
-            Text(value, style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: PandoraSpacing.xxs),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(horizontal: PandoraSpacing.xs),
+    child: Column(
+      children: [
+        Text(value, style: Theme.of(context).textTheme.headlineMedium),
+        const SizedBox(height: PandoraSpacing.xxs),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
-      );
+      ],
+    ),
+  );
 }

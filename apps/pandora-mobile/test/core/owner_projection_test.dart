@@ -138,39 +138,37 @@ ProjectSummary _project({
   String? blocker,
   FreshnessState freshness = FreshnessState.fresh,
   List<EvidenceStageStatus> evidence = const [],
-}) =>
-    ProjectSummary(
-      id: 'pandoras-box',
-      name: name,
-      purpose: 'Turn intent into a trusted working result.',
-      phase: phase,
-      status: status,
-      progressVerified: false,
-      freshness: FreshnessInfo(state: freshness),
-      evidenceStages: evidence,
-      blocker: blocker,
-    );
+}) => ProjectSummary(
+  id: 'pandoras-box',
+  name: name,
+  purpose: 'Turn intent into a trusted working result.',
+  phase: phase,
+  status: status,
+  progressVerified: false,
+  freshness: FreshnessInfo(state: freshness),
+  evidenceStages: evidence,
+  blocker: blocker,
+);
 
 ProjectTask _task(ProjectTaskState state) => ProjectTask(
-      id: 'task',
-      title: 'Task',
-      status: state.name,
-      state: state,
-      risk: ActionRisk.low,
-    );
+  id: 'task',
+  title: 'Task',
+  status: state.name,
+  state: state,
+  risk: ActionRisk.low,
+);
 
 ConnectionSummary _connection({
   required String state,
   required String status,
   FreshnessState freshness = FreshnessState.fresh,
-}) =>
-    ConnectionSummary(
-      id: 'provider',
-      name: 'Provider',
-      purpose: 'Provider health',
-      state: state,
-      status: status,
-      canRead: true,
-      canChange: false,
-      freshness: FreshnessInfo(state: freshness),
-    );
+}) => ConnectionSummary(
+  id: 'provider',
+  name: 'Provider',
+  purpose: 'Provider health',
+  state: state,
+  status: status,
+  canRead: true,
+  canChange: false,
+  freshness: FreshnessInfo(state: freshness),
+);

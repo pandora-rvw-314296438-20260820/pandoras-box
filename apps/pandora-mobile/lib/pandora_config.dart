@@ -18,8 +18,7 @@ class PandoraConfig {
   // targets this Supabase Edge Function, using the signed-in user's JWT.
   static const ownerApiBaseUrl = String.fromEnvironment(
     'PANDORA_OWNER_API_BASE_URL',
-    defaultValue:
-        'https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/pandora-owner-api',
+    defaultValue: 'https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/pandora-owner-api',
   );
 
   static const organizationId = String.fromEnvironment(

@@ -89,8 +89,9 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
     }
     final spacer = _objective.text.trim().isEmpty ? '' : ' ';
     _objective.text = '${_objective.text}$spacer$text';
-    _objective.selection =
-        TextSelection.collapsed(offset: _objective.text.length);
+    _objective.selection = TextSelection.collapsed(
+      offset: _objective.text.length,
+    );
     setState(() => _error = null);
   }
 
@@ -114,11 +115,11 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
   }
 
   String _message(String objective) => [
-        'Request type: ${_kind.label}',
-        'Owner request: $objective',
-        if (_attachment != null) _attachment!.promptBlock,
-        'Preserve Pandora governance, verification, approvals, and rollback controls.',
-      ].join('\n\n');
+    'Request type: ${_kind.label}',
+    'Owner request: $objective',
+    if (_attachment != null) _attachment!.promptBlock,
+    'Preserve Pandora governance, verification, approvals, and rollback controls.',
+  ].join('\n\n');
 
   Future<void> _submit() async {
     final objective = _objective.text.trim();
@@ -132,10 +133,8 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
     });
     _submissionKey ??= _keys.create('simple-intake');
     try {
-      final receipt = await PandoraDependencies.of(context).repository.ask(
-            message: _message(objective),
-            idempotencyKey: _submissionKey,
-          );
+      final receipt = await PandoraDependencies.of(context).repository
+          .ask(message: _message(objective), idempotencyKey: _submissionKey);
       if (!mounted) return;
       setState(() {
         _recent.remove(objective);
@@ -146,10 +145,8 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
       });
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => BuildProgressScreen(
-            receipt: receipt,
-            request: objective,
-          ),
+          builder: (_) =>
+              BuildProgressScreen(receipt: receipt, request: objective),
         ),
       );
     } on PandoraRepositoryException catch (error) {
@@ -168,8 +165,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
       if (!mounted) return;
       setState(() {
         _outcomeUnknown = true;
-        _error =
-            'Pandora could not confirm whether the request was received. It will not retry the write. Check Activity first.';
+        _error = 'Pandora could not confirm whether the request was received. It will not retry the write. Check Activity first.';
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -178,202 +174,197 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraPage(
-        title: 'Ask Pandora',
-        subtitle: 'Business intent in. Governed working result out.',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            PandoraSurface(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'What do you want Pandora to do?',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: PandoraSpacing.xs),
-                  Text(
-                    'Describe the result. Pandora resolves the technical steps, checks risk, and shows you what needs a decision.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: PandoraSpacing.md),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final kind in _RequestKind.values)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              right: PandoraSpacing.xs,
-                            ),
-                            child: ChoiceChip(
-                              selected: _kind == kind,
-                              avatar: Icon(kind.icon, size: 18),
-                              label: Text(kind.label),
-                              onSelected: _outcomeUnknown || _submitting
-                                  ? null
-                                  : (_) => setState(() => _kind = kind),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: PandoraSpacing.md),
-                  TextField(
-                    key: const ValueKey<String>('ask-pandora-objective'),
-                    controller: _objective,
-                    focusNode: _objectiveFocus,
-                    readOnly: _outcomeUnknown,
-                    minLines: 4,
-                    maxLines: 9,
-                    maxLength: 4000,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      hintText:
-                          'For example: Build a booking system customers can use from their phone.',
-                    ),
-                  ),
-                  if (_attachment != null) ...[
-                    const SizedBox(height: PandoraSpacing.xs),
-                    InputChip(
-                      avatar: const Icon(Icons.description_outlined, size: 18),
-                      label: Text(_attachment!.name),
-                      onDeleted: _outcomeUnknown || _submitting
-                          ? null
-                          : () => setState(() => _attachment = null),
-                    ),
-                  ],
-                  const SizedBox(height: PandoraSpacing.xs),
-                  Row(
-                    children: [
-                      IconButton.filledTonal(
-                        tooltip: 'Voice input',
-                        onPressed:
-                            _outcomeUnknown || _submitting ? null : _dictate,
-                        icon: const Icon(Icons.mic_none_rounded),
-                      ),
-                      const SizedBox(width: PandoraSpacing.xs),
-                      IconButton.filledTonal(
-                        tooltip: 'Attach text file',
-                        onPressed:
-                            _outcomeUnknown || _submitting ? null : _attach,
-                        icon: const Icon(Icons.attach_file_rounded),
-                      ),
-                      const Spacer(),
-                      FilledButton.icon(
-                        key: const ValueKey<String>('ask-pandora-submit'),
-                        onPressed:
-                            _outcomeUnknown || _submitting ? null : _submit,
-                        icon: _submitting
-                            ? const SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.arrow_upward_rounded),
-                        label: Text(_submitting ? 'Sending safely…' : 'Send'),
-                      ),
-                    ],
-                  ),
-                ],
+    title: 'Ask Pandora',
+    subtitle: 'Business intent in. Governed working result out.',
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PandoraSurface(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'What do you want Pandora to do?',
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: PandoraSpacing.sm),
-              Container(
-                padding: const EdgeInsets.all(PandoraSpacing.md),
-                decoration: BoxDecoration(
-                  color: context.pandoraPalette.subtleSurface,
-                  borderRadius: PandoraRadius.controlBorder,
-                  border: Border.all(color: context.pandoraPalette.outlineSoft),
+              const SizedBox(height: PandoraSpacing.xs),
+              Text(
+                'Describe the result. Pandora resolves the technical steps, checks risk, and shows you what needs a decision.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                child: Text(_error!),
               ),
-            ],
-            const SizedBox(height: PandoraSpacing.md),
-            PandoraSurface(
-              title: 'Suggested requests',
-              subtitle: 'Tap one to edit it before sending.',
-              child: Column(
-                children: [
-                  for (final suggestion in _suggestions)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.north_east_rounded),
-                      title: Text(suggestion),
-                      onTap: _outcomeUnknown || _submitting
-                          ? null
-                          : () {
-                              _objective.text = suggestion;
-                              _objective.selection = TextSelection.collapsed(
-                                offset: suggestion.length,
-                              );
-                              _objectiveFocus.requestFocus();
-                            },
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: PandoraSpacing.md),
-            PandoraSurface(
-              title: 'Memory & context',
-              subtitle:
-                  'Governed context is resolved server-side; credentials never enter the APK.',
-              child: FutureBuilder<RepositorySnapshot<HomeSummary>>(
-                future: _contextFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState != ConnectionState.done) {
-                    return const LinearProgressIndicator();
-                  }
-                  if (!snapshot.hasData) {
-                    return const Text(
-                      'Context state could not be verified. Requests still fail closed at the server boundary.',
-                    );
-                  }
-                  final home = snapshot.data!.data;
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      home.freshness.isFresh
-                          ? Icons.memory_rounded
-                          : Icons.history_toggle_off_rounded,
-                    ),
-                    title: Text(home.healthLabel),
-                    subtitle: Text(
-                      home.freshness.isFresh
-                          ? 'Fresh governed context is available.'
-                          : 'Context freshness is not verified.',
-                    ),
-                  );
-                },
-              ),
-            ),
-            if (_recent.isNotEmpty) ...[
               const SizedBox(height: PandoraSpacing.md),
-              PandoraSurface(
-                title: 'Recent requests',
-                child: Column(
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
                   children: [
-                    for (final request in _recent)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.history_rounded),
-                        title: Text(request),
-                        onTap: _outcomeUnknown || _submitting
-                            ? null
-                            : () {
-                                _objective.text = request;
-                                _objective.selection = TextSelection.collapsed(
-                                  offset: request.length,
-                                );
-                              },
+                    for (final kind in _RequestKind.values)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          right: PandoraSpacing.xs,
+                        ),
+                        child: ChoiceChip(
+                          selected: _kind == kind,
+                          avatar: Icon(kind.icon, size: 18),
+                          label: Text(kind.label),
+                          onSelected: _outcomeUnknown || _submitting
+                              ? null
+                              : (_) => setState(() => _kind = kind),
+                        ),
                       ),
                   ],
                 ),
               ),
+              const SizedBox(height: PandoraSpacing.md),
+              TextField(
+                key: const ValueKey<String>('ask-pandora-objective'),
+                controller: _objective,
+                focusNode: _objectiveFocus,
+                readOnly: _outcomeUnknown,
+                minLines: 4,
+                maxLines: 9,
+                maxLength: 4000,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  hintText: 'For example: Build a booking system customers can use from their phone.',
+                ),
+              ),
+              if (_attachment != null) ...[
+                const SizedBox(height: PandoraSpacing.xs),
+                InputChip(
+                  avatar: const Icon(Icons.description_outlined, size: 18),
+                  label: Text(_attachment!.name),
+                  onDeleted: _outcomeUnknown || _submitting
+                      ? null
+                      : () => setState(() => _attachment = null),
+                ),
+              ],
+              const SizedBox(height: PandoraSpacing.xs),
+              Row(
+                children: [
+                  IconButton.filledTonal(
+                    tooltip: 'Voice input',
+                    onPressed: _outcomeUnknown || _submitting ? null : _dictate,
+                    icon: const Icon(Icons.mic_none_rounded),
+                  ),
+                  const SizedBox(width: PandoraSpacing.xs),
+                  IconButton.filledTonal(
+                    tooltip: 'Attach text file',
+                    onPressed: _outcomeUnknown || _submitting ? null : _attach,
+                    icon: const Icon(Icons.attach_file_rounded),
+                  ),
+                  const Spacer(),
+                  FilledButton.icon(
+                    key: const ValueKey<String>('ask-pandora-submit'),
+                    onPressed: _outcomeUnknown || _submitting ? null : _submit,
+                    icon: _submitting
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.arrow_upward_rounded),
+                    label: Text(_submitting ? 'Sending safely…' : 'Send'),
+                  ),
+                ],
+              ),
             ],
-          ],
+          ),
         ),
-      );
+        if (_error != null) ...[
+          const SizedBox(height: PandoraSpacing.sm),
+          Container(
+            padding: const EdgeInsets.all(PandoraSpacing.md),
+            decoration: BoxDecoration(
+              color: context.pandoraPalette.subtleSurface,
+              borderRadius: PandoraRadius.controlBorder,
+              border: Border.all(color: context.pandoraPalette.outlineSoft),
+            ),
+            child: Text(_error!),
+          ),
+        ],
+        const SizedBox(height: PandoraSpacing.md),
+        PandoraSurface(
+          title: 'Suggested requests',
+          subtitle: 'Tap one to edit it before sending.',
+          child: Column(
+            children: [
+              for (final suggestion in _suggestions)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.north_east_rounded),
+                  title: Text(suggestion),
+                  onTap: _outcomeUnknown || _submitting
+                      ? null
+                      : () {
+                          _objective.text = suggestion;
+                          _objective.selection = TextSelection.collapsed(
+                            offset: suggestion.length,
+                          );
+                          _objectiveFocus.requestFocus();
+                        },
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: PandoraSpacing.md),
+        PandoraSurface(
+          title: 'Memory & context',
+          subtitle: 'Governed context is resolved server-side; credentials never enter the APK.',
+          child: FutureBuilder<RepositorySnapshot<HomeSummary>>(
+            future: _contextFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const LinearProgressIndicator();
+              }
+              if (!snapshot.hasData) {
+                return const Text(
+                  'Context state could not be verified. Requests still fail closed at the server boundary.',
+                );
+              }
+              final home = snapshot.data!.data;
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  home.freshness.isFresh
+                      ? Icons.memory_rounded
+                      : Icons.history_toggle_off_rounded,
+                ),
+                title: Text(home.healthLabel),
+                subtitle: Text(
+                  home.freshness.isFresh
+                      ? 'Fresh governed context is available.'
+                      : 'Context freshness is not verified.',
+                ),
+              );
+            },
+          ),
+        ),
+        if (_recent.isNotEmpty) ...[
+          const SizedBox(height: PandoraSpacing.md),
+          PandoraSurface(
+            title: 'Recent requests',
+            child: Column(
+              children: [
+                for (final request in _recent)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.history_rounded),
+                    title: Text(request),
+                    onTap: _outcomeUnknown || _submitting
+                        ? null
+                        : () {
+                            _objective.text = request;
+                            _objective.selection = TextSelection.collapsed(
+                              offset: request.length,
+                            );
+                          },
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
 }

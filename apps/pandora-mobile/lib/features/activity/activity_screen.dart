@@ -51,18 +51,21 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   List<AuditEvent> _visible(List<AuditEvent> events) {
     final query = _search.text.trim().toLowerCase();
-    final visible = events.where((event) {
-      final matchesQuery = query.isEmpty ||
-          '${event.summary} ${event.type} ${event.actor} ${event.project ?? ''} ${event.provider ?? ''}'
-              .toLowerCase()
-              .contains(query);
-      if (!matchesQuery) return false;
-      return switch (_filter) {
-        ActivityFilter.all => true,
-        ActivityFilter.attention => _eventNeedsAttention(event),
-        ActivityFilter.provider => event.provider != null,
-      };
-    }).toList(growable: true);
+    final visible = events
+        .where((event) {
+          final matchesQuery =
+              query.isEmpty ||
+              '${event.summary} ${event.type} ${event.actor} ${event.project ?? ''} ${event.provider ?? ''}'
+                  .toLowerCase()
+                  .contains(query);
+          if (!matchesQuery) return false;
+          return switch (_filter) {
+            ActivityFilter.all => true,
+            ActivityFilter.attention => _eventNeedsAttention(event),
+            ActivityFilter.provider => event.provider != null,
+          };
+        })
+        .toList(growable: true);
     visible.sort((left, right) {
       final leftTime =
           left.happenedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -75,139 +78,138 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraPage(
-        title: 'Activity',
-        subtitle: 'What changed, who acted, and what the result was.',
-        actions: [
-          IconButton(
-            tooltip: 'Refresh Activity',
-            onPressed: () => _controller?.refresh(),
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-        ],
-        onRefresh: () => _controller!.refresh(),
-        child: AnimatedBuilder(
-          animation: _controller!,
-          builder: (context, _) {
-            final controller = _controller!;
-            if (controller.isLoading && controller.data == null) {
-              return const ContentSkeleton(lines: 7);
-            }
-            if (controller.error != null && controller.data == null) {
-              return ErrorContent(
-                title: 'Activity could not load',
-                message: _safeError(controller.error),
-                onRetry: controller.load,
-              );
-            }
-            final allEvents = controller.data ?? const <AuditEvent>[];
-            final events = _visible(allEvents);
-            final providers = allEvents
-                .map((event) => event.provider?.trim().toLowerCase())
-                .whereType<String>()
-                .where((provider) => provider.isNotEmpty)
-                .toSet()
-                .length;
-            final attention = allEvents.where(_eventNeedsAttention).length;
-            final groups = _groupEvents(events);
+    title: 'Activity',
+    subtitle: 'What changed, who acted, and what the result was.',
+    actions: [
+      IconButton(
+        tooltip: 'Refresh Activity',
+        onPressed: () => _controller?.refresh(),
+        icon: const Icon(Icons.refresh_rounded),
+      ),
+    ],
+    onRefresh: () => _controller!.refresh(),
+    child: AnimatedBuilder(
+      animation: _controller!,
+      builder: (context, _) {
+        final controller = _controller!;
+        if (controller.isLoading && controller.data == null) {
+          return const ContentSkeleton(lines: 7);
+        }
+        if (controller.error != null && controller.data == null) {
+          return ErrorContent(
+            title: 'Activity could not load',
+            message: _safeError(controller.error),
+            onRetry: controller.load,
+          );
+        }
+        final allEvents = controller.data ?? const <AuditEvent>[];
+        final events = _visible(allEvents);
+        final providers = allEvents
+            .map((event) => event.provider?.trim().toLowerCase())
+            .whereType<String>()
+            .where((provider) => provider.isNotEmpty)
+            .toSet()
+            .length;
+        final attention = allEvents.where(_eventNeedsAttention).length;
+        final groups = _groupEvents(events);
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (controller.degradedReason != null ||
-                    controller.error != null) ...[
-                  DegradedContentNotice(
-                    message: _degradedMessage(controller),
-                    onRetry: controller.refresh,
-                  ),
-                  const SizedBox(height: PandoraSpacing.md),
-                ],
-                OwnerMetricGrid(
-                  metrics: [
-                    OwnerMetric(
-                      label: 'Events',
-                      value: '${allEvents.length}',
-                      icon: Icons.history_rounded,
-                      tone: PandoraStatusTone.informative,
-                    ),
-                    OwnerMetric(
-                      label: 'Providers',
-                      value: '$providers',
-                      icon: Icons.cable_rounded,
-                      tone: PandoraStatusTone.neutral,
-                    ),
-                    OwnerMetric(
-                      label: 'Needs attention',
-                      value: '$attention',
-                      icon: Icons.warning_amber_rounded,
-                      tone: attention > 0
-                          ? PandoraStatusTone.attention
-                          : PandoraStatusTone.neutral,
-                    ),
-                  ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (controller.degradedReason != null ||
+                controller.error != null) ...[
+              DegradedContentNotice(
+                message: _degradedMessage(controller),
+                onRetry: controller.refresh,
+              ),
+              const SizedBox(height: PandoraSpacing.md),
+            ],
+            OwnerMetricGrid(
+              metrics: [
+                OwnerMetric(
+                  label: 'Events',
+                  value: '${allEvents.length}',
+                  icon: Icons.history_rounded,
+                  tone: PandoraStatusTone.informative,
                 ),
-                const SizedBox(height: PandoraSpacing.md),
-                PandoraSurface(
-                  title: 'Find activity',
-                  subtitle: 'Search owner-readable outcomes and actors.',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextField(
-                        controller: _search,
-                        onChanged: (_) => setState(() {}),
-                        decoration: const InputDecoration(
-                          labelText: 'Search activity',
-                          prefixIcon: Icon(Icons.search_rounded),
-                        ),
-                      ),
-                      const SizedBox(height: PandoraSpacing.sm),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            for (final filter in ActivityFilter.values) ...[
-                              FilterChip(
-                                label: Text(filter.label),
-                                selected: _filter == filter,
-                                onSelected: (_) =>
-                                    setState(() => _filter = filter),
-                              ),
-                              if (filter != ActivityFilter.values.last)
-                                const SizedBox(width: PandoraSpacing.xs),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                OwnerMetric(
+                  label: 'Providers',
+                  value: '$providers',
+                  icon: Icons.cable_rounded,
+                  tone: PandoraStatusTone.neutral,
                 ),
-                const SizedBox(height: PandoraSpacing.xl),
-                OwnerSectionHeading(
-                  title: 'Timeline',
-                  subtitle: events.isEmpty
-                      ? 'No activity matches this view.'
-                      : '${events.length} event${events.length == 1 ? '' : 's'} · newest first',
+                OwnerMetric(
+                  label: 'Needs attention',
+                  value: '$attention',
+                  icon: Icons.warning_amber_rounded,
+                  tone: attention > 0
+                      ? PandoraStatusTone.attention
+                      : PandoraStatusTone.neutral,
                 ),
-                const SizedBox(height: PandoraSpacing.sm),
-                if (events.isEmpty)
-                  EmptyContent(
-                    title: 'No matching activity',
-                    message: _search.text.trim().isEmpty &&
-                            _filter == ActivityFilter.all
-                        ? 'Pandora returned no verified activity.'
-                        : 'Try another search or filter.',
-                  )
-                else
-                  for (var index = 0; index < groups.length; index++) ...[
-                    _ActivityGroup(group: groups[index]),
-                    if (index != groups.length - 1)
-                      const SizedBox(height: PandoraSpacing.sm),
-                  ],
               ],
-            );
-          },
-        ),
-      );
+            ),
+            const SizedBox(height: PandoraSpacing.md),
+            PandoraSurface(
+              title: 'Find activity',
+              subtitle: 'Search owner-readable outcomes and actors.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: _search,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'Search activity',
+                      prefixIcon: Icon(Icons.search_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: PandoraSpacing.sm),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final filter in ActivityFilter.values) ...[
+                          FilterChip(
+                            label: Text(filter.label),
+                            selected: _filter == filter,
+                            onSelected: (_) => setState(() => _filter = filter),
+                          ),
+                          if (filter != ActivityFilter.values.last)
+                            const SizedBox(width: PandoraSpacing.xs),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: PandoraSpacing.xl),
+            OwnerSectionHeading(
+              title: 'Timeline',
+              subtitle: events.isEmpty
+                  ? 'No activity matches this view.'
+                  : '${events.length} event${events.length == 1 ? '' : 's'} · newest first',
+            ),
+            const SizedBox(height: PandoraSpacing.sm),
+            if (events.isEmpty)
+              EmptyContent(
+                title: 'No matching activity',
+                message:
+                    _search.text.trim().isEmpty && _filter == ActivityFilter.all
+                    ? 'Pandora returned no verified activity.'
+                    : 'Try another search or filter.',
+              )
+            else
+              for (var index = 0; index < groups.length; index++) ...[
+                _ActivityGroup(group: groups[index]),
+                if (index != groups.length - 1)
+                  const SizedBox(height: PandoraSpacing.sm),
+              ],
+          ],
+        );
+      },
+    ),
+  );
 }
 
 class _ActivityGroup extends StatelessWidget {
@@ -217,16 +219,16 @@ class _ActivityGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSurface(
-        title: group.label,
-        child: Column(
-          children: [
-            for (var index = 0; index < group.events.length; index++) ...[
-              _ActivityRow(event: group.events[index]),
-              if (index != group.events.length - 1) const Divider(),
-            ],
-          ],
-        ),
-      );
+    title: group.label,
+    child: Column(
+      children: [
+        for (var index = 0; index < group.events.length; index++) ...[
+          _ActivityRow(event: group.events[index]),
+          if (index != group.events.length - 1) const Divider(),
+        ],
+      ],
+    ),
+  );
 }
 
 class _ActivityRow extends StatelessWidget {
@@ -273,8 +275,8 @@ class _ActivityRow extends StatelessWidget {
                 Text(
                   metadata.join(' · '),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 if (event.result != null || event.risk != null) ...[
                   const SizedBox(height: PandoraSpacing.xs),

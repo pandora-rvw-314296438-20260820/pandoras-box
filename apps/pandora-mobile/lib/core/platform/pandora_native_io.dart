@@ -11,8 +11,7 @@ class PandoraTextAttachment {
   final String mimeType;
   final String text;
 
-  String get promptBlock =>
-      'Attached file: $name ($mimeType)\n---\n$text\n---';
+  String get promptBlock => 'Attached file: $name ($mimeType)\n---\n$text\n---';
 }
 
 abstract final class PandoraNativeIo {
@@ -32,8 +31,9 @@ abstract final class PandoraNativeIo {
 
   static Future<PandoraTextAttachment?> pickTextAttachment() async {
     try {
-      final value =
-          await _channel.invokeMapMethod<String, Object?>('pickTextDocument');
+      final value = await _channel.invokeMapMethod<String, Object?>(
+        'pickTextDocument',
+      );
       if (value == null) return null;
       final name = value['name'];
       final mimeType = value['mimeType'];
