@@ -1,0 +1,135 @@
+name: Exact recovery bundle
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact canonical source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+
+      - name: Build and verify SHA-preserving operational bundle
+        id: bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          refs=(
+            refs/heads/main
+            refs/heads/recovery/convergence-source
+            refs/heads/recovery/convergence-latest
+            refs/heads/recovery/child-db-reviewed
+            refs/heads/recovery/child-db-latest
+            refs/heads/recovery/desktop-wip
+          )
+
+          git fetch --no-tags origin \
+            +refs/heads/main:refs/remotes/origin/main \
+            +refs/heads/recovery/convergence-source:refs/remotes/origin/recovery/convergence-source \
+            +refs/heads/recovery/convergence-latest:refs/remotes/origin/recovery/convergence-latest \
+            +refs/heads/recovery/child-db-reviewed:refs/remotes/origin/recovery/child-db-reviewed \
+            +refs/heads/recovery/child-db-latest:refs/remotes/origin/recovery/child-db-latest \
+            +refs/heads/recovery/desktop-wip:refs/remotes/origin/recovery/desktop-wip
+
+          git update-ref refs/heads/main "$GITHUB_SHA"
+          for branch in \
+            recovery/convergence-source \
+            recovery/convergence-latest \
+            recovery/child-db-reviewed \
+            recovery/child-db-latest \
+            recovery/desktop-wip
+          do
+            git update-ref "refs/heads/$branch" "$(git rev-parse "refs/remotes/origin/$branch")"
+          done
+
+          test "$(git rev-parse refs/heads/main)" = "$GITHUB_SHA"
+
+          artifact_dir="/tmp/pandora-exact-bundle"
+          bundle="$artifact_dir/pandoras-box-${GITHUB_SHA}.bundle"
+          manifest="$artifact_dir/manifest.json"
+          encoded="$artifact_dir/pandoras-box-${GITHUB_SHA}.bundle.b64"
+          mkdir -p "$artifact_dir"
+
+          git bundle create "$bundle" "${refs[@]}"
+          git bundle verify "$bundle"
+          bundle_sha256="$(sha256sum "$bundle" | awk '{print $1}')"
+          bundle_bytes="$(stat -c '%s' "$bundle")"
+          base64 -w 76 "$bundle" > "$encoded"
+
+          BUNDLE_SHA256="$bundle_sha256" \
+          BUNDLE_BYTES="$bundle_bytes" \
+          MANIFEST_PATH="$manifest" \
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          refs = [
+              "refs/heads/main",
+              "refs/heads/recovery/convergence-source",
+              "refs/heads/recovery/convergence-latest",
+              "refs/heads/recovery/child-db-reviewed",
+              "refs/heads/recovery/child-db-latest",
+              "refs/heads/recovery/desktop-wip",
+          ]
+          contains_refs = []
+          for ref in refs:
+              sha = subprocess.check_output(
+                  ["git", "rev-parse", "--verify", ref], text=True
+              ).strip()
+              contains_refs.append({"ref": ref, "sha": sha})
+
+          manifest = {
+              "schemaVersion": 1,
+              "repository": "pandora-rvw-314296438-20260820/pandoras-box",
+              "sourceSha": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "artifactType": "operational_git_bundle",
+              "artifactFormat": "git_bundle",
+              "bundleSha256": os.environ["BUNDLE_SHA256"],
+              "bundleBytes": int(os.environ["BUNDLE_BYTES"]),
+              "containsRefs": contains_refs,
+              "verification": [
+                  "git_bundle_verify",
+                  "sha256",
+                  "exact_ref_readback",
+              ],
+          }
+          with open(os.environ["MANIFEST_PATH"], "w", encoding="utf-8") as handle:
+              json.dump(manifest, handle, indent=2, sort_keys=True)
+              handle.write("\n")
+          PY
+
+          destination="recovery/exact-bundles/${GITHUB_SHA}/${GITHUB_RUN_ID}"
+          branch="recovery/exact-bundle-${GITHUB_SHA}-${GITHUB_RUN_ID}"
+          echo "artifact_branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "artifact_path=$destination" >> "$GITHUB_OUTPUT"
+          echo "bundle_sha256=$bundle_sha256" >> "$GITHUB_OUTPUT"
+          echo "bundle_bytes=$bundle_bytes" >> "$GITHUB_OUTPUT"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch" "$GITHUB_SHA"
+          mkdir -p "$destination"
+          cp "$encoded" "$destination/pandoras-box.bundle.b64"
+          cp "$manifest" "$destination/manifest.json"
+          printf '%s  %s\n' "$bundle_sha256" "pandoras-box.bundle" > "$destination/pandoras-box.bundle.sha256"
+          git add "$destination"
+          git commit -m "recovery: publish exact operational bundle for ${GITHUB_SHA}"
+          git push origin "HEAD:refs/heads/$branch"
+
+          {
+            echo "### Exact recovery bundle"
+            echo "- Source SHA: \`$GITHUB_SHA\`"
+            echo "- Artifact branch: \`$branch\`"
+            echo "- Artifact path: \`$destination\`"
+            echo "- Bundle SHA-256: \`$bundle_sha256\`"
+            echo "- Bundle bytes: \`$bundle_bytes\`"
+          } >> "$GITHUB_STEP_SUMMARY"
