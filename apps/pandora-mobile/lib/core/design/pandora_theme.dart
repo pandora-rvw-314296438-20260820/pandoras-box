@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'pandora_tokens.dart';
 
 abstract final class PandoraTheme {
-  static const Color _primary = Color(0xFFC92A35);
+  static const Color _primary = Color(0xFF4D55C7);
 
   /// Warm neutral premium canvas rather than sterile pure white.
   static ThemeData get porcelain => _build(
