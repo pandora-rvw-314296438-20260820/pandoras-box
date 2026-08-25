@@ -1,0 +1,56 @@
+name: Pandora mobile materialized formatter
+
+on:
+  push:
+    branches:
+      - release/pandora-native-uiux-v1-apk
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: release/pandora-native-uiux-v1-apk
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Format in exact package context
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .pandora-mobile-format-build
+          mkdir .pandora-mobile-format-build
+          cd .pandora-mobile-format-build
+          flutter create --platforms=android,web --org com.banataosystems --project-name pandora_mobile .
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R ../apps/pandora-mobile/lib ./lib
+          cp -R ../apps/pandora-mobile/test ./test
+          cp -R ../apps/pandora-mobile/assets ./assets
+          cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
+          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+          flutter pub get --enforce-lockfile
+          dart format lib test
+          rm -rf ../apps/pandora-mobile/lib ../apps/pandora-mobile/test
+          cp -R lib ../apps/pandora-mobile/lib
+          cp -R test ../apps/pandora-mobile/test
+          cd ..
+          rm -rf .pandora-mobile-format-build
+          if git diff --quiet -- apps/pandora-mobile/lib apps/pandora-mobile/test; then
+            echo 'No formatting changes required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/pandora-mobile/lib apps/pandora-mobile/test
+          git commit -m 'style(mobile): format in materialized Flutter context'
+          git push origin HEAD:release/pandora-native-uiux-v1-apk
