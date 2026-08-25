@@ -1,0 +1,70 @@
+name: MCPMaster recovered production deployment
+
+on:
+  push:
+    branches:
+      - production/recovered-convergence-20260825
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcpmaster-recovered-production
+  cancel-in-progress: false
+
+env:
+  VERCEL_ORG_ID: team_IcdJUnzLi5wUN1GD8ALHyjF7
+  VERCEL_PROJECT_ID: prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk
+
+jobs:
+  verify-and-deploy:
+    name: Verify and deploy recovered production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout recovered production source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Build and test recovered source
+        run: npm test
+
+      - name: Bind existing Vercel project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .vercel
+          printf '{"orgId":"%s","projectId":"%s"}
+' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
+          npx --yes vercel@59.3.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to existing production project
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment_url="$(npx --yes vercel@59.3.0 deploy --prod --yes --token="$VERCEL_TOKEN" | tail -n 1)"
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
+          echo "Deployed $deployment_url"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Verify recovered production health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 "${{ steps.deploy.outputs.url }}/health"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 "https://mcpmaster.vercel.app/health"
