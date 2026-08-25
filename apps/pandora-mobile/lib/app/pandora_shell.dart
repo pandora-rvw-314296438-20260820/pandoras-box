@@ -5,11 +5,11 @@ import 'package:flutter/services.dart';
 
 import '../core/analytics/owner_analytics.dart';
 import '../core/design/pandora_tokens.dart';
-import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
-import '../features/command/command_screen.dart';
-import '../features/home/home_screen.dart';
-import '../features/projects/projects_screen.dart';
+import '../features/simple/ask_pandora_screen.dart';
+import '../features/simple/more_screen.dart';
+import '../features/simple/simple_home_screen.dart';
+import '../features/simple/systems_screen.dart';
 
 class PandoraShell extends StatefulWidget {
   const PandoraShell({super.key});
@@ -37,12 +37,12 @@ class _PandoraShellState extends State<PandoraShell> {
   Widget _page(int index) => _pages.putIfAbsent(
         index,
         () => switch (index) {
-          0 => const HomeScreen(),
-          1 => const ProjectsScreen(),
-          2 => const CommandScreen(),
+          0 => const SimpleHomeScreen(),
+          1 => const SystemsScreen(),
+          2 => const AskPandoraScreen(),
           3 => const ApprovalsScreen(),
-          4 => const ActivityScreen(),
-          _ => const HomeScreen(),
+          4 => const MoreScreen(),
+          _ => const SimpleHomeScreen(),
         },
       );
 
@@ -52,10 +52,10 @@ class _PandoraShellState extends State<PandoraShell> {
     setState(() => _index = value);
     final screen = switch (value) {
       0 => 'home',
-      1 => 'projects',
-      2 => 'command',
-      3 => 'approvals',
-      4 => 'activity',
+      1 => 'systems',
+      2 => 'ask_pandora',
+      3 => 'needs_you',
+      4 => 'more',
       _ => 'home',
     };
     unawaited(
@@ -68,27 +68,28 @@ class _PandoraShellState extends State<PandoraShell> {
 
   @override
   Widget build(BuildContext context) {
-    final destinations = <_Destination>[
-      const _Destination('Home', Icons.home_outlined, Icons.home_rounded),
-      const _Destination(
-        'Projects',
-        Icons.workspaces_outline,
-        Icons.workspaces_rounded,
+    const destinations = <_Destination>[
+      _Destination('Home', Icons.home_outlined, Icons.home_rounded),
+      _Destination(
+        'Systems',
+        Icons.grid_view_outlined,
+        Icons.grid_view_rounded,
       ),
-      const _Destination(
-        'Command',
+      _Destination(
+        'Ask Pandora',
         Icons.auto_awesome_outlined,
         Icons.auto_awesome_rounded,
+        emphasized: true,
       ),
-      const _Destination(
-        'Approvals',
-        Icons.approval_outlined,
-        Icons.approval_rounded,
+      _Destination(
+        'Needs You',
+        Icons.notifications_none_rounded,
+        Icons.notifications_rounded,
       ),
-      const _Destination(
-        'Activity',
-        Icons.history_outlined,
-        Icons.history_rounded,
+      _Destination(
+        'More',
+        Icons.more_horiz_rounded,
+        Icons.more_horiz_rounded,
       ),
     ];
     final body = IndexedStack(
@@ -113,11 +114,19 @@ class _PandoraShellState extends State<PandoraShell> {
                     onDestinationSelected: _select,
                     labelType: NavigationRailLabelType.all,
                     destinations: [
-                      for (final destination in destinations)
+                      for (var index = 0;
+                          index < destinations.length;
+                          index++)
                         NavigationRailDestination(
-                          icon: Icon(destination.icon),
-                          selectedIcon: Icon(destination.selectedIcon),
-                          label: Text(destination.label),
+                          icon: _DestinationIcon(
+                            destination: destinations[index],
+                            selected: false,
+                          ),
+                          selectedIcon: _DestinationIcon(
+                            destination: destinations[index],
+                            selected: true,
+                          ),
+                          label: Text(destinations[index].label),
                         ),
                     ],
                   ),
@@ -139,14 +148,21 @@ class _PandoraShellState extends State<PandoraShell> {
             child: SafeArea(
               top: false,
               child: NavigationBar(
+                height: 76,
                 selectedIndex: _index,
                 onDestinationSelected: _select,
                 destinations: [
-                  for (final destination in destinations)
+                  for (var index = 0; index < destinations.length; index++)
                     NavigationDestination(
-                      icon: Icon(destination.icon),
-                      selectedIcon: Icon(destination.selectedIcon),
-                      label: destination.label,
+                      icon: _DestinationIcon(
+                        destination: destinations[index],
+                        selected: false,
+                      ),
+                      selectedIcon: _DestinationIcon(
+                        destination: destinations[index],
+                        selected: true,
+                      ),
+                      label: destinations[index].label,
                     ),
                 ],
               ),
@@ -158,10 +174,57 @@ class _PandoraShellState extends State<PandoraShell> {
   }
 }
 
+class _DestinationIcon extends StatelessWidget {
+  const _DestinationIcon({
+    required this.destination,
+    required this.selected,
+  });
+
+  final _Destination destination;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = Icon(selected ? destination.selectedIcon : destination.icon);
+    if (!destination.emphasized) return icon;
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: 'Ask Pandora',
+      button: true,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: scheme.primary,
+          boxShadow: [
+            BoxShadow(
+              color: scheme.shadow.withValues(alpha: .12),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          selected ? destination.selectedIcon : destination.icon,
+          color: scheme.onPrimary,
+        ),
+      ),
+    );
+  }
+}
+
 class _Destination {
-  const _Destination(this.label, this.icon, this.selectedIcon);
+  const _Destination(
+    this.label,
+    this.icon,
+    this.selectedIcon, {
+    this.emphasized = false,
+  });
 
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+  final bool emphasized;
 }
