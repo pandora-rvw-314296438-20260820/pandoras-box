@@ -35,6 +35,23 @@ const reconciledReplayResult = JSON.parse(
   ),
 );
 
+const remoteHistoryReceiptManifest = JSON.parse(
+  readFileSync(
+    join(
+      repositoryRoot,
+      'docs',
+      'status',
+      'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_20260825.json',
+    ),
+    'utf8',
+  ),
+);
+const remoteHistoryReceiptFiles = new Set(
+  remoteHistoryReceiptManifest.entries.map(
+    (entry) => `${entry.version}_${entry.name}.sql`,
+  ),
+);
+
 function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
 }
@@ -74,14 +91,22 @@ function receiptVersionChainSha256(filenames) {
 test('active Supabase history preserves the captured 52-file recovery chain and appends governed changes', () => {
   const files = readdirSync(migrationRoot)
     .filter((name) => /^\d{14}_.+\.sql$/.test(name))
+
     .sort();
+  const activeFiles = files.filter(
+    (filename) => !remoteHistoryReceiptFiles.has(filename),
+  );
+  assert.equal(
+    files.length,
+    activeFiles.length + remoteHistoryReceiptFiles.size,
+  );
   const capturedFiles = [
     ...manifest.history.map((entry) => basename(entry.active.path)),
     basename(manifest.pending_change.path),
     basename(manifest.source_authority_change.path),
   ].sort();
   const capturedSet = new Set(capturedFiles);
-  const appendedFiles = files.filter((filename) => !capturedSet.has(filename));
+  const appendedFiles = activeFiles.filter((filename) => !capturedSet.has(filename));
   const liveIdentityFiles = [
     ...manifest.history.map((entry) => basename(entry.active.path)),
     basename(manifest.pending_change.path),
@@ -92,8 +117,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     ...manifest.source_alignment_records.map((entry) => basename(entry.path)),
   ].sort();
   const replaySnapshotLast = '20260817145929_add_vercel_async_git_link_queue.sql';
-  const historicalCurrentFiles = files.filter((filename) => filename <= replaySnapshotLast);
-  const postSnapshotFiles = files.filter((filename) => filename > replaySnapshotLast);
+  const historicalCurrentFiles = activeFiles.filter((filename) => filename <= replaySnapshotLast);
+  const postSnapshotFiles = activeFiles.filter((filename) => filename > replaySnapshotLast);
 
   assert.equal(manifest.invariants.historical_identity_count, 50);
   assert.equal(manifest.invariants.active_file_count, 52);
@@ -105,7 +130,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     [...manifest.history.map((entry) => entry.version)].sort(),
   );
   assert.equal(new Set(capturedFiles).size, manifest.invariants.active_file_count);
-  assert.ok(capturedFiles.every((filename) => files.includes(filename)));
+  assert.ok(capturedFiles.every((filename) => activeFiles.includes(filename)));
   assert.deepEqual(appendedFiles, [
     '20260817130000_projectos_memory_full_capacity_context_gate.sql',
     '20260817145550_add_vercel_control_adapter.sql',
@@ -154,12 +179,12 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   assert.equal(manifest.live_chain.historical_recovery_last, '20260810104737');
   assert.equal(manifest.live_chain.migration_count, 59);
   assert.equal(manifest.invariants.live_identity_count, 59);
-  assert.equal(manifest.invariants.source_file_count, files.length);
+  assert.equal(manifest.invariants.source_file_count, activeFiles.length);
   assert.equal(manifest.invariants.source_live_identity_coverage, 59);
-  assert.equal(manifest.invariants.source_only_forward_count, files.length - 59);
+  assert.equal(manifest.invariants.source_only_forward_count, activeFiles.length - 59);
   assert.equal(liveIdentityFiles.length, manifest.invariants.live_identity_count);
   assert.equal(new Set(liveIdentityFiles).size, liveIdentityFiles.length);
-  assert.ok(liveIdentityFiles.every((filename) => files.includes(filename)));
+  assert.ok(liveIdentityFiles.every((filename) => activeFiles.includes(filename)));
   assert.equal(
     receiptVersionChainSha256(liveIdentityFiles),
     manifest.live_chain.ordered_version_chain_sha256,
@@ -219,19 +244,19 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     manifest.identity_reconciliation.legacy_aug17_chain_sha256,
   );
   assert.equal(
-    chainSha256(files),
+    chainSha256(activeFiles),
     manifest.identity_reconciliation.current_source_replay_chain_sha256,
   );
   assert.equal(
-    receiptSourceChainSha256(files),
+    receiptSourceChainSha256(activeFiles),
     manifest.identity_reconciliation.current_source_receipt_chain_sha256,
   );
   assert.equal(
-    receiptVersionChainSha256(files),
+    receiptVersionChainSha256(activeFiles),
     manifest.identity_reconciliation.expected_applied_receipt_chain_sha256,
   );
-  assert.equal(reconciledReplayResult.migration_count, files.length);
-  assert.equal(reconciledReplayResult.chain_sha256, chainSha256(files));
+  assert.equal(reconciledReplayResult.migration_count, activeFiles.length);
+  assert.equal(reconciledReplayResult.chain_sha256, chainSha256(activeFiles));
   assert.equal(
     reconciledReplayResult.chain_sha256,
     manifest.validation.reconciled_chain_sha256,
@@ -255,6 +280,60 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     canonical_fxpass_binding: 'active',
     mixed_case_repository_insert: 'denied',
   });
+});
+
+test('remote recovery migration receipts preserve provider history without replaying retired transports', () => {
+  assert.equal(remoteHistoryReceiptManifest.schemaVersion, 1);
+  assert.equal(remoteHistoryReceiptManifest.projectRef, 'jcyqixttuebxqqfkjonq');
+  assert.equal(
+    remoteHistoryReceiptManifest.repository,
+    'pandora-rvw-314296438-20260820/pandoras-box',
+  );
+  assert.equal(
+    remoteHistoryReceiptManifest.mode,
+    'remote_history_receipts_without_replaying_temporary_recovery_surfaces',
+  );
+  assert.equal(
+    remoteHistoryReceiptManifest.migrationCount,
+    remoteHistoryReceiptManifest.entries.length,
+  );
+  assert.equal(
+    remoteHistoryReceiptFiles.size,
+    remoteHistoryReceiptManifest.migrationCount,
+  );
+
+  const receiptFiles = readdirSync(migrationRoot)
+    .filter((filename) => remoteHistoryReceiptFiles.has(filename))
+    .sort();
+  const expectedReceiptFiles = remoteHistoryReceiptManifest.entries
+    .map((entry) => `${entry.version}_${entry.name}.sql`)
+    .sort();
+
+  assert.deepEqual(receiptFiles, expectedReceiptFiles);
+  assert.equal(new Set(expectedReceiptFiles).size, expectedReceiptFiles.length);
+
+  for (const entry of remoteHistoryReceiptManifest.entries) {
+    const filename = `${entry.version}_${entry.name}.sql`;
+    const source = readFileSync(join(migrationRoot, filename), 'utf8');
+    const executableLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('--'));
+
+    assert.match(entry.version, /^\d{14}$/);
+    assert.match(entry.name, /^[a-z0-9_]+$/);
+    assert.match(entry.originalSqlSha256, /^[0-9a-f]{64}$/);
+    assert.equal(entry.replayMode, 'history_receipt_noop');
+    assert.match(source, /^-- Pandora remote migration history receipt\./);
+    assert.match(source, new RegExp(`-- Version: ${entry.version}`));
+    assert.match(source, new RegExp(`-- Name: ${entry.name}`));
+    assert.match(source, new RegExp(entry.originalSqlSha256));
+    assert.deepEqual(executableLines, ['select 1;'], filename);
+    assert.doesNotMatch(
+      executableLines.join('\n'),
+      /(vault\.decrypted_secrets|extensions\.http|create\s+or\s+replace\s+function|grant\s+execute)/i,
+    );
+  }
 });
 
 test('live-only privileged hotfix identities are preserved without republishing executable bodies', () => {
