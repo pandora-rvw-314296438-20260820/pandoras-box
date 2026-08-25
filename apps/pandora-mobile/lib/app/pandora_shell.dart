@@ -66,6 +66,25 @@ class _PandoraShellState extends State<PandoraShell> {
     );
   }
 
+  ThemeData _simpleTheme(ThemeData base) {
+    const accent = Color(0xFFC92A35);
+    final scheme = ColorScheme.fromSeed(
+      seedColor: accent,
+      brightness: base.brightness,
+      surface: base.colorScheme.surface,
+      error: base.colorScheme.error,
+    );
+    return base.copyWith(
+      colorScheme: scheme,
+      navigationBarTheme: base.navigationBarTheme.copyWith(
+        indicatorColor: scheme.primaryContainer,
+      ),
+      navigationRailTheme: base.navigationRailTheme.copyWith(
+        indicatorColor: scheme.primaryContainer,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const destinations = <_Destination>[
@@ -97,7 +116,9 @@ class _PandoraShellState extends State<PandoraShell> {
               : const SizedBox.shrink(),
       ],
     );
-    return LayoutBuilder(
+    return Theme(
+      data: _simpleTheme(Theme.of(context)),
+      child: LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= PandoraSize.wideBreakpoint;
         if (wide) {
@@ -163,7 +184,8 @@ class _PandoraShellState extends State<PandoraShell> {
             ),
           ),
         );
-      },
+        },
+      ),
     );
   }
 }
@@ -173,6 +195,25 @@ class _DestinationIcon extends StatelessWidget {
 
   final _Destination destination;
   final bool selected;
+
+  ThemeData _simpleTheme(ThemeData base) {
+    const accent = Color(0xFFC92A35);
+    final scheme = ColorScheme.fromSeed(
+      seedColor: accent,
+      brightness: base.brightness,
+      surface: base.colorScheme.surface,
+      error: base.colorScheme.error,
+    );
+    return base.copyWith(
+      colorScheme: scheme,
+      navigationBarTheme: base.navigationBarTheme.copyWith(
+        indicatorColor: scheme.primaryContainer,
+      ),
+      navigationRailTheme: base.navigationRailTheme.copyWith(
+        indicatorColor: scheme.primaryContainer,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
