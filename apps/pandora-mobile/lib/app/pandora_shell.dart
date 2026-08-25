@@ -119,71 +119,73 @@ class _PandoraShellState extends State<PandoraShell> {
     return Theme(
       data: _simpleTheme(Theme.of(context)),
       child: LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= PandoraSize.wideBreakpoint;
-        if (wide) {
-          return Scaffold(
-            body: Row(
-              children: [
-                SafeArea(
-                  child: NavigationRail(
-                    selectedIndex: _index,
-                    onDestinationSelected: _select,
-                    labelType: NavigationRailLabelType.all,
-                    destinations: [
-                      for (var index = 0; index < destinations.length; index++)
-                        NavigationRailDestination(
-                          icon: _DestinationIcon(
-                            destination: destinations[index],
-                            selected: false,
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= PandoraSize.wideBreakpoint;
+          if (wide) {
+            return Scaffold(
+              body: Row(
+                children: [
+                  SafeArea(
+                    child: NavigationRail(
+                      selectedIndex: _index,
+                      onDestinationSelected: _select,
+                      labelType: NavigationRailLabelType.all,
+                      destinations: [
+                        for (var index = 0;
+                            index < destinations.length;
+                            index++)
+                          NavigationRailDestination(
+                            icon: _DestinationIcon(
+                              destination: destinations[index],
+                              selected: false,
+                            ),
+                            selectedIcon: _DestinationIcon(
+                              destination: destinations[index],
+                              selected: true,
+                            ),
+                            label: Text(destinations[index].label),
                           ),
-                          selectedIcon: _DestinationIcon(
-                            destination: destinations[index],
-                            selected: true,
-                          ),
-                          label: Text(destinations[index].label),
-                        ),
-                    ],
-                  ),
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(child: body),
-              ],
-            ),
-          );
-        }
-        final palette = context.pandoraPalette;
-        return Scaffold(
-          body: body,
-          bottomNavigationBar: DecoratedBox(
-            decoration: BoxDecoration(
-              color: palette.strongSurface,
-              border: Border(top: BorderSide(color: palette.outlineSoft)),
-            ),
-            child: SafeArea(
-              top: false,
-              child: NavigationBar(
-                height: 76,
-                selectedIndex: _index,
-                onDestinationSelected: _select,
-                destinations: [
-                  for (var index = 0; index < destinations.length; index++)
-                    NavigationDestination(
-                      icon: _DestinationIcon(
-                        destination: destinations[index],
-                        selected: false,
-                      ),
-                      selectedIcon: _DestinationIcon(
-                        destination: destinations[index],
-                        selected: true,
-                      ),
-                      label: destinations[index].label,
+                      ],
                     ),
+                  ),
+                  const VerticalDivider(width: 1),
+                  Expanded(child: body),
                 ],
               ),
+            );
+          }
+          final palette = context.pandoraPalette;
+          return Scaffold(
+            body: body,
+            bottomNavigationBar: DecoratedBox(
+              decoration: BoxDecoration(
+                color: palette.strongSurface,
+                border: Border(top: BorderSide(color: palette.outlineSoft)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: NavigationBar(
+                  height: 76,
+                  selectedIndex: _index,
+                  onDestinationSelected: _select,
+                  destinations: [
+                    for (var index = 0; index < destinations.length; index++)
+                      NavigationDestination(
+                        icon: _DestinationIcon(
+                          destination: destinations[index],
+                          selected: false,
+                        ),
+                        selectedIcon: _DestinationIcon(
+                          destination: destinations[index],
+                          selected: true,
+                        ),
+                        label: destinations[index].label,
+                      ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        );
+          );
         },
       ),
     );
