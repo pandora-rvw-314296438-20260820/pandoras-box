@@ -1,0 +1,75 @@
+name: Pandora exact integration publication
+
+on:
+  push:
+    branches:
+      - integration/bootstrap-bd9bcb9
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pandora-integration-publication-bd9bcb9
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish and verify exact integration object
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EXPECTED_SHA: bd9bcb9b85a1e7e5a15d1ae219f62c2dce972284
+      EXPECTED_TREE: 47d857931566b45366e1b15eda5f5af6765e87d4
+      EXPECTED_PARENTS: 7398de0014485089150ab154cbcac5617c9fdd6c 649d320201d66764b569cd501e5fff89291241e1
+      EXPECTED_BUNDLE_SHA256: c7d58c4c71255613c944fcb18748aa5fe92b7199b4c8549d44666511e5299487
+      EXPECTED_BUNDLE_BYTES: '3703'
+      TARGET_REF: refs/heads/integration/reconcile-convergence-child-db
+    steps:
+      - name: Check out the fixed transport commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify, publish, and read back the exact merge object
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bundle="$GITHUB_WORKSPACE/.pandora-transport/integration-bd9bcb9.bundle"
+          test -f "$bundle"
+          test "$(stat -c '%s' "$bundle")" = "$EXPECTED_BUNDLE_BYTES"
+          printf '%s  %s\n' "$EXPECTED_BUNDLE_SHA256" "$bundle" | sha256sum -c -
+
+          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git remote set-url origin "$remote"
+          git fetch --no-tags origin \
+            refs/heads/recovery/convergence-latest:refs/remotes/origin/recovery/convergence-latest \
+            refs/heads/recovery/child-db-latest:refs/remotes/origin/recovery/child-db-latest
+
+          git bundle verify "$bundle"
+          git fetch "$bundle" \
+            refs/heads/integration/reconcile-convergence-child-db:refs/heads/integration/reconcile-convergence-child-db
+
+          actual_sha="$(git rev-parse refs/heads/integration/reconcile-convergence-child-db)"
+          actual_tree="$(git rev-parse "${actual_sha}^{tree}")"
+          actual_parents="$(git show -s --format=%P "$actual_sha")"
+          test "$actual_sha" = "$EXPECTED_SHA"
+          test "$actual_tree" = "$EXPECTED_TREE"
+          test "$actual_parents" = "$EXPECTED_PARENTS"
+          git fsck --strict --full
+
+          current="$(git ls-remote "$remote" "$TARGET_REF" | awk '{print $1}')"
+          if test -n "$current" && test "$current" != "$EXPECTED_SHA"; then
+            echo "Refusing divergent integration ref: $current" >&2
+            exit 1
+          fi
+          if test -z "$current"; then
+            git push "$remote" "$EXPECTED_SHA:$TARGET_REF"
+          fi
+
+          readback="$(git ls-remote "$remote" "$TARGET_REF" | awk '{print $1}')"
+          test "$readback" = "$EXPECTED_SHA"
+          echo "VERIFIED $TARGET_REF -> $readback"
