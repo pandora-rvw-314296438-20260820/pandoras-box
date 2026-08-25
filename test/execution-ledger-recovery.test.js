@@ -5,12 +5,16 @@ const test = require('node:test');
 let sql;
 let edge;
 let config;
+let tableSql;
+let providerApi;
 
 test.before(async () => {
-  [sql, edge, config] = await Promise.all([
+  [sql, edge, config, tableSql, providerApi] = await Promise.all([
     readFile('docs/recovery/sql/execution-ledger-functions.sql', 'utf8'),
     readFile('supabase/functions/mcpmaster-supabase-control/index.ts', 'utf8'),
     readFile('supabase/config.toml', 'utf8'),
+    readFile('supabase/migrations/20260731092908_projectos_operating_kernel.sql', 'utf8'),
+    readFile('src/tools/provider-api.js', 'utf8'),
   ]);
 });
 
@@ -51,6 +55,14 @@ test('active claim function is one-time, unexpired, approved-only, and returns t
   assert.match(body, /'args', plan\.args/);
   assert.match(body, /'payloadHash', plan\.payload_hash/);
   assert.match(body, /private\.append_execution_audit/);
+});
+
+test('child-deletion reservations use one immutable external-event uniqueness domain', () => {
+  assert.match(tableSql, /unique \(organization_id, provider, delivery_id\)/);
+  assert.match(providerApi, /const CONTROL_PROJECT_REF = 'jcyqixttuebxqqfkjonq'/);
+  assert.match(providerApi, /const CONTROL_ORGANIZATION_ID = '2270b266-59da-4c39-bfd9-9f8d08352af0'/);
+  assert.match(providerApi, /on conflict \(organization_id,provider,delivery_id\) do nothing returning/);
+  assert.doesNotMatch(providerApi, /projectos_record_external_event/);
 });
 
 test('active finish and audit-chain functions preserve one-time lifecycle and tamper evidence', () => {

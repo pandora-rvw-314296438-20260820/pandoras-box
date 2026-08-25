@@ -4,6 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.executionPayloadHash = executionPayloadHash;
+exports.destructiveCapabilityReservationDeliveryId = destructiveCapabilityReservationDeliveryId;
+exports.createDestructiveCapabilityReservationIntent = createDestructiveCapabilityReservationIntent;
 exports.createHttpApp = createHttpApp;
 exports.startHttpServer = startHttpServer;
 const crypto_1 = require("crypto");
@@ -17,6 +19,8 @@ const service_config_js_1 = require("./runtime/service-config.js");
 const tool_policy_js_1 = require("./runtime/tool-policy.js");
 const runtime_security_resolver_js_1 = require("./runtime/runtime-security-resolver.js");
 const execution_ledger_client_js_1 = require("./runtime/execution-ledger-client.js");
+const execution_payload_js_1 = require("./runtime/execution-payload.js");
+const destructive_capability_reservation_js_1 = require("./runtime/destructive-capability-reservation.js");
 const provider_execution_state_machine_js_1 = require("./runtime/provider-execution-state-machine.js");
 const runtime_rate_limit_client_js_1 = require("./runtime/runtime-rate-limit-client.js");
 const VERSION = '1.3.0-observability';
@@ -127,19 +131,14 @@ function createRequestTelemetry(metrics) {
         next();
     };
 }
-function stableValue(value) {
-    if (Array.isArray(value))
-        return value.map(stableValue);
-    if (value && typeof value === 'object') {
-        return Object.fromEntries(Object.entries(value)
-            .sort(([left], [right]) => left.localeCompare(right))
-            .map(([key, nested]) => [key, stableValue(nested)]));
-    }
-    return value;
-}
 function executionPayloadHash(tool, args) {
-    const canonical = JSON.stringify({ tool, args: stableValue(args) });
-    return (0, crypto_1.createHash)('sha256').update(canonical, 'utf8').digest('hex');
+    return (0, execution_payload_js_1.executionPayloadHash)(tool, args);
+}
+function destructiveCapabilityReservationDeliveryId(tool, args) {
+    return (0, destructive_capability_reservation_js_1.destructiveCapabilityReservationDeliveryId)(tool, args);
+}
+function createDestructiveCapabilityReservationIntent(claimedPlan) {
+    return (0, destructive_capability_reservation_js_1.createDestructiveCapabilityReservationIntent)(claimedPlan);
 }
 function assertBoundLedgerPlan(plan, planId, status) {
     if (!plan || plan.planId !== planId || plan.status !== status) {
@@ -632,6 +631,7 @@ function createHttpApp(config = loadRuntimeConfig(), runtimeSecurityResolver = n
         let tool = 'unknown';
         let risk = 'write';
         let claimedPlanId;
+        let claimedExecutionPlan;
         let oidcToken;
         try {
             oidcToken = vercelOidcToken(request);
@@ -657,6 +657,7 @@ function createHttpApp(config = loadRuntimeConfig(), runtimeSecurityResolver = n
                     throw new execution_ledger_client_js_1.ExecutionLedgerError('Execution plan payload hash mismatch');
                 }
                 claimedPlanId = claimed.planId;
+                claimedExecutionPlan = claimed;
                 id = claimed.requestId;
                 tool = claimed.tool;
                 risk = claimed.risk;
@@ -741,6 +742,7 @@ function createHttpApp(config = loadRuntimeConfig(), runtimeSecurityResolver = n
                         throw new execution_ledger_client_js_1.ExecutionLedgerError('Execution plan payload hash mismatch');
                     }
                     claimedPlanId = claimed.planId;
+                    claimedExecutionPlan = claimed;
                     id = claimed.requestId;
                 }
                 else if ((0, tool_policy_js_1.requiresApproval)(tool)) {
@@ -767,7 +769,20 @@ function createHttpApp(config = loadRuntimeConfig(), runtimeSecurityResolver = n
             const entry = index_js_1.toolRegistry[tool];
             if (!entry)
                 throw new service_config_js_1.UnknownToolError(tool);
-            const result = await toolExecutor(tool, args, { vercelOidcToken: oidcToken });
+            let destructiveCapabilityReservationUsed = false;
+            const destructiveCapabilityReservation = claimedExecutionPlan
+                ? () => {
+                    if (destructiveCapabilityReservationUsed) {
+                        throw new execution_ledger_client_js_1.ExecutionLedgerError('Destructive capability reservation intent is one-shot per execution', 409);
+                    }
+                    destructiveCapabilityReservationUsed = true;
+                    return createDestructiveCapabilityReservationIntent(claimedExecutionPlan);
+                }
+                : undefined;
+            const result = await toolExecutor(tool, args, {
+                vercelOidcToken: oidcToken,
+                destructiveCapabilityReservation,
+            });
             const durationMs = Date.now() - startedAt;
             if (claimedPlanId && oidcToken) {
                 await executionLedger.finishPlan(oidcToken, {

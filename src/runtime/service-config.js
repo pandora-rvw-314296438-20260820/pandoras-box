@@ -8,6 +8,7 @@ exports.inspectToolConfiguration = inspectToolConfiguration;
 const tool_catalog_js_1 = require("./tool-catalog.js");
 const github_control_resolver_js_1 = require("./github-control-resolver.js");
 const supabase_control_resolver_js_1 = require("./supabase-control-resolver.js");
+const crypto_1 = require("node:crypto");
 /**
  * Canonical Pandora Memory origin, fixed by owner decision on 2026-08-06
  * (CONFLICT-001). The Vercel identity, service principal, Supabase binding,
@@ -21,6 +22,8 @@ const FLUTTERFLOW_API_ORIGIN = 'https://api.flutterflow.io/v2';
  * reach it, so configuring it is a startup error, not a silent fallback.
  */
 const QUARANTINED_MEMORY_ORIGINS = new Set(['https://memory-mbanatao.vercel.app']);
+const CHILD_DELETION_SIGNING_KEYS_ENV = 'SUPABASE_CHILD_DELETION_CAPABILITY_KEYS_JSON';
+const CHILD_DELETION_KEY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 class UnknownToolError extends Error {
     constructor(toolName) {
         super(`Unknown tool: ${toolName}`);
@@ -65,6 +68,81 @@ function boundedIntegerEnvironment(service, name, fallback, minimum, maximum) {
         ]);
     }
     return value;
+}
+function childDeletionCapabilityKeyring() {
+    const raw = process.env[CHILD_DELETION_SIGNING_KEYS_ENV]?.trim();
+    if (!raw)
+        return undefined;
+    let parsed;
+    try {
+        parsed = JSON.parse(raw);
+    }
+    catch {
+        throw new MissingConfigurationError('supabase', [`valid ${CHILD_DELETION_SIGNING_KEYS_ENV}`]);
+    }
+    if (!parsed
+        || typeof parsed !== 'object'
+        || Array.isArray(parsed)
+        || Object.keys(parsed).length !== 3
+        || typeof parsed.activeKeyId !== 'string'
+        || !CHILD_DELETION_KEY_ID_PATTERN.test(parsed.activeKeyId)
+        || typeof parsed.reservationKeyId !== 'string'
+        || !CHILD_DELETION_KEY_ID_PATTERN.test(parsed.reservationKeyId)
+        || parsed.reservationKeyId === parsed.activeKeyId
+        || !parsed.keys
+        || typeof parsed.keys !== 'object'
+        || Array.isArray(parsed.keys)) {
+        throw new MissingConfigurationError('supabase', [`${CHILD_DELETION_SIGNING_KEYS_ENV} with exact activeKeyId, reservationKeyId, and keys fields`]);
+    }
+    const entries = Object.entries(parsed.keys);
+    if (entries.length < 2 || entries.length > 8) {
+        throw new MissingConfigurationError('supabase', [`${CHILD_DELETION_SIGNING_KEYS_ENV} with 2 to 8 verification keys`]);
+    }
+    const keys = {};
+    for (const [keyId, encoded] of entries) {
+        if (!CHILD_DELETION_KEY_ID_PATTERN.test(keyId)
+            || typeof encoded !== 'string'
+            || !/^[A-Za-z0-9_-]{43}$/.test(encoded)) {
+            throw new MissingConfigurationError('supabase', [`${CHILD_DELETION_SIGNING_KEYS_ENV} with canonical 32-byte base64url keys`]);
+        }
+        const decoded = Buffer.from(encoded, 'base64url');
+        if (decoded.length !== 32 || decoded.toString('base64url') !== encoded) {
+            throw new MissingConfigurationError('supabase', [`${CHILD_DELETION_SIGNING_KEYS_ENV} with canonical 32-byte base64url keys`]);
+        }
+        keys[keyId] = encoded;
+    }
+    if (!Object.prototype.hasOwnProperty.call(keys, parsed.activeKeyId)) {
+        throw new MissingConfigurationError('supabase', [`${CHILD_DELETION_SIGNING_KEYS_ENV} activeKeyId present in keys`]);
+    }
+    if (!Object.prototype.hasOwnProperty.call(keys, parsed.reservationKeyId)) {
+        throw new MissingConfigurationError('supabase', [`${CHILD_DELETION_SIGNING_KEYS_ENV} reservationKeyId present in keys`]);
+    }
+    if (new Set(Object.values(keys)).size !== entries.length) {
+        throw new MissingConfigurationError('supabase', [`${CHILD_DELETION_SIGNING_KEYS_ENV} with unique proof and reservation key material`]);
+    }
+    return {
+        activeKeyId: parsed.activeKeyId,
+        reservationKeyId: parsed.reservationKeyId,
+        keys,
+    };
+}
+function childDeletionConfigurationFingerprint(keyring) {
+    const orderedKeys = {
+        [keyring.activeKeyId]: keyring.keys[keyring.activeKeyId],
+        [keyring.reservationKeyId]: keyring.keys[keyring.reservationKeyId],
+    };
+    for (const keyId of Object.keys(keyring.keys)
+        .filter((candidate) => candidate !== keyring.activeKeyId
+        && candidate !== keyring.reservationKeyId)
+        .sort()) {
+        orderedKeys[keyId] = keyring.keys[keyId];
+    }
+    const canonical = JSON.stringify({
+        activeKeyId: keyring.activeKeyId,
+        reservationKeyId: keyring.reservationKeyId,
+        keys: orderedKeys,
+    });
+    return (0, crypto_1.createHash)('sha256').update(canonical, 'utf8').digest('hex');
 }
 function buildGitHubEnvironmentConfiguration() {
     return {
@@ -120,6 +198,7 @@ function buildSupabaseEnvironmentConfiguration() {
         })),
         timeoutMs: Number(process.env.SUPABASE_MANAGEMENT_TIMEOUT_MS || '10000'),
         maxResponseBytes: Number(process.env.SUPABASE_MANAGEMENT_MAX_RESPONSE_BYTES || '1000000'),
+        childDeletionCapabilityKeyring: childDeletionCapabilityKeyring(),
     };
 }
 async function buildSupabaseConfiguration(context) {
@@ -132,7 +211,11 @@ async function buildSupabaseConfiguration(context) {
             'Vercel OIDC request token or SUPABASE_ACCOUNTS_JSON',
         ]);
     }
-    return new supabase_control_resolver_js_1.SupabaseControlResolver().resolve(oidcToken);
+    const resolved = await new supabase_control_resolver_js_1.SupabaseControlResolver().resolve(oidcToken);
+    return {
+        ...resolved,
+        childDeletionCapabilityKeyring: childDeletionCapabilityKeyring(),
+    };
 }
 function buildFlutterFlowEnvironmentConfiguration() {
     const raw = requiredEnvironmentValue('flutterflow', 'FLUTTERFLOW_ACCOUNTS_JSON');
@@ -212,6 +295,25 @@ function sanitizeProviderConnections(github, supabase, flutterflow) {
                 repositories: [],
                 organizations: [...account.allowedOrganizationSlugs],
                 projects: [...account.allowedProjectRefs],
+            },
+            capabilitySigning: {
+                childDeletion: supabase.childDeletionCapabilityKeyring
+                    ? {
+                        configured: true,
+                        activeKeyId: supabase.childDeletionCapabilityKeyring.activeKeyId,
+                        reservationKeyId: supabase.childDeletionCapabilityKeyring.reservationKeyId,
+                        verificationKeyIds: Object.keys(supabase.childDeletionCapabilityKeyring.keys).sort(),
+                        verificationKeyCount: Object.keys(supabase.childDeletionCapabilityKeyring.keys).length,
+                        configurationFingerprintSha256: childDeletionConfigurationFingerprint(supabase.childDeletionCapabilityKeyring),
+                    }
+                    : {
+                        configured: false,
+                        activeKeyId: null,
+                        reservationKeyId: null,
+                        verificationKeyIds: [],
+                        verificationKeyCount: 0,
+                        configurationFingerprintSha256: null,
+                    },
             },
         })),
         ...(flutterflow?.accounts || []).map((account) => ({
@@ -340,7 +442,13 @@ async function buildToolConfiguration(toolName, context = {}) {
     if (entry.handler === 'flutterflow') {
         return { flutterflow: buildFlutterFlowEnvironmentConfiguration() };
     }
-    return { supabase: await buildSupabaseConfiguration(context) };
+    const supabase = await buildSupabaseConfiguration(context);
+    return {
+        supabase: {
+            ...supabase,
+            destructiveCapabilityReservation: context.destructiveCapabilityReservation,
+        },
+    };
 }
 function inspectToolConfiguration(toolName) {
     const entry = tool_catalog_js_1.toolRegistry[toolName];
@@ -387,9 +495,17 @@ function inspectToolConfiguration(toolName) {
         }
         if (process.env.SUPABASE_ACCOUNTS_JSON?.trim()) {
             buildSupabaseEnvironmentConfiguration();
+            if (['supabase.prepare-child-deletion-reconciliation', 'supabase.delete-child-branch', 'supabase.read-child-deletion-reconciliation'].includes(toolName)
+                && !childDeletionCapabilityKeyring()) {
+                return { configured: false, missing: [CHILD_DELETION_SIGNING_KEYS_ENV] };
+            }
             return { configured: true, missing: [] };
         }
         if (process.env.VERCEL === '1' || process.env.VERCEL_ENV || process.env.VERCEL_OIDC_TOKEN) {
+            if (['supabase.prepare-child-deletion-reconciliation', 'supabase.delete-child-branch', 'supabase.read-child-deletion-reconciliation'].includes(toolName)
+                && !childDeletionCapabilityKeyring()) {
+                return { configured: false, missing: [CHILD_DELETION_SIGNING_KEYS_ENV] };
+            }
             return { configured: true, missing: [] };
         }
         return {

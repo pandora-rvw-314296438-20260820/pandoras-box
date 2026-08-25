@@ -377,6 +377,83 @@ test('an approved plan is claimed and executed once and replay is rejected', asy
   assert.equal(executions, 1);
 });
 
+test('ProjectOS MCP delete execution passes a ledger-backed reservation callback into provider configuration', async () => {
+  const args = {
+    accountId: 'battle-realmatch',
+    parentProjectRef: 'qjarspsifemjubmzsdgy',
+    branchId: '11111111-1111-4111-8111-111111111111',
+    childProjectRef: 'aaaaaaaaaaaaaaaaaaaa',
+    deletionCapability: {
+      schemaVersion: 'supabase-child-deletion-capability-v3',
+      action: 'delete-and-reconcile-child-branch',
+      signingKeyId: '2026-08-24-test-v1',
+      reservationKeyId: 'child-delete-target-v1',
+      accountId: 'battle-realmatch',
+      organizationSlug: 'lqvpjqbgfodmtswxizwf',
+      parentProjectRef: 'qjarspsifemjubmzsdgy',
+      parentStatus: 'ACTIVE_HEALTHY',
+      branchId: '11111111-1111-4111-8111-111111111111',
+      childProjectRef: 'aaaaaaaaaaaaaaaaaaaa',
+      operationNonce: 'cd'.repeat(32),
+      issuedAt: '2026-08-24T12:00:00.000Z',
+      deleteAuthorizationExpiresAt: '2026-08-24T12:10:00.000Z',
+      reconciliationExpiresAt: '2026-08-31T12:00:00.000Z',
+      membershipSnapshotSha256: 'ab'.repeat(32),
+      proof: 'ef'.repeat(32),
+    },
+    confirmation: 'DELETE CHILD BRANCH qjarspsifemjubmzsdgy:11111111-1111-4111-8111-111111111111:aaaaaaaaaaaaaaaaaaaa',
+  };
+  const payloadHash = require('../dist/http-app.js').executionPayloadHash('supabase.delete-child-branch', args);
+  let reservations = 0;
+  let executions = 0;
+  const handler = createProjectOsMcpHandler({
+    organizationId: ORGANIZATION_ID,
+    authenticator: {
+      async authenticate() {
+        return { userId: USER_ID, accessToken: ACCESS_TOKEN, aal: 'aal1', scopes: ALL_SCOPES };
+      },
+    },
+    membershipResolver: {
+      async resolve() { return { organizationId: ORGANIZATION_ID, userId: USER_ID, role: 'owner' }; },
+    },
+    ledger: {
+      async claimPlan() {
+        return {
+          planId: PLAN_ID,
+          requestId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+          intakeId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+          tool: 'supabase.delete-child-branch',
+          risk: 'destructive',
+          args,
+          payloadHash,
+          status: 'executing',
+        };
+      },
+      async reserveCapability() { throw new Error('execution ledger reservation must not be used'); },
+      async finishPlan(_token, input) { return { planId: input.planId, status: input.status }; },
+    },
+    workloadToken: () => 'server-side-vercel-oidc-token-that-is-never-read-from-the-caller',
+    toolConfiguration(_tool, context) { return context; },
+    async execute(tool, receivedArgs, configuration) {
+      executions += 1;
+      assert.equal(tool, 'supabase.delete-child-branch');
+      assert.equal(receivedArgs, args);
+      assert.equal(typeof configuration.destructiveCapabilityReservation, 'function');
+      const intent = await configuration.destructiveCapabilityReservation();
+      reservations += 1;
+      assert.equal(intent.payloadBinding.sourcePlanId, PLAN_ID);
+      assert.equal(intent.payloadBinding.sourcePayloadHash, payloadHash);
+      assert.equal(intent.payloadRedacted.targetDigest, intent.deliveryId);
+      return { reserved: true };
+    },
+  });
+  const response = await invoke(handler, requestFor('projectos_execute_plan', { planId: PLAN_ID }));
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body.result.structuredContent.result, { reserved: true });
+  assert.equal(reservations, 1);
+  assert.equal(executions, 1);
+});
+
 test('identity-only OAuth grant does not let a non-owner execute a plan', async () => {
   let claims = 0;
   const handler = createProjectOsMcpHandler({

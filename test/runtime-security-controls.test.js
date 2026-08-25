@@ -78,6 +78,78 @@ test('durable execution rejects a claimed payload mismatch before provider execu
   });
 });
 
+test('HTTP delete execution exposes only a ledger-proven reservation callback to provider dispatch', async () => {
+  const args = {
+    accountId: 'battle-realmatch',
+    parentProjectRef: 'qjarspsifemjubmzsdgy',
+    branchId: '11111111-1111-4111-8111-111111111111',
+    childProjectRef: 'aaaaaaaaaaaaaaaaaaaa',
+    deletionCapability: {
+      schemaVersion: 'supabase-child-deletion-capability-v3',
+      action: 'delete-and-reconcile-child-branch',
+      signingKeyId: '2026-08-24-test-v1',
+      reservationKeyId: 'child-delete-target-v1',
+      accountId: 'battle-realmatch',
+      organizationSlug: 'lqvpjqbgfodmtswxizwf',
+      parentProjectRef: 'qjarspsifemjubmzsdgy',
+      parentStatus: 'ACTIVE_HEALTHY',
+      branchId: '11111111-1111-4111-8111-111111111111',
+      childProjectRef: 'aaaaaaaaaaaaaaaaaaaa',
+      operationNonce: 'ab'.repeat(32),
+      issuedAt: '2026-08-24T12:00:00.000Z',
+      deleteAuthorizationExpiresAt: '2026-08-24T12:10:00.000Z',
+      reconciliationExpiresAt: '2026-08-31T12:00:00.000Z',
+      membershipSnapshotSha256: 'cd'.repeat(32),
+      proof: 'ef'.repeat(32),
+    },
+    confirmation: 'DELETE CHILD BRANCH qjarspsifemjubmzsdgy:11111111-1111-4111-8111-111111111111:aaaaaaaaaaaaaaaaaaaa',
+  };
+  const payloadHash = executionPayloadHash('supabase.delete-child-branch', args);
+  let reservations = 0;
+  let executions = 0;
+  const ledger = {
+    async claimPlan() {
+      return {
+        planId: PLAN_ID,
+        requestId: REQUEST_ID,
+        intakeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        tool: 'supabase.delete-child-branch',
+        risk: 'destructive',
+        args,
+        payloadHash,
+        status: 'executing',
+      };
+    },
+    async reserveCapability() { throw new Error('execution ledger reservation must not be used'); },
+    async finishPlan(_token, input) {
+      return { planId: input.planId, status: input.status };
+    },
+  };
+  await withServer(runtime(ledger, async (tool, receivedArgs, context) => {
+    executions += 1;
+    assert.equal(tool, 'supabase.delete-child-branch');
+    assert.equal(receivedArgs, args);
+    assert.equal(typeof context.destructiveCapabilityReservation, 'function');
+    const intent = await context.destructiveCapabilityReservation();
+    reservations += 1;
+    assert.equal(intent.payloadBinding.sourcePlanId, PLAN_ID);
+    assert.equal(intent.payloadBinding.sourcePayloadHash, payloadHash);
+    assert.equal(intent.payloadRedacted.targetDigest, intent.deliveryId);
+    return { reserved: true };
+  }), async (origin) => {
+    const response = await fetch(`${origin}/tools/execute`, {
+      method: 'POST',
+      headers: protectedHeaders({ 'x-vercel-oidc-token': 'v'.repeat(80) }),
+      body: JSON.stringify({ planId: PLAN_ID }),
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.deepEqual(body.result, { reserved: true });
+  });
+  assert.equal(reservations, 1);
+  assert.equal(executions, 1);
+});
+
 test('write and destructive operations cannot bypass the separate durable plan action', async () => {
   const ledger = {};
   await withServer(runtime(ledger), async (origin) => {

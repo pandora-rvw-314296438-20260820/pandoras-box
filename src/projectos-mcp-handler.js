@@ -15,6 +15,7 @@ const { classifyToolRisk } = require("./runtime/tool-policy.js");
 const { resolveVercelWorkloadToken } = require("./runtime/vercel-workload-identity.js");
 const { executeTool, getAllTools, toolRegistry } = require("./tools/index.js");
 const { executionPayloadHash } = require("./runtime/execution-payload.js");
+const { createDestructiveCapabilityReservationIntent } = require("./runtime/destructive-capability-reservation.js");
 const { loadOperatorPublicConfig } = require("./operator-public-config.js");
 const {
     canApproveProjectOsPlan,
@@ -536,10 +537,26 @@ async function callTool(name, args, actor, dependencies) {
             if (!toolRegistry[claimed.tool]) throw Object.assign(new Error(`Unknown tool: ${claimed.tool}`), { status: 400 });
             const startedAt = dependencies.now();
             try {
+                let destructiveCapabilityReservationUsed = false;
+                const destructiveCapabilityReservation = claimed.tool === "supabase.delete-child-branch"
+                    ? () => {
+                        if (destructiveCapabilityReservationUsed) {
+                            throw Object.assign(
+                                new Error("Destructive capability reservation intent is one-shot per execution"),
+                                { status: 409 },
+                            );
+                        }
+                        destructiveCapabilityReservationUsed = true;
+                        return createDestructiveCapabilityReservationIntent(claimed);
+                    }
+                    : undefined;
                 const result = await dependencies.execute(
                     claimed.tool,
                     claimed.args,
-                    dependencies.toolConfiguration(claimed.tool, { vercelOidcToken: token }),
+                    dependencies.toolConfiguration(claimed.tool, {
+                        vercelOidcToken: token,
+                        destructiveCapabilityReservation,
+                    }),
                 );
                 await dependencies.ledger.finishPlan(token, {
                     planId: claimed.planId,
