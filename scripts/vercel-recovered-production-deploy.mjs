@@ -39,6 +39,7 @@ const prefixes = [
   "src/",
   "public/",
   "assets/brand/pandoras-box/",
+  "apps/control-tower/",
   "apps/meta-business-mcp/src/",
   "packages/shared-security/src/",
   "supabase/migrations/",
