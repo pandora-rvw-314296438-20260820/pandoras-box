@@ -41,7 +41,8 @@ class BuildProgressScreen extends StatelessWidget {
               title: releaseRequest
                   ? 'Pandora is governing the release request'
                   : 'Pandora is turning intent into working software',
-              subtitle: 'Only verified runtime state is shown. Submission is never presented as completion.',
+              subtitle:
+                  'Only verified runtime state is shown. Submission is never presented as completion.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -157,38 +158,38 @@ class _ProgressStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: PandoraSpacing.md),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          radius: 18,
-          backgroundColor: complete || current
-              ? Theme.of(context).colorScheme.primaryContainer
-              : context.pandoraPalette.subtleSurface,
-          child: complete
-              ? const Icon(Icons.check_rounded, size: 20)
-              : Text('$number'),
-        ),
-        const SizedBox(width: PandoraSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: PandoraSpacing.xxs),
-              Text(
-                detail,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+        padding: const EdgeInsets.only(bottom: PandoraSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: complete || current
+                  ? Theme.of(context).colorScheme.primaryContainer
+                  : context.pandoraPalette.subtleSurface,
+              child: complete
+                  ? const Icon(Icons.check_rounded, size: 20)
+                  : Text('$number'),
+            ),
+            const SizedBox(width: PandoraSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: PandoraSpacing.xxs),
+                  Text(
+                    detail,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class _DetailLine extends StatelessWidget {
@@ -198,19 +199,19 @@ class _DetailLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.xs),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 128,
-          child: Text(label, style: Theme.of(context).textTheme.labelLarge),
+        padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.xs),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 128,
+              child: Text(label, style: Theme.of(context).textTheme.labelLarge),
+            ),
+            const SizedBox(width: PandoraSpacing.sm),
+            Expanded(child: Text(value)),
+          ],
         ),
-        const SizedBox(width: PandoraSpacing.sm),
-        Expanded(child: Text(value)),
-      ],
-    ),
-  );
+      );
 }
 
 enum _PreviewDevice {
@@ -236,93 +237,94 @@ class _FirstPreviewScreenState extends State<FirstPreviewScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: PandoraPage(
-      title: 'First preview',
-      subtitle: 'Review the experience before any launch decision.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SegmentedButton<_PreviewDevice>(
-            segments: [
-              for (final device in _PreviewDevice.values)
-                ButtonSegment<_PreviewDevice>(
-                  value: device,
-                  label: Text(device.label),
-                ),
-            ],
-            selected: {_device},
-            showSelectedIcon: false,
-            onSelectionChanged: (selection) =>
-                setState(() => _device = selection.first),
-          ),
-          const SizedBox(height: PandoraSpacing.md),
-          PandoraSurface(
-            title: '${_device.label} preview',
-            subtitle: 'A responsive booking experience from the approved Pandora master flow.',
-            child: SizedBox(
-              height: 430,
-              child: FittedBox(
-                fit: BoxFit.contain,
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  width: _device.width,
-                  height: 700,
-                  child: const _BookingPreviewCard(interactive: false),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: PandoraSpacing.md),
-          const PandoraSurface(
-            title: 'Included in this preview',
-            child: Column(
-              children: [
-                _FeatureLine('Choose a service', true),
-                _FeatureLine('Choose a date and time', true),
-                _FeatureLine('Choose a location', true),
-                _FeatureLine(
-                  'Responsive mobile, tablet, and desktop layout',
-                  true,
-                ),
-                _FeatureLine(
-                  'Launch status',
-                  false,
-                  detail: 'Not released — owner review comes first',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: PandoraSpacing.md),
-          Row(
+        body: PandoraPage(
+          title: 'First preview',
+          subtitle: 'Review the experience before any launch decision.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _openPreview(
-                    context,
-                    CommandScreen(
-                      initialPrompt:
-                          'Change the booking preview for "${widget.request}". ',
+              SegmentedButton<_PreviewDevice>(
+                segments: [
+                  for (final device in _PreviewDevice.values)
+                    ButtonSegment<_PreviewDevice>(
+                      value: device,
+                      label: Text(device.label),
+                    ),
+                ],
+                selected: {_device},
+                showSelectedIcon: false,
+                onSelectionChanged: (selection) =>
+                    setState(() => _device = selection.first),
+              ),
+              const SizedBox(height: PandoraSpacing.md),
+              PandoraSurface(
+                title: '${_device.label} preview',
+                subtitle:
+                    'A responsive booking experience from the approved Pandora master flow.',
+                child: SizedBox(
+                  height: 430,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(
+                      width: _device.width,
+                      height: 700,
+                      child: const _BookingPreviewCard(interactive: false),
                     ),
                   ),
-                  child: const Text('Needs changes'),
                 ),
               ),
-              const SizedBox(width: PandoraSpacing.sm),
-              Expanded(
-                child: FilledButton(
-                  onPressed: () => _openPreview(
-                    context,
-                    InteractivePreviewScreen(request: widget.request),
-                  ),
-                  child: const Text('Looks great'),
+              const SizedBox(height: PandoraSpacing.md),
+              const PandoraSurface(
+                title: 'Included in this preview',
+                child: Column(
+                  children: [
+                    _FeatureLine('Choose a service', true),
+                    _FeatureLine('Choose a date and time', true),
+                    _FeatureLine('Choose a location', true),
+                    _FeatureLine(
+                      'Responsive mobile, tablet, and desktop layout',
+                      true,
+                    ),
+                    _FeatureLine(
+                      'Launch status',
+                      false,
+                      detail: 'Not released — owner review comes first',
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(height: PandoraSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _openPreview(
+                        context,
+                        CommandScreen(
+                          initialPrompt:
+                              'Change the booking preview for "${widget.request}". ',
+                        ),
+                      ),
+                      child: const Text('Needs changes'),
+                    ),
+                  ),
+                  const SizedBox(width: PandoraSpacing.sm),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => _openPreview(
+                        context,
+                        InteractivePreviewScreen(request: widget.request),
+                      ),
+                      child: const Text('Looks great'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 class _FeatureLine extends StatelessWidget {
@@ -333,15 +335,15 @@ class _FeatureLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-    dense: true,
-    contentPadding: EdgeInsets.zero,
-    leading: Icon(
-      ready ? Icons.check_circle_rounded : Icons.schedule_rounded,
-      color: ready ? context.pandoraPalette.verified : null,
-    ),
-    title: Text(label),
-    subtitle: detail == null ? null : Text(detail!),
-  );
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(
+          ready ? Icons.check_circle_rounded : Icons.schedule_rounded,
+          color: ready ? context.pandoraPalette.verified : null,
+        ),
+        title: Text(label),
+        subtitle: detail == null ? null : Text(detail!),
+      );
 }
 
 class InteractivePreviewScreen extends StatefulWidget {
@@ -424,7 +426,8 @@ class _InteractivePreviewScreenState extends State<InteractivePreviewScreen> {
   Future<void> _continueToRelease() async {
     if (_date == null || _time == null) {
       setState(() {
-        _error = 'Choose a date and time in the interactive preview before continuing.';
+        _error =
+            'Choose a date and time in the interactive preview before continuing.';
       });
       return;
     }
@@ -435,9 +438,9 @@ class _InteractivePreviewScreenState extends State<InteractivePreviewScreen> {
     _submissionKey ??= _keys.create('preview-release');
     try {
       final receipt = await PandoraDependencies.of(context).repository.ask(
-        message: _releaseIntent(context),
-        idempotencyKey: _submissionKey,
-      );
+            message: _releaseIntent(context),
+            idempotencyKey: _submissionKey,
+          );
       if (!mounted) return;
       setState(() {
         _submissionKey = null;
@@ -465,7 +468,8 @@ class _InteractivePreviewScreenState extends State<InteractivePreviewScreen> {
       if (!mounted) return;
       setState(() {
         _outcomeUnknown = true;
-        _error = 'Pandora could not confirm the release request. It will not retry the write. Check Activity first.';
+        _error =
+            'Pandora could not confirm the release request. It will not retry the write. Check Activity first.';
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -474,108 +478,112 @@ class _InteractivePreviewScreenState extends State<InteractivePreviewScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: PandoraPage(
-      title: 'Interactive preview',
-      subtitle:
-          'Use the booking flow exactly as a customer would before release.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _BookingPreviewCard(
-            interactive: true,
-            service: _service,
-            location: _location,
-            date: _date,
-            time: _time,
-            onServiceChanged: (value) => setState(() => _service = value),
-            onLocationChanged: (value) => setState(() => _location = value),
-            onChooseDate: _chooseDate,
-            onChooseTime: _chooseTime,
-          ),
-          const SizedBox(height: PandoraSpacing.md),
-          const PandoraSurface(
-            title: 'Feature verification',
-            child: Column(
-              children: [
-                _FeatureLine('Service selection works', true),
-                _FeatureLine('Date selection works', true),
-                _FeatureLine('Time selection works', true),
-                _FeatureLine('Location selection works', true),
-                _FeatureLine(
-                  'Protected release still requires governance',
-                  true,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: PandoraSpacing.md),
-          PandoraSurface(
-            title: 'Feedback',
-            subtitle: 'Write or dictate changes. Feedback is included in the governed release request.',
-            child: Column(
-              children: [
-                TextField(
-                  controller: _feedback,
-                  focusNode: _feedbackFocus,
-                  minLines: 3,
-                  maxLines: 7,
-                  maxLength: 2000,
-                  decoration: const InputDecoration(
-                    hintText: 'Anything Pandora should adjust before release?',
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: _outcomeUnknown || _submitting
-                        ? null
-                        : _dictateFeedback,
-                    icon: const Icon(Icons.mic_none_rounded),
-                    label: const Text('Voice feedback'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: PandoraSpacing.sm),
-            Container(
-              padding: const EdgeInsets.all(PandoraSpacing.md),
-              decoration: BoxDecoration(
-                color: context.pandoraPalette.subtleSurface,
-                borderRadius: PandoraRadius.controlBorder,
-                border: Border.all(color: context.pandoraPalette.outlineSoft),
+        body: PandoraPage(
+          title: 'Interactive preview',
+          subtitle:
+              'Use the booking flow exactly as a customer would before release.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _BookingPreviewCard(
+                interactive: true,
+                service: _service,
+                location: _location,
+                date: _date,
+                time: _time,
+                onServiceChanged: (value) => setState(() => _service = value),
+                onLocationChanged: (value) => setState(() => _location = value),
+                onChooseDate: _chooseDate,
+                onChooseTime: _chooseTime,
               ),
-              child: Text(_error!),
-            ),
-          ],
-          const SizedBox(height: PandoraSpacing.md),
-          FilledButton.icon(
-            onPressed: _outcomeUnknown || _submitting
-                ? null
-                : _continueToRelease,
-            icon: _submitting
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.rocket_launch_outlined),
-            label: Text(
-              _submitting ? 'Sending release request…' : 'Continue to release',
-            ),
+              const SizedBox(height: PandoraSpacing.md),
+              const PandoraSurface(
+                title: 'Feature verification',
+                child: Column(
+                  children: [
+                    _FeatureLine('Service selection works', true),
+                    _FeatureLine('Date selection works', true),
+                    _FeatureLine('Time selection works', true),
+                    _FeatureLine('Location selection works', true),
+                    _FeatureLine(
+                      'Protected release still requires governance',
+                      true,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: PandoraSpacing.md),
+              PandoraSurface(
+                title: 'Feedback',
+                subtitle:
+                    'Write or dictate changes. Feedback is included in the governed release request.',
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _feedback,
+                      focusNode: _feedbackFocus,
+                      minLines: 3,
+                      maxLines: 7,
+                      maxLength: 2000,
+                      decoration: const InputDecoration(
+                        hintText:
+                            'Anything Pandora should adjust before release?',
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _outcomeUnknown || _submitting
+                            ? null
+                            : _dictateFeedback,
+                        icon: const Icon(Icons.mic_none_rounded),
+                        label: const Text('Voice feedback'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: PandoraSpacing.sm),
+                Container(
+                  padding: const EdgeInsets.all(PandoraSpacing.md),
+                  decoration: BoxDecoration(
+                    color: context.pandoraPalette.subtleSurface,
+                    borderRadius: PandoraRadius.controlBorder,
+                    border:
+                        Border.all(color: context.pandoraPalette.outlineSoft),
+                  ),
+                  child: Text(_error!),
+                ),
+              ],
+              const SizedBox(height: PandoraSpacing.md),
+              FilledButton.icon(
+                onPressed:
+                    _outcomeUnknown || _submitting ? null : _continueToRelease,
+                icon: _submitting
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.rocket_launch_outlined),
+                label: Text(
+                  _submitting
+                      ? 'Sending release request…'
+                      : 'Continue to release',
+                ),
+              ),
+              const SizedBox(height: PandoraSpacing.xs),
+              Text(
+                'This sends a governed release request. It does not directly deploy or bypass Needs You.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
           ),
-          const SizedBox(height: PandoraSpacing.xs),
-          Text(
-            'This sends a governed release request. It does not directly deploy or bypass Needs You.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 class _BookingPreviewCard extends StatelessWidget {
@@ -694,8 +702,8 @@ class _BookingPreviewCard extends StatelessWidget {
             'No payment is taken in this preview.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           ),
         ],
       ),
@@ -715,26 +723,26 @@ class _PreviewField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(PandoraSpacing.md),
-    decoration: BoxDecoration(
-      color: context.pandoraPalette.subtleSurface,
-      borderRadius: PandoraRadius.controlBorder,
-      border: Border.all(color: context.pandoraPalette.outlineSoft),
-    ),
-    child: Row(
-      children: [
-        Icon(icon),
-        const SizedBox(width: PandoraSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.bodySmall),
-              Text(value, style: Theme.of(context).textTheme.titleMedium),
-            ],
-          ),
+        padding: const EdgeInsets.all(PandoraSpacing.md),
+        decoration: BoxDecoration(
+          color: context.pandoraPalette.subtleSurface,
+          borderRadius: PandoraRadius.controlBorder,
+          border: Border.all(color: context.pandoraPalette.outlineSoft),
         ),
-      ],
-    ),
-  );
+        child: Row(
+          children: [
+            Icon(icon),
+            const SizedBox(width: PandoraSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: Theme.of(context).textTheme.bodySmall),
+                  Text(value, style: Theme.of(context).textTheme.titleMedium),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
 }

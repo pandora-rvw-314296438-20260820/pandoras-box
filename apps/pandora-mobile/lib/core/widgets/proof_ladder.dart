@@ -58,20 +58,20 @@ class _ProofStep extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final (background, foreground, icon) = switch (state) {
       EvidenceClaimState.verified => (
-        palette.verified,
-        palette.onVerified,
-        Icons.check_rounded,
-      ),
+          palette.verified,
+          palette.onVerified,
+          Icons.check_rounded,
+        ),
       EvidenceClaimState.failed => (
-        palette.critical,
-        palette.onCritical,
-        Icons.close_rounded,
-      ),
+          palette.critical,
+          palette.onCritical,
+          Icons.close_rounded,
+        ),
       EvidenceClaimState.notChecked => (
-        palette.subtleSurface,
-        scheme.onSurfaceVariant,
-        Icons.circle_outlined,
-      ),
+          palette.subtleSurface,
+          scheme.onSurfaceVariant,
+          Icons.circle_outlined,
+        ),
     };
     return Container(
       padding: EdgeInsets.symmetric(
@@ -93,7 +93,9 @@ class _ProofStep extends StatelessWidget {
               stage.label,
               maxLines: compact ? 1 : 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
                   ?.copyWith(color: foreground, fontWeight: FontWeight.w600),
             ),
           ),

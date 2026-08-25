@@ -11,13 +11,13 @@ enum OwnerProjectState {
 
 extension OwnerProjectStateLabel on OwnerProjectState {
   String get label => switch (this) {
-    OwnerProjectState.ownerActionRequired => 'Owner action required',
-    OwnerProjectState.blocked => 'Blocked',
-    OwnerProjectState.executing => 'Working now',
-    OwnerProjectState.monitoring => 'Monitoring',
-    OwnerProjectState.idle => 'Idle',
-    OwnerProjectState.archived => 'Archived',
-  };
+        OwnerProjectState.ownerActionRequired => 'Owner action required',
+        OwnerProjectState.blocked => 'Blocked',
+        OwnerProjectState.executing => 'Working now',
+        OwnerProjectState.monitoring => 'Monitoring',
+        OwnerProjectState.idle => 'Idle',
+        OwnerProjectState.archived => 'Archived',
+      };
 }
 
 enum ProviderTruthState {
@@ -31,13 +31,13 @@ enum ProviderTruthState {
 
 extension ProviderTruthStateLabel on ProviderTruthState {
   String get label => switch (this) {
-    ProviderTruthState.healthy => 'Healthy',
-    ProviderTruthState.degraded => 'Degraded',
-    ProviderTruthState.down => 'Down',
-    ProviderTruthState.stale => 'Stale',
-    ProviderTruthState.unknown => 'Unknown',
-    ProviderTruthState.notConfigured => 'Not configured',
-  };
+        ProviderTruthState.healthy => 'Healthy',
+        ProviderTruthState.degraded => 'Degraded',
+        ProviderTruthState.down => 'Down',
+        ProviderTruthState.stale => 'Stale',
+        ProviderTruthState.unknown => 'Unknown',
+        ProviderTruthState.notConfigured => 'Not configured',
+      };
 }
 
 List<ConnectionSummary> deduplicateConnections(
@@ -55,9 +55,8 @@ List<ConnectionSummary> deduplicateConnections(
   }
   final result = unique.values.toList(growable: true)
     ..sort(
-      (left, right) =>
-          connectionAttentionRank(right)
-              .compareTo(connectionAttentionRank(left)),
+      (left, right) => connectionAttentionRank(right)
+          .compareTo(connectionAttentionRank(left)),
     );
   return List<ConnectionSummary>.unmodifiable(result);
 }

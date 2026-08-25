@@ -35,16 +35,16 @@ class _PandoraShellState extends State<PandoraShell> {
   }
 
   Widget _page(int index) => _pages.putIfAbsent(
-    index,
-    () => switch (index) {
-      0 => const SimpleHomeScreen(),
-      1 => const SystemsScreen(),
-      2 => const AskPandoraScreen(),
-      3 => const ApprovalsScreen(),
-      4 => const MoreScreen(),
-      _ => const SimpleHomeScreen(),
-    },
-  );
+        index,
+        () => switch (index) {
+          0 => const SimpleHomeScreen(),
+          1 => const SystemsScreen(),
+          2 => const AskPandoraScreen(),
+          3 => const ApprovalsScreen(),
+          4 => const MoreScreen(),
+          _ => const SimpleHomeScreen(),
+        },
+      );
 
   void _select(int value) {
     if (value == _index) return;

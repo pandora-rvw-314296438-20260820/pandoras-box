@@ -7,8 +7,8 @@ class DiagnosticsStore implements DiagnosticsSink {
   DiagnosticsStore({
     int capacity = 100,
     DiagnosticsSanitizer sanitizer = const DiagnosticsSanitizer(),
-  }) : capacity = capacity.clamp(1, 500).toInt(),
-       _sanitizer = sanitizer;
+  })  : capacity = capacity.clamp(1, 500).toInt(),
+        _sanitizer = sanitizer;
 
   final int capacity;
   final DiagnosticsSanitizer _sanitizer;

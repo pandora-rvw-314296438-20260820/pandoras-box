@@ -55,89 +55,90 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraPage(
-    title: 'Pandora',
-    subtitle: 'Intent to trusted working result.',
-    showProductMark: true,
-    actions: [
-      IconButton(
-        tooltip: 'Open Settings',
-        onPressed: () => _open(const SettingsScreen()),
-        icon: const Icon(Icons.settings_outlined),
-      ),
-    ],
-    onRefresh: () => _controller!.refresh(),
-    child: AnimatedBuilder(
-      animation: _controller!,
-      builder: (context, _) {
-        final controller = _controller!;
-        if (controller.isLoading && controller.data == null) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _AskPandoraCard(controller: _intent, onSubmit: _askPandora),
-              const SizedBox(height: PandoraSpacing.md),
-              const ContentSkeleton(lines: 5),
-            ],
-          );
-        }
-        if (controller.error != null && controller.data == null) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _AskPandoraCard(controller: _intent, onSubmit: _askPandora),
-              const SizedBox(height: PandoraSpacing.md),
-              ErrorContent(
-                title: 'Owner briefing could not refresh',
-                message: _safeError(controller.error),
-                onRetry: controller.load,
-              ),
-            ],
-          );
-        }
-        final summary = controller.data;
-        if (summary == null) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _AskPandoraCard(controller: _intent, onSubmit: _askPandora),
-              const SizedBox(height: PandoraSpacing.md),
-              EmptyContent(
-                title: 'No verified owner briefing yet',
-                message: 'Ask Pandora now, or check the portfolio when verified state returns.',
-                onAction: controller.load,
-                actionLabel: 'Check owner state',
-              ),
-            ],
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _AskPandoraCard(controller: _intent, onSubmit: _askPandora),
-            const SizedBox(height: PandoraSpacing.md),
-            if (controller.error != null) ...[
-              DegradedContentNotice(
-                message:
-                    'Showing the previous usable owner view. ${controller.error!.message}',
-                onRetry: controller.refresh,
-              ),
-              const SizedBox(height: PandoraSpacing.md),
-            ],
-            _HomeContent(
-              summary: summary,
-              refreshing: controller.isLoading,
-              onOpenApprovals: () => _open(const ApprovalsScreen()),
-              onOpenProjects: () => _open(const ProjectsScreen()),
-              onOpenProject: (project) =>
-                  _open(ProjectDetailScreen(project: project)),
-              onAskRecommended: (objective) =>
-                  _open(CommandScreen(initialPrompt: objective)),
-            ),
-          ],
-        );
-      },
-    ),
-  );
+        title: 'Pandora',
+        subtitle: 'Intent to trusted working result.',
+        showProductMark: true,
+        actions: [
+          IconButton(
+            tooltip: 'Open Settings',
+            onPressed: () => _open(const SettingsScreen()),
+            icon: const Icon(Icons.settings_outlined),
+          ),
+        ],
+        onRefresh: () => _controller!.refresh(),
+        child: AnimatedBuilder(
+          animation: _controller!,
+          builder: (context, _) {
+            final controller = _controller!;
+            if (controller.isLoading && controller.data == null) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _AskPandoraCard(controller: _intent, onSubmit: _askPandora),
+                  const SizedBox(height: PandoraSpacing.md),
+                  const ContentSkeleton(lines: 5),
+                ],
+              );
+            }
+            if (controller.error != null && controller.data == null) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _AskPandoraCard(controller: _intent, onSubmit: _askPandora),
+                  const SizedBox(height: PandoraSpacing.md),
+                  ErrorContent(
+                    title: 'Owner briefing could not refresh',
+                    message: _safeError(controller.error),
+                    onRetry: controller.load,
+                  ),
+                ],
+              );
+            }
+            final summary = controller.data;
+            if (summary == null) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _AskPandoraCard(controller: _intent, onSubmit: _askPandora),
+                  const SizedBox(height: PandoraSpacing.md),
+                  EmptyContent(
+                    title: 'No verified owner briefing yet',
+                    message:
+                        'Ask Pandora now, or check the portfolio when verified state returns.',
+                    onAction: controller.load,
+                    actionLabel: 'Check owner state',
+                  ),
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _AskPandoraCard(controller: _intent, onSubmit: _askPandora),
+                const SizedBox(height: PandoraSpacing.md),
+                if (controller.error != null) ...[
+                  DegradedContentNotice(
+                    message:
+                        'Showing the previous usable owner view. ${controller.error!.message}',
+                    onRetry: controller.refresh,
+                  ),
+                  const SizedBox(height: PandoraSpacing.md),
+                ],
+                _HomeContent(
+                  summary: summary,
+                  refreshing: controller.isLoading,
+                  onOpenApprovals: () => _open(const ApprovalsScreen()),
+                  onOpenProjects: () => _open(const ProjectsScreen()),
+                  onOpenProject: (project) =>
+                      _open(ProjectDetailScreen(project: project)),
+                  onAskRecommended: (objective) =>
+                      _open(CommandScreen(initialPrompt: objective)),
+                ),
+              ],
+            );
+          },
+        ),
+      );
 }
 
 class _AskPandoraCard extends StatelessWidget {
@@ -148,36 +149,37 @@ class _AskPandoraCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSurface(
-    title: 'Ask Pandora',
-    subtitle: 'What should Pandora accomplish?',
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          controller: controller,
-          minLines: 2,
-          maxLines: 5,
-          textCapitalization: TextCapitalization.sentences,
-          onSubmitted: (_) => onSubmit(),
-          decoration: const InputDecoration(
-            hintText: 'Build a booking system, repair checkout, create an Android release…',
-          ),
+        title: 'Ask Pandora',
+        subtitle: 'What should Pandora accomplish?',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: controller,
+              minLines: 2,
+              maxLines: 5,
+              textCapitalization: TextCapitalization.sentences,
+              onSubmitted: (_) => onSubmit(),
+              decoration: const InputDecoration(
+                hintText:
+                    'Build a booking system, repair checkout, create an Android release…',
+              ),
+            ),
+            const SizedBox(height: PandoraSpacing.sm),
+            FilledButton.icon(
+              onPressed: onSubmit,
+              icon: const Icon(Icons.auto_awesome_rounded),
+              label: const Text('Describe the outcome'),
+            ),
+            const SizedBox(height: PandoraSpacing.xs),
+            Text(
+              'Build Credits: not estimated · Runtime Credits: not estimated until Pandora understands the plan.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+          ],
         ),
-        const SizedBox(height: PandoraSpacing.sm),
-        FilledButton.icon(
-          onPressed: onSubmit,
-          icon: const Icon(Icons.auto_awesome_rounded),
-          label: const Text('Describe the outcome'),
-        ),
-        const SizedBox(height: PandoraSpacing.xs),
-        Text(
-          'Build Credits: not estimated · Runtime Credits: not estimated until Pandora understands the plan.',
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-      ],
-    ),
-  );
+      );
 }
 
 class _HomeContent extends StatelessWidget {
@@ -200,12 +202,12 @@ class _HomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final needsDecision = summary.countersVerified && summary.approvalCount > 0;
-    final meaningfulPriority = isMeaningfulOwnerPriority(summary.priority)
-        ? summary.priority
-        : null;
-    final projects =
-        summary.topProjects.where(isOwnerVisibleProject).toList(growable: true)
-          ..sort(_compareProjectAttention);
+    final meaningfulPriority =
+        isMeaningfulOwnerPriority(summary.priority) ? summary.priority : null;
+    final projects = summary.topProjects
+        .where(isOwnerVisibleProject)
+        .toList(growable: true)
+      ..sort(_compareProjectAttention);
     final working = _firstExecutingProject(projects);
     final recommendation = _recommendedNextAction(
       summary,
@@ -220,17 +222,18 @@ class _HomeContent extends StatelessWidget {
           eyebrow: needsDecision ? 'Needs you' : 'Owner briefing',
           title: needsDecision
               ? meaningfulPriority?.action ??
-                    '${summary.approvalCount} owner decision${summary.approvalCount == 1 ? '' : 's'} waiting'
+                  '${summary.approvalCount} owner decision${summary.approvalCount == 1 ? '' : 's'} waiting'
               : !summary.countersVerified
-              ? 'Owner decision state is not verified'
-              : 'Nothing currently requires your decision',
+                  ? 'Owner decision state is not verified'
+                  : 'Nothing currently requires your decision',
           message: needsDecision
-              ? meaningfulPriority?.reason ?? 'Pandora has protected work that cannot continue without an owner decision.'
+              ? meaningfulPriority?.reason ??
+                  'Pandora has protected work that cannot continue without an owner decision.'
               : !summary.countersVerified
-              ? 'Pandora cannot verify whether an owner decision is waiting. The last usable screen remains visible without claiming zero or no action.'
-              : working == null
-              ? 'No verified execution is running. Pandora will not imply active work without evidence.'
-              : 'Pandora has verified work in motion and will surface only decisions that require you.',
+                  ? 'Pandora cannot verify whether an owner decision is waiting. The last usable screen remains visible without claiming zero or no action.'
+                  : working == null
+                      ? 'No verified execution is running. Pandora will not imply active work without evidence.'
+                      : 'Pandora has verified work in motion and will surface only decisions that require you.',
           icon: needsDecision
               ? Icons.priority_high_rounded
               : Icons.auto_awesome_rounded,
@@ -259,24 +262,22 @@ class _HomeContent extends StatelessWidget {
           metrics: [
             OwnerMetric(
               label: 'Needs you',
-              value: summary.countersVerified
-                  ? '${summary.approvalCount}'
-                  : '—',
+              value:
+                  summary.countersVerified ? '${summary.approvalCount}' : '—',
               icon: Icons.approval_outlined,
               tone: needsDecision
                   ? PandoraStatusTone.attention
                   : PandoraStatusTone.neutral,
-              semanticLabel: summary.countersVerified
-                  ? null
-                  : 'Needs you: not verified',
+              semanticLabel:
+                  summary.countersVerified ? null : 'Needs you: not verified',
             ),
             OwnerMetric(
               label: 'Working now',
               value: working != null
                   ? '1+'
                   : summary.countersVerified
-                  ? '0'
-                  : '—',
+                      ? '0'
+                      : '—',
               icon: Icons.play_circle_outline_rounded,
               tone: working == null
                   ? PandoraStatusTone.neutral
@@ -323,7 +324,8 @@ class _HomeContent extends StatelessWidget {
         const SizedBox(height: PandoraSpacing.xl),
         OwnerSectionHeading(
           title: 'Recommended next',
-          subtitle: 'One highest-value safe action. Scope and proof are confirmed before execution.',
+          subtitle:
+              'One highest-value safe action. Scope and proof are confirmed before execution.',
           trailing: FilledButton.tonal(
             onPressed: () => onAskRecommended(recommendation),
             child: const Text('Prepare this action'),
@@ -341,7 +343,8 @@ class _HomeContent extends StatelessWidget {
         const SizedBox(height: PandoraSpacing.xs),
         const OwnerSignal(
           label: 'Cost and risk',
-          value: 'Build Credits and Runtime Credits are not estimated until the action is resolved. Protected or irreversible work still requires its proof gate.',
+          value:
+              'Build Credits and Runtime Credits are not estimated until the action is resolved. Protected or irreversible work still requires its proof gate.',
           icon: Icons.payments_outlined,
         ),
         const SizedBox(height: PandoraSpacing.xl),
@@ -374,7 +377,8 @@ class _HomeContent extends StatelessWidget {
         const SizedBox(height: PandoraSpacing.xl),
         const OwnerSectionHeading(
           title: 'Recent results',
-          subtitle: 'Working outcomes and owner-relevant changes, with technical evidence available deeper in the app.',
+          subtitle:
+              'Working outcomes and owner-relevant changes, with technical evidence available deeper in the app.',
         ),
         const SizedBox(height: PandoraSpacing.sm),
         PandoraSurface(
@@ -382,11 +386,9 @@ class _HomeContent extends StatelessWidget {
               ? const Text('No recent verified result was returned.')
               : Column(
                   children: [
-                    for (
-                      var index = 0;
-                      index < summary.recentActivity.length;
-                      index++
-                    ) ...[
+                    for (var index = 0;
+                        index < summary.recentActivity.length;
+                        index++) ...[
                       _ActivityBrief(event: summary.recentActivity[index]),
                       if (index != summary.recentActivity.length - 1)
                         const Divider(),
@@ -431,8 +433,7 @@ class _ProjectBrief extends StatelessWidget {
                   ),
                   StatusBadge(
                     label: compactProofSummary(project),
-                    tone:
-                        project.evidenceState(
+                    tone: project.evidenceState(
                               EvidenceStage.productionVerified,
                             ) ==
                             EvidenceClaimState.verified
@@ -482,43 +483,43 @@ class _ActivityBrief extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.xs),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(providerIconFor(event.provider ?? event.type), size: 20),
-        const SizedBox(width: PandoraSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(event.summary),
-              const SizedBox(height: PandoraSpacing.xxs),
-              Text(
-                [
+        padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.xs),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(providerIconFor(event.provider ?? event.type), size: 20),
+            const SizedBox(width: PandoraSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(event.summary),
+                  const SizedBox(height: PandoraSpacing.xxs),
+                  Text(
+                    [
                       event.project,
                       event.provider,
                       ownerRelativeTime(event.happenedAt),
                     ]
-                    .whereType<String>()
-                    .where((item) => item.isNotEmpty)
-                    .join(' · '),
-                style: Theme.of(context).textTheme.bodySmall,
+                        .whereType<String>()
+                        .where((item) => item.isNotEmpty)
+                        .join(' · '),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (event.result != null) ...[
+                    const SizedBox(height: PandoraSpacing.xs),
+                    StatusBadge(
+                      label: event.result!,
+                      tone: statusToneFor(event.result!),
+                      compact: true,
+                    ),
+                  ],
+                ],
               ),
-              if (event.result != null) ...[
-                const SizedBox(height: PandoraSpacing.xs),
-                StatusBadge(
-                  label: event.result!,
-                  tone: statusToneFor(event.result!),
-                  compact: true,
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 ProjectSummary? _firstExecutingProject(List<ProjectSummary> projects) {

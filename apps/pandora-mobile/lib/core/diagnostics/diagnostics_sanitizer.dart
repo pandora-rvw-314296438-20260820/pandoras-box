@@ -4,16 +4,14 @@ class DiagnosticsSanitizer {
     int maxMapEntries = 50,
     int maxListItems = 20,
     int maxStringLength = 512,
-  }) : maxDepth = maxDepth < 1 ? 1 : (maxDepth > 10 ? 10 : maxDepth),
-       maxMapEntries = maxMapEntries < 1
-           ? 1
-           : (maxMapEntries > 100 ? 100 : maxMapEntries),
-       maxListItems = maxListItems < 1
-           ? 1
-           : (maxListItems > 100 ? 100 : maxListItems),
-       maxStringLength = maxStringLength < 32
-           ? 32
-           : (maxStringLength > 4096 ? 4096 : maxStringLength);
+  })  : maxDepth = maxDepth < 1 ? 1 : (maxDepth > 10 ? 10 : maxDepth),
+        maxMapEntries =
+            maxMapEntries < 1 ? 1 : (maxMapEntries > 100 ? 100 : maxMapEntries),
+        maxListItems =
+            maxListItems < 1 ? 1 : (maxListItems > 100 ? 100 : maxListItems),
+        maxStringLength = maxStringLength < 32
+            ? 32
+            : (maxStringLength > 4096 ? 4096 : maxStringLength);
 
   static const redacted = '[REDACTED]';
   static const truncated = '[TRUNCATED]';

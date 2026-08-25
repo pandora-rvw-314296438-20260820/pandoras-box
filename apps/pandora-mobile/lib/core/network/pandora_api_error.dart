@@ -28,9 +28,11 @@ class PandoraApiError implements Exception {
   bool get outcomeMayBeUnknown => kind == PandoraApiErrorKind.ambiguousMutation;
 
   bool get retryable => switch (kind) {
-    PandoraApiErrorKind.rateLimited || PandoraApiErrorKind.unavailable => true,
-    _ => false,
-  };
+        PandoraApiErrorKind.rateLimited ||
+        PandoraApiErrorKind.unavailable =>
+          true,
+        _ => false,
+      };
 
   @override
   String toString() => message;
