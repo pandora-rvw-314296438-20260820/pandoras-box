@@ -158,6 +158,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260826040000_phase9_controlled_public_mvp.sql',
     '20260826050000_phase10_operating_cohort.sql',
     '20260826060000_phase11_city_scale_cohort.sql',
+    '20260826070000_phase12_regional_scale_cohort.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -182,6 +183,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260826040000_phase9_controlled_public_mvp.sql',
     '20260826050000_phase10_operating_cohort.sql',
     '20260826060000_phase11_city_scale_cohort.sql',
+    '20260826070000_phase12_regional_scale_cohort.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(

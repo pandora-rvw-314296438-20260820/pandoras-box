@@ -7,12 +7,12 @@
     "postgres_server_version_num": "180003"
   },
   "provider_equivalence": false,
-  "migration_count": 78,
-  "chain_sha256": "dd75ac5dd8277c9f9e070c21b0798fbf69d62f9adf70912422c33acac8a8146c",
+  "migration_count": 79,
+  "chain_sha256": "b0af0b96774c60d780afee00dd1c3a7c2a6f80086992979dc5fc0680734f0365",
   "identity_reconciliation": {
     "live_identity_count": 59,
     "source_live_identity_coverage": 59,
-    "source_only_forward_count": 19,
+    "source_only_forward_count": 20,
     "provider_history_rewritten": false,
     "sensitive_live_only_bodies_republished": false,
     "aal1_provider_version": "20260813014555",
