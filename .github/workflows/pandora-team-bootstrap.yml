@@ -92,41 +92,44 @@ jobs:
               path.write_text(source.replace(old, new, 1))
 
           api = Path('apps/pandora-mobile/lib/features/team/pandora_user_admin_api.dart')
-          replace_once(
-              api,
-              """  if (error.status == 401) return 'Sign in again to manage your team.';
-  if (error.status == 403) return 'You do not have permission to manage this team.';
-  if (error.status == 429) return 'Too many requests. Try again shortly.';""",
-              """  if (error.status == 401) {
-    return 'Sign in again to manage your team.';
-  }
-  if (error.status == 403) {
-    return 'You do not have permission to manage this team.';
-  }
-  if (error.status == 429) {
-    return 'Too many requests. Try again shortly.';
-  }""",
-          )
+          old_api = '\n'.join([
+              "  if (error.status == 401) return 'Sign in again to manage your team.';",
+              "  if (error.status == 403) return 'You do not have permission to manage this team.';",
+              "  if (error.status == 429) return 'Too many requests. Try again shortly.';",
+          ])
+          new_api = '\n'.join([
+              "  if (error.status == 401) {",
+              "    return 'Sign in again to manage your team.';",
+              "  }",
+              "  if (error.status == 403) {",
+              "    return 'You do not have permission to manage this team.';",
+              "  }",
+              "  if (error.status == 429) {",
+              "    return 'Too many requests. Try again shortly.';",
+              "  }",
+          ])
+          replace_once(api, old_api, new_api)
 
           screen = Path('apps/pandora-mobile/lib/features/team/team_screen.dart')
-          replace_once(
-              screen,
-              "      if (mounted) setState(() => _inviting = false);",
-              """      if (mounted) {
-        setState(() => _inviting = false);
-      }""",
-          )
+          old_screen = "      if (mounted) setState(() => _inviting = false);"
+          new_screen = '\n'.join([
+              "      if (mounted) {",
+              "        setState(() => _inviting = false);",
+              "      }",
+          ])
+          replace_once(screen, old_screen, new_screen)
 
           widget_test = Path('apps/pandora-mobile/test/features/team/team_screen_test.dart')
-          replace_once(
-              widget_test,
-              """import 'package:pandora_mobile/features/team/pandora_user_admin_api.dart';
-import 'package:pandora_mobile/features/simple/more_screen.dart';""",
-              """import 'package:pandora_mobile/features/simple/more_screen.dart';
-import 'package:pandora_mobile/features/team/pandora_user_admin_api.dart';""",
-          )
+          old_imports = '\n'.join([
+              "import 'package:pandora_mobile/features/team/pandora_user_admin_api.dart';",
+              "import 'package:pandora_mobile/features/simple/more_screen.dart';",
+          ])
+          new_imports = '\n'.join([
+              "import 'package:pandora_mobile/features/simple/more_screen.dart';",
+              "import 'package:pandora_mobile/features/team/pandora_user_admin_api.dart';",
+          ])
+          replace_once(widget_test, old_imports, new_imports)
           PY
-
       - name: Resolve exact mobile dependencies before canonical formatting
         working-directory: apps/pandora-mobile
         shell: bash
