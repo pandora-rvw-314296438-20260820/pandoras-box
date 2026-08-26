@@ -1,5 +1,5 @@
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-const { icons, state, esc, cleanName } = window.PandorasOwnerData;
+const { icons, state, esc, cleanName, BRAND_MARK } = window.PandorasOwnerData;
 const { badge, statusSummary, pendingPlans } = window.PandorasOwnerRuntime;
 
 function connectionRows() {
@@ -38,12 +38,38 @@ function renderMore() {
 }
 
 function nav() {
-  const items = [
-    ['home', 'Home', icons.home], ['projects', 'Projects', icons.projects],
-    ['approvals', 'Approvals', icons.approvals], ['activity', 'Activity', icons.activity], ['more', 'More', icons.more],
-  ];
-  const approvalCount = state.live ? pendingPlans().length : 0;
-  return `<nav class="owner-bottom-nav" aria-label="Primary navigation">${items.map(([route, label, icon]) => `<button type="button" data-route="${route}" class="${state.route === route ? 'active' : ''}" aria-current="${state.route === route ? 'page' : 'false'}"><span class="owner-nav-icon">${icon}${route === 'approvals' && approvalCount ? `<b>${approvalCount > 99 ? '99+' : approvalCount}</b>` : ''}</span><span>${label}</span></button>`).join('')}</nav>`;
+  const isHomeActive = state.route === 'home' && state.wizardStep === 0;
+  const isSystemsActive = state.route === 'projects';
+  const isNeedsYouActive = state.route === 'approvals';
+  const isMoreActive = state.route === 'more';
+  
+  return `<nav class="owner-bottom-nav" aria-label="Primary navigation">
+    <button type="button" data-route="home" data-action="reset-wizard" class="${isHomeActive ? 'active' : ''}">
+      <span class="owner-nav-icon">${icons.home}</span>
+      <span>Home</span>
+    </button>
+    <button type="button" data-route="projects" class="${isSystemsActive ? 'active' : ''}">
+      <span class="owner-nav-icon">${icons.projects}</span>
+      <span>Systems</span>
+    </button>
+    <button type="button" class="owner-central-ask-btn" data-action="open-ask-pandora" aria-label="Ask Pandora">
+      <div class="owner-central-circle">
+        <img src="${BRAND_MARK}" alt="Ask Pandora" />
+      </div>
+      <span>Ask Pandora</span>
+    </button>
+    <button type="button" data-route="approvals" class="${isNeedsYouActive ? 'active' : ''}">
+      <span class="owner-nav-icon">
+        ${icons.bell}
+        <b class="owner-nav-badge">2</b>
+      </span>
+      <span>Needs You</span>
+    </button>
+    <button type="button" data-route="more" class="${isMoreActive ? 'active' : ''}">
+      <span class="owner-nav-icon">${icons.more}</span>
+      <span>More</span>
+    </button>
+  </nav>`;
 }
 
 window.PandorasOwnerScreenMore = Object.freeze({ connectionRows, renderMore, nav });

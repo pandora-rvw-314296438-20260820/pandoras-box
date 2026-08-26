@@ -1,5 +1,5 @@
 const {
-  BRAND_MARK, API_BASE, ROUTES, icons, state, app, rerender, esc, routeFromLocation, normalizeStatus, isComplete, isActive, isBlocked, cleanName, projectName, projectInitials, formatPhase, timeAgo, formatExpiry, formatTool, projectForPlan, projectForEvent, eventMessage, eventKind, deriveProjects, readiness
+  BRAND_MARK, USER_AVATAR, API_BASE, ROUTES, icons, state, app, rerender, esc, routeFromLocation, normalizeStatus, isComplete, isActive, isBlocked, cleanName, projectName, projectInitials, formatPhase, timeAgo, formatExpiry, formatTool, projectForPlan, projectForEvent, eventMessage, eventKind, deriveProjects, readiness
 } = window.PandorasOwnerData;
 
 let toastTimer = null;
@@ -166,14 +166,68 @@ function badge(label, kind = 'neutral') {
 
 function header() {
   const status = statusSummary();
+  const step = state.wizardStep || 0;
+  
+  // Stepper Header Bar (Shown when inside the wizard flow)
+  if (step > 0) {
+    const steps = [
+      { num: 1, label: 'Ask' },
+      { num: 2, label: 'Understand' },
+      { num: 3, label: 'Build' },
+      { num: 4, label: 'Review' },
+      { num: 5, label: 'Preview' },
+    ];
+    return `<header class="owner-header owner-header-wizard">
+      <div class="owner-header-left">
+        <button type="button" class="owner-back-btn" data-action="wizard-back" aria-label="Go back">${icons.back}</button>
+        <div class="owner-brand-small">
+          <img src="${BRAND_MARK}" alt="Pandora" class="owner-brand-mark-sm" />
+          <strong>PANDORA</strong>
+        </div>
+      </div>
+      <div class="owner-stepper-bar">
+        ${steps.map((s) => {
+          const isDone = s.num < step;
+          const isActiveStep = s.num === step;
+          return `<button type="button" class="owner-step-item ${isDone ? 'done' : ''} ${isActiveStep ? 'active' : ''}" data-action="set-wizard-step" data-step="${s.num}">
+            <span class="owner-step-bubble">${isDone ? icons.check : s.num}</span>
+            <span class="owner-step-label">${esc(s.label)}</span>
+          </button>`;
+        }).join('<span class="owner-step-connector"></span>')}
+      </div>
+      <div class="owner-header-right">
+        <button type="button" class="owner-bell-btn" data-route="approvals" aria-label="Notifications">
+          ${icons.bell}
+          <span class="owner-bell-badge">2</span>
+        </button>
+        <div class="owner-avatar-wrap">
+          <img src="${USER_AVATAR}" alt="User Avatar" class="owner-avatar-img" />
+        </div>
+      </div>
+    </header>`;
+  }
+
+  // Dashboard Header (Matching Image 1)
   return `<header class="owner-header">
     <div class="owner-brand">
-      <img src="${BRAND_MARK}" alt="" class="owner-brand-mark" />
-      <div class="owner-brand-copy"><strong>Pandoras-Box</strong><span>Everything in one place</span></div>
+      <img src="${BRAND_MARK}" alt="Pandora Apple" class="owner-brand-mark" />
+      <div class="owner-brand-copy">
+        <strong>Good morning, Mark</strong>
+        <span>Here's your business today.</span>
+      </div>
     </div>
-    <button type="button" class="owner-status ${status.kind}" data-action="refresh" aria-label="${esc(status.label)}. Refresh status.">
-      <span class="owner-status-dot" aria-hidden="true"></span><span>${esc(status.label)}</span>
-    </button>
+    <div class="owner-header-right">
+      <button type="button" class="owner-status ${status.kind}" data-action="refresh" aria-label="${esc(status.label)}. Refresh status.">
+        <span class="owner-status-dot" aria-hidden="true"></span><span>${esc(status.label)}</span>
+      </button>
+      <button type="button" class="owner-bell-btn" data-route="approvals" aria-label="Notifications">
+        ${icons.bell}
+        <span class="owner-bell-badge">2</span>
+      </button>
+      <div class="owner-avatar-wrap" data-route="more" title="Mark Johnson Banatao">
+        <img src="${USER_AVATAR}" alt="User Avatar" class="owner-avatar-img" />
+      </div>
+    </div>
   </header>`;
 }
 

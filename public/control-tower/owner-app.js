@@ -46,11 +46,113 @@ app.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-route],[data-action]');
   if (!target) return;
   const route = target.dataset.route;
-  if (route) {
-    navigate(route);
+  const action = target.dataset.action;
+
+  if (action === 'open-ask-pandora') {
+    state.wizardStep = 1;
+    state.route = 'home';
+    render();
+    requestAnimationFrame(() => document.querySelector('#pandora-intent-input')?.focus());
     return;
   }
-  const action = target.dataset.action;
+  if (action === 'reset-wizard') {
+    state.wizardStep = 0;
+    render();
+    return;
+  }
+  if (action === 'quick-prompt') {
+    const prompt = target.dataset.prompt || '';
+    state.wizardData.prompt = prompt;
+    state.wizardData.goal = `Build an online booking system: ${prompt}`;
+    state.wizardStep = 2;
+    render();
+    return;
+  }
+  if (action === 'submit-intent') {
+    const inputEl = document.querySelector('#pandora-intent-input');
+    const val = (inputEl ? inputEl.value : state.wizardData.prompt).trim();
+    if (val) {
+      state.wizardData.prompt = val;
+      state.wizardData.goal = val;
+    }
+    state.wizardStep = 2;
+    render();
+    return;
+  }
+  if (action === 'wizard-back') {
+    state.wizardStep = Math.max(0, state.wizardStep - 1);
+    render();
+    return;
+  }
+  if (action === 'set-wizard-step') {
+    const stepNum = parseInt(target.dataset.step, 10);
+    if (!isNaN(stepNum)) {
+      state.wizardStep = stepNum;
+      render();
+    }
+    return;
+  }
+  if (action === 'edit-goal') {
+    state.wizardStep = 0;
+    render();
+    requestAnimationFrame(() => document.querySelector('#pandora-intent-input')?.focus());
+    return;
+  }
+  if (action === 'proceed-to-build') {
+    state.wizardStep = 3;
+    showToast('Pandora started building your system...', 'info');
+    render();
+    return;
+  }
+  if (action === 'open-full-preview' || action === 'start-review') {
+    state.wizardStep = 5;
+    render();
+    return;
+  }
+  if (action === 'set-preview-mode') {
+    state.wizardData.previewMode = target.dataset.mode || 'mobile';
+    render();
+    return;
+  }
+  if (action === 'set-preview-tab') {
+    state.wizardData.previewTab = target.dataset.tab || 'home';
+    render();
+    return;
+  }
+  if (action === 'select-preview-service') {
+    state.wizardData.selectedService = target.value;
+    return;
+  }
+  if (action === 'select-preview-time') {
+    state.wizardData.selectedTime = target.value;
+    return;
+  }
+  if (action === 'submit-preview-booking') {
+    showToast('Booking submitted successfully! Notification sent.', 'success');
+    state.wizardData.previewTab = 'bookings';
+    render();
+    return;
+  }
+  if (action === 'voice-input' || action === 'voice-feedback') {
+    state.wizardData.voiceFeedbackActive = !state.wizardData.voiceFeedbackActive;
+    showToast(state.wizardData.voiceFeedbackActive ? 'Listening for voice input...' : 'Voice input captured.', 'info');
+    render();
+    return;
+  }
+  if (action === 'approve-and-publish') {
+    showToast('Booking system approved & published live! Your system is healthy.', 'success');
+    state.wizardStep = 0;
+    render();
+    return;
+  }
+
+  if (route) {
+    if (action !== 'reset-wizard') {
+      navigate(route);
+    }
+    return;
+  }
+
   if (action === 'refresh') {
     if (target.closest('[data-owner-dialog]')) closeDialog({ renderAfter: false });
     await refresh({ announce: true });
