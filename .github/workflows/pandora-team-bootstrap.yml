@@ -82,6 +82,50 @@ jobs:
           path.write_text(source.replace(old, new, 1))
           PY
           python3 scripts/pandora_team_bootstrap.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str) -> None:
+              source = path.read_text()
+              if source.count(old) != 1:
+                  raise SystemExit(f'{path}: expected lint target exactly once')
+              path.write_text(source.replace(old, new, 1))
+
+          api = Path('apps/pandora-mobile/lib/features/team/pandora_user_admin_api.dart')
+          replace_once(
+              api,
+              """  if (error.status == 401) return 'Sign in again to manage your team.';
+  if (error.status == 403) return 'You do not have permission to manage this team.';
+  if (error.status == 429) return 'Too many requests. Try again shortly.';""",
+              """  if (error.status == 401) {
+    return 'Sign in again to manage your team.';
+  }
+  if (error.status == 403) {
+    return 'You do not have permission to manage this team.';
+  }
+  if (error.status == 429) {
+    return 'Too many requests. Try again shortly.';
+  }""",
+          )
+
+          screen = Path('apps/pandora-mobile/lib/features/team/team_screen.dart')
+          replace_once(
+              screen,
+              "      if (mounted) setState(() => _inviting = false);",
+              """      if (mounted) {
+        setState(() => _inviting = false);
+      }""",
+          )
+
+          widget_test = Path('apps/pandora-mobile/test/features/team/team_screen_test.dart')
+          replace_once(
+              widget_test,
+              """import 'package:pandora_mobile/features/team/pandora_user_admin_api.dart';
+import 'package:pandora_mobile/features/simple/more_screen.dart';""",
+              """import 'package:pandora_mobile/features/simple/more_screen.dart';
+import 'package:pandora_mobile/features/team/pandora_user_admin_api.dart';""",
+          )
+          PY
 
       - name: Resolve exact mobile dependencies before canonical formatting
         working-directory: apps/pandora-mobile
