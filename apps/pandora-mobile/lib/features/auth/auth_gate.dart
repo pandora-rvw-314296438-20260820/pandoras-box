@@ -170,7 +170,12 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
     return NavigatorPopHandler(
-      onPopWithResult: (_) => _authenticatedNavigatorKey.currentState?.pop(),
+      onPopWithResult: (_) {
+        unawaited(
+          _authenticatedNavigatorKey.currentState?.maybePop() ??
+              Future<bool>.value(false),
+        );
+      },
       child: Navigator(
         key: _authenticatedNavigatorKey,
         onGenerateRoute: (settings) => MaterialPageRoute<void>(
@@ -183,7 +188,7 @@ class _AuthGateState extends State<AuthGate> {
 }
 
 class _AuthorizationRecheckScreen extends StatelessWidget {
-  const _AuthorizationRecheckScreen({
+  const _AuthorizationRecheckScreen(
     required this.message,
     required this.busy,
     required this.onRecheck,
@@ -212,22 +217,22 @@ class _AuthorizationRecheckScreen extends StatelessWidget {
                   onPressed: busy ? null : onRecheck,
                   icon: busy
                       ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.verified_user_outlined),
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.verified_user_outlined),
                   label: Text(
                     busy ? 'Rechecking owner access…' : 'Recheck owner access',
                   ),
-                ),
+              ),
                 const SizedBox(height: PandoraSpacing.xs),
                 TextButton(
                   onPressed: busy ? null : onSignOut,
                   child: const Text('Sign out'),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    );
 }
