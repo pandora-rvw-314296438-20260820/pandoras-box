@@ -229,7 +229,7 @@ export function validateSourceContract(contract) {
   assertExactKeys(contract, ROOT_KEYS, "$contract");
   assert(contract.schemaVersion === "1.0.0", "schemaVersion must be 1.0.0");
   assert(contract.kind === "canonical_release_evidence_requirements", "kind is invalid");
-  assert(contract.repository === "banataosystems/Pandoras-box", "repository is invalid");
+  assert(contract.repository === "pandora-rvw-314296438-20260820/pandoras-box", "repository is invalid");
   assert(contract.releaseDecision === "not_ready", "source releaseDecision must be not_ready");
 
   assertExactKeys(

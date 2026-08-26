@@ -20,7 +20,7 @@ function lifecycleEnvelope(overrides = {}) {
       rollback_of_deployment_id: 'deployment-122',
       schema_version: '1.0.0',
       event_schema_version: 1,
-      source_repo: 'banataosystems/Pandoras-box',
+      source_repo: 'pandora-rvw-314296438-20260820/pandoras-box',
       privacy_tier: 'pseudonymous_product',
       privacy_mode: 'strict_metadata_only',
       proof_stage: 'tested',

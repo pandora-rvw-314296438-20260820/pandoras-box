@@ -1,4 +1,6 @@
-const nativeFetch = window.fetch.bind(window);
+const nativeFetch = typeof window !== 'undefined' && typeof window.fetch === 'function'
+  ? window.fetch.bind(window)
+  : globalThis.fetch?.bind(globalThis);
 
 const authState = {
   config: null,
@@ -205,7 +207,7 @@ function signOut() {
   window.dispatchEvent(new CustomEvent('mcpmaster-auth-changed', { detail: sessionSnapshot() }));
 }
 
-window.fetch = async function authenticatedOperatorFetch(input, init = {}) {
+async function authenticatedOperatorFetch(input, init = {}) {
   const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, window.location.href);
   const operatorRequest = url.origin === window.location.origin && url.pathname.startsWith('/api/operator');
   const publicConfig = url.pathname === '/api/operator/auth/config';
@@ -221,7 +223,17 @@ window.fetch = async function authenticatedOperatorFetch(input, init = {}) {
   headers.delete('x-vercel-sc-headers');
 
   return nativeFetch(input, { ...init, headers, credentials: 'same-origin' });
-};
+}
+
+try {
+  Object.defineProperty(window, 'fetch', {
+    value: authenticatedOperatorFetch,
+    writable: true,
+    configurable: true,
+  });
+} catch {
+  // Ignore in sandboxed or getter-only environments
+}
 
 window.MCPMasterAuth = Object.freeze({
   ensureSession,

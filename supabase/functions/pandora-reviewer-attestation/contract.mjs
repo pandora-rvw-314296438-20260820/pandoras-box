@@ -5,7 +5,7 @@ const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const BASE64_SIGNATURE = /^[A-Za-z0-9+/]{86}==$/;
 const RFC3339_MILLIS = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$/;
-const CANONICAL_REPOSITORY = "banataosystems/Pandoras-box";
+const CANONICAL_REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box";
 
 function isRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);

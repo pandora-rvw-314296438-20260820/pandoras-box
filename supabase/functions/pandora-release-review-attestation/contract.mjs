@@ -7,7 +7,7 @@ const DEPLOYMENT_ID = /^dpl_[A-Za-z0-9]+$/;
 const EXTERNAL_ID = /^[A-Za-z0-9][A-Za-z0-9._:@/-]{2,191}$/;
 const BASE64_SIGNATURE = /^[A-Za-z0-9+/]{86}==$/;
 const CANONICAL_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
-const CANONICAL_REPOSITORY = "banataosystems/Pandoras-box";
+const CANONICAL_REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box";
 
 function isRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);

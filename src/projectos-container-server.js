@@ -244,18 +244,20 @@ function createProjectOsContainerApp(environment = process.env) {
     app.use('/control-tower', express_1.default.static(controlTowerDirectory, {
         fallthrough: true,
         index: false,
-        maxAge: '1h',
-        setHeaders(response, filePath) {
+        maxAge: 0,
+        setHeaders(response, _filePath) {
             response.setHeader('X-Content-Type-Options', 'nosniff');
-            if (filePath.endsWith('.html')) {
-                response.setHeader('Cache-Control', 'no-store');
-            }
+            response.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         },
     }));
     app.use(express_1.default.static(publicDirectory, {
         fallthrough: true,
         index: false,
-        maxAge: '1h',
+        maxAge: 0,
+        setHeaders(response) {
+            response.setHeader('X-Content-Type-Options', 'nosniff');
+            response.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        },
     }));
     app.use((request, response, next) => {
         if (request.method !== 'GET' || !request.accepts('html')) {

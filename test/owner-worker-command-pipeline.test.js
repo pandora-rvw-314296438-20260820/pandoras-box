@@ -91,7 +91,7 @@ test("owner worker command accepts only an explicit canonical exact-SHA job", as
     jobClass: "node_regression",
     maxRuntimeSeconds: 1800,
     productionMutationAllowed: false,
-    repository: "banataosystems/Pandoras-box",
+    repository: "pandora-rvw-314296438-20260820/pandoras-box",
     schemaVersion: 1,
   });
   assert.throws(
@@ -229,7 +229,7 @@ test("completed status is verified only with exact source and isolation evidence
       verifiedOutcome: "completed",
       verifiedAt: "2026-08-23T14:05:00.000Z",
       resultSummary: {
-        repository: "banataosystems/Pandoras-box",
+        repository: "pandora-rvw-314296438-20260820/pandoras-box",
         exactSha: EXACT_SHA,
         jobClass: "node_regression",
         exitCode: 0,
@@ -253,7 +253,7 @@ test("completed status is verified only with exact source and isolation evidence
       verifiedOutcome: "completed",
       verifiedAt: "2026-08-23T14:05:00.000Z",
       resultSummary: {
-        repository: "banataosystems/Pandoras-box",
+        repository: "pandora-rvw-314296438-20260820/pandoras-box",
         exactSha: "f".repeat(40),
         jobClass: "node_regression",
         exitCode: 0,

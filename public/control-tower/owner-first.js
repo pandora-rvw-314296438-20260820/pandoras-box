@@ -6,7 +6,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     await import(versioned('/control-tower/owner-data.js'));
     await import(versioned('/control-tower/owner-runtime.js'));
     await import(versioned('/control-tower/owner-screens-core.js'));
-    await import(versioned('/control-tower/owner-screens-activity.js'));
+    await import(versioned('/control-tower/owner-screens-events.js'));
     await import(versioned('/control-tower/owner-screens-more.js'));
     await import(versioned('/control-tower/owner-screens.js'));
     await import(versioned('/control-tower/owner-dialogs.js'));

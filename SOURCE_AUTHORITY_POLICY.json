@@ -5,7 +5,7 @@
   "mode": "fail_closed",
   "canonical": {
     "operating_source_of_truth": "Pandora Memory hard-canon state",
-    "source_repository": "banataosystems/Pandoras-box",
+    "source_repository": "pandora-rvw-314296438-20260820/pandoras-box",
     "memory_repository": "banataosystems/pandoras-box-memory"
   },
   "deprecated_operational_sources": [
@@ -57,7 +57,7 @@
   "resolution_order": [
     "newer_verified_evidence_corrected_into_Pandora",
     "Pandora_hard_canon_current_state",
-    "banataosystems/Pandoras-box_exact_committed_source_and_manifests",
+    "pandora-rvw-314296438-20260820/pandoras-box_exact_committed_source_and_manifests",
     "exact_verified_Vercel_or_Supabase_runtime_evidence",
     "any_mbanatao_owner_source_as_historical_evidence_only"
   ],

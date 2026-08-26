@@ -134,7 +134,7 @@ function legacyV1Envelope() {
       tool: "projectos.worker.verify",
       identifiers: {
         branch: "main",
-        repository: "banataosystems/Pandoras-box",
+        repository: "pandora-rvw-314296438-20260820/pandoras-box",
       },
     },
     counts: {
@@ -197,7 +197,7 @@ function fullCapacityEnvelope({
     queryHash: "d".repeat(64),
     queryBasis: {
       tool: "projectos.worker.verify",
-      identifiers: { repository: "banataosystems/Pandoras-box" },
+      identifiers: { repository: "pandora-rvw-314296438-20260820/pandoras-box" },
     },
     counts,
     highlights,
@@ -653,7 +653,7 @@ test("database behavior permits only first pending attachment and exact replay",
       tool: "projectos.worker.verify",
       identifiers: {
         branch: "main",
-        repository: "banataosystems/Pandoras-box",
+        repository: "pandora-rvw-314296438-20260820/pandoras-box",
       },
     },
     counts: {
@@ -698,7 +698,7 @@ test("database behavior permits only first pending attachment and exact replay",
     },
     queryBasis: {
       identifiers: {
-        repository: "banataosystems/Pandoras-box",
+        repository: "pandora-rvw-314296438-20260820/pandoras-box",
         branch: "main",
       },
       tool: "projectos.worker.verify",

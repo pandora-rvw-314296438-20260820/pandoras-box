@@ -94,7 +94,7 @@ function validateResultSummary(value) {
     value.schemaVersion !== 1 || !UUID.test(value.organizationId) ||
     !UUID.test(value.dispatchId) || !UUID.test(value.planId) ||
     !WORKER_ID.test(value.workerId) || !SHA256.test(value.jobDigest) ||
-    value.repository !== "banataosystems/Pandoras-box" ||
+    value.repository !== "pandora-rvw-314296438-20260820/pandoras-box" ||
     !SHA40.test(value.exactSha) || !ALLOWED_JOB_CLASSES.has(value.jobClass) ||
     !["completed", "failed"].includes(value.outcome) ||
     !Number.isInteger(value.exitCode) || value.exitCode < 0 || value.exitCode > 255 ||
@@ -282,7 +282,7 @@ function validateJobPayload(value) {
   if (
     value.schemaVersion !== 1 || !/^pandora-worker:[a-z0-9][a-z0-9._:-]{2,127}$/.test(value.audience) ||
     !UUID.test(value.organizationId) || !UUID.test(value.dispatchId) ||
-    !UUID.test(value.planId) || value.repository !== "banataosystems/Pandoras-box" ||
+    !UUID.test(value.planId) || value.repository !== "pandora-rvw-314296438-20260820/pandoras-box" ||
     !SHA40.test(value.exactSha) || !ALLOWED_JOB_CLASSES.has(value.jobClass) ||
     !Number.isInteger(value.maxRuntimeSeconds) || value.maxRuntimeSeconds < 30 ||
     value.maxRuntimeSeconds > 1800 || !Number.isFinite(Date.parse(value.issuedAt)) ||

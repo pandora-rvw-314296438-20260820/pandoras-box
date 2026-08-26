@@ -2,10 +2,10 @@
 
 **Version:** 1.0.0  
 **Effective date:** 2026-08-08  
-**Canonical repository:** `banataosystems/Pandoras-box`  
+**Canonical repository:** `pandora-rvw-314296438-20260820/pandoras-box`  
 **Canonical project key:** `mcpmaster-pandoras-box`  
 **Instruction status:** Canonical mission and governance; dated operational sections historical
-**Portfolio contract:** `BANATAO_25000_BUSINESSES_MASTER_INSTRUCTION.md` in `banataosystems/Pandoras-box`
+**Portfolio contract:** `BANATAO_25000_BUSINESSES_MASTER_INSTRUCTION.md` in `pandora-rvw-314296438-20260820/pandoras-box`
 
 ---
 

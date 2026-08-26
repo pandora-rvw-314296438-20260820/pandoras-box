@@ -262,7 +262,7 @@ as $$
       and (select count(*) from jsonb_object_keys(p_args)) = 6
       and p_args -> 'schemaVersion' is not distinct from '1'::jsonb
       and p_args -> 'productionMutationAllowed' is not distinct from 'false'::jsonb
-      and p_args ->> 'repository' = 'banataosystems/Pandoras-box'
+      and p_args ->> 'repository' = 'pandora-rvw-314296438-20260820/pandoras-box'
       and p_args ->> 'exactSha' ~ '^[0-9a-f]{40}$'
       and p_args ->> 'jobClass' in ('node_regression', 'supabase_migration_replay')
       and case
@@ -304,7 +304,7 @@ as $$
         '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
       and p_payload ->> 'planId' ~
         '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-      and p_payload ->> 'repository' = 'banataosystems/Pandoras-box'
+      and p_payload ->> 'repository' = 'pandora-rvw-314296438-20260820/pandoras-box'
       and p_payload ->> 'exactSha' ~ '^[0-9a-f]{40}$'
       and p_payload ->> 'jobClass' in ('node_regression', 'supabase_migration_replay')
       and case
@@ -355,7 +355,7 @@ as $$
         '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
       and p_result ->> 'workerId' ~ '^[a-z0-9][a-z0-9._:-]{2,127}$'
       and p_result ->> 'jobDigest' ~ '^[0-9a-f]{64}$'
-      and p_result ->> 'repository' = 'banataosystems/Pandoras-box'
+      and p_result ->> 'repository' = 'pandora-rvw-314296438-20260820/pandoras-box'
       and p_result ->> 'exactSha' ~ '^[0-9a-f]{40}$'
       and p_result ->> 'jobClass' in ('node_regression', 'supabase_migration_replay')
       and p_result ->> 'outcome' in ('completed', 'failed')
@@ -519,7 +519,7 @@ begin
     p_request_text,
     p_project_key,
     null,
-    'banataosystems/Pandoras-box',
+    'pandora-rvw-314296438-20260820/pandoras-box',
     'work',
     'api',
     p_idempotency_key
@@ -669,7 +669,7 @@ begin
      or cardinality(normalized_repositories) not between 1 and 20
      or exists (
        select 1 from unnest(normalized_repositories) repository
-       where repository <> 'banataosystems/Pandoras-box'
+       where repository <> 'pandora-rvw-314296438-20260820/pandoras-box'
      ) then
     raise exception 'invalid repository scopes' using errcode = '22023';
   end if;

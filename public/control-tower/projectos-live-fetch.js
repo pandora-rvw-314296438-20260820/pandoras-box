@@ -1,6 +1,8 @@
-const nativeFetch = window.fetch.bind(window);
+const nativeFetch = typeof window !== 'undefined' && typeof window.fetch === 'function'
+  ? window.fetch.bind(window)
+  : globalThis.fetch?.bind(globalThis);
 
-window.fetch = async function projectOSLiveFetch(input, init = {}) {
+async function projectOSLiveFetch(input, init = {}) {
   const raw = typeof input === 'string' || input instanceof URL
     ? String(input)
     : input instanceof Request
@@ -36,4 +38,15 @@ window.fetch = async function projectOSLiveFetch(input, init = {}) {
     credentials: 'same-origin',
     cache: 'no-store',
   });
-};
+}
+
+try {
+  Object.defineProperty(window, 'fetch', {
+    value: projectOSLiveFetch,
+    writable: true,
+    configurable: true,
+  });
+} catch {
+  // Ignore in sandboxed or getter-only environments
+}
+

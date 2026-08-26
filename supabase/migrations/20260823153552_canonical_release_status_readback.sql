@@ -4,7 +4,7 @@
 create table private.canonical_supabase_release_receipts (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete restrict,
-  repository text not null check (repository = 'banataosystems/Pandoras-box'),
+  repository text not null check (repository = 'pandora-rvw-314296438-20260820/pandoras-box'),
   project_ref text not null check (project_ref = 'jcyqixttuebxqqfkjonq'),
   source_sha text not null check (source_sha ~ '^[0-9a-f]{40}$'),
   source_tree_sha text not null check (source_tree_sha ~ '^[0-9a-f]{40}$'),
@@ -18,7 +18,7 @@ create table private.canonical_supabase_release_receipts (
   captured_at timestamptz not null default clock_timestamp(),
   unique (organization_id, repository, source_sha),
   check (
-    source_artifact_url = 'https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/'
+    source_artifact_url = 'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/'
       || source_artifact_external_id
   ),
   check (captured_version_chain_sha256 = expected_version_chain_sha256)
@@ -27,7 +27,7 @@ create table private.canonical_supabase_release_receipts (
 create table private.canonical_vercel_rehearsal_receipts (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete restrict,
-  repository text not null check (repository = 'banataosystems/Pandoras-box'),
+  repository text not null check (repository = 'pandora-rvw-314296438-20260820/pandoras-box'),
   project_id text not null check (project_id = 'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk'),
   team_id text not null check (team_id = 'team_IcdJUnzLi5wUN1GD8ALHyjF7'),
   phase text not null check (phase in ('rollback_transition', 'rollback_restoration')),
@@ -117,13 +117,13 @@ declare
 begin
   perform private.assert_control_service_role();
 
-  if p_repository <> 'banataosystems/Pandoras-box'
+  if p_repository <> 'pandora-rvw-314296438-20260820/pandoras-box'
      or p_source_sha !~ '^[0-9a-f]{40}$'
      or p_source_tree_sha !~ '^[0-9a-f]{40}$'
      or p_source_chain_sha256 !~ '^[0-9a-f]{64}$'
      or p_source_artifact_sha256 !~ '^[0-9a-f]{64}$'
      or p_source_artifact_external_id !~ '^[1-9][0-9]{0,19}$'
-     or p_source_artifact_url <> 'https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/'
+     or p_source_artifact_url <> 'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/'
        || p_source_artifact_external_id
      or p_expected_version_chain_sha256 !~ '^[0-9a-f]{64}$' then
     raise exception 'invalid canonical Supabase receipt identity';
@@ -240,7 +240,7 @@ declare
 begin
   perform private.assert_control_service_role();
 
-  if p_repository <> 'banataosystems/Pandoras-box'
+  if p_repository <> 'pandora-rvw-314296438-20260820/pandoras-box'
      or p_candidate_source_sha !~ '^[0-9a-f]{40}$'
      or p_rollback_source_sha !~ '^[0-9a-f]{40}$'
      or p_candidate_source_sha = p_rollback_source_sha
@@ -637,7 +637,7 @@ declare
 begin
   perform private.assert_control_service_role();
 
-  if p_repository <> 'banataosystems/Pandoras-box'
+  if p_repository <> 'pandora-rvw-314296438-20260820/pandoras-box'
      or p_source_sha !~ '^[0-9a-f]{40}$' then
     raise exception 'invalid canonical release identity';
   end if;
@@ -901,7 +901,7 @@ begin
     and receipt.source_chain_sha256 ~ '^[0-9a-f]{64}$'
     and receipt.source_artifact_sha256 ~ '^[0-9a-f]{64}$'
     and receipt.source_artifact_url =
-      'https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/'
+      'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/'
       || receipt.source_artifact_external_id
     and receipt.captured_version_chain_sha256 = receipt.expected_version_chain_sha256
     and receipt.captured_at <= statement_timestamp()
@@ -966,7 +966,7 @@ begin
           ]::text[] = '{}'::jsonb
       and evidence.payload_redacted #>> '{ciArtifact,externalId}' ~ '^[1-9][0-9]{0,19}$'
       and evidence.payload_redacted #>> '{ciArtifact,sourceUrl}' =
-        'https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/'
+        'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/'
         || evidence.payload_redacted #>> '{ciArtifact,externalId}'
       and evidence.payload_redacted #>> '{ciArtifact,name}' =
         'pandora-mobile-android-validation-' || p_source_sha

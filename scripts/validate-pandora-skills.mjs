@@ -77,7 +77,7 @@ export function validatePandoraSkills({ rootDir = process.cwd(), verifyManifest 
   assert(schema.$schema?.includes('2020-12'), 'registry schema must use JSON Schema 2020-12');
   assert(registry.schema_version === '1.0.0', 'unexpected registry schema version');
   assert(registry.project_key === 'mcpmaster-pandoras-box', 'wrong project key');
-  assert(registry.source_repository === 'banataosystems/Pandoras-box', 'wrong source repository');
+  assert(registry.source_repository === 'pandora-rvw-314296438-20260820/pandoras-box', 'wrong source repository');
   assert(/^[0-9a-f]{40}$/.test(registry.source_base_sha), 'invalid source base SHA');
   assert(registry.runtime_activation === 'not_proven', 'runtime activation must remain not_proven in v1 source catalog');
   assert(registry.production_activation === 'not_authorized', 'production activation must remain not_authorized');

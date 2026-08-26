@@ -63,7 +63,7 @@ as $$
     ) is true
     and p_args -> 'schemaVersion' is not distinct from '1'::jsonb
     and p_args -> 'productionMutationAllowed' is not distinct from 'false'::jsonb
-    and p_args ->> 'repository' = 'banataosystems/Pandoras-box'
+    and p_args ->> 'repository' = 'pandora-rvw-314296438-20260820/pandoras-box'
     and p_args ->> 'exactSha' ~ '^[0-9a-f]{40}$'
     and p_args ->> 'jobClass' in ('node_regression', 'supabase_migration_replay')
     and case

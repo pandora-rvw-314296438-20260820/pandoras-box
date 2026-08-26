@@ -26,7 +26,7 @@ create table private.physical_android_observer_identities (
   ),
   key_fingerprint text not null check (key_fingerprint ~ '^[0-9a-f]{64}$'),
   allowed_repositories text[] not null check (
-    allowed_repositories = array['banataosystems/Pandoras-box']::text[]
+    allowed_repositories = array['pandora-rvw-314296438-20260820/pandoras-box']::text[]
   ),
   status text not null default 'active' check (status in ('active', 'draining', 'disabled')),
   created_at timestamptz not null default clock_timestamp(),
@@ -74,7 +74,7 @@ create table private.canonical_physical_android_receipts (
   request_id uuid not null,
   observer_id text not null,
   observer_key_fingerprint text not null check (observer_key_fingerprint ~ '^[0-9a-f]{64}$'),
-  repository text not null check (repository = 'banataosystems/Pandoras-box'),
+  repository text not null check (repository = 'pandora-rvw-314296438-20260820/pandoras-box'),
   source_sha text not null check (source_sha ~ '^[0-9a-f]{40}$'),
   source_tree_sha text not null check (source_tree_sha ~ '^[0-9a-f]{40}$'),
   production_deployment_id text not null check (production_deployment_id ~ '^dpl_[A-Za-z0-9]+$'),
@@ -128,7 +128,7 @@ create table private.canonical_physical_android_receipts (
   check (provider_observed_at <= captured_at),
   check (
     ci_artifact_url =
-      'https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/'
+      'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/'
       || ci_artifact_external_id
   ),
   check (ci_artifact_name = 'pandora-mobile-android-validation-' || source_sha)
@@ -237,7 +237,7 @@ begin
   p_observer_id := lower(trim(coalesce(p_observer_id, '')));
   if p_observer_id !~ '^[a-z0-9][a-z0-9._:-]{2,127}$'
      or coalesce(p_public_key_b64, '') !~ '^[A-Za-z0-9+/]{43}=$'
-     or p_allowed_repositories is distinct from array['banataosystems/Pandoras-box']::text[] then
+     or p_allowed_repositories is distinct from array['pandora-rvw-314296438-20260820/pandoras-box']::text[] then
     raise exception 'invalid physical Android observer identity' using errcode = '22023';
   end if;
   begin
@@ -372,13 +372,13 @@ begin
   if p_request_id is null
      or p_observer_id !~ '^[a-z0-9][a-z0-9._:-]{2,127}$'
      or p_observer_key_fingerprint !~ '^[0-9a-f]{64}$'
-     or p_repository <> 'banataosystems/Pandoras-box'
+     or p_repository <> 'pandora-rvw-314296438-20260820/pandoras-box'
      or p_source_sha !~ '^[0-9a-f]{40}$'
      or p_source_tree_sha !~ '^[0-9a-f]{40}$'
      or p_production_deployment_id !~ '^dpl_[A-Za-z0-9]+$'
      or p_production_origin <> 'https://mcpmaster.vercel.app'
      or p_ci_artifact_external_id !~ '^[1-9][0-9]{0,19}$'
-     or p_ci_artifact_url <> 'https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/' || p_ci_artifact_external_id
+     or p_ci_artifact_url <> 'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/' || p_ci_artifact_external_id
      or p_ci_artifact_name <> 'pandora-mobile-android-validation-' || p_source_sha
      or p_ci_artifact_sha256 !~ '^[0-9a-f]{64}$'
      or p_apk_sha256 !~ '^[0-9a-f]{64}$'

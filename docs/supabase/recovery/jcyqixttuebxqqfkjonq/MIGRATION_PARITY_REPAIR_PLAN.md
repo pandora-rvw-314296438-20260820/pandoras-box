@@ -9,7 +9,7 @@ without rewriting or deleting production history.
 
 ## Exact starting state
 
-- Canonical repository: `banataosystems/Pandoras-box`
+- Canonical repository: `pandora-rvw-314296438-20260820/pandoras-box`
 - Starting main: `171b85c3012f053cfe2e531b82d8e495c5b8007e`
 - Production ledger: 50 migrations through
   `20260810104737_reject_anonymous_org_membership_helpers`

@@ -159,13 +159,13 @@ test("capture router rejects extra keys and mismatched canonical identities", as
   const artifactId = "123456";
   const supabaseInput = {
     action: "canonical_supabase_receipt_capture",
-    repository: "banataosystems/Pandoras-box",
+    repository: "pandora-rvw-314296438-20260820/pandoras-box",
     sourceSha,
     sourceTreeSha: "c".repeat(40),
     sourceChainSha256: "d".repeat(64),
     sourceArtifactSha256: "e".repeat(64),
     sourceArtifactExternalId: artifactId,
-    sourceArtifactUrl: `https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/${artifactId}`,
+    sourceArtifactUrl: `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/${artifactId}`,
     expectedVersionChainSha256: "f".repeat(64),
   };
   assert.equal(routeForCanonicalReleaseCapture(supabaseInput)?.responseKey, "supabaseReceipt");
@@ -178,7 +178,7 @@ test("capture router rejects extra keys and mismatched canonical identities", as
 
   const vercelInput = {
     action: "canonical_vercel_rehearsal_capture",
-    repository: "banataosystems/Pandoras-box",
+    repository: "pandora-rvw-314296438-20260820/pandoras-box",
     candidateSourceSha: sourceSha,
     phase: "rollback_transition",
     candidateDeploymentId: "dpl_candidate",

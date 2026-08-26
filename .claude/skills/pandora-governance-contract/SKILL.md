@@ -50,7 +50,7 @@ When sources disagree, resolve in this order:
 
 1. Fresh authenticated provider evidence for the exact external state
 2. Corrected Pandora Memory canonical state
-3. Exact canonical source and manifests in `banataosystems/Pandoras-box`
+3. Exact canonical source and manifests in `pandora-rvw-314296438-20260820/pandoras-box`
 4. Approved strategy sources
 5. Static skill instructions (including this file)
 6. Conversation recollection — **never** authoritative when Pandora MCP can answer

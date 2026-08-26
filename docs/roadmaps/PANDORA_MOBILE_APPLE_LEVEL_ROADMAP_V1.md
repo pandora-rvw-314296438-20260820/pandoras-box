@@ -2,7 +2,7 @@
 
 **Status:** Owner-approved roadmap source candidate  
 **Created:** 2026-08-14 Asia/Manila  
-**Canonical repo:** `banataosystems/Pandoras-box`  
+**Canonical repo:** `pandora-rvw-314296438-20260820/pandoras-box`  
 **Baseline:** `main@1cfccdc37f77a314f2afb5f56a2f23f953e19f8b`  
 **Mobile source:** `apps/pandora-mobile`  
 **Current mobile:** `0.1.1+2`  

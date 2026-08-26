@@ -14,7 +14,7 @@ const args = {
   jobClass: "node_regression",
   maxRuntimeSeconds: 1800,
   productionMutationAllowed: false,
-  repository: "banataosystems/Pandoras-box",
+  repository: "pandora-rvw-314296438-20260820/pandoras-box",
   schemaVersion: 1,
 };
 

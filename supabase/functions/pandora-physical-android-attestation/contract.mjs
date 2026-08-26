@@ -8,7 +8,7 @@ const ARTIFACT_ID = /^[1-9][0-9]{0,19}$/;
 const BASE64_SIGNATURE = /^[A-Za-z0-9+/]{86}==$/;
 const RFC3339_MILLIS = /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$/;
 
-const CANONICAL_REPOSITORY = "banataosystems/Pandoras-box";
+const CANONICAL_REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box";
 const PRODUCTION_ORIGIN = "https://mcpmaster.vercel.app";
 const PACKAGE_NAME = "com.banataosystems.pandora_mobile";
 const REQUIRED_JOURNEY_STEPS = Object.freeze([

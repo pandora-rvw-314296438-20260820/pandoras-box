@@ -4,7 +4,7 @@
 
 This additive candidate is reconciled against:
 
-- repository: `banataosystems/Pandoras-box`
+- repository: `pandora-rvw-314296438-20260820/pandoras-box`
 - parent main: `c2cc635383b78d457d1731294a6f5b306d85f6be`
 - parent tree: `d6d848a1d87b0e9e5561fceba200c4cad05fb4e8`
 - runtime package: `mcpmaster@1.3.0-observability`

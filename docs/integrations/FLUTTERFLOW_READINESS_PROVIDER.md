@@ -1,6 +1,6 @@
 # FlutterFlow readiness provider
 
-**Delivery record:** `banataosystems/Pandoras-box#26`  
+**Delivery record:** `pandora-rvw-314296438-20260820/pandoras-box#26`  
 **Provider status:** implemented read-only; production activation and project verification remain separate gates  
 **Bound project:** `pandoras-box-gj9hnb`
 

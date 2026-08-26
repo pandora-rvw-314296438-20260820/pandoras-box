@@ -97,7 +97,7 @@
               "additionalProperties": false,
               "required": ["repository", "branch", "sha", "treeSha"],
               "properties": {
-                "repository": { "const": "banataosystems/Pandoras-box" },
+                "repository": { "const": "pandora-rvw-314296438-20260820/pandoras-box" },
                 "branch": { "const": "main" },
                 "sha": { "$ref": "#/$defs/sha40" },
                 "treeSha": { "$ref": "#/$defs/sha40" }

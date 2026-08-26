@@ -190,7 +190,7 @@ class FakeRepository implements PandoraRepository {
         planStatus: 'completed',
         dispatchStatus: 'completed',
         lifecycleStage: 'final_proof_available',
-        repository: 'banataosystems/Pandoras-box',
+        repository: 'pandora-rvw-314296438-20260820/pandoras-box',
         sourceSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         jobClass: 'node_regression',
         workerClaimObserved: true,

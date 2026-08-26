@@ -12,7 +12,7 @@ Date: 2026-08-09 (Asia/Manila)
 
 ## Preservation rules
 
-This recovery restores missing source into `banataosystems/Pandoras-box` without replacing newer canonical recovery/governance evidence already committed here. The historical snapshot README and `.github` directory are excluded from the overlay. `rsync --ignore-existing` is used so existing canonical paths win.
+This recovery restores missing source into `pandora-rvw-314296438-20260820/pandoras-box` without replacing newer canonical recovery/governance evidence already committed here. The historical snapshot README and `.github` directory are excluded from the overlay. `rsync --ignore-existing` is used so existing canonical paths win.
 
 The recovered legacy source is evidence and source material, not authority over newer canonical files. `SOURCE_AUTHORITY_POLICY.json` and the destination governance records remain authoritative.
 

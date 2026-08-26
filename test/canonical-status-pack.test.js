@@ -63,7 +63,7 @@ function evidence() {
     },
     github: {
       ok: true,
-      repository: 'banataosystems/Pandoras-box',
+      repository: 'pandora-rvw-314296438-20260820/pandoras-box',
       mainSha: MAIN_SHA,
       mainTreeSha: TREE_SHA,
       openPullRequestCount: 2,
@@ -81,7 +81,7 @@ function evidence() {
         provider: 'github',
         observedAt: '2026-08-23T13:49:00.000Z',
         artifactId: SOURCE_ARTIFACT_ID,
-        artifactUrl: `https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/${SOURCE_ARTIFACT_ID}`,
+        artifactUrl: `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/${SOURCE_ARTIFACT_ID}`,
         artifactName: `canonical-release-source-${MAIN_SHA}`,
         artifactSha256: SOURCE_ARTIFACT_SHA256,
         runId: 9001,
@@ -100,7 +100,7 @@ function evidence() {
         provider: 'github',
         observedAt: '2026-08-23T13:56:00.000Z',
         artifactId: MOBILE_ARTIFACT_ID,
-        artifactUrl: `https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/${MOBILE_ARTIFACT_ID}`,
+        artifactUrl: `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/${MOBILE_ARTIFACT_ID}`,
         artifactName: `pandora-mobile-android-validation-${MAIN_SHA}`,
         artifactSha256: MOBILE_ARTIFACT_SHA256,
         apkSha256: MOBILE_APK_SHA256,
@@ -124,7 +124,7 @@ function evidence() {
     vercel: {
       ok: true,
       providerReadback: true,
-      gitRepository: 'banataosystems/Pandoras-box',
+      gitRepository: 'pandora-rvw-314296438-20260820/pandoras-box',
       sourceSha: MAIN_SHA,
       deploymentId: 'dpl_current',
       rollbackDeploymentId: 'dpl_rollback',
@@ -200,7 +200,7 @@ function evidence() {
         databaseCaptured: true,
         storageAuthority: 'IMMUTABLE_PHYSICAL_ANDROID_RECEIPT',
         externalId: MOBILE_ARTIFACT_ID,
-        sourceUrl: `https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/${MOBILE_ARTIFACT_ID}`,
+        sourceUrl: `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/${MOBILE_ARTIFACT_ID}`,
         artifactName: `pandora-mobile-android-validation-${MAIN_SHA}`,
         artifactSha256: MOBILE_ARTIFACT_SHA256,
         apkSha256: MOBILE_APK_SHA256,
@@ -735,7 +735,7 @@ test('a stored Supabase byte claim is never relabeled as provider readback', () 
 test('GitHub provider readback binds the source artifact to one successful protected-main run', async () => {
   const artifactId = '123456789';
   const artifactSha256 = 'd'.repeat(64);
-  const artifactUrl = `https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/${artifactId}`;
+  const artifactUrl = `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/${artifactId}`;
   let runEvent = 'push';
   let artifactExpiresAt = '2099-09-06T13:30:00.000Z';
   let linkedCheckConclusion = 'success';
@@ -772,8 +772,8 @@ test('GitHub provider readback binds the source artifact to one successful prote
         check_suite_id: 8001,
         run_attempt: 2,
         updated_at: '2026-08-23T13:34:00.000Z',
-        repository: { id: 55, full_name: 'banataosystems/Pandoras-box' },
-        head_repository: { id: 55, full_name: 'banataosystems/Pandoras-box' },
+        repository: { id: 55, full_name: 'pandora-rvw-314296438-20260820/pandoras-box' },
+        head_repository: { id: 55, full_name: 'pandora-rvw-314296438-20260820/pandoras-box' },
       };
     } else if (String(url).endsWith('/actions/runs/9001/attempts/2/jobs?per_page=100')) {
       body = {
@@ -785,13 +785,13 @@ test('GitHub provider readback binds the source artifact to one successful prote
           head_sha: MAIN_SHA,
           status: 'completed',
           conclusion: 'success',
-          check_run_url: 'https://api.github.com/repos/banataosystems/Pandoras-box/check-runs/5001',
+          check_run_url: 'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/check-runs/5001',
         }],
       };
     } else if (String(url).endsWith('/check-runs/5001')) {
       body = {
         id: 5001,
-        url: 'https://api.github.com/repos/banataosystems/Pandoras-box/check-runs/5001',
+        url: 'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/check-runs/5001',
         name: 'canonical-release-source-contract',
         app: { id: GITHUB_ACTIONS_APP_ID },
         head_sha: MAIN_SHA,
@@ -873,7 +873,7 @@ test('GitHub provider readback binds the source artifact to one successful prote
 });
 
 test('GitHub provider readback binds the physical APK receipt to one exact mobile CI artifact', async () => {
-  const artifactUrl = `https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/${MOBILE_ARTIFACT_ID}`;
+  const artifactUrl = `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/${MOBILE_ARTIFACT_ID}`;
   let artifactDigest = `sha256:${MOBILE_ARTIFACT_SHA256}`;
   let runEvent = 'push';
   let jobCheckRunId = 5002;
@@ -910,8 +910,8 @@ test('GitHub provider readback binds the physical APK receipt to one exact mobil
         check_suite_id: 8002,
         run_attempt: 3,
         updated_at: '2026-08-23T13:34:00.000Z',
-        repository: { id: 55, full_name: 'banataosystems/Pandoras-box' },
-        head_repository: { id: 55, full_name: 'banataosystems/Pandoras-box' },
+        repository: { id: 55, full_name: 'pandora-rvw-314296438-20260820/pandoras-box' },
+        head_repository: { id: 55, full_name: 'pandora-rvw-314296438-20260820/pandoras-box' },
       };
     } else if (String(url).endsWith('/actions/runs/9002/attempts/3/jobs?per_page=100')) {
       body = {
@@ -923,13 +923,13 @@ test('GitHub provider readback binds the physical APK receipt to one exact mobil
           head_sha: MAIN_SHA,
           status: 'completed',
           conclusion: 'success',
-          check_run_url: `https://api.github.com/repos/banataosystems/Pandoras-box/check-runs/${jobCheckRunId}`,
+          check_run_url: `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/check-runs/${jobCheckRunId}`,
         }],
       };
     } else if (String(url).endsWith(`/check-runs/${jobCheckRunId}`)) {
       body = {
         id: jobCheckRunId,
-        url: `https://api.github.com/repos/banataosystems/Pandoras-box/check-runs/${jobCheckRunId}`,
+        url: `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/check-runs/${jobCheckRunId}`,
         name: 'Exact source / Flutter / Android',
         app: { id: GITHUB_ACTIONS_APP_ID },
         head_sha: MAIN_SHA,
@@ -1100,8 +1100,8 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
           event: 'push',
           status: 'completed',
           conclusion: 'success',
-          repository: { full_name: 'banataosystems/Pandoras-box' },
-          head_repository: { full_name: 'banataosystems/Pandoras-box' },
+          repository: { full_name: 'pandora-rvw-314296438-20260820/pandoras-box' },
+          head_repository: { full_name: 'pandora-rvw-314296438-20260820/pandoras-box' },
         })),
       };
     } else if (String(url).includes('/pulls?')) {
@@ -1129,7 +1129,7 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
         return {
           token: 'github-test-token',
           baseUrl: 'https://api.github.test',
-          allowedRepositories: ['banataosystems/Pandoras-box'],
+          allowedRepositories: ['pandora-rvw-314296438-20260820/pandoras-box'],
         };
       },
     },
@@ -1166,7 +1166,7 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
         return {
           token: 'github-test-token',
           baseUrl: 'https://api.github.test',
-          allowedRepositories: ['banataosystems/Pandoras-box'],
+          allowedRepositories: ['pandora-rvw-314296438-20260820/pandoras-box'],
         };
       },
     },
@@ -1189,7 +1189,7 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
         return {
           token: 'github-test-token',
           baseUrl: 'https://api.github.test',
-          allowedRepositories: ['banataosystems/Pandoras-box'],
+          allowedRepositories: ['pandora-rvw-314296438-20260820/pandoras-box'],
         };
       },
     },
@@ -1211,7 +1211,7 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
         return {
           token: 'github-test-token',
           baseUrl: 'https://api.github.test',
-          allowedRepositories: ['banataosystems/Pandoras-box'],
+          allowedRepositories: ['pandora-rvw-314296438-20260820/pandoras-box'],
         };
       },
     },
@@ -1231,7 +1231,7 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
         return {
           token: 'github-test-token',
           baseUrl: 'https://api.github.test',
-          allowedRepositories: ['banataosystems/Pandoras-box'],
+          allowedRepositories: ['pandora-rvw-314296438-20260820/pandoras-box'],
         };
       },
     },
@@ -1252,7 +1252,7 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
         return {
           token: 'github-test-token',
           baseUrl: 'https://api.github.test',
-          allowedRepositories: ['banataosystems/Pandoras-box'],
+          allowedRepositories: ['pandora-rvw-314296438-20260820/pandoras-box'],
         };
       },
     },
@@ -1273,7 +1273,7 @@ test('GitHub refresh preserves the 41-item registry after archive decisions clos
         return {
           token: 'github-test-token',
           baseUrl: 'https://api.github.test',
-          allowedRepositories: ['banataosystems/Pandoras-box'],
+          allowedRepositories: ['pandora-rvw-314296438-20260820/pandoras-box'],
         };
       },
     },

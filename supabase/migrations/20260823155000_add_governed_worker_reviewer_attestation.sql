@@ -261,7 +261,7 @@ begin
   from unnest(coalesce(p_allowed_repositories, '{}'::text[])) repository;
   if normalized_repositories <> coalesce(p_allowed_repositories, '{}'::text[])
      or cardinality(normalized_repositories) <> 1
-     or normalized_repositories[1] <> 'banataosystems/Pandoras-box' then
+     or normalized_repositories[1] <> 'pandora-rvw-314296438-20260820/pandoras-box' then
     raise exception 'invalid reviewer repository scopes' using errcode = '22023';
   end if;
 
@@ -492,7 +492,7 @@ begin
      or p_reviewer_id !~ '^[a-z0-9][a-z0-9._:-]{2,127}$'
      or coalesce(p_expected_key_fingerprint, '') !~ '^[0-9a-f]{64}$'
      or coalesce(p_worker_evidence_sha256, '') !~ '^[0-9a-f]{64}$'
-     or coalesce(p_repository, '') <> 'banataosystems/Pandoras-box'
+     or coalesce(p_repository, '') <> 'pandora-rvw-314296438-20260820/pandoras-box'
      or coalesce(p_exact_sha, '') !~ '^[0-9a-f]{40}$'
      or coalesce(p_source_tree_sha, '') !~ '^[0-9a-f]{40}$'
      or coalesce(p_review_artifact_sha256, '') !~ '^[0-9a-f]{64}$'

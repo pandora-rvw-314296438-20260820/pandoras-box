@@ -7,7 +7,7 @@
 ## Canonical authority
 
 - Operating source of truth: Pandora Memory hard-canon state.
-- Canonical source repository: `banataosystems/Pandoras-box`.
+- Canonical source repository: `pandora-rvw-314296438-20260820/pandoras-box`.
 - Canonical Memory source repository: `banataosystems/pandoras-box-memory`.
 
 ## Operationally blacklisted legacy sources
@@ -49,7 +49,7 @@ When evidence conflicts, resolve in this order:
 
 1. newer verified evidence, after correcting Pandora;
 2. Pandora hard-canon current state;
-3. exact committed source/manifests in `banataosystems/Pandoras-box`;
+3. exact committed source/manifests in `pandora-rvw-314296438-20260820/pandoras-box`;
 4. exact verified provider runtime evidence;
 5. deprecated `mbanatao` sources as historical evidence only.
 

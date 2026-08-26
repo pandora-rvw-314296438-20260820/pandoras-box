@@ -60,7 +60,7 @@ begin
       'allow_mutations', true,
       'project_repo_allowlist', jsonb_build_object(
         'prj_brg3BJDcHfSftHH84NhnFtDJAnDO', 'banataosystems/pandoras-box-memory',
-        'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk', 'banataosystems/Pandoras-box'
+        'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk', 'pandora-rvw-314296438-20260820/pandoras-box'
       )
     ),
     v_installed_by

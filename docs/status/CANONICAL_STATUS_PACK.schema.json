@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/banataosystems/Pandoras-box/docs/status/CANONICAL_STATUS_PACK.schema.json",
+  "$id": "https://github.com/pandora-rvw-314296438-20260820/pandoras-box/docs/status/CANONICAL_STATUS_PACK.schema.json",
   "title": "Pandoras-box canonical status pack",
   "type": "object",
   "additionalProperties": false,
@@ -121,7 +121,7 @@
       "required": ["key", "repository", "branch"],
       "properties": {
         "key": { "const": "mcpmaster-pandoras-box" },
-        "repository": { "const": "banataosystems/Pandoras-box" },
+        "repository": { "const": "pandora-rvw-314296438-20260820/pandoras-box" },
         "branch": { "const": "main" }
       }
     },
@@ -223,7 +223,7 @@
           "required": ["ok", "repository", "mainSha", "mainTreeSha", "openPullRequestCount", "triageInventoryCount", "triageExactHeadMatches", "exactIntegrationChecks", "protectionHasExactCheckIdentities", "protectedMainPolicyExact", "trustedExternalReviewConfigured", "trustedExternalReviewAppId", "trustedExternalReviewProviderContext", "trustedExternalReviewVerified", "sourceArtifactProviderReadback", "mobileArtifactProviderReadback"],
           "properties": {
             "ok": { "const": true }, "provider": { "const": "github" }, "observedAt": { "$ref": "#/$defs/dateTime" },
-            "repository": { "const": "banataosystems/Pandoras-box" }, "mainSha": { "$ref": "#/$defs/sha40" }, "mainTreeSha": { "$ref": "#/$defs/sha40" },
+            "repository": { "const": "pandora-rvw-314296438-20260820/pandoras-box" }, "mainSha": { "$ref": "#/$defs/sha40" }, "mainTreeSha": { "$ref": "#/$defs/sha40" },
             "openPullRequestCount": { "type": "integer", "minimum": 0 }, "triageInventoryCount": { "type": "integer", "minimum": 0, "maximum": 41 },
             "triageExactHeadMatches": { "type": "boolean" }, "requiredChecks": { "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/checkIdentity" } },
             "protectionHasExactCheckIdentities": { "type": "boolean" }, "protectedMainPolicyExact": { "type": "boolean" },
@@ -409,7 +409,7 @@
         },
         {
           "type": "object", "additionalProperties": false, "required": ["id", "expectedRepository", "observedRepository"],
-          "properties": { "id": { "const": "noncanonical-vercel-git-link" }, "expectedRepository": { "const": "banataosystems/Pandoras-box" }, "observedRepository": { "type": "string", "maxLength": 256 } }
+          "properties": { "id": { "const": "noncanonical-vercel-git-link" }, "expectedRepository": { "const": "pandora-rvw-314296438-20260820/pandoras-box" }, "observedRepository": { "type": "string", "maxLength": 256 } }
         }
       ]
     },
@@ -429,7 +429,7 @@
       "required": ["id", "title", "phase", "repository", "declaredStatus", "status", "dependencyReady", "missingDependencies", "blockerIds", "evidenceIds", "blocksPhaseExit", "builderAgent", "reviewerAgent"],
       "properties": {
         "id": { "type": "string", "pattern": "^STATUS-[1-5]$" }, "title": { "$ref": "#/$defs/boundedString" }, "phase": { "const": "canonical-convergence" },
-        "repository": { "const": "banataosystems/Pandoras-box" }, "declaredStatus": { "enum": ["complete", "blocked"] }, "status": { "enum": ["complete", "blocked"] },
+        "repository": { "const": "pandora-rvw-314296438-20260820/pandoras-box" }, "declaredStatus": { "enum": ["complete", "blocked"] }, "status": { "enum": ["complete", "blocked"] },
         "dependencyReady": { "type": "boolean" }, "missingDependencies": { "type": "array", "maxItems": 0 }, "blockerIds": { "$ref": "#/$defs/boundedStrings" },
         "evidenceIds": { "type": "array", "maxItems": 0 }, "blocksPhaseExit": { "const": true }, "builderAgent": { "const": "ProjectOS" }, "reviewerAgent": { "const": "independent-review" }
       }
@@ -490,7 +490,7 @@
             "vercel": {
               "type": "object",
               "properties": {
-                "ok": { "const": true }, "providerReadback": { "const": true }, "gitRepository": { "const": "banataosystems/Pandoras-box" },
+                "ok": { "const": true }, "providerReadback": { "const": true }, "gitRepository": { "const": "pandora-rvw-314296438-20260820/pandoras-box" },
                 "deploymentId": { "type": "string", "minLength": 1 }, "rollbackDeploymentId": { "type": "string", "minLength": 1 },
                 "rollbackVerified": { "const": true }, "productionAlias": { "const": "mcpmaster.vercel.app" },
                 "productionAliasLiveRead": { "const": true }, "productionTarget": { "const": "production" }, "productionVerified": { "const": true }

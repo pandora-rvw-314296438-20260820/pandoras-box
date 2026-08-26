@@ -50,7 +50,7 @@ BEGIN
     v_organization_id,
     'pandoras_box',
     'Pandoras-Box / ProjectOS',
-    'banataosystems/Pandoras-box',
+    'pandora-rvw-314296438-20260820/pandoras-box',
     526760,
     1934160,
     'https://us.posthog.com/project/526760/dashboard/1934160',
@@ -77,6 +77,7 @@ BEGIN
       AND (
         repo_full_name IS DISTINCT FROM 'mbanatao/mcpmaster'
         AND repo_full_name IS DISTINCT FROM 'banataosystems/Pandoras-box'
+        AND repo_full_name IS DISTINCT FROM 'pandora-rvw-314296438-20260820/pandoras-box'
         OR posthog_project_id IS DISTINCT FROM 526760
         OR supabase_project_ref IS DISTINCT FROM 'jcyqixttuebxqqfkjonq'
       )
@@ -85,11 +86,11 @@ BEGIN
   END IF;
 
   UPDATE private.projectos_product_registry
-  SET repo_full_name = 'banataosystems/Pandoras-box',
+  SET repo_full_name = 'pandora-rvw-314296438-20260820/pandoras-box',
       updated_at = now()
   WHERE organization_id = v_organization_id
     AND product_key = 'pandoras_box'
-    AND repo_full_name IS DISTINCT FROM 'banataosystems/Pandoras-box';
+    AND repo_full_name IS DISTINCT FROM 'pandora-rvw-314296438-20260820/pandoras-box';
 
   INSERT INTO private.projectos_event_contracts (
     organization_id,

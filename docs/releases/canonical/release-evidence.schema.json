@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/banataosystems/Pandoras-box/docs/releases/canonical/release-evidence.schema.json",
+  "$id": "https://github.com/pandora-rvw-314296438-20260820/pandoras-box/docs/releases/canonical/release-evidence.schema.json",
   "title": "Canonical release evidence requirements",
   "description": "A source-controlled requirements contract. It cannot issue provider, reviewer, owner, rollback, or physical-device proof.",
   "type": "object",
@@ -23,7 +23,7 @@
   "properties": {
     "schemaVersion": { "const": "1.0.0" },
     "kind": { "const": "canonical_release_evidence_requirements" },
-    "repository": { "const": "banataosystems/Pandoras-box" },
+    "repository": { "const": "pandora-rvw-314296438-20260820/pandoras-box" },
     "releaseDecision": { "const": "not_ready" },
     "sourceAuthority": {
       "type": "object",

@@ -5,7 +5,7 @@
 create table private.canonical_release_review_receipts (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete restrict,
-  repository text not null check (repository = 'banataosystems/Pandoras-box'),
+  repository text not null check (repository = 'pandora-rvw-314296438-20260820/pandoras-box'),
   source_sha text not null check (source_sha ~ '^[0-9a-f]{40}$'),
   source_tree_sha text not null check (source_tree_sha ~ '^[0-9a-f]{40}$'),
   production_deployment_id text not null check (production_deployment_id ~ '^dpl_[A-Za-z0-9]+$'),
@@ -41,7 +41,7 @@ create table private.canonical_release_review_receipts (
 create table private.canonical_release_owner_authorizations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete restrict,
-  repository text not null check (repository = 'banataosystems/Pandoras-box'),
+  repository text not null check (repository = 'pandora-rvw-314296438-20260820/pandoras-box'),
   owner_user_id uuid not null references auth.users(id) on delete restrict,
   source_sha text not null check (source_sha ~ '^[0-9a-f]{40}$'),
   production_deployment_id text not null check (production_deployment_id ~ '^dpl_[A-Za-z0-9]+$'),
@@ -118,7 +118,7 @@ declare
 begin
   perform private.assert_reviewer_ingest_role();
 
-  if p_repository <> 'banataosystems/Pandoras-box'
+  if p_repository <> 'pandora-rvw-314296438-20260820/pandoras-box'
      or p_request_id is null
      or p_source_sha !~ '^[0-9a-f]{40}$'
      or p_source_tree_sha !~ '^[0-9a-f]{40}$'
@@ -572,7 +572,7 @@ begin
     raise exception 'live recent AAL2 owner session required' using errcode = '42501';
   end if;
 
-  if p_repository <> 'banataosystems/Pandoras-box'
+  if p_repository <> 'pandora-rvw-314296438-20260820/pandoras-box'
      or p_source_sha !~ '^[0-9a-f]{40}$'
      or p_production_deployment_id !~ '^dpl_[A-Za-z0-9]+$'
      or p_review_receipt_sha256 !~ '^[0-9a-f]{64}$'

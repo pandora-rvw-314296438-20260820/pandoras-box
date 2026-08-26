@@ -1,10 +1,10 @@
-const CANONICAL_REPOSITORY = "banataosystems/Pandoras-box";
+const CANONICAL_REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box";
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 const ARTIFACT_ID_PATTERN = /^[1-9][0-9]{0,19}$/;
 const DEPLOYMENT_ID_PATTERN = /^dpl_[A-Za-z0-9]{1,128}$/;
 const GITHUB_ARTIFACT_URL =
-  "https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/";
+  "https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/";
 
 function exactKeys(input, expected) {
   const actual = Object.keys(input).sort();

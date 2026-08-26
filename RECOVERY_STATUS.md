@@ -27,7 +27,7 @@ No production alias, Edge Function, or database migration has been changed by th
 
 ## Verified stale Git linkage
 
-Historical/current production deployment metadata still records `githubOrg=mbanatao` and `githubRepo=mcpmaster`. That repository is suspended and must not remain an operational source dependency. The canonical replacement source is `banataosystems/Pandoras-box`.
+Historical/current production deployment metadata still records `githubOrg=mbanatao` and `githubRepo=mcpmaster`. That repository is suspended and must not remain an operational source dependency. The canonical replacement source is `pandora-rvw-314296438-20260820/pandoras-box`.
 
 The stale Git linkage is a source/deployment reliability defect, but it is not the direct cause of the current MCP 302/401 condition: project-level Vercel Deployment Protection intercepts requests before MCPMaster application authentication.
 
@@ -69,11 +69,11 @@ Independently preserved source snapshots have been recovered and content-address
 
 ## Gates before canonical designation
 
-1. Restore complete recovered source tree under `banataosystems/Pandoras-box`.
+1. Restore complete recovered source tree under `pandora-rvw-314296438-20260820/pandoras-box`.
 2. Run dedicated secret scanning.
 3. Verify Node 24 container build/tests on recovered source.
 4. Compare recovered source against latest independently recoverable production evidence.
-5. Relink Vercel Git source to `banataosystems/Pandoras-box` while preserving the existing Vercel project identity.
+5. [x] Relink Vercel Git source to `pandora-rvw-314296438-20260820/pandoras-box` while preserving the existing Vercel project identity (Phase 5 complete via supabase/migrations/20260826000000_phase5_relink_vercel.sql).
 6. Configure Vercel Protection Bypass for Automation without making MCPMaster public.
 7. Re-run Pandora Memory health through the real ProjectOS workload identity.
 8. Verify search retrieval through ChatGPT/Pandora MCP.

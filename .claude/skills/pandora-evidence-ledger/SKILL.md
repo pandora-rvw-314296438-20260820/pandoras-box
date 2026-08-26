@@ -49,7 +49,7 @@ When a finding spans stages, split it. One record per claim keeps precedence res
 
 Provenance is what makes a record auditable. Weak provenance produces a record nobody can trust in six months.
 
-Strong: `{source_type: "github_commit", source_locator: "banataosystems/Pandoras-box@<sha>", source_sha: "<sha>", parent_sha: "<parent>", observed_at: "<iso8601>"}`
+Strong: `{source_type: "github_commit", source_locator: "pandora-rvw-314296438-20260820/pandoras-box@<sha>", source_sha: "<sha>", parent_sha: "<parent>", observed_at: "<iso8601>"}`
 
 Weak: `{source_type: "analysis", source_locator: "reviewed the code", observed_at: "today"}`
 

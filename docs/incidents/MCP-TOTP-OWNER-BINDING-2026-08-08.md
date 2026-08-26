@@ -39,6 +39,6 @@ The patch adds `ownerEmail` to the public same-origin auth configuration, displa
 
 The currently observed production deployment is `dpl_8ZyJBv7oR4gC4krdo2eYfj6DKVMX`, sourced historically from commit `6faf1dd25cb12f6ff20aa4f9500658c285d3025f`. Under `SOURCE_AUTHORITY_POLICY.json`, that `mbanatao` repository is historical-only and cannot be used as the operational deployment source.
 
-Do not replace production with the older preserved recovery snapshot merely to land this patch. The patch must be applied to a source tree reconciled into `banataosystems/Pandoras-box`, built, preview-tested with positive owner and negative wrong-account paths, independently reviewed where required, and only then released with rollback evidence.
+Do not replace production with the older preserved recovery snapshot merely to land this patch. The patch must be applied to a source tree reconciled into `pandora-rvw-314296438-20260820/pandoras-box`, built, preview-tested with positive owner and negative wrong-account paths, independently reviewed where required, and only then released with rollback evidence.
 
 State: **implemented and source-tested; not deployed; not production-verified**.

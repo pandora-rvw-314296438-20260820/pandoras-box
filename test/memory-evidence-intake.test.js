@@ -29,7 +29,7 @@ function validArgs() {
     claim: "Physical Android authenticated read-only foundation is tested; merge, deployment, and production remain unverified.",
     evidenceRefs: [
       { type: "video_sha256", ref: SHA256, sha256: SHA256, artifact_class: "private-raw-evidence" },
-      { type: "github_source", ref: "banataosystems/Pandoras-box#37@" + SHA40 },
+      { type: "github_source", ref: "pandora-rvw-314296438-20260820/pandoras-box#37@" + SHA40 },
     ],
     provenance: {
       source_type: "owner_device_recording",
