@@ -259,7 +259,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
                             SizedBox(height: 5),
                             Text(
                               'Describe the business result. Pandora will handle the technical work.',
-                              style: PandoraSimpleMutedText,
+                              style: pandoraSimpleMutedText,
                             ),
                           ],
                         ),
@@ -447,7 +447,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
             const PandoraSectionTitle(title: 'Choose how to start'),
             const Text(
               'Pandora will adapt the process to your goal.',
-              style: PandoraSimpleMutedText,
+              style: pandoraSimpleMutedText,
             ),
             const SizedBox(height: 12),
             LayoutBuilder(
@@ -532,7 +532,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
                               home == null
                                   ? 'Pandora could not verify context right now.'
                                   : 'Brand, systems, preferences and verified decisions',
-                              style: PandoraSimpleMutedText,
+                              style: pandoraSimpleMutedText,
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -615,7 +615,7 @@ class _RequestKindCard extends StatelessWidget {
                     kind.description,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: PandoraSimpleMutedText,
+                    style: pandoraSimpleMutedText,
                   ),
                 ],
               ),
@@ -703,7 +703,7 @@ class _RecentRequests extends StatelessWidget {
                           const SizedBox(height: 4),
                           const Text(
                             'Accepted by Pandora on this device',
-                            style: PandoraSimpleMutedText,
+                            style: pandoraSimpleMutedText,
                           ),
                         ],
                       ),

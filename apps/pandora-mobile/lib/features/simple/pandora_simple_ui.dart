@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/design/pandora_tokens.dart';
 import '../../core/widgets/pandora_mark.dart';
 
 abstract final class PandoraSimpleColors {
@@ -432,7 +431,7 @@ class PandoraSectionTitle extends StatelessWidget {
                 ),
                 child: Text(
                   actionLabel!,
-                  style: const TextStyle(fontWeight: FontWeight.w650),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
           ],
@@ -502,7 +501,7 @@ class PandoraStatusPill extends StatelessWidget {
               style: TextStyle(
                 color: foreground,
                 fontSize: 12.5,
-                fontWeight: FontWeight.w650,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -988,13 +987,13 @@ class PandoraEmptyTruth extends StatelessWidget {
       );
 }
 
-const PandoraSimpleText = TextStyle(
+const pandoraSimpleText = TextStyle(
   color: PandoraSimpleColors.ink,
   fontSize: 15,
   height: 1.35,
 );
 
-const PandoraSimpleMutedText = TextStyle(
+const pandoraSimpleMutedText = TextStyle(
   color: PandoraSimpleColors.muted,
   fontSize: 14,
   height: 1.35,

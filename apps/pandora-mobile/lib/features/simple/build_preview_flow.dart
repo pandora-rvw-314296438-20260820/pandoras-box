@@ -81,7 +81,7 @@ class BuildProgressScreen extends StatelessWidget {
                 ? 'The reviewed result is moving through the same verification, approval and rollback controls as the working system.'
                 : 'You can leave this screen. Pandora will continue working and notify you when a decision is needed.',
             textAlign: TextAlign.center,
-            style: PandoraSimpleMutedText,
+            style: pandoraSimpleMutedText,
           ),
           const SizedBox(height: 24),
           _OrbitingBuildMark(releaseRequest: releaseRequest),
@@ -158,7 +158,7 @@ class BuildProgressScreen extends StatelessWidget {
                       receipt.needsApproval
                           ? 'The release request is recorded and waiting in Needs You.'
                           : 'The release request is recorded. Activity and provider evidence remain the source of truth.',
-                      style: PandoraSimpleText,
+                      style: pandoraSimpleText,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -194,7 +194,7 @@ class BuildProgressScreen extends StatelessWidget {
                       ? 'Pandora will notify you because a decision is already required.'
                       : 'Pandora will notify you when the next real decision is required.',
                   textAlign: TextAlign.center,
-                  style: PandoraSimpleMutedText,
+                  style: pandoraSimpleMutedText,
                 ),
               ),
             ],
@@ -424,7 +424,7 @@ class _BuildTaskRow extends StatelessWidget {
                     detail,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: PandoraSimpleMutedText,
+                    style: pandoraSimpleMutedText,
                   ),
                 ],
               ),
@@ -471,7 +471,7 @@ class _LivePreviewCard extends StatelessWidget {
                   request,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: PandoraSimpleMutedText,
+                  style: pandoraSimpleMutedText,
                 ),
                 const SizedBox(height: 14),
                 PandoraPrimaryButton(
@@ -616,7 +616,7 @@ class _FirstPreviewScreenState extends State<FirstPreviewScreen> {
             const SizedBox(height: 7),
             const Text(
               'Pandora created a working preview. Nothing is live until you approve the governed result.',
-              style: PandoraSimpleMutedText,
+              style: pandoraSimpleMutedText,
             ),
             const SizedBox(height: 18),
             PandoraDeviceSelector<_PreviewDevice>(
@@ -816,7 +816,7 @@ class _PreviewSideRail extends StatelessWidget {
                       SizedBox(height: 5),
                       Text(
                         'Tell Pandora what feels wrong before approving the result.',
-                        style: PandoraSimpleMutedText,
+                        style: pandoraSimpleMutedText,
                       ),
                     ],
                   ),
@@ -844,7 +844,7 @@ class _CapabilityLine extends StatelessWidget {
               size: 19,
             ),
             const SizedBox(width: 9),
-            Expanded(child: Text(label, style: PandoraSimpleText)),
+            Expanded(child: Text(label, style: pandoraSimpleText)),
           ],
         ),
       );
@@ -1124,7 +1124,7 @@ class _InteractivePreviewScreenState extends State<InteractivePreviewScreen> {
             const SizedBox(height: 7),
             const Text(
               'This is an interactive preview. Test it like a real customer before approving a release.',
-              style: PandoraSimpleMutedText,
+              style: pandoraSimpleMutedText,
             ),
             const SizedBox(height: 22),
             LayoutBuilder(
@@ -1423,7 +1423,7 @@ class _BookingPreview extends StatelessWidget {
             const SizedBox(height: 8),
             if (interactive)
               DropdownButtonFormField<String>(
-                value: service,
+                initialValue: service,
                 items: const [
                   DropdownMenuItem(
                     value: 'Aircon Cleaning',
@@ -1485,7 +1485,7 @@ class _BookingPreview extends StatelessWidget {
             const SizedBox(height: 8),
             if (interactive)
               DropdownButtonFormField<String>(
-                value: location,
+                initialValue: location,
                 items: const [
                   DropdownMenuItem(
                     value: 'Makati City',
