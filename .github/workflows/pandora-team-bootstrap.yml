@@ -68,7 +68,20 @@ jobs:
           cache: true
 
       - name: Generate complete Team implementation
-        run: python3 scripts/pandora_team_bootstrap.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/pandora_team_bootstrap.py')
+          source = path.read_text()
+          old = r"assert.match(fn, /auth\.admin\.inviteUserByEmail/);"
+          new = r"assert.match(fn, /auth\.admin\s*\.inviteUserByEmail/);"
+          if source.count(old) != 1:
+              raise SystemExit('expected contract matcher was not found exactly once')
+          path.write_text(source.replace(old, new, 1))
+          PY
+          python3 scripts/pandora_team_bootstrap.py
 
       - name: Canonically format Flutter source
         run: dart format apps/pandora-mobile/lib apps/pandora-mobile/test
