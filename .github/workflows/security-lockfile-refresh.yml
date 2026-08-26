@@ -33,7 +33,12 @@ jobs:
           const path = 'package.json';
           const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
           pkg.devDependencies['@vercel/node'] = '5.10.2';
-          pkg.overrides = { ...(pkg.overrides || {}), undici: '5.29.0' };
+          pkg.overrides = {
+            ...(pkg.overrides || {}),
+            undici: '6.28.0',
+            'path-to-regexp': '6.3.0',
+            diff: '4.0.4'
+          };
           fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
           NODE
 
@@ -69,10 +74,11 @@ jobs:
             }
           };
           assertExact('node_modules/@vercel/node', '5.10.2');
-          assertExact('node_modules/undici', '5.29.0');
           assertAllAtLeast('tar', '7.5.16');
           assertAllAtLeast('minimatch', '3.1.3');
-          assertAllAtLeast('undici', '5.29.0');
+          assertAllAtLeast('undici', '6.28.0');
+          assertAllAtLeast('path-to-regexp', '6.3.0');
+          assertAllAtLeast('diff', '4.0.4');
           assertAllAtLeast('esbuild', '0.25.0');
           NODE
 
