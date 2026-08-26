@@ -154,6 +154,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260826000000_phase5_relink_vercel.sql',
     '20260826010000_phase6_canonical_verifier.sql',
     '20260826020000_phase7_final_release_signoff.sql',
+    '20260826030000_phase8_exact_candidate_release_proof.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -174,6 +175,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260826000000_phase5_relink_vercel.sql',
     '20260826010000_phase6_canonical_verifier.sql',
     '20260826020000_phase7_final_release_signoff.sql',
+    '20260826030000_phase8_exact_candidate_release_proof.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
