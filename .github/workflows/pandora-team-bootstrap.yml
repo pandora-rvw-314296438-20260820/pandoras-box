@@ -30,6 +30,7 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: true
+          token: ${{ secrets.PANDORA_TEAM_PUSH_TOKEN }}
 
       - name: Expand verified implementation package
         shell: bash
@@ -254,6 +255,14 @@ jobs:
             --plain-name 'captures settings_porcelain_390x844' \
             test/goldens/owner_screens_visual_evidence_test.dart
 
+      - name: Remove generated Flutter caches from source candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf apps/pandora-mobile/.dart_tool apps/pandora-mobile/build
+          test ! -e apps/pandora-mobile/.dart_tool
+          test ! -e apps/pandora-mobile/build
+
       - name: Verify source contracts before commit
         shell: bash
         run: |
@@ -269,6 +278,8 @@ jobs:
           test ! -e scripts/pandora_team_bootstrap.py
           test ! -e scripts/pandora-user-admin-source-parity.patch
           test ! -e scripts/pandora-team-bootstrap.zip
+          test ! -e apps/pandora-mobile/.dart_tool
+          test ! -e apps/pandora-mobile/build
 
       - name: Commit exact candidate locally
         id: candidate
