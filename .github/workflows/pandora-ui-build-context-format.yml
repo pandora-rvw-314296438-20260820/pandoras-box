@@ -1,0 +1,94 @@
+name: Temporary Pandora build-context formatter
+
+on:
+  push:
+    branches:
+      - fix/canonical-working-ui-screenshot-fidelity-20260826
+    paths:
+      - apps/pandora-mobile/lib/**/*.dart
+      - .github/workflows/pandora-ui-build-context-format.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      FLUTTER_VERSION: '3.47.0'
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: false
+
+      - name: Reproduce canonical mobile build context
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .pandora-mobile-build
+          mkdir .pandora-mobile-build
+          cd .pandora-mobile-build
+          flutter create \
+            --platforms=android,web \
+            --org com.banataosystems \
+            --project-name pandora_mobile \
+            .
+          cp -R ../apps/pandora-mobile/platform/android/. ./android/
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R ../apps/pandora-mobile/lib ./lib
+          cp -R ../apps/pandora-mobile/test ./test
+          cp -R ../apps/pandora-mobile/assets ./assets
+          cp -R ../apps/pandora-mobile/platform ./platform
+          cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
+          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+
+      - name: Format in canonical package context
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .pandora-mobile-build
+          dart format lib test
+          cd ..
+          cp .pandora-mobile-build/lib/app/pandora_shell.dart \
+            apps/pandora-mobile/lib/app/pandora_shell.dart
+          cp .pandora-mobile-build/lib/features/simple/simple_home_screen.dart \
+            apps/pandora-mobile/lib/features/simple/simple_home_screen.dart
+          cp .pandora-mobile-build/lib/features/simple/ask_pandora_screen.dart \
+            apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
+          cp .pandora-mobile-build/lib/features/simple/build_preview_flow.dart \
+            apps/pandora-mobile/lib/features/simple/build_preview_flow.dart
+          cp .pandora-mobile-build/lib/features/simple/pandora_simple_ui.dart \
+            apps/pandora-mobile/lib/features/simple/pandora_simple_ui.dart
+          tar -czf /tmp/pandora-ui-build-context-formatted.tar.gz \
+            apps/pandora-mobile/lib/app/pandora_shell.dart \
+            apps/pandora-mobile/lib/features/simple/simple_home_screen.dart \
+            apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart \
+            apps/pandora-mobile/lib/features/simple/build_preview_flow.dart \
+            apps/pandora-mobile/lib/features/simple/pandora_simple_ui.dart
+          sha256sum /tmp/pandora-ui-build-context-formatted.tar.gz \
+            > /tmp/pandora-ui-build-context-formatted.sha256
+
+      - name: Upload exact build-context formatted source
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pandora-ui-build-context-formatted-${{ github.sha }}
+          path: |
+            /tmp/pandora-ui-build-context-formatted.tar.gz
+            /tmp/pandora-ui-build-context-formatted.sha256
+          if-no-files-found: error
+          retention-days: 1
