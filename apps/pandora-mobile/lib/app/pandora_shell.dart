@@ -22,11 +22,7 @@ class PandoraShell extends StatefulWidget {
 class _PandoraShellState extends State<PandoraShell> {
   static const _destinations = <_Destination>[
     _Destination('Home', Icons.home_outlined, Icons.home_rounded),
-    _Destination(
-      'Systems',
-      Icons.grid_view_outlined,
-      Icons.grid_view_rounded,
-    ),
+    _Destination('Systems', Icons.grid_view_outlined, Icons.grid_view_rounded),
     _Destination(
       'Ask Pandora',
       Icons.auto_awesome_outlined,
@@ -62,29 +58,29 @@ class _PandoraShellState extends State<PandoraShell> {
   }
 
   Widget _root(int index) => _roots.putIfAbsent(
-        index,
-        () => switch (index) {
-          0 => SimpleHomeScreen(
-              onAskPandora: (prompt) => _openAskPandora(prompt),
-              onOpenSystems: () => _select(1),
-              onOpenNeedsYou: () => _select(3),
-              onOpenMore: () => _select(4),
-            ),
-          1 => const SystemsScreen(),
-          2 => const AskPandoraScreen(),
-          3 => const ApprovalsScreen(),
-          4 => const MoreScreen(),
-          _ => const SimpleHomeScreen(),
-        },
-      );
+    index,
+    () => switch (index) {
+      0 => SimpleHomeScreen(
+        onAskPandora: (prompt) => _openAskPandora(prompt),
+        onOpenSystems: () => _select(1),
+        onOpenNeedsYou: () => _select(3),
+        onOpenMore: () => _select(4),
+      ),
+      1 => const SystemsScreen(),
+      2 => const AskPandoraScreen(),
+      3 => const ApprovalsScreen(),
+      4 => const MoreScreen(),
+      _ => const SimpleHomeScreen(),
+    },
+  );
 
   Widget _tabNavigator(int index) => Navigator(
-        key: _navigatorKeys[index],
-        onGenerateRoute: (settings) => MaterialPageRoute<void>(
-          settings: settings,
-          builder: (_) => _root(index),
-        ),
-      );
+    key: _navigatorKeys[index],
+    onGenerateRoute: (settings) => MaterialPageRoute<void>(
+      settings: settings,
+      builder: (_) => _root(index),
+    ),
+  );
 
   void _openAskPandora([String? prompt]) {
     _select(2);
@@ -241,37 +237,37 @@ class _PandoraBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
-        decoration: const BoxDecoration(
-          color: PandoraSimpleColors.surface,
-          border: Border(top: BorderSide(color: PandoraSimpleColors.line)),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x12000000),
-              blurRadius: 18,
-              offset: Offset(0, -5),
-            ),
+    decoration: const BoxDecoration(
+      color: PandoraSimpleColors.surface,
+      border: Border(top: BorderSide(color: PandoraSimpleColors.line)),
+      boxShadow: [
+        BoxShadow(
+          color: Color(0x12000000),
+          blurRadius: 18,
+          offset: Offset(0, -5),
+        ),
+      ],
+    ),
+    child: SafeArea(
+      top: false,
+      child: SizedBox(
+        height: 86,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (var index = 0; index < destinations.length; index++)
+              Expanded(
+                child: _BottomDestination(
+                  destination: destinations[index],
+                  selected: index == selectedIndex,
+                  onTap: () => onSelected(index),
+                ),
+              ),
           ],
         ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 86,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                for (var index = 0; index < destinations.length; index++)
-                  Expanded(
-                    child: _BottomDestination(
-                      destination: destinations[index],
-                      selected: index == selectedIndex,
-                      onTap: () => onSelected(index),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      );
+      ),
+    ),
+  );
 }
 
 class _BottomDestination extends StatelessWidget {
