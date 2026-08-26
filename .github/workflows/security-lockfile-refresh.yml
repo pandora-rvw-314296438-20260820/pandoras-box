@@ -1,0 +1,64 @@
+name: Security lockfile refresh
+
+on:
+  push:
+    branches:
+      - "security/vercel-node-5x-remediation-20260826"
+    paths:
+      - ".github/workflows/security-lockfile-refresh.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact remediation branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: security/vercel-node-5x-remediation-20260826
+
+      - name: Install pinned Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Set controlled dependency targets
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'package.json';
+          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+          pkg.devDependencies['@vercel/node'] = '5.10.2';
+          pkg.overrides = { ...(pkg.overrides || {}), undici: '5.29.0' };
+          fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+
+      - name: Regenerate npm lockfile without package scripts
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Verify vulnerable build-chain packages
+        run: npm ls @vercel/node @vercel/nft @mapbox/node-pre-gyp tar minimatch undici esbuild --all
+
+      - name: Reject remaining high or critical npm advisories
+        run: npm audit --audit-level=high
+
+      - name: Validate generated diff
+        run: git diff --check -- package.json package-lock.json
+
+      - name: Commit generated dependency remediation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "pandora-security-bot"
+          git config user.email "pandora-security-bot@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No dependency changes generated"
+            exit 1
+          fi
+          git commit -m "security: remediate Vercel build-chain dependencies"
+          git push origin HEAD:security/vercel-node-5x-remediation-20260826
