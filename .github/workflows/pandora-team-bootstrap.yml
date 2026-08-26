@@ -132,10 +132,100 @@ jobs:
               "import 'package:pandora_mobile/features/simple/more_screen.dart';",
           ])
           new_imports = '\n'.join([
+              "import 'package:pandora_mobile/core/data/pandora_user_admin_api.dart';",
               "import 'package:pandora_mobile/features/simple/more_screen.dart';",
-              "import 'package:pandora_mobile/features/team/pandora_user_admin_api.dart';",
           ])
           replace_once(widget_test, old_imports, new_imports)
+
+          replace_once(
+              screen,
+              "  Widget build(BuildContext context) => PandoraPage(",
+              "  Widget build(BuildContext context) => Scaffold(\n        body: PandoraPage(",
+          )
+          old_build_end = '\n'.join([
+              "        child: _buildBody(context),",
+              "      );",
+              "",
+              "  Widget _buildBody(BuildContext context) {",
+          ])
+          new_build_end = '\n'.join([
+              "          child: _buildBody(context),",
+              "        ),",
+              "      );",
+              "",
+              "  Widget _buildBody(BuildContext context) {",
+          ])
+          replace_once(screen, old_build_end, new_build_end)
+
+          old_navigation = '\n'.join([
+              "    expect(find.text('Team'), findsOneWidget);",
+              "    await tester.tap(find.text('Team'));",
+          ])
+          new_navigation = '\n'.join([
+              "    expect(find.text('Team'), findsOneWidget);",
+              "    await tester.ensureVisible(find.text('Team'));",
+              "    await tester.pumpAndSettle();",
+              "    await tester.tap(find.text('Team'));",
+          ])
+          replace_once(widget_test, old_navigation, new_navigation)
+
+          core_api = Path('apps/pandora-mobile/lib/core/data/pandora_user_admin_api.dart')
+          core_api.parent.mkdir(parents=True, exist_ok=True)
+          if core_api.exists():
+              raise SystemExit('core Team gateway already exists unexpectedly')
+          core_api.write_text(api.read_text())
+          api.unlink()
+
+          screen_source = screen.read_text()
+          old_screen_import = "import 'pandora_user_admin_api.dart';\n"
+          core_screen_import = "import '../../core/data/pandora_user_admin_api.dart';\n"
+          if screen_source.count(old_screen_import) != 1:
+              raise SystemExit('Team screen gateway import anchor missing')
+          screen_source = screen_source.replace(old_screen_import, '', 1)
+          screen_anchor = "import 'package:flutter/material.dart';\n\n"
+          if screen_source.count(screen_anchor) != 1:
+              raise SystemExit('Team screen import anchor missing')
+          screen.write_text(
+              screen_source.replace(screen_anchor, screen_anchor + core_screen_import, 1)
+          )
+
+          more = Path('apps/pandora-mobile/lib/features/simple/more_screen.dart')
+          more_source = more.read_text()
+          old_more_import = "import '../team/pandora_user_admin_api.dart';\n"
+          core_more_import = "import '../../core/data/pandora_user_admin_api.dart';\n"
+          if more_source.count(old_more_import) != 1:
+              raise SystemExit('More screen gateway import anchor missing')
+          more_source = more_source.replace(old_more_import, '', 1)
+          more_anchor = "import 'package:flutter/material.dart';\n\n"
+          if more_source.count(more_anchor) != 1:
+              raise SystemExit('More screen import anchor missing')
+          more.write_text(
+              more_source.replace(more_anchor, more_anchor + core_more_import, 1)
+          )
+
+          model_test = Path('apps/pandora-mobile/test/features/team/pandora_user_admin_api_test.dart')
+          replace_once(
+              model_test,
+              "package:pandora_mobile/features/team/pandora_user_admin_api.dart",
+              "package:pandora_mobile/core/data/pandora_user_admin_api.dart",
+          )
+
+          node_contract = Path('test/pandora-team-mobile-contract.test.js')
+          replace_once(
+              node_contract,
+              'apps/pandora-mobile/lib/features/team/pandora_user_admin_api.dart',
+              'apps/pandora-mobile/lib/core/data/pandora_user_admin_api.dart',
+          )
+
+          version_contract = Path('apps/pandora-mobile/test/pandora_contract_test.dart')
+          replace_once(version_contract, "'0.3.0-rc.2+5'", "'0.3.0-rc.3+6'")
+
+          manifest = Path('docs/evidence/pandora_team_implementation_manifest.json')
+          replace_once(
+              manifest,
+              'apps/pandora-mobile/lib/features/team/pandora_user_admin_api.dart',
+              'apps/pandora-mobile/lib/core/data/pandora_user_admin_api.dart',
+          )
           PY
       - name: Resolve exact mobile dependencies before canonical formatting
         working-directory: apps/pandora-mobile
@@ -145,9 +235,19 @@ jobs:
           cp pubspec.lock pubspec.lock.expected
           flutter pub get --enforce-lockfile
           cmp pubspec.lock.expected pubspec.lock
+          rm pubspec.lock.expected
 
       - name: Canonically format Flutter source
         run: dart format apps/pandora-mobile/lib apps/pandora-mobile/test
+
+      - name: Update reviewed settings release-version golden
+        working-directory: apps/pandora-mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter test --update-goldens \
+            --plain-name 'captures settings_porcelain_390x844' \
+            test/goldens/owner_screens_visual_evidence_test.dart
 
       - name: Verify source contracts before commit
         shell: bash
@@ -159,7 +259,7 @@ jobs:
             test/pandora-team-mobile-contract.test.js
           test -f supabase/functions/pandora-user-admin/index.ts
           test -f apps/pandora-mobile/lib/features/team/team_screen.dart
-          test -f apps/pandora-mobile/lib/features/team/pandora_user_admin_api.dart
+          test -f apps/pandora-mobile/lib/core/data/pandora_user_admin_api.dart
           test ! -e .github/workflows/pandora-team-bootstrap.yml
           test ! -e scripts/pandora_team_bootstrap.py
           test ! -e scripts/pandora-user-admin-source-parity.patch
@@ -212,6 +312,7 @@ jobs:
           cp pubspec.lock pubspec.lock.expected
           flutter pub get --enforce-lockfile
           cmp pubspec.lock.expected pubspec.lock
+          rm pubspec.lock.expected
 
       - name: Verify formatting
         working-directory: /tmp/pandora-team-build
