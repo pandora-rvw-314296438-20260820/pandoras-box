@@ -1,4 +1,4 @@
-name: Pandora mobile UI diagnostic
+name: Pandora mobile canonical formatter
 
 on:
   push:
@@ -7,25 +7,26 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: pandora-mobile-ui-debug-${{ github.sha }}
-  cancel-in-progress: true
+  group: pandora-mobile-ui-format-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  test:
-    name: Full Flutter diagnostics and formatter output
+  format:
+    name: Apply canonical Dart formatting
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 15
     env:
       FLUTTER_VERSION: '3.47.0'
     steps:
-      - name: Check out exact source
+      - name: Check out exact branch source
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
 
       - name: Install pinned Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
@@ -33,59 +34,30 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      - name: Materialize test workspace
+      - name: Format corrected mobile source
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .pandora-mobile-debug
-          mkdir .pandora-mobile-debug
-          cd .pandora-mobile-debug
-          flutter create --platforms=web --org com.banataosystems --project-name pandora_mobile .
-          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
-          cp -R ../apps/pandora-mobile/lib ./lib
-          cp -R ../apps/pandora-mobile/test ./test
-          cp -R ../apps/pandora-mobile/assets ./assets
-          cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
-          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
-          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
-          flutter pub get --enforce-lockfile
+          dart format \
+            apps/pandora-mobile/lib/features/auth/auth_gate.dart \
+            apps/pandora-mobile/lib/features/simple/simple_home_screen.dart \
+            apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
 
-      - name: Produce exact formatter output
-        working-directory: .pandora-mobile-debug
+      - name: Commit formatter output when needed
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p diagnostic/formatted
-          dart format lib/features/simple/simple_home_screen.dart
-          cp lib/features/simple/simple_home_screen.dart diagnostic/formatted/simple_home_screen.dart
-
-      - name: Run full tests and preserve output
-        id: full_tests
-        working-directory: .pandora-mobile-debug
-        shell: bash
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          timeout 900s flutter test --reporter expanded 2>&1 | tee diagnostic/all-test-output.txt
-          code=${PIPESTATUS[0]}
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-          exit 0
-
-      - name: Snapshot relevant mobile source
-        shell: bash
-        run: |
-          set -euo pipefail
-          tar -czf .pandora-mobile-debug/diagnostic/pandora-mobile-source.tgz apps/pandora-mobile
-
-      - name: Upload diagnostic output
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: pandora-mobile-ui-debug-${{ github.sha }}
-          path: .pandora-mobile-debug/diagnostic
-          if-no-files-found: error
-          retention-days: 3
-
-      - name: Fail when full tests fail
-        if: ${{ steps.full_tests.outputs.exit_code != '0' }}
-        shell: bash
-        run: exit 1
+          paths=(
+            apps/pandora-mobile/lib/features/auth/auth_gate.dart
+            apps/pandora-mobile/lib/features/simple/simple_home_screen.dart
+            apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
+          )
+          if git diff --quiet -- "${paths[@]}"; then
+            echo "Source is already canonically formatted."
+            exit 0
+          fi
+          git config user.name pandora-rvw-314296438-20260820
+          git config user.email plpboracay@gmail.com
+          git add -- "${paths[@]}"
+          git commit -m "style(mobile): apply canonical Dart formatting"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
