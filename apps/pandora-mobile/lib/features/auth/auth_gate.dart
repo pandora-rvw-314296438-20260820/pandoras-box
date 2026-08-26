@@ -188,7 +188,7 @@ class _AuthGateState extends State<AuthGate> {
 }
 
 class _AuthorizationRecheckScreen extends StatelessWidget {
-  const _AuthorizationRecheckScreen(
+  const _AuthorizationRecheckScreen({
     required this.message,
     required this.busy,
     required this.onRecheck,
