@@ -40,11 +40,44 @@ jobs:
       - name: Regenerate npm lockfile without package scripts
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
 
-      - name: Verify vulnerable build-chain packages
-        run: npm ls @vercel/node @vercel/nft @mapbox/node-pre-gyp tar minimatch undici esbuild --all
+      - name: Verify resolved security targets in lockfile
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          const packages = lock.packages || {};
+          const version = (path) => packages[path]?.version || null;
+          const assertExact = (path, expected) => {
+            const actual = version(path);
+            if (actual !== expected) throw new Error(`${path}: expected ${expected}, got ${actual}`);
+          };
+          const cmp = (a, b) => {
+            const pa = a.split(/[.-]/).slice(0, 3).map(x => Number(x) || 0);
+            const pb = b.split(/[.-]/).slice(0, 3).map(x => Number(x) || 0);
+            for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
+            return 0;
+          };
+          const assertAllAtLeast = (name, minimum) => {
+            const matches = Object.entries(packages).filter(([path, meta]) =>
+              meta?.version && (path === `node_modules/${name}` || path.endsWith(`/node_modules/${name}`))
+            );
+            if (!matches.length) throw new Error(`No resolved ${name} package found`);
+            for (const [path, meta] of matches) {
+              if (cmp(meta.version, minimum) < 0) throw new Error(`${path}: ${meta.version} < ${minimum}`);
+              console.log(`${path}=${meta.version}`);
+            }
+          };
+          assertExact('node_modules/@vercel/node', '5.10.2');
+          assertExact('node_modules/undici', '5.29.0');
+          assertAllAtLeast('tar', '7.5.16');
+          assertAllAtLeast('minimatch', '3.1.3');
+          assertAllAtLeast('undici', '5.29.0');
+          assertAllAtLeast('esbuild', '0.25.0');
+          NODE
 
-      - name: Reject remaining high or critical npm advisories
-        run: npm audit --audit-level=high
+      - name: Reject all npm advisories
+        run: npm audit --audit-level=low
 
       - name: Validate generated diff
         run: git diff --check -- package.json package-lock.json
