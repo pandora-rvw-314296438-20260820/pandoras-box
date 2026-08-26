@@ -1,0 +1,229 @@
+name: Pandora Team one-shot implementation
+
+on:
+  push:
+    branches:
+      - fix/canonical-working-ui-screenshot-fidelity-20260826
+    paths:
+      - .github/workflows/pandora-team-bootstrap.yml
+      - scripts/pandora-team-bootstrap.zip
+
+concurrency:
+  group: pandora-team-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: ${{ contains(github.event.head_commit.message || '', 'bootstrap(team):') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      FLUTTER_VERSION: '3.47.0'
+      EXPECTED_APP_VERSION: '0.3.0-rc.3+6'
+    steps:
+      - name: Check out exact bootstrap source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Expand verified implementation package
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(sha256sum scripts/pandora-team-bootstrap.zip | cut -d ' ' -f1)" = \
+            'bee7f3ca45097c3214c123891d7b0effc66e2a2aae0395466afa42f7014750b0'
+          unzip -o scripts/pandora-team-bootstrap.zip -d .
+
+      - name: Verify bootstrap branch and source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = 'fix/canonical-working-ui-screenshot-fidelity-20260826'
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test -f scripts/pandora_team_bootstrap.py
+          test -f scripts/pandora-user-admin-source-parity.patch
+
+      - name: Install pinned JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '17.0.20+8'
+
+      - name: Install pinned Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Generate complete Team implementation
+        run: python3 scripts/pandora_team_bootstrap.py
+
+      - name: Canonically format Flutter source
+        run: dart format apps/pandora-mobile/lib apps/pandora-mobile/test
+
+      - name: Verify source contracts before commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          node --test \
+            test/pandora-user-admin-contract.test.js \
+            test/pandora-team-mobile-contract.test.js
+          test -f supabase/functions/pandora-user-admin/index.ts
+          test -f apps/pandora-mobile/lib/features/team/team_screen.dart
+          test -f apps/pandora-mobile/lib/features/team/pandora_user_admin_api.dart
+          test ! -e .github/workflows/pandora-team-bootstrap.yml
+          test ! -e scripts/pandora_team_bootstrap.py
+          test ! -e scripts/pandora-user-admin-source-parity.patch
+          test ! -e scripts/pandora-team-bootstrap.zip
+
+      - name: Commit exact candidate locally
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name pandora-rvw-314296438-20260820
+          git config user.email plpboracay@gmail.com
+          git add -A
+          git commit -m 'feat(team): implement governed user management and rc.3'
+          candidate_sha="$(git rev-parse HEAD)"
+          candidate_tree="$(git rev-parse HEAD^{tree})"
+          test -z "$(git status --porcelain)"
+          echo "sha=${candidate_sha}" >> "$GITHUB_OUTPUT"
+          echo "tree=${candidate_tree}" >> "$GITHUB_OUTPUT"
+
+      - name: Materialize disposable Android and Web platforms
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/pandora-team-build
+          mkdir /tmp/pandora-team-build
+          cd /tmp/pandora-team-build
+          flutter create \
+            --platforms=android,web \
+            --org com.banataosystems \
+            --project-name pandora_mobile \
+            .
+          cp -R "$GITHUB_WORKSPACE/apps/pandora-mobile/platform/android/." ./android/
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R "$GITHUB_WORKSPACE/apps/pandora-mobile/lib" ./lib
+          cp -R "$GITHUB_WORKSPACE/apps/pandora-mobile/test" ./test
+          cp -R "$GITHUB_WORKSPACE/apps/pandora-mobile/assets" ./assets
+          cp -R "$GITHUB_WORKSPACE/apps/pandora-mobile/platform" ./platform
+          cp "$GITHUB_WORKSPACE/apps/pandora-mobile/pubspec.yaml" ./pubspec.yaml
+          cp "$GITHUB_WORKSPACE/apps/pandora-mobile/pubspec.lock" ./pubspec.lock
+          cp "$GITHUB_WORKSPACE/apps/pandora-mobile/analysis_options.yaml" ./analysis_options.yaml
+          python3 "$GITHUB_WORKSPACE/apps/pandora-mobile/tool/configure_validation_android.py" \
+            android/app/src/main/AndroidManifest.xml
+
+      - name: Resolve exact dependencies
+        working-directory: /tmp/pandora-team-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+
+      - name: Verify formatting
+        working-directory: /tmp/pandora-team-build
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        working-directory: /tmp/pandora-team-build
+        run: flutter analyze
+
+      - name: Test
+        working-directory: /tmp/pandora-team-build
+        run: flutter test --reporter expanded
+
+      - name: Build Android APK
+        working-directory: /tmp/pandora-team-build
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = "$EXPECTED_APP_VERSION"
+          flutter build apk --debug \
+            --dart-define=PANDORA_SOURCE_REVISION="$CANDIDATE_SHA" \
+            --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
+
+      - name: Inspect APK identity and permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=/tmp/pandora-team-build/build/app/outputs/flutter-apk/app-debug.apk
+          evidence=/tmp/pandora-team-build/android-package-evidence
+          mkdir -p "$evidence"
+          aapt="${ANDROID_HOME:?}/build-tools/36.0.0/aapt"
+          apksigner="${ANDROID_HOME:?}/build-tools/36.0.0/apksigner"
+          "$aapt" dump badging "$apk" > "$evidence/badging.txt"
+          "$aapt" dump permissions "$apk" > "$evidence/permissions.txt"
+          "$apksigner" verify --verbose --print-certs "$apk" > "$evidence/signing.txt"
+          grep -Fq "package: name='com.banataosystems.pandora_mobile'" "$evidence/badging.txt"
+          grep -Fq "versionCode='6'" "$evidence/badging.txt"
+          grep -Fq "versionName='0.3.0-rc.3'" "$evidence/badging.txt"
+          grep -Fq "application-label:'Pandora'" "$evidence/badging.txt"
+          if grep -Eiq \
+            'ACCESS_(FINE|COARSE|BACKGROUND)_LOCATION|READ_CONTACTS|WRITE_CONTACTS|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_|CAMERA|RECORD_AUDIO|BLUETOOTH_(SCAN|CONNECT|ADVERTISE)|QUERY_ALL_PACKAGES|REQUEST_INSTALL_PACKAGES|SYSTEM_ALERT_WINDOW' \
+            "$evidence/permissions.txt"; then
+            echo 'Unexpected sensitive Android permission detected.' >&2
+            exit 1
+          fi
+
+      - name: Bind APK to exact candidate source
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+          CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
+        run: |
+          set -euo pipefail
+          apk=/tmp/pandora-team-build/build/app/outputs/flutter-apk/app-debug.apk
+          evidence=/tmp/pandora-team-build/android-package-evidence
+          {
+            echo "source_sha=${CANDIDATE_SHA}"
+            echo "source_tree=${CANDIDATE_TREE}"
+            echo "app_version=${EXPECTED_APP_VERSION}"
+            echo "flutter_version=${FLUTTER_VERSION}"
+            echo 'artifact_class=owner-test-team-candidate'
+            echo 'production_release=false'
+            echo "apk_sha256=$(sha256sum "$apk" | cut -d ' ' -f1)"
+            echo "apk_size_bytes=$(stat -c '%s' "$apk")"
+            echo "badging_sha256=$(sha256sum "$evidence/badging.txt" | cut -d ' ' -f1)"
+            echo "permissions_sha256=$(sha256sum "$evidence/permissions.txt" | cut -d ' ' -f1)"
+            echo "signing_sha256=$(sha256sum "$evidence/signing.txt" | cut -d ' ' -f1)"
+          } > /tmp/pandora-team-build/pandora-team-artifact-manifest.txt
+
+      - name: Push exact validated candidate
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test -z "$(git status --porcelain)"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Upload exact-source Android candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: pandora-team-android-${{ steps.candidate.outputs.sha }}
+          path: |
+            /tmp/pandora-team-build/build/app/outputs/flutter-apk/app-debug.apk
+            /tmp/pandora-team-build/pandora-team-artifact-manifest.txt
+            /tmp/pandora-team-build/android-package-evidence
+          if-no-files-found: error
+          retention-days: 30
