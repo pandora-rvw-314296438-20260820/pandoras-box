@@ -1,0 +1,57 @@
+name: Pandora mobile syntax diagnostic
+
+on:
+  push:
+    branches:
+      - fix/canonical-working-ui-screenshot-fidelity-20260826
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: ${{ !contains(github.event.head_commit.message || '', 'diagnostic(mobile): capture formatter output') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      FLUTTER_VERSION: '3.47.0'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Capture formatter output
+        shell: bash
+        run: |
+          set +e
+          mkdir -p docs/diagnostics
+          dart format \
+            apps/pandora-mobile/lib/features/auth/auth_gate.dart \
+            apps/pandora-mobile/lib/features/simple/simple_home_screen.dart \
+            apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart \
+            > docs/diagnostics/pandora-mobile-format.txt 2>&1
+          code=$?
+          printf '\nFORMAT_EXIT_CODE=%s\nSOURCE_SHA=%s\n' "$code" "$GITHUB_SHA" >> docs/diagnostics/pandora-mobile-format.txt
+          exit 0
+      - name: Commit diagnostic and any formatter changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name pandora-rvw-314296438-20260820
+          git config user.email plpboracay@gmail.com
+          git add \
+            docs/diagnostics/pandora-mobile-format.txt \
+            apps/pandora-mobile/lib/features/auth/auth_gate.dart \
+            apps/pandora-mobile/lib/features/simple/simple_home_screen.dart \
+            apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'diagnostic(mobile): capture formatter output'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
