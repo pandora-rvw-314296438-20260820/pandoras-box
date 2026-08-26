@@ -154,50 +154,48 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraSimplePage(
-        onRefresh: _load,
-        header: PandoraOwnerHeader(
-          title: 'Good morning, Mark',
-          subtitle: "Here's your business today.",
-          onNotifications: _openNeedsYou,
-          onAvatar: () => _openHome(context, const SettingsScreen()),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _IntentCard(
-                controller: _intent, onSubmit: _ask, onSuggestion: _ask),
-            const SizedBox(height: 20),
-            if (_loading)
-              const PandoraSimpleCard(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 34),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: PandoraSimpleColors.red,
-                    ),
-                  ),
+    onRefresh: _load,
+    header: PandoraOwnerHeader(
+      title: 'Good morning, Mark',
+      subtitle: "Here's your business today.",
+      onNotifications: _openNeedsYou,
+      onAvatar: () => _openHome(context, const SettingsScreen()),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _IntentCard(controller: _intent, onSubmit: _ask, onSuggestion: _ask),
+        const SizedBox(height: 20),
+        if (_loading)
+          const PandoraSimpleCard(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 34),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: PandoraSimpleColors.red,
                 ),
-              )
-            else if (_error != null)
-              PandoraEmptyTruth(
-                title: 'Current state unavailable',
-                message: _error!,
-                actionLabel: 'Check again',
-                onAction: _load,
-              )
-            else
-              _VerifiedHome(
-                summary: _summary!,
-                onAsk: _ask,
-                onOpenSystems: _openSystems,
-                onOpenNeedsYou: _openNeedsYou,
-                onOpenActivity: () =>
-                    _openHome(context, const ActivityScreen()),
-                onExplainRecommendation: _showRecommendationSource,
               ),
-          ],
-        ),
-      );
+            ),
+          )
+        else if (_error != null)
+          PandoraEmptyTruth(
+            title: 'Current state unavailable',
+            message: _error!,
+            actionLabel: 'Check again',
+            onAction: _load,
+          )
+        else
+          _VerifiedHome(
+            summary: _summary!,
+            onAsk: _ask,
+            onOpenSystems: _openSystems,
+            onOpenNeedsYou: _openNeedsYou,
+            onOpenActivity: () => _openHome(context, const ActivityScreen()),
+            onExplainRecommendation: _showRecommendationSource,
+          ),
+      ],
+    ),
+  );
 }
 
 class _IntentCard extends StatelessWidget {
@@ -213,107 +211,98 @@ class _IntentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                const PandoraIconBadge(
-                    icon: Icons.auto_awesome_rounded, size: 50),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    minLines: 1,
-                    maxLines: 4,
-                    textCapitalization: TextCapitalization.sentences,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => onSubmit(),
-                    decoration: const InputDecoration(
-                      hintText: 'What do you want Pandora to do?',
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    style: const TextStyle(
-                      color: PandoraSimpleColors.ink,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+            const PandoraIconBadge(icon: Icons.auto_awesome_rounded, size: 50),
+            const SizedBox(width: 14),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                minLines: 1,
+                maxLines: 4,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => onSubmit(),
+                decoration: const InputDecoration(
+                  hintText: 'What do you want Pandora to do?',
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 12),
                 ),
-                IconButton(
-                  tooltip: 'Speak to Pandora',
-                  onPressed: () => onSuggestion(controller.text),
-                  icon: const Icon(Icons.mic_none_rounded),
+                style: const TextStyle(
                   color: PandoraSimpleColors.ink,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
                 ),
-                IconButton(
-                  tooltip: 'Attach context',
-                  onPressed: () => onSuggestion(controller.text),
-                  icon: const Icon(Icons.attach_file_rounded),
-                  color: PandoraSimpleColors.ink,
-                ),
-                IconButton(
-                  tooltip: 'Send to Pandora',
-                  onPressed: onSubmit,
-                  icon: const Icon(Icons.arrow_forward_rounded),
-                  color: PandoraSimpleColors.red,
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final suggestions = <(IconData, String)>[
-                  (
-                    Icons.calendar_month_outlined,
-                    'Build an online booking system'
-                  ),
-                  (
-                    Icons.person_add_alt_1_outlined,
-                    'Automate customer follow-ups'
-                  ),
-                  (Icons.trending_up_rounded, 'Improve my website'),
-                ];
-                if (constraints.maxWidth < 570) {
-                  return Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final suggestion in suggestions)
-                        _SuggestionChip(
-                          icon: suggestion.$1,
-                          label: suggestion.$2,
-                          onTap: () => onSuggestion(suggestion.$2),
-                        ),
-                    ],
-                  );
-                }
-                return Row(
-                  children: [
-                    for (var index = 0;
-                        index < suggestions.length;
-                        index++) ...[
-                      Expanded(
-                        child: _SuggestionChip(
-                          icon: suggestions[index].$1,
-                          label: suggestions[index].$2,
-                          onTap: () => onSuggestion(suggestions[index].$2),
-                        ),
-                      ),
-                      if (index != suggestions.length - 1)
-                        const SizedBox(width: 10),
-                    ],
-                  ],
-                );
-              },
+            IconButton(
+              tooltip: 'Speak to Pandora',
+              onPressed: () => onSuggestion(controller.text),
+              icon: const Icon(Icons.mic_none_rounded),
+              color: PandoraSimpleColors.ink,
+            ),
+            IconButton(
+              tooltip: 'Attach context',
+              onPressed: () => onSuggestion(controller.text),
+              icon: const Icon(Icons.attach_file_rounded),
+              color: PandoraSimpleColors.ink,
+            ),
+            IconButton(
+              tooltip: 'Send to Pandora',
+              onPressed: onSubmit,
+              icon: const Icon(Icons.arrow_forward_rounded),
+              color: PandoraSimpleColors.red,
             ),
           ],
         ),
-      );
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final suggestions = <(IconData, String)>[
+              (Icons.calendar_month_outlined, 'Build an online booking system'),
+              (Icons.person_add_alt_1_outlined, 'Automate customer follow-ups'),
+              (Icons.trending_up_rounded, 'Improve my website'),
+            ];
+            if (constraints.maxWidth < 570) {
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final suggestion in suggestions)
+                    _SuggestionChip(
+                      icon: suggestion.$1,
+                      label: suggestion.$2,
+                      onTap: () => onSuggestion(suggestion.$2),
+                    ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                for (var index = 0; index < suggestions.length; index++) ...[
+                  Expanded(
+                    child: _SuggestionChip(
+                      icon: suggestions[index].$1,
+                      label: suggestions[index].$2,
+                      onTap: () => onSuggestion(suggestions[index].$2),
+                    ),
+                  ),
+                  if (index != suggestions.length - 1)
+                    const SizedBox(width: 10),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
+    ),
+  );
 }
 
 class _SuggestionChip extends StatelessWidget {
@@ -329,42 +318,42 @@ class _SuggestionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: PandoraSimpleColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: PandoraSimpleColors.line),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 58),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, color: PandoraSimpleColors.deepRed, size: 21),
-                  const SizedBox(width: 9),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: PandoraSimpleColors.ink,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        height: 1.15,
-                      ),
-                    ),
+    color: PandoraSimpleColors.surface,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: const BorderSide(color: PandoraSimpleColors.line),
+    ),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 58),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: PandoraSimpleColors.deepRed, size: 21),
+              const SizedBox(width: 9),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.15,
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _VerifiedHome extends StatelessWidget {
@@ -386,7 +375,8 @@ class _VerifiedHome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final recommendation = summary.priority?.reason ??
+    final recommendation =
+        summary.priority?.reason ??
         (summary.topProjects.isNotEmpty
             ? summary.topProjects.first.nextAction
             : null);
@@ -409,11 +399,13 @@ class _VerifiedHome extends StatelessWidget {
             final cards = <Widget>[
               _NeedCard(
                 icon: Icons.fact_check_outlined,
-                title: summary.priority?.action ??
+                title:
+                    summary.priority?.action ??
                     (summary.countersVerified && summary.approvalCount > 0
                         ? '${summary.approvalCount} decision${summary.approvalCount == 1 ? '' : 's'} ready for review'
                         : 'Nothing needs your decision right now'),
-                detail: summary.priority?.reason ??
+                detail:
+                    summary.priority?.reason ??
                     (summary.countersVerified
                         ? 'Pandora will surface the next decision here.'
                         : 'Decision counters have not been verified.'),
@@ -431,16 +423,17 @@ class _VerifiedHome extends StatelessWidget {
                     ? PandoraSimpleColors.greenWash
                     : PandoraSimpleColors.blueWash,
                 title: attention?.name ?? 'No additional issue is verified',
-                detail: attention?.blocker ??
+                detail:
+                    attention?.blocker ??
                     attention?.nextAction ??
                     'Pandora is monitoring your connected systems.',
                 action: attention == null ? 'Systems' : 'Open',
                 onTap: attention == null
                     ? onOpenSystems
                     : () => _openHome(
-                          context,
-                          ProjectDetailScreen(project: attention),
-                        ),
+                        context,
+                        ProjectDetailScreen(project: attention),
+                      ),
               ),
             ];
             if (constraints.maxWidth < 620) {
@@ -520,69 +513,69 @@ class _NeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
-        shadow: false,
-        onTap: onTap,
-        child: Column(
+    shadow: false,
+    onTap: onTap,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                PandoraIconBadge(
-                  icon: icon,
-                  foreground: iconForeground,
-                  background: iconBackground,
-                  size: 48,
-                ),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: PandoraSimpleColors.ink,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          height: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        detail,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: pandoraSimpleMutedText,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            PandoraIconBadge(
+              icon: icon,
+              foreground: iconForeground,
+              background: iconBackground,
+              size: 48,
             ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Text(
-                  action,
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.deepRed,
-                    fontWeight: FontWeight.w700,
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PandoraSimpleColors.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  color: PandoraSimpleColors.deepRed,
-                  size: 20,
-                ),
-              ],
+                  const SizedBox(height: 5),
+                  Text(
+                    detail,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: pandoraSimpleMutedText,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-      );
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Text(
+              action,
+              style: const TextStyle(
+                color: PandoraSimpleColors.deepRed,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(
+              Icons.arrow_forward_rounded,
+              color: PandoraSimpleColors.deepRed,
+              size: 20,
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 }
 
 class _WorkingCard extends StatelessWidget {
@@ -630,13 +623,13 @@ class _WorkingRow extends StatelessWidget {
     final foreground = healthy
         ? PandoraSimpleColors.green
         : testing
-            ? PandoraSimpleColors.amber
-            : PandoraSimpleColors.ink;
+        ? PandoraSimpleColors.amber
+        : PandoraSimpleColors.ink;
     final background = healthy
         ? PandoraSimpleColors.greenWash
         : testing
-            ? PandoraSimpleColors.amberWash
-            : const Color(0xFFF5F1EC);
+        ? PandoraSimpleColors.amberWash
+        : const Color(0xFFF5F1EC);
     return InkWell(
       onTap: () => _openHome(context, ProjectDetailScreen(project: project)),
       child: Padding(
@@ -647,8 +640,8 @@ class _WorkingRow extends StatelessWidget {
               icon: healthy
                   ? Icons.shield_outlined
                   : testing
-                      ? Icons.code_rounded
-                      : Icons.motion_photos_on_outlined,
+                  ? Icons.code_rounded
+                  : Icons.motion_photos_on_outlined,
               foreground: foreground,
               background: background,
             ),
@@ -741,8 +734,8 @@ class _BusinessPulse extends StatelessWidget {
         final count = width >= 690
             ? 4
             : width >= 420
-                ? 2
-                : 1;
+            ? 2
+            : 1;
         final itemWidth = (width - ((count - 1) * 10)) / count;
         return Wrap(
           spacing: 10,
@@ -785,56 +778,56 @@ class _PulseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
-        padding: const EdgeInsets.all(13),
-        shadow: false,
-        child: Row(
-          children: [
-            PandoraIconBadge(
-              icon: metric.icon,
-              foreground: metric.foreground,
-              background: metric.background,
-              size: 42,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    metric.label,
-                    style: const TextStyle(
-                      color: PandoraSimpleColors.muted,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    metric.value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: PandoraSimpleColors.ink,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    metric.note,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: metric.foreground,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.all(13),
+    shadow: false,
+    child: Row(
+      children: [
+        PandoraIconBadge(
+          icon: metric.icon,
+          foreground: metric.foreground,
+          background: metric.background,
+          size: 42,
         ),
-      );
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                metric.label,
+                style: const TextStyle(
+                  color: PandoraSimpleColors.muted,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                metric.value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PandoraSimpleColors.ink,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                metric.note,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: metric.foreground,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _RecommendationCard extends StatelessWidget {
@@ -850,7 +843,8 @@ class _RecommendationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final message = recommendation ??
+    final message =
+        recommendation ??
         'No recommendation is verified yet. Ask Pandora what the safest useful next step should be.';
     return PandoraSimpleCard(
       backgroundColor: const Color(0xFFFFF5F6),
@@ -867,8 +861,9 @@ class _RecommendationCard extends StatelessWidget {
               width: 6,
               decoration: const BoxDecoration(
                 color: PandoraSimpleColors.red,
-                borderRadius:
-                    BorderRadius.horizontal(left: Radius.circular(20)),
+                borderRadius: BorderRadius.horizontal(
+                  left: Radius.circular(20),
+                ),
               ),
             ),
           ),
@@ -927,11 +922,7 @@ class _RecommendationCard extends StatelessWidget {
                 if (constraints.maxWidth < 560) {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      content,
-                      const SizedBox(height: 14),
-                      actions,
-                    ],
+                    children: [content, const SizedBox(height: 14), actions],
                   );
                 }
                 return Row(
@@ -973,8 +964,8 @@ class _SystemsStrip extends StatelessWidget {
         final count = constraints.maxWidth >= 690
             ? 4
             : constraints.maxWidth >= 420
-                ? 2
-                : 1;
+            ? 2
+            : 1;
         final width = (constraints.maxWidth - ((count - 1) * 10)) / count;
         return Wrap(
           spacing: 10,
@@ -1120,15 +1111,15 @@ class _ActivityCard extends StatelessWidget {
                       index == 2
                           ? Icons.warning_amber_rounded
                           : index == 3
-                              ? Icons.rocket_launch_outlined
-                              : Icons.check_circle_rounded,
+                          ? Icons.rocket_launch_outlined
+                          : Icons.check_circle_rounded,
                       color: index == 2
                           ? PandoraSimpleColors.amber
                           : index == 3
-                              ? PandoraSimpleColors.purple
-                              : index == 1
-                                  ? PandoraSimpleColors.blue
-                                  : PandoraSimpleColors.green,
+                          ? PandoraSimpleColors.purple
+                          : index == 1
+                          ? PandoraSimpleColors.blue
+                          : PandoraSimpleColors.green,
                       size: 23,
                     ),
                     const SizedBox(width: 13),
