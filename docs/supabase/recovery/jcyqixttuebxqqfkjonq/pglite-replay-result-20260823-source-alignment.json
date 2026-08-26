@@ -7,8 +7,8 @@
     "postgres_server_version_num": "180003"
   },
   "provider_equivalence": false,
-  "migration_count": 71,
-  "chain_sha256": "ef4ea25fc603567fb07e701c84736be179d375b6b503267391c1949e607797d1",
+  "migration_count": 72,
+  "chain_sha256": "68f7475d867a6e7367c627839571a7a2b41ca834a30592d380f29c5240a28a3b",
   "identity_reconciliation": {
     "live_identity_count": 59,
     "source_live_identity_coverage": 59,
