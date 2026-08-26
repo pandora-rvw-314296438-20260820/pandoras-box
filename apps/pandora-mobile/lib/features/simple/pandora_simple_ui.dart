@@ -209,28 +209,28 @@ class _HeaderButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: tooltip,
-    child: Material(
-      color: PandoraSimpleColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-        side: const BorderSide(color: PandoraSimpleColors.line),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(15),
-        onTap: onPressed,
-        child: SizedBox.square(
-          dimension: 48,
-          child: Icon(
-            icon,
-            color: onPressed == null
-                ? PandoraSimpleColors.line
-                : PandoraSimpleColors.ink,
+        message: tooltip,
+        child: Material(
+          color: PandoraSimpleColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+            side: const BorderSide(color: PandoraSimpleColors.line),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(15),
+            onTap: onPressed,
+            child: SizedBox.square(
+              dimension: 48,
+              child: Icon(
+                icon,
+                color: onPressed == null
+                    ? PandoraSimpleColors.line
+                    : PandoraSimpleColors.ink,
+              ),
+            ),
           ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 class _NotificationButton extends StatelessWidget {
@@ -240,37 +240,37 @@ class _NotificationButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: 'Open Needs You',
-    child: InkResponse(
-      radius: 28,
-      onTap: onPressed,
-      child: SizedBox.square(
-        dimension: 48,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            const Icon(
-              Icons.notifications_none_rounded,
-              color: PandoraSimpleColors.ink,
-              size: 29,
-            ),
-            Positioned(
-              right: 8,
-              top: 8,
-              child: Container(
-                width: 9,
-                height: 9,
-                decoration: const BoxDecoration(
-                  color: PandoraSimpleColors.red,
-                  shape: BoxShape.circle,
+        message: 'Open Needs You',
+        child: InkResponse(
+          radius: 28,
+          onTap: onPressed,
+          child: SizedBox.square(
+            dimension: 48,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const Icon(
+                  Icons.notifications_none_rounded,
+                  color: PandoraSimpleColors.ink,
+                  size: 29,
                 ),
-              ),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    width: 9,
+                    height: 9,
+                    decoration: const BoxDecoration(
+                      color: PandoraSimpleColors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 class _OwnerAvatar extends StatelessWidget {
@@ -281,29 +281,29 @@ class _OwnerAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: tooltip,
-    child: Material(
-      color: const Color(0xFFE9ECE9),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onPressed,
-        child: const SizedBox.square(
-          dimension: 48,
-          child: Center(
-            child: Text(
-              'M',
-              style: TextStyle(
-                color: PandoraSimpleColors.ink,
-                fontSize: 19,
-                fontWeight: FontWeight.w700,
+        message: tooltip,
+        child: Material(
+          color: const Color(0xFFE9ECE9),
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPressed,
+            child: const SizedBox.square(
+              dimension: 48,
+              child: Center(
+                child: Text(
+                  'M',
+                  style: TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 class PandoraSimpleCard extends StatelessWidget {
@@ -377,67 +377,67 @@ class PandoraSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Row(
-      children: [
-        Flexible(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: PandoraSimpleColors.ink,
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -.25,
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          children: [
+            Flexible(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: PandoraSimpleColors.ink,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.25,
+                ),
+              ),
             ),
-          ),
+            if (live) ...[
+              const SizedBox(width: 8),
+              Container(
+                width: 7,
+                height: 7,
+                decoration: const BoxDecoration(
+                  color: PandoraSimpleColors.green,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+              const Text(
+                'Live',
+                style: TextStyle(
+                  color: PandoraSimpleColors.green,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if (meta != null) ...[
+              const SizedBox(width: 6),
+              Text(
+                meta!,
+                style: const TextStyle(
+                  color: PandoraSimpleColors.muted,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+            const Spacer(),
+            if (actionLabel != null)
+              TextButton(
+                onPressed: onAction,
+                style: TextButton.styleFrom(
+                  foregroundColor: PandoraSimpleColors.deepRed,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: const Size(48, 44),
+                ),
+                child: Text(
+                  actionLabel!,
+                  style: const TextStyle(fontWeight: FontWeight.w650),
+                ),
+              ),
+          ],
         ),
-        if (live) ...[
-          const SizedBox(width: 8),
-          Container(
-            width: 7,
-            height: 7,
-            decoration: const BoxDecoration(
-              color: PandoraSimpleColors.green,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 5),
-          const Text(
-            'Live',
-            style: TextStyle(
-              color: PandoraSimpleColors.green,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-        if (meta != null) ...[
-          const SizedBox(width: 6),
-          Text(
-            meta!,
-            style: const TextStyle(
-              color: PandoraSimpleColors.muted,
-              fontSize: 14,
-            ),
-          ),
-        ],
-        const Spacer(),
-        if (actionLabel != null)
-          TextButton(
-            onPressed: onAction,
-            style: TextButton.styleFrom(
-              foregroundColor: PandoraSimpleColors.deepRed,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              minimumSize: const Size(48, 44),
-            ),
-            child: Text(
-              actionLabel!,
-              style: const TextStyle(fontWeight: FontWeight.w650),
-            ),
-          ),
-      ],
-    ),
-  );
+      );
 }
 
 class PandoraIconBadge extends StatelessWidget {
@@ -456,16 +456,16 @@ class PandoraIconBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      color: background,
-      borderRadius: BorderRadius.circular(size * .32),
-      border: Border.all(color: foreground.withValues(alpha: .08)),
-    ),
-    alignment: Alignment.center,
-    child: Icon(icon, color: foreground, size: size * .52),
-  );
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(size * .32),
+          border: Border.all(color: foreground.withValues(alpha: .08)),
+        ),
+        alignment: Alignment.center,
+        child: Icon(icon, color: foreground, size: size * .52),
+      );
 }
 
 class PandoraStatusPill extends StatelessWidget {
@@ -484,30 +484,30 @@ class PandoraStatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minHeight: 34),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-    decoration: BoxDecoration(
-      color: background,
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (icon != null) ...[
-          Icon(icon, color: foreground, size: 16),
-          const SizedBox(width: 5),
-        ],
-        Text(
-          label,
-          style: TextStyle(
-            color: foreground,
-            fontSize: 12.5,
-            fontWeight: FontWeight.w650,
-          ),
+        constraints: const BoxConstraints(minHeight: 34),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(12),
         ),
-      ],
-    ),
-  );
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: foreground, size: 16),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: foreground,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w650,
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class PandoraPrimaryButton extends StatelessWidget {
@@ -606,26 +606,26 @@ class PandoraFlowStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      return Row(
-        children: [
-          for (var index = 0; index < steps.length; index++) ...[
-            Expanded(
-              child: _StepItem(step: steps[index], index: index),
-            ),
-            if (index < steps.length - 1)
-              Container(
-                width: 18,
-                height: 1.5,
-                color: steps[index].state == PandoraFlowStepState.complete
-                    ? PandoraSimpleColors.red
-                    : PandoraSimpleColors.line,
-              ),
-          ],
-        ],
+        builder: (context, constraints) {
+          return Row(
+            children: [
+              for (var index = 0; index < steps.length; index++) ...[
+                Expanded(
+                  child: _StepItem(step: steps[index], index: index),
+                ),
+                if (index < steps.length - 1)
+                  Container(
+                    width: 18,
+                    height: 1.5,
+                    color: steps[index].state == PandoraFlowStepState.complete
+                        ? PandoraSimpleColors.red
+                        : PandoraSimpleColors.line,
+                  ),
+              ],
+            ],
+          );
+        },
       );
-    },
-  );
 }
 
 class _StepItem extends StatelessWidget {
@@ -696,78 +696,79 @@ class PandoraDeviceSelector<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(4),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF5F5F4),
-      borderRadius: BorderRadius.circular(15),
-      border: Border.all(color: PandoraSimpleColors.line),
-    ),
-    child: Row(
-      children: [
-        for (final value in values)
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Material(
-                color: value == selected
-                    ? PandoraSimpleColors.surface
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => onSelected(value),
-                  child: Container(
-                    constraints: const BoxConstraints(minHeight: 50),
-                    decoration: value == selected
-                        ? BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE4E1DE)),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x0C000000),
-                                blurRadius: 8,
-                                offset: Offset(0, 3),
-                              ),
-                            ],
-                          )
-                        : null,
-                    alignment: Alignment.center,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          iconBuilder(value),
-                          size: 20,
-                          color: value == selected
-                              ? PandoraSimpleColors.red
-                              : PandoraSimpleColors.muted,
-                        ),
-                        const SizedBox(width: 7),
-                        Flexible(
-                          child: Text(
-                            labelBuilder(value),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F5F4),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: PandoraSimpleColors.line),
+        ),
+        child: Row(
+          children: [
+            for (final value in values)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Material(
+                    color: value == selected
+                        ? PandoraSimpleColors.surface
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => onSelected(value),
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 50),
+                        decoration: value == selected
+                            ? BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border:
+                                    Border.all(color: const Color(0xFFE4E1DE)),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x0C000000),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ],
+                              )
+                            : null,
+                        alignment: Alignment.center,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              iconBuilder(value),
+                              size: 20,
                               color: value == selected
-                                  ? PandoraSimpleColors.deepRed
+                                  ? PandoraSimpleColors.red
                                   : PandoraSimpleColors.muted,
-                              fontWeight: value == selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
                             ),
-                          ),
+                            const SizedBox(width: 7),
+                            Flexible(
+                              child: Text(
+                                labelBuilder(value),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: value == selected
+                                      ? PandoraSimpleColors.deepRed
+                                      : PandoraSimpleColors.muted,
+                                  fontWeight: value == selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-      ],
-    ),
-  );
+          ],
+        ),
+      );
 }
 
 class PandoraPhoneFrame extends StatelessWidget {
@@ -784,42 +785,42 @@ class PandoraPhoneFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: width,
-    height: height,
-    padding: const EdgeInsets.all(9),
-    decoration: BoxDecoration(
-      color: const Color(0xFF111111),
-      borderRadius: BorderRadius.circular(45),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x35000000),
-          blurRadius: 24,
-          offset: Offset(0, 12),
+        width: width,
+        height: height,
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111111),
+          borderRadius: BorderRadius.circular(45),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x35000000),
+              blurRadius: 24,
+              offset: Offset(0, 12),
+            ),
+          ],
         ),
-      ],
-    ),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(37),
-      child: Stack(
-        children: [
-          Positioned.fill(child: child),
-          Align(
-            alignment: Alignment.topCenter,
-            child: Container(
-              width: 114,
-              height: 24,
-              decoration: const BoxDecoration(
-                color: Color(0xFF111111),
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(17),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(37),
+          child: Stack(
+            children: [
+              Positioned.fill(child: child),
+              Align(
+                alignment: Alignment.topCenter,
+                child: Container(
+                  width: 114,
+                  height: 24,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF111111),
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(17),
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 class PandoraAirconHero extends StatelessWidget {
@@ -827,103 +828,104 @@ class PandoraAirconHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 155,
-    child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFF8F6F2), Color(0xFFEAE4DD)],
+        height: 155,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFF8F6F2), Color(0xFFEAE4DD)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
-              borderRadius: BorderRadius.circular(16),
             ),
-          ),
-        ),
-        Positioned(
-          left: 18,
-          bottom: 12,
-          child: Container(
-            width: 42,
-            height: 76,
-            decoration: BoxDecoration(
-              color: const Color(0xFF5C8C55),
-              borderRadius: BorderRadius.circular(22),
-            ),
-          ),
-        ),
-        Positioned(
-          left: 2,
-          right: 2,
-          bottom: 0,
-          child: Container(
-            height: 42,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF5F1EB),
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
-            ),
-          ),
-        ),
-        Positioned(
-          left: 72,
-          right: 30,
-          top: 39,
-          child: Container(
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(9),
-              border: Border.all(color: const Color(0xFFD8D8D6)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x18000000),
-                  blurRadius: 10,
-                  offset: Offset(0, 5),
+            Positioned(
+              left: 18,
+              bottom: 12,
+              child: Container(
+                width: 42,
+                height: 76,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5C8C55),
+                  borderRadius: BorderRadius.circular(22),
                 ),
-              ],
+              ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 18),
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3A3A3A),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+            Positioned(
+              left: 2,
+              right: 2,
+              bottom: 0,
+              child: Container(
+                height: 42,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF5F1EB),
+                  borderRadius:
+                      BorderRadius.vertical(bottom: Radius.circular(16)),
                 ),
-                const SizedBox(height: 7),
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 24),
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE2E2E2),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
+              ),
+            ),
+            Positioned(
+              left: 72,
+              right: 30,
+              top: 39,
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: const Color(0xFFD8D8D6)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x18000000),
+                      blurRadius: 10,
+                      offset: Offset(0, 5),
+                    ),
+                  ],
                 ),
-              ],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 18),
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3A3A3A),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 24),
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E2E2),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
-        Positioned(
-          right: 24,
-          bottom: 12,
-          child: Container(
-            width: 48,
-            height: 30,
-            decoration: BoxDecoration(
-              color: PandoraSimpleColors.red,
-              borderRadius: BorderRadius.circular(8),
+            Positioned(
+              right: 24,
+              bottom: 12,
+              child: Container(
+                width: 48,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: PandoraSimpleColors.red,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class PandoraEmptyTruth extends StatelessWidget {
@@ -942,48 +944,48 @@ class PandoraEmptyTruth extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
-    shadow: false,
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const PandoraIconBadge(icon: Icons.verified_user_outlined),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: PandoraSimpleColors.ink,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                message,
-                style: const TextStyle(
-                  color: PandoraSimpleColors.muted,
-                  height: 1.35,
-                ),
-              ),
-              if (actionLabel != null) ...[
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: onAction,
-                  style: TextButton.styleFrom(
-                    foregroundColor: PandoraSimpleColors.deepRed,
-                    padding: EdgeInsets.zero,
+        shadow: false,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const PandoraIconBadge(icon: Icons.verified_user_outlined),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: PandoraSimpleColors.ink,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  child: Text(actionLabel!),
-                ),
-              ],
-            ],
-          ),
+                  const SizedBox(height: 4),
+                  Text(
+                    message,
+                    style: const TextStyle(
+                      color: PandoraSimpleColors.muted,
+                      height: 1.35,
+                    ),
+                  ),
+                  if (actionLabel != null) ...[
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: onAction,
+                      style: TextButton.styleFrom(
+                        foregroundColor: PandoraSimpleColors.deepRed,
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: Text(actionLabel!),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 const PandoraSimpleText = TextStyle(
