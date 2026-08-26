@@ -118,6 +118,13 @@ jobs:
               "      }",
           ])
           replace_once(screen, old_screen, new_screen)
+          old_timezone = "                if (timezone.length > 64) return 'Keep the timezone under 64 characters.';"
+          new_timezone = '\n'.join([
+              "                if (timezone.length > 64) {",
+              "                  return 'Keep the timezone under 64 characters.';",
+              "                }",
+          ])
+          replace_once(screen, old_timezone, new_timezone)
 
           widget_test = Path('apps/pandora-mobile/test/features/team/team_screen_test.dart')
           old_imports = '\n'.join([
