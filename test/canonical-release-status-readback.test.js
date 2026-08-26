@@ -32,7 +32,7 @@ const mobileWorkflow = readFileSync(join(
 test("canonical release readback is service-role-only and source-bound", () => {
   assert.match(migration, /get_canonical_release_status/);
   assert.match(migration, /private\.assert_control_service_role\(\)/);
-  assert.match(migration, /p_repository <> 'banataosystems\/Pandoras-box'/);
+  assert.match(migration, /p_repository <> 'pandora-rvw-314296438-20260820\/pandoras-box'/);
   assert.match(migration, /p_source_sha !~ '\^\[0-9a-f\]\{40\}\$'/);
   assert.match(migration, /revoke all[\s\S]*from public, anon, authenticated/i);
   assert.match(migration, /grant execute[\s\S]*to service_role/i);
@@ -123,7 +123,7 @@ test("mobile CI publishes an exact-source GitHub artifact locator", () => {
 
 test("OIDC control route accepts only the canonical repository and exact source SHA", () => {
   assert.match(control, /input\.action === "canonical_release_status"/);
-  assert.match(control, /repository !== "banataosystems\/Pandoras-box"/);
+  assert.match(control, /repository !== "pandora-rvw-314296438-20260820\/pandoras-box"/);
   assert.match(control, /\^\[0-9a-f\]\{40\}\$/);
   assert.match(control, /rpc: "get_canonical_release_status"/);
   assert.match(control, /responseKey: "releaseEvidence"/);
@@ -135,7 +135,7 @@ test("authenticated control exposes closed-schema immutable receipt capture acti
   assert.match(captureRoutes, /rpc: "capture_canonical_supabase_release_receipt"/);
   assert.match(captureRoutes, /responseKey: "supabaseReceipt"/);
   assert.match(captureRoutes, /\^\[1-9\]\[0-9\]\{0,19\}\$/);
-  assert.match(captureRoutes, /https:\/\/api\.github\.com\/repos\/banataosystems\/Pandoras-box\/actions\/artifacts\//);
+  assert.match(captureRoutes, /https:\/\/api\.github\.com\/repos\/pandora-rvw-314296438-20260820\/pandoras-box\/actions\/artifacts\//);
 
   assert.match(captureRoutes, /input\.action === "canonical_vercel_rehearsal_capture"/);
   assert.match(captureRoutes, /exactKeys\(input,[\s\S]*"candidateDeploymentId"[\s\S]*"rollbackSourceSha"/s);
