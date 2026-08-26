@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/data/pandora_user_admin_api.dart';
 import '../../core/design/pandora_tokens.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_page.dart';
@@ -13,13 +14,16 @@ import '../intelligence/owner_intelligence_screen.dart';
 import '../projects/projects_screen.dart';
 import '../safety/safety_screen.dart';
 import '../settings/settings_screen.dart';
+import '../team/team_screen.dart';
 
 void _openMore(BuildContext context, Widget screen) {
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
 }
 
 class MoreScreen extends StatelessWidget {
-  const MoreScreen({super.key});
+  const MoreScreen({super.key, this.teamGateway});
+
+  final PandoraUserAdminGateway? teamGateway;
 
   @override
   Widget build(BuildContext context) => PandoraPage(
@@ -103,11 +107,24 @@ class MoreScreen extends StatelessWidget {
             const SizedBox(height: PandoraSpacing.md),
             PandoraSurface(
               title: 'Account',
-              child: _MoreTile(
-                icon: Icons.settings_outlined,
-                title: 'Settings',
-                subtitle: 'Appearance, account, security, and app identity',
-                onTap: () => _openMore(context, const SettingsScreen()),
+              child: Column(
+                children: [
+                  _MoreTile(
+                    icon: Icons.groups_outlined,
+                    title: 'Team',
+                    subtitle: 'Invite people and manage their access',
+                    onTap: () => _openMore(
+                      context,
+                      TeamScreen(gateway: teamGateway),
+                    ),
+                  ),
+                  _MoreTile(
+                    icon: Icons.settings_outlined,
+                    title: 'Settings',
+                    subtitle: 'Appearance, account, security, and app identity',
+                    onTap: () => _openMore(context, const SettingsScreen()),
+                  ),
+                ],
               ),
             ),
           ],
