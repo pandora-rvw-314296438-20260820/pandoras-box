@@ -857,9 +857,10 @@ class _RecommendationCard extends StatelessWidget {
       borderColor: const Color(0xFFF2CDD2),
       shadow: false,
       padding: EdgeInsets.zero,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           Container(
             width: 6,
             decoration: const BoxDecoration(
@@ -938,7 +939,8 @@ class _RecommendationCard extends StatelessWidget {
               ),
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
