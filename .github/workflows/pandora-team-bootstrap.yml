@@ -83,6 +83,15 @@ jobs:
           PY
           python3 scripts/pandora_team_bootstrap.py
 
+      - name: Resolve exact mobile dependencies before canonical formatting
+        working-directory: apps/pandora-mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+
       - name: Canonically format Flutter source
         run: dart format apps/pandora-mobile/lib apps/pandora-mobile/test
 
