@@ -84,6 +84,8 @@ jobs:
           python3 scripts/pandora_team_bootstrap.py
           python3 - <<'PY'
           from pathlib import Path
+          import json
+          import subprocess
 
           def replace_once(path: Path, old: str, new: str) -> None:
               source = path.read_text()
@@ -221,11 +223,14 @@ jobs:
           replace_once(version_contract, "'0.3.0-rc.2+5'", "'0.3.0-rc.3+6'")
 
           manifest = Path('docs/evidence/pandora_team_implementation_manifest.json')
-          replace_once(
-              manifest,
-              'apps/pandora-mobile/lib/features/team/pandora_user_admin_api.dart',
-              'apps/pandora-mobile/lib/core/data/pandora_user_admin_api.dart',
-          )
+          manifest_payload = json.loads(manifest.read_text())
+          manifest_payload['changed_files_before_format'] = subprocess.run(
+              ['git', 'status', '--short', '--untracked-files=all'],
+              capture_output=True,
+              text=True,
+              check=True,
+          ).stdout.splitlines()
+          manifest.write_text(json.dumps(manifest_payload, indent=2) + '\n')
           PY
       - name: Resolve exact mobile dependencies before canonical formatting
         working-directory: apps/pandora-mobile
