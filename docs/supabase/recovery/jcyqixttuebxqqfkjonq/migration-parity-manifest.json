@@ -19,15 +19,15 @@
     "active_file_count": 52,
     "applied_change_count": 2,
     "live_identity_count": 59,
-    "source_file_count": 75,
+    "source_file_count": 76,
     "source_live_identity_coverage": 59,
-    "source_only_forward_count": 16,
+    "source_only_forward_count": 17,
     "identity_only_source_record_count": 3,
     "raw_provider_payloads_committed": false,
     "live_secret_or_verifier_literals_committed": false,
     "historical_sensitive_exposure_remediated": false,
     "coordinated_rotation_required": true,
-    "reconciled_migration_count": 75
+    "reconciled_migration_count": 76
   },
   "validation": {
     "result_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/pglite-replay-result.json",
@@ -36,8 +36,8 @@
     "provider_equivalence": false,
     "migration_count": 52,
     "chain_sha256": "77e2dbe177cac4eddd8b6de03bc98cd98c4c4d2bfd5a0dfd7bde6cff174a56fb",
-    "reconciled_migration_count": 75,
-    "reconciled_chain_sha256": "2414e5494df4c76e74a6eb05df9d443320ba215435b0c1076b0537982c86ead2",
+    "reconciled_migration_count": 76,
+    "reconciled_chain_sha256": "3d27bd912315ba604f1a28be06e7d64db7b9e55733f21de5c463679ac95e9160",
     "authorization_smoke": "pass",
     "database_rollback_smoke": "pass"
   },
@@ -68,9 +68,9 @@
     "reconciled_recovery_chain_sha256": "fd919e3a587bd5e910154eec815c05e0074c2ccbe079e427de1030bcf2001c93",
     "legacy_aug17_chain_sha256": "aed27b85780da567ee8b3939e72b6d6d3318d4fe1d088081e18c71bed6c38b04",
     "reconciled_aug17_chain_sha256": "a75ba68bc23518ae0f72cb86294515a924986e26ed8c0eb7f6fbcda194a7920f",
-    "current_source_replay_chain_sha256": "2414e5494df4c76e74a6eb05df9d443320ba215435b0c1076b0537982c86ead2",
-    "current_source_receipt_chain_sha256": "dc983bdd6abecb49eb1a58bb1f329ec9a35c37221fa6379e48ea4c2a520dc074",
-    "expected_applied_receipt_chain_sha256": "80127ce8edb816be82c8084946185810801152136bd477933a6513dc40c6fc04",
+    "current_source_replay_chain_sha256": "3d27bd912315ba604f1a28be06e7d64db7b9e55733f21de5c463679ac95e9160",
+    "current_source_receipt_chain_sha256": "d756da2841b2a1c0f06b63f3d5f923c2087474b364ee0fcaf4755c8d2829c4a0",
+    "expected_applied_receipt_chain_sha256": "d479e83db4747591c110139b2ead23fa32d39c7c125ce1b29cb8828aaf0fd781",
     "replay_chain_delimiter": "filename:sha256\\n",
     "receipt_chain_delimiter": "filename\\tsha256\\n",
     "live_only_sensitive_bodies_republished": false
