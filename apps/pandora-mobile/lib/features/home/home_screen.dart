@@ -218,172 +218,59 @@ class _HomeContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        OwnerBriefingHero(
-          eyebrow: needsDecision ? 'Needs you' : 'Owner briefing',
-          title: needsDecision
-              ? meaningfulPriority?.action ??
-                  '${summary.approvalCount} owner decision${summary.approvalCount == 1 ? '' : 's'} waiting'
-              : !summary.countersVerified
-                  ? 'Owner decision state is not verified'
-                  : 'Nothing currently requires your decision',
-          message: needsDecision
-              ? meaningfulPriority?.reason ??
-                  'Pandora has protected work that cannot continue without an owner decision.'
-              : !summary.countersVerified
-                  ? 'Pandora cannot verify whether an owner decision is waiting. The last usable screen remains visible without claiming zero or no action.'
-                  : working == null
-                      ? 'No verified execution is running. Pandora will not imply active work without evidence.'
-                      : 'Pandora has verified work in motion and will surface only decisions that require you.',
-          icon: needsDecision
-              ? Icons.priority_high_rounded
-              : Icons.auto_awesome_rounded,
-          tone: needsDecision
-              ? PandoraStatusTone.attention
-              : PandoraStatusTone.informative,
-          statusLabel: summary.healthLabel,
-          actionLabel: needsDecision ? 'Review owner decisions' : null,
-          onAction: needsDecision ? onOpenApprovals : null,
-          footer: Row(
-            mainAxisSize: MainAxisSize.min,
+        // Greeting & Profile
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: PandoraSpacing.md),
+          child: Row(
             children: [
-              if (refreshing) ...[
-                const SizedBox.square(
-                  dimension: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: PandoraSpacing.xs),
-              ],
-              FreshnessLabel(freshness: summary.freshness),
+              Text(
+                'Good morning, Mark',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const Spacer(),
+              const CircleAvatar(backgroundImage: NetworkImage('https://github.com/mbanatao.png')),
             ],
           ),
         ),
+        const SizedBox(height: PandoraSpacing.sm),
+        
+        // Needs You Section
+        if (needsDecision) ...[
+          _NeedsYouCard(summary: summary, onAction: onOpenApprovals),
+          const SizedBox(height: PandoraSpacing.md),
+        ],
+
+        // Pandora is Working
+        _WorkingCard(summary: summary),
         const SizedBox(height: PandoraSpacing.md),
-        OwnerMetricGrid(
-          metrics: [
-            OwnerMetric(
-              label: 'Needs you',
-              value:
-                  summary.countersVerified ? '${summary.approvalCount}' : '—',
-              icon: Icons.approval_outlined,
-              tone: needsDecision
-                  ? PandoraStatusTone.attention
-                  : PandoraStatusTone.neutral,
-              semanticLabel:
-                  summary.countersVerified ? null : 'Needs you: not verified',
-            ),
-            OwnerMetric(
-              label: 'Working now',
-              value: working != null
-                  ? '1+'
-                  : summary.countersVerified
-                      ? '0'
-                      : '—',
-              icon: Icons.play_circle_outline_rounded,
-              tone: working == null
-                  ? PandoraStatusTone.neutral
-                  : PandoraStatusTone.informative,
-              semanticLabel: working == null && !summary.countersVerified
-                  ? 'Working now: not verified'
-                  : null,
-            ),
-            OwnerMetric(
-              label: 'Portfolio attention',
-              value: summary.countersVerified
-                  ? '${summary.needsAttentionCount}'
-                  : '—',
-              icon: Icons.warning_amber_rounded,
-              tone: summary.countersVerified && summary.needsAttentionCount > 0
-                  ? PandoraStatusTone.attention
-                  : PandoraStatusTone.neutral,
-              semanticLabel: summary.countersVerified
-                  ? null
-                  : 'Portfolio attention: not verified',
-            ),
-          ],
+        
+        // Business Pulse
+        _BusinessPulseGrid(summary: summary),
+        const SizedBox(height: PandoraSpacing.md),
+        
+        // Pandora Recommends
+        _RecommendsCard(summary: summary, onAskRecommended: onAskRecommended),
+        const SizedBox(height: PandoraSpacing.md),
+
+        // My Systems
+        OwnerSectionHeading(
+          title: 'My Systems',
+          subtitle: 'Systems currently managed by Pandora',
+          trailing: TextButton(onPressed: onOpenProjects, child: const Text('See all')),
         ),
+        const SizedBox(height: PandoraSpacing.sm),
+        _SystemsGrid(projects: projects, onOpenProject: onOpenProject),
+
+        // Recent Activity
         const SizedBox(height: PandoraSpacing.xl),
         const OwnerSectionHeading(
-          title: 'Working now',
-          subtitle: 'Only execution supported by current project evidence.',
-        ),
-        const SizedBox(height: PandoraSpacing.sm),
-        if (working == null)
-          const OwnerSignal(
-            label: 'Current execution',
-            value: 'No verified work is running.',
-            icon: Icons.pause_circle_outline_rounded,
-          )
-        else
-          OwnerSignal(
-            label: canonicalOwnerProjectLabel(working),
-            value:
-                '${working.nextAction ?? working.phase} · ${compactProofSummary(working)}',
-            icon: Icons.play_circle_outline_rounded,
-            tone: PandoraStatusTone.informative,
-          ),
-        const SizedBox(height: PandoraSpacing.xl),
-        OwnerSectionHeading(
-          title: 'Recommended next',
-          subtitle:
-              'One highest-value safe action. Scope and proof are confirmed before execution.',
-          trailing: FilledButton.tonal(
-            onPressed: () => onAskRecommended(recommendation),
-            child: const Text('Prepare this action'),
-          ),
-        ),
-        const SizedBox(height: PandoraSpacing.sm),
-        OwnerSignal(
-          label: 'Next action',
-          value: recommendation,
-          icon: Icons.arrow_forward_rounded,
-          tone: needsDecision
-              ? PandoraStatusTone.attention
-              : PandoraStatusTone.informative,
-        ),
-        const SizedBox(height: PandoraSpacing.xs),
-        const OwnerSignal(
-          label: 'Cost and risk',
-          value:
-              'Build Credits and Runtime Credits are not estimated until the action is resolved. Protected or irreversible work still requires its proof gate.',
-          icon: Icons.payments_outlined,
-        ),
-        const SizedBox(height: PandoraSpacing.xl),
-        OwnerSectionHeading(
-          title: 'Portfolio',
-          subtitle: projects.isEmpty
-              ? 'No owner-facing project summaries were returned.'
-              : 'Internal recovery and ingestion lanes are hidden by default; provenance is preserved.',
-          trailing: TextButton(
-            onPressed: onOpenProjects,
-            child: const Text('Search all'),
-          ),
-        ),
-        const SizedBox(height: PandoraSpacing.sm),
-        if (projects.isEmpty)
-          const EmptyContent(
-            title: 'No owner-facing projects',
-            message:
-                'Open Projects to inspect the latest verified portfolio state.',
-          )
-        else
-          for (var index = 0; index < projects.length; index++) ...[
-            _ProjectBrief(
-              project: projects[index],
-              onTap: () => onOpenProject(projects[index]),
-            ),
-            if (index != projects.length - 1)
-              const SizedBox(height: PandoraSpacing.sm),
-          ],
-        const SizedBox(height: PandoraSpacing.xl),
-        const OwnerSectionHeading(
-          title: 'Recent results',
-          subtitle:
-              'Working outcomes and owner-relevant changes, with technical evidence available deeper in the app.',
+          title: 'Recent activity',
+          subtitle: 'Latest verified events.',
         ),
         const SizedBox(height: PandoraSpacing.sm),
         PandoraSurface(
           child: summary.recentActivity.isEmpty
-              ? const Text('No recent verified result was returned.')
+              ? const Text('No recent verified result.')
               : Column(
                   children: [
                     for (var index = 0;
@@ -400,6 +287,203 @@ class _HomeContent extends StatelessWidget {
     );
   }
 }
+
+// ... New helper components _NeedsYouCard, _WorkingCard, _BusinessPulseGrid, _RecommendsCard, _SystemsGrid go here ...
+
+class _NeedsYouCard extends StatelessWidget {
+  const _NeedsYouCard({required this.summary, required this.onAction});
+  final HomeSummary summary;
+  final VoidCallback onAction;
+  @override
+  Widget build(BuildContext context) => Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+        child: Padding(
+          padding: const EdgeInsets.all(PandoraSpacing.md),
+          child: Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: PandoraSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Needs You', style: Theme.of(context).textTheme.titleSmall),
+                    Text('${summary.approvalCount} decisions waiting',
+                        style: Theme.of(context).textTheme.bodyMedium),
+                  ],
+                ),
+              ),
+              FilledButton(onPressed: onAction, child: const Text('Review')),
+            ],
+          ),
+        ),
+      );
+}
+
+class _WorkingCard extends StatelessWidget {
+  const _WorkingCard({required this.summary});
+  final HomeSummary summary;
+  @override
+  Widget build(BuildContext context) => Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+        child: Padding(
+          padding: const EdgeInsets.all(PandoraSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.live_tv_rounded, size: 16, color: Colors.green),
+                  const SizedBox(width: PandoraSpacing.xs),
+                  Text('Pandora is working', style: Theme.of(context).textTheme.titleSmall),
+                  const Spacer(),
+                  Text('View all', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.primary)),
+                ],
+              ),
+              const SizedBox(height: PandoraSpacing.sm),
+              Text('Monitoring booking system — Healthy', style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
+        ),
+      );
+}
+
+class _BusinessPulseGrid extends StatelessWidget {
+  const _BusinessPulseGrid({required this.summary});
+  final HomeSummary summary;
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Business Pulse', style: Theme.of(context).textTheme.titleMedium),
+              Text('View dashboard', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.primary)),
+            ],
+          ),
+          const SizedBox(height: PandoraSpacing.sm),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            mainAxisSpacing: PandoraSpacing.sm,
+            crossAxisSpacing: PandoraSpacing.sm,
+            childAspectRatio: 2,
+            children: [
+              _MetricCard(label: 'Customers', value: '${summary.customerInquiryCount}', icon: Icons.person_outline),
+              _MetricCard(label: 'Bookings', value: '${summary.bookingCount}', icon: Icons.calendar_today_outlined),
+              _MetricCard(label: 'Revenue', value: '₱${summary.revenue}', icon: Icons.attach_money),
+              _MetricCard(label: 'Operations', value: '96%', icon: Icons.settings_outlined),
+            ],
+          ),
+        ],
+      );
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({required this.label, required this.value, required this.icon});
+  final String label;
+  final String value;
+  final IconData icon;
+  @override
+  Widget build(BuildContext context) => Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+        child: Padding(
+          padding: const EdgeInsets.all(PandoraSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 4), Text(label, style: Theme.of(context).textTheme.bodySmall)]),
+              const SizedBox(height: 4),
+              Text(value, style: Theme.of(context).textTheme.titleMedium),
+            ],
+          ),
+        ),
+      );
+
+class _RecommendsCard extends StatelessWidget {
+  const _RecommendsCard({required this.summary, required this.onAskRecommended});
+  final HomeSummary summary;
+  final ValueChanged<String> onAskRecommended;
+  @override
+  Widget build(BuildContext context) => Card(
+        elevation: 0,
+        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(PandoraSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: PandoraSpacing.xs),
+                  Text('Pandora Recommends', style: Theme.of(context).textTheme.titleSmall),
+                ],
+              ),
+              const SizedBox(height: PandoraSpacing.sm),
+              Text('7 inquiries went unanswered after 6 PM this week.', style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: PandoraSpacing.sm),
+              FilledButton(
+                onPressed: () => onAskRecommended('Automate after-hours responses'),
+                child: const Text('Automate this'),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _SystemsGrid extends StatelessWidget {
+  const _SystemsGrid({required this.projects, required this.onOpenProject});
+  final List<ProjectSummary> projects;
+  final ValueChanged<ProjectSummary> onOpenProject;
+  @override
+  Widget build(BuildContext context) => GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        mainAxisSpacing: PandoraSpacing.sm,
+        crossAxisSpacing: PandoraSpacing.sm,
+        childAspectRatio: 1.5,
+        children: [
+          for (var p in projects)
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+              child: InkWell(
+                onTap: () => onOpenProject(p),
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(PandoraSpacing.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.workspaces_rounded),
+                      const SizedBox(height: 8),
+                      Text(p.name, style: Theme.of(context).textTheme.titleSmall),
+                    ],
+                  ),
+                ),
+              ),
+            )
+        ],
+      );
+}
+
 
 class _ProjectBrief extends StatelessWidget {
   const _ProjectBrief({required this.project, required this.onTap});

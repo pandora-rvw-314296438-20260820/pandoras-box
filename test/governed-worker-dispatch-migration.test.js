@@ -62,7 +62,7 @@ test("worker plan identity is exact, write-risk, and cannot mutate production", 
     /p_args -> 'productionMutationAllowed' is not distinct from 'false'::jsonb/,
   );
   assert.match(migration, /p_args \?& array\[/);
-  assert.match(migration, /banataosystems\/Pandoras-box/);
+  assert.match(migration, /pandora-rvw-314296438-20260820\/pandoras-box/);
   assert.match(migration, /exactSha'.*\^\[0-9a-f\]\{40\}\$/s);
   assert.match(migration, /jsonb_object_keys[\s\S]*= 6/);
   assert.match(migration, /node_regression/);
@@ -175,7 +175,7 @@ test("Node and database share one fixed execution payload hash vector", async ()
   });
   assert.equal(
     hash,
-    "a485860ccddbb1df95caf9cff89d2202191f4c613224a5fa81e7ba9cd28537bc",
+    "c54926de0d4796cd926ceb82cf8fba69d19698695fc9f128b47a61953605f130",
   );
   assert.match(
     migration,

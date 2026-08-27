@@ -13,6 +13,8 @@ import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/pandora_surface.dart';
 import '../../core/widgets/status_badge.dart';
 import 'exact_source_verification_card.dart';
+import '../../core/widgets/pandora_build_theatre.dart';
+import '../../core/widgets/pandora_understanding_view.dart';
 
 class CommandScreen extends StatefulWidget {
   const CommandScreen({super.key, this.initialPrompt});
@@ -34,6 +36,7 @@ class _CommandScreenState extends State<CommandScreen> {
   final _objective = TextEditingController();
   final _idempotencyKeys = IdempotencyKeyFactory();
   bool _submitting = false;
+  bool _showUnderstanding = false;
   bool _outcomeUnknown = false;
   String? _submissionKey;
   IntakeReceipt? _receipt;
@@ -109,6 +112,7 @@ class _CommandScreenState extends State<CommandScreen> {
           _receipt = receipt;
           _outcomeUnknown = false;
           _submissionKey = null;
+          _showUnderstanding = true;
         });
       }
     } on PandoraRepositoryException catch (error) {
@@ -170,12 +174,72 @@ class _CommandScreenState extends State<CommandScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => PandoraPage(
-        title: 'Ask Pandora',
-        subtitle: 'State the outcome. Pandora governs the steps.',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+  Widget build(BuildContext context) {
+    if (_submitting) {
+      return const PandoraPage(
+        title: 'Pandora is building',
+        child: PandoraBuildTheatre(),
+      );
+    }
+
+    if (_showUnderstanding) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => setState(() => _showUnderstanding = false),
+          ),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                'assets/brand/pandora-product-mark-ui-1024.png',
+                width: 24,
+                height: 24,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'PANDORA',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
+          centerTitle: true,
+          actions: const [
+            CircleAvatar(
+              radius: 16,
+              backgroundImage: NetworkImage('https://github.com/mbanatao.png'),
+            ),
+            SizedBox(width: 16),
+          ],
+        ),
+        body: PandoraUnderstandingView(
+          intent: _objective.text,
+          onLooksRight: () {
+            setState(() {
+              _showUnderstanding = false;
+            });
+          },
+          onChange: () {
+            setState(() {
+              _showUnderstanding = false;
+            });
+          },
+        ),
+      );
+    }
+
+    return PandoraPage(
+          title: 'Ask Pandora',
+          subtitle: 'State the outcome. Pandora governs the steps.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             const OwnerBriefingHero(
               eyebrow: 'Intent to result',
               title: 'Describe the outcome, not the infrastructure',
@@ -193,33 +257,47 @@ class _CommandScreenState extends State<CommandScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextField(
-                    key: const ValueKey<String>('command-objective'),
-                    controller: _objective,
-                    readOnly: _outcomeUnknown,
-                    minLines: 4,
-                    maxLines: 8,
-                    maxLength: 4000,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      hintText:
-                          'For example: Repair Pandora command connectivity and verify the Android owner journey.',
-                      alignLabelWithHint: true,
-                    ),
-                  ),
-                  const SizedBox(height: PandoraSpacing.sm),
-                  FilledButton.icon(
-                    key: const ValueKey<String>('command-submit'),
-                    onPressed: _submitting || _outcomeUnknown ? null : _submit,
-                    icon: _submitting
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.arrow_forward_rounded),
-                    label: Text(
-                      _submitting ? 'Submitting safely…' : 'Submit to Pandora',
-                    ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.mic_none_rounded),
+                        onPressed: () {},
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.attach_file_rounded),
+                        onPressed: () {},
+                      ),
+                      Expanded(
+                        child: TextField(
+                          key: const ValueKey<String>('command-objective'),
+                          controller: _objective,
+                          readOnly: _outcomeUnknown,
+                          minLines: 1,
+                          maxLines: 3,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: InputDecoration(
+                            hintText: 'What should Pandora accomplish?',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        key: const ValueKey<String>('command-submit'),
+                        icon: _submitting
+                            ? const SizedBox.square(
+                                dimension: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.arrow_forward_rounded),
+                        onPressed: _submitting || _outcomeUnknown ? null : _submit,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: PandoraSpacing.xs),
                   Text(

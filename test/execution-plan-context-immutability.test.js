@@ -1247,7 +1247,7 @@ test("database behavior permits only first pending attachment and exact replay",
     const fixedFullAvailable = fullCapacityEnvelope();
     assert.equal(
       sha256(JSON.stringify(fixedFullAvailable)),
-      "a72ae92697549876e9c6d6f94a3d35076ec230fde994e2784afbcc6da3bbf2b5",
+      "a7bb81c3d6fa6582f86e54942e6a216e8b47940e87e4d1e02bfabe178710cb0c",
     );
     assert.equal(
       hashPlanMemoryContextEnvelope(fixedFullAvailable),

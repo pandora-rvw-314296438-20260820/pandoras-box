@@ -75,18 +75,18 @@ class PandoraPalette extends ThemeExtension<PandoraPalette> {
   final Color outlineSoft;
 
   static const porcelain = PandoraPalette(
-    canvas: Color(0xFFF6F5F2),
-    verified: Color(0xFF0B6B45),
+    canvas: Color(0xFFF9F8F5), // Slightly warmer, off-white
+    verified: Color(0xFF0C7A4E), // Refined green
     onVerified: Color(0xFFFFFFFF),
-    attention: Color(0xFF9A5A00),
+    attention: Color(0xFFB06800), // Slightly warmer attention
     onAttention: Color(0xFFFFFFFF),
-    critical: Color(0xFFB3261E),
+    critical: Color(0xFFC72E25), // Refined red
     onCritical: Color(0xFFFFFFFF),
-    informative: Color(0xFF3F51B5),
+    informative: Color(0xFF4558C0), // Refined blue
     onInformative: Color(0xFFFFFFFF),
-    subtleSurface: Color(0xFFF1F2F6),
+    subtleSurface: Color(0xFFF2F1ED), // Softer subtle surface
     strongSurface: Color(0xFFFFFFFF),
-    outlineSoft: Color(0xFFD9DAE2),
+    outlineSoft: Color(0xFFE4E3DE), // More subtle border
   );
 
   static const graphite = PandoraPalette(

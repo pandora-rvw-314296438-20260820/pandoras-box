@@ -44,24 +44,24 @@ abstract final class PandoraTheme {
     final textTheme = base.textTheme.copyWith(
       displaySmall: base.textTheme.displaySmall?.copyWith(
         fontWeight: FontWeight.w700,
-        letterSpacing: -1.1,
-        height: 1.08,
+        letterSpacing: -0.8, // Slightly more tracked
+        height: 1.1,
       ),
       headlineMedium: base.textTheme.headlineMedium?.copyWith(
         fontWeight: FontWeight.w700,
-        letterSpacing: -0.6,
-        height: 1.12,
+        letterSpacing: -0.4,
+        height: 1.2,
       ),
       titleLarge: base.textTheme.titleLarge?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.2,
+        fontWeight: FontWeight.w600, // Slightly less bold title
+        letterSpacing: -0.1,
       ),
       titleMedium: base.textTheme.titleMedium?.copyWith(
         fontWeight: FontWeight.w600,
       ),
-      bodyLarge: base.textTheme.bodyLarge?.copyWith(height: 1.45),
-      bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.45),
-      bodySmall: base.textTheme.bodySmall?.copyWith(height: 1.35),
+      bodyLarge: base.textTheme.bodyLarge?.copyWith(height: 1.55), // Improved readability
+      bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.55),
+      bodySmall: base.textTheme.bodySmall?.copyWith(height: 1.45),
       labelLarge: base.textTheme.labelLarge?.copyWith(
         fontWeight: FontWeight.w600,
       ),

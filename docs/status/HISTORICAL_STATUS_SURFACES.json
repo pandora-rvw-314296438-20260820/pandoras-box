@@ -5,7 +5,7 @@
   "supersededBy": "/api/operator/status",
   "rule": "Preserved files live only under docs/status/historical or as explicitly classified documents. Legacy public URLs are quarantined and must not be consumed or cited as current project state.",
   "surfaces": [
-    {"path": "RECOVERY_STATUS.md", "contentSha256": "9a8d17a080f7051a487b4b5d442272ff9b44c22ec8e59a1bb792069c18368ab8", "observedThrough": "2026-08-12T15:59:59+08:00", "classification": "historical_recovery_snapshot"},
+    {"path": "RECOVERY_STATUS.md", "contentSha256": "fd84dcc33e2fb0215132228021dffad29449ef994d9d5434e5b4d0205b40fb12", "observedThrough": "2026-08-12T15:59:59+08:00", "classification": "historical_recovery_snapshot"},
     {"path": "DEPLOYMENT_TARGET.md", "contentSha256": "d937f6af98895f62aaefbfab23c908c1a08d552aedb2237b16c54f4c29b02c49", "observedThrough": "2026-08-08T23:59:59+08:00", "classification": "historical_deployment_plan"},
     {"path": "PROJECT_CUSTOM_INSTRUCTION.md", "contentSha256": "14723392421b1fb06fda250bcf7e8e7cbad38f92c7393abf09f141612a6b7fda", "observedThrough": "2026-08-08T23:59:59Z", "classification": "normative_instruction_with_historical_operational_sections"},
     {"path": "docs/operating-contracts/GITHUB_PANDORA_MIRROR_MANIFEST.csv", "contentSha256": "cb6e5e31cbe6e42dd5e921d9d5e850cc6294e9e3ec78f59e27dbfb2d5049a97e", "observedThrough": "2026-08-08T15:40:17Z", "classification": "historical_mirror_integrity_snapshot"},
