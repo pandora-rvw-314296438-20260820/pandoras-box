@@ -1,0 +1,3 @@
+const STAGES = Object.freeze(['workspace_preparing', 'source_materializing', 'dependencies_installing', 'generating_files', 'building', 'testing', 'repairing', 'packaging', 'artifact_collecting', 'ready_for_verification']);
+function buildStageEvent({ executionId, buildJobId, projectId, attempt, stage, sequence, at = new Date().toISOString(), detail = {} }) { if (!STAGES.includes(stage)) throw new Error('INVALID_BUILD_STAGE'); if (!Number.isInteger(sequence) || sequence < 1) throw new Error('INVALID_BUILD_STAGE_SEQUENCE'); return Object.freeze({ schemaVersion: 1, executionId, buildJobId, projectId, attempt, stage, sequence, at, detail: Object.freeze({ ...detail }) }); }
+export { STAGES, buildStageEvent };
