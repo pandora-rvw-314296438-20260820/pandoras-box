@@ -118,6 +118,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   ].sort();
   const replaySnapshotLast = '20260817145929_add_vercel_async_git_link_queue.sql';
   const historicalCurrentFiles = activeFiles.filter((filename) => filename <= replaySnapshotLast);
+  const postRecoveryPreSnapshotFiles = historicalCurrentFiles.filter(
+    (filename) => !capturedSet.has(filename),
+  );
   const postSnapshotFiles = activeFiles.filter((filename) => filename > replaySnapshotLast);
 
   assert.equal(manifest.invariants.historical_identity_count, 50);
@@ -180,7 +183,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
     currentReplayResult.migration_count,
-    recoveryReplayResult.migration_count + appendedFiles.length - postSnapshotFiles.length,
+    recoveryReplayResult.migration_count + postRecoveryPreSnapshotFiles.length,
   );
   assert.equal(manifest.live_chain.first, '20260724010000');
   assert.equal(manifest.live_chain.last, '20260821024500');
