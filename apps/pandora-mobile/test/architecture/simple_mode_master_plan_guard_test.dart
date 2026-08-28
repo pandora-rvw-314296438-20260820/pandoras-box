@@ -72,4 +72,36 @@ void main() {
     expect(approvals, contains('Sanitized change summary'));
     expect(approvals, contains('Undo available'));
   });
+
+  test('build preview separates prototype from live execution', () {
+    final source =
+        File('lib/features/simple/build_preview_flow.dart').readAsStringSync();
+    expect(
+      source,
+      contains('final waitingForDecision = receipt.needsApproval;'),
+    );
+    expect(source, contains('active: !waitingForDecision'));
+    expect(source, contains('Prototype preview'));
+    expect(
+      source,
+      contains(
+        'This is a prototype. It is not deployed or production verified.',
+      ),
+    );
+    expect(
+      source,
+      contains(
+        'Nothing will execute until you approve the protected decision in Needs You.',
+      ),
+    );
+    expect(source, isNot(contains('Live preview available')));
+    expect(
+      source,
+      isNot(
+        contains(
+          'Pandora will continue working and notify you when a decision is needed',
+        ),
+      ),
+    );
+  });
 }
