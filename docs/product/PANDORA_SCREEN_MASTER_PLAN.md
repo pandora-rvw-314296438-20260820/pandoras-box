@@ -36,7 +36,7 @@ Flows already reachable from More / Simple Mode:
 
 Proof ladder: **implemented + tested in exact-source CI**. Not production-verified.
 
-## UI/UX convergence implemented in the current candidate
+## Remaining owner-facing surfaces — source-level convergence
 
 The current convergence branch now closes the source-level owner journeys that were previously listed as incomplete:
 
