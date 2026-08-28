@@ -396,13 +396,13 @@ void main() {
     expect(repository.actionCalls, 0);
     expect(repository.activityCalls, 0);
 
-    await tester.tap(find.text('Projects').last);
+    await tester.tap(find.text('Systems').last);
     await tester.pumpAndSettle();
     expect(repository.projectCalls, 1);
 
     await tester.tap(find.text('Home').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Projects').last);
+    await tester.tap(find.text('Systems').last);
     await tester.pumpAndSettle();
     expect(repository.projectCalls, 1);
   });
