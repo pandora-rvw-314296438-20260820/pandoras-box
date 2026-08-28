@@ -7,9 +7,9 @@ class ProjectExperienceApi {
     required SupabaseClient client,
     required String organizationId,
     IdempotencyKeyFactory? idempotencyKeys,
-  })  : _client = client,
-        _organizationId = organizationId,
-        _keys = idempotencyKeys ?? IdempotencyKeyFactory();
+  }) : _client = client,
+       _organizationId = organizationId,
+       _keys = idempotencyKeys ?? IdempotencyKeyFactory();
 
   final SupabaseClient _client;
   final String _organizationId;
@@ -177,10 +177,10 @@ class OwnerProjectUnderstanding {
   });
 
   const OwnerProjectUnderstanding.waiting()
-      : this._(state: OwnerProjectUnderstandingState.waiting);
+    : this._(state: OwnerProjectUnderstandingState.waiting);
 
   const OwnerProjectUnderstanding.rejected()
-      : this._(state: OwnerProjectUnderstandingState.rejected);
+    : this._(state: OwnerProjectUnderstandingState.rejected);
 
   factory OwnerProjectUnderstanding.ready({
     required String specId,
@@ -191,18 +191,17 @@ class OwnerProjectUnderstanding {
     required List<String> objectives,
     required List<String> requirements,
     required DateTime? compiledAt,
-  }) =>
-      OwnerProjectUnderstanding._(
-        state: OwnerProjectUnderstandingState.ready,
-        specId: specId,
-        version: version,
-        projectType: projectType,
-        targetUsers: targetUsers,
-        businessSummary: businessSummary,
-        objectives: List<String>.unmodifiable(objectives),
-        requirements: List<String>.unmodifiable(requirements),
-        compiledAt: compiledAt,
-      );
+  }) => OwnerProjectUnderstanding._(
+    state: OwnerProjectUnderstandingState.ready,
+    specId: specId,
+    version: version,
+    projectType: projectType,
+    targetUsers: targetUsers,
+    businessSummary: businessSummary,
+    objectives: List<String>.unmodifiable(objectives),
+    requirements: List<String>.unmodifiable(requirements),
+    compiledAt: compiledAt,
+  );
 
   final OwnerProjectUnderstandingState state;
   final String? specId;
