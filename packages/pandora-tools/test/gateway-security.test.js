@@ -46,7 +46,7 @@ test("secrets broker exposes plaintext only inside trusted adapter callback and 
 
 test("credential lease is project/environment/operation bound, expires and revokes", async()=>{
   const broker=new T.SecretsBroker({metadataStore:new T.MemorySecretMetadataStore([{secret_ref:"vault://x",provider:"x",purpose:"deploy",scope:{organization_id:ORG,project_id:PROJECT,environment:"preview",operation:"create_preview",resource_id:"deploy"}}]),secretHolder:new T.MemorySecretHolder({"vault://x":CANARY})});
-  const scope={organization_id:ORG,Project_id:PROJECT,environment:"preview",operation:"create_preview",resource_id:"deploy"};
+  const scope={organization_id:ORG,project_id:PROJECT,environment:"preview",operation:"create_preview",resource_id:"deploy"};
   const lease=await broker.issueLease({secret_ref:"vault://x",purpose:"deploy",scope,requested_by:"job1",ttl_ms:1000},{actor_capabilities:["secrets.use.scoped"],now:new Date("2026-08-28T00:00:00Z")});
   assert.equal(JSON.stringify(lease).includes(CANARY),false); assert.equal(Object.hasOwn(lease,"secret_ref"),false);
   await assert.rejects(broker.assertLease(lease,{...scope,project_id:"project_beta"},new Date("2026-08-28T00:00:00.1Z")),e=>e?.code==="CREDENTIAL_LEASE_SCOPE_MISMATCH");
