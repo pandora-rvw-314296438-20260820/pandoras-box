@@ -45,7 +45,11 @@ class ExecutionAdapterRegistry {
   constructor() { this.adapters = new Map(); }
   register(executor, adapter) {
     if (!/^[A-Za-z][A-Za-z0-9]+Executor$/.test(executor) || !adapter || typeof adapter.execute !== "function") throw new PandoraToolError("internal", "ADAPTER_INVALID", "Execution adapter is invalid");
-    if (adapter.productionConcurrency != null) { const c = adapter.productionConcurrency; if (c.durability !== "durable" || !["claim","compare_and_set"].includes(c.mode) || typeof c.owner !== "string" || !c.owner) throw new PandoraToolError("internal", "ADAPTER_CONCURRENCY_INVALID", "Production concurrency contract is invalid"); }\n    if (this.adapters.has(executor)) throw new PandoraToolError("conflict", "ADAPTER_ALREADY_REGISTERED", "Execution adapter is already registered");
+    if (adapter.productionConcurrency != null) {
+      const c = adapter.productionConcurrency;
+      if (c.durability !== "durable" || !["claim","compare_and_set"].includes(c.mode) || typeof c.owner !== "string" || !c.owner) throw new PandoraToolError("internal", "ADAPTER_CONCURRENCY_INVALID", "Production concurrency contract is invalid");
+    }
+    if (this.adapters.has(executor)) throw new PandoraToolError("conflict", "ADAPTER_ALREADY_REGISTERED", "Execution adapter is already registered");
     this.adapters.set(executor, adapter); return this;
   }
   get(executor) { const adapter = this.adapters.get(executor); if (!adapter) throw new PandoraToolError("provider_unavailable", "EXECUTOR_UNAVAILABLE", "Required execution adapter is unavailable"); return adapter; }
