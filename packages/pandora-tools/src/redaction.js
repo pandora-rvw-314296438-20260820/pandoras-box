@@ -8,15 +8,37 @@ const VALUE_PATTERNS = [
   /\bvercel_[A-Za-z0-9_-]{20,}\b/gi,
   /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g,
   /(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?):\/\/[^\s:@/]+:[^\s@/]+@/gi,
-  /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g,
 ];
 const REDACTED = "[REDACTED]";
+const PRIVATE_KEY_DELIMITERS = [
+  ["-----BEGIN PRIVATE KEY-----", "-----END PRIVATE KEY-----"],
+  ["-----BEGIN RSA PRIVATE KEY-----", "-----END RSA PRIVATE KEY-----"],
+  ["-----BEGIN EC PRIVATE KEY-----", "-----END EC PRIVATE KEY-----"],
+  ["-----BEGIN OPENSSH PRIVATE KEY-----", "-----END OPENSSH PRIVATE KEY-----"],
+];
+
+function redactPrivateKeyBlocks(input) {
+  let value = String(input);
+  for (const [begin, end] of PRIVATE_KEY_DELIMITERS) {
+    let searchFrom = 0;
+    while (searchFrom < value.length) {
+      const start = value.indexOf(begin, searchFrom);
+      if (start < 0) break;
+      const endStart = value.indexOf(end, start + begin.length);
+      const blockEnd = endStart < 0 ? value.length : endStart + end.length;
+      value = `${value.slice(0, start)}${REDACTED}${value.slice(blockEnd)}`;
+      searchFrom = start + REDACTED.length;
+    }
+  }
+  return value;
+}
 
 function redactString(input, canaries = []) {
   let value = String(input);
   for (const canary of canaries) {
     if (typeof canary === "string" && canary.length >= 4) value = value.split(canary).join(REDACTED);
   }
+  value = redactPrivateKeyBlocks(value);
   for (const pattern of VALUE_PATTERNS) value = value.replace(pattern, (match) => match.includes("://") ? match.replace(/:\/\/[^@]+@/, `://${REDACTED}@`) : REDACTED);
   return value;
 }
