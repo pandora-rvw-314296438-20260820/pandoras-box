@@ -65,7 +65,7 @@ begin
        or p_body->>'runtime'<>'node24'
        or coalesce((p_body->>'persistent')::boolean,true)
        or jsonb_typeof(coalesce(p_body->'env','{}'::jsonb))<>'object'
-       or coalesce(jsonb_object_length(coalesce(p_body->'env','{}'::jsonb)),0)<>0
+       or exists (select 1 from jsonb_object_keys(coalesce(p_body->'env','{}'::jsonb)))
        or jsonb_typeof(coalesce(p_body->'ports','[]'::jsonb))<>'array'
        or jsonb_array_length(coalesce(p_body->'ports','[]'::jsonb))<>0
        or coalesce(p_body->'networkPolicy'->>'mode','') not in ('deny-all','custom') then
