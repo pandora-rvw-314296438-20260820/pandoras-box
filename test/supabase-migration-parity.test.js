@@ -121,6 +121,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   const postRecoveryPreSnapshotFiles = historicalCurrentFiles.filter(
     (filename) => !capturedSet.has(filename),
   );
+  const capturedPostSnapshotFiles = capturedFiles.filter(
+    (filename) => filename > replaySnapshotLast,
+  );
   const postSnapshotFiles = activeFiles.filter((filename) => filename > replaySnapshotLast);
 
   assert.equal(manifest.invariants.historical_identity_count, 50);
@@ -183,7 +186,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
     currentReplayResult.migration_count,
-    recoveryReplayResult.migration_count + postRecoveryPreSnapshotFiles.length,
+    recoveryReplayResult.migration_count - capturedPostSnapshotFiles.length +
+      postRecoveryPreSnapshotFiles.length,
   );
   assert.equal(manifest.live_chain.first, '20260724010000');
   assert.equal(manifest.live_chain.last, '20260821024500');
