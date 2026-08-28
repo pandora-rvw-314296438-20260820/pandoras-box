@@ -151,6 +151,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260823164000_harden_governed_worker_validation_boundaries.sql',
     '20260823170000_add_immutable_physical_android_receipts.sql',
     '20260823171000_harden_owner_worker_external_authority.sql',
+    '20260826005701_pandora_organization_user_administration_v1.sql',
+    '20260826010748_pandora_user_administration_service_boundary_v1.sql',
+    '20260826011131_remove_legacy_pandora_user_admin_rpc_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -168,6 +171,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260823164000_harden_governed_worker_validation_boundaries.sql',
     '20260823170000_add_immutable_physical_android_receipts.sql',
     '20260823171000_harden_owner_worker_external_authority.sql',
+    '20260826005701_pandora_organization_user_administration_v1.sql',
+    '20260826010748_pandora_user_administration_service_boundary_v1.sql',
+    '20260826011131_remove_legacy_pandora_user_admin_rpc_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(

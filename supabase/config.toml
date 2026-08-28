@@ -1,6 +1,9 @@
 [functions.pandora-owner-api]
 verify_jwt = true
 
+[functions.pandora-user-admin]
+verify_jwt = true
+
 # This private workload endpoint validates Vercel OIDC itself before it can use
 # the server-only service role. Supabase's user-JWT gateway must not consume the
 # workload bearer first.
