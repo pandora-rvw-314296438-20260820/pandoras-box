@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/pandora_app.dart';
+import 'core/data/project_runtime_api.dart';
 import 'core/data/remote_pandora_repository.dart';
 import 'core/diagnostics/diagnostic_event.dart';
 import 'core/diagnostics/diagnostics_store.dart';
@@ -15,8 +16,6 @@ import 'pandora_config.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Draw behind the system bars so the Pandora canvas, not the platform
-  // window, is what the owner sees at the screen edges.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   await Supabase.initialize(
@@ -27,9 +26,6 @@ Future<void> main() async {
   final supabase = Supabase.instance.client;
   final diagnostics = DiagnosticsStore();
 
-  // No uncaught framework or asynchronous error may reach the owner as a raw
-  // red screen or stack trace. The reference recorded here is already
-  // sanitized and carries no credentials, bodies, or full URLs.
   installPandoraErrorHandling(
     record: (summary) => diagnostics.record(
       DiagnosticEvent(
@@ -44,18 +40,28 @@ Future<void> main() async {
     ),
   );
 
+  final tokenProvider = SupabaseSessionTokenProvider(supabase);
   final apiClient = PandoraApiClient(
     baseUri: Uri.parse(PandoraConfig.ownerApiBaseUrl),
     organizationId: PandoraConfig.organizationId,
-    sessionTokenProvider: SupabaseSessionTokenProvider(supabase),
+    sessionTokenProvider: tokenProvider,
     diagnostics: diagnostics,
   );
+  final projectRuntimeClient = PandoraApiClient(
+    baseUri: Uri.parse(PandoraConfig.projectRuntimeApiBaseUrl),
+    organizationId: PandoraConfig.organizationId,
+    sessionTokenProvider: tokenProvider,
+    diagnostics: diagnostics,
+    timeout: const Duration(seconds: 60),
+  );
   final repository = RemotePandoraRepository(client: apiClient);
+  final projectRuntime = ProjectRuntimeApi(client: projectRuntimeClient);
 
   runApp(
     PandoraApp(
       auth: SupabasePandoraAuth(supabase),
       repository: repository,
+      projectRuntime: projectRuntime,
       diagnostics: diagnostics,
     ),
   );
