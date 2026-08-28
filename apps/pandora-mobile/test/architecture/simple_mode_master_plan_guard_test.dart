@@ -73,6 +73,20 @@ void main() {
     expect(approvals, contains('Undo available'));
   });
 
+  test('Simple Mode avoids internal state and cache jargon', () {
+    final systems =
+        File('lib/features/simple/systems_screen.dart').readAsStringSync();
+    final briefing = File('lib/features/simple/simple_briefing_screen.dart')
+        .readAsStringSync();
+
+    expect(systems, contains('systems currently visible to you.'));
+    expect(systems, isNot(contains('current owner state')));
+    expect(briefing, contains("_metric('Working'"));
+    expect(briefing, contains('latest saved information'));
+    expect(briefing, isNot(contains('last-known cached evidence')));
+    expect(briefing, isNot(contains('Some live checks are degraded')));
+  });
+
   test('build preview separates prototype from live execution', () {
     final source =
         File('lib/features/simple/build_preview_flow.dart').readAsStringSync();

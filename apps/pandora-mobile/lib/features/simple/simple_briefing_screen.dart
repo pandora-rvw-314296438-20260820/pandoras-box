@@ -81,7 +81,7 @@ class _SimpleBriefingScreenState extends State<SimpleBriefingScreen> {
       setState(() {
         _loading = false;
         _error =
-            'Pandora could not assemble a verified briefing. Check again when connections are available.';
+            'Pandora could not prepare a verified briefing. Check again when your connections are available.';
       });
     }
   }
@@ -149,8 +149,8 @@ class _SimpleBriefingScreenState extends State<SimpleBriefingScreen> {
               children: [
                 Text(
                   s.blocked > 0
-                      ? 'Your portfolio needs attention'
-                      : 'Your portfolio is moving',
+                      ? 'Your systems need attention'
+                      : 'Your systems are moving',
                   style: const TextStyle(
                     color: PandoraSimpleColors.ink,
                     fontSize: 21,
@@ -160,8 +160,8 @@ class _SimpleBriefingScreenState extends State<SimpleBriefingScreen> {
                 const SizedBox(height: 7),
                 Text(
                   s.cached
-                      ? 'This briefing includes last-known cached evidence. Refresh before making a high-impact decision.'
-                      : 'Built from the latest available owner-facing evidence.',
+                      ? 'This briefing includes saved information that may be out of date. Refresh before making an important decision.'
+                      : 'Built from the latest verified information available to you.',
                   style: const TextStyle(
                     color: PandoraSimpleColors.muted,
                     height: 1.35,
@@ -176,7 +176,7 @@ class _SimpleBriefingScreenState extends State<SimpleBriefingScreen> {
             runSpacing: 10,
             children: [
               _metric('Needs you', s.needsMe, Icons.person_outline_rounded),
-              _metric('Active', s.active, Icons.play_circle_outline_rounded),
+              _metric('Working', s.active, Icons.play_circle_outline_rounded),
               _metric('Blocked', s.blocked, Icons.block_rounded),
               _metric('Approvals', s.approvals, Icons.approval_outlined),
               _metric(
@@ -189,7 +189,7 @@ class _SimpleBriefingScreenState extends State<SimpleBriefingScreen> {
               backgroundColor: PandoraSimpleColors.amberWash,
               shadow: false,
               child: Text(
-                'Some live checks are degraded. Pandora is showing bounded last-known evidence where available.',
+                'Some current checks are unavailable. Pandora is showing the latest saved information where it can.',
                 style: const TextStyle(
                   color: PandoraSimpleColors.ink,
                   height: 1.35,
