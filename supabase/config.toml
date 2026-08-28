@@ -42,3 +42,10 @@ verify_jwt = true
 # no minting credential; the DB binds and consumes the exact issuer/JTI/request.
 [functions.pandora-physical-android-attestation]
 verify_jwt = true
+
+
+# Vercel cannot present a Supabase user JWT. This public provider endpoint
+# authenticates the exact raw body with x-vercel-signature against a signing
+# secret that remains in Supabase Vault, then calls a service-role-only RPC.
+[functions.pandora-vercel-runtime-webhook]
+verify_jwt = false
