@@ -33,6 +33,18 @@ test('compiler rejects credential-shaped model output and never reads provider k
   assert.match(edge,/responseMimeType:\s*"application\/json"/);
 });
 
+test('compiler persists only digest-and-usage ModelRun lineage with the exact committed ProjectSpec',()=>{
+  assert.match(migration,/insert into public\.pandora_model_runs/);
+  assert.match(migration,/project_spec_id.*request_id.*task.*output_mode.*status/s);
+  assert.match(migration,/'compile_project_spec','structured','succeeded'/);
+  assert.match(migration,/request_sha256=p_model_request_sha256 and response_sha256=p_model_response_sha256/);
+  assert.match(edge,/requestDigest = await sha256\(JSON\.stringify\(providerRequest\)\)/);
+  assert.match(edge,/responseDigest = await sha256\(outputText\)/);
+  assert.match(edge,/p_model_request_sha256: requestDigest/);
+  assert.match(edge,/p_model_response_sha256: responseDigest/);
+  assert.doesNotMatch(migration,/prompt_text|response_text|raw_response|api_key/i);
+});
+
 test('compiler surface is authenticated and provider-blind to the customer',()=>{
   assert.match(config,/\[functions\.pandora-project-spec-compiler\]\nverify_jwt = true/);
   assert.match(edge,/exactKeys\(body, \["intentId"\]\)/);
