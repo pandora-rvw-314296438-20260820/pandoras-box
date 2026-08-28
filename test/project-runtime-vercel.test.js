@@ -75,7 +75,7 @@ test("manager requires exact independent verification before publish",async()=>{
   assertOwnership:async()=>true,getOperation:async k=>ops.get(k),claimOperation:async o=>{ops.set(o.idempotencyKey,{...o,status:"claimed"});return{claimed:true}},
   markOperationRunning:async()=>{},completeOperation:async(k,r)=>ops.set(k,{status:"succeeded",result:r}),failOperation:async()=>{},markOperationUncertain:async()=>{},
   reconcileOperation:async()=>{throw new Error("unexpected");},getCurrentProductionVersion:async()=>ids.prev,
-  getVerification:async()=>({projectVersionId:ids.version,artifactDigest:ids.digest,status:"pass",stale:false}),
+  getVerification:async()=>({projectVersionId:ids.version,artifactDigest:ids.digest,status:"PASS",stale:false}),
   compareAndSetProduction:async()=>{},recordDeployment:async()=>{},getRollbackEligibility:async()=>({eligible:true}),
  };
  const m=new ProjectRuntimeManager({store,provider:p});
