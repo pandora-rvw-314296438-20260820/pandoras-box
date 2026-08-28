@@ -62,7 +62,7 @@ const ERROR_CLASSES = Object.freeze([
 function normalizeJson(value) {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
   if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new Error "Non-finite numbers are not allowed");
+    if (!Number.isFinite(value)) throw new Error("Non-finite numbers are not allowed");
     return value;
   }
   if (Array.isArray(value)) return value.map(normalizeJson);
