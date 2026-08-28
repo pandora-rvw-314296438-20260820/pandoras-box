@@ -1,38 +1,55 @@
 # Canonical deployment target
 
-Updated: 2026-08-08 (Asia/Manila)
+Updated: 2026-08-28 (Asia/Manila)
 
 ## Source of truth
 
 - Canonical GitHub repository: `pandora-rvw-314296438-20260820/pandoras-box`
 - Canonical branch: `main`
-- The suspended `mbanatao/mcpmaster` repository is recovery provenance only and MUST NOT be used as an operational deployment source.
+- `mbanatao/mcpmaster` is recovery provenance only and MUST NOT be used as an operational deployment source.
+- Production changes must be traceable to merged canonical source and provider readback.
 
 ## Vercel target
 
 - Existing Vercel project: `mcpmaster`
 - Project ID: `prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk`
 - Team ID: `team_IcdJUnzLi5wUN1GD8ALHyjF7`
-- Production resource origin: `https://mcpmaster.vercel.app`
+- Canonical customer-facing production origin: `https://pandoras-box-system.vercel.app`
+- Compatibility alias: `https://mcpmaster.vercel.app`
+- Additional project aliases may remain while they resolve to the same Vercel project identity.
 
-The Vercel project ID and project name should remain unchanged during Git relinking so the existing Vercel OIDC workload identity remains stable. The Git source must be changed to `pandora-rvw-314296438-20260820/pandoras-box` rather than creating a new production identity unless a separately reviewed migration is approved.
+The Vercel project ID and project name remain unchanged so the existing workload identity and rollback history remain stable. The Git source is the canonical Pandora repository and `main`; do not create a replacement Vercel project merely to rename the product-facing domain.
 
-## Verified stale linkage
+## Supabase targets
 
-Observed historical/current Vercel deployment metadata still references `githubOrg=mbanatao` and `githubRepo=mcpmaster`. This stale Git linkage can prevent reliable source-triggered deployments while that GitHub account is suspended.
+Pandora intentionally uses two Supabase projects with separate responsibilities:
 
-It is not, by itself, the cause of the current MCP 401: Vercel Deployment Protection is intercepting the request before MCPMaster application authentication executes.
+- Primary application/control plane: `jcyqixttuebxqqfkjonq`
+- Pandora Memory/runtime boundary: `ivmvufhcsezyhczzondn`
 
-## Required production repair
+Do not collapse these projects into one database. Application and Edge Function changes for the primary control plane belong to `jcyqixttuebxqqfkjonq`; Memory-specific schema and runtime changes belong to `ivmvufhcsezyhczzondn` and its source repository.
 
-1. Disconnect the Vercel `mcpmaster` project from the suspended Git repository.
-2. Connect the same Vercel project to `pandora-rvw-314296438-20260820/pandoras-box`, branch `main`.
-3. Preserve the existing Vercel project ID and production aliases.
-4. Enable Vercel Protection Bypass for Automation for machine-to-machine MCP access.
-5. Configure the ChatGPT/Pandora MCP transport to send `x-vercel-protection-bypass` without storing the secret in GitHub or Pandora Memory.
-6. Retain Vercel OIDC validation at the application/Pandora bridge layer.
-7. Verify `/mcp`, Pandora `memory.health`, retrieval, exact production deployment, and rollback evidence before declaring recovery complete.
+Canonical governed Edge Functions defined by repository configuration must keep their declared JWT boundary. `mcpmaster-supabase-control` is the documented custom-workload-auth exception and validates Vercel OIDC in the function path rather than using a user JWT at the Supabase gateway.
+
+## Current provider truth
+
+As verified on 2026-08-28:
+
+- Vercel is linked to `pandora-rvw-314296438-20260820/pandoras-box`.
+- Source-triggered deployments from `main` are working on the existing `mcpmaster` Vercel project.
+- `pandoras-box-system.vercel.app` and `mcpmaster.vercel.app` resolve within that same project identity.
+- The prior suspended-repository linkage described in older recovery notes is historical and no longer an active repair instruction.
+- `pandora-user-admin` is deployed from canonical merged source with `verify_jwt=true`.
+
+## Deployment rules
+
+1. Merge significant source changes through an independently reviewable PR/checkpoint.
+2. Preserve the existing Vercel project ID, Supabase project refs, and intentional two-project boundary.
+3. Deploy Edge Functions from merged canonical source; do not hand-edit production-only copies.
+4. Keep service-role keys, PATs, Vercel tokens, OIDC tokens, and protection-bypass values out of Git and semantic memory.
+5. Treat temporary recovery transports/functions as noncanonical unless a current source dependency proves they are still required.
+6. Verify exact source SHA, required GitHub checks, Supabase migration/function parity, provider deployment state, and runtime health before declaring a release converged.
 
 ## Safety
 
-Never commit the Vercel automation bypass secret, Vercel access tokens, Supabase service-role keys, OIDC tokens, or any other credentials to this repository or semantic memory.
+Never commit GitHub PATs, Vercel access tokens, Supabase service-role keys, OIDC tokens, automation-bypass secrets, or any other credentials to this repository or semantic memory.

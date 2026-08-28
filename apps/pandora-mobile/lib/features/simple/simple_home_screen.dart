@@ -417,7 +417,7 @@ class _VerifiedHome extends StatelessWidget {
                 detail: summary.priority?.reason ??
                     (summary.countersVerified
                         ? 'Pandora will surface the next decision here.'
-                        : 'Decision counters have not been verified.'),
+                        : 'Pandora has not confirmed how many decisions need you yet.'),
                 action: summary.approvalCount > 0 ? 'Review' : 'Open',
                 onTap: onOpenNeedsYou,
               ),
@@ -431,7 +431,8 @@ class _VerifiedHome extends StatelessWidget {
                 iconBackground: attention == null
                     ? PandoraSimpleColors.greenWash
                     : PandoraSimpleColors.blueWash,
-                title: attention?.name ?? 'No additional issue is verified',
+                title:
+                    attention?.name ?? 'No other issue is confirmed right now',
                 detail: attention?.blocker ??
                     attention?.nextAction ??
                     'Pandora is monitoring your connected systems.',
@@ -598,8 +599,8 @@ class _WorkingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (summary.topProjects.isEmpty) {
       return const PandoraEmptyTruth(
-        title: 'No active work is verified',
-        message: 'New work will appear here after Pandora accepts it.',
+        title: 'Pandora has not confirmed any current work yet',
+        message: 'New work will appear here once Pandora starts it.',
       );
     }
     final projects = summary.topProjects.take(3).toList(growable: false);
@@ -712,7 +713,7 @@ class _BusinessPulse extends StatelessWidget {
         icon: Icons.person_outline_rounded,
         label: 'Active systems',
         value: verified ? '${summary.activeProjectCount}' : '—',
-        note: verified ? 'Verified now' : 'Not verified',
+        note: verified ? 'Confirmed' : 'Not confirmed',
         foreground: PandoraSimpleColors.blue,
         background: PandoraSimpleColors.blueWash,
       ),
@@ -859,7 +860,7 @@ class _RecommendationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final message = recommendation ??
-        'No recommendation is verified yet. Ask Pandora what the safest useful next step should be.';
+        'Pandora has not confirmed a recommendation yet. Ask Pandora what the safest useful next step should be.';
     return PandoraSimpleCard(
       backgroundColor: const Color(0xFFFFF5F6),
       borderColor: const Color(0xFFF2CDD2),
@@ -966,7 +967,7 @@ class _SystemsStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     if (summary.topProjects.isEmpty) {
       return PandoraEmptyTruth(
-        title: 'No verified systems yet',
+        title: 'Pandora has not confirmed any systems yet',
         message: 'Ask Pandora to build or connect the first system.',
         actionLabel: 'Open Systems',
         onAction: onOpenSystems,
@@ -1099,8 +1100,8 @@ class _ActivityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (summary.recentActivity.isEmpty) {
       return PandoraEmptyTruth(
-        title: 'No recent verified activity',
-        message: 'Completed and verified work will appear here.',
+        title: 'Pandora has not confirmed any recent activity yet',
+        message: 'Completed work will appear here after Pandora confirms it.',
         actionLabel: 'Open activity',
         onAction: onOpenActivity,
       );

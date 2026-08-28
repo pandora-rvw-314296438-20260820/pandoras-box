@@ -87,6 +87,21 @@ void main() {
     expect(briefing, isNot(contains('Some live checks are degraded')));
   });
 
+  test('Simple Home keeps fail-closed truth in owner language', () {
+    final home =
+        File('lib/features/simple/simple_home_screen.dart').readAsStringSync();
+
+    for (final phrase in const [
+      'Pandora has not confirmed how many decisions need you yet.',
+      'Pandora has not confirmed any current work yet',
+      "note: verified ? 'Confirmed' : 'Not confirmed',",
+    ]) {
+      expect(home, contains(phrase));
+    }
+    expect(home, isNot(contains('Decision counters have not been verified.')));
+    expect(home, isNot(contains('No active work is verified')));
+  });
+
   test('build preview separates prototype from live execution', () {
     final source =
         File('lib/features/simple/build_preview_flow.dart').readAsStringSync();
