@@ -373,7 +373,16 @@ class _ApprovalCard extends StatelessWidget {
             const SizedBox(height: PandoraSpacing.md),
             StatusBadge(label: blockReason, tone: PandoraStatusTone.critical),
           ],
-          const SizedBox(height: PandoraSpacing.lg),
+          const SizedBox(height: PandoraSpacing.md),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => _showApprovalDetails(context, approval),
+              icon: const Icon(Icons.visibility_outlined),
+              label: const Text('View details'),
+            ),
+          ),
+          const SizedBox(height: PandoraSpacing.sm),
           LayoutBuilder(
             builder: (context, constraints) {
               final approve = FilledButton.icon(
@@ -416,6 +425,48 @@ class _ApprovalCard extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _showApprovalDetails(BuildContext context, ApprovalSummary approval) async {
+  final safeChange = _sanitizeApprovalText(approval.change);
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(approval.action, style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: PandoraSpacing.sm),
+          Text(approval.reason),
+          const SizedBox(height: PandoraSpacing.lg),
+          OwnerSignal(label: 'Risk', value: approval.risk.label, icon: Icons.warning_amber_rounded, tone: statusToneFor(approval.risk.label)),
+          const SizedBox(height: PandoraSpacing.xs),
+          OwnerSignal(label: 'Reversibility', value: approval.reversible ? 'Undo available' : 'Undo not verified', icon: Icons.undo_rounded, tone: approval.reversible ? PandoraStatusTone.verified : PandoraStatusTone.critical),
+          const SizedBox(height: PandoraSpacing.xs),
+          OwnerSignal(label: 'Rollback', value: approval.rollback ?? 'No verified rollback path is recorded.', icon: Icons.restore_rounded, tone: approval.rollback != null ? PandoraStatusTone.verified : PandoraStatusTone.critical),
+          const SizedBox(height: PandoraSpacing.lg),
+          Text('Sanitized change summary', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: PandoraSpacing.xs),
+          SelectableText(safeChange),
+          const SizedBox(height: PandoraSpacing.lg),
+          const StatusBadge(label: 'Environment proof: not verified', tone: PandoraStatusTone.attention),
+          const SizedBox(height: PandoraSpacing.xs),
+          const StatusBadge(label: 'Cost proof: not verified', tone: PandoraStatusTone.attention),
+          const SizedBox(height: PandoraSpacing.xs),
+          StatusBadge(label: approval.expiresAt == null ? 'Expiry proof: not verified' : 'Expiry recorded', tone: approval.expiresAt == null ? PandoraStatusTone.attention : PandoraStatusTone.neutral),
+        ]),
+      ),
+    ),
+  );
+}
+
+String _sanitizeApprovalText(String input) {
+  var value = input;
+  value = value.replaceAll(RegExp(r'(token|secret|password|api[_ -]?key)\s*[:=]\s*[^\s,;]+', caseSensitive: false), r'$1=[redacted]');
+  value = value.replaceAll(RegExp(r'\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|sb_secret_[A-Za-z0-9_]{20,})\b'), '[redacted]');
+  return value;
 }
 
 bool _expiresSoon(ApprovalSummary approval) {

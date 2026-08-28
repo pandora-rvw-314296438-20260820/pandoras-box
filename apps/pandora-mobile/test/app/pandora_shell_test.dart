@@ -373,6 +373,31 @@ void main() {
     );
   });
 
+  testWidgets('Simple Mode uses a navigation rail on large screens', (
+    tester,
+  ) async {
+    await setTestSurface(tester, logicalSize: const Size(1000, 800));
+    final repository = _Repository();
+    await tester.pumpWidget(
+      testApp(
+        child: PandoraDependencies(
+          auth: const _Auth(),
+          repository: repository,
+          diagnostics: DiagnosticsStore(),
+          child: const PandoraShell(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byIcon(Icons.grid_view_outlined), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.grid_view_outlined));
+    await tester.pumpAndSettle();
+    expect(repository.projectCalls, 1);
+  });
+
   testWidgets('tabs load lazily and preserve their first mounted state', (
     tester,
   ) async {

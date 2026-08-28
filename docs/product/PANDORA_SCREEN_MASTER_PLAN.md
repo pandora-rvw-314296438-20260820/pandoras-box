@@ -36,21 +36,26 @@ Flows already reachable from More / Simple Mode:
 
 Proof ladder: **implemented + tested in exact-source CI**. Not production-verified.
 
-## Remaining owner-facing surfaces (do not invent completion)
+## UI/UX convergence implemented in the current candidate
 
-From the product UX spec and FlutterFlow full-build, still incomplete as first-class Simple Mode journeys:
+The current convergence branch now closes the source-level owner journeys that were previously listed as incomplete:
 
-- Natural-language Command as the default tab (currently professional)
-- Project filters: Needs me / Active / Blocked / Stale / Recently changed / Production verified
-- Approval detail: reversibility, rollback, missing proof, sanitized diff
-- Connections: Connect / Reconnect / Test / Disconnect with live gateway health
-- Safety four-section identity/approval/source/runtime board as Simple Mode
-- Notifications / daily briefing
-- Read-only offline evidence packets
-- Large-screen navigation rail + list-detail
-- FlutterFlow page parity for Home / Projects / Connections / Approvals / Activity / Memory / Settings across phone, tablet, desktop
-- Official mark derivatives (favicon, PWA, launcher) bound to the approved checksum
-- Physical-device journey receipts (Wi-Fi and mobile data)
+- Ask Pandora remains the canonical center destination in the newer Simple Mode IA; Home remains the owner startup context instead of reverting to the older command-first draft.
+- Project filters: Needs me / Active / Blocked / Stale / Recently changed / Production verified.
+- Approval detail: risk, reversibility, rollback, missing-proof labels, expiry, and locally sanitized change summary.
+- Connections: Test / Connect / Reconnect / Manage / Disconnect routed through governed Ask Pandora preparation rather than direct client-side provider mutation.
+- Verify & Safety four-layer Simple Mode board with no aggregate score.
+- Daily briefing assembled only from returned project, approval, connection, and activity evidence.
+- Read-only offline-evidence surface using bounded cache-aware repository reads; stale/cached evidence never authorizes execution.
+- Responsive large-screen NavigationRail while mobile retains bottom navigation.
+- Projects and Connections are promoted into owner-facing Business & history while technical diagnostics remain behind Professional Mode.
+
+## Remaining release/parity proof, not missing owner UI
+
+- FlutterFlow editor page parity remains a separate external-project verification lane; do not claim editor parity from native source alone.
+- Official product-mark source is present in native assets; delivery derivatives still require checksum-bound packaging verification.
+- Physical Android Wi-Fi and mobile-data journey receipts remain required before production verification.
+- Production deployment, rollback, Supabase parity, independent review, and owner authorization remain release evidence gates.
 
 ## Next implementation slice
 
