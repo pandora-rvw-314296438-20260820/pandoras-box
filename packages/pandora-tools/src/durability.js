@@ -8,7 +8,12 @@ function requireDurable(port, code, label) {
   if (!isDurablePort(port)) throw new PandoraToolError("policy_denied", code, `${label} must use durable control-plane storage for production mutations`);
 }
 
-function hasDurableConcurrency(leaseManager, concurrencyPort) {\n  if (isDurablePort(leaseManager?.store)) return true;\n  return isDurablePort(concurrencyPort) && ["claim", "compare_and_set"].includes(concurrencyPort.mode);\n}\nfunction assertProductionStatePorts(definition, environment, { approvalStore, idempotencyCoordinator, leaseManager, concurrencyPort = null, rateLimitGuard, lineageSink }) {
+function hasDurableConcurrency(leaseManager, concurrencyPort) {
+  if (isDurablePort(leaseManager?.store)) return true;
+  return isDurablePort(concurrencyPort) && ["claim", "compare_and_set"].includes(concurrencyPort.mode);
+}
+
+function assertProductionStatePorts(definition, environment, { approvalStore, idempotencyCoordinator, leaseManager, concurrencyPort = null, rateLimitGuard, lineageSink }) {
   const mutation = ![SIDE_EFFECTS.NONE, SIDE_EFFECTS.READ].includes(definition.sideEffect);
   if (environment !== "production" || !mutation) return true;
   requireDurable(approvalStore, "DURABLE_APPROVAL_STORE_REQUIRED", "Approval state");
