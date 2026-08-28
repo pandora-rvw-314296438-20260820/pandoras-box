@@ -1,0 +1,54 @@
+name: UIUX format artifact
+
+on:
+  push:
+    branches:
+      - feat/uiux-master-plan-completion
+    paths:
+      - .github/workflows/uiux-format-artifact.yml
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: feat/uiux-master-plan-completion
+          persist-credentials: false
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - name: Format exact UI files
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format \
+            apps/pandora-mobile/lib/app/pandora_shell.dart \
+            apps/pandora-mobile/lib/features/connections/connections_screen.dart \
+            apps/pandora-mobile/lib/features/projects/projects_screen.dart \
+            apps/pandora-mobile/lib/features/simple/more_screen.dart \
+            apps/pandora-mobile/lib/features/simple/simple_safety_screen.dart
+      - name: Stage formatter output
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p formatted/apps/pandora-mobile/lib/app formatted/apps/pandora-mobile/lib/features/connections formatted/apps/pandora-mobile/lib/features/projects formatted/apps/pandora-mobile/lib/features/simple
+          cp apps/pandora-mobile/lib/app/pandora_shell.dart formatted/apps/pandora-mobile/lib/app/
+          cp apps/pandora-mobile/lib/features/connections/connections_screen.dart formatted/apps/pandora-mobile/lib/features/connections/
+          cp apps/pandora-mobile/lib/features/projects/projects_screen.dart formatted/apps/pandora-mobile/lib/features/projects/
+          cp apps/pandora-mobile/lib/features/simple/more_screen.dart formatted/apps/pandora-mobile/lib/features/simple/
+          cp apps/pandora-mobile/lib/features/simple/simple_safety_screen.dart formatted/apps/pandora-mobile/lib/features/simple/
+      - name: Upload formatted files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: uiux-formatted-files
+          path: formatted
+          if-no-files-found: error
+          retention-days: 1
