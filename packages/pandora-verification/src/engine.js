@@ -47,17 +47,21 @@ function simpleProjection(run, productionVerified = false) {
 }
 
 class VerificationEngine {
+  #runs = new Map();
+  #authorityToken;
+  #trustedIssuer;
+
   constructor(options = {}) {
-    this.trustedIssuer = options.trustedIssuer ?? "pandora-verification-engine";
+    this.#authorityToken = options.authorityToken ?? Symbol("sealed-verifier-authority");
+    this.#trustedIssuer = options.trustedIssuer ?? "pandora-verification-engine";
     this.clock = options.clock ?? (() => new Date());
     this.limits = Object.freeze({ ...DEFAULT_LIMITS, ...(options.limits ?? {}) });
-    this.runs = new Map();
   }
 
   requestVerification(request) {
     assertExactVerificationRequest(request, PROFILES);
     const verificationRunId = request.verification_run_id ?? randomUUID();
-    if (this.runs.has(verificationRunId)) throw new Error("verification run already exists");
+    if (this.#runs.has(verificationRunId)) throw new Error("verification run already exists");
     const createdAt = request.created_at ?? this.clock().toISOString();
     const normalizedRequest = Object.freeze({ ...request, verification_run_id: verificationRunId, created_at: createdAt });
     const run = {
@@ -74,7 +78,7 @@ class VerificationEngine {
       invalidation_reason: null,
       retry_of: request.retry_of ?? null,
     };
-    this.runs.set(verificationRunId, run);
+    this.#runs.set(verificationRunId, run);
     return snapshot(run);
   }
 
@@ -82,8 +86,8 @@ class VerificationEngine {
     return snapshot(this.#requireRun(runId));
   }
 
-  start(runId, actor = this.trustedIssuer) {
-    this.#assertTrusted(actor);
+  start(runId, authorityToken) {
+    this.#assertTrusted(authorityToken);
     const run = this.#requireRun(runId);
     if (run.status !== "PENDING") throw new Error(`verification run cannot start from ${run.status}`);
     run.status = "RUNNING";
@@ -91,8 +95,8 @@ class VerificationEngine {
     return snapshot(run);
   }
 
-  recordCheck(runId, actor, result) {
-    this.#assertTrusted(actor);
+  recordCheck(runId, authorityToken, result) {
+    this.#assertTrusted(authorityToken);
     const run = this.#requireRun(runId);
     if (run.invalidated_at) throw new Error("stale verification run cannot receive authoritative results");
     const definition = CHECK_REGISTRY[result?.check_id];
@@ -119,7 +123,7 @@ class VerificationEngine {
       expires_at: result.expires_at ?? null,
       identity_digest: run.identity_digest,
       recorded_at: this.clock().toISOString(),
-      authoritative_issuer: this.trustedIssuer,
+      authoritative_issuer: this.#trustedIssuer,
     });
     const existing = run.results.findIndex((item) => item.check_id === normalized.check_id && item.requirement_id === normalized.requirement_id && item.acceptance_criterion_id === normalized.acceptance_criterion_id);
     if (existing >= 0) run.results[existing] = normalized;
@@ -127,8 +131,8 @@ class VerificationEngine {
     return normalized;
   }
 
-  finalize(runId, actor = this.trustedIssuer) {
-    this.#assertTrusted(actor);
+  finalize(runId, authorityToken) {
+    this.#assertTrusted(authorityToken);
     const run = this.#requireRun(runId);
     if (run.invalidated_at) {
       run.status = "STALE";
@@ -149,23 +153,16 @@ class VerificationEngine {
     return snapshot(run);
   }
 
-  invalidate(runId, reason, actor = this.trustedIssuer) {
-    this.#assertTrusted(actor);
-    if (typeof reason !== "string" || !reason.trim()) throw new Error("invalidation reason is required");
-    const run = this.#requireRun(runId);
-    if (!run.invalidated_at) {
-      run.invalidated_at = this.clock().toISOString();
-      run.invalidation_reason = reason;
-      run.status = "STALE";
-    }
-    return snapshot(run);
+  invalidate(runId, reason, authorityToken) {
+    this.#assertTrusted(authorityToken);
+    return this.#invalidate(runId, reason);
   }
 
   assertIdentityCurrent(runId, currentRequest) {
     const run = this.#requireRun(runId);
     const current = identityDigest(currentRequest, PROFILES);
     if (current !== run.identity_digest) {
-      this.invalidate(runId, "immutable verification identity changed");
+      this.#invalidate(runId, "immutable verification identity changed");
       return false;
     }
     return true;
@@ -197,15 +194,26 @@ class VerificationEngine {
     return this.#requireRun(runId).results.filter((result) => result.status !== "PASS").map(repairFeedback);
   }
 
+  #invalidate(runId, reason) {
+    if (typeof reason !== "string" || !reason.trim()) throw new Error("invalidation reason is required");
+    const run = this.#requireRun(runId);
+    if (!run.invalidated_at) {
+      run.invalidated_at = this.clock().toISOString();
+      run.invalidation_reason = reason;
+      run.status = "STALE";
+    }
+    return snapshot(run);
+  }
+
   #requireRun(runId) {
-    const run = this.runs.get(runId);
+    const run = this.#runs.get(runId);
     if (!run) throw new Error("verification run not found");
     return run;
   }
 
-  #assertTrusted(actor) {
-    if (actor !== this.trustedIssuer) {
-      throw new Error("authoritative verification state may only be written by the trusted Verification Engine");
+  #assertTrusted(authorityToken) {
+    if (authorityToken !== this.#authorityToken) {
+      throw new Error("authoritative verification state may only be written by the trusted Verification Engine executor");
     }
   }
 }
