@@ -46,7 +46,7 @@ class MoreScreen extends StatelessWidget {
                     icon: Icons.query_stats_outlined,
                     title: 'Business',
                     subtitle:
-                        'Signals, recommendations, and owner intelligence',
+                        'Signals, recommendations, and business insights',
                     onTap: () =>
                         _openMore(context, const OwnerIntelligenceScreen()),
                   ),
@@ -65,8 +65,8 @@ class MoreScreen extends StatelessWidget {
                   ),
                   _MoreTile(
                     icon: Icons.offline_pin_outlined,
-                    title: 'Offline evidence',
-                    subtitle: 'Read-only last-known proof for reference',
+                    title: 'Saved evidence',
+                    subtitle: 'Last-known proof you can review without changing anything',
                     onTap: () =>
                         _openMore(context, const OfflineEvidenceScreen()),
                   ),
@@ -86,7 +86,7 @@ class MoreScreen extends StatelessWidget {
                     icon: Icons.cable_outlined,
                     title: 'Connections',
                     subtitle:
-                        'Connected services, health, and governed actions',
+                        'Connected services, health, and safe actions',
                     onTap: () => _openMore(context, const ConnectionsScreen()),
                   ),
                 ],
@@ -113,13 +113,13 @@ class MoreScreen extends StatelessWidget {
                   ),
                   _MoreTile(
                     icon: Icons.security_outlined,
-                    title: 'Safety diagnostics',
+                    title: 'Safety details',
                     subtitle: 'Detailed safety evidence, audit history, and connection checks',
                     onTap: () => _openMore(context, const SafetyScreen()),
                   ),
                   _MoreTile(
                     icon: Icons.developer_mode_outlined,
-                    title: 'Developer diagnostics',
+                    title: 'Developer details',
                     subtitle: 'Bounded technical diagnostics',
                     onTap: () =>
                         _openMore(context, const DeveloperDiagnosticsScreen()),
