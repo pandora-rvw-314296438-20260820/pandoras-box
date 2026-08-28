@@ -1,4 +1,7 @@
--- Worker B: make the Vault-backed Gemini transport use the pgsql-http curl timeout that is actually honored.\n-- No credential leaves Vault.\n\nCREATE OR REPLACE FUNCTION private.pandora_worker_b_gemini_api_20260829(p_model text, p_body jsonb)
+-- Worker B: make the Vault-backed Gemini transport use the pgsql-http curl timeout that is actually honored.
+-- No credential leaves Vault.
+
+CREATE OR REPLACE FUNCTION private.pandora_worker_b_gemini_api_20260829(p_model text, p_body jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
