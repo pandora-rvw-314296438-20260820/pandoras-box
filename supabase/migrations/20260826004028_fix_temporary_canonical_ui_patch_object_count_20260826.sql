@@ -1,0 +1,1 @@
+-- Historical tombstone for production migration 20260826004028 (fix_temporary_canonical_ui_patch_object_count_20260826).\n-- Superseded temporary recovery logic; intentionally no-op in canonical source.\n
