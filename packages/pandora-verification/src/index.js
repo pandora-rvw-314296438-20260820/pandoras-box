@@ -8,6 +8,7 @@ const engine = require("./engine");
 const execution = require("./execution");
 const orchestrator = require("./orchestrator");
 const controlPlane = require("./control-plane");
+const freshness = require("./freshness");
 
 function createVerificationService(options = {}) {
   const verifier = new engine.VerificationEngine(options);
@@ -17,6 +18,7 @@ function createVerificationService(options = {}) {
     get_verification_summary: (runId, requirements = []) => verifier.getVerificationSummary(runId, requirements),
     get_requirement_coverage: (runId, requirements = []) => verifier.getRequirementCoverage(runId, requirements),
     get_release_readiness: (runId, requirements = []) => verifier.getReleaseReadiness(runId, requirements),
+    get_verification_freshness: (runId) => verifier.getVerificationFreshness(runId),
     get_repair_feedback: (runId) => verifier.getRepairFeedback(runId),
     start_verification: (runId, actor) => verifier.start(runId, actor),
     record_check: (runId, actor, result) => verifier.recordCheck(runId, actor, result),
@@ -28,4 +30,4 @@ function createVerificationService(options = {}) {
   });
 }
 
-module.exports = Object.freeze({ ...contracts, ...registry, ...checks, ...engine, ...execution, ...orchestrator, ...controlPlane, createVerificationService });
+module.exports = Object.freeze({ ...contracts, ...registry, ...checks, ...engine, ...execution, ...orchestrator, ...controlPlane, ...freshness, createVerificationService });
