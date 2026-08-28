@@ -207,6 +207,7 @@ function verifyDomainEvidence(domain) {
 
 function verifyPreviewEvidence({ request, deployment, probes = [] }) {
   assertPlainObject("preview deployment evidence", deployment);
+  if (!deployment.artifact_digest) return { status: "BLOCKED", failure_class: "provider", summary: "Preview deployment artifact identity is unavailable." };
   const identity = verifyArtifactIdentity({ built: request.artifact_digest, verified: request.artifact_digest, preview: deployment.artifact_digest, lineage: deployment.reproducible_lineage ?? [] });
   const sourceMatches = deployment.source_commit === request.source_commit;
   const versionMatches = deployment.project_version_id === request.project_version_id;
@@ -220,6 +221,7 @@ function verifyPreviewEvidence({ request, deployment, probes = [] }) {
 
 function verifyProductionEvidence({ request, deployment, domain, probes = [] }) {
   assertPlainObject("production deployment evidence", deployment);
+  if (!deployment.artifact_digest) return { status: "BLOCKED", failure_class: "provider", summary: "Production deployment artifact identity is unavailable." };
   const identity = verifyArtifactIdentity({ built: request.artifact_digest, verified: request.artifact_digest, production: deployment.artifact_digest, lineage: deployment.reproducible_lineage ?? [] });
   const exact = deployment.project_version_id === request.project_version_id && deployment.source_commit === request.source_commit && identity.status === "PASS";
   if (!exact) return { status: "FAIL", failure_class: "runtime", summary: "Production deployment does not match the approved exact version.", identity };
