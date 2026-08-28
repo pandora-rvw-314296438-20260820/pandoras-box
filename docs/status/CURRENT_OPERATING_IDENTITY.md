@@ -15,7 +15,7 @@ Classification: **current operational identity** (not a historical status surfac
 | Memory repository | `banataosystems/pandoras-box-memory` |
 | Operating source of truth | Pandora Memory hard-canon + exact committed source on this repository |
 
-`mbanatao/*` is historical evidence only. `banataosystems/Pandoras-box` is a recovery-era sibling name, not the operational Git remote.
+mbanatao/* is historical evidence only. `banataosystems/Pandoras-box` is a recovery-era sibling name, not the operational Git remote.
 
 ## Canonical Vercel identity (preserve, do not recreate)
 
@@ -27,20 +27,22 @@ Classification: **current operational identity** (not a historical status surfac
 | Production origin | `https://mcpmaster.vercel.app` |
 | Memory origin | `https://pandorasbox-memory.vercel.app` |
 
-Keep this project ID and production alias. Relink Git to `pandora-rvw-314296438-20260820/pandoras-box` `main`. Do not create a replacement production identity unless a separately reviewed migration is approved.
+Keep this project ID and production alias. Live Vercel provider readback on 2026-08-28 confirms the existing `mcpmaster` project is linked to `pandora-rvw-314296438-20260820/pandoras-box`; production deployment metadata binds `main` to this repository. Do not create a replacement production identity unless a separately reviewed migration is approved.
 
-Stale provider metadata `githubOrg=mbanatao` / `githubRepo=mcpmaster` is evidence of incomplete Git relink. It is not source authority.
+Legacy Vercel team or deployment URL slugs containing `mbanatao` are not Git source authority. Current deployment metadata must bind `githubOrg=pandora-rvw-314296438-20260820` and `githubRepo=pandoras-box` before it can contribute release evidence.
 
 ## Canonical Supabase identity
 
 Governed Edge functions and migrations in this repository are the source contract. Live project refs remain provider-authoritative only when bound to this exact source SHA/tree by an immutable receipt.
 
-## Required control-plane repairs (outside Git)
+## Remaining control-plane proof gates
 
-1. Disconnect Vercel `mcpmaster` from any `mbanatao/*` Git source.
-2. Connect the same project to `pandora-rvw-314296438-20260820/pandoras-box` `main`.
-3. Enable Protection Bypass for Automation for machine MCP without making the app public.
-4. Keep Vercel OIDC at the application layer.
-5. Capture exact production deployment + distinct rollback receipts before calling production verified.
+1. Preserve the existing Vercel Git binding to `pandora-rvw-314296438-20260820/pandoras-box` `main` and fail closed on source drift.
+2. Verify the required automation/protection posture without making the application public or weakening branch protection.
+3. Keep Vercel OIDC at the application layer.
+4. Capture exact production deployment + distinct rollback receipts before calling production verified.
+5. Bind live Supabase migration/function evidence to the exact release source.
+6. Capture the required physical Android Wi-Fi and mobile-data journey receipts.
+7. Require separately trusted external review and the repository-defined final owner authorization before release authority is complete.
 
 Never commit bypass secrets, access tokens, service-role keys, or OIDC tokens.
