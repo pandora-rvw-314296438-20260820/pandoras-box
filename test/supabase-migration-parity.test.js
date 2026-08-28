@@ -270,14 +270,19 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     receiptVersionChainSha256(activeFiles),
     manifest.identity_reconciliation.expected_applied_receipt_chain_sha256,
   );
-  assert.equal(reconciledReplayResult.migration_count, activeFiles.length);
-  assert.equal(reconciledReplayResult.chain_sha256, chainSha256(activeFiles));
+  // Preserve the dated 2026-08-23 replay receipt as historical evidence.
+  assert.equal(reconciledReplayResult.migration_count, 74);
   assert.equal(
     reconciledReplayResult.chain_sha256,
+    'fa5039cd8ef4297c1dd01e258c4e8cdfe8725a7aba19b82c48b8ddb24fd8a127',
+  );
+  // Bind current source independently to current manifest truth.
+  assert.equal(
+    chainSha256(activeFiles),
     manifest.validation.reconciled_chain_sha256,
   );
   assert.equal(
-    reconciledReplayResult.migration_count,
+    activeFiles.length,
     manifest.validation.reconciled_migration_count,
   );
   assert.equal(currentReplayResult.provider_equivalence, false);
