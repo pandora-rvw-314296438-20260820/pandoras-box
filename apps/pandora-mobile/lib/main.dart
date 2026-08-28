@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/pandora_app.dart';
+import 'core/data/project_experience_api.dart';
 import 'core/data/project_runtime_api.dart';
 import 'core/data/remote_pandora_repository.dart';
 import 'core/diagnostics/diagnostic_event.dart';
@@ -56,12 +57,17 @@ Future<void> main() async {
   );
   final repository = RemotePandoraRepository(client: apiClient);
   final projectRuntime = ProjectRuntimeApi(client: projectRuntimeClient);
+  final projectExperience = ProjectExperienceApi(
+    client: supabase,
+    organizationId: PandoraConfig.organizationId,
+  );
 
   runApp(
     PandoraApp(
       auth: SupabasePandoraAuth(supabase),
       repository: repository,
       projectRuntime: projectRuntime,
+      projectExperience: projectExperience,
       diagnostics: diagnostics,
     ),
   );
