@@ -1,14 +1,38 @@
 import 'pandora_models.dart';
 
 enum ProjectBuildKind {
-  website('website', 'Website', 'Marketing site, bookings, ecommerce or customer pages'),
+  website(
+    'website',
+    'Website',
+    'Marketing site, bookings, ecommerce or customer pages',
+  ),
   webApp('web_app', 'Web app', 'Interactive product, portal or dashboard'),
-  mobileApp('mobile_app', 'Mobile app', 'Mobile-first product for Android or iOS'),
-  internalTool('internal_tool', 'Internal business tool', 'Operations, staff workflows or dashboards'),
-  automation('automation', 'Automation', 'Automate repetitive work and handoffs'),
+  mobileApp(
+    'mobile_app',
+    'Mobile app',
+    'Mobile-first product for Android or iOS',
+  ),
+  internalTool(
+    'internal_tool',
+    'Internal business tool',
+    'Operations, staff workflows or dashboards',
+  ),
+  automation(
+    'automation',
+    'Automation',
+    'Automate repetitive work and handoffs',
+  ),
   apiBackend('api_backend', 'API / backend', 'Data, APIs and backend services'),
-  fullSystem('full_system', 'Full system', 'Frontend, backend, data and integrations'),
-  helpMeDecide('help_me_decide', 'Help me decide', 'Describe the result and Pandora will choose the right shape');
+  fullSystem(
+    'full_system',
+    'Full system',
+    'Frontend, backend, data and integrations',
+  ),
+  helpMeDecide(
+    'help_me_decide',
+    'Help me decide',
+    'Describe the result and Pandora will choose the right shape',
+  );
 
   const ProjectBuildKind(this.wireValue, this.label, this.description);
   final String wireValue;
@@ -66,12 +90,20 @@ class CustomerProject {
     final json = asJsonMap(value);
     return CustomerProject(
       id: requiredJsonText(json, const ['id'], field: 'customerProject.id'),
-      projectKey: requiredJsonText(json, const ['projectKey', 'project_key'], field: 'customerProject.projectKey'),
-      name: requiredJsonText(json, const ['name'], field: 'customerProject.name'),
+      projectKey: requiredJsonText(json, const [
+        'projectKey',
+        'project_key',
+      ], field: 'customerProject.projectKey'),
+      name: requiredJsonText(json, const [
+        'name',
+      ], field: 'customerProject.name'),
       objective: jsonText(json['objective']),
       buildKind: ProjectBuildKind.parse(json['buildKind']),
       stage: jsonText(json['stage'], fallback: 'idea'),
-      runtimeStatus: jsonText(json['runtimeStatus'], fallback: 'not_configured'),
+      runtimeStatus: jsonText(
+        json['runtimeStatus'],
+        fallback: 'not_configured',
+      ),
       vercelProjectId: _optionalText(json['vercelProjectId']),
       vercelProjectName: _optionalText(json['vercelProjectName']),
       previewUrl: _optionalText(json['previewUrl']),
@@ -85,7 +117,16 @@ class CustomerProject {
 }
 
 class ProjectRuntimeDeployment {
-  const ProjectRuntimeDeployment({required this.id, required this.versionId, required this.environment, required this.status, required this.sourceSha256, this.providerDeploymentId, this.url, this.createdAt});
+  const ProjectRuntimeDeployment({
+    required this.id,
+    required this.versionId,
+    required this.environment,
+    required this.status,
+    required this.sourceSha256,
+    this.providerDeploymentId,
+    this.url,
+    this.createdAt,
+  });
   final String id;
   final String versionId;
   final String environment;
@@ -111,7 +152,15 @@ class ProjectRuntimeDeployment {
 }
 
 class ProjectRuntimeDomain {
-  const ProjectRuntimeDomain({required this.id, required this.domain, required this.status, required this.verified, required this.primary, required this.verification, this.updatedAt});
+  const ProjectRuntimeDomain({
+    required this.id,
+    required this.domain,
+    required this.status,
+    required this.verified,
+    required this.primary,
+    required this.verification,
+    this.updatedAt,
+  });
   final String id;
   final String domain;
   final String status;
@@ -124,7 +173,9 @@ class ProjectRuntimeDomain {
     final json = asJsonMap(value);
     return ProjectRuntimeDomain(
       id: requiredJsonText(json, const ['id'], field: 'projectDomain.id'),
-      domain: requiredJsonText(json, const ['domain'], field: 'projectDomain.domain'),
+      domain: requiredJsonText(json, const [
+        'domain',
+      ], field: 'projectDomain.domain'),
       status: jsonText(json['status'], fallback: 'pending'),
       verified: jsonBool(json['verified']),
       primary: jsonBool(json['primary_domain']),
@@ -135,7 +186,12 @@ class ProjectRuntimeDomain {
 }
 
 class ProjectRuntimeSnapshot {
-  const ProjectRuntimeSnapshot({required this.project, this.preview, this.production, this.domain});
+  const ProjectRuntimeSnapshot({
+    required this.project,
+    this.preview,
+    this.production,
+    this.domain,
+  });
   final CustomerProject project;
   final ProjectRuntimeDeployment? preview;
   final ProjectRuntimeDeployment? production;
@@ -148,15 +204,24 @@ class ProjectRuntimeSnapshot {
     final domain = json['domain'];
     return ProjectRuntimeSnapshot(
       project: CustomerProject.fromJson(json['project']),
-      preview: preview == null ? null : ProjectRuntimeDeployment.fromJson(preview),
-      production: production == null ? null : ProjectRuntimeDeployment.fromJson(production),
+      preview: preview == null
+          ? null
+          : ProjectRuntimeDeployment.fromJson(preview),
+      production: production == null
+          ? null
+          : ProjectRuntimeDeployment.fromJson(production),
       domain: domain == null ? null : ProjectRuntimeDomain.fromJson(domain),
     );
   }
 }
 
 class ProjectPreviewResult {
-  const ProjectPreviewResult({required this.project, required this.deployment, this.previewUrl, this.versionId});
+  const ProjectPreviewResult({
+    required this.project,
+    required this.deployment,
+    this.previewUrl,
+    this.versionId,
+  });
   final CustomerProject project;
   final ProjectRuntimeDeployment? deployment;
   final String? previewUrl;
@@ -168,7 +233,9 @@ class ProjectPreviewResult {
     final deployment = json['deployment'];
     return ProjectPreviewResult(
       project: CustomerProject.fromJson(json['project']),
-      deployment: deployment is Map && deployment['id'] != null ? ProjectRuntimeDeployment.fromJson(deployment) : null,
+      deployment: deployment is Map && deployment['id'] != null
+          ? ProjectRuntimeDeployment.fromJson(deployment)
+          : null,
       previewUrl: _optionalText(json['previewUrl']),
       versionId: _optionalText(version['id']),
     );
@@ -176,7 +243,13 @@ class ProjectPreviewResult {
 }
 
 class ProjectPublishResult {
-  const ProjectPublishResult({required this.project, required this.production, required this.domainVerified, this.domain, this.liveUrl});
+  const ProjectPublishResult({
+    required this.project,
+    required this.production,
+    required this.domainVerified,
+    this.domain,
+    this.liveUrl,
+  });
   final CustomerProject project;
   final ProjectRuntimeDeployment production;
   final ProjectRuntimeDomain? domain;
