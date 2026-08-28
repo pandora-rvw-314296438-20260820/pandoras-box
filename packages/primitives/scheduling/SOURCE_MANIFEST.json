@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-scheduling@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {
+      "path": "core/src/events.js",
+      "sha256": "679f84c84aded138258092e5d10377c398e4f087b46454ebedf4690ae887d160"
+    },
+    {
+      "path": "scheduling/src/index.js",
+      "sha256": "b315fa62ca591d3728686d118ec7b49efb4fb0e626bec866e2bd8ac82f47cc16"
+    },
+    {
+      "path": "scheduling/migrations/001_scheduling.sql",
+      "sha256": "ed723ba1976a5b22da236d1c30fd46cf0a0777ed8c20e35b013b8f84ffa03493"
+    }
+  ],
+  "bundleDigest": "sha256:feb5a35d2de97c4dfdff32dc34bdf5d300af9033051b3e1a4569bdaf6d77e43e"
+}
