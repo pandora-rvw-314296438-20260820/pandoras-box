@@ -4,7 +4,7 @@ on:
     branches:
       - fix/owner-truth-status-20260828
 permissions:
-  contents: read
+  contents: write
 jobs:
   golden:
     runs-on: ubuntu-24.04
@@ -37,16 +37,19 @@ jobs:
       - name: Refresh only reviewed Connections golden
         working-directory: .pandora-mobile-build
         run: flutter test test/goldens/owner_screens_visual_evidence_test.dart --update-goldens --plain-name 'captures connections_healthy_porcelain_390x844'
-      - name: Prove only one golden changed
+      - name: Persist only reviewed Connections golden
         shell: bash
         run: |
           set -euo pipefail
           target=test/goldens/owner_screens/connections_healthy_porcelain_390x844.png
-          cmp .pandora-mobile-build/$target apps/pandora-mobile/$target || true
           test -f .pandora-mobile-build/$target
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: owner-truth-reviewed-golden
-          path: .pandora-mobile-build/test/goldens/owner_screens/connections_healthy_porcelain_390x844.png
-          if-no-files-found: error
-          retention-days: 1
+          cp .pandora-mobile-build/$target apps/pandora-mobile/$target
+          git add apps/pandora-mobile/$target
+          if git diff --cached --quiet; then
+            echo 'Reviewed golden already current.'
+            exit 0
+          fi
+          git config user.name 'pandora-rvw-314296438-20260820'
+          git config user.email 'plpboracay@gmail.com'
+          git commit -m 'test(ui): refresh owner connection truth golden'
+          git push origin HEAD:fix/owner-truth-status-20260828
