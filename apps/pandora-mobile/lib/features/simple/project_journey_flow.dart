@@ -389,8 +389,9 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                       _stageTimer = Timer.periodic(
                         const Duration(milliseconds: 1200),
                         (_) {
-                          if (!mounted || _result != null || _error != null)
+                          if (!mounted || _result != null || _error != null) {
                             return;
+                          }
                           if (_stage < _steps.length - 1) {
                             setState(() => _stage += 1);
                           }

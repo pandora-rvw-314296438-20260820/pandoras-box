@@ -7,10 +7,10 @@ import '../core/analytics/owner_analytics.dart';
 import '../core/widgets/pandora_mark.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
-import '../features/simple/pandora_simple_ui.dart';
-import '../features/simple/simple_home_screen.dart';
 import '../features/simple/business_screen.dart';
+import '../features/simple/pandora_simple_ui.dart';
 import '../features/simple/projects_screen.dart';
+import '../features/simple/simple_home_screen.dart';
 
 class PandoraShell extends StatefulWidget {
   const PandoraShell({super.key});
