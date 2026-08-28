@@ -1,0 +1,1 @@
+-- Historical tombstone. Temporary recovery staging was retired; intentionally no-op.\n
