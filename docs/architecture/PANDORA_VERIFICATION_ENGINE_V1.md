@@ -178,3 +178,12 @@ Repository tests prove at minimum:
 - Simple Mode projections do not expose framework detail
 
 This document describes implemented source truth only; it does not claim Worker A persistence, Worker D execution, Worker F provider adapters, Playwright infrastructure, or production proof until those components exist and have independent live evidence.
+
+
+## Freshness, repair, rollback and worker adapters
+
+Environment-bound verification evidence expires automatically. Exact-source, exact-artifact and exact-migration-set checks remain reusable only while their immutable identity stays unchanged. Deployment/schema evidence is time bounded, production evidence has the shortest window, and expired required evidence immediately makes `publish_eligible=false` without rewriting the historical PASS run.
+
+Worker D is used only as a bounded sandbox execution substrate. Project/builder receipts are evidence only unless Worker E requested and independently observed the execution; Worker E still owns the authoritative result. The adapter sends exact project/source identity, deny-by-default network policy and no credential leases. Worker F provider facts are normalized into exact preview, production and domain evidence before runtime verification.
+
+Release reports expose machine and owner-safe summaries, explicit failed/blocked/missing/expired checks, exact version/source/artifact identity and evidence references. Repair always creates a new run. Rollback targets are independently re-verified after rollback, and production state distinguishes `verified_current`, `drift_detected`, `verification_expired` and `unknown`.
