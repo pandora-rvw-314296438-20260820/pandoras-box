@@ -163,6 +163,14 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260828122655_index_release_worker_foreign_keys.sql',
     '20260828132500_pandora_project_runtime.sql',
     '20260828153500_pandora_project_spec_control_plane_v1.sql',
+    '20260828170000_pandora_durable_execution_lineage_v1.sql',
+    '20260828181500_pandora_economics_runtime_safety_v1.sql',
+    '20260828193000_pandora_realtime_audit_security_v1.sql',
+    '20260829103000_pandora_worker_b_gemini_vault_transport.sql',
+    '20260829104000_pandora_worker_f_runtime_state.sql',
+    '20260829104500_pandora_project_spec_compiler_v1.sql',
+    '20260829111500_pandora_worker_f_vercel_scope_rebind.sql',
+    '20260829113000_pandora_worker_d_vercel_sandbox_broker_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -186,6 +194,14 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260828122655_index_release_worker_foreign_keys.sql',
     '20260828132500_pandora_project_runtime.sql',
     '20260828153500_pandora_project_spec_control_plane_v1.sql',
+    '20260828170000_pandora_durable_execution_lineage_v1.sql',
+    '20260828181500_pandora_economics_runtime_safety_v1.sql',
+    '20260828193000_pandora_realtime_audit_security_v1.sql',
+    '20260829103000_pandora_worker_b_gemini_vault_transport.sql',
+    '20260829104000_pandora_worker_f_runtime_state.sql',
+    '20260829104500_pandora_project_spec_compiler_v1.sql',
+    '20260829111500_pandora_worker_f_vercel_scope_rebind.sql',
+    '20260829113000_pandora_worker_d_vercel_sandbox_broker_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
