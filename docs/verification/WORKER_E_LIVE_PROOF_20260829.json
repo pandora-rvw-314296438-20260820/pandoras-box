@@ -1,0 +1,84 @@
+{
+  "base_main_sha": "b2c834b22e7642e08e607844c50dbc65de01d629",
+  "closure_branch": "verification/live-proof-closure-20260829",
+  "credential_handling": {
+    "gemini_required": false,
+    "github_mutations": "Supabase Vault reference Github_supabase",
+    "raw_credentials_committed": false,
+    "raw_credentials_in_evidence": false,
+    "vercel_operations": "Supabase Vault reference vercel"
+  },
+  "database_proof": {
+    "constraint_count": 6,
+    "index_count": 2,
+    "policy_count": 1,
+    "rls_enabled": true,
+    "rollback_complete": true,
+    "schema_sha256": "87e5996f556d20088510e6f0cfa06ad3c04a0fd22650096a15e61618eaeeac96",
+    "verification": "PASS",
+    "verification_run_id": "93f861de-1dac-4d71-941a-e4d685d97a01"
+  },
+  "history": {
+    "failing_version": {
+      "acceptance_command_exit_code": 1,
+      "artifact_sha256": "365aed475c5b00343598ba778094e1fdae643fee1a7284a711e1278c5ec300de",
+      "project_version_id": "623195d8-02af-40f4-a42d-9d4161632658",
+      "source_commit": "0356dd61d5c2bd93eb0dc4a81ca749c9bbc86d8e",
+      "verification": "FAIL",
+      "verification_run_id": "100758d5-db47-485a-a231-b44f5f35f630"
+    },
+    "repaired_version": {
+      "acceptance_command_exit_code": 0,
+      "artifact_sha256": "34327d36984024bbae4f0d36829d91c9b1694d493f9e39506d5eae901fe7fc60",
+      "project_version_id": "9b49c111-2b60-48e4-8883-1146116904f0",
+      "source_commit": "fbe1de002808d35d3ff57293ebf4585a3461c711",
+      "verification": "BLOCKED",
+      "verification_run_id": "dfd9b5da-cae2-4f72-ba0a-b37ecfcf698f"
+    }
+  },
+  "proof_project": {
+    "organization_id": "2270b266-59da-4c39-bfd9-9f8d08352af0",
+    "project_id": "0b2d5082-ee7a-4ab3-88d3-3bb08f34162d",
+    "project_spec_id": "4fce0d00-d586-4eca-a983-535f89bb64e8"
+  },
+  "provider_truth": {
+    "exact_repaired_deployment": "BLOCKED",
+    "http_status": 402,
+    "limit": "api-deployments-free-per-day",
+    "prior_read_only_preview": {
+      "authoritative_for_repaired_version": false,
+      "deployment_id": "dpl_HgPzcqN3nSbMSgfyUqUcQcERZgoF",
+      "provider_state": "READY",
+      "runtime_body_sha256": "57bab6b644bf67d8fd16d8f9933f54a6264ed3922a825ca732eaffc07dd7daa8",
+      "runtime_http_status": 200,
+      "source_commit": "371e77a98c1b4c59ce6072dbefeaa90312281833"
+    },
+    "provider_code": "payment_required",
+    "retry_window": "24h",
+    "vault_backed_vercel_transport": true
+  },
+  "publish_eligible": false,
+  "reason": "exact repaired preview and disposable production proof are blocked by the Vercel daily deployment quota; no PASS is inferred",
+  "remaining_required_proofs": [
+    "new exact repaired preview deployment",
+    "browser/runtime/accessibility verification against that exact preview",
+    "same-artifact disposable production promotion",
+    "production domain/runtime/source/artifact identity proof",
+    "production drift/freshness proof",
+    "rollback target re-verification and cleanup",
+    "exact closure-head green CI and merge"
+  ],
+  "repository": "pandora-rvw-314296438-20260820/pandoras-box",
+  "sandbox": {
+    "acceptance_command_id": "cmd_11e7b44f702945ccb5d1153edd07",
+    "fail_command_id": "cmd_34ef0b78561c49d88a07d325d84f",
+    "network": "deny-all",
+    "persistent": false,
+    "provider": "vercel_sandbox",
+    "repair_materialization_command_id": "cmd_0e596036a3064b21af732c5d23db",
+    "runtime": "node24",
+    "secrets_in_environment": false
+  },
+  "schema": "pandora.worker-e.live-proof/1",
+  "status": "BLOCKED"
+}
