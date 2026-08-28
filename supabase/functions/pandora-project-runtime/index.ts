@@ -6,7 +6,7 @@ import {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const VERCEL_TOKEN = Deno.env.get("PANDORA_VERCEL_TOKEN") || "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const VERCEL_TEAM_ID =
   Deno.env.get("PANDORA_VERCEL_TEAM_ID") ||
   "team_IcdJUnzLi5wUN1GD8ALHyjF7";
@@ -184,28 +184,36 @@ async function sha256Hex(value: string) {
 }
 
 async function vercelRequest(path: string, init: RequestInit, accepted: number[] = [200, 201]) {
-  if (!VERCEL_TOKEN) throw new Error("VERCEL_NOT_CONFIGURED");
+  if (!SUPABASE_SERVICE_ROLE_KEY) throw new Error("RUNTIME_BROKER_NOT_CONFIGURED");
+  const method = textValue(init.method, "GET").toUpperCase();
   const separator = path.includes("?") ? "&" : "?";
-  const result = await fetch(`https://api.vercel.com${path}${separator}teamId=${encodeURIComponent(VERCEL_TEAM_ID)}`, {
-    ...init,
-    headers: {
-      authorization: `Bearer ${VERCEL_TOKEN}`,
-      accept: "application/json",
-      "content-type": "application/json",
-      ...(init.headers || {}),
-    },
-  });
-  const text = await result.text();
-  let decoded: unknown = {};
-  if (text) {
-    try { decoded = JSON.parse(text); } catch { throw new Error("VERCEL_UNREADABLE_RESPONSE"); }
+  const scopedPath = `${path}${separator}teamId=${encodeURIComponent(VERCEL_TEAM_ID)}`;
+  let requestBody: JsonRecord | null = null;
+  if (typeof init.body === "string" && init.body) {
+    try {
+      requestBody = asRecord(JSON.parse(init.body));
+    } catch {
+      throw new Error("VERCEL_REQUEST_INVALID");
+    }
   }
-  if (!accepted.includes(result.status)) {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await admin.rpc("pandora_worker_f_vercel_request_20260829", {
+    p_method: method,
+    p_path: scopedPath,
+    p_body: requestBody,
+  });
+  if (error) throw new Error("VERCEL_REQUEST_FAILED");
+  const envelope = asRecord(data);
+  const status = Number(envelope.status ?? 0);
+  const decoded: unknown = envelope.body ?? {};
+  if (!accepted.includes(status)) {
     const payload = asRecord(decoded);
     const nested = asRecord(payload.error);
     const providerCode = textValue(nested.code ?? payload.code);
-    if (result.status === 409 || providerCode.includes("conflict")) throw new Error("VERCEL_CONFLICT");
-    if (providerCode.includes("domain") || result.status === 400 && path.includes("/domains")) throw new Error("VERCEL_DOMAIN_REJECTED");
+    if (status === 409 || providerCode.includes("conflict")) throw new Error("VERCEL_CONFLICT");
+    if (providerCode.includes("domain") || status === 400 && path.includes("/domains")) throw new Error("VERCEL_DOMAIN_REJECTED");
     throw new Error("VERCEL_REQUEST_FAILED");
   }
   return asRecord(decoded);
