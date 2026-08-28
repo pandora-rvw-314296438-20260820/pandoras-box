@@ -46,8 +46,11 @@ test("publish rejects missing/stale/wrong-version/changed verification", () => {
   assert.equal(r.disposition, T.TOOL_DECISIONS.REQUIRE_APPROVAL); assert.equal(r.risk, T.RISK_LEVELS.HIGH);
 });
 
-test("destructive production migration becomes critical", () => {
+test("destructive production migration requires authoritative preflight and becomes critical", () => {
   const args = { project_id: P, environment: "production", migration_ref: "artifact://migrations/001", migration_kind: "schema_change", destructive: true, request_id: "request-0001", idempotency_key: "idem-key-0001" };
-  const r = T.evaluatePolicy(input(T.TOOL_REGISTRY.request_migration, args, ["database.migration.request", "production.access"]));
+  let r = T.evaluatePolicy(input(T.TOOL_REGISTRY.request_migration, args, ["database.migration.request", "production.access"]));
+  assert.equal(r.risk, T.RISK_LEVELS.CRITICAL); assert.equal(r.reason_code, "MIGRATION_PREFLIGHT_REQUIRED_OR_STALE");
+  const migration_preflight = { authoritative: true, organization_id: O, project_id: P, environment: "production", migration_ref: args.migration_ref, destructive: true, risk: "CRITICAL", status: "PASS" };
+  r = T.evaluatePolicy(input(T.TOOL_REGISTRY.request_migration, args, ["database.migration.request", "production.access"], { migration_preflight }));
   assert.equal(r.risk, T.RISK_LEVELS.CRITICAL); assert.equal(r.disposition, T.TOOL_DECISIONS.REQUIRE_APPROVAL);
 });
