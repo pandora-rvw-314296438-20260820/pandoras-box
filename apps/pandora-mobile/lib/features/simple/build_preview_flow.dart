@@ -86,10 +86,10 @@ class BuildProgressScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             waitingForDecision
-                ? 'Nothing will execute until you approve the protected decision in Needs You.'
+                ? 'Nothing will change until you approve the decision in Needs You.'
                 : (releaseRequest
-                    ? 'Pandora is preparing the reviewed result for verification, approval, and rollback-safe release.'
-                    : 'Pandora is preparing the governed work and will notify you when a real decision is required.'),
+                    ? 'Pandora is preparing the reviewed result for final checks, your approval, and a safe release.'
+                    : 'Pandora is doing the work and will notify you when your decision is required.'),
             textAlign: TextAlign.center,
             style: pandoraSimpleMutedText,
           ),
@@ -116,10 +116,10 @@ class BuildProgressScreen extends StatelessWidget {
                 ),
                 _BuildTaskRow(
                   label: releaseRequest
-                      ? 'Preparing the governed release'
+                      ? 'Preparing the release'
                       : 'Building the core system',
                   detail: waitingForDecision
-                      ? 'Execution is paused until you approve the protected decision'
+                      ? 'Work is paused until you approve the decision'
                       : receipt.status.whatIsHappeningNow,
                   state: waitingForDecision
                       ? _BuildTaskState.blocked
@@ -128,14 +128,13 @@ class BuildProgressScreen extends StatelessWidget {
                 _BuildTaskRow(
                   label: 'Connecting business services',
                   detail: waitingForDecision
-                      ? 'This starts only after the protected decision is approved'
+                      ? 'This starts only after you approve the decision'
                       : receipt.status.whatIWillDoNext,
                   state: _BuildTaskState.pending,
                 ),
                 const _BuildTaskRow(
                   label: 'Testing everything',
-                  detail:
-                      'Provider and exact-source checks have not finished yet',
+                  detail: 'Independent checks have not finished yet',
                   state: _BuildTaskState.pending,
                 ),
                 const _BuildTaskRow(
@@ -172,7 +171,7 @@ class BuildProgressScreen extends StatelessWidget {
                     child: Text(
                       receipt.needsApproval
                           ? 'The release request is recorded and waiting in Needs You.'
-                          : 'The release request is recorded. Activity and provider evidence remain the source of truth.',
+                          : 'The release request is recorded. Activity and verified release proof show the current status.',
                       style: pandoraSimpleText,
                     ),
                   ),
@@ -186,7 +185,7 @@ class BuildProgressScreen extends StatelessWidget {
                           ? const ApprovalsScreen()
                           : const CommandScreen(
                               initialPrompt:
-                                  'Show the current verified release status and exact provider evidence.',
+                                  'Show the current verified release status and supporting proof.',
                             ),
                     ),
                   ),
@@ -510,7 +509,7 @@ class _PrototypePreviewCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'This is a prototype. It is not deployed or production verified.',
+                  'This is a prototype. It is not live or production verified.',
                   style: pandoraSimpleMutedText,
                 ),
                 const SizedBox(height: 14),

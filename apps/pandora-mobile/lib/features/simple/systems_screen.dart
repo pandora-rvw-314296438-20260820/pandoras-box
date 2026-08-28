@@ -103,7 +103,7 @@ class _SystemsScreenState extends State<SystemsScreen> {
                       PandoraSurface(
                         title: 'My Systems',
                         subtitle:
-                            '${_projects.length} systems from the current owner state.',
+                            '${_projects.length} systems currently visible to you.',
                         child: _projects.isEmpty
                             ? const Text('No systems are available yet.')
                             : Column(
@@ -136,10 +136,10 @@ class _SystemsScreenState extends State<SystemsScreen> {
                       PandoraSurface(
                         title: 'Connections',
                         subtitle:
-                            'Services Pandora can read or change within approved scope.',
+                            'Services Pandora can use within the access you approved.',
                         child: _connections.isEmpty
                             ? const Text(
-                                'No connections are currently verified.')
+                                'No verified connections are available yet.')
                             : Column(
                                 children: [
                                   for (final connection in _connections)

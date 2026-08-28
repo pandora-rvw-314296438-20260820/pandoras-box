@@ -73,6 +73,20 @@ void main() {
     expect(approvals, contains('Undo available'));
   });
 
+  test('Simple Mode avoids internal state and cache jargon', () {
+    final systems =
+        File('lib/features/simple/systems_screen.dart').readAsStringSync();
+    final briefing = File('lib/features/simple/simple_briefing_screen.dart')
+        .readAsStringSync();
+
+    expect(systems, contains('systems currently visible to you.'));
+    expect(systems, isNot(contains('current owner state')));
+    expect(briefing, contains("_metric('Working'"));
+    expect(briefing, contains('latest saved information'));
+    expect(briefing, isNot(contains('last-known cached evidence')));
+    expect(briefing, isNot(contains('Some live checks are degraded')));
+  });
+
   test('build preview separates prototype from live execution', () {
     final source =
         File('lib/features/simple/build_preview_flow.dart').readAsStringSync();
@@ -85,15 +99,19 @@ void main() {
     expect(
       source,
       contains(
-        'This is a prototype. It is not deployed or production verified.',
+        'This is a prototype. It is not live or production verified.',
       ),
     );
     expect(
       source,
       contains(
-        'Nothing will execute until you approve the protected decision in Needs You.',
+        'Nothing will change until you approve the decision in Needs You.',
       ),
     );
+    expect(source, contains('Independent checks have not finished yet'));
+    expect(source, contains('supporting proof.'));
+    expect(source, isNot(contains('Provider and exact-source checks')));
+    expect(source, isNot(contains('governed work')));
     expect(source, isNot(contains('Live preview available')));
     expect(
       source,
