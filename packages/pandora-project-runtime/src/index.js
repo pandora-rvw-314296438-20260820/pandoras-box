@@ -88,6 +88,7 @@ function assertProductionPrecondition(currentVersionId, request) {
 }
 
 function normalizeDomain(input) {
+  if (typeof input !== "string" || input !== input.trim()) throw new Error("domain must not contain whitespace");
   const raw = nonEmpty(input, "domain");
   if (raw !== raw.trim() || /\s/.test(raw)) throw new Error("domain must not contain whitespace");
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) throw new Error("domain must not include a scheme");
