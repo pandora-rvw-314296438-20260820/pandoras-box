@@ -17,7 +17,7 @@ revoke all on public.pandora_runtime_provider_configs from anon, authenticated;
 grant select, insert, update, delete on public.pandora_runtime_provider_configs to service_role;
 
 insert into public.pandora_runtime_provider_configs(provider, config_key, config_value, active)
-values ('vercel', 'team_id', 'team_3yw1CN59ce4pj5SwyQGCAqN3', true)
+values ('vercel', 'team_id', 'team_IcdJUnzLi5wUN1GD8ALHyjF7', true)
 on conflict (provider, config_key) do update
 set config_value = excluded.config_value, active = excluded.active, updated_at = now();
 
