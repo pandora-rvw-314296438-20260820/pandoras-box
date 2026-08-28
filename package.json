@@ -21,7 +21,7 @@
     "check:supabase:replay": "node scripts/replay-supabase-migrations.mjs",
     "check": "tsc -p tsconfig.json --noEmit && tsc -p packages/shared-security/tsconfig.json --noEmit && tsc -p apps/meta-business-mcp/tsconfig.json --noEmit && tsc -p tsconfig.vercel.json && npm run check:browser && npm run check:mirrors && npm run check:supabase && npm run check:supabase:types && npm run check:supabase:replay",
     "test": "npm run build && node --test test/*.test.js apps/meta-business-mcp/test/*.test.js packages/shared-security/test/*.test.js packages/pandora-tools/test/*.test.js && npm run test:worker",
-    "test:worker": "node --test workers/windows/test/*.test.mjs",
+    "test:worker": "node --test workers/windows/test/*.test.mjs workers/pandora-builder/test/*.test.mjs",
     "test:pandora-tools": "node --test packages/pandora-tools/test/*.test.js",
     "test:coverage": "npm run build && NODE_V8_COVERAGE=coverage node --test test/*.test.js apps/meta-business-mcp/test/*.test.js packages/shared-security/test/*.test.js packages/pandora-tools/test/*.test.js",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
