@@ -210,14 +210,82 @@ class _PandoraShellState extends State<PandoraShell> {
       child: PopScope<Object?>(
         canPop: false,
         onPopInvokedWithResult: _handleBack,
-        child: Scaffold(
-          backgroundColor: PandoraSimpleColors.canvas,
-          body: body,
-          bottomNavigationBar: _PandoraBottomBar(
-            destinations: _destinations,
-            selectedIndex: _index,
-            onSelected: _select,
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final useRail = constraints.maxWidth >= 840;
+            final extendedRail = constraints.maxWidth >= 1180;
+            return Scaffold(
+              backgroundColor: PandoraSimpleColors.canvas,
+              body: useRail
+                  ? Row(
+                      children: [
+                        SafeArea(
+                          right: false,
+                          child: NavigationRail(
+                            selectedIndex: _index,
+                            onDestinationSelected: _select,
+                            extended: extendedRail,
+                            minWidth: 82,
+                            minExtendedWidth: 218,
+                            groupAlignment: -0.65,
+                            backgroundColor: PandoraSimpleColors.surface,
+                            indicatorColor: PandoraSimpleColors.blush,
+                            selectedIconTheme: const IconThemeData(
+                              color: PandoraSimpleColors.red,
+                            ),
+                            selectedLabelTextStyle: const TextStyle(
+                              color: PandoraSimpleColors.deepRed,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            leading: Padding(
+                              padding: const EdgeInsets.only(top: 12, bottom: 18),
+                              child: extendedRail
+                                  ? const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        PandoraMark(size: 34),
+                                        SizedBox(width: 10),
+                                        Text(
+                                          'Pandora',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                            color: PandoraSimpleColors.ink,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : const PandoraMark(size: 34),
+                            ),
+                            destinations: [
+                              for (final destination in _destinations)
+                                NavigationRailDestination(
+                                  icon: Icon(destination.icon),
+                                  selectedIcon: destination.emphasized
+                                      ? const PandoraMark(
+                                          size: 24,
+                                          color: PandoraSimpleColors.red,
+                                        )
+                                      : Icon(destination.selectedIcon),
+                                  label: Text(destination.label),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const VerticalDivider(width: 1, thickness: 1),
+                        Expanded(child: body),
+                      ],
+                    )
+                  : body,
+              bottomNavigationBar: useRail
+                  ? null
+                  : _PandoraBottomBar(
+                      destinations: _destinations,
+                      selectedIndex: _index,
+                      onSelected: _select,
+                    ),
+            );
+          },
         ),
       ),
     );
