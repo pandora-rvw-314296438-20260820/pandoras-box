@@ -1,0 +1,36 @@
+name: Simple Build Theatre formatter
+
+on:
+  push:
+    branches:
+      - fix/simple-build-theatre-language-20260828
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact branch head
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: 3.47.0
+          cache: true
+      - name: Format exact Build Theatre file
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format apps/pandora-mobile/lib/features/simple/build_preview_flow.dart
+          mkdir -p .formatted
+          cp apps/pandora-mobile/lib/features/simple/build_preview_flow.dart .formatted/build_preview_flow.dart
+      - name: Upload exact formatted file
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: simple-build-theatre-formatted
+          path: .formatted/build_preview_flow.dart
+          retention-days: 1
