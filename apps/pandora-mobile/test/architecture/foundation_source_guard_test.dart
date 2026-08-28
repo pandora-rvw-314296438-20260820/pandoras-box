@@ -36,10 +36,10 @@ void main() {
     final source = File('lib/app/pandora_shell.dart').readAsStringSync();
     final positions = <String>[
       "'Home'",
-      "'Projects'",
-      "'Command'",
-      "'Approvals'",
-      "'Activity'",
+      "'Systems'",
+      "'Ask Pandora'",
+      "'Needs You'",
+      "'More'",
     ].map(source.indexOf).toList(growable: false);
     expect(positions, everyElement(greaterThanOrEqualTo(0)));
     expect(List<int>.from(positions)..sort(), positions);
