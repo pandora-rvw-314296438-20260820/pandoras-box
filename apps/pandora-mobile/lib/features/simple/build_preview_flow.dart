@@ -134,8 +134,7 @@ class BuildProgressScreen extends StatelessWidget {
                 ),
                 const _BuildTaskRow(
                   label: 'Testing everything',
-                  detail:
-                      'Independent checks have not finished yet',
+                  detail: 'Independent checks have not finished yet',
                   state: _BuildTaskState.pending,
                 ),
                 const _BuildTaskRow(
