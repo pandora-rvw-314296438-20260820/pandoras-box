@@ -110,8 +110,7 @@ class _CreateProjectExperienceScreenState
       }
 
       _intentIdempotencyKey ??= 'project-initial-intent:${project.id}';
-      final intentId =
-          _initialIntentId ??
+      final intentId = _initialIntentId ??
           await experience.submitIntent(
             projectId: project.id,
             intentText: intent,
@@ -208,143 +207,144 @@ class _CreateProjectExperienceScreenState
   }
 
   Widget _nameStep() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      TextField(
-        controller: _name,
-        autofocus: true,
-        textInputAction: TextInputAction.done,
-        textCapitalization: TextCapitalization.words,
-        onSubmitted: (_) => _continueFromName(),
-        decoration: const InputDecoration(
-          labelText: 'Project name',
-          hintText: 'BOK Direct Ordering',
-        ),
-      ),
-      const SizedBox(height: 22),
-      PandoraPrimaryButton(
-        label: 'Continue',
-        icon: Icons.arrow_forward_rounded,
-        onPressed: _continueFromName,
-        expanded: true,
-      ),
-    ],
-  );
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _name,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            textCapitalization: TextCapitalization.words,
+            onSubmitted: (_) => _continueFromName(),
+            decoration: const InputDecoration(
+              labelText: 'Project name',
+              hintText: 'BOK Direct Ordering',
+            ),
+          ),
+          const SizedBox(height: 22),
+          PandoraPrimaryButton(
+            label: 'Continue',
+            icon: Icons.arrow_forward_rounded,
+            onPressed: _continueFromName,
+            expanded: true,
+          ),
+        ],
+      );
 
   Widget _kindStep() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      for (final kind in ProjectBuildKind.values) ...[
-        PandoraSimpleCard(
-          shadow: false,
-          onTap: _submitting
-              ? null
-              : () => setState(() {
-                  _kind = kind;
-                  _error = null;
-                }),
-          borderColor: _kind == kind
-              ? PandoraSimpleColors.red
-              : PandoraSimpleColors.line,
-          backgroundColor: _kind == kind
-              ? PandoraSimpleColors.blush
-              : PandoraSimpleColors.surface,
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      kind.label,
-                      style: const TextStyle(
-                        color: PandoraSimpleColors.ink,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final kind in ProjectBuildKind.values) ...[
+            PandoraSimpleCard(
+              shadow: false,
+              onTap: _submitting
+                  ? null
+                  : () => setState(() {
+                        _kind = kind;
+                        _error = null;
+                      }),
+              borderColor: _kind == kind
+                  ? PandoraSimpleColors.red
+                  : PandoraSimpleColors.line,
+              backgroundColor: _kind == kind
+                  ? PandoraSimpleColors.blush
+                  : PandoraSimpleColors.surface,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          kind.label,
+                          style: const TextStyle(
+                            color: PandoraSimpleColors.ink,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(kind.description, style: pandoraSimpleMutedText),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(kind.description, style: pandoraSimpleMutedText),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Icon(
-                _kind == kind
-                    ? Icons.check_circle_rounded
-                    : Icons.circle_outlined,
-                color: _kind == kind
-                    ? PandoraSimpleColors.red
-                    : PandoraSimpleColors.muted,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-      ],
-      const SizedBox(height: 12),
-      PandoraPrimaryButton(
-        label: 'Continue',
-        icon: Icons.arrow_forward_rounded,
-        onPressed: _continueFromKind,
-        expanded: true,
-      ),
-    ],
-  );
-
-  Widget _intentStep() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      const PandoraSimpleCard(
-        shadow: false,
-        backgroundColor: Color(0xFFFFFAFA),
-        borderColor: Color(0xFFF0D1D6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            PandoraIconBadge(icon: Icons.auto_awesome_rounded, size: 46),
-            SizedBox(width: 13),
-            Expanded(
-              child: Text(
-                'What do you want Pandora to build?',
-                style: TextStyle(
-                  color: PandoraSimpleColors.ink,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  height: 1.25,
-                ),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(
+                    _kind == kind
+                        ? Icons.check_circle_rounded
+                        : Icons.circle_outlined,
+                    color: _kind == kind
+                        ? PandoraSimpleColors.red
+                        : PandoraSimpleColors.muted,
+                  ),
+                ],
               ),
             ),
+            const SizedBox(height: 10),
           ],
-        ),
-      ),
-      const SizedBox(height: 14),
-      TextField(
-        controller: _intent,
-        minLines: 5,
-        maxLines: 12,
-        autofocus: true,
-        textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(
-          hintText: 'Build a premium resort booking website where guests can explore rooms, check availability and book directly.',
-          alignLabelWithHint: true,
-        ),
-      ),
-      const SizedBox(height: 10),
-      const Text(
-        'Describe the business result and the experience you want. Pandora will work out the technical details.',
-        style: pandoraSimpleMutedText,
-      ),
-      const SizedBox(height: 22),
-      PandoraPrimaryButton(
-        label: _submitting ? 'Creating project…' : 'Continue',
-        icon: Icons.arrow_forward_rounded,
-        loading: _submitting,
-        onPressed: _submitting ? null : _createAndUnderstand,
-        expanded: true,
-      ),
-    ],
-  );
+          const SizedBox(height: 12),
+          PandoraPrimaryButton(
+            label: 'Continue',
+            icon: Icons.arrow_forward_rounded,
+            onPressed: _continueFromKind,
+            expanded: true,
+          ),
+        ],
+      );
+
+  Widget _intentStep() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const PandoraSimpleCard(
+            shadow: false,
+            backgroundColor: Color(0xFFFFFAFA),
+            borderColor: Color(0xFFF0D1D6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PandoraIconBadge(icon: Icons.auto_awesome_rounded, size: 46),
+                SizedBox(width: 13),
+                Expanded(
+                  child: Text(
+                    'What do you want Pandora to build?',
+                    style: TextStyle(
+                      color: PandoraSimpleColors.ink,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      height: 1.25,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _intent,
+            minLines: 5,
+            maxLines: 12,
+            autofocus: true,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              hintText:
+                  'Build a premium resort booking website where guests can explore rooms, check availability and book directly.',
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Describe the business result and the experience you want. Pandora will work out the technical details.',
+            style: pandoraSimpleMutedText,
+          ),
+          const SizedBox(height: 22),
+          PandoraPrimaryButton(
+            label: _submitting ? 'Creating project…' : 'Continue',
+            icon: Icons.arrow_forward_rounded,
+            loading: _submitting,
+            onPressed: _submitting ? null : _createAndUnderstand,
+            expanded: true,
+          ),
+        ],
+      );
 }
 
 class ProjectUnderstandingScreen extends StatefulWidget {
