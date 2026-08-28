@@ -391,9 +391,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationRail), findsOneWidget);
-    expect(find.byIcon(Icons.grid_view_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.grid_view_outlined));
+    await tester.tap(find.byIcon(Icons.folder_outlined));
     await tester.pumpAndSettle();
     expect(repository.projectCalls, 1);
   });
@@ -421,13 +421,13 @@ void main() {
     expect(repository.actionCalls, 0);
     expect(repository.activityCalls, 0);
 
-    await tester.tap(find.text('Systems').last);
+    await tester.tap(find.text('Projects').last);
     await tester.pumpAndSettle();
     expect(repository.projectCalls, 1);
 
     await tester.tap(find.text('Home').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Systems').last);
+    await tester.tap(find.text('Projects').last);
     await tester.pumpAndSettle();
     expect(repository.projectCalls, 1);
   });

@@ -29,6 +29,22 @@ abstract final class PandoraNativeIo {
     }
   }
 
+  static Future<bool> openExternalUrl(String value) async {
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) return false;
+    try {
+      return await _channel.invokeMethod<bool>(
+            'openExternalUrl',
+            <String, Object?>{'url': uri.toString()},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   static Future<PandoraTextAttachment?> pickTextAttachment() async {
     try {
       final value = await _channel.invokeMapMethod<String, Object?>(

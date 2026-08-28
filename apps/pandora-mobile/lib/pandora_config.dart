@@ -22,6 +22,12 @@ class PandoraConfig {
         'https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/pandora-owner-api',
   );
 
+  static const projectRuntimeApiBaseUrl = String.fromEnvironment(
+    'PANDORA_PROJECT_RUNTIME_API_BASE_URL',
+    defaultValue:
+        'https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/pandora-project-runtime',
+  );
+
   static const organizationId = String.fromEnvironment(
     'PANDORA_ORGANIZATION_ID',
     defaultValue: '2270b266-59da-4c39-bfd9-9f8d08352af0',

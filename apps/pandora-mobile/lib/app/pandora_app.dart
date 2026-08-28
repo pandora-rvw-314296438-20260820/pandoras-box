@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/data/pandora_repository.dart';
+import '../core/data/project_runtime_api.dart';
 import '../core/design/pandora_theme.dart';
 import '../core/design/pandora_tokens.dart';
 import '../core/diagnostics/diagnostics_store.dart';
@@ -14,10 +15,12 @@ class PandoraApp extends StatefulWidget {
     required this.auth,
     required this.repository,
     required this.diagnostics,
+    this.projectRuntime,
   });
 
   final PandoraAuth auth;
   final PandoraRepository repository;
+  final ProjectRuntimeApi? projectRuntime;
   final DiagnosticsStore diagnostics;
 
   @override
@@ -27,6 +30,7 @@ class PandoraApp extends StatefulWidget {
 class _PandoraAppState extends State<PandoraApp> {
   @override
   void dispose() {
+    widget.projectRuntime?.close();
     widget.repository.dispose();
     super.dispose();
   }
@@ -35,11 +39,10 @@ class _PandoraAppState extends State<PandoraApp> {
   Widget build(BuildContext context) => PandoraDependencies(
         auth: widget.auth,
         repository: widget.repository,
+        projectRuntime: widget.projectRuntime,
         diagnostics: widget.diagnostics,
         child: MaterialApp(
           title: "Pandora's Box",
-          // Opaque task-switcher and window colour. A transparent value here
-          // lets the black Android window underlay show through.
           color: PandoraPalette.porcelain.canvas,
           debugShowCheckedModeBanner: false,
           themeMode: ThemeMode.system,
