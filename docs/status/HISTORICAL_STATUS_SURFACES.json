@@ -1,62 +1,61 @@
 {
-  "schemaVersion": "1.0.0",
-  "classifiedAt": "2026-08-23T18:06:00Z",
-  "classification": "historical_only",
-  "supersededBy": "/api/operator/status",
-  "rule": "Preserved files live only under docs/status/historical or as explicitly classified documents. Legacy public URLs are quarantined and must not be consumed or cited as current project state.",
-  "surfaces": [
-    {
-      "path": "RECOVERY_STATUS.md",
-      "contentSha256": "9a8d17a080f7051a487b4b5d442272ff9b44c22ec8e59a1bb792069c18368ab8",
-      "observedThrough": "2026-08-12T15:59:59+08:00",
-      "classification": "historical_recovery_snapshot"
-    },
-
-    {
-      "path": "PROJECT_CUSTOM_INSTRUCTION.md",
-      "contentSha256": "14723392421b1fb06fda250bcf7e8e7cbad38f92c7393abf09f141612a6b7fda",
-      "observedThrough": "2026-08-08T23:59:59Z",
-      "classification": "normative_instruction_with_historical_operational_sections"
-    },
-    {
-      "path": "docs/operating-contracts/GITHUB_PANDORA_MIRROR_MANIFEST.csv",
-      "contentSha256": "cb6e5e31cbe6e42dd5e921d9d5e850cc6294e9e3ec78f59e27dbfb2d5049a97e",
-      "observedThrough": "2026-08-08T15:40:17Z",
-      "classification": "historical_mirror_integrity_snapshot"
-    },
-    {
-      "path": "docs/status/historical/control-tower-projectos-status-20260730.json",
-      "legacyPaths": [
-        "apps/control-tower/projectos-status.json",
-        "public/control-tower/projectos-status.json",
-        "/control-tower/projectos-status.json"
-      ],
-      "contentSha256": "04eaa589f521fab12d06ac9b9780d4b04272c82c80b3f82aaeed78ee2ac76dd7",
-      "observedThrough": "2026-07-30T20:54:00Z",
-      "classification": "historical_static_projection_quarantined"
-    },
-    {
-      "path": "docs/status/historical/control-tower-release-20260806.json",
-      "legacyPaths": [
-        "apps/control-tower/release.json",
-        "public/control-tower/release.json",
-        "/control-tower/release.json"
-      ],
-      "contentSha256": "1ab87c99533487a820e8560429ea2ea5b6f45c2f4d99506552efcc53fb9030e1",
-      "observedThrough": "2026-08-06T13:46:59Z",
-      "classification": "historical_release_snapshot_quarantined"
-    },
-    {
-      "path": "docs/roadmaps/PANDORA_MOBILE_APPLE_LEVEL_ROADMAP_V1.md",
-      "contentSha256": "8b033814589e1a33ec2be522e12e2202d9e63454464aa807a165dcd6515b5b68",
-      "observedThrough": null,
-      "classification": "normative_roadmap_with_dated_execution_sections"
-    },
-    {
-      "path": "docs/roadmaps/pandora-mobile-v1/01_PRODUCT_UX.md",
-      "contentSha256": "9b9e62f39ee0a8183cc3c8e6de599de83b826a47e43bac642a51945047d8e354",
-      "observedThrough": null,
-      "classification": "normative_product_spec_with_dated_execution_sections"
-    }
-  ]
+    "rule": "Preserved files live only under docs/status/historical or as explicitly classified documents. Legacy public URLs are quarantined and must not be consumed or cited as current project state.",
+    "surfaces": [
+        {
+            "path": "RECOVERY_STATUS.md",
+            "contentSha256": "9a8d17a080f7051a487b4b5d442272ff9b44c22ec8e59a1bb792069c18368ab8",
+            "classification": "historical_recovery_snapshot",
+            "observedThrough": "2026-08-12T15:59:59+08:00"
+        },
+        {
+            "path": "PROJECT_CUSTOM_INSTRUCTION.md",
+            "contentSha256": "14723392421b1fb06fda250bcf7e8e7cbad38f92c7393abf09f141612a6b7fda",
+            "classification": "normative_instruction_with_historical_operational_sections",
+            "observedThrough": "2026-08-08T23:59:59Z"
+        },
+        {
+            "path": "docs/operating-contracts/GITHUB_PANDORA_MIRROR_MANIFEST.csv",
+            "contentSha256": "cb6e5e31cbe6e42dd5e921d9d5e850cc6294e9e3ec78f59e27dbfb2d5049a97e",
+            "classification": "historical_mirror_integrity_snapshot",
+            "observedThrough": "2026-08-08T15:40:17Z"
+        },
+        {
+            "path": "docs/status/historical/control-tower-projectos-status-20260730.json",
+            "legacyPaths": [
+                "apps/control-tower/projectos-status.json",
+                "public/control-tower/projectos-status.json",
+                "/control-tower/projectos-status.json"
+            ],
+            "contentSha256": "04eaa589f521fab12d06ac9b9780d4b04272c82c80b3f82aaeed78ee2ac76dd7",
+            "classification": "historical_static_projection_quarantined",
+            "observedThrough": "2026-07-30T20:54:00Z"
+        },
+        {
+            "path": "docs/status/historical/control-tower-release-20260806.json",
+            "legacyPaths": [
+                "apps/control-tower/release.json",
+                "public/control-tower/release.json",
+                "/control-tower/release.json"
+            ],
+            "contentSha256": "1ab87c99533487a820e8560429ea2ea5b6f45c2f4d99506552efcc53fb9030e1",
+            "classification": "historical_release_snapshot_quarantined",
+            "observedThrough": "2026-08-06T13:46:59Z"
+        },
+        {
+            "path": "docs/roadmaps/PANDORA_MOBILE_APPLE_LEVEL_ROADMAP_V1.md",
+            "contentSha256": "b6afe0802853dd48dc9553472398afccb473b4e2a83e3cb6f10dfee37bb07310",
+            "classification": "normative_roadmap_with_dated_execution_sections",
+            "observedThrough": null
+        },
+        {
+            "path": "docs/roadmaps/pandora-mobile-v1/01_PRODUCT_UX.md",
+            "contentSha256": "9b9e62f39ee0a8183cc3c8e6de599de83b826a47e43bac642a51945047d8e354",
+            "classification": "normative_product_spec_with_dated_execution_sections",
+            "observedThrough": null
+        }
+    ],
+    "classifiedAt": "2026-08-23T18:06:00Z",
+    "supersededBy": "/api/operator/status",
+    "schemaVersion": "1.0.0",
+    "classification": "historical_only"
 }
