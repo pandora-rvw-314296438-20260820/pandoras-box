@@ -1,0 +1,42 @@
+name: Temporary Dart format export
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  format-export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      FLUTTER_VERSION: '3.47.0'
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Export canonical formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            apps/pandora-mobile/lib/core/data/project_runtime_api.dart
+            apps/pandora-mobile/lib/core/models/project_journey_models.dart
+            apps/pandora-mobile/lib/features/simple/business_screen.dart
+            apps/pandora-mobile/lib/features/simple/project_journey_flow.dart
+            apps/pandora-mobile/lib/features/simple/projects_screen.dart
+          )
+          dart format "${files[@]}"
+          for file in "${files[@]}"; do
+            echo "FORMAT_BEGIN:$file"
+            base64 -w0 "$file"
+            echo
+            echo "FORMAT_END:$file"
+          done
