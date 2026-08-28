@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-audit@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {
+      "path": "audit/migrations/001_audit.sql",
+      "sha256": "cb22351db78fb8627cc337f3e8539864f1feab8e5693fa6d0ffeff51534d0d45"
+    },
+    {
+      "path": "audit/src/index.js",
+      "sha256": "926e9ecc258635b1dcfa98b12c124ba7ae74942faa4f314cc3dd6d88ef9f75a4"
+    }
+  ],
+  "bundleDigest": "sha256:23e04d2256d2bb9231fe43cf4469fa2ddd479ff64fe135fed7954908ea49cb1e"
+}
