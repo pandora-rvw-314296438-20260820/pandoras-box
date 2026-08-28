@@ -21,41 +21,48 @@ class PandoraOwnerBuildStageCopy {
 PandoraOwnerBuildStageCopy pandoraOwnerBuildStageCopy(
   PandoraOwnerBuildStage stage,
 ) {
-  return switch (stage) {
-    PandoraOwnerBuildStage.understanding => const PandoraOwnerBuildStageCopy(
+  switch (stage) {
+    case PandoraOwnerBuildStage.understanding:
+      return const PandoraOwnerBuildStageCopy(
         'Understanding your project',
         'Pandora is confirming the result you asked for.',
-      ),
-    PandoraOwnerBuildStage.designing => const PandoraOwnerBuildStageCopy(
+      );
+    case PandoraOwnerBuildStage.designing:
+      return const PandoraOwnerBuildStageCopy(
         'Designing the experience',
         'Pandora is shaping the experience around your goal.',
-      ),
-    PandoraOwnerBuildStage.building => const PandoraOwnerBuildStageCopy(
+      );
+    case PandoraOwnerBuildStage.building:
+      return const PandoraOwnerBuildStageCopy(
         'Building your project',
         'Pandora is creating the working version.',
-      ),
-    PandoraOwnerBuildStage.connecting => const PandoraOwnerBuildStageCopy(
+      );
+    case PandoraOwnerBuildStage.connecting:
+      return const PandoraOwnerBuildStageCopy(
         'Connecting everything',
         'Pandora is joining the parts your project needs.',
-      ),
-    PandoraOwnerBuildStage.checking => const PandoraOwnerBuildStageCopy(
+      );
+    case PandoraOwnerBuildStage.checking:
+      return const PandoraOwnerBuildStageCopy(
         'Checking the result',
         'Pandora is checking this version before the next step.',
-      ),
-    PandoraOwnerBuildStage.fixing => const PandoraOwnerBuildStageCopy(
+      );
+    case PandoraOwnerBuildStage.fixing:
+      return const PandoraOwnerBuildStageCopy(
         'Fixing something',
         'Pandora found something to fix and is working on it.',
-      ),
-    PandoraOwnerBuildStage.preparingPreview =>
-      const PandoraOwnerBuildStageCopy(
+      );
+    case PandoraOwnerBuildStage.preparingPreview:
+      return const PandoraOwnerBuildStageCopy(
         'Preparing your preview',
         'Pandora is making this version available for you to inspect.',
-      ),
-    PandoraOwnerBuildStage.previewReady => const PandoraOwnerBuildStageCopy(
+      );
+    case PandoraOwnerBuildStage.previewReady:
+      return const PandoraOwnerBuildStageCopy(
         'Preview ready',
         'Your latest live preview is ready to open.',
-      ),
-  };
+      );
+  }
 }
 
 PandoraOwnerBuildStage pandoraOwnerBuildStage(
@@ -123,13 +130,20 @@ PandoraOwnerBuildStage pandoraOwnerBuildStage(
 bool pandoraHasLivePreview(ProjectRuntimeSnapshot snapshot) {
   final url = snapshot.preview?.url ?? snapshot.project.previewUrl;
   final status = snapshot.preview?.status.toLowerCase() ?? '';
-  return url != null && url.trim().isNotEmpty &&
-      !_containsAny(status, const ['failed', 'error', 'canceled']);
+  final failed = _containsAny(
+    status,
+    const ['failed', 'error', 'canceled'],
+  );
+  return url != null && url.trim().isNotEmpty && !failed;
 }
 
 bool pandoraBuildAppearsInFlight(ProjectRuntimeSnapshot snapshot) {
-  final signal = '${snapshot.project.stage} ${snapshot.project.runtimeStatus} ${snapshot.preview?.status ?? ''}'
-      .toLowerCase();
+  final values = <String>[
+    snapshot.project.stage,
+    snapshot.project.runtimeStatus,
+    snapshot.preview?.status ?? '',
+  ];
+  final signal = values.join(' ').toLowerCase();
   return _containsAny(signal, const [
     'building',
     'working',
@@ -144,10 +158,20 @@ bool pandoraBuildAppearsInFlight(ProjectRuntimeSnapshot snapshot) {
 }
 
 String pandoraOwnerProjectState(CustomerProject project) {
-  final signal = '${project.stage} ${project.runtimeStatus}'.toLowerCase();
-  if (project.liveUrl != null && project.liveUrl!.trim().isNotEmpty) return 'Live';
-  if (_containsAny(signal, const ['blocked', 'failed', 'error'])) return 'Blocked';
-  if (_containsAny(signal, const ['needs_you', 'approval_required'])) return 'Needs You';
+  final signal = <String>[
+    project.stage,
+    project.runtimeStatus,
+  ].join(' ').toLowerCase();
+
+  if (project.liveUrl != null && project.liveUrl!.trim().isNotEmpty) {
+    return 'Live';
+  }
+  if (_containsAny(signal, const ['blocked', 'failed', 'error'])) {
+    return 'Blocked';
+  }
+  if (_containsAny(signal, const ['needs_you', 'approval_required'])) {
+    return 'Needs You';
+  }
   if (project.previewUrl != null && project.previewUrl!.trim().isNotEmpty) {
     return 'Preview ready';
   }
@@ -157,7 +181,9 @@ String pandoraOwnerProjectState(CustomerProject project) {
   if (_containsAny(signal, const ['building', 'working', 'updating'])) {
     return 'Building';
   }
-  if (_containsAny(signal, const ['understanding', 'spec'])) return 'Understanding';
+  if (_containsAny(signal, const ['understanding', 'spec'])) {
+    return 'Understanding';
+  }
   return 'Draft';
 }
 
@@ -180,7 +206,9 @@ String pandoraOwnerFailureMessage(String? internalState) {
 
 bool _containsAny(String value, List<String> needles) {
   for (final needle in needles) {
-    if (value.contains(needle)) return true;
+    if (value.contains(needle)) {
+      return true;
+    }
   }
   return false;
 }
