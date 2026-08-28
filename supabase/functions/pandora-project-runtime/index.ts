@@ -251,7 +251,7 @@ async function ensureVercelProject(context: UserContext, project: JsonRecord) {
     ...config,
     customerJourney: { ...journey, vercelProjectId: providerId, vercelProjectName: providerName, runtimeStatus: "ready", runtimeUpdatedAt: new Date().toISOString() },
   };
-  const { error: updateError } = await context.client.from("projectos_projects")
+  const { error: updateError } = await serviceClient().from("projectos_projects")
     .update({ config: nextConfig, updated_at: new Date().toISOString() })
     .eq("organization_id", context.organizationId).eq("id", projectId);
   if (updateError) throw new Error("BACKEND_WRITE_FAILED");
@@ -392,7 +392,7 @@ async function createPreview(context: UserContext, identifier: string) {
   const html = previewHtml(project);
   const sourceSha = await sha256Hex(html);
   const sourcePayload = { files: [{ file: "index.html", data: html }] };
-  const { data: version, error: versionError } = await context.client.from("pandora_project_versions")
+  const { data: version, error: versionError } = await serviceClient().from("pandora_project_versions")
     .insert({ organization_id: context.organizationId, project_id: project.id, kind: "preview", source_payload: sourcePayload, source_sha256: sourceSha, created_by: context.userId })
     .select("id, sequence_no, source_sha256, created_at").single();
   if (versionError || !version) throw new Error("BACKEND_WRITE_FAILED");
@@ -401,7 +401,7 @@ async function createPreview(context: UserContext, identifier: string) {
   try {
     deployment = await createVercelDeployment({ id: provider.id, name: provider.name }, html, "preview", { pandoraProjectId: textValue(project.id), pandoraVersionId: textValue(version.id), sourceSha256: sourceSha });
   } catch {
-    const { data: failed } = await context.client.from("pandora_project_deployments")
+    const { data: failed } = await serviceClient().from("pandora_project_deployments")
       .insert({ organization_id: context.organizationId, project_id: project.id, version_id: version.id, provider: "vercel", environment: "preview", provider_project_id: provider.id, status: "failed", source_sha256: sourceSha, metadata: { reason: "provider_request_failed" } })
       .select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, created_at").single();
     return { project: projectResponse(project), version, deployment: failed || { status: "failed" }, previewUrl: null };
@@ -411,7 +411,7 @@ async function createPreview(context: UserContext, identifier: string) {
   const rawUrl = textValue(deployment.url);
   const previewUrl = rawUrl ? `https://${rawUrl.replace(/^https?:\/\//, "")}` : null;
   const status = textValue(deployment.readyState ?? deployment.status, "pending").toLowerCase();
-  const { data: deploymentRow, error: deploymentError } = await context.client.from("pandora_project_deployments")
+  const { data: deploymentRow, error: deploymentError } = await serviceClient().from("pandora_project_deployments")
     .insert({ organization_id: context.organizationId, project_id: project.id, version_id: version.id, provider: "vercel", environment: "preview", provider_project_id: provider.id, provider_deployment_id: providerDeploymentId || null, url: previewUrl, status, source_sha256: sourceSha, metadata: { providerName: provider.name, readyState: deployment.readyState ?? null } })
     .select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, created_at").single();
   if (deploymentError || !deploymentRow) throw new Error("BACKEND_WRITE_FAILED");
@@ -419,7 +419,7 @@ async function createPreview(context: UserContext, identifier: string) {
   const config = asRecord(project.config);
   const journey = asRecord(config.customerJourney);
   const nextConfig = { ...config, customerJourney: { ...journey, stage: "preview_ready", runtimeStatus: status === "ready" ? "ready" : "working", previewUrl, previewVersionId: version.id, previewDeploymentId: providerDeploymentId || null, runtimeUpdatedAt: new Date().toISOString() } };
-  const { error: updateError } = await context.client.from("projectos_projects").update({ config: nextConfig, updated_at: new Date().toISOString() }).eq("organization_id", context.organizationId).eq("id", project.id);
+  const { error: updateError } = await serviceClient().from("projectos_projects").update({ config: nextConfig, updated_at: new Date().toISOString() }).eq("organization_id", context.organizationId).eq("id", project.id);
   if (updateError) throw new Error("BACKEND_WRITE_FAILED");
   return { project: projectResponse({ ...project, config: nextConfig }), version, deployment: deploymentRow, previewUrl };
 }
@@ -611,7 +611,7 @@ async function publishProject(context: UserContext, identifier: string, body: Js
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
     if (providerMutationStarted) {
       await admin.from("pandora_runtime_operations").update({ status: "uncertain", ambiguous: true, normalized_error: { code: "reconciliation_required" }, updated_at: new Date().toISOString() }).eq("id", operationId);
-      if (code !== "PRODUCTION_PRECONDITION_MISMATCH") throw new Error("PUBLISH_RECONCILIATION_REQUIRED");
+      throw new Error("PUBLISH_RECONCILIATION_REQUIRED");
     } else {
       await admin.from("pandora_runtime_operations").update({ status: "failed", ambiguous: false, normalized_error: { code }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
     }
