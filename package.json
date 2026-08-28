@@ -66,14 +66,14 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "@vercel/oidc": "^3.8.4",
+    "@vercel/oidc": "^3.8.5",
     "express": "^5.2.1",
     "cors": "^2.8.6",
     "helmet": "^8.1.0",
     "zod": "^3.25.76",
     "node-fetch": "^3.3.2",
-    "ws": "^8.21.1",
-    "three": "^0.158.0",
+    "ws": "^8.21.3",
+    "three": "^0.185.1",
     "telegraf": "^4.15.0",
     "@slack/web-api": "^8.0.0"
   },
