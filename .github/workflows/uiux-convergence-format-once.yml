@@ -1,0 +1,64 @@
+name: UIUX convergence formatter once
+on:
+  push:
+    branches:
+      - feature/uiux-master-plan-completion-20260828
+    paths:
+      - .github/workflows/uiux-convergence-format-once.yml
+permissions:
+  contents: read
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out convergence branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: feature/uiux-master-plan-completion-20260828
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - name: Apply canonical formatter and source-contract repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/pandora-mobile
+          dart format \
+            lib/features/approvals/approvals_screen.dart \
+            lib/features/connections/connections_screen.dart \
+            lib/features/projects/projects_screen.dart \
+            lib/features/simple/more_screen.dart \
+            lib/features/simple/offline_evidence_screen.dart \
+            lib/features/simple/simple_briefing_screen.dart \
+            test/architecture/simple_mode_master_plan_guard_test.dart
+          cd ../..
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('docs/product/PANDORA_SCREEN_MASTER_PLAN.md')
+          s = p.read_text()
+          old = '## UI/UX convergence implemented in the current candidate'
+          new = '## Remaining owner-facing surfaces — source-level convergence'
+          if old not in s:
+              raise SystemExit('expected master-plan heading not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          git rm .github/workflows/uiux-convergence-format-once.yml
+      - name: Commit exact formatter output
+        shell: bash
+        env:
+          PUSH_TOKEN: ${{ secrets.PANDORA_TEAM_PUSH_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$PUSH_TOKEN"
+          git config user.name "pandora-uiux-format-bot"
+          git config user.email "pandora-uiux-format-bot@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "style(ui): apply canonical Flutter formatter"
+          git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/pandora-rvw-314296438-20260820/pandoras-box.git"
+          git push origin HEAD:feature/uiux-master-plan-completion-20260828
