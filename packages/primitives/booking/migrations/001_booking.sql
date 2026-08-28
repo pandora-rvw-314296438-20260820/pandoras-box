@@ -51,7 +51,7 @@ BEGIN
  SELECT * INTO v_result FROM public.primitive_booking_reservations WHERE id=p_reservation_id AND scope_id=p_scope_id AND customer_user_id=v_user FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'reservation not found'; END IF; IF v_result.status='cancelled' THEN RETURN v_result; END IF;
  UPDATE public.primitive_booking_reservations SET status='cancelled',cancelled_at=now() WHERE id=v_result.id RETURNING * INTO v_result;
- UPDATE public.primitive_booking_slots SET reserved_count=reserved_count-1 WHERE id=v_result.id slot_id AND scope_id=p_scope_id AND reserved_count>0;
+ UPDATE public.primitive_booking_slots SET reserved_count=reserved_count-1 WHERE id=v_result.slot_id AND scope_id=p_scope_id AND reserved_count>0;
  RETURN v_result;
 END $$;
 REVOKE ALL ON FUNCTION public.primitive_booking_cancel_reservation(uuid,uuid) FROM PUBLIC,anon; GRANT EXECUTE ON FUNCTION public.primitive_booking_cancel_reservation(uuid,uuid) TO authenticated;
