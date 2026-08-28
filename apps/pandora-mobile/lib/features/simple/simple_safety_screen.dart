@@ -32,21 +32,21 @@ class _SimpleSafetyScreenState extends State<SimpleSafetyScreen> {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _controller!,
-        builder: (context, _) {
-          final controller = _controller!;
-          return PandoraSimplePage(
-            header: PandoraOwnerHeader(
-              title: 'Verify & Safety',
-              subtitle: 'What protects your business right now.',
-              showBack: true,
-              onBack: () => Navigator.of(context).maybePop(),
-            ),
-            onRefresh: controller.refresh,
-            child: _body(controller),
-          );
-        },
+    animation: _controller!,
+    builder: (context, _) {
+      final controller = _controller!;
+      return PandoraSimplePage(
+        header: PandoraOwnerHeader(
+          title: 'Verify & Safety',
+          subtitle: 'What protects your business right now.',
+          showBack: true,
+          onBack: () => Navigator.of(context).maybePop(),
+        ),
+        onRefresh: controller.refresh,
+        child: _body(controller),
       );
+    },
+  );
 
   Widget _body(ScreenController<SafetyOverview> controller) {
     if (controller.isLoading && controller.data == null) {
@@ -54,7 +54,8 @@ class _SimpleSafetyScreenState extends State<SimpleSafetyScreen> {
     }
     if (controller.data == null) {
       return _SafetyUnavailable(
-        message: controller.error?.message ??
+        message:
+            controller.error?.message ??
             'Pandora has not returned a verified safety state yet.',
         onRetry: controller.load,
       );
@@ -83,8 +84,7 @@ class _SimpleSafetyScreenState extends State<SimpleSafetyScreen> {
         if (controller.error != null) ...[
           const SizedBox(height: 14),
           const _InlineNotice(
-            message:
-                'Fresh verification failed. Showing the last verified state where available.',
+            message: 'Fresh verification failed. Showing the last verified state where available.',
           ),
         ],
         const SizedBox(height: 26),
@@ -172,18 +172,18 @@ class _SafetyHero extends StatelessWidget {
     final foreground = blocked > 0
         ? PandoraSimpleColors.deepRed
         : attention > 0
-            ? PandoraSimpleColors.amber
-            : PandoraSimpleColors.green;
+        ? PandoraSimpleColors.amber
+        : PandoraSimpleColors.green;
     final background = blocked > 0
         ? PandoraSimpleColors.blush
         : attention > 0
-            ? PandoraSimpleColors.amberWash
-            : PandoraSimpleColors.greenWash;
+        ? PandoraSimpleColors.amberWash
+        : PandoraSimpleColors.greenWash;
     final title = blocked > 0
         ? 'Protection is blocked'
         : attention > 0 || !auditValid
-            ? 'Some protection needs attention'
-            : 'Your protection is healthy';
+        ? 'Some protection needs attention'
+        : 'Your protection is healthy';
     final message = healthy
         ? 'Pandora can verify the current protection layers without hiding technical uncertainty.'
         : 'Review the items below before approving or relying on protected work.';
@@ -200,8 +200,8 @@ class _SafetyHero extends StatelessWidget {
                 icon: blocked > 0
                     ? Icons.gpp_bad_outlined
                     : attention > 0 || !auditValid
-                        ? Icons.gpp_maybe_outlined
-                        : Icons.verified_user_outlined,
+                    ? Icons.gpp_maybe_outlined
+                    : Icons.verified_user_outlined,
                 foreground: foreground,
                 background: Colors.white,
                 size: 50,
@@ -340,7 +340,11 @@ class _SafetyItemRow extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Icon(_truthIcon(truth), size: 19, color: _truthForeground(truth)),
+            child: Icon(
+              _truthIcon(truth),
+              size: 19,
+              color: _truthForeground(truth),
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -381,11 +385,11 @@ class _TruthPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraStatusPill(
-        label: truth.label,
-        icon: _truthIcon(truth),
-        foreground: _truthForeground(truth),
-        background: _truthBackground(truth),
-      );
+    label: truth.label,
+    icon: _truthIcon(truth),
+    foreground: _truthForeground(truth),
+    background: _truthBackground(truth),
+  );
 }
 
 class _SafetyLoading extends StatelessWidget {
@@ -393,19 +397,19 @@ class _SafetyLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-        children: [
-          for (var i = 0; i < 4; i++) ...[
-            const PandoraSimpleCard(
-              shadow: false,
-              child: SizedBox(
-                height: 76,
-                child: Center(child: LinearProgressIndicator()),
-              ),
-            ),
-            if (i != 3) const SizedBox(height: 12),
-          ],
-        ],
-      );
+    children: [
+      for (var i = 0; i < 4; i++) ...[
+        const PandoraSimpleCard(
+          shadow: false,
+          child: SizedBox(
+            height: 76,
+            child: Center(child: LinearProgressIndicator()),
+          ),
+        ),
+        if (i != 3) const SizedBox(height: 12),
+      ],
+    ],
+  );
 }
 
 class _SafetyUnavailable extends StatelessWidget {
@@ -415,42 +419,45 @@ class _SafetyUnavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
-        backgroundColor: PandoraSimpleColors.amberWash,
-        borderColor: const Color(0xFFF1D3A8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const PandoraIconBadge(
-              icon: Icons.shield_outlined,
-              foreground: PandoraSimpleColors.amber,
-              background: Colors.white,
-              size: 52,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Safety is not verified',
-              style: TextStyle(
-                color: PandoraSimpleColors.ink,
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(message,
-                style: const TextStyle(
-                    color: PandoraSimpleColors.muted,
-                    fontSize: 14,
-                    height: 1.35)),
-            const SizedBox(height: 16),
-            PandoraPrimaryButton(
-              label: 'Check again',
-              icon: Icons.refresh_rounded,
-              onPressed: onRetry,
-              expanded: true,
-            ),
-          ],
+    backgroundColor: PandoraSimpleColors.amberWash,
+    borderColor: const Color(0xFFF1D3A8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const PandoraIconBadge(
+          icon: Icons.shield_outlined,
+          foreground: PandoraSimpleColors.amber,
+          background: Colors.white,
+          size: 52,
         ),
-      );
+        const SizedBox(height: 12),
+        const Text(
+          'Safety is not verified',
+          style: TextStyle(
+            color: PandoraSimpleColors.ink,
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          message,
+          style: const TextStyle(
+            color: PandoraSimpleColors.muted,
+            fontSize: 14,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 16),
+        PandoraPrimaryButton(
+          label: 'Check again',
+          icon: Icons.refresh_rounded,
+          onPressed: onRetry,
+          expanded: true,
+        ),
+      ],
+    ),
+  );
 }
 
 class _InlineNotice extends StatelessWidget {
@@ -459,24 +466,29 @@ class _InlineNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
-        backgroundColor: PandoraSimpleColors.amberWash,
-        borderColor: const Color(0xFFF1D3A8),
-        shadow: false,
-        child: Row(
-          children: [
-            const Icon(Icons.warning_amber_rounded,
-                color: PandoraSimpleColors.amber),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(message,
-                  style: const TextStyle(
-                      color: PandoraSimpleColors.ink,
-                      fontSize: 13.5,
-                      height: 1.35)),
-            ),
-          ],
+    backgroundColor: PandoraSimpleColors.amberWash,
+    borderColor: const Color(0xFFF1D3A8),
+    shadow: false,
+    child: Row(
+      children: [
+        const Icon(
+          Icons.warning_amber_rounded,
+          color: PandoraSimpleColors.amber,
         ),
-      );
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            message,
+            style: const TextStyle(
+              color: PandoraSimpleColors.ink,
+              fontSize: 13.5,
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 List<_SimpleSafetyGroup> _groupSafetyItems(List<SafetySection> sections) {
@@ -486,47 +498,70 @@ List<_SimpleSafetyGroup> _groupSafetyItems(List<SafetySection> sections) {
   for (final item in sections.expand((section) => section.items)) {
     buckets[_bucketFor(item)]!.add(item);
   }
-  return _SafetyBucket.values.map((bucket) {
-    final items = buckets[bucket]!;
-    if (items.isEmpty) {
-      items.add(SafetyItem.fromJson(<String, Object?>{
-        'id': 'simple-${bucket.name}-not-checked',
-        'title': 'Evidence not returned',
-        'plainStatus': 'Not checked',
-        'explanation':
-            'Pandora did not return a verified claim for this protection layer.',
-      }));
-    }
-    return _SimpleSafetyGroup(
-      title: bucket.title,
-      description: bucket.description,
-      icon: bucket.icon,
-      items: List<SafetyItem>.unmodifiable(items),
-    );
-  }).toList(growable: false);
+  return _SafetyBucket.values
+      .map((bucket) {
+        final items = buckets[bucket]!;
+        if (items.isEmpty) {
+          items.add(
+            SafetyItem.fromJson(<String, Object?>{
+              'id': 'simple-${bucket.name}-not-checked',
+              'title': 'Evidence not returned',
+              'plainStatus': 'Not checked',
+              'explanation': 'Pandora did not return a verified claim for this protection layer.',
+            }),
+          );
+        }
+        return _SimpleSafetyGroup(
+          title: bucket.title,
+          description: bucket.description,
+          icon: bucket.icon,
+          items: List<SafetyItem>.unmodifiable(items),
+        );
+      })
+      .toList(growable: false);
 }
 
 _SafetyBucket _bucketFor(SafetyItem item) {
   final haystack = '${item.id} ${item.title} ${item.explanation}'.toLowerCase();
   if (_containsAny(haystack, const [
-    'approval', 'execute', 'execution', 'plan', 'audit', 'decision', 'rollback'
+    'approval',
+    'execute',
+    'execution',
+    'plan',
+    'audit',
+    'decision',
+    'rollback',
   ])) {
     return _SafetyBucket.approvalExecution;
   }
   if (_containsAny(haystack, const [
-    'source', 'github', 'repository', 'repo', 'commit', 'sha', 'deployment', 'vercel'
+    'source',
+    'github',
+    'repository',
+    'repo',
+    'commit',
+    'sha',
+    'deployment',
+    'vercel',
   ])) {
     return _SafetyBucket.sourceAuthority;
   }
   if (_containsAny(haystack, const [
-    'identity', 'auth', 'access', 'owner', 'session', 'account', 'permission'
+    'identity',
+    'auth',
+    'access',
+    'owner',
+    'session',
+    'account',
+    'permission',
   ])) {
     return _SafetyBucket.identityAccess;
   }
   return _SafetyBucket.runtimeSecrets;
 }
 
-bool _containsAny(String source, List<String> terms) => terms.any(source.contains);
+bool _containsAny(String source, List<String> terms) =>
+    terms.any(source.contains);
 
 enum _SafetyBucket {
   identityAccess(
@@ -557,7 +592,12 @@ enum _SafetyBucket {
 }
 
 class _SimpleSafetyGroup {
-  const _SimpleSafetyGroup({required this.title, required this.description, required this.icon, required this.items});
+  const _SimpleSafetyGroup({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.items,
+  });
   final String title;
   final String description;
   final IconData icon;
@@ -573,47 +613,70 @@ enum _SimpleTruth {
 
   const _SimpleTruth(this.label);
   final String label;
-  bool get isAttention => this == _SimpleTruth.attention || this == _SimpleTruth.blocked;
+  bool get isAttention =>
+      this == _SimpleTruth.attention || this == _SimpleTruth.blocked;
 }
 
 _SimpleTruth _truth(String status) {
   final value = status.trim().toLowerCase().replaceAll('_', ' ');
-  if (value.contains('not applicable') || value.contains('not configured')) return _SimpleTruth.notApplicable;
-  if (value.contains('block') || value.contains('critical') || value.contains('failed') || value.contains('down') || value.contains('unhealthy') || value.contains('invalid')) return _SimpleTruth.blocked;
-  if (value.contains('attention') || value.contains('degraded') || value.contains('warning') || value.contains('stale') || value.contains('partial')) return _SimpleTruth.attention;
-  if (value.contains('healthy') || value.contains('verified') || value.contains('ready') || value.contains('connected') || value.contains('valid') || value.contains('protected') || value.contains('active')) return _SimpleTruth.healthy;
+  if (value.contains('not applicable') || value.contains('not configured'))
+    return _SimpleTruth.notApplicable;
+  if (value.contains('block') ||
+      value.contains('critical') ||
+      value.contains('failed') ||
+      value.contains('down') ||
+      value.contains('unhealthy') ||
+      value.contains('invalid'))
+    return _SimpleTruth.blocked;
+  if (value.contains('attention') ||
+      value.contains('degraded') ||
+      value.contains('warning') ||
+      value.contains('stale') ||
+      value.contains('partial'))
+    return _SimpleTruth.attention;
+  if (value.contains('healthy') ||
+      value.contains('verified') ||
+      value.contains('ready') ||
+      value.contains('connected') ||
+      value.contains('valid') ||
+      value.contains('protected') ||
+      value.contains('active'))
+    return _SimpleTruth.healthy;
   return _SimpleTruth.notChecked;
 }
 
 _SimpleTruth _groupTruth(List<SafetyItem> items) {
-  final truths = items.map((item) => _truth(item.status)).toList(growable: false);
+  final truths = items
+      .map((item) => _truth(item.status))
+      .toList(growable: false);
   if (truths.contains(_SimpleTruth.blocked)) return _SimpleTruth.blocked;
   if (truths.contains(_SimpleTruth.attention)) return _SimpleTruth.attention;
   if (truths.contains(_SimpleTruth.notChecked)) return _SimpleTruth.notChecked;
-  if (truths.every((truth) => truth == _SimpleTruth.notApplicable)) return _SimpleTruth.notApplicable;
+  if (truths.every((truth) => truth == _SimpleTruth.notApplicable))
+    return _SimpleTruth.notApplicable;
   return _SimpleTruth.healthy;
 }
 
 Color _truthForeground(_SimpleTruth truth) => switch (truth) {
-      _SimpleTruth.healthy => PandoraSimpleColors.green,
-      _SimpleTruth.attention => PandoraSimpleColors.amber,
-      _SimpleTruth.blocked => PandoraSimpleColors.deepRed,
-      _SimpleTruth.notChecked => PandoraSimpleColors.muted,
-      _SimpleTruth.notApplicable => PandoraSimpleColors.blue,
-    };
+  _SimpleTruth.healthy => PandoraSimpleColors.green,
+  _SimpleTruth.attention => PandoraSimpleColors.amber,
+  _SimpleTruth.blocked => PandoraSimpleColors.deepRed,
+  _SimpleTruth.notChecked => PandoraSimpleColors.muted,
+  _SimpleTruth.notApplicable => PandoraSimpleColors.blue,
+};
 
 Color _truthBackground(_SimpleTruth truth) => switch (truth) {
-      _SimpleTruth.healthy => PandoraSimpleColors.greenWash,
-      _SimpleTruth.attention => PandoraSimpleColors.amberWash,
-      _SimpleTruth.blocked => PandoraSimpleColors.blush,
-      _SimpleTruth.notChecked => const Color(0xFFF2F1EF),
-      _SimpleTruth.notApplicable => PandoraSimpleColors.blueWash,
-    };
+  _SimpleTruth.healthy => PandoraSimpleColors.greenWash,
+  _SimpleTruth.attention => PandoraSimpleColors.amberWash,
+  _SimpleTruth.blocked => PandoraSimpleColors.blush,
+  _SimpleTruth.notChecked => const Color(0xFFF2F1EF),
+  _SimpleTruth.notApplicable => PandoraSimpleColors.blueWash,
+};
 
 IconData _truthIcon(_SimpleTruth truth) => switch (truth) {
-      _SimpleTruth.healthy => Icons.check_circle_outline_rounded,
-      _SimpleTruth.attention => Icons.warning_amber_rounded,
-      _SimpleTruth.blocked => Icons.block_rounded,
-      _SimpleTruth.notChecked => Icons.help_outline_rounded,
-      _SimpleTruth.notApplicable => Icons.remove_circle_outline_rounded,
-    };
+  _SimpleTruth.healthy => Icons.check_circle_outline_rounded,
+  _SimpleTruth.attention => Icons.warning_amber_rounded,
+  _SimpleTruth.blocked => Icons.block_rounded,
+  _SimpleTruth.notChecked => Icons.help_outline_rounded,
+  _SimpleTruth.notApplicable => Icons.remove_circle_outline_rounded,
+};
