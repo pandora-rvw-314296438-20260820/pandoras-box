@@ -1,0 +1,64 @@
+name: UIUX materialized formatter once
+on:
+  push:
+    branches: [feature/uiux-master-plan-completion-20260828]
+    paths: [.github/workflows/uiux-materialized-format-once.yml]
+permissions:
+  contents: read
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: feature/uiux-master-plan-completion-20260828
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Reproduce exact mobile formatter context
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .pandora-mobile-build
+          mkdir .pandora-mobile-build
+          cd .pandora-mobile-build
+          flutter create --platforms=android,web --org com.banataosystems --project-name pandora_mobile .
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R ../apps/pandora-mobile/lib ./lib
+          cp -R ../apps/pandora-mobile/test ./test
+          cp -R ../apps/pandora-mobile/assets ./assets
+          cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
+          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+          dart format lib test
+          cd ..
+          cp .pandora-mobile-build/lib/features/approvals/approvals_screen.dart apps/pandora-mobile/lib/features/approvals/approvals_screen.dart
+          cp .pandora-mobile-build/lib/features/connections/connections_screen.dart apps/pandora-mobile/lib/features/connections/connections_screen.dart
+          cp .pandora-mobile-build/lib/features/projects/projects_screen.dart apps/pandora-mobile/lib/features/projects/projects_screen.dart
+          cp .pandora-mobile-build/lib/features/simple/more_screen.dart apps/pandora-mobile/lib/features/simple/more_screen.dart
+          cp .pandora-mobile-build/lib/features/simple/offline_evidence_screen.dart apps/pandora-mobile/lib/features/simple/offline_evidence_screen.dart
+          cp .pandora-mobile-build/lib/features/simple/simple_briefing_screen.dart apps/pandora-mobile/lib/features/simple/simple_briefing_screen.dart
+          cp .pandora-mobile-build/test/architecture/simple_mode_master_plan_guard_test.dart apps/pandora-mobile/test/architecture/simple_mode_master_plan_guard_test.dart
+          rm -rf .pandora-mobile-build
+          git rm .github/workflows/uiux-materialized-format-once.yml
+          git diff --check
+      - name: Commit exact materialized formatter output
+        shell: bash
+        env:
+          PUSH_TOKEN: ${{ secrets.PANDORA_TEAM_PUSH_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$PUSH_TOKEN"
+          git config user.name "pandora-uiux-format-bot"
+          git config user.email "pandora-uiux-format-bot@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "style(ui): match exact materialized Flutter formatter"
+          git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/pandora-rvw-314296438-20260820/pandoras-box.git"
+          git push origin HEAD:feature/uiux-master-plan-completion-20260828
