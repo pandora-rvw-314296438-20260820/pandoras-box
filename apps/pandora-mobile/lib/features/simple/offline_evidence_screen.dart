@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
-import '../../core/data/pandora_repository.dart';
 import 'pandora_simple_ui.dart';
 
 class OfflineEvidenceScreen extends StatefulWidget {

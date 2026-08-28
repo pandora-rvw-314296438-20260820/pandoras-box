@@ -618,37 +618,51 @@ enum _SimpleTruth {
 
 _SimpleTruth _truth(String status) {
   final value = status.trim().toLowerCase().replaceAll('_', ' ');
-  if (value.contains('not applicable') || value.contains('not configured'))
+  if (value.contains('not applicable') || value.contains('not configured')) {
     return _SimpleTruth.notApplicable;
+  }
   if (value.contains('block') ||
       value.contains('critical') ||
       value.contains('failed') ||
       value.contains('down') ||
       value.contains('unhealthy') ||
-      value.contains('invalid')) return _SimpleTruth.blocked;
+      value.contains('invalid')) {
+    return _SimpleTruth.blocked;
+  }
   if (value.contains('attention') ||
       value.contains('degraded') ||
       value.contains('warning') ||
       value.contains('stale') ||
-      value.contains('partial')) return _SimpleTruth.attention;
+      value.contains('partial')) {
+    return _SimpleTruth.attention;
+  }
   if (value.contains('healthy') ||
       value.contains('verified') ||
       value.contains('ready') ||
       value.contains('connected') ||
       value.contains('valid') ||
       value.contains('protected') ||
-      value.contains('active')) return _SimpleTruth.healthy;
+      value.contains('active')) {
+    return _SimpleTruth.healthy;
+  }
   return _SimpleTruth.notChecked;
 }
 
 _SimpleTruth _groupTruth(List<SafetyItem> items) {
   final truths =
       items.map((item) => _truth(item.status)).toList(growable: false);
-  if (truths.contains(_SimpleTruth.blocked)) return _SimpleTruth.blocked;
-  if (truths.contains(_SimpleTruth.attention)) return _SimpleTruth.attention;
-  if (truths.contains(_SimpleTruth.notChecked)) return _SimpleTruth.notChecked;
-  if (truths.every((truth) => truth == _SimpleTruth.notApplicable))
+  if (truths.contains(_SimpleTruth.blocked)) {
+    return _SimpleTruth.blocked;
+  }
+  if (truths.contains(_SimpleTruth.attention)) {
+    return _SimpleTruth.attention;
+  }
+  if (truths.contains(_SimpleTruth.notChecked)) {
+    return _SimpleTruth.notChecked;
+  }
+  if (truths.every((truth) => truth == _SimpleTruth.notApplicable)) {
     return _SimpleTruth.notApplicable;
+  }
   return _SimpleTruth.healthy;
 }
 

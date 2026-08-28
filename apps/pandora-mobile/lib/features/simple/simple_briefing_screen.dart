@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/owner_projection.dart';
-import '../../core/data/pandora_repository.dart';
 import '../../core/models/pandora_models.dart';
-import '../../core/widgets/owner_experience.dart';
 import 'ask_pandora_screen.dart';
 import 'pandora_simple_ui.dart';
 
