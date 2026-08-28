@@ -49,10 +49,7 @@ void main() {
     expect(iteration, contains("intentKind: 'change'"));
     expect(iteration, contains('expectedSourceIntentId: sourceIntentId'));
     expect(iteration, contains("label: 'Build updated preview'"));
-    expect(
-      iteration,
-      contains('Current live version stays untouched'),
-    );
+    expect(iteration, contains('Current live version stays untouched'));
   });
 
   test('customer journey does not name infrastructure providers', () {
