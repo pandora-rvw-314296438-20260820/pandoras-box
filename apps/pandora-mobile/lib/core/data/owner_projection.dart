@@ -208,8 +208,9 @@ OwnerProjectState resolveOwnerProjectState(
 }
 
 String ownerSystemHealthLabel(ProjectSummary project) {
-  if (project.freshness.state == FreshnessState.stale)
+  if (project.freshness.state == FreshnessState.stale) {
     return 'Health check stale';
+  }
   if (project.freshness.state == FreshnessState.notChecked) {
     return 'Health not verified';
   }
