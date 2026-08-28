@@ -1,0 +1,33 @@
+{
+  "package": "pandora_mobile",
+  "app_version": "0.3.0-rc.3+6",
+  "supabase_project": "jcyqixttuebxqqfkjonq",
+  "edge_function": "pandora-user-admin",
+  "changed_files_before_format": [
+    " M .github/workflows/pandora-mobile-integration.yml",
+    " D .github/workflows/pandora-mobile-syntax-diagnostic.yml",
+    " D .github/workflows/pandora-mobile-ui-debug.yml",
+    " D .github/workflows/pandora-team-bootstrap.yml",
+    " M apps/pandora-mobile/lib/features/simple/more_screen.dart",
+    " M apps/pandora-mobile/lib/pandora_config.dart",
+    " M apps/pandora-mobile/pubspec.yaml",
+    " M apps/pandora-mobile/test/pandora_contract_test.dart",
+    " M docs/product/PANDORA_TEAM_USER_MANAGEMENT.md",
+    " M package.json",
+    " D scripts/pandora-team-bootstrap.zip",
+    " M supabase/config.toml",
+    "?? apps/pandora-mobile/lib/core/data/pandora_user_admin_api.dart",
+    "?? apps/pandora-mobile/lib/features/team/team_screen.dart",
+    "?? apps/pandora-mobile/test/features/team/pandora_user_admin_api_test.dart",
+    "?? apps/pandora-mobile/test/features/team/team_screen_test.dart",
+    "?? docs/PANDORA_USER_ADMINISTRATION.md",
+    "?? docs/evidence/pandora_team_implementation_manifest.json",
+    "?? supabase/functions/pandora-user-admin/deno.json",
+    "?? supabase/functions/pandora-user-admin/index.ts",
+    "?? supabase/migrations/20260826005701_pandora_organization_user_administration_v1.sql",
+    "?? supabase/migrations/20260826010748_pandora_user_administration_service_boundary_v1.sql",
+    "?? supabase/migrations/20260826011131_remove_legacy_pandora_user_admin_rpc_v1.sql",
+    "?? test/pandora-team-mobile-contract.test.js",
+    "?? test/pandora-user-admin-contract.test.js"
+  ]
+}
