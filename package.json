@@ -59,10 +59,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/banataosystems/Pandoras-box.git"
+    "url": "git+https://github.com/pandora-rvw-314296438-20260820/pandoras-box.git"
   },
   "bugs": {
-    "url": "https://github.com/banataosystems/Pandoras-box/issues"
+    "url": "https://github.com/pandora-rvw-314296438-20260820/pandoras-box/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
