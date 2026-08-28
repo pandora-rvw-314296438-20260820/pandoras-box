@@ -353,24 +353,20 @@ async function createProject(context: UserContext, body: JsonRecord) {
 
   const projectKey = `${slugify(name)}-${crypto.randomUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
-  const config = { customerJourney: { buildKind: kind, stage: "understanding", runtimeStatus: "creating", createdFrom: "simple_mode", updatedAt: now } };
-  const { data, error } = await context.client.from("projectos_projects")
+  const config = {
+    customerJourney: {
+      buildKind: kind,
+      stage: "understanding",
+      runtimeStatus: "not_configured",
+      createdFrom: "simple_mode",
+      updatedAt: now,
+    },
+  };
+  const { data, error } = await serviceClient().from("projectos_projects")
     .insert({ organization_id: context.organizationId, project_key: projectKey, name, workspace_path: `projects/${projectKey}`, status: "active", objective, roadmap_version: "2.0.0", config, created_by: context.userId })
     .select("id, project_key, name, objective, status, config, created_at, updated_at").single();
   if (error || !data) throw new Error("BACKEND_WRITE_FAILED");
-
-  let project = asRecord(data);
-  try {
-    const provider = await ensureVercelProject(context, project);
-    project = { ...project, config: provider.config, updated_at: now };
-  } catch {
-    const current = asRecord(project.config);
-    const journey = asRecord(current.customerJourney);
-    const nextConfig = { ...current, customerJourney: { ...journey, runtimeStatus: "needs_attention", runtimeUpdatedAt: now } };
-    await context.client.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", project.id);
-    project = { ...project, config: nextConfig, updated_at: now };
-  }
-  return projectResponse(project);
+  return projectResponse(asRecord(data));
 }
 
 async function runtimeSummary(context: UserContext, identifier: string) {
