@@ -83,7 +83,7 @@ class GeminiProviderAdapter {
         catch { throw Object.assign(new Error('Gemini structured output is not valid JSON'), { code: 'structured_output_invalid', retryable: true }); }
       }
       assertNoCredentialMaterial(output);
-      const usageMetadata = isRecord(body.usageMetadata) ? body.usageMetadata : {};
+      const usageMetadata = isRecord(body.usageMetadata) ? /** @type {Record<string, unknown>} */ (body.usageMetadata) : {};
       const usage = createModelUsage({
         inputTokens: Number.isInteger(usageMetadata.promptTokenCount) ? usageMetadata.promptTokenCount : 0,
         outputTokens: Number.isInteger(usageMetadata.candidatesTokenCount) ? usageMetadata.candidatesTokenCount : 0,
