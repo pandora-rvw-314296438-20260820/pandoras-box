@@ -15,6 +15,9 @@ import '../projects/projects_screen.dart';
 import '../safety/safety_screen.dart';
 import '../settings/settings_screen.dart';
 import '../team/team_screen.dart';
+import 'offline_evidence_screen.dart';
+import 'simple_briefing_screen.dart';
+import 'simple_safety_screen.dart';
 
 void _openMore(BuildContext context, Widget screen) {
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
@@ -48,17 +51,43 @@ class MoreScreen extends StatelessWidget {
                         _openMore(context, const OwnerIntelligenceScreen()),
                   ),
                   _MoreTile(
+                    icon: Icons.today_outlined,
+                    title: 'Daily briefing',
+                    subtitle: 'What needs you and what Pandora recommends next',
+                    onTap: () =>
+                        _openMore(context, const SimpleBriefingScreen()),
+                  ),
+                  _MoreTile(
                     icon: Icons.history_rounded,
                     title: 'Activity',
                     subtitle: 'Verified recent work and results',
                     onTap: () => _openMore(context, const ActivityScreen()),
                   ),
                   _MoreTile(
+                    icon: Icons.offline_pin_outlined,
+                    title: 'Offline evidence',
+                    subtitle: 'Read-only last-known proof for reference',
+                    onTap: () =>
+                        _openMore(context, const OfflineEvidenceScreen()),
+                  ),
+                  _MoreTile(
                     icon: Icons.shield_outlined,
                     title: 'Verify & Safety',
+                    subtitle: 'Four clear protection layers, without a score',
+                    onTap: () => _openMore(context, const SimpleSafetyScreen()),
+                  ),
+                  _MoreTile(
+                    icon: Icons.workspaces_outline,
+                    title: 'Projects',
+                    subtitle: 'Portfolio, blockers, progress, and proof',
+                    onTap: () => _openMore(context, const ProjectsScreen()),
+                  ),
+                  _MoreTile(
+                    icon: Icons.cable_outlined,
+                    title: 'Connections',
                     subtitle:
-                        'Evidence, audit integrity, and protected controls',
-                    onTap: () => _openMore(context, const SafetyScreen()),
+                        'Connected services, health, and governed actions',
+                    onTap: () => _openMore(context, const ConnectionsScreen()),
                   ),
                 ],
               ),
@@ -71,18 +100,6 @@ class MoreScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _MoreTile(
-                    icon: Icons.workspaces_outline,
-                    title: 'Projects',
-                    subtitle: 'Detailed phases, tasks, and evidence',
-                    onTap: () => _openMore(context, const ProjectsScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.cable_outlined,
-                    title: 'Connections',
-                    subtitle: 'Provider scopes and connection state',
-                    onTap: () => _openMore(context, const ConnectionsScreen()),
-                  ),
-                  _MoreTile(
                     icon: Icons.terminal_rounded,
                     title: 'Governed command',
                     subtitle: 'Advanced ProjectOS request surface',
@@ -93,6 +110,12 @@ class MoreScreen extends StatelessWidget {
                     title: 'Classic owner dashboard',
                     subtitle: 'The detailed operational owner view',
                     onTap: () => _openMore(context, const HomeScreen()),
+                  ),
+                  _MoreTile(
+                    icon: Icons.security_outlined,
+                    title: 'Safety diagnostics',
+                    subtitle: 'Detailed evidence, audit, and provider checks',
+                    onTap: () => _openMore(context, const SafetyScreen()),
                   ),
                   _MoreTile(
                     icon: Icons.developer_mode_outlined,
@@ -113,10 +136,8 @@ class MoreScreen extends StatelessWidget {
                     icon: Icons.groups_outlined,
                     title: 'Team',
                     subtitle: 'Invite people and manage their access',
-                    onTap: () => _openMore(
-                      context,
-                      TeamScreen(gateway: teamGateway),
-                    ),
+                    onTap: () =>
+                        _openMore(context, TeamScreen(gateway: teamGateway)),
                   ),
                   _MoreTile(
                     icon: Icons.settings_outlined,

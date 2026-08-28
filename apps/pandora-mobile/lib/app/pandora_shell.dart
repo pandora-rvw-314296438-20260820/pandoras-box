@@ -210,14 +210,68 @@ class _PandoraShellState extends State<PandoraShell> {
       child: PopScope<Object?>(
         canPop: false,
         onPopInvokedWithResult: _handleBack,
-        child: Scaffold(
-          backgroundColor: PandoraSimpleColors.canvas,
-          body: body,
-          bottomNavigationBar: _PandoraBottomBar(
-            destinations: _destinations,
-            selectedIndex: _index,
-            onSelected: _select,
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final useRail = constraints.maxWidth >= 900;
+            if (!useRail) {
+              return Scaffold(
+                backgroundColor: PandoraSimpleColors.canvas,
+                body: body,
+                bottomNavigationBar: _PandoraBottomBar(
+                  destinations: _destinations,
+                  selectedIndex: _index,
+                  onSelected: _select,
+                ),
+              );
+            }
+            return Scaffold(
+              backgroundColor: PandoraSimpleColors.canvas,
+              body: Row(
+                children: [
+                  NavigationRail(
+                    selectedIndex: _index,
+                    onDestinationSelected: _select,
+                    backgroundColor: PandoraSimpleColors.surface,
+                    indicatorColor: PandoraSimpleColors.blush,
+                    labelType: NavigationRailLabelType.all,
+                    minWidth: 92,
+                    groupAlignment: -0.55,
+                    leading: const Padding(
+                      padding: EdgeInsets.only(top: 18, bottom: 18),
+                      child: PandoraMark(
+                        size: 44,
+                        color: PandoraSimpleColors.red,
+                      ),
+                    ),
+                    destinations: [
+                      for (final destination in _destinations)
+                        NavigationRailDestination(
+                          icon: destination.emphasized
+                              ? const PandoraMark(
+                                  size: 25,
+                                  color: PandoraSimpleColors.red,
+                                )
+                              : Icon(destination.icon),
+                          selectedIcon: destination.emphasized
+                              ? const PandoraMark(
+                                  size: 27,
+                                  color: PandoraSimpleColors.deepRed,
+                                )
+                              : Icon(destination.selectedIcon),
+                          label: Text(destination.label),
+                        ),
+                    ],
+                  ),
+                  const VerticalDivider(
+                    width: 1,
+                    thickness: 1,
+                    color: PandoraSimpleColors.line,
+                  ),
+                  Expanded(child: body),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

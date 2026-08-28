@@ -11,6 +11,7 @@ import '../../core/widgets/owner_experience.dart';
 import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/pandora_surface.dart';
 import '../../core/widgets/status_badge.dart';
+import '../simple/ask_pandora_screen.dart';
 
 class ConnectionsScreen extends StatefulWidget {
   const ConnectionsScreen({super.key});
@@ -146,7 +147,15 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                   ),
                   const SizedBox(height: PandoraSpacing.sm),
                   for (var index = 0; index < items.length; index++) ...[
-                    _ConnectionCard(connection: items[index]),
+                    _ConnectionCard(
+                      connection: items[index],
+                      onTest: controller.refresh,
+                      onAction: (action) => _openGovernedConnectionAction(
+                        context,
+                        items[index],
+                        action,
+                      ),
+                    ),
                     if (index != items.length - 1)
                       const SizedBox(height: PandoraSpacing.sm),
                   ],
@@ -159,42 +168,105 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
 }
 
 class _ConnectionCard extends StatelessWidget {
-  const _ConnectionCard({required this.connection});
+  const _ConnectionCard({
+    required this.connection,
+    required this.onTest,
+    required this.onAction,
+  });
 
   final ConnectionSummary connection;
+  final VoidCallback onTest;
+  final ValueChanged<String> onAction;
 
   @override
-  Widget build(BuildContext context) => PandoraSurface(
-        title: connection.name,
-        subtitle: connection.purpose,
-        leading: Icon(providerIconFor(connection.name)),
-        trailing: StatusBadge(
-          label: connection.status,
-          tone: statusToneFor(connection.status),
-          compact: true,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            OwnerSignal(
-              label: 'Verified capability',
-              value: connection.canChange
-                  ? 'Read access and governed changes'
-                  : connection.canRead
-                      ? 'Read access only'
-                      : 'No verified access',
-              icon: connection.canChange
-                  ? Icons.edit_note_rounded
-                  : connection.canRead
-                      ? Icons.visibility_outlined
-                      : Icons.link_off_rounded,
-              tone: connection.canChange || connection.canRead
-                  ? PandoraStatusTone.informative
-                  : PandoraStatusTone.attention,
-            ),
-            const SizedBox(height: PandoraSpacing.sm),
-            FreshnessLabel(freshness: connection.freshness),
-          ],
-        ),
-      );
+  Widget build(BuildContext context) {
+    final needsReconnect = connectionAttentionRank(connection) >= 3;
+    final primaryAction = !connection.canRead
+        ? 'Connect'
+        : needsReconnect
+            ? 'Reconnect'
+            : 'Manage';
+    return PandoraSurface(
+      title: connection.name,
+      subtitle: connection.purpose,
+      leading: Icon(providerIconFor(connection.name)),
+      trailing: StatusBadge(
+        label: connection.status,
+        tone: statusToneFor(connection.status),
+        compact: true,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          OwnerSignal(
+            label: 'Verified capability',
+            value: connection.canChange
+                ? 'Read access and governed changes'
+                : connection.canRead
+                    ? 'Read access only'
+                    : 'No verified access',
+            icon: connection.canChange
+                ? Icons.edit_note_rounded
+                : connection.canRead
+                    ? Icons.visibility_outlined
+                    : Icons.link_off_rounded,
+            tone: connection.canChange || connection.canRead
+                ? PandoraStatusTone.informative
+                : PandoraStatusTone.attention,
+          ),
+          const SizedBox(height: PandoraSpacing.sm),
+          FreshnessLabel(freshness: connection.freshness),
+          const SizedBox(height: PandoraSpacing.md),
+          Wrap(
+            spacing: PandoraSpacing.xs,
+            runSpacing: PandoraSpacing.xs,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onTest,
+                icon: const Icon(Icons.health_and_safety_outlined),
+                label: const Text('Test now'),
+              ),
+              FilledButton.icon(
+                onPressed: () => onAction(primaryAction),
+                icon: Icon(
+                  primaryAction == 'Connect'
+                      ? Icons.add_link_rounded
+                      : primaryAction == 'Reconnect'
+                          ? Icons.sync_rounded
+                          : Icons.tune_rounded,
+                ),
+                label: Text(primaryAction),
+              ),
+              if (connection.canRead)
+                TextButton.icon(
+                  onPressed: () => onAction('Disconnect'),
+                  icon: const Icon(Icons.link_off_rounded),
+                  label: const Text('Disconnect'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+void _openGovernedConnectionAction(
+  BuildContext context,
+  ConnectionSummary connection,
+  String action,
+) {
+  final verb = action.toLowerCase();
+  final prompt = verb == 'disconnect'
+      ? 'Disconnect ${connection.name}. Verify the impact, affected systems, rollback path, and current provider state first. Prepare the governed change for my approval; do not execute it just because I asked.'
+      : verb == 'connect'
+          ? 'Connect ${connection.name}. Verify the required scopes and provider health first, then prepare the governed connection for my approval.'
+          : verb == 'reconnect'
+              ? 'Reconnect ${connection.name}. Test the current connection and credentials first, then prepare only the necessary governed repair for my approval.'
+              : 'Review and manage ${connection.name}. Test its current health and capabilities, then show me any governed change that needs my approval.';
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => AskPandoraScreen(initialPrompt: prompt),
+    ),
+  );
 }

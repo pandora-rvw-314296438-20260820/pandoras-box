@@ -448,13 +448,16 @@ class _VerifiedHome extends StatelessWidget {
                 children: [cards[0], const SizedBox(height: 12), cards[1]],
               );
             }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: cards[0]),
-                const SizedBox(width: 14),
-                Expanded(child: cards[1]),
-              ],
+            // IntrinsicHeight bounds equal-height cards when parent height is unbounded (scroll views).
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: cards[0]),
+                  const SizedBox(width: 14),
+                  Expanded(child: cards[1]),
+                ],
+              ),
             );
           },
         ),
