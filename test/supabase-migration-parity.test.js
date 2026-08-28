@@ -242,6 +242,10 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   ];
   assert.equal(new Set(restoredProductionHistory).size, 14);
   assert.ok(restoredProductionHistory.every((filename) => activeFiles.includes(filename)));
+  const historicalReceiptFiles = activeFiles.filter(
+    (filename) => !restoredProductionHistory.includes(filename),
+  );
+  assert.equal(historicalReceiptFiles.length, manifest.invariants.source_file_count);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   const appendedAtReplaySnapshot = appendedFiles.filter(
     (filename) => filename <= replaySnapshotLast,
@@ -337,8 +341,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     receiptVersionChainSha256(activeFiles),
     manifest.identity_reconciliation.expected_applied_receipt_chain_sha256,
   );
-  assert.equal(reconciledReplayResult.migration_count, activeFiles.length);
-  assert.equal(reconciledReplayResult.chain_sha256, chainSha256(activeFiles));
+  assert.equal(reconciledReplayResult.migration_count, historicalReceiptFiles.length);
+  assert.equal(reconciledReplayResult.chain_sha256, chainSha256(historicalReceiptFiles));
   assert.equal(
     reconciledReplayResult.chain_sha256,
     manifest.validation.reconciled_chain_sha256,
