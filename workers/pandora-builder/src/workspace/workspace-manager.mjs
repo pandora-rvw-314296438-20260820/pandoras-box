@@ -62,9 +62,9 @@ class WorkspaceManager {
 
   async resume(identity) {
     const root = this.workspacePath(identity);
-    const actual = await realpath(root);
-    if (actual !== root) throw new Error('WORKSPACE_REALPATH_MISMATCH');
-    const meta = JSON.parse(await readFile(path.join(root, '.pandora-workspace.json'), 'utf8'));
+    const [actual, canonicalBase] = await Promise.all([realpath(root), realpath(this.baseRoot)]);
+    if (!isWithin(canonicalBase, actual)) throw new Error('WORKSPACE_REALPATH_MISMATCH');
+    const meta = JSON.parse(await readFile(path.join(actual, '.pandora-workspace.json'), 'utf8'));
     for (const key of ['organizationId', 'projectId', 'buildJobId', 'attempt']) {
       if (String(meta[key]) !== String(identity[key])) throw new Error('WORKSPACE_IDENTITY_MISMATCH');
     }
