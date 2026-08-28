@@ -99,15 +99,19 @@ void main() {
     expect(
       source,
       contains(
-        'This is a prototype. It is not deployed or production verified.',
+        'This is a prototype. It is not live or production verified.',
       ),
     );
     expect(
       source,
       contains(
-        'Nothing will execute until you approve the protected decision in Needs You.',
+        'Nothing will change until you approve the decision in Needs You.',
       ),
     );
+    expect(source, contains('Independent checks have not finished yet'));
+    expect(source, contains('supporting proof.'));
+    expect(source, isNot(contains('Provider and exact-source checks')));
+    expect(source, isNot(contains('governed work')));
     expect(source, isNot(contains('Live preview available')));
     expect(
       source,
