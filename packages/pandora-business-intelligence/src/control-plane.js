@@ -6,12 +6,39 @@ function text(value, name, nullable = false) {
   if (typeof value !== 'string' || value.trim() === '') throw new TypeError(`${name} is required`);
   return value;
 }
+function parsePlainDecimal(value) {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 128) return null;
+  let index = 0;
+  if (value[0] === '-') {
+    index = 1;
+    if (index === value.length) return null;
+  }
+  let digits = 0;
+  let decimalPoints = 0;
+  for (; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 48 && code <= 57) {
+      digits += 1;
+      continue;
+    }
+    if (value[index] === '.' && decimalPoints === 0) {
+      decimalPoints += 1;
+      continue;
+    }
+    return null;
+  }
+  if (digits === 0) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 function numericText(value) {
   if (value == null || typeof value !== 'string') return null;
   const trimmed = value.trim();
-  if (/^-?(?:\d+\.?\d*|\d*\.\d+)$/.test(trimmed)) return { value: Number(trimmed), unit: 'number' };
-  if (/^-?(?:\d+\.?\d*|\d*\.\d+)%$/.test(trimmed)) return { value: Number(trimmed.slice(0, -1)) / 100, unit: 'ratio' };
-  return null;
+  const percentage = trimmed.endsWith('%');
+  const token = percentage ? trimmed.slice(0, -1) : trimmed;
+  const parsed = parsePlainDecimal(token);
+  if (parsed == null) return null;
+  return { value: percentage ? parsed / 100 : parsed, unit: percentage ? 'ratio' : 'number' };
 }
 
 function objectiveFromControlPlaneRow(row) {
