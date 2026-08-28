@@ -12,6 +12,7 @@ import '../approvals/approvals_screen.dart';
 import '../settings/settings_screen.dart';
 import 'owner_project_language.dart';
 import 'pandora_simple_ui.dart';
+import 'project_iteration_experience.dart';
 
 void _openJourney(BuildContext context, Widget screen) {
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
@@ -684,6 +685,22 @@ class _ProjectJourneyWorkspaceScreenState
     if (mounted) await _load();
   }
 
+  Future<void> _changeSomething() async {
+    final project = _snapshot?.project;
+    if (project == null) return;
+    final buildUpdatedPreview = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => ProjectIterationExperienceScreen(project: project),
+      ),
+    );
+    if (!mounted) return;
+    if (buildUpdatedPreview == true) {
+      await _buildAgain();
+      return;
+    }
+    await _load();
+  }
+
   Future<void> _publish() async {
     final project = _snapshot?.project;
     if (project == null) return;
@@ -942,15 +959,20 @@ class _ProjectJourneyWorkspaceScreenState
                       ),
                     ],
                     const SizedBox(height: 20),
-                    PandoraPrimaryButton(
-                      label: project.hasPreview
-                          ? 'Build a new preview'
-                          : 'Build preview',
-                      icon: Icons.auto_awesome_rounded,
-                      onPressed: _publishing ? null : _buildAgain,
-                      expanded: true,
-                    ),
+                    if (!project.hasPreview)
+                      PandoraPrimaryButton(
+                        label: 'Build preview',
+                        icon: Icons.auto_awesome_rounded,
+                        onPressed: _publishing ? null : _buildAgain,
+                        expanded: true,
+                      ),
                     if (project.hasPreview) ...[
+                      PandoraPrimaryButton(
+                        label: 'Change something',
+                        icon: Icons.edit_outlined,
+                        onPressed: _publishing ? null : _changeSomething,
+                        expanded: true,
+                      ),
                       const SizedBox(height: 10),
                       PandoraSecondaryButton(
                         label: _publishing ? 'Publishing…' : 'Publish',
