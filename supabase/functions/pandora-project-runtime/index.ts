@@ -183,6 +183,13 @@ async function sha256Hex(value: string) {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+function serviceClient() {
+  if (!SUPABASE_SERVICE_ROLE_KEY) throw new Error("RUNTIME_BROKER_NOT_CONFIGURED");
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 async function vercelRequest(path: string, init: RequestInit, accepted: number[] = [200, 201]) {
   if (!SUPABASE_SERVICE_ROLE_KEY) throw new Error("RUNTIME_BROKER_NOT_CONFIGURED");
   const method = textValue(init.method, "GET").toUpperCase();
@@ -196,9 +203,7 @@ async function vercelRequest(path: string, init: RequestInit, accepted: number[]
       throw new Error("VERCEL_REQUEST_INVALID");
     }
   }
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const admin = serviceClient();
   const { data, error } = await admin.rpc("pandora_worker_f_vercel_request_20260829", {
     p_method: method,
     p_path: scopedPath,
