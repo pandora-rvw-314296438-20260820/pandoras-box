@@ -158,7 +158,8 @@ class VerificationEngine {
     return this.#invalidate(runId, reason);
   }
 
-  assertIdentityCurrent(runId, currentRequest) {
+  assertIdentityCurrent(runId, currentRequest, authorityToken) {
+    this.#assertTrusted(authorityToken);
     const run = this.#requireRun(runId);
     const current = identityDigest(currentRequest, PROFILES);
     if (current !== run.identity_digest) {
