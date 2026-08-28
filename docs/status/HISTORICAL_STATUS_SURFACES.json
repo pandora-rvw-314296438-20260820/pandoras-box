@@ -11,12 +11,7 @@
       "observedThrough": "2026-08-12T15:59:59+08:00",
       "classification": "historical_recovery_snapshot"
     },
-    {
-      "path": "DEPLOYMENT_TARGET.md",
-      "contentSha256": "2138ecc92ba72768337d1a08cbfc5a8175f19622c64c1651550860c53b46788a",
-      "observedThrough": "2026-08-08T23:59:59+08:00",
-      "classification": "historical_deployment_plan"
-    },
+
     {
       "path": "PROJECT_CUSTOM_INSTRUCTION.md",
       "contentSha256": "14723392421b1fb06fda250bcf7e8e7cbad38f92c7393abf09f141612a6b7fda",
