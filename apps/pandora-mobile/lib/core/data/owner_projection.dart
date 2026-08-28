@@ -11,13 +11,13 @@ enum OwnerProjectState {
 
 extension OwnerProjectStateLabel on OwnerProjectState {
   String get label => switch (this) {
-        OwnerProjectState.ownerActionRequired => 'Owner action required',
-        OwnerProjectState.blocked => 'Blocked',
-        OwnerProjectState.executing => 'Working now',
-        OwnerProjectState.monitoring => 'Monitoring',
-        OwnerProjectState.idle => 'Idle',
-        OwnerProjectState.archived => 'Archived',
-      };
+    OwnerProjectState.ownerActionRequired => 'Owner action required',
+    OwnerProjectState.blocked => 'Blocked',
+    OwnerProjectState.executing => 'Working now',
+    OwnerProjectState.monitoring => 'Monitoring',
+    OwnerProjectState.idle => 'Idle',
+    OwnerProjectState.archived => 'Archived',
+  };
 }
 
 enum ProviderTruthState {
@@ -31,13 +31,13 @@ enum ProviderTruthState {
 
 extension ProviderTruthStateLabel on ProviderTruthState {
   String get label => switch (this) {
-        ProviderTruthState.healthy => 'Healthy',
-        ProviderTruthState.degraded => 'Degraded',
-        ProviderTruthState.down => 'Down',
-        ProviderTruthState.stale => 'Stale',
-        ProviderTruthState.unknown => 'Unknown',
-        ProviderTruthState.notConfigured => 'Not configured',
-      };
+    ProviderTruthState.healthy => 'Healthy',
+    ProviderTruthState.degraded => 'Degraded',
+    ProviderTruthState.down => 'Down',
+    ProviderTruthState.stale => 'Stale',
+    ProviderTruthState.unknown => 'Unknown',
+    ProviderTruthState.notConfigured => 'Not configured',
+  };
 }
 
 enum OwnerConnectionState {
@@ -51,13 +51,13 @@ enum OwnerConnectionState {
 
 extension OwnerConnectionStateLabel on OwnerConnectionState {
   String get label => switch (this) {
-        OwnerConnectionState.verified => 'Connected and verified now',
-        OwnerConnectionState.needsAttention => 'Connected · needs attention',
-        OwnerConnectionState.stale => 'Connected but stale',
-        OwnerConnectionState.capabilityUnverified => 'Access not verified',
-        OwnerConnectionState.disconnected => 'Disconnected',
-        OwnerConnectionState.legacy => 'Legacy connection · no longer used',
-      };
+    OwnerConnectionState.verified => 'Connected and verified now',
+    OwnerConnectionState.needsAttention => 'Connected · needs attention',
+    OwnerConnectionState.stale => 'Connected but stale',
+    OwnerConnectionState.capabilityUnverified => 'Access not verified',
+    OwnerConnectionState.disconnected => 'Disconnected',
+    OwnerConnectionState.legacy => 'Legacy connection · no longer used',
+  };
 }
 
 List<ConnectionSummary> deduplicateConnections(
@@ -75,8 +75,9 @@ List<ConnectionSummary> deduplicateConnections(
   }
   final result = unique.values.toList(growable: true)
     ..sort(
-      (left, right) => connectionAttentionRank(right)
-          .compareTo(connectionAttentionRank(left)),
+      (left, right) =>
+          connectionAttentionRank(right)
+              .compareTo(connectionAttentionRank(left)),
     );
   return List<ConnectionSummary>.unmodifiable(result);
 }
@@ -208,7 +209,8 @@ OwnerProjectState resolveOwnerProjectState(
 }
 
 String ownerSystemHealthLabel(ProjectSummary project) {
-  if (project.freshness.state == FreshnessState.stale) return 'Health check stale';
+  if (project.freshness.state == FreshnessState.stale)
+    return 'Health check stale';
   if (project.freshness.state == FreshnessState.notChecked) {
     return 'Health not verified';
   }
