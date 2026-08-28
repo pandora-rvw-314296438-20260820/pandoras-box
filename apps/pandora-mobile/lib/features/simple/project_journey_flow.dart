@@ -377,12 +377,16 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
       _scheduleRefresh();
     } on PandoraRepositoryException {
       if (!mounted) return;
+      _refreshTimer?.cancel();
+      _requestStarted = false;
       setState(
         () => _error =
             'Pandora found something to fix before your preview is ready.',
       );
     } catch (_) {
       if (!mounted) return;
+      _refreshTimer?.cancel();
+      _requestStarted = false;
       setState(
         () => _error =
             'Pandora found something to fix before your preview is ready.',
