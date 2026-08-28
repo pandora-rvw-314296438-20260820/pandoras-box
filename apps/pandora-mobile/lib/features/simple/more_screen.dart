@@ -66,7 +66,8 @@ class MoreScreen extends StatelessWidget {
                   _MoreTile(
                     icon: Icons.offline_pin_outlined,
                     title: 'Saved evidence',
-                    subtitle: 'Last-known proof you can review without changing anything',
+                    subtitle:
+                        'Last-known proof you can review without changing anything',
                     onTap: () =>
                         _openMore(context, const OfflineEvidenceScreen()),
                   ),
@@ -114,7 +115,8 @@ class MoreScreen extends StatelessWidget {
                   _MoreTile(
                     icon: Icons.security_outlined,
                     title: 'Safety details',
-                    subtitle: 'Detailed safety evidence, audit history, and connection checks',
+                    subtitle:
+                        'Detailed safety evidence, audit history, and connection checks',
                     onTap: () => _openMore(context, const SafetyScreen()),
                   ),
                   _MoreTile(
