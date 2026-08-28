@@ -42,7 +42,7 @@ function result(state, health, explanation) { return Object.freeze({ state, heal
 function compareVersions({ a, b, minimumSampleSize = 20, minimumRelativeDifference = 0.02 }) {
   if (!a || !b || a.value == null || b.value == null) return { state:'inconclusive', reason:'missing version measurement' };
   if (a.sampleSize < minimumSampleSize || b.sampleSize < minimumSampleSize) return { state:'inconclusive', reason:'insufficient sample size' };
-  if (a.value === 0 && b.value === 0) return { state:'inconclusive', relativeDifference:0, causal:false };
+  if (a.value === 0 && b.value === 0) return { state:'no_change', relativeDifference:0, causal:false };
   const denominator = Math.max(Math.abs(a.value), Number.EPSILON);
   const relativeDifference = (b.value - a.value) / denominator;
   if (Math.abs(relativeDifference) < minimumRelativeDifference) return { state:'inconclusive', relativeDifference, reason:'difference below materiality threshold', causal:false };
