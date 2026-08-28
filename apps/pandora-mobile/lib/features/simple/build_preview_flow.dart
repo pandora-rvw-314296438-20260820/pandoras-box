@@ -29,9 +29,13 @@ class BuildProgressScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reviewState = receipt.needsApproval
+    final waitingForDecision = receipt.needsApproval;
+    final reviewState = waitingForDecision
         ? PandoraFlowStepState.current
         : PandoraFlowStepState.pending;
+    final buildState = waitingForDecision
+        ? PandoraFlowStepState.pending
+        : PandoraFlowStepState.current;
     return PandoraSimplePage(
       header: PandoraOwnerHeader(
         title: releaseRequest ? 'Release progress' : 'Build progress',
@@ -55,18 +59,22 @@ class BuildProgressScreen extends StatelessWidget {
                 label: 'Understand',
                 state: PandoraFlowStepState.complete,
               ),
-              const PandoraFlowStep(
+              PandoraFlowStep(
                 label: 'Build',
-                state: PandoraFlowStepState.current,
+                state: buildState,
               ),
               PandoraFlowStep(label: 'Review', state: reviewState),
             ],
           ),
           const SizedBox(height: 28),
           Text(
-            releaseRequest
-                ? 'Pandora is governing your release'
-                : 'Pandora is building your system',
+            waitingForDecision
+                ? (releaseRequest
+                    ? 'Release is waiting for your decision'
+                    : 'Pandora is waiting for your decision')
+                : (releaseRequest
+                    ? 'Pandora is preparing your release'
+                    : 'Pandora is preparing your system'),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: PandoraSimpleColors.ink,
@@ -77,14 +85,19 @@ class BuildProgressScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            releaseRequest
-                ? 'The reviewed result is moving through the same verification, approval and rollback controls as the working system.'
-                : 'You can leave this screen. Pandora will continue working and notify you when a decision is needed.',
+            waitingForDecision
+                ? 'Nothing will execute until you approve the protected decision in Needs You.'
+                : (releaseRequest
+                    ? 'Pandora is preparing the reviewed result for verification, approval, and rollback-safe release.'
+                    : 'Pandora is preparing the governed work and will notify you when a real decision is required.'),
             textAlign: TextAlign.center,
             style: pandoraSimpleMutedText,
           ),
           const SizedBox(height: 24),
-          _OrbitingBuildMark(releaseRequest: releaseRequest),
+          _OrbitingBuildMark(
+            releaseRequest: releaseRequest,
+            active: !waitingForDecision,
+          ),
           const SizedBox(height: 22),
           PandoraSimpleCard(
             shadow: false,
@@ -105,17 +118,19 @@ class BuildProgressScreen extends StatelessWidget {
                   label: releaseRequest
                       ? 'Preparing the governed release'
                       : 'Building the core system',
-                  detail: receipt.status.whatIsHappeningNow,
-                  state: _BuildTaskState.current,
+                  detail: waitingForDecision
+                      ? 'Execution is paused until you approve the protected decision'
+                      : receipt.status.whatIsHappeningNow,
+                  state: waitingForDecision
+                      ? _BuildTaskState.blocked
+                      : _BuildTaskState.current,
                 ),
                 _BuildTaskRow(
                   label: 'Connecting business services',
-                  detail: receipt.needsApproval
-                      ? 'Waiting for your protected decision before execution'
+                  detail: waitingForDecision
+                      ? 'This starts only after the protected decision is approved'
                       : receipt.status.whatIWillDoNext,
-                  state: receipt.needsApproval
-                      ? _BuildTaskState.blocked
-                      : _BuildTaskState.pending,
+                  state: _BuildTaskState.pending,
                 ),
                 const _BuildTaskRow(
                   label: 'Testing everything',
@@ -135,7 +150,7 @@ class BuildProgressScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           if (!releaseRequest)
-            _LivePreviewCard(
+            _PrototypePreviewCard(
               request: request,
               onOpen: () =>
                   _openPreview(context, FirstPreviewScreen(request: request)),
@@ -206,9 +221,13 @@ class BuildProgressScreen extends StatelessWidget {
 }
 
 class _OrbitingBuildMark extends StatefulWidget {
-  const _OrbitingBuildMark({required this.releaseRequest});
+  const _OrbitingBuildMark({
+    required this.releaseRequest,
+    required this.active,
+  });
 
   final bool releaseRequest;
+  final bool active;
 
   @override
   State<_OrbitingBuildMark> createState() => _OrbitingBuildMarkState();
@@ -224,7 +243,23 @@ class _OrbitingBuildMarkState extends State<_OrbitingBuildMark>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 9),
-    )..repeat();
+    );
+    if (widget.active) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _OrbitingBuildMark oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active == widget.active) {
+      return;
+    }
+    if (widget.active) {
+      _controller.repeat();
+    } else {
+      _controller.stop();
+    }
   }
 
   @override
@@ -235,7 +270,7 @@ class _OrbitingBuildMarkState extends State<_OrbitingBuildMark>
 
   @override
   Widget build(BuildContext context) {
-    final reduced = MediaQuery.of(context).disableAnimations;
+    final frozen = MediaQuery.of(context).disableAnimations || !widget.active;
     final mark = SizedBox(
       height: 260,
       child: Stack(
@@ -280,21 +315,21 @@ class _OrbitingBuildMarkState extends State<_OrbitingBuildMark>
             radius: 105,
             phase: 0,
             color: PandoraSimpleColors.purple,
-            frozen: reduced,
+            frozen: frozen,
           ),
           _OrbitDot(
             controller: _controller,
             radius: 105,
             phase: .34,
             color: PandoraSimpleColors.green,
-            frozen: reduced,
+            frozen: frozen,
           ),
           _OrbitDot(
             controller: _controller,
             radius: 105,
             phase: .67,
             color: PandoraSimpleColors.red,
-            frozen: reduced,
+            frozen: frozen,
           ),
         ],
       ),
@@ -436,8 +471,8 @@ class _BuildTaskRow extends StatelessWidget {
   }
 }
 
-class _LivePreviewCard extends StatelessWidget {
-  const _LivePreviewCard({required this.request, required this.onOpen});
+class _PrototypePreviewCard extends StatelessWidget {
+  const _PrototypePreviewCard({required this.request, required this.onOpen});
 
   final String request;
   final VoidCallback onOpen;
@@ -452,14 +487,14 @@ class _LivePreviewCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const PandoraStatusPill(
-                  label: 'Live preview available',
+                  label: 'Prototype preview',
                   icon: Icons.visibility_outlined,
-                  foreground: PandoraSimpleColors.green,
-                  background: PandoraSimpleColors.greenWash,
+                  foreground: PandoraSimpleColors.purple,
+                  background: PandoraSimpleColors.purpleWash,
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Preview your booking experience',
+                  'Preview the proposed experience',
                   style: TextStyle(
                     color: PandoraSimpleColors.ink,
                     fontSize: 17,
@@ -473,9 +508,14 @@ class _LivePreviewCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: pandoraSimpleMutedText,
                 ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This is a prototype. It is not deployed or production verified.',
+                  style: pandoraSimpleMutedText,
+                ),
                 const SizedBox(height: 14),
                 PandoraPrimaryButton(
-                  label: 'Open full preview',
+                  label: 'Open prototype',
                   icon: Icons.open_in_full_rounded,
                   onPressed: onOpen,
                 ),
@@ -574,7 +614,7 @@ class _FirstPreviewScreenState extends State<FirstPreviewScreen> {
   @override
   Widget build(BuildContext context) => PandoraSimplePage(
         header: PandoraOwnerHeader(
-          title: 'First preview',
+          title: 'Prototype',
           subtitle: widget.request,
           centerBrand: true,
           showBack: true,
@@ -605,7 +645,7 @@ class _FirstPreviewScreenState extends State<FirstPreviewScreen> {
             ),
             const SizedBox(height: 28),
             const Text(
-              "Here's your first preview",
+              "Here's the prototype",
               style: TextStyle(
                 color: PandoraSimpleColors.ink,
                 fontSize: 28,
@@ -615,7 +655,7 @@ class _FirstPreviewScreenState extends State<FirstPreviewScreen> {
             ),
             const SizedBox(height: 7),
             const Text(
-              'Pandora created a working preview. Nothing is live until you approve the governed result.',
+              'Pandora created a reviewable prototype. It is not live and nothing will be released until the governed result is approved and verified.',
               style: pandoraSimpleMutedText,
             ),
             const SizedBox(height: 18),
@@ -671,7 +711,7 @@ class _FirstPreviewScreenState extends State<FirstPreviewScreen> {
                   expanded: constraints.maxWidth < 520,
                 );
                 final approve = PandoraPrimaryButton(
-                  label: 'Looks great',
+                  label: 'Prototype looks right',
                   icon: Icons.check_rounded,
                   onPressed: () => _openPreview(
                     context,
@@ -767,7 +807,7 @@ class _PreviewSideRail extends StatelessWidget {
                 ),
                 const SizedBox(height: 13),
                 const Text(
-                  'What this system can do',
+                  'What the prototype demonstrates',
                   style: TextStyle(
                     color: PandoraSimpleColors.ink,
                     fontSize: 17,
@@ -781,7 +821,7 @@ class _PreviewSideRail extends StatelessWidget {
                 const _CapabilityLine('Works on mobile and desktop'),
                 const SizedBox(height: 14),
                 PandoraPrimaryButton(
-                  label: 'Open full preview',
+                  label: 'Open prototype',
                   icon: Icons.open_in_full_rounded,
                   onPressed: () => _openPreview(
                     context,
