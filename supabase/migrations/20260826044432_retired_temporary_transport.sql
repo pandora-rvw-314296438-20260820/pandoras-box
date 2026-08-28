@@ -1,0 +1,1 @@
+-- Historical tombstone for production migration version 20260826044432.\n-- Temporary recovery transport was later retired; intentionally no-op in canonical source.\n
