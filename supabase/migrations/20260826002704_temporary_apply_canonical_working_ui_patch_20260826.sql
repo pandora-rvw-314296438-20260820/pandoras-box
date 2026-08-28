@@ -1,0 +1,1 @@
+-- Historical tombstone for production migration 20260826002704 (temporary_apply_canonical_working_ui_patch_20260826).\n-- Original migration created a temporary recovery transport that was later retired by 20260828091417.\n-- Intentionally no-op so fresh installs preserve the final canonical state while migration history remains version-aligned.\n
