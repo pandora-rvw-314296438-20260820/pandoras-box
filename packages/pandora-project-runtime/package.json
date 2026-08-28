@@ -1,0 +1,7 @@
+{
+  "name": "@pandora/project-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.js",
+  "description": "Provider-independent Pandora project runtime contracts and safety primitives"
+}
