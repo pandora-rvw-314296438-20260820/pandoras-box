@@ -3,18 +3,9 @@
   "primitive": "pandora-crm@1.0.0",
   "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
   "files": [
-    {
-      "path": "core/src/events.js",
-      "sha256": "679f84c84aded138258092e5d10377c398e4f087b46454ebedf4690ae887d160"
-    },
-    {
-      "path": "crm/src/index.js",
-      "sha256": "f76883f05eb6c02b0f0259fe4e432d5b77a20b5a3fa9e709f156545909d1c557"
-    },
-    {
-      "path": "crm/migrations/001_crm.sql",
-      "sha256": "0d0cf03b6f056a62b40e4159e390c467d5770a862fa53761d56e378de6984e1b"
-    }
+    {"path": "core/src/events.js", "sha256": "679f84c84aded138258092e5d10377c398e4f087b46454ebedf4690ae887d160"},
+    {"path": "crm/src/index.js", "sha256": "f76883f05eb6c02b0f0259fe4e432d5b77a20b5a3fa9e709f156545909d1c557"},
+    {"path": "crm/migrations/001_crm.sql", "sha256": "c3118ae188c08dff0a13db7f0d31884fc396ea5d52a0b1845bfb048cf4bdd3c7"}
   ],
-  "bundleDigest": "sha256:9a2f1d6d9870238f5aaf790b1dbc3550c617b49f8575873bd4c5ae0724d6cce8"
+  "bundleDigest": "sha256:737166cb39bb3b8aba4cca3b1353be09873d0f96c97654cfdaaa0e2fbf98e4c9"
 }
