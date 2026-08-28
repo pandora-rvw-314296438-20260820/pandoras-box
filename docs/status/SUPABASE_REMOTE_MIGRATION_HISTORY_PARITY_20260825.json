@@ -877,18 +877,11 @@
             "replayMode": "history_receipt_noop",
             "originalSqlSha256": "02bffa1763ea90482a993526af41b6b23cfb6f005a534f0683d874ab71301145",
             "originalStatementCount": 1
-        },
-        {
-            "name": "pandora_worker_d_vercel_sandbox_broker_v1",
-            "version": "20260828225219",
-            "replayMode": "history_receipt_noop",
-            "originalSqlSha256": "f86e0a6b44144fb773c0f344866c685a26eefb648e16ae7e5852416d364cbfd2",
-            "originalStatementCount": 1
         }
     ],
     "projectRef": "jcyqixttuebxqqfkjonq",
     "repository": "pandora-rvw-314296438-20260820/pandoras-box",
     "generatedAt": "2026-08-25T17:15:27.687Z",
     "schemaVersion": 1,
-    "migrationCount": 126
+    "migrationCount": 125
 }
