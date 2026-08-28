@@ -48,6 +48,7 @@ function uuid(value: string): boolean {
 function parseOrigins(): Set<string> {
   const configured = Deno.env.get("PANDORA_ALLOWED_ORIGINS") || "";
   const candidates = [
+    "https://pandoras-box-system.vercel.app",
     "https://mcpmaster.vercel.app",
     "https://mcpmaster-hazel.vercel.app",
     "https://mcpmaster-mbanatao-dc676069.vercel.app",
