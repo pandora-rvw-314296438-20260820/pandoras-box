@@ -45,8 +45,7 @@ class MoreScreen extends StatelessWidget {
                   _MoreTile(
                     icon: Icons.query_stats_outlined,
                     title: 'Business',
-                    subtitle:
-                        'Signals, recommendations, and owner intelligence',
+                    subtitle: 'Signals, recommendations, and business insights',
                     onTap: () =>
                         _openMore(context, const OwnerIntelligenceScreen()),
                   ),
@@ -65,8 +64,9 @@ class MoreScreen extends StatelessWidget {
                   ),
                   _MoreTile(
                     icon: Icons.offline_pin_outlined,
-                    title: 'Offline evidence',
-                    subtitle: 'Read-only last-known proof for reference',
+                    title: 'Saved evidence',
+                    subtitle:
+                        'Last-known proof you can review without changing anything',
                     onTap: () =>
                         _openMore(context, const OfflineEvidenceScreen()),
                   ),
@@ -78,15 +78,14 @@ class MoreScreen extends StatelessWidget {
                   ),
                   _MoreTile(
                     icon: Icons.workspaces_outline,
-                    title: 'Projects',
-                    subtitle: 'Portfolio, blockers, progress, and proof',
+                    title: 'Systems',
+                    subtitle: 'Your systems, progress, blockers, and proof',
                     onTap: () => _openMore(context, const ProjectsScreen()),
                   ),
                   _MoreTile(
                     icon: Icons.cable_outlined,
                     title: 'Connections',
-                    subtitle:
-                        'Connected services, health, and governed actions',
+                    subtitle: 'Connected services, health, and safe actions',
                     onTap: () => _openMore(context, const ConnectionsScreen()),
                   ),
                 ],
@@ -101,25 +100,26 @@ class MoreScreen extends StatelessWidget {
                 children: [
                   _MoreTile(
                     icon: Icons.terminal_rounded,
-                    title: 'Governed command',
-                    subtitle: 'Advanced ProjectOS request surface',
+                    title: 'Advanced requests',
+                    subtitle: 'Advanced requests with technical controls',
                     onTap: () => _openMore(context, const CommandScreen()),
                   ),
                   _MoreTile(
                     icon: Icons.dashboard_customize_outlined,
-                    title: 'Classic owner dashboard',
+                    title: 'Detailed owner view',
                     subtitle: 'The detailed operational owner view',
                     onTap: () => _openMore(context, const HomeScreen()),
                   ),
                   _MoreTile(
                     icon: Icons.security_outlined,
-                    title: 'Safety diagnostics',
-                    subtitle: 'Detailed evidence, audit, and provider checks',
+                    title: 'Safety details',
+                    subtitle:
+                        'Detailed safety evidence, audit history, and connection checks',
                     onTap: () => _openMore(context, const SafetyScreen()),
                   ),
                   _MoreTile(
                     icon: Icons.developer_mode_outlined,
-                    title: 'Developer diagnostics',
+                    title: 'Developer details',
                     subtitle: 'Bounded technical diagnostics',
                     onTap: () =>
                         _openMore(context, const DeveloperDiagnosticsScreen()),

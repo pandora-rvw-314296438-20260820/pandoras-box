@@ -53,7 +53,7 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'No bounded evidence packet is available on this device yet.';
+        _error = 'No saved evidence is available on this device yet.';
       });
     }
   }
@@ -61,9 +61,9 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
   @override
   Widget build(BuildContext context) => PandoraSimplePage(
         header: PandoraOwnerHeader(
-          title: 'Offline evidence',
+          title: 'Saved evidence',
           subtitle:
-              'Read-only proof you can inspect without authorizing a change.',
+              'Last-known proof you can review without changing anything.',
           showBack: true,
           onBack: () => Navigator.of(context).maybePop(),
         ),
@@ -83,7 +83,7 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const Text(
-                          'No offline evidence available yet',
+                          'No saved evidence available yet',
                           style: TextStyle(
                             color: PandoraSimpleColors.ink,
                             fontSize: 20,
@@ -93,7 +93,7 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
                         const SizedBox(height: 8),
                         Text(
                           _error ??
-                              'Open Pandora while connected first so bounded read-only evidence can be retained.',
+                              'Open Pandora while connected first so a read-only copy of the latest evidence can be saved.',
                         ),
                         const SizedBox(height: 16),
                         PandoraPrimaryButton(
@@ -118,7 +118,7 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Read-only evidence packet',
+                  'Saved evidence',
                   style: TextStyle(
                     color: PandoraSimpleColors.ink,
                     fontSize: 20,
@@ -128,8 +128,8 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
                 const SizedBox(height: 7),
                 Text(
                   p.cached
-                      ? 'Last-known cached evidence. It may be stale and cannot authorize execution.'
-                      : 'Latest available evidence is shown. It remains read-only and does not authorize execution.',
+                      ? 'This is the last saved evidence. It may be out of date and cannot approve or start a change.'
+                      : 'This is the latest saved evidence. It is read-only and cannot approve or start a change.',
                   style: const TextStyle(
                     color: PandoraSimpleColors.muted,
                     height: 1.35,
@@ -143,7 +143,7 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
             shadow: false,
             child: Column(
               children: [
-                _row('Projects', p.projects),
+                _row('Systems', p.projects),
                 const Divider(color: PandoraSimpleColors.line),
                 _row('Connections', p.connections),
                 const Divider(color: PandoraSimpleColors.line),
@@ -163,7 +163,7 @@ class _OfflineEvidenceScreenState extends State<OfflineEvidenceScreen> {
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Offline evidence is informational only. Refresh live provider state before approving, releasing, or changing a system.',
+                    'Saved evidence is for reference only. Refresh the current system status before approving, releasing, or changing anything.',
                     style:
                         TextStyle(color: PandoraSimpleColors.ink, height: 1.35),
                   ),

@@ -31,11 +31,11 @@ void main() {
     expect(source, contains('_PandoraBottomBar('));
   });
 
-  test('professional safety diagnostics remain behind More', () {
+  test('professional safety details remain behind More', () {
     final source =
         File('lib/features/simple/more_screen.dart').readAsStringSync();
     expect(source, contains('const SimpleSafetyScreen()'));
-    expect(source, contains("title: 'Safety diagnostics'"));
+    expect(source, contains("title: 'Safety details'"));
     expect(source, contains('const SafetyScreen()'));
   });
 
@@ -49,7 +49,7 @@ void main() {
     final approvals =
         File('lib/features/approvals/approvals_screen.dart').readAsStringSync();
     expect(more, contains("title: 'Daily briefing'"));
-    expect(more, contains("title: 'Offline evidence'"));
+    expect(more, contains("title: 'Saved evidence'"));
     for (final label in const [
       'Needs me',
       'Active',

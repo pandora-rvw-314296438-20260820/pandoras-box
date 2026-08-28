@@ -124,7 +124,7 @@ class _SimpleSafetyScreenState extends State<SimpleSafetyScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Technical diagnostics stay out of the way',
+                      'Technical details stay out of the way',
                       style: TextStyle(
                         color: PandoraSimpleColors.ink,
                         fontSize: 15,
@@ -134,8 +134,8 @@ class _SimpleSafetyScreenState extends State<SimpleSafetyScreen> {
                     const SizedBox(height: 5),
                     Text(
                       safety.extraIdentityCheckAdvertised
-                          ? 'The live provider currently advertises an extra identity check. Pandora keeps that requirement explicit instead of silently bypassing it.'
-                          : 'Simple Mode shows business-safe conclusions here. Detailed provider diagnostics remain in Professional Mode under More.',
+                          ? 'A connected service currently requires an extra identity check. Pandora keeps that requirement visible instead of bypassing it.'
+                          : 'Simple Mode shows clear safety conclusions here. Detailed technical evidence remains in Professional Mode under More.',
                       style: const TextStyle(
                         color: PandoraSimpleColors.muted,
                         fontSize: 13.5,
@@ -565,22 +565,22 @@ bool _containsAny(String source, List<String> terms) =>
 enum _SafetyBucket {
   identityAccess(
     'Identity & Access',
-    'Who can act, which identity is active, and whether access is verified.',
+    'Who can act and whether their access is verified.',
     Icons.badge_outlined,
   ),
   approvalExecution(
     'Approval & Execution',
-    'Whether decisions, execution boundaries, audit integrity, and recovery are protected.',
+    'Whether protected decisions, changes, records, and recovery safeguards are working.',
     Icons.fact_check_outlined,
   ),
   sourceAuthority(
     'Source Authority',
-    'Whether code, repository identity, deployment source, and exact SHA remain bound.',
+    'Whether the approved source and the live result still match.',
     Icons.account_tree_outlined,
   ),
   runtimeSecrets(
     'Runtime & Secrets',
-    'Whether runtime services and secret boundaries are healthy without exposing credentials.',
+    'Whether connected services and protected credentials are operating safely.',
     Icons.lock_outline_rounded,
   );
 

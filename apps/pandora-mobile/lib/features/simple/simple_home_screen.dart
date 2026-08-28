@@ -1100,7 +1100,7 @@ class _ActivityCard extends StatelessWidget {
     if (summary.recentActivity.isEmpty) {
       return PandoraEmptyTruth(
         title: 'No recent verified activity',
-        message: 'Completed and provider-verified work will appear here.',
+        message: 'Completed and verified work will appear here.',
         actionLabel: 'Open activity',
         onAction: onOpenActivity,
       );
