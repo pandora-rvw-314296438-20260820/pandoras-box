@@ -78,7 +78,7 @@
     "@slack/web-api": "^8.0.0"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "0.5.4",
+    "@electric-sql/pglite": "0.5.7",
     "@types/node": "^24.0.0",
     "@types/express": "^5.0.6",
     "@types/cors": "^2.8.19",
