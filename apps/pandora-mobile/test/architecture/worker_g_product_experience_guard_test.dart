@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 const _journeyPath = 'lib/features/simple/project_journey_flow.dart';
+const _iterationPath = 'lib/features/simple/project_iteration_experience.dart';
 
 void main() {
   test('Simple Mode primary navigation is project-first and owner-safe', () {
@@ -39,8 +40,22 @@ void main() {
     expect(source, contains('PandoraOwnerBuildStage.previewReady'));
   });
 
+  test('preview changes require a governed change intent before rebuild', () {
+    final journey = File(_journeyPath).readAsStringSync();
+    final iteration = File(_iterationPath).readAsStringSync();
+    expect(journey, contains("label: 'Change something'"));
+    expect(journey, isNot(contains("'Build a new preview'")));
+    expect(iteration, contains("intentKind: 'change'"));
+    expect(iteration, contains('expectedSourceIntentId: sourceIntentId'));
+    expect(iteration, contains("label: 'Build updated preview'"));
+    expect(iteration, contains('Current live version stays untouched'));
+  });
+
   test('customer journey does not name infrastructure providers', () {
-    final source = File(_journeyPath).readAsStringSync();
+    final source = <String>[
+      File(_journeyPath).readAsStringSync(),
+      File(_iterationPath).readAsStringSync(),
+    ].join('\n');
     for (final forbidden in const [
       'Vercel',
       'Supabase',
