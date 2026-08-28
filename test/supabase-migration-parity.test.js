@@ -234,9 +234,12 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     assert.ok(durableCutoverSource.includes(marker), `durable cutover marker drift: ${marker}`);
   }
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
+  const appendedAtReplaySnapshot = appendedFiles.filter(
+    (filename) => filename <= replaySnapshotLast,
+  );
   assert.equal(
     currentReplayResult.migration_count,
-    recoveryReplayResult.migration_count + appendedFiles.length - postSnapshotFiles.length,
+    recoveryReplayResult.migration_count + appendedAtReplaySnapshot.length,
   );
   assert.equal(manifest.live_chain.first, '20260724010000');
   assert.equal(manifest.live_chain.last, '20260821024500');
