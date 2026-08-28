@@ -18,7 +18,7 @@ function createVerificationService(options = {}) {
     record_check: (runId, actor, result) => verifier.recordCheck(runId, actor, result),
     finalize_verification: (runId, actor) => verifier.finalize(runId, actor),
     invalidate_verification: (runId, reason, actor) => verifier.invalidate(runId, reason, actor),
-    assert_identity_current: (runId, request) => verifier.assertIdentityCurrent(runId, request),
+    assert_identity_current: (runId, request, actor) => verifier.assertIdentityCurrent(runId, request, actor),
     retry_verification: (runId, overrides = {}) => verifier.retry(runId, overrides),
     _engine: verifier,
   });
