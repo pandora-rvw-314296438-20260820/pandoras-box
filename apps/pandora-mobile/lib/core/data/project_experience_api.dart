@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../network/idempotency_key.dart';
@@ -14,6 +16,7 @@ class ProjectExperienceApi {
   final SupabaseClient _client;
   final String _organizationId;
   final IdempotencyKeyFactory _keys;
+  final Map<String, DateTime> _lastCompilationRequest = <String, DateTime>{};
 
   Future<String> submitIntent({
     required String projectId,
@@ -93,6 +96,7 @@ class ProjectExperienceApi {
 
       if (spec == null ||
           _text(spec['source_intent_id']) != expectedSourceIntentId) {
+        unawaited(_ensureCompilation(expectedSourceIntentId));
         return const OwnerProjectUnderstanding.waiting();
       }
 
@@ -101,6 +105,7 @@ class ProjectExperienceApi {
         return const OwnerProjectUnderstanding.rejected();
       }
       if (status != 'active') {
+        unawaited(_ensureCompilation(expectedSourceIntentId));
         return const OwnerProjectUnderstanding.waiting();
       }
 
@@ -150,7 +155,27 @@ class ProjectExperienceApi {
     }
   }
 
-  void beginAuthenticatedIdentityEpoch() {}
+  Future<void> _ensureCompilation(String sourceIntentId) async {
+    final now = DateTime.now();
+    final last = _lastCompilationRequest[sourceIntentId];
+    if (last != null && now.difference(last) < const Duration(seconds: 20)) {
+      return;
+    }
+    _lastCompilationRequest[sourceIntentId] = now;
+    try {
+      await _client.functions.invoke(
+        'pandora-project-spec-compiler',
+        body: <String, Object?>{'intentId': sourceIntentId},
+      );
+    } catch (_) {
+      // Compilation is authoritative server work. A transient trigger failure
+      // leaves the durable intent intact and the UI truthfully waiting.
+    }
+  }
+
+  void beginAuthenticatedIdentityEpoch() {
+    _lastCompilationRequest.clear();
+  }
 }
 
 class ProjectExperienceException implements Exception {
