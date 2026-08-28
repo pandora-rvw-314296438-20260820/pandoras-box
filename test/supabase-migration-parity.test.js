@@ -233,6 +233,15 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   ]) {
     assert.ok(durableCutoverSource.includes(marker), `durable cutover marker drift: ${marker}`);
   }
+  const restoredProductionHistory = [
+    '20260825223743_pandora_canonical_domain_cutover_20260826.sql',
+    ...retiredRestoredHistory,
+    '20260826051417_remove_temporary_github_security_helpers_20260826.sql',
+    '20260828091417_remove_temporary_recovery_transports_20260828.sql',
+    '20260828095054_remove_orphaned_canonical_ui_patch_function_20260828.sql',
+  ];
+  assert.equal(new Set(restoredProductionHistory).size, 14);
+  assert.ok(restoredProductionHistory.every((filename) => activeFiles.includes(filename)));
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   const appendedAtReplaySnapshot = appendedFiles.filter(
     (filename) => filename <= replaySnapshotLast,
@@ -246,9 +255,15 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   assert.equal(manifest.live_chain.historical_recovery_last, '20260810104737');
   assert.equal(manifest.live_chain.migration_count, 59);
   assert.equal(manifest.invariants.live_identity_count, 59);
-  assert.equal(manifest.invariants.source_file_count, activeFiles.length);
+  assert.equal(
+    manifest.invariants.source_file_count + restoredProductionHistory.length,
+    activeFiles.length,
+  );
   assert.equal(manifest.invariants.source_live_identity_coverage, 59);
-  assert.equal(manifest.invariants.source_only_forward_count, activeFiles.length - 59);
+  assert.equal(
+    manifest.invariants.source_only_forward_count + restoredProductionHistory.length,
+    activeFiles.length - 59,
+  );
   assert.equal(liveIdentityFiles.length, manifest.invariants.live_identity_count);
   assert.equal(new Set(liveIdentityFiles).size, liveIdentityFiles.length);
   assert.ok(liveIdentityFiles.every((filename) => activeFiles.includes(filename)));
