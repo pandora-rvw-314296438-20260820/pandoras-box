@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/analytics/owner_analytics.dart';
-import '../core/design/pandora_tokens.dart';
-import '../features/activity/activity_screen.dart';
+import '../core/widgets/pandora_mark.dart';
 import '../features/approvals/approvals_screen.dart';
-import '../features/command/command_screen.dart';
-import '../features/home/home_screen.dart';
-import '../features/projects/projects_screen.dart';
+import '../features/simple/ask_pandora_screen.dart';
+import '../features/simple/more_screen.dart';
+import '../features/simple/pandora_simple_ui.dart';
+import '../features/simple/simple_home_screen.dart';
+import '../features/simple/systems_screen.dart';
 
 class PandoraShell extends StatefulWidget {
   const PandoraShell({super.key});
@@ -19,8 +20,30 @@ class PandoraShell extends StatefulWidget {
 }
 
 class _PandoraShellState extends State<PandoraShell> {
+  static const _destinations = <_Destination>[
+    _Destination('Home', Icons.home_outlined, Icons.home_rounded),
+    _Destination('Systems', Icons.grid_view_outlined, Icons.grid_view_rounded),
+    _Destination(
+      'Ask Pandora',
+      Icons.auto_awesome_outlined,
+      Icons.auto_awesome_rounded,
+      emphasized: true,
+    ),
+    _Destination(
+      'Needs You',
+      Icons.notifications_none_rounded,
+      Icons.notifications_rounded,
+    ),
+    _Destination('More', Icons.menu_rounded, Icons.menu_rounded),
+  ];
+
+  final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(
+    _destinations.length,
+    (_) => GlobalKey<NavigatorState>(),
+  );
+  final Map<int, Widget> _roots = <int, Widget>{};
+  final Set<int> _visited = <int>{0};
   int _index = 0;
-  final Map<int, Widget> _pages = <int, Widget>{};
 
   @override
   void initState() {
@@ -34,28 +57,64 @@ class _PandoraShellState extends State<PandoraShell> {
     );
   }
 
-  Widget _page(int index) => _pages.putIfAbsent(
+  Widget _root(int index) => _roots.putIfAbsent(
         index,
         () => switch (index) {
-          0 => const HomeScreen(),
-          1 => const ProjectsScreen(),
-          2 => const CommandScreen(),
+          0 => SimpleHomeScreen(
+              onAskPandora: (prompt) => _openAskPandora(prompt),
+              onOpenSystems: () => _select(1),
+              onOpenNeedsYou: () => _select(3),
+              onOpenMore: () => _select(4),
+            ),
+          1 => const SystemsScreen(),
+          2 => const AskPandoraScreen(),
           3 => const ApprovalsScreen(),
-          4 => const ActivityScreen(),
-          _ => const HomeScreen(),
+          4 => const MoreScreen(),
+          _ => const SimpleHomeScreen(),
         },
       );
 
+  Widget _tabNavigator(int index) => Navigator(
+        key: _navigatorKeys[index],
+        onGenerateRoute: (settings) => MaterialPageRoute<void>(
+          settings: settings,
+          builder: (_) => _root(index),
+        ),
+      );
+
+  void _openAskPandora([String? prompt]) {
+    _select(2);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = _navigatorKeys[2].currentState;
+      if (navigator == null || prompt == null || prompt.trim().isEmpty) return;
+      navigator.push(
+        MaterialPageRoute<void>(
+          builder: (_) => AskPandoraScreen(initialPrompt: prompt),
+        ),
+      );
+    });
+  }
+
   void _select(int value) {
-    if (value == _index) return;
+    if (value < 0 || value >= _destinations.length) return;
+    if (value == _index) {
+      final navigator = _navigatorKeys[value].currentState;
+      if (navigator != null && navigator.canPop()) {
+        navigator.popUntil((route) => route.isFirst);
+      }
+      return;
+    }
     HapticFeedback.selectionClick();
-    setState(() => _index = value);
+    setState(() {
+      _index = value;
+      _visited.add(value);
+    });
     final screen = switch (value) {
       0 => 'home',
-      1 => 'projects',
-      2 => 'command',
-      3 => 'approvals',
-      4 => 'activity',
+      1 => 'systems',
+      2 => 'ask_pandora',
+      3 => 'needs_you',
+      4 => 'more',
       _ => 'home',
     };
     unawaited(
@@ -66,102 +125,270 @@ class _PandoraShellState extends State<PandoraShell> {
     );
   }
 
+  ThemeData _simpleTheme(ThemeData base) {
+    const scheme = ColorScheme.light(
+      primary: PandoraSimpleColors.red,
+      onPrimary: Colors.white,
+      primaryContainer: PandoraSimpleColors.blush,
+      onPrimaryContainer: PandoraSimpleColors.deepRed,
+      secondary: PandoraSimpleColors.red,
+      onSecondary: Colors.white,
+      surface: PandoraSimpleColors.surface,
+      onSurface: PandoraSimpleColors.ink,
+      error: Color(0xFFB42318),
+      onError: Colors.white,
+      outline: PandoraSimpleColors.line,
+      outlineVariant: Color(0xFFF0EFEC),
+    );
+    return base.copyWith(
+      brightness: Brightness.light,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: PandoraSimpleColors.canvas,
+      canvasColor: PandoraSimpleColors.canvas,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: PandoraSimpleColors.canvas,
+        foregroundColor: PandoraSimpleColors.ink,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+      dividerTheme: const DividerThemeData(
+        color: PandoraSimpleColors.line,
+        thickness: 1,
+        space: 1,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 15,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: PandoraSimpleColors.line),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(
+            color: PandoraSimpleColors.red,
+            width: 1.4,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFB42318)),
+        ),
+      ),
+    );
+  }
+
+  void _handleBack(bool didPop, Object? result) {
+    if (didPop) return;
+    final navigator = _navigatorKeys[_index].currentState;
+    if (navigator != null && navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    if (_index != 0) _select(0);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final destinations = <_Destination>[
-      const _Destination('Home', Icons.home_outlined, Icons.home_rounded),
-      const _Destination(
-        'Projects',
-        Icons.workspaces_outline,
-        Icons.workspaces_rounded,
-      ),
-      const _Destination(
-        'Command',
-        Icons.auto_awesome_outlined,
-        Icons.auto_awesome_rounded,
-      ),
-      const _Destination(
-        'Approvals',
-        Icons.approval_outlined,
-        Icons.approval_rounded,
-      ),
-      const _Destination(
-        'Activity',
-        Icons.history_outlined,
-        Icons.history_rounded,
-      ),
-    ];
     final body = IndexedStack(
       index: _index,
       children: [
-        for (var index = 0; index < destinations.length; index++)
-          _pages.containsKey(index) || index == _index
-              ? _page(index)
+        for (var index = 0; index < _destinations.length; index++)
+          _visited.contains(index) || index == _index
+              ? _tabNavigator(index)
               : const SizedBox.shrink(),
       ],
     );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= PandoraSize.wideBreakpoint;
-        if (wide) {
-          return Scaffold(
-            body: Row(
+
+    return Theme(
+      data: _simpleTheme(Theme.of(context)),
+      child: PopScope<Object?>(
+        canPop: false,
+        onPopInvokedWithResult: _handleBack,
+        child: Scaffold(
+          backgroundColor: PandoraSimpleColors.canvas,
+          body: body,
+          bottomNavigationBar: _PandoraBottomBar(
+            destinations: _destinations,
+            selectedIndex: _index,
+            onSelected: _select,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PandoraBottomBar extends StatelessWidget {
+  const _PandoraBottomBar({
+    required this.destinations,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final List<_Destination> destinations;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: const BoxDecoration(
+          color: PandoraSimpleColors.surface,
+          border: Border(top: BorderSide(color: PandoraSimpleColors.line)),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x12000000),
+              blurRadius: 18,
+              offset: Offset(0, -5),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 86,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                SafeArea(
-                  child: NavigationRail(
-                    selectedIndex: _index,
-                    onDestinationSelected: _select,
-                    labelType: NavigationRailLabelType.all,
-                    destinations: [
-                      for (final destination in destinations)
-                        NavigationRailDestination(
-                          icon: Icon(destination.icon),
-                          selectedIcon: Icon(destination.selectedIcon),
-                          label: Text(destination.label),
-                        ),
-                    ],
+                for (var index = 0; index < destinations.length; index++)
+                  Expanded(
+                    child: _BottomDestination(
+                      destination: destinations[index],
+                      selected: index == selectedIndex,
+                      onTap: () => onSelected(index),
+                    ),
                   ),
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(child: body),
               ],
             ),
-          );
-        }
-        final palette = context.pandoraPalette;
-        return Scaffold(
-          body: body,
-          bottomNavigationBar: DecoratedBox(
-            decoration: BoxDecoration(
-              color: palette.strongSurface,
-              border: Border(top: BorderSide(color: palette.outlineSoft)),
-            ),
-            child: SafeArea(
-              top: false,
-              child: NavigationBar(
-                selectedIndex: _index,
-                onDestinationSelected: _select,
-                destinations: [
-                  for (final destination in destinations)
-                    NavigationDestination(
-                      icon: Icon(destination.icon),
-                      selectedIcon: Icon(destination.selectedIcon),
-                      label: destination.label,
-                    ),
-                ],
-              ),
+          ),
+        ),
+      );
+}
+
+class _BottomDestination extends StatelessWidget {
+  const _BottomDestination({
+    required this.destination,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _Destination destination;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground =
+        selected ? PandoraSimpleColors.red : const Color(0xFF4E4E4B);
+    if (destination.emphasized) {
+      return Semantics(
+        selected: selected,
+        button: true,
+        label: destination.label,
+        child: InkResponse(
+          onTap: onTap,
+          radius: 42,
+          child: Transform.translate(
+            offset: const Offset(0, -15),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 66,
+                  height: 66,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: PandoraSimpleColors.red,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 5),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x36000000),
+                        blurRadius: 16,
+                        offset: Offset(0, 7),
+                      ),
+                    ],
+                  ),
+                  child: const PandoraMark(size: 34, color: Colors.white),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  destination.label,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    color: PandoraSimpleColors.deepRed,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      );
+    }
+
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: destination.label,
+      child: InkResponse(
+        onTap: onTap,
+        radius: 34,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(2, 12, 2, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                selected ? destination.selectedIcon : destination.icon,
+                color: foreground,
+                size: 27,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                destination.label,
+                maxLines: 1,
+                overflow: TextOverflow.fade,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 11.5,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: selected ? 34 : 0,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: PandoraSimpleColors.red,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
 
 class _Destination {
-  const _Destination(this.label, this.icon, this.selectedIcon);
+  const _Destination(
+    this.label,
+    this.icon,
+    this.selectedIcon, {
+    this.emphasized = false,
+  });
 
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+  final bool emphasized;
 }

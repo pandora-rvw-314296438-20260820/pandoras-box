@@ -17,7 +17,7 @@
     "check:browser": "node scripts/check-browser-syntax.mjs",
     "check:mirrors": "node scripts/verify-frontend-mirrors.mjs",
     "check:supabase": "node scripts/check-supabase-syntax.mjs",
-    "check:supabase:types": "npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts",
+    "check:supabase:types": "npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-user-admin/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts",
     "check:supabase:replay": "node scripts/replay-supabase-migrations.mjs",
     "check": "tsc -p tsconfig.json --noEmit && tsc -p packages/shared-security/tsconfig.json --noEmit && tsc -p apps/meta-business-mcp/tsconfig.json --noEmit && tsc -p tsconfig.vercel.json && npm run check:browser && npm run check:mirrors && npm run check:supabase && npm run check:supabase:types && npm run check:supabase:replay",
     "test": "npm run build && node --test test/*.test.js apps/meta-business-mcp/test/*.test.js packages/shared-security/test/*.test.js && npm run test:worker",
@@ -59,10 +59,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/banataosystems/Pandoras-box.git"
+    "url": "git+https://github.com/pandora-rvw-314296438-20260820/pandoras-box.git"
   },
   "bugs": {
-    "url": "https://github.com/banataosystems/Pandoras-box/issues"
+    "url": "https://github.com/pandora-rvw-314296438-20260820/pandoras-box/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
@@ -86,7 +86,7 @@
     "@types/three": "^0.158.3",
     "typescript": "^5.3.0",
     "ts-node": "^10.9.0",
-    "@vercel/node": "^3.0.0"
+    "@vercel/node": "5.10.2"
   },
   "engines": {
     "node": ">=24.0.0 <25.0.0"
@@ -94,6 +94,9 @@
   "overrides": {
     "ajv": "^8.18.0",
     "fast-uri": "4.1.2",
-    "hono": "4.13.0"
+    "hono": "4.13.0",
+    "undici": "6.28.0",
+    "path-to-regexp": "6.3.0",
+    "diff": "4.0.4"
   }
 }

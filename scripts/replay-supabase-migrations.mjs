@@ -91,7 +91,8 @@ async function bootstrap(db) {
     create table auth.users (
       id uuid primary key,
       raw_user_meta_data jsonb not null default '{}'::jsonb,
-      is_anonymous boolean not null default false
+      is_anonymous boolean not null default false,
+      email_confirmed_at timestamptz
     );
     create table auth.sessions (
       id uuid primary key,
