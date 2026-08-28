@@ -17,6 +17,7 @@ module.exports = {
   ...require("./durability"),
   ...require("./control-plane"),
   ...require("./cross-worker"),
+  ...require("./worker-adapters"),
   ...require("./secrets"),
   ...require("./adapters"),
   ...require("./receipts"),
