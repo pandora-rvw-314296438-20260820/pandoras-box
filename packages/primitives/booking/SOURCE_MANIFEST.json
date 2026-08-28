@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-booking@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {"path":"core/src/events.js","sha256":"679f84c84aded138258092e5d10377c398e4f087b46454ebedf4690ae887d160"},
+    {"path":"booking/src/index.js","sha256":"afed90a46ca217899ef6a75f299d47f3e8b39c645ab2bc8ae7c90e92925f75e8"},
+    {"path":"booking/migrations/001_booking.sql","sha256":"f37497edcb94776e4bc2d465175a07d154e901cb939246997968e9db20aeedb9"}
+  ],
+  "bundleDigest": "sha256:51465976ab10d5fe7882f1b59e5b90edb2debb64a4518e01f7e034089e1c12ad"
+}
