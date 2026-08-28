@@ -57,7 +57,7 @@ async function makeDb() {
     );
     create table public.projectos_projects (
       id uuid primary key,
-      org_id uuid not null references public.organizations(id),
+      organization_id uuid not null references public.organizations(id),
       created_by uuid not null references auth.users(id),
       name text not null
     );
@@ -106,7 +106,7 @@ test('ProjectSpec migration is replayable and enforces immutable version lineage
     insert into public.organizations(id, name) values ('${org}', 'Replay Org');
     insert into public.memberships(organization_id, user_id, role, status)
       values ('${org}', '${user}', 'owner', 'active');
-    insert into public.projectos_projects(id, org_id, created_by, name)
+    insert into public.projectos_projects(id, organization_id, created_by, name)
       values ('${project}', '${org}', '${user}', 'Replay Project');
   `);
 
@@ -205,7 +205,7 @@ test('ProjectSpec RLS allows member intent intake but blocks identity spoofing a
     insert into public.organizations(id, name) values ('${org}', 'RLS Org');
     insert into public.memberships(organization_id, user_id, role, status)
       values ('${org}', '${user}', 'member', 'active');
-    insert into public.projectos_projects(id, org_id, created_by, name)
+    insert into public.projectos_projects(id, organization_id, created_by, name)
       values ('${project}', '${org}', '${user}', 'RLS Project');
     select set_config(
       'request.jwt.claims',

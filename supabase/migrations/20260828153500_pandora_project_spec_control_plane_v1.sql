@@ -15,7 +15,7 @@ as $$
     select 1
     from public.projectos_projects p
     where p.id = p_project_id
-      and p.org_id = p_organization_id
+      and p.organization_id = p_organization_id
   );
 $$;
 
