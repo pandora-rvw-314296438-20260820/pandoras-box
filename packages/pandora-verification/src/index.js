@@ -1,9 +1,13 @@
+
 "use strict";
 
 const contracts = require("./contracts");
 const registry = require("./registry");
 const checks = require("./checks");
 const engine = require("./engine");
+const execution = require("./execution");
+const orchestrator = require("./orchestrator");
+const controlPlane = require("./control-plane");
 
 function createVerificationService(options = {}) {
   const verifier = new engine.VerificationEngine(options);
@@ -24,4 +28,4 @@ function createVerificationService(options = {}) {
   });
 }
 
-module.exports = Object.freeze({ ...contracts, ...registry, ...checks, ...engine, createVerificationService });
+module.exports = Object.freeze({ ...contracts, ...registry, ...checks, ...engine, ...execution, ...orchestrator, ...controlPlane, createVerificationService });
