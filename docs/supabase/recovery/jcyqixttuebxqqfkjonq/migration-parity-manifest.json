@@ -36,7 +36,7 @@
     "migration_count": 52,
     "chain_sha256": "77e2dbe177cac4eddd8b6de03bc98cd98c4c4d2bfd5a0dfd7bde6cff174a56fb",
     "reconciled_migration_count": 87,
-    "reconciled_chain_sha256": "fc4a11b76d859abd856c5f3481df7fb2e04746ae4864ebc2c7c1f0072c685794",
+    "reconciled_chain_sha256": "8fb1b8c80c020a719919efd57966e7734df3ccd1b7c9747b03abd6b17c7b0de5",
     "authorization_smoke": "pass",
     "database_rollback_smoke": "pass"
   },
@@ -67,9 +67,9 @@
     "reconciled_recovery_chain_sha256": "fd919e3a587bd5e910154eec815c05e0074c2ccbe079e427de1030bcf2001c93",
     "legacy_aug17_chain_sha256": "aed27b85780da567ee8b3939e72b6d6d3318d4fe1d088081e18c71bed6c38b04",
     "reconciled_aug17_chain_sha256": "fd612a0dfbf34ab462112898b3050f39fb1c4d2a62b371961e719944c8cea390",
-    "current_source_replay_chain_sha256": "fc4a11b76d859abd856c5f3481df7fb2e04746ae4864ebc2c7c1f0072c685794",
-    "current_source_receipt_chain_sha256": "1f797b3e2096abe9ae3ed86552b3a40bed24d7bb84b13fc6c03ed7e51eb08d03",
-    "expected_applied_receipt_chain_sha256": "a09d0c9cae4b846a635ddd4a154fb89694d15fd8d9d1a231a33a9cc8d38f2507",
+    "current_source_replay_chain_sha256": "8fb1b8c80c020a719919efd57966e7734df3ccd1b7c9747b03abd6b17c7b0de5",
+    "current_source_receipt_chain_sha256": "a05f48895d75bed2f2a2fb143a909239d6a3cfd8cd91f94f9a8addf1f6621e2d",
+    "expected_applied_receipt_chain_sha256": "d1e3fe59f9f0c5029a0ce881eb328bd6c713512177f7e5340ea0bb58d23c7c25",
     "replay_chain_delimiter": "filename:sha256\\n",
     "receipt_chain_delimiter": "filename\\tsha256\\n",
     "live_only_sensitive_bodies_republished": false
