@@ -1,0 +1,30 @@
+name: Pandora Intelligence
+on:
+  pull_request:
+    paths:
+      - 'packages/pandora-intelligence/**'
+      - 'docs/architecture/PANDORA_INTELLIGENCE_*.md'
+      - '.github/workflows/pandora-intelligence.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/pandora-intelligence/**'
+      - 'docs/architecture/PANDORA_INTELLIGENCE_*.md'
+      - '.github/workflows/pandora-intelligence.yml'
+permissions:
+  contents: read
+jobs:
+  deterministic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Build Pandora Intelligence
+        run: ./node_modules/.bin/tsc -p packages/pandora-intelligence/tsconfig.json
+      - name: Test Pandora Intelligence
+        run: node --test packages/pandora-intelligence/test/*.test.js
