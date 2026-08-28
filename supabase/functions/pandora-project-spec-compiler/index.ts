@@ -67,6 +67,11 @@ function text(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function tokenCount(value: unknown) {
+  const parsed = Number(value ?? 0);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : 0;
+}
+
 function stringArray(value: unknown, field: string, required = false) {
   if (value == null) {
     if (required) throw new Error("INVALID_STRUCTURED_OUTPUT");
@@ -219,17 +224,27 @@ Deno.serve(async (req) => {
     claimToken = text(claim.claimToken);
     if (!claimToken) throw new Error("COMPILATION_CLAIM_FAILED");
 
+    const requestId = crypto.randomUUID();
+    const providerRequest = modelRequest(record(intent), record(project));
+    const requestDigest = await sha256(JSON.stringify(providerRequest));
     const { data: modelData, error: modelError } = await admin.rpc("pandora_worker_b_gemini_request_20260829", {
       p_model: MODEL,
-      p_body: modelRequest(record(intent), record(project)),
+      p_body: providerRequest,
     });
     if (modelError) throw new Error("PROVIDER_UNAVAILABLE");
-    const outputText = providerText(record(modelData));
+    const modelEnvelope = record(modelData);
+    const outputText = providerText(modelEnvelope);
+    const responseDigest = await sha256(outputText);
+    const providerBody = record(modelEnvelope.body);
+    const usage = record(providerBody.usageMetadata);
+    const inputTokens = tokenCount(usage.promptTokenCount);
+    const outputTokens = tokenCount(usage.candidatesTokenCount);
+    const totalTokens = Math.max(tokenCount(usage.totalTokenCount), inputTokens, outputTokens);
+    const modelRevision = text(providerBody.modelVersion) || MODEL;
     let parsed: unknown;
     try { parsed = JSON.parse(outputText); } catch { throw new Error("INVALID_STRUCTURED_OUTPUT"); }
     const candidate = validateCandidate(parsed);
     const digest = await sha256(JSON.stringify(candidate));
-    const requestId = crypto.randomUUID();
     const { data: committed, error: commitError } = await admin.rpc("pandora_commit_compiled_project_spec_20260829", {
       p_source_intent_id: intentId,
       p_claim_token: claimToken,
@@ -239,6 +254,13 @@ Deno.serve(async (req) => {
       p_compiler_version: COMPILER_VERSION,
       p_compiler_provenance: { request_id: requestId, transport: "vault_server_boundary", structured_output: true },
       p_content_sha256: digest,
+      p_model_request_id: requestId,
+      p_model_request_sha256: requestDigest,
+      p_model_response_sha256: responseDigest,
+      p_model_input_tokens: inputTokens,
+      p_model_output_tokens: outputTokens,
+      p_model_total_tokens: totalTokens,
+      p_model_revision: modelRevision,
     });
     if (commitError || text(record(committed).state) !== "succeeded") throw new Error("COMMIT_FAILED");
     return response({ ok: true, state: "ready" });
