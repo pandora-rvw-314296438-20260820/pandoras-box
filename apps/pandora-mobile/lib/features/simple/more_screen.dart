@@ -15,6 +15,7 @@ import '../projects/projects_screen.dart';
 import '../safety/safety_screen.dart';
 import '../settings/settings_screen.dart';
 import '../team/team_screen.dart';
+import 'simple_safety_screen.dart';
 
 void _openMore(BuildContext context, Widget screen) {
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
@@ -56,9 +57,9 @@ class MoreScreen extends StatelessWidget {
                   _MoreTile(
                     icon: Icons.shield_outlined,
                     title: 'Verify & Safety',
-                    subtitle:
-                        'Evidence, audit integrity, and protected controls',
-                    onTap: () => _openMore(context, const SafetyScreen()),
+                    subtitle: 'Four clear protection layers, without a score',
+                    onTap: () =>
+                        _openMore(context, const SimpleSafetyScreen()),
                   ),
                 ],
               ),
@@ -93,6 +94,12 @@ class MoreScreen extends StatelessWidget {
                     title: 'Classic owner dashboard',
                     subtitle: 'The detailed operational owner view',
                     onTap: () => _openMore(context, const HomeScreen()),
+                  ),
+                  _MoreTile(
+                    icon: Icons.security_outlined,
+                    title: 'Safety diagnostics',
+                    subtitle: 'Detailed evidence, audit, and provider checks',
+                    onTap: () => _openMore(context, const SafetyScreen()),
                   ),
                   _MoreTile(
                     icon: Icons.developer_mode_outlined,
