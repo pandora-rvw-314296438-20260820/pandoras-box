@@ -9,6 +9,8 @@ const execution = require("./execution");
 const orchestrator = require("./orchestrator");
 const controlPlane = require("./control-plane");
 const freshness = require("./freshness");
+const workerAdapters = require("./worker-adapters");
+const reports = require("./reports");
 
 function createVerificationService(options = {}) {
   const verifier = new engine.VerificationEngine(options);
@@ -30,4 +32,4 @@ function createVerificationService(options = {}) {
   });
 }
 
-module.exports = Object.freeze({ ...contracts, ...registry, ...checks, ...engine, ...execution, ...orchestrator, ...controlPlane, ...freshness, createVerificationService });
+module.exports = Object.freeze({ ...contracts, ...registry, ...checks, ...engine, ...execution, ...orchestrator, ...controlPlane, ...freshness, ...workerAdapters, ...reports, createVerificationService });
