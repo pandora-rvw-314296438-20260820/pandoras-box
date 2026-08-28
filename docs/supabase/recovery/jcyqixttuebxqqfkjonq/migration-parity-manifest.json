@@ -35,8 +35,8 @@
     "provider_equivalence": false,
     "migration_count": 52,
     "chain_sha256": "77e2dbe177cac4eddd8b6de03bc98cd98c4c4d2bfd5a0dfd7bde6cff174a56fb",
-    "reconciled_migration_count": 78,
-    "reconciled_chain_sha256": "7648ee272f0a9cc650c27ecb80b28e1d7b3719ebc818f89f8c8118823cec7c2c",
+    "reconciled_migration_count": 79,
+    "reconciled_chain_sha256": "f849b8342e0e6b938f2df3863f5acb010def7ccf70771af1fa0c3f96d36abe98",
     "authorization_smoke": "pass",
     "database_rollback_smoke": "pass"
   },
