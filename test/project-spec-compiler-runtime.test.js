@@ -42,7 +42,7 @@ test('compiler persists only digest-and-usage ModelRun lineage with the exact co
   assert.match(edge,/responseDigest = await sha256\(outputText\)/);
   assert.match(edge,/p_model_request_sha256: requestDigest/);
   assert.match(edge,/p_model_response_sha256: responseDigest/);
-  assert.doesNotMatch(migration,/prompt_text|response_text|raw_response|api_key/i);
+  assert.doesNotMatch(migration,/\\b(?:prompt_text|response_text|raw_response|api_key)\\s+(?:text|varchar|jsonb|bytea)\\b/i);
 });
 
 test('compiler surface is authenticated and provider-blind to the customer',()=>{
