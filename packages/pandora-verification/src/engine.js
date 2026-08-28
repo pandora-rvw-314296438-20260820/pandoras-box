@@ -6,18 +6,20 @@ const {
 } = require("./contracts");
 const { CHECK_REGISTRY, PROFILES, DEFAULT_LIMITS } = require("./registry");
 const { cacheKeyForCheck } = require("./checks");
+const { freshnessExpiry, evaluateFreshness } = require("./freshness");
 
 function snapshot(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function releaseReadiness(run, requirements = []) {
+function releaseReadiness(run, requirements = [], now = Date.now()) {
   const required = run.required_checks ?? [];
   const results = run.results ?? [];
   const failed = results.filter((result) => result.status === "FAIL").map((result) => result.check_id);
   const blocked = results.filter((result) => ["BLOCKED", "INCONCLUSIVE"].includes(result.status)).map((result) => result.check_id);
   const missing = required.filter((id) => !results.some((result) => result.check_id === id));
-  const publishEligible = run.status === "PASS" && !run.invalidated_at && !failed.length && !blocked.length && !missing.length;
+  const freshness = evaluateFreshness(required, results, now);
+  const publishEligible = run.status === "PASS" && !run.invalidated_at && !failed.length && !blocked.length && !missing.length && !freshness.expired_checks.length;
   return Object.freeze({
     verification_run_id: run.verification_run_id,
     project_spec_id: run.request.project_spec_id,
@@ -31,6 +33,9 @@ function releaseReadiness(run, requirements = []) {
     failed_checks: failed,
     blocked_checks: blocked,
     missing_checks: missing,
+    expired_checks: [...freshness.expired_checks],
+    freshness: freshness.state,
+    freshness_evaluated_at: freshness.evaluated_at,
     requirement_coverage: requirementCoverage(requirements, results),
     publish_eligible: publishEligible,
     evidence_refs: [...new Set(results.flatMap((result) => result.evidence_refs ?? []))],
@@ -105,6 +110,7 @@ class VerificationEngine {
     if (result.status === "PASS" && result.authoritative === false) throw new Error("non-authoritative evidence cannot produce PASS");
     if (result.identity_digest && result.identity_digest !== run.identity_digest) throw new Error("verification result identity mismatch");
     if (result.duration_ms != null && result.duration_ms > this.limits.maxCheckDurationMs) throw new Error("verification check exceeded resource limit");
+    const recordedAt = this.clock().toISOString();
     const normalized = Object.freeze({
       check_id: result.check_id,
       category: definition.category,
@@ -120,9 +126,9 @@ class VerificationEngine {
       tool_version: result.tool_version ?? null,
       duration_ms: result.duration_ms ?? null,
       cache_key: result.cache_key ?? cacheKeyForCheck(result.check_id, run.request, run.identity_digest),
-      expires_at: result.expires_at ?? null,
+      expires_at: result.expires_at ?? freshnessExpiry(result.check_id, recordedAt),
       identity_digest: run.identity_digest,
-      recorded_at: this.clock().toISOString(),
+      recorded_at: recordedAt,
       authoritative_issuer: this.#trustedIssuer,
     });
     const existing = run.results.findIndex((item) => item.check_id === normalized.check_id && item.requirement_id === normalized.requirement_id && item.acceptance_criterion_id === normalized.acceptance_criterion_id);
@@ -184,7 +190,12 @@ class VerificationEngine {
   }
 
   getVerificationSummary(runId, requirements = []) {
-    return releaseReadiness(this.#requireRun(runId), requirements);
+    return releaseReadiness(this.#requireRun(runId), requirements, this.clock().getTime());
+  }
+
+  getVerificationFreshness(runId) {
+    const run = this.#requireRun(runId);
+    return evaluateFreshness(run.required_checks, run.results, this.clock().getTime());
   }
 
   getReleaseReadiness(runId, requirements = []) {
