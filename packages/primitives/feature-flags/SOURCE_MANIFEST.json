@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-feature-flags@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {
+      "path": "feature-flags/src/index.js",
+      "sha256": "b46c81d4c45be40d1b5138db84635ab2c3c80c27fa3b06b4e2486f369fa14000"
+    }
+  ],
+  "bundleDigest": "sha256:83ffd7d4522cbc34e21a7c1fb322ec3b0a01dfdc9972ec22c0f78ec722995636"
+}
