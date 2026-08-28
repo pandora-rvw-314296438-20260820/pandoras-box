@@ -376,13 +376,89 @@ async function createProject(context: UserContext, body: JsonRecord) {
 async function runtimeSummary(context: UserContext, identifier: string) {
   const project = await projectByIdentifier(context, identifier);
   const projectId = textValue(project.id);
+  const admin = serviceClient();
   const [preview, production, domain] = await Promise.all([
-    context.client.from("pandora_project_deployments").select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview").order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    context.client.from("pandora_project_deployments").select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    context.client.from("pandora_project_domains").select("id, domain, status, verified, primary_domain, verification, updated_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("primary_domain", true).limit(1).maybeSingle(),
+    admin.from("pandora_project_deployments").select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    admin.from("pandora_project_deployments").select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    admin.from("pandora_project_domains").select("id, domain, status, verified, primary_domain, verification, updated_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("primary_domain", true).limit(1).maybeSingle(),
   ]);
   if (preview.error || production.error || domain.error) throw new Error("BACKEND_READ_FAILED");
-  return { project: projectResponse(project), preview: preview.data || null, production: production.data || null, domain: domain.data || null };
+
+  let verificationState = "not_checked_yet";
+  let publishEligible = false;
+  let verificationCheckedAt: string | null = null;
+  let verificationVersionId: string | null = null;
+  if (preview.data) {
+    const previewRow = asRecord(preview.data);
+    const versionId = textValue(previewRow.version_id);
+    verificationVersionId = versionId || null;
+    if (versionId) {
+      const { data: versionData, error: versionError } = await admin.from("pandora_project_versions")
+        .select("id, project_spec_id, build_job_id, source_sha256, source_commit, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, verification_run_id, lifecycle_status, created_at")
+        .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", versionId).maybeSingle();
+      if (versionError) throw new Error("BACKEND_READ_FAILED");
+      const version = asRecord(versionData);
+      const boundVerificationId = textValue(version.verification_run_id);
+      let verificationQuery = admin.from("pandora_verification_runs")
+        .select("id, project_spec_id, project_version_id, build_job_id, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, status, completed_at, created_at")
+        .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("project_version_id", versionId);
+      verificationQuery = boundVerificationId
+        ? verificationQuery.eq("id", boundVerificationId)
+        : verificationQuery.order("created_at", { ascending: false }).limit(1);
+      const { data: verificationData, error: verificationError } = await verificationQuery.maybeSingle();
+      if (verificationError) throw new Error("BACKEND_READ_FAILED");
+      if (verificationData) {
+        const verification = asRecord(verificationData);
+        const status = textValue(verification.status).toUpperCase();
+        verificationCheckedAt = textValue(verification.completed_at) || textValue(verification.created_at) || null;
+        if (new Set(["PENDING", "RUNNING", "QUEUED"]).has(status)) {
+          verificationState = "checking";
+        } else if (status === "PASS") {
+          const completedAt = Date.parse(textValue(verification.completed_at));
+          const versionCreatedAt = Date.parse(textValue(version.created_at));
+          const previewCreatedAt = Date.parse(textValue(previewRow.created_at));
+          const exact = Boolean(
+            textValue(version.project_spec_id) &&
+            textValue(version.build_job_id) &&
+            textValue(version.source_commit) &&
+            textValue(version.artifact_digest_sha256) &&
+            textValue(previewRow.provider_deployment_id) &&
+            textValue(verification.project_spec_id) === textValue(version.project_spec_id) &&
+            textValue(verification.project_version_id) === versionId &&
+            textValue(verification.build_job_id) === textValue(version.build_job_id) &&
+            textValue(verification.source_commit) === textValue(version.source_commit) &&
+            textValue(verification.source_digest) === textValue(version.source_sha256) &&
+            textValue(verification.artifact_digest) === textValue(version.artifact_digest_sha256) &&
+            textValue(verification.migration_set_digest) === textValue(version.migration_set_digest_sha256) &&
+            textValue(verification.runtime_target_digest) === textValue(version.runtime_target_digest_sha256) &&
+            textValue(verification.preview_deployment_id) === textValue(previewRow.provider_deployment_id) &&
+            textValue(verification.target_environment) === "preview" &&
+            Number.isFinite(completedAt) && Number.isFinite(versionCreatedAt) && Number.isFinite(previewCreatedAt) &&
+            completedAt >= Math.max(versionCreatedAt, previewCreatedAt)
+          );
+          verificationState = exact ? "verified" : "needs_attention";
+          publishEligible = exact;
+        } else {
+          verificationState = "needs_attention";
+        }
+      } else if (textValue(version.lifecycle_status) === "verification_pending") {
+        verificationState = "checking";
+      }
+    }
+  }
+
+  return {
+    project: projectResponse(project),
+    preview: preview.data || null,
+    production: production.data || null,
+    domain: domain.data || null,
+    verification: {
+      state: verificationState,
+      publishEligible,
+      versionId: verificationVersionId,
+      checkedAt: verificationCheckedAt,
+    },
+  };
 }
 
 async function createPreview(context: UserContext, identifier: string) {
