@@ -1,6 +1,9 @@
 [functions.pandora-owner-api]
 verify_jwt = true
 
+[functions.pandora-project-runtime]
+verify_jwt = true
+
 [functions.pandora-user-admin]
 verify_jwt = true
 
