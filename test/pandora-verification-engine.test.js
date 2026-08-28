@@ -112,7 +112,7 @@ test("exact artifact mismatch invalidates previous verification eligibility", ()
   engine.start(run.verification_run_id, authorityToken);
   passRequired(engine, authorityToken, run.verification_run_id);
   engine.finalize(run.verification_run_id, authorityToken);
-  assert.equal(engine.assertIdentityCurrent(run.verification_run_id, request({ artifact_digest: D("f") })), false);
+  assert.equal(engine.assertIdentityCurrent(run.verification_run_id, request({ artifact_digest: D("f") }), authorityToken), false);
   assert.equal(engine.getVerification(run.verification_run_id).status, "STALE");
   assert.equal(engine.getReleaseReadiness(run.verification_run_id).publish_eligible, false);
 });
