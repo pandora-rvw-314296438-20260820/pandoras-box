@@ -89,3 +89,10 @@ test("customer runtime edge function uses Vault-backed Vercel broker",()=>{
  assert.equal(source.includes("pandora_worker_f_vercel_request_20260829"),true);
  assert.equal(source.includes("SUPABASE_SERVICE_ROLE_KEY"),true);
 });
+
+
+test("Worker F source pins the current live Vercel account scope",()=>{
+ const sql=require("node:fs").readFileSync("supabase/migrations/20260829104000_pandora_worker_f_runtime_state.sql","utf8");
+ assert.equal(sql.includes("team_3yw1CN59ce4pj5SwyQGCAqN3"),true);
+ assert.equal(sql.includes("team_IcdJUnzLi5wUN1GD8ALHyjF7"),false);
+});
