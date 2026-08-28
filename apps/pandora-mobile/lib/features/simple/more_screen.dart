@@ -45,8 +45,7 @@ class MoreScreen extends StatelessWidget {
                   _MoreTile(
                     icon: Icons.query_stats_outlined,
                     title: 'Business',
-                    subtitle:
-                        'Signals, recommendations, and business insights',
+                    subtitle: 'Signals, recommendations, and business insights',
                     onTap: () =>
                         _openMore(context, const OwnerIntelligenceScreen()),
                   ),
@@ -86,8 +85,7 @@ class MoreScreen extends StatelessWidget {
                   _MoreTile(
                     icon: Icons.cable_outlined,
                     title: 'Connections',
-                    subtitle:
-                        'Connected services, health, and safe actions',
+                    subtitle: 'Connected services, health, and safe actions',
                     onTap: () => _openMore(context, const ConnectionsScreen()),
                   ),
                 ],
