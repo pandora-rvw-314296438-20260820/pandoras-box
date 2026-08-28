@@ -1,3 +1,5 @@
+> Closure update: the gaps captured below describe the pre-Worker-A baseline. A1-A15 are implemented by the first three Worker A migrations; A16-A20 are closed by `20260828193000_pandora_realtime_audit_security_v1.sql`, `PANDORA_CONTROL_PLANE_V1.md`, and their exact-source verification gates. Keep this file as baseline evidence; the canonical implemented architecture is `PANDORA_CONTROL_PLANE_V1.md`.
+
 # Pandora Worker A — Control Plane Gap Map
 
 Baseline inspected: 2026-08-28  
