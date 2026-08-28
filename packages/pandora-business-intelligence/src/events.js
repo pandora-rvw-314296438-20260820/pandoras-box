@@ -28,7 +28,7 @@ function validateEventEnvelope(input, options = {}) {
   if (kind === 'pandora_internal_event' && options.trustedInternal !== true) throw new TypeError('Pandora internal events require a trusted server boundary');
   const eventScope = scope(value.scope);
   const schemaVersion = requireString(value.schemaVersion ?? '1.0.0', 'schemaVersion', 32);
-  if (!/^\d+\.\d+\.\d+$/.test(schemaVersion)) throw new TypeError(lschemaVersion must be semantic version format`);
+  if (!/^\d+\.\d+\.\d+$/.test(schemaVersion)) throw new TypeError('schemaVersion must be semantic version format');
   const properties = sanitizeProperties(value.properties ?? {});
   const normalized = { kind, event, scope: eventScope, schemaVersion, properties };
   const bytes = Buffer.byteLength(JSON.stringify(normalized), 'utf8');
