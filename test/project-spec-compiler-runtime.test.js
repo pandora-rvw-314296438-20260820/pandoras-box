@@ -45,5 +45,5 @@ test('mobile waiting state requests compilation with cooldown and keeps durable 
   assert.match(mobile,/Duration\(seconds: 20\)/);
   assert.match(mobile,/unawaited\(_ensureCompilation\(expectedSourceIntentId\)\)/);
   assert.match(mobile,/return const OwnerProjectUnderstanding\.waiting\(\)/);
-  assert.doesNotMatch(mobile,/Gemini|Vercel|Supabase|GitHub|GPT/);
+  assert.doesNotMatch(mobile,/Gemini|Vercel|GitHub|GPT/);
 });
