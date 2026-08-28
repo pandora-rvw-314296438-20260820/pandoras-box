@@ -60,6 +60,18 @@ class MoreScreen extends StatelessWidget {
                         'Evidence, audit integrity, and protected controls',
                     onTap: () => _openMore(context, const SafetyScreen()),
                   ),
+                  _MoreTile(
+                    icon: Icons.workspaces_outline,
+                    title: 'Projects',
+                    subtitle: 'Portfolio, blockers, progress, and proof',
+                    onTap: () => _openMore(context, const ProjectsScreen()),
+                  ),
+                  _MoreTile(
+                    icon: Icons.cable_outlined,
+                    title: 'Connections',
+                    subtitle: 'Connected services, health, and governed actions',
+                    onTap: () => _openMore(context, const ConnectionsScreen()),
+                  ),
                 ],
               ),
             ),
@@ -70,18 +82,7 @@ class MoreScreen extends StatelessWidget {
                   'Technical details stay here until you intentionally open them.',
               child: Column(
                 children: [
-                  _MoreTile(
-                    icon: Icons.workspaces_outline,
-                    title: 'Projects',
-                    subtitle: 'Detailed phases, tasks, and evidence',
-                    onTap: () => _openMore(context, const ProjectsScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.cable_outlined,
-                    title: 'Connections',
-                    subtitle: 'Provider scopes and connection state',
-                    onTap: () => _openMore(context, const ConnectionsScreen()),
-                  ),
+
                   _MoreTile(
                     icon: Icons.terminal_rounded,
                     title: 'Governed command',
