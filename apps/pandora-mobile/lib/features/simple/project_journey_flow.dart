@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/models/pandora_models.dart';
 import '../../core/models/project_journey_models.dart';
+import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../approvals/approvals_screen.dart';
 import '../settings/settings_screen.dart';
@@ -27,7 +27,7 @@ Future<void> _launchProjectUrl(BuildContext context, String? value) async {
     }
     return;
   }
-  final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  final opened = await PandoraNativeIo.openExternalUrl(uri.toString());
   if (!opened && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Pandora could not open that link.')),
