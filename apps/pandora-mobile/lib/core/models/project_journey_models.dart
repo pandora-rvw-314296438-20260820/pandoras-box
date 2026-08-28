@@ -90,13 +90,19 @@ class CustomerProject {
     final json = asJsonMap(value);
     return CustomerProject(
       id: requiredJsonText(json, const ['id'], field: 'customerProject.id'),
-      projectKey: requiredJsonText(json, const [
-        'projectKey',
-        'project_key',
-      ], field: 'customerProject.projectKey'),
-      name: requiredJsonText(json, const [
-        'name',
-      ], field: 'customerProject.name'),
+      projectKey: requiredJsonText(
+          json,
+          const [
+            'projectKey',
+            'project_key',
+          ],
+          field: 'customerProject.projectKey'),
+      name: requiredJsonText(
+          json,
+          const [
+            'name',
+          ],
+          field: 'customerProject.name'),
       objective: jsonText(json['objective']),
       buildKind: ProjectBuildKind.parse(json['buildKind']),
       stage: jsonText(json['stage'], fallback: 'idea'),
@@ -173,9 +179,12 @@ class ProjectRuntimeDomain {
     final json = asJsonMap(value);
     return ProjectRuntimeDomain(
       id: requiredJsonText(json, const ['id'], field: 'projectDomain.id'),
-      domain: requiredJsonText(json, const [
-        'domain',
-      ], field: 'projectDomain.domain'),
+      domain: requiredJsonText(
+          json,
+          const [
+            'domain',
+          ],
+          field: 'projectDomain.domain'),
       status: jsonText(json['status'], fallback: 'pending'),
       verified: jsonBool(json['verified']),
       primary: jsonBool(json['primary_domain']),
@@ -204,9 +213,8 @@ class ProjectRuntimeSnapshot {
     final domain = json['domain'];
     return ProjectRuntimeSnapshot(
       project: CustomerProject.fromJson(json['project']),
-      preview: preview == null
-          ? null
-          : ProjectRuntimeDeployment.fromJson(preview),
+      preview:
+          preview == null ? null : ProjectRuntimeDeployment.fromJson(preview),
       production: production == null
           ? null
           : ProjectRuntimeDeployment.fromJson(production),

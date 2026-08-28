@@ -109,108 +109,109 @@ class _CreateProjectFlowScreenState extends State<CreateProjectFlowScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraSimplePage(
-    header: PandoraOwnerHeader(
-      title: 'New Project',
-      subtitle: 'Tell Pandora what you want to create.',
-      centerBrand: true,
-      showBack: true,
-      onBack: () => Navigator.of(context).maybePop(),
-      onNotifications: () => _openJourney(context, const ApprovalsScreen()),
-      onAvatar: () => _openJourney(context, const SettingsScreen()),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'What are we building?',
-          style: TextStyle(
-            color: PandoraSimpleColors.ink,
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -.6,
-          ),
+        header: PandoraOwnerHeader(
+          title: 'New Project',
+          subtitle: 'Tell Pandora what you want to create.',
+          centerBrand: true,
+          showBack: true,
+          onBack: () => Navigator.of(context).maybePop(),
+          onNotifications: () => _openJourney(context, const ApprovalsScreen()),
+          onAvatar: () => _openJourney(context, const SettingsScreen()),
         ),
-        const SizedBox(height: 8),
-        const Text(
-          'Choose a starting point. Pandora can change the shape later as it learns more.',
-          style: pandoraSimpleMutedText,
-        ),
-        const SizedBox(height: 20),
-        TextField(
-          controller: _name,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Project name',
-            hintText: 'PLP Boracay',
-          ),
-        ),
-        const SizedBox(height: 14),
-        TextField(
-          controller: _objective,
-          minLines: 4,
-          maxLines: 8,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            labelText: 'What should this accomplish?',
-            hintText: 'Build a premium resort website where guests can explore rooms, check availability and make reservations.',
-          ),
-        ),
-        const SizedBox(height: 22),
-        const PandoraSectionTitle(title: 'Starting shape'),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final kind in ProjectBuildKind.values)
-              ChoiceChip(
-                label: Text(kind.label),
-                selected: _kind == kind,
-                onSelected: _submitting
-                    ? null
-                    : (_) => setState(() => _kind = kind),
-                selectedColor: PandoraSimpleColors.blush,
-                side: BorderSide(
-                  color: _kind == kind
-                      ? PandoraSimpleColors.red
-                      : PandoraSimpleColors.line,
-                ),
-                labelStyle: TextStyle(
-                  color: _kind == kind
-                      ? PandoraSimpleColors.deepRed
-                      : PandoraSimpleColors.ink,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Text(_kind.description, style: pandoraSimpleMutedText),
-        if (_error != null) ...[
-          const SizedBox(height: 16),
-          PandoraSimpleCard(
-            shadow: false,
-            backgroundColor: const Color(0xFFFFF4F5),
-            borderColor: const Color(0xFFF0C3CA),
-            child: Text(
-              _error!,
-              style: const TextStyle(
-                color: PandoraSimpleColors.deepRed,
-                height: 1.35,
+            const Text(
+              'What are we building?',
+              style: TextStyle(
+                color: PandoraSimpleColors.ink,
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -.6,
               ),
             ),
-          ),
-        ],
-        const SizedBox(height: 24),
-        PandoraPrimaryButton(
-          label: _submitting ? 'Creating project…' : 'Start building',
-          icon: Icons.auto_awesome_rounded,
-          loading: _submitting,
-          onPressed: _submitting ? null : _create,
-          expanded: true,
+            const SizedBox(height: 8),
+            const Text(
+              'Choose a starting point. Pandora can change the shape later as it learns more.',
+              style: pandoraSimpleMutedText,
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _name,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Project name',
+                hintText: 'PLP Boracay',
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _objective,
+              minLines: 4,
+              maxLines: 8,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'What should this accomplish?',
+                hintText:
+                    'Build a premium resort website where guests can explore rooms, check availability and make reservations.',
+              ),
+            ),
+            const SizedBox(height: 22),
+            const PandoraSectionTitle(title: 'Starting shape'),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final kind in ProjectBuildKind.values)
+                  ChoiceChip(
+                    label: Text(kind.label),
+                    selected: _kind == kind,
+                    onSelected: _submitting
+                        ? null
+                        : (_) => setState(() => _kind = kind),
+                    selectedColor: PandoraSimpleColors.blush,
+                    side: BorderSide(
+                      color: _kind == kind
+                          ? PandoraSimpleColors.red
+                          : PandoraSimpleColors.line,
+                    ),
+                    labelStyle: TextStyle(
+                      color: _kind == kind
+                          ? PandoraSimpleColors.deepRed
+                          : PandoraSimpleColors.ink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(_kind.description, style: pandoraSimpleMutedText),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              PandoraSimpleCard(
+                shadow: false,
+                backgroundColor: const Color(0xFFFFF4F5),
+                borderColor: const Color(0xFFF0C3CA),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(
+                    color: PandoraSimpleColors.deepRed,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            PandoraPrimaryButton(
+              label: _submitting ? 'Creating project…' : 'Start building',
+              icon: Icons.auto_awesome_rounded,
+              loading: _submitting,
+              onPressed: _submitting ? null : _create,
+              expanded: true,
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class ProjectBuildTheatreScreen extends StatefulWidget {
@@ -348,8 +349,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                       state: index < _stage
                           ? _StageState.complete
                           : index == _stage
-                          ? _StageState.current
-                          : _StageState.pending,
+                              ? _StageState.current
+                              : _StageState.pending,
                       last: index == _steps.length - 1,
                     ),
                 ],
@@ -533,8 +534,7 @@ class _TheatreMark extends StatelessWidget {
             AnimatedBuilder(
               animation: controller,
               builder: (context, child) => Transform.rotate(
-                angle:
-                    (frozen ? item.$1 : controller.value + item.$1) *
+                angle: (frozen ? item.$1 : controller.value + item.$1) *
                     6.283185307179586,
                 child: Transform.translate(
                   offset: Offset(item.$2, 0),
@@ -801,9 +801,8 @@ class _ProjectJourneyWorkspaceScreenState
       onRefresh: _load,
       header: PandoraOwnerHeader(
         title: title,
-        subtitle: project?.isLive == true
-            ? 'Live project'
-            : 'Project workspace',
+        subtitle:
+            project?.isLive == true ? 'Live project' : 'Project workspace',
         centerBrand: true,
         showBack: true,
         onBack: () => Navigator.of(context).maybePop(),
@@ -820,172 +819,175 @@ class _ProjectJourneyWorkspaceScreenState
               ),
             )
           : _snapshot == null
-          ? PandoraSimpleCard(
-              shadow: false,
-              backgroundColor: const Color(0xFFFFF4F5),
-              borderColor: const Color(0xFFF0C3CA),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    _error ?? 'Project details are unavailable.',
-                    style: const TextStyle(color: PandoraSimpleColors.deepRed),
-                  ),
-                  const SizedBox(height: 14),
-                  PandoraSecondaryButton(
-                    label: 'Try again',
-                    icon: Icons.refresh_rounded,
-                    onPressed: _load,
-                  ),
-                ],
-              ),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    PandoraStatusPill(
-                      label: project!.isLive
-                          ? 'Live'
-                          : project.hasPreview
-                          ? 'Preview ready'
-                          : 'Working',
-                      icon: project.isLive
-                          ? Icons.public_rounded
-                          : project.hasPreview
-                          ? Icons.visibility_outlined
-                          : Icons.auto_awesome_rounded,
-                      foreground: project.isLive
-                          ? PandoraSimpleColors.green
-                          : PandoraSimpleColors.blue,
-                      background: project.isLive
-                          ? PandoraSimpleColors.greenWash
-                          : PandoraSimpleColors.blueWash,
-                    ),
-                    const Spacer(),
-                    Text(
-                      project.buildKind.label,
-                      style: pandoraSimpleMutedText,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                PandoraSimpleCard(
+              ? PandoraSimpleCard(
+                  shadow: false,
+                  backgroundColor: const Color(0xFFFFF4F5),
+                  borderColor: const Color(0xFFF0C3CA),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Text(
-                        'What this project should accomplish',
-                        style: TextStyle(
-                          color: PandoraSimpleColors.ink,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      Text(
+                        _error ?? 'Project details are unavailable.',
+                        style:
+                            const TextStyle(color: PandoraSimpleColors.deepRed),
                       ),
-                      const SizedBox(height: 7),
-                      Text(project.objective, style: pandoraSimpleMutedText),
+                      const SizedBox(height: 14),
+                      PandoraSecondaryButton(
+                        label: 'Try again',
+                        icon: Icons.refresh_rounded,
+                        onPressed: _load,
+                      ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 16),
-                if (_snapshot!.preview != null)
-                  _ProjectLinkCard(
-                    title: 'Current preview',
-                    url: _snapshot!.preview!.url,
-                    status: _snapshot!.preview!.status,
-                    icon: Icons.visibility_outlined,
-                    onOpen: () =>
-                        _launchProjectUrl(context, _snapshot!.preview!.url),
-                  ),
-                if (_snapshot!.production != null) ...[
-                  if (_snapshot!.preview != null) const SizedBox(height: 12),
-                  _ProjectLinkCard(
-                    title: 'Live version',
-                    url: project.liveUrl ?? _snapshot!.production!.url,
-                    status: _snapshot!.production!.status,
-                    icon: Icons.public_rounded,
-                    onOpen: () => _launchProjectUrl(
-                      context,
-                      project.liveUrl ?? _snapshot!.production!.url,
-                    ),
-                  ),
-                ],
-                if (_snapshot!.domain != null) ...[
-                  const SizedBox(height: 12),
-                  PandoraSimpleCard(
-                    shadow: false,
-                    child: Row(
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
                       children: [
-                        PandoraIconBadge(
-                          icon: Icons.language_rounded,
-                          foreground: _snapshot!.domain!.verified
+                        PandoraStatusPill(
+                          label: project!.isLive
+                              ? 'Live'
+                              : project.hasPreview
+                                  ? 'Preview ready'
+                                  : 'Working',
+                          icon: project.isLive
+                              ? Icons.public_rounded
+                              : project.hasPreview
+                                  ? Icons.visibility_outlined
+                                  : Icons.auto_awesome_rounded,
+                          foreground: project.isLive
                               ? PandoraSimpleColors.green
-                              : PandoraSimpleColors.amber,
-                          background: _snapshot!.domain!.verified
+                              : PandoraSimpleColors.blue,
+                          background: project.isLive
                               ? PandoraSimpleColors.greenWash
-                              : PandoraSimpleColors.amberWash,
+                              : PandoraSimpleColors.blueWash,
                         ),
-                        const SizedBox(width: 13),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _snapshot!.domain!.domain,
-                                style: const TextStyle(
-                                  color: PandoraSimpleColors.ink,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _snapshot!.domain!.verified
-                                    ? 'Domain connected'
-                                    : 'Domain verification required',
-                                style: pandoraSimpleMutedText,
-                              ),
-                            ],
-                          ),
+                        const Spacer(),
+                        Text(
+                          project.buildKind.label,
+                          style: pandoraSimpleMutedText,
                         ),
                       ],
                     ),
-                  ),
-                ],
-                if (_error != null) ...[
-                  const SizedBox(height: 14),
-                  PandoraSimpleCard(
-                    shadow: false,
-                    backgroundColor: const Color(0xFFFFF4F5),
-                    borderColor: const Color(0xFFF0C3CA),
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(
-                        color: PandoraSimpleColors.deepRed,
+                    const SizedBox(height: 18),
+                    PandoraSimpleCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'What this project should accomplish',
+                            style: TextStyle(
+                              color: PandoraSimpleColors.ink,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Text(project.objective,
+                              style: pandoraSimpleMutedText),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                PandoraPrimaryButton(
-                  label: project.hasPreview
-                      ? 'Build a new preview'
-                      : 'Build preview',
-                  icon: Icons.auto_awesome_rounded,
-                  onPressed: _publishing ? null : _buildAgain,
-                  expanded: true,
+                    const SizedBox(height: 16),
+                    if (_snapshot!.preview != null)
+                      _ProjectLinkCard(
+                        title: 'Current preview',
+                        url: _snapshot!.preview!.url,
+                        status: _snapshot!.preview!.status,
+                        icon: Icons.visibility_outlined,
+                        onOpen: () =>
+                            _launchProjectUrl(context, _snapshot!.preview!.url),
+                      ),
+                    if (_snapshot!.production != null) ...[
+                      if (_snapshot!.preview != null)
+                        const SizedBox(height: 12),
+                      _ProjectLinkCard(
+                        title: 'Live version',
+                        url: project.liveUrl ?? _snapshot!.production!.url,
+                        status: _snapshot!.production!.status,
+                        icon: Icons.public_rounded,
+                        onOpen: () => _launchProjectUrl(
+                          context,
+                          project.liveUrl ?? _snapshot!.production!.url,
+                        ),
+                      ),
+                    ],
+                    if (_snapshot!.domain != null) ...[
+                      const SizedBox(height: 12),
+                      PandoraSimpleCard(
+                        shadow: false,
+                        child: Row(
+                          children: [
+                            PandoraIconBadge(
+                              icon: Icons.language_rounded,
+                              foreground: _snapshot!.domain!.verified
+                                  ? PandoraSimpleColors.green
+                                  : PandoraSimpleColors.amber,
+                              background: _snapshot!.domain!.verified
+                                  ? PandoraSimpleColors.greenWash
+                                  : PandoraSimpleColors.amberWash,
+                            ),
+                            const SizedBox(width: 13),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _snapshot!.domain!.domain,
+                                    style: const TextStyle(
+                                      color: PandoraSimpleColors.ink,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _snapshot!.domain!.verified
+                                        ? 'Domain connected'
+                                        : 'Domain verification required',
+                                    style: pandoraSimpleMutedText,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: 14),
+                      PandoraSimpleCard(
+                        shadow: false,
+                        backgroundColor: const Color(0xFFFFF4F5),
+                        borderColor: const Color(0xFFF0C3CA),
+                        child: Text(
+                          _error!,
+                          style: const TextStyle(
+                            color: PandoraSimpleColors.deepRed,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    PandoraPrimaryButton(
+                      label: project.hasPreview
+                          ? 'Build a new preview'
+                          : 'Build preview',
+                      icon: Icons.auto_awesome_rounded,
+                      onPressed: _publishing ? null : _buildAgain,
+                      expanded: true,
+                    ),
+                    if (project.hasPreview) ...[
+                      const SizedBox(height: 10),
+                      PandoraSecondaryButton(
+                        label: _publishing ? 'Publishing…' : 'Publish',
+                        icon: Icons.rocket_launch_outlined,
+                        onPressed: _publishing ? null : _publish,
+                        expanded: true,
+                      ),
+                    ],
+                  ],
                 ),
-                if (project.hasPreview) ...[
-                  const SizedBox(height: 10),
-                  PandoraSecondaryButton(
-                    label: _publishing ? 'Publishing…' : 'Publish',
-                    icon: Icons.rocket_launch_outlined,
-                    onPressed: _publishing ? null : _publish,
-                    expanded: true,
-                  ),
-                ],
-              ],
-            ),
     );
   }
 }
@@ -1007,51 +1009,51 @@ class _ProjectLinkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
-    child: Row(
-      children: [
-        PandoraIconBadge(
-          icon: icon,
-          foreground: PandoraSimpleColors.blue,
-          background: PandoraSimpleColors.blueWash,
-          size: 50,
-        ),
-        const SizedBox(width: 13),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: PandoraSimpleColors.ink,
-                  fontWeight: FontWeight.w700,
-                ),
+        child: Row(
+          children: [
+            PandoraIconBadge(
+              icon: icon,
+              foreground: PandoraSimpleColors.blue,
+              background: PandoraSimpleColors.blueWash,
+              size: 50,
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: PandoraSimpleColors.ink,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    url ?? 'Deployment URL is still being prepared',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: pandoraSimpleMutedText,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    status.replaceAll('_', ' '),
+                    style: const TextStyle(
+                      color: PandoraSimpleColors.green,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                url ?? 'Deployment URL is still being prepared',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: pandoraSimpleMutedText,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                status.replaceAll('_', ' '),
-                style: const TextStyle(
-                  color: PandoraSimpleColors.green,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
+            ),
+            IconButton(
+              tooltip: 'Open',
+              onPressed: url == null ? null : onOpen,
+              icon: const Icon(Icons.open_in_new_rounded),
+            ),
+          ],
         ),
-        IconButton(
-          tooltip: 'Open',
-          onPressed: url == null ? null : onOpen,
-          icon: const Icon(Icons.open_in_new_rounded),
-        ),
-      ],
-    ),
-  );
+      );
 }
