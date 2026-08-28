@@ -84,7 +84,7 @@ class ProjectRuntimeManager {
       const current = await this.store.getCurrentProductionVersion(request.projectId);
       assertProductionPrecondition(current, request);
       const verification = await this.store.getVerification(request.verificationRef);
-      if (!verification || verification.projectVersionId !== request.projectVersionId || verification.artifactDigest !== request.artifactDigest || verification.status !== "pass" || verification.stale === true) {
+      if (!verification || verification.projectVersionId !== request.projectVersionId || verification.artifactDigest !== request.artifactDigest || String(verification.status || "").toUpperCase() !== "PASS" || verification.stale === true) {
         throw new Error("fresh independent verification for exact artifact is required");
       }
       assertExactLineage(request, previewFact);
