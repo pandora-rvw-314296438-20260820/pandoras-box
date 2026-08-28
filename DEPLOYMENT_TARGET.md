@@ -4,7 +4,7 @@ Updated: 2026-08-08 (Asia/Manila)
 
 ## Source of truth
 
-- Canonical GitHub repository: `banataosystems/Pandoras-box`
+- Canonical GitHub repository: `pandora-rvw-314296438-20260820/pandoras-box`
 - Canonical branch: `main`
 - The suspended `mbanatao/mcpmaster` repository is recovery provenance only and MUST NOT be used as an operational deployment source.
 
@@ -15,7 +15,7 @@ Updated: 2026-08-08 (Asia/Manila)
 - Team ID: `team_IcdJUnzLi5wUN1GD8ALHyjF7`
 - Production resource origin: `https://mcpmaster.vercel.app`
 
-The Vercel project ID and project name should remain unchanged during Git relinking so the existing Vercel OIDC workload identity remains stable. The Git source must be changed to `banataosystems/Pandoras-box` rather than creating a new production identity unless a separately reviewed migration is approved.
+The Vercel project ID and project name should remain unchanged during Git relinking so the existing Vercel OIDC workload identity remains stable. The Git source must be changed to `pandora-rvw-314296438-20260820/pandoras-box` rather than creating a new production identity unless a separately reviewed migration is approved.
 
 ## Verified stale linkage
 
@@ -26,7 +26,7 @@ It is not, by itself, the cause of the current MCP 401: Vercel Deployment Protec
 ## Required production repair
 
 1. Disconnect the Vercel `mcpmaster` project from the suspended Git repository.
-2. Connect the same Vercel project to `banataosystems/Pandoras-box`, branch `main`.
+2. Connect the same Vercel project to `pandora-rvw-314296438-20260820/pandoras-box`, branch `main`.
 3. Preserve the existing Vercel project ID and production aliases.
 4. Enable Vercel Protection Bypass for Automation for machine-to-machine MCP access.
 5. Configure the ChatGPT/Pandora MCP transport to send `x-vercel-protection-bypass` without storing the secret in GitHub or Pandora Memory.
