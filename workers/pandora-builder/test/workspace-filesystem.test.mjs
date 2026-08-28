@@ -36,7 +36,7 @@ test('rejects symlink escape', async () => {
   await writeFile(path.join(outside, 'secret.txt'), 'secret');
   const manager = new WorkspaceManager({ baseRoot: path.join(parent, 'workspaces') });
   const created = await manager.create(identity);
-  await symlink(outside, path.join(created.root, 'escape'));
+  await symlink(outside, path.join(created.root, 'escape'), process.platform === 'win32' ? 'junction' : 'dir');
   await assert.rejects(() => manager.resolvePath(created.root, 'escape/secret.txt'), /WORKSPACE_SYMLINK_ESCAPE/);
   await manager.cleanup(identity);
 });
