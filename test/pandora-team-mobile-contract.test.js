@@ -45,4 +45,6 @@ test('server authority remains in the Edge Function', () => {
   assert.match(fn, /auth\.admin\s*\.inviteUserByEmail/);
   assert.match(fn, /pandora_admin_add_organization_member/);
   assert.match(fn, /ADMIN_ROLE_REQUIRED/);
+  assert.match(fn, /https:\/\/pandoras-box-system\.vercel\.app/);
+  assert.match(fn, /https:\/\/mcpmaster\.vercel\.app/);
 });

@@ -765,11 +765,109 @@
             "replayMode": "history_receipt_noop",
             "originalSqlSha256": "7901285482d9b360df6656072158ca894d5fdbc664adf649a18d90cf38f12851",
             "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_canonical_domain_cutover_20260826",
+            "version": "20260825223743",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "4e6f4f6c3ff6a9a111c7d643723bd1fc0c6146d40159e4e5cbaadaa6d7c3b14d",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_apply_canonical_working_ui_patch_20260826",
+            "version": "20260826002704",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "72cbd367dc7a7db032c4a5fe8a968827a6ef048f5ce42370565710fc3bf078c9",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_stage_canonical_ui_patch_payload_20260826",
+            "version": "20260826002936",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "a222762bdf33dc0ff6b5cc964dc389fd2d69734e7ed4a1d9448d0a5072950b0f",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "fix_temporary_canonical_ui_patch_object_count_20260826",
+            "version": "20260826004028",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "ce1e558e9467f6d3cc1948e0eb4beddfa864667dbde7d3fb413e2021f45c319e",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "temporary_pandora_team_github_secret_bridge_20260826",
+            "version": "20260826044432",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "5a108aa585163c5b57e09cdefd814d68131698b41a64193b4583937f835524c0",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "fix_temporary_pandora_team_github_secret_bridge_role_check_20260826",
+            "version": "20260826044622",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "28b79f9678d802da1dcbdd91266bd51f6a950e95e7a8be3a744fef849167c74c",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "allow_committed_nonce_for_temporary_pandora_team_secret_bridge_20260826",
+            "version": "20260826044908",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "d19bdf6b1165034dfd6d7cc085613c2b74c419f072378a26c94ac88fdc1a550b",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "github_pat_safe_probe",
+            "version": "20260826050315",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "f058865713d6e961a5b0e45bab82e8bd62c6caf411259fa21c2305593d1f4d11",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "github_security_baseline_apply",
+            "version": "20260826050344",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "43a0d98f2e8d19dc2793d9f0c26721c4b931c64661251200264510a83eb75283",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "github_security_state_probe",
+            "version": "20260826050418",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "ea4a6b152ea5c7c5ad0789d3b926465ae96b076210ba206fa2cfefb84065a3e8",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "github_security_pr_create",
+            "version": "20260826050438",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "727cc5e95ffd1f4ff6144a3fd885711717812a4bafa623e433d01f8a33373df7",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_temporary_github_security_helpers_20260826",
+            "version": "20260826051417",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "eac6269e5455f7527b133bd73321d19acf4d25de76d50b232b31b1f7ea53e196",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_temporary_recovery_transports_20260828",
+            "version": "20260828091417",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "01feedb4d78830b324d6a257bbc8bf6aae45437f7fbdcdb2e8d5d0ab217cd555",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "remove_orphaned_canonical_ui_patch_function_20260828",
+            "version": "20260828095054",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "3362d1a5f0122923cf51ad568dd9b43cde7b9dfdfdab850421b860b5de032d4b",
+            "originalStatementCount": 1
         }
     ],
     "projectRef": "jcyqixttuebxqqfkjonq",
     "repository": "pandora-rvw-314296438-20260820/pandoras-box",
     "generatedAt": "2026-08-25T17:15:27.687Z",
     "schemaVersion": 1,
-    "migrationCount": 109
+    "migrationCount": 123
 }
