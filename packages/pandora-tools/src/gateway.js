@@ -42,7 +42,7 @@ class PandoraToolGateway {
     const stateHash = resolved.project_state_hash ?? null;
     const risk = effectiveRisk(definition, args);
     const actionHash = computeActionHash({ tool: definition.name, version: definition.version, arguments: args, organization_id: context.organization_id, project_id: project.id, environment: context.environment, target_resource: targetResource, project_version: projectVersion, policy_version: POLICY_VERSION });
-    await recordLineage(this.lineage, "tool_proposal", { tool_call_id: toolCallId, model_run_id: context.model_run_id || null, build_job_id: context.build_job_id || null, project_spec_version: context.project_spec_version || null, project_id: project.id, organization_id: context.organization_id, tool: definition.name, tool_version: definition.version, action_hash: actionHash, requirement_refs: proposal.requirement_refs || [] });
+    await recordLineage(this.lineage, "tool_proposal", { tool_call_id: toolCallId, model_run_id: context.model_run_id || null, build_job_id: context.build_job_id || null, project_spec_id: context.project_spec_id || resolved.project_spec_id || null, project_spec_version: context.project_spec_version || null, project_version_id: projectVersion, project_id: project.id, organization_id: context.organization_id, environment: context.environment, target_resource: targetResource, tool: definition.name, tool_version: definition.version, policy_version: POLICY_VERSION, arguments_sha256: sha256Hex(canonicalizeJson(args)), risk, side_effect: definition.sideEffect, retry_mode: definition.retry, idempotency_mode: definition.idempotency, idempotency_key: args.idempotency_key || null, request_id: args.request_id || null, approval_required: definition.approval === "REQUIRED" || ["HIGH","CRITICAL"].includes(risk), action_hash: actionHash, requirement_refs: proposal.requirement_refs || [] });
 
     let approval = null;
     let grant = null;
@@ -86,7 +86,7 @@ class PandoraToolGateway {
         await this.approvalStore.consume(grant.approval_id, actionHash, now);
       }
 
-      await recordLineage(this.lineage, "tool_execution_started", { tool_call_id: toolCallId, action_hash: actionHash, executor: definition.executor, project_id: project.id });
+      await recordLineage(this.lineage, "tool_execution_started", { tool_call_id: toolCallId, action_hash: actionHash, executor: definition.executor, organization_id: context.organization_id, project_id: project.id, idempotency_key: args.idempotency_key || null });
       let rawResult;
       const networkRequirement = typeof adapter.networkRequirement === "function" ? await adapter.networkRequirement(executionRequest) : null;
       let authorizedNetwork = null;
@@ -125,7 +125,7 @@ class PandoraToolGateway {
       const finished = this.now();
       const receipt = createToolReceipt({ tool_call_id: toolCallId, definition, organization_id: context.organization_id, project_id: project.id, environment: context.environment, action_hash: actionHash, policy_version: policy.policy_version, risk: policy.risk, resource_scope: executionRequest.resource_scope, model_run_id: context.model_run_id || null, build_job_id: context.build_job_id || null, maxOutputBytes: definition.maxPayloadBytes, status: "succeeded", started_at: started.toISOString(), finished_at: finished.toISOString(), retryable: false, artifacts: rawResult?.artifacts || [], output: rawResult?.output ?? rawResult ?? null, provenance: { executor: definition.executor, untrusted_output: true }, canaries: this.canaries });
       if (this.idempotency && definition.idempotency !== "NONE") await this.idempotency.succeeded(idemScope, receipt, finished);
-      await recordLineage(this.lineage, "tool_execution_finished", { tool_call_id: toolCallId, action_hash: actionHash, execution_id: receipt.execution_id, status: receipt.status, project_id: project.id });
+      await recordLineage(this.lineage, "tool_execution_finished", { tool_call_id: toolCallId, action_hash: actionHash, execution_id: receipt.execution_id, status: receipt.status, organization_id: context.organization_id, project_id: project.id, idempotency_key: args.idempotency_key || null, retryable: false, receipt });
       return Object.freeze({ tool_call_id: toolCallId, executed: true, decision: policy, action_hash: actionHash, receipt });
     } catch (error) {
       const failure = normalizeExecutionFailure(error);
@@ -135,7 +135,7 @@ class PandoraToolGateway {
         else await this.idempotency.failedSafe(idemScope, failure, finished);
       }
       const receipt = createToolReceipt({ tool_call_id: toolCallId, definition, organization_id: context.organization_id, project_id: project.id, environment: context.environment, action_hash: actionHash, policy_version: policy.policy_version, risk: policy.risk, resource_scope: executionRequest.resource_scope, model_run_id: context.model_run_id || null, build_job_id: context.build_job_id || null, maxOutputBytes: definition.maxPayloadBytes, status: "failed", started_at: started.toISOString(), finished_at: finished.toISOString(), retryable: failure.retryable, error: failure.owner, provenance: { executor: definition.executor, provider_started: providerStarted }, canaries: this.canaries });
-      await recordLineage(this.lineage, "tool_execution_finished", { tool_call_id: toolCallId, action_hash: actionHash, execution_id: receipt.execution_id, status: receipt.status, error_class: failure.error_class, project_id: project.id });
+      await recordLineage(this.lineage, "tool_execution_finished", { tool_call_id: toolCallId, action_hash: actionHash, execution_id: receipt.execution_id, status: receipt.status, error_class: failure.error_class, organization_id: context.organization_id, project_id: project.id, idempotency_key: args.idempotency_key || null, retryable: failure.retryable, receipt });
       return Object.freeze({ tool_call_id: toolCallId, executed: providerStarted, decision: policy, action_hash: actionHash, receipt });
     } finally {
       if (credentialLease && this.secrets && !credentialLeaseHandedOff) await this.secrets.revoke(credentialLease.lease_id, this.now());
