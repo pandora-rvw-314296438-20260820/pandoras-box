@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../core/data/owner_projection.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/design/pandora_tokens.dart';
 import '../../core/models/pandora_models.dart';
@@ -102,7 +103,7 @@ class _SystemsScreenState extends State<SystemsScreen> {
                       PandoraSurface(
                         title: 'My Systems',
                         subtitle:
-                            '${_projects.length} verified system records.',
+                            '${_projects.length} systems currently visible to you.',
                         child: _projects.isEmpty
                             ? const Text('No systems are available yet.')
                             : Column(
@@ -115,8 +116,10 @@ class _SystemsScreenState extends State<SystemsScreen> {
                                       ),
                                       title: Text(project.name),
                                       subtitle: Text(
-                                        '${project.status} · ${project.purpose}',
-                                        maxLines: 2,
+                                        'Health: ${ownerSystemHealthLabel(project)}\n'
+                                        'Work: ${ownerWorkStatusLabel(project)} · '
+                                        '${ownerProductionStatusLabel(project)}',
+                                        maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       trailing: const Icon(
@@ -133,28 +136,31 @@ class _SystemsScreenState extends State<SystemsScreen> {
                       PandoraSurface(
                         title: 'Connections',
                         subtitle:
-                            'Services Pandora can read or change within approved scope.',
+                            'Services Pandora can use within the access you approved.',
                         child: _connections.isEmpty
                             ? const Text(
-                                'No connections are currently verified.')
+                                'No verified connections are available yet.')
                             : Column(
                                 children: [
                                   for (final connection in _connections)
                                     ListTile(
                                       contentPadding: EdgeInsets.zero,
                                       leading: Icon(
-                                        connection.freshness.isFresh
+                                        resolveOwnerConnectionState(
+                                                    connection) ==
+                                                OwnerConnectionState.verified
                                             ? Icons.link_rounded
                                             : Icons.link_off_rounded,
                                       ),
                                       title: Text(connection.name),
-                                      subtitle: Text(connection.status),
+                                      subtitle: Text(
+                                        resolveOwnerConnectionState(connection)
+                                            .label,
+                                      ),
                                       trailing: Text(
-                                        connection.canChange
-                                            ? 'Read + change'
-                                            : connection.canRead
-                                                ? 'Read'
-                                                : 'No access',
+                                        ownerConnectionCapabilityLabel(
+                                            connection),
+                                        textAlign: TextAlign.end,
                                         style: Theme.of(context)
                                             .textTheme
                                             .labelMedium,

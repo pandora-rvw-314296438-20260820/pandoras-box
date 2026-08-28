@@ -17,9 +17,10 @@ import 'project_detail_screen.dart';
 enum ProjectFilter {
   all('All'),
   needsMe('Needs me'),
-  working('Working'),
+  active('Active'),
   blocked('Blocked'),
   stale('Stale'),
+  recentlyChanged('Recently changed'),
   productionVerified('Production verified');
 
   const ProjectFilter(this.label);
@@ -70,9 +71,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         ProjectFilter.all => true,
         ProjectFilter.needsMe =>
           ownerState == OwnerProjectState.ownerActionRequired,
-        ProjectFilter.working => ownerState == OwnerProjectState.executing,
+        ProjectFilter.active => ownerState == OwnerProjectState.executing,
         ProjectFilter.blocked => ownerState == OwnerProjectState.blocked,
         ProjectFilter.stale => project.freshness.state != FreshnessState.fresh,
+        ProjectFilter.recentlyChanged =>
+          project.freshness.state == FreshnessState.fresh,
         ProjectFilter.productionVerified =>
           project.evidenceState(EvidenceStage.productionVerified) ==
               EvidenceClaimState.verified,

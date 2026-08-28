@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../core/data/owner_projection.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/models/pandora_models.dart';
 import '../activity/activity_screen.dart';
@@ -448,13 +449,16 @@ class _VerifiedHome extends StatelessWidget {
                 children: [cards[0], const SizedBox(height: 12), cards[1]],
               );
             }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: cards[0]),
-                const SizedBox(width: 14),
-                Expanded(child: cards[1]),
-              ],
+            // IntrinsicHeight bounds equal-height cards when parent height is unbounded (scroll views).
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: cards[0]),
+                  const SizedBox(width: 14),
+                  Expanded(child: cards[1]),
+                ],
+              ),
             );
           },
         ),
@@ -622,21 +626,27 @@ class _WorkingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final normalized = project.status.toLowerCase();
-    final testing =
-        normalized.contains('test') || normalized.contains('review');
-    final healthy =
-        normalized.contains('complete') || normalized.contains('live');
+    final ownerState = resolveOwnerProjectState(project);
+    final blocked = ownerState == OwnerProjectState.blocked ||
+        ownerState == OwnerProjectState.ownerActionRequired;
+    final testing = ownerState == OwnerProjectState.executing;
+    final healthy = ownerState == OwnerProjectState.monitoring &&
+        project.evidenceState(EvidenceStage.productionVerified) ==
+            EvidenceClaimState.verified;
     final foreground = healthy
         ? PandoraSimpleColors.green
-        : testing
-            ? PandoraSimpleColors.amber
-            : PandoraSimpleColors.ink;
+        : blocked
+            ? PandoraSimpleColors.red
+            : testing
+                ? PandoraSimpleColors.amber
+                : PandoraSimpleColors.ink;
     final background = healthy
         ? PandoraSimpleColors.greenWash
-        : testing
-            ? PandoraSimpleColors.amberWash
-            : const Color(0xFFF5F1EC);
+        : blocked
+            ? PandoraSimpleColors.blush
+            : testing
+                ? PandoraSimpleColors.amberWash
+                : const Color(0xFFF5F1EC);
     return InkWell(
       onTap: () => _openHome(context, ProjectDetailScreen(project: project)),
       child: Padding(
@@ -677,9 +687,7 @@ class _WorkingRow extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             PandoraStatusPill(
-              label: project.progressVerified
-                  ? project.progressLabel
-                  : project.status,
+              label: ownerWorkStatusLabel(project),
               foreground: foreground,
               background: background,
               icon: healthy ? Icons.check_circle_outline_rounded : null,
@@ -1060,7 +1068,7 @@ class _SystemCard extends StatelessWidget {
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(
-                        project.status,
+                        ownerSystemHealthLabel(project),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -1092,7 +1100,7 @@ class _ActivityCard extends StatelessWidget {
     if (summary.recentActivity.isEmpty) {
       return PandoraEmptyTruth(
         title: 'No recent verified activity',
-        message: 'Completed and provider-verified work will appear here.',
+        message: 'Completed and verified work will appear here.',
         actionLabel: 'Open activity',
         onAction: onOpenActivity,
       );
