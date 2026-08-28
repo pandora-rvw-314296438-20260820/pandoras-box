@@ -36,7 +36,7 @@ class MemoryIdempotencyStore {
 class IdempotencyCoordinator {
   constructor(store) { this.store = store; }
 
-  async begin({ definition, scope, action_hash, request_id, now = new Date() }) {
+  async begin({ definition, scope, action_hash, request_id, now = new Date(), metadata = null }) {
     if (definition.idempotency === IDEMPOTENCY_MODES.REQUIRED && !scope.idempotency_key) {
       throw new PandoraToolError("invalid_request", "IDEMPOTENCY_KEY_REQUIRED", "Mutation requires an idempotency key");
     }
@@ -53,7 +53,7 @@ class IdempotencyCoordinator {
         return { mode: "execute", state: EXECUTION_STATES.FAILED_SAFE, retry: true };
       }
     }
-    const created = await this.store.createStarted(scope, { action_hash, request_id, started_at: now.toISOString() });
+    const created = await this.store.createStarted(scope, { action_hash, request_id, started_at: now.toISOString(), metadata });
     if (!created) throw new PandoraToolError("conflict", "IDEMPOTENCY_RACE", "Equivalent mutation raced with another executor");
     return { mode: "execute", state: EXECUTION_STATES.NEVER_EXECUTED };
   }
