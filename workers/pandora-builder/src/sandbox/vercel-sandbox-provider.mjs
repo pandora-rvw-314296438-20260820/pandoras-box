@@ -129,8 +129,8 @@ class VercelSandboxProvider extends SandboxProvider {
       projectId: this.projectId,
       runtime: 'node24',
       persistent: false,
-      timeout: String(request.timeoutMs),
-      resources: { vcpus: '2', memory: String(memoryMiB) },
+      timeout: request.timeoutMs,
+      resources: { vcpus: 2, memory: memoryMiB },
       networkPolicy: policy,
       env: {},
       ports: [],
@@ -163,18 +163,18 @@ class VercelSandboxProvider extends SandboxProvider {
     const startedAt = new Date().toISOString();
     for (let i = 0; command.exitCode == null && i < this.maxPolls; i += 1) {
       if (operation.signal?.aborted) {
-        await this.transport.request('POST', scoped(`/v2/sandboxes/sessions/${sessionId}/cmd/${command.id}/kill`, this.teamId), null).catch(() => null);
+        await this.transport.request('POST', scoped(`/v2/sandboxes/sessions/${sessionId}/cmd/${command.id}/kill`, this.teamId), {}).catch(() => null);
         return Object.freeze({ status: 'cancelled', exitCode: null, failureClass: 'cancelled', stdout: { text: '' }, stderr: { text: '' }, startedAt, finishedAt: new Date().toISOString(), commandId: command.id });
       }
       await delay(this.pollIntervalMs, operation.signal).catch(async () => {
-        await this.transport.request('POST', scoped(`/v2/sandboxes/sessions/${sessionId}/cmd/${command.id}/kill`, this.teamId), null).catch(() => null);
+        await this.transport.request('POST', scoped(`/v2/sandboxes/sessions/${sessionId}/cmd/${command.id}/kill`, this.teamId), {}).catch(() => null);
         throw Object.assign(new Error('SANDBOX_CANCELLED'), { code: 'ABORT_ERR' });
       });
-      const polled = responseBody(await this.transport.request('GET', scoped(`/v2/sandboxes/sessions/${sessionId}/cmd/${command.id}`, this.teamId), null));
+      const polled = responseBody(await this.transport.request('GET', scoped(`/v2/sandboxes/sessions/${sessionId}/cmd/${command.id}`, this.teamId, { wait: 'true' }), null));
       command = commandRecord(polled);
     }
     if (command.exitCode == null) {
-      await this.transport.request('POST', scoped(`/v2/sandboxes/sessions/${sessionId}/cmd/${command.id}/kill`, this.teamId), null).catch(() => null);
+      await this.transport.request('POST', scoped(`/v2/sandboxes/sessions/${sessionId}/cmd/${command.id}/kill`, this.teamId), {}).catch(() => null);
       return Object.freeze({ status: 'failed', exitCode: null, failureClass: 'timeout', stdout: { text: '' }, stderr: { text: '' }, startedAt, finishedAt: new Date().toISOString(), commandId: command.id });
     }
     return Object.freeze({ status: command.exitCode === 0 ? 'completed' : 'failed', exitCode: command.exitCode, failureClass: command.exitCode === 0 ? null : 'unknown', stdout: { text: '' }, stderr: { text: '' }, startedAt, finishedAt: new Date().toISOString(), durationMs: command.durationMs, commandId: command.id });
