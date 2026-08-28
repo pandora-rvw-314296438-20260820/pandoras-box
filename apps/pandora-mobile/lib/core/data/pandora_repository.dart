@@ -207,6 +207,11 @@ abstract interface class PandoraRepository {
     bool allowCached = false,
   });
 
+  Future<ProjectSummary> createProject({
+    required String name,
+    required String buildType,
+  });
+
   Future<RepositorySnapshot<ProjectDetail>> project(
     String id, {
     bool allowCached = false,
