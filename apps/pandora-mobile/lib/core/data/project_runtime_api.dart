@@ -8,8 +8,8 @@ class ProjectRuntimeApi {
   ProjectRuntimeApi({
     required PandoraApiClient client,
     IdempotencyKeyFactory? idempotencyKeys,
-  })  : _client = client,
-        _keys = idempotencyKeys ?? IdempotencyKeyFactory();
+  }) : _client = client,
+       _keys = idempotencyKeys ?? IdempotencyKeyFactory();
 
   final PandoraApiClient _client;
   final IdempotencyKeyFactory _keys;
@@ -41,7 +41,9 @@ class ProjectRuntimeApi {
       operation: 'customerProject.runtime',
       routeTemplate: '/projects/:id/runtime',
     );
-    return ProjectRuntimeSnapshot.fromJson(_map(response.data, 'project runtime'));
+    return ProjectRuntimeSnapshot.fromJson(
+      _map(response.data, 'project runtime'),
+    );
   }
 
   Future<ProjectPreviewResult> createPreview({
@@ -52,10 +54,13 @@ class ProjectRuntimeApi {
       pathSegments: <String>['projects', projectId, 'previews'],
       operation: 'customerProject.preview',
       routeTemplate: '/projects/:id/previews',
-      idempotencyKey: idempotencyKey ?? _keys.create('customer-project-preview'),
+      idempotencyKey:
+          idempotencyKey ?? _keys.create('customer-project-preview'),
       body: const <String, Object?>{},
     );
-    return ProjectPreviewResult.fromJson(_map(response.data, 'project preview'));
+    return ProjectPreviewResult.fromJson(
+      _map(response.data, 'project preview'),
+    );
   }
 
   Future<ProjectPublishResult> publish({
@@ -69,16 +74,22 @@ class ProjectRuntimeApi {
       pathSegments: <String>['projects', projectId, 'publish'],
       operation: 'customerProject.publish',
       routeTemplate: '/projects/:id/publish',
-      idempotencyKey: idempotencyKey ?? _keys.create('customer-project-publish'),
+      idempotencyKey:
+          idempotencyKey ?? _keys.create('customer-project-publish'),
       body: <String, Object?>{
-        if (versionId != null && versionId.trim().isNotEmpty) 'versionId': versionId.trim(),
-        if (normalizedDomain != null && normalizedDomain.isNotEmpty) 'domain': normalizedDomain,
+        if (versionId != null && versionId.trim().isNotEmpty)
+          'versionId': versionId.trim(),
+        if (normalizedDomain != null && normalizedDomain.isNotEmpty)
+          'domain': normalizedDomain,
       },
     );
-    return ProjectPublishResult.fromJson(_map(response.data, 'project publish'));
+    return ProjectPublishResult.fromJson(
+      _map(response.data, 'project publish'),
+    );
   }
 
-  void beginAuthenticatedIdentityEpoch() => _client.beginAuthenticatedIdentityEpoch();
+  void beginAuthenticatedIdentityEpoch() =>
+      _client.beginAuthenticatedIdentityEpoch();
   void close() => _client.close();
 
   JsonMap _map(Object? value, String operation) {
