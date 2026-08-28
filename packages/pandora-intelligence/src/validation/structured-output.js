@@ -47,7 +47,8 @@ function isSafeRelativePath(path) {
 
 /** @param {string} tool */
 function canonicalToolName(tool) {
-  return LEGACY_TOOL_ALIASES[tool] ?? tool;
+  const aliases = /** @type {Readonly<Record<string, string>>} */ (LEGACY_TOOL_ALIASES);
+  return aliases[tool] ?? tool;
 }
 
 /** @param {unknown} proposal @param {{maxArgumentBytes?: number}} options */
@@ -96,13 +97,16 @@ function validateToolProposal(proposal, options = {}) {
 
   if (errors.length) return { ok: false, errors, value: null };
 
+  /** @type {{tool: string, version: number, arguments: unknown, reason: unknown, requirement_refs?: string[]}} */
   const normalized = {
     tool,
     version: TOOL_PROPOSAL_VERSION,
     arguments: record.arguments,
     reason: record.reason,
   };
-  if (record.requirement_refs !== undefined) normalized.requirement_refs = [...record.requirement_refs];
+  if (record.requirement_refs !== undefined) {
+    normalized.requirement_refs = [.../** @type {string[]} */ (record.requirement_refs)];
+  }
 
   return { ok: true, errors: [], value: normalized };
 }
