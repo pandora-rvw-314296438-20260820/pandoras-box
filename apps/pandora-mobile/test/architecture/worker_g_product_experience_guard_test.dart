@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+const _journeyPath = 'lib/features/simple/project_journey_flow.dart';
+
 void main() {
   test('Simple Mode primary navigation is project-first and owner-safe', () {
     final shell = File('lib/app/pandora_shell.dart').readAsStringSync();
@@ -19,8 +21,7 @@ void main() {
   });
 
   test('Build Theatre never advances from a presentation timer', () {
-    final source =
-        File('lib/features/simple/project_journey_flow.dart').readAsStringSync();
+    final source = File(_journeyPath).readAsStringSync();
     expect(source, contains('runtime.runtime(widget.project.id)'));
     expect(source, contains('didChangeAppLifecycleState'));
     expect(source, contains('AppLifecycleState.resumed'));
@@ -30,8 +31,7 @@ void main() {
   });
 
   test('Build Theatre keeps the Pandora signature composition', () {
-    final source =
-        File('lib/features/simple/project_journey_flow.dart').readAsStringSync();
+    final source = File(_journeyPath).readAsStringSync();
     expect(source, contains('class _TheatreMark'));
     expect(source, contains('const PandoraMark(size: 132'));
     expect(source, contains('MediaQuery.of(context).disableAnimations'));
@@ -40,8 +40,7 @@ void main() {
   });
 
   test('customer journey does not name infrastructure providers', () {
-    final source =
-        File('lib/features/simple/project_journey_flow.dart').readAsStringSync();
+    final source = File(_journeyPath).readAsStringSync();
     for (final forbidden in const [
       'Vercel',
       'Supabase',
