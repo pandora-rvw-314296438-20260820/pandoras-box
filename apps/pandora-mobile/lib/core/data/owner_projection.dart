@@ -40,6 +40,26 @@ extension ProviderTruthStateLabel on ProviderTruthState {
       };
 }
 
+enum OwnerConnectionState {
+  verified,
+  needsAttention,
+  stale,
+  capabilityUnverified,
+  disconnected,
+  legacy,
+}
+
+extension OwnerConnectionStateLabel on OwnerConnectionState {
+  String get label => switch (this) {
+        OwnerConnectionState.verified => 'Connected and verified now',
+        OwnerConnectionState.needsAttention => 'Connected · needs attention',
+        OwnerConnectionState.stale => 'Connected but stale',
+        OwnerConnectionState.capabilityUnverified => 'Access not verified',
+        OwnerConnectionState.disconnected => 'Disconnected',
+        OwnerConnectionState.legacy => 'Legacy connection · no longer used',
+      };
+}
+
 List<ConnectionSummary> deduplicateConnections(
   Iterable<ConnectionSummary> connections,
 ) {
@@ -92,8 +112,7 @@ ProviderTruthState providerTruthState(ConnectionSummary connection) {
   }
   if (words.contains('healthy') ||
       words.contains('connected') ||
-      words.contains('ready') ||
-      words.contains('active')) {
+      words.contains('ready')) {
     return ProviderTruthState.healthy;
   }
   return ProviderTruthState.unknown;
@@ -108,6 +127,44 @@ int connectionAttentionRank(ConnectionSummary connection) =>
       ProviderTruthState.notConfigured => 1,
       ProviderTruthState.healthy => 0,
     };
+
+bool isLegacyConnection(ConnectionSummary connection) {
+  final words = '${connection.name} ${connection.purpose}'.toLowerCase();
+  final github = words.contains('github');
+  return github &&
+      (words.contains('banataosystems') || words.contains('mbanatao'));
+}
+
+OwnerConnectionState resolveOwnerConnectionState(ConnectionSummary connection) {
+  if (isLegacyConnection(connection)) return OwnerConnectionState.legacy;
+  if (connection.freshness.state == FreshnessState.stale) {
+    return OwnerConnectionState.stale;
+  }
+  if (connection.freshness.state == FreshnessState.notChecked) {
+    return OwnerConnectionState.capabilityUnverified;
+  }
+  final truth = providerTruthState(connection);
+  if (connection.canRead || connection.canChange) {
+    if (truth == ProviderTruthState.down ||
+        truth == ProviderTruthState.degraded) {
+      return OwnerConnectionState.needsAttention;
+    }
+    if (truth == ProviderTruthState.healthy) {
+      return OwnerConnectionState.verified;
+    }
+    return OwnerConnectionState.capabilityUnverified;
+  }
+  if (truth == ProviderTruthState.notConfigured) {
+    return OwnerConnectionState.disconnected;
+  }
+  return OwnerConnectionState.capabilityUnverified;
+}
+
+String ownerConnectionCapabilityLabel(ConnectionSummary connection) {
+  if (connection.canChange) return 'Read + approved changes';
+  if (connection.canRead) return 'Read access';
+  return 'No verified capability';
+}
 
 OwnerProjectState resolveOwnerProjectState(
   ProjectSummary project, {
@@ -149,6 +206,39 @@ OwnerProjectState resolveOwnerProjectState(
   }
   return OwnerProjectState.idle;
 }
+
+String ownerSystemHealthLabel(ProjectSummary project) {
+  if (project.freshness.state == FreshnessState.stale) {
+    return 'Health check stale';
+  }
+  if (project.freshness.state == FreshnessState.notChecked) {
+    return 'Health not verified';
+  }
+  final words = project.status.toLowerCase();
+  if (words.contains('down') ||
+      words.contains('unhealthy') ||
+      words.contains('failed') ||
+      words.contains('unreachable')) {
+    return 'Needs attention';
+  }
+  if (words.contains('active') ||
+      words.contains('healthy') ||
+      words.contains('live') ||
+      words.contains('running')) {
+    return 'Online';
+  }
+  return 'State verified';
+}
+
+String ownerWorkStatusLabel(ProjectSummary project) =>
+    resolveOwnerProjectState(project).label;
+
+String ownerProductionStatusLabel(ProjectSummary project) =>
+    switch (project.evidenceState(EvidenceStage.productionVerified)) {
+      EvidenceClaimState.verified => 'Production verified',
+      EvidenceClaimState.failed => 'Production blocked',
+      EvidenceClaimState.notChecked => 'Production not verified',
+    };
 
 String compactProofSummary(ProjectSummary project) {
   const ordered = <EvidenceStage>[

@@ -99,6 +99,43 @@ void main() {
     });
   });
 
+  group('owner-facing truth dimensions', () {
+    test(
+      'online health does not hide blocked work or missing production proof',
+      () {
+        final project = _project(status: 'active', blocker: 'Waiting for API');
+        expect(ownerSystemHealthLabel(project), 'Online');
+        expect(ownerWorkStatusLabel(project), 'Blocked');
+        expect(ownerProductionStatusLabel(project), 'Production not verified');
+      },
+    );
+
+    test('generic active is not enough to call a provider healthy', () {
+      final connection = _connection(state: 'active', status: 'Active');
+      expect(providerTruthState(connection), ProviderTruthState.unknown);
+      expect(
+        resolveOwnerConnectionState(connection),
+        OwnerConnectionState.capabilityUnverified,
+      );
+    });
+
+    test(
+      'legacy GitHub account is quarantined from current connection truth',
+      () {
+        final connection = _connection(
+          state: 'connected',
+          status: 'Connected',
+          name: 'GitHub Account — banataosystems',
+          purpose: 'Legacy GitHub account',
+        );
+        expect(
+          resolveOwnerConnectionState(connection),
+          OwnerConnectionState.legacy,
+        );
+      },
+    );
+  });
+
   test('proof summary is compact and names the first missing stage', () {
     final project = _project(
       evidence: const [
@@ -163,14 +200,18 @@ ConnectionSummary _connection({
   required String state,
   required String status,
   FreshnessState freshness = FreshnessState.fresh,
+  String name = 'Provider',
+  String purpose = 'Provider health',
+  bool canRead = true,
+  bool canChange = false,
 }) =>
     ConnectionSummary(
       id: 'provider',
-      name: 'Provider',
-      purpose: 'Provider health',
+      name: name,
+      purpose: purpose,
       state: state,
       status: status,
-      canRead: true,
-      canChange: false,
+      canRead: canRead,
+      canChange: canChange,
       freshness: FreshnessInfo(state: freshness),
     );
