@@ -9,4 +9,5 @@ module.exports = {
   ...require('./recommendations.js'),
   ...require('./api.js'),
   ...require('./analytics/provider.js'),
+  ...require('./analytics/posthog.js'),
 };
