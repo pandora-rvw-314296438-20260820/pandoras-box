@@ -449,9 +449,34 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   let domainStatus: string | null = null;
   let domainVerified = false;
   if (domain) {
-    const providerDomain = await vercelRequest(`/v10/projects/${encodeURIComponent(provider.id)}/domains`, { method: "POST", body: JSON.stringify({ name: domain }) }, [200]);
+    const { data: existingDomain, error: existingDomainError } = await context.client
+      .from("pandora_project_domains")
+      .select("id, domain, status, verified, primary_domain, verification, updated_at")
+      .eq("organization_id", context.organizationId)
+      .eq("project_id", projectId)
+      .eq("domain", domain)
+      .maybeSingle();
+    if (existingDomainError) throw new Error("BACKEND_READ_FAILED");
+
+    const providerDomain = existingDomain
+      ? asRecord(existingDomain)
+      : await vercelRequest(
+        `/v10/projects/${encodeURIComponent(provider.id)}/domains`,
+        { method: "POST", body: JSON.stringify({ name: domain }) },
+        [200],
+      );
     domainVerified = providerDomain.verified === true;
     domainStatus = domainVerified ? "verified" : "verification_required";
+
+    const { error: clearPrimaryError } = await context.client
+      .from("pandora_project_domains")
+      .update({ primary_domain: false, updated_at: new Date().toISOString() })
+      .eq("organization_id", context.organizationId)
+      .eq("project_id", projectId)
+      .eq("primary_domain", true)
+      .neq("domain", domain);
+    if (clearPrimaryError) throw new Error("BACKEND_WRITE_FAILED");
+
     const { data: savedDomain, error: domainError } = await context.client.from("pandora_project_domains")
       .upsert({ organization_id: context.organizationId, project_id: projectId, provider: "vercel", domain, status: domainStatus, verified: domainVerified, primary_domain: true, verification: Array.isArray(providerDomain.verification) ? providerDomain.verification : [], updated_at: new Date().toISOString() }, { onConflict: "project_id,domain" })
       .select("id, domain, status, verified, primary_domain, verification, updated_at").single();
