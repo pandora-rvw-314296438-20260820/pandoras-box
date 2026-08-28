@@ -640,16 +640,18 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ code: "PROJECT_RUNTIME_ROUTE_NOT_FOUND", plainMessage: "That project action is not available yet.", requestId }, 404, requestId, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
-    const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "INVALID_DOMAIN"]);
-    const conflicts = new Set(["PREVIEW_REQUIRED", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED"]);
+    const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "INVALID_DOMAIN", "VERSION_REQUIRED", "INVALID_PRODUCTION_PRECONDITION"]);
+    const conflicts = new Set(["PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED"]);
     if (code === "SIGN_IN_REQUIRED") return jsonResponse({ code, plainMessage: "Please sign in again.", requestId }, 401, requestId, origin);
     if (["ORGANIZATION_ACCESS_REQUIRED", "OWNER_ROLE_REQUIRED"].includes(code)) return jsonResponse({ code, plainMessage: "You do not have permission for this project.", requestId }, 403, requestId, origin);
     if (code === "ORGANIZATION_SELECTION_REQUIRED") return jsonResponse({ code, plainMessage: "Choose which organization you want to use.", requestId }, 409, requestId, origin);
     if (code === "RATE_LIMITED") return jsonResponse({ code, plainMessage: "Please wait a moment before trying again.", requestId }, 429, requestId, origin);
     if (invalid.has(code)) return jsonResponse({ code, plainMessage: "Check that project information and try again.", requestId }, 400, requestId, origin);
     if (code === "PROJECT_NOT_FOUND") return jsonResponse({ code, plainMessage: "Pandora could not find that project.", requestId }, 404, requestId, origin);
+    if (code === "PUBLISH_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already publishing this version.", requestId }, 409, requestId, origin);
+    if (code === "PUBLISH_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming whether that publish completed. Do not publish again yet.", requestId }, 409, requestId, origin);
     if (conflicts.has(code)) return jsonResponse({ code, plainMessage: "That project cannot be published in its current state.", requestId }, 409, requestId, origin);
-    if (code === "VERCEL_NOT_CONFIGURED") return jsonResponse({ code, plainMessage: "Project previews are temporarily unavailable.", requestId }, 503, requestId, origin);
+    if (["RUNTIME_BROKER_NOT_CONFIGURED", "VERCEL_NOT_CONFIGURED", "PUBLISH_CLAIM_FAILED"].includes(code)) return jsonResponse({ code, plainMessage: "Project publishing is temporarily unavailable.", requestId }, 503, requestId, origin);
     console.error(JSON.stringify({ requestId, code }));
     return jsonResponse({ code: "PROJECT_RUNTIME_UNAVAILABLE", plainMessage: "Pandora cannot reach the project runtime right now.", requestId }, 503, requestId, origin);
   }
