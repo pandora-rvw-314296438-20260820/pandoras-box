@@ -40,7 +40,7 @@ class PandoraToolGateway {
     const targetResource = resolved.target_resource || resolved.resource?.id || definition.executor;
     const projectVersion = resolved.project_version ?? project.version_id ?? null;
     const stateHash = resolved.project_state_hash ?? null;
-    const risk = effectiveRisk(definition, args);
+    const risk = effectiveRisk(definition, args, { migration_preflight: context.migration_preflight || null });
     const actionHash = computeActionHash({ tool: definition.name, version: definition.version, arguments: args, organization_id: context.organization_id, project_id: project.id, environment: context.environment, target_resource: targetResource, project_version: projectVersion, policy_version: POLICY_VERSION });
     await recordLineage(this.lineage, "tool_proposal", { tool_call_id: toolCallId, model_run_id: context.model_run_id || null, build_job_id: context.build_job_id || null, project_spec_id: context.project_spec_id || resolved.project_spec_id || null, project_spec_version: context.project_spec_version || null, project_version_id: projectVersion, project_id: project.id, organization_id: context.organization_id, environment: context.environment, target_resource: targetResource, tool: definition.name, tool_version: definition.version, policy_version: POLICY_VERSION, arguments_sha256: sha256Hex(canonicalizeJson(args)), risk, side_effect: definition.sideEffect, retry_mode: definition.retry, idempotency_mode: definition.idempotency, idempotency_key: args.idempotency_key || null, request_id: args.request_id || null, approval_required: definition.approval === "REQUIRED" || ["HIGH","CRITICAL"].includes(risk), action_hash: actionHash, requirement_refs: proposal.requirement_refs || [] });
 
