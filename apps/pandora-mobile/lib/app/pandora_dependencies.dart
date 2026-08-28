@@ -24,8 +24,8 @@ class PandoraDependencies extends InheritedWidget {
   final DiagnosticsStore diagnostics;
 
   static PandoraDependencies of(BuildContext context) {
-    final result =
-        context.dependOnInheritedWidgetOfExactType<PandoraDependencies>();
+    final result = context
+        .dependOnInheritedWidgetOfExactType<PandoraDependencies>();
     assert(result != null, 'PandoraDependencies is missing above this widget.');
     return result!;
   }
