@@ -14,11 +14,9 @@ class ProjectIterationExperienceScreen extends StatefulWidget {
   const ProjectIterationExperienceScreen({
     super.key,
     required this.project,
-    required this.onBuildReady,
   });
 
   final CustomerProject project;
-  final VoidCallback onBuildReady;
 
   @override
   State<ProjectIterationExperienceScreen> createState() =>
@@ -360,7 +358,7 @@ class _ProjectIterationExperienceScreenState
             PandoraPrimaryButton(
               label: 'Build updated preview',
               icon: Icons.auto_awesome_rounded,
-              onPressed: widget.onBuildReady,
+              onPressed: () => Navigator.of(context).pop(true),
               expanded: true,
             ),
             const SizedBox(height: 10),
