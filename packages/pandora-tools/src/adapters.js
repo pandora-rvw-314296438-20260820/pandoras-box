@@ -1,3 +1,4 @@
+
 "use strict";
 
 const { PandoraToolError } = require("./errors");
@@ -48,7 +49,7 @@ class ExecutionAdapterRegistry {
     if (this.adapters.has(executor)) throw new PandoraToolError("conflict", "ADAPTER_ALREADY_REGISTERED", "Execution adapter is already registered");
     this.adapters.set(executor, adapter); return this;
   }
-  get(executor) { const adapter = this.adapters.get(executor); if (!adapter) throw new PandoraToolError("provider_unavaile", "EXECUTOR_UNAVAILABLE", "Required execution adapter is unavailable"); return adapter; }
+  get(executor) { const adapter = this.adapters.get(executor); if (!adapter) throw new PandoraToolError("provider_unavailable", "EXECUTOR_UNAVAILABLE", "Required execution adapter is unavailable"); return adapter; }
 }
 
 module.exports = { FAILURE_CLASSES, normalizeExecutionFailure, executeWithTimeout, ExecutionAdapterRegistry };
