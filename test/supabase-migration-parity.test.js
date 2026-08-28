@@ -118,6 +118,12 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   ].sort();
   const replaySnapshotLast = '20260817145929_add_vercel_async_git_link_queue.sql';
   const historicalCurrentFiles = activeFiles.filter((filename) => filename <= replaySnapshotLast);
+  const postRecoveryPreSnapshotFiles = historicalCurrentFiles.filter(
+    (filename) => !capturedSet.has(filename),
+  );
+  const capturedPostSnapshotFiles = capturedFiles.filter(
+    (filename) => filename > replaySnapshotLast,
+  );
   const postSnapshotFiles = activeFiles.filter((filename) => filename > replaySnapshotLast);
 
   assert.equal(manifest.invariants.historical_identity_count, 50);
@@ -154,6 +160,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260826005701_pandora_organization_user_administration_v1.sql',
     '20260826010748_pandora_user_administration_service_boundary_v1.sql',
     '20260826011131_remove_legacy_pandora_user_admin_rpc_v1.sql',
+    '20260828122655_index_release_worker_foreign_keys.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -174,11 +181,13 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260826005701_pandora_organization_user_administration_v1.sql',
     '20260826010748_pandora_user_administration_service_boundary_v1.sql',
     '20260826011131_remove_legacy_pandora_user_admin_rpc_v1.sql',
+    '20260828122655_index_release_worker_foreign_keys.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
     currentReplayResult.migration_count,
-    recoveryReplayResult.migration_count + appendedFiles.length - postSnapshotFiles.length,
+    recoveryReplayResult.migration_count - capturedPostSnapshotFiles.length +
+      postRecoveryPreSnapshotFiles.length,
   );
   assert.equal(manifest.live_chain.first, '20260724010000');
   assert.equal(manifest.live_chain.last, '20260821024500');
@@ -261,14 +270,19 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     receiptVersionChainSha256(activeFiles),
     manifest.identity_reconciliation.expected_applied_receipt_chain_sha256,
   );
-  assert.equal(reconciledReplayResult.migration_count, activeFiles.length);
-  assert.equal(reconciledReplayResult.chain_sha256, chainSha256(activeFiles));
+  // Preserve the dated 2026-08-23 replay receipt as historical evidence.
+  assert.equal(reconciledReplayResult.migration_count, 74);
   assert.equal(
     reconciledReplayResult.chain_sha256,
+    'fa5039cd8ef4297c1dd01e258c4e8cdfe8725a7aba19b82c48b8ddb24fd8a127',
+  );
+  // Bind current source independently to current manifest truth.
+  assert.equal(
+    chainSha256(activeFiles),
     manifest.validation.reconciled_chain_sha256,
   );
   assert.equal(
-    reconciledReplayResult.migration_count,
+    activeFiles.length,
     manifest.validation.reconciled_migration_count,
   );
   assert.equal(currentReplayResult.provider_equivalence, false);
