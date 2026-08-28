@@ -27,7 +27,7 @@ async function makeDb() {
     end
     $bootstrap$;
 
-    create schema if not exists auth;
+    create schema if not exists auth;\n    grant usage on schema auth to authenticated;
     create table auth.users (id uuid primary key);
     create or replace function auth.jwt() returns jsonb
     language sql stable

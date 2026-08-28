@@ -120,7 +120,7 @@ begin
   select i.organization_id, i.project_id
     into v_intent_org, v_intent_project
   from public.pandora_project_intents i
-  where i.id = new.source_intent_id;
+  where i.id = (nullif(to_jsonb(new)->>'source_intent_id','')::uuid);
 
   if v_intent_project is null
      or v_intent_org <> new.organization_id
@@ -176,7 +176,7 @@ begin
      or new.organization_id <> old.organization_id
      or new.project_id <> old.project_id
      or new.version <> old.version
-     or new.source_intent_id <> old.source_intent_id
+     or (nullif(to_jsonb(new)->>'source_intent_id','')::uuid) <> old.source_intent_id
      or new.previous_spec_id is distinct from old.previous_spec_id
      or new.schema_version <> old.schema_version
      or new.project_type <> old.project_type
@@ -370,11 +370,11 @@ begin
   end if;
 
   if tg_table_name in ('pandora_project_requirements', 'pandora_project_constraints')
-     and new.source_intent_id is not null then
+     and (nullif(to_jsonb(new)->>'source_intent_id','')::uuid) is not null then
     select i.organization_id, i.project_id
       into v_intent_org, v_intent_project
     from public.pandora_project_intents i
-    where i.id = new.source_intent_id;
+    where i.id = (nullif(to_jsonb(new)->>'source_intent_id','')::uuid);
     if v_intent_project is null
        or v_intent_org <> new.organization_id
        or v_intent_project <> new.project_id then
@@ -384,11 +384,11 @@ begin
   end if;
 
   if tg_table_name = 'pandora_project_acceptance_criteria'
-     and new.requirement_id is not null then
+     and (nullif(to_jsonb(new)->>'requirement_id','')::uuid) is not null then
     select r.organization_id, r.project_id, r.project_spec_id
       into v_req_org, v_req_project, v_req_spec
     from public.pandora_project_requirements r
-    where r.id = new.requirement_id;
+    where r.id = (nullif(to_jsonb(new)->>'requirement_id','')::uuid);
     if v_req_project is null
        or v_req_org <> new.organization_id
        or v_req_project <> new.project_id
@@ -477,11 +477,11 @@ begin
     end if;
   end if;
 
-  if new.source_intent_id is not null then
+  if (nullif(to_jsonb(new)->>'source_intent_id','')::uuid) is not null then
     select i.organization_id, i.project_id
       into v_intent_org, v_intent_project
     from public.pandora_project_intents i
-    where i.id = new.source_intent_id;
+    where i.id = (nullif(to_jsonb(new)->>'source_intent_id','')::uuid);
     if v_intent_project is null
        or v_intent_org <> new.organization_id
        or v_intent_project <> new.project_id then
