@@ -1,0 +1,9 @@
+'use strict';
+const crypto=require('node:crypto'); const {createDomainEvent}=require('../../core/src/events');
+const BUSINESS_EVENTS=Object.freeze(['booking_completed','order_completed','lead_submitted','checkout_completed','workflow_completed','form_submitted','customer_created']);
+class PandoraAnalytics {
+  constructor({sink,privacy={}}){if(!sink||typeof sink.capture!=='function')throw new TypeError('analytics sink is required');if(sink.idempotent!==true)throw new Error('analytics sink must guarantee idempotent capture');this.sink=sink;this.privacy=Object.freeze({includeUserId:privacy.includeUserId===true,userIdSalt:typeof privacy.userIdSalt==='string'?privacy.userIdSalt:null});}
+  async captureBusinessEvent({name,project,actor=null,aggregate=null,properties={},idempotencyKey,occurredAt=null}){if(!BUSINESS_EVENTS.includes(name))throw new Error(`unsupported canonical business event: ${name}`);if(typeof idempotencyKey!=='string'||!idempotencyKey.trim())throw new TypeError('idempotencyKey is required');const safeActor=actor&&typeof actor.userId==='string'?{userId:this.privacy.includeUserId?actor.userId:pseudonymize(actor.userId,`${project.id}:${this.privacy.userIdSalt||'generated-app'}`)}:null;const event=createDomainEvent({name:`business.${name}`,schemaVersion:'1.0',project,actor:safeActor,aggregate,payload:properties,idempotencyKey,occurredAt});const receipt=await this.sink.capture(event);if(!receipt||typeof receipt.eventId!=='string')throw new Error('analytics sink returned invalid receipt');return Object.freeze({event,receipt:Object.freeze({...receipt})});}
+}
+function pseudonymize(userId,salt){const prefix=salt||'pandora-generated-app';return crypto.createHash('sha256').update(`${prefix}\0${userId}`).digest('hex');}
+module.exports={BUSINESS_EVENTS,PandoraAnalytics,pseudonymize};
