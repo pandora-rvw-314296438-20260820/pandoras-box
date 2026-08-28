@@ -82,3 +82,10 @@ test("manager requires exact independent verification before publish",async()=>{
  const preview={providerDeploymentId:"dpl_AAAAA",status:"ready_for_verification",projectVersionId:ids.version,artifactDigest:ids.digest,sourceCommit:ids.source};
  const r=await m.publishVersion(request("production"),preview);assert.equal(r.productionState,"ready_for_verification");
 });
+
+test("customer runtime edge function uses Vault-backed Vercel broker",()=>{
+ const source=require("node:fs").readFileSync("supabase/functions/pandora-project-runtime/index.ts","utf8");
+ assert.equal(source.includes("PANDORA_VERCEL_TOKEN"),false);
+ assert.equal(source.includes("pandora_worker_f_vercel_request_20260829"),true);
+ assert.equal(source.includes("SUPABASE_SERVICE_ROLE_KEY"),true);
+});
