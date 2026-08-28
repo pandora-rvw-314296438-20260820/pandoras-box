@@ -8,6 +8,7 @@ import '../../core/models/pandora_models.dart';
 import '../approvals/approvals_screen.dart';
 import '../settings/settings_screen.dart';
 import 'pandora_simple_ui.dart';
+import 'project_create_experience.dart';
 import 'project_journey_flow.dart';
 
 class ProjectsScreen extends StatefulWidget {
@@ -59,7 +60,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   Future<void> _createProject() async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const CreateProjectFlowScreen()),
+      MaterialPageRoute<void>(builder: (_) => const CreateProjectExperienceScreen()),
     );
     if (mounted) await _load();
   }
