@@ -1,0 +1,10 @@
+{
+  "name": "@pandora/tools",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
