@@ -17,8 +17,14 @@ test('machine policy blacklists the entire mbanatao owner namespace', () => {
   const committed = JSON.parse(
     readFileSync(join(repositoryRoot, 'SOURCE_AUTHORITY_POLICY.json'), 'utf8'),
   );
-  assert.equal(committed.schema_version, '1.1.0');
+  assert.equal(committed.schema_version, '1.2.0');
   assert.equal(committed.mode, 'fail_closed');
+  assert.equal(
+    committed.canonical.source_repository,
+    'pandora-rvw-314296438-20260820/pandoras-box',
+  );
+  assert.equal(committed.canonical.vercel_project_id, 'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk');
+  assert.equal(committed.canonical.production_origin, 'https://mcpmaster.vercel.app');
   assert.deepEqual(sourceAuthorityPolicy, committed);
   assert.ok(committed.deprecated_operational_sources.some((source) =>
     source.type === 'github_owner' &&
@@ -43,6 +49,10 @@ test('machine policy blacklists the entire mbanatao owner namespace', () => {
 
   assert.equal(repositorySourceStatus('banataosystems/fxpass'), 'operational');
   assert.equal(isOperationalRepository('banataosystems/fxpass'), true);
+  assert.equal(
+    repositorySourceStatus('pandora-rvw-314296438-20260820/pandoras-box'),
+    'operational',
+  );
   assert.equal(repositorySourceStatus('not a repository'), 'invalid');
 });
 

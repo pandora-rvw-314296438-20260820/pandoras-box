@@ -1,12 +1,20 @@
 {
-  "schema_version": "1.1.0",
-  "effective_date": "2026-08-13",
+  "schema_version": "1.2.0",
+  "effective_date": "2026-08-28",
   "project_key": "mcpmaster-pandoras-box",
   "mode": "fail_closed",
   "canonical": {
     "operating_source_of_truth": "Pandora Memory hard-canon state",
     "source_repository": "pandora-rvw-314296438-20260820/pandoras-box",
-    "memory_repository": "banataosystems/pandoras-box-memory"
+    "memory_repository": "banataosystems/pandoras-box-memory",
+    "vercel_project_name": "mcpmaster",
+    "vercel_project_id": "prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk",
+    "vercel_team_id": "team_IcdJUnzLi5wUN1GD8ALHyjF7",
+    "production_origin": "https://mcpmaster.vercel.app",
+    "memory_origin": "https://pandorasbox-memory.vercel.app",
+    "current_identity_doc": "docs/status/CURRENT_OPERATING_IDENTITY.md",
+    "current_recovery_doc": "docs/status/CURRENT_RECOVERY_POSTURE.md",
+    "live_status": "GET /api/operator/status"
   },
   "deprecated_operational_sources": [
     {
@@ -15,6 +23,14 @@
       "wildcard": "mbanatao/*",
       "match": "case_insensitive_owner",
       "status": "historical_only"
+    }
+  ],
+  "recovery_era_siblings": [
+    {
+      "type": "github_repository",
+      "value": "banataosystems/Pandoras-box",
+      "status": "recovery_era_name_not_operational_remote",
+      "authority": "evidence_only"
     }
   ],
   "legacy_identity_markers": [
@@ -44,7 +60,9 @@
     "open_new_work_against_deprecated_repository",
     "trigger_or_authorize_new_production_release_from_deprecated_repository",
     "treat_deprecated_repository_metadata_as_proof_of_current_source_parity",
-    "overwrite_newer_banataosystems_or_Pandora_evidence"
+    "overwrite_newer_banataosystems_or_Pandora_evidence",
+    "cite_integrity_bound_historical_status_surfaces_as_current_state",
+    "recreate_canonical_vercel_project_or_production_alias"
   ],
   "permitted_historical_uses": [
     "forensic_read",
@@ -62,5 +80,5 @@
     "any_mbanatao_owner_source_as_historical_evidence_only"
   ],
   "preservation_rule": "Do not delete or rewrite historical evidence. Quarantine it from operational authority instead.",
-  "owner_directive": "Every repository owned by mbanatao is operationally blacklisted. Preserve it only as historical evidence and never select it for new work, routing, build, release, or current-state authority."
+  "owner_directive": "Every repository owned by mbanatao is operationally blacklisted. Preserve it only as historical evidence and never select it for new work, routing, build, release, or current-state authority. Preserve Vercel project prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk and production alias https://mcpmaster.vercel.app. Do not rewrite hashed historical status surfaces as current truth."
 }
