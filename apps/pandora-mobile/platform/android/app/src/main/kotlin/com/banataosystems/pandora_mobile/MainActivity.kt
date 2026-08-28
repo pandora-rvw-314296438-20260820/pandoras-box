@@ -2,6 +2,7 @@ package com.banataosystems.pandora_mobile
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
 import io.flutter.embedding.android.FlutterActivity
@@ -38,8 +39,29 @@ class MainActivity : FlutterActivity() {
         when (call.method) {
             "speechToText" -> startSpeech(result)
             "pickTextDocument" -> startDocumentPicker(result)
+            "openExternalUrl" -> openExternalUrl(call, result)
             else -> result.notImplemented()
         }
+    }
+
+    private fun openExternalUrl(call: MethodCall, result: MethodChannel.Result) {
+        val raw = call.argument<String>("url")?.trim().orEmpty()
+        val uri = try {
+            Uri.parse(raw)
+        } catch (_: Exception) {
+            null
+        }
+        if (uri == null || uri.scheme != "https" || uri.host.isNullOrBlank()) {
+            result.error("INVALID_EXTERNAL_URL", "Only HTTPS project links can be opened.", null)
+            return
+        }
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+        if (intent.resolveActivity(packageManager) == null) {
+            result.error("URL_HANDLER_UNAVAILABLE", "No browser is available to open this link.", null)
+            return
+        }
+        startActivity(intent)
+        result.success(true)
     }
 
     private fun startSpeech(result: MethodChannel.Result) {
