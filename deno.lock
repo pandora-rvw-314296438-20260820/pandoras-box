@@ -4,7 +4,6 @@
     "jsr:@supabase/functions-js@*": "2.4.5",
     "jsr:@supabase/functions-js@2.4.5": "2.4.5",
     "jsr:@supabase/supabase-js@2.57.2": "2.57.2",
-    "npm:@electric-sql/pglite@0.5.4": "0.5.4",
     "npm:@modelcontextprotocol/sdk@^1.30.0": "1.30.0_zod@3.25.76_hono@4.13.3_ajv@8.20.0_express@5.2.1",
     "npm:@slack/web-api@8": "8.0.0",
     "npm:@supabase/auth-js@2.71.1": "2.71.1",
@@ -30,7 +29,8 @@
     "npm:ts-node@^10.9.0": "10.9.2_@types+node@24.13.3_typescript@5.9.3",
     "npm:typescript@^5.3.0": "5.9.3",
     "npm:ws@^8.21.1": "8.21.3",
-    "npm:zod@^3.25.76": "3.25.76"
+    "npm:zod@^3.25.76": "3.25.76",
+    "npm:@electric-sql/pglite@0.5.7": "0.5.7"
   },
   "jsr": {
     "@supabase/functions-js@2.4.5": {
@@ -57,9 +57,6 @@
       "dependencies": [
         "@jridgewell/trace-mapping"
       ]
-    },
-    "@electric-sql/pglite@0.5.4": {
-      "integrity": "sha512-yYZUyyXrHU7tPlCjwZQJ6hIG9DscdCCn7Uk0mYKwC1FeHX286AbcmFveMiRBEak8e9iPupjsoVImN3yJZVed2g=="
     },
     "@hono/node-server@2.1.1_hono@4.13.3": {
       "integrity": "sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==",
@@ -1161,12 +1158,15 @@
     },
     "zod@4.1.11": {
       "integrity": "sha512-WPsqwxITS2tzx1bzhIKsEs19ABD5vmCVa4xBo2tq/SrV4RNZtfws1EnCWQXM6yh8bD08a1idvkB5MZSBiZsjwg=="
+    },
+    "@electric-sql/pglite@0.5.7": {
+      "integrity": "sha512-6WBks0NFO6YUhGP03mCNkbJuVFWwrZPrzZ/vsnAPnsCD28pybdZ+yoTrlLlWFoZst3kdaju5pxIslV/jrr36nQ=="
     }
   },
   "workspace": {
     "packageJson": {
       "dependencies": [
-        "npm:@electric-sql/pglite@0.5.4",
+        "npm:@electric-sql/pglite@0.5.7",
         "npm:@modelcontextprotocol/sdk@^1.30.0",
         "npm:@slack/web-api@8",
         "npm:@types/cors@^2.8.19",
