@@ -241,3 +241,14 @@ test("service boundary exposes stable read and execution contracts", () => {
   assert.equal(service.get_verification(run.verification_run_id).request.project_version_id, "version-18");
   assert.throws(() => service.record_check(run.verification_run_id, {}, { check_id: "source_lint", status: "PASS" }), /trusted Verification Engine executor/);
 });
+
+
+test("artifact snapshot verification identity is exact without source_commit", () => {
+  const { engine } = harness();
+  const snapshot = request({ source_kind: "artifact_snapshot", source_ref: "version-18", source_commit: null });
+  const run = engine.requestVerification(snapshot);
+  assert.equal(run.request.source_kind, "artifact_snapshot");
+  assert.equal(run.request.source_ref, "version-18");
+  assert.equal(run.request.source_commit, null);
+  assert.throws(() => engine.requestVerification(request({ source_kind: "artifact_snapshot", source_ref: "version-18", source_commit: C("f") })), /must not carry source_commit/);
+});
