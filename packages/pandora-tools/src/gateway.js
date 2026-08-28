@@ -4,7 +4,7 @@ const { randomUUID } = require("node:crypto");
 const net = require("node:net");
 const { validateToolProposal } = require("./validation");
 const { evaluatePolicy, effectiveRisk, POLICY_VERSION } = require("./policy");
-const { TOOL_DECISIONS, SIDE_EFFECTS, computeActionHash } = require("./contracts");
+const { TOOL_DECISIONS, SIDE_EFFECTS, canonicalizeJson, sha256Hex, computeActionHash } = require("./contracts");
 const { approvalBindingFromAction, validateApprovalGrant } = require("./approvals");
 const { PandoraToolError } = require("./errors");
 const { normalizeExecutionFailure, executeWithTimeout } = require("./adapters");
@@ -42,7 +42,7 @@ class PandoraToolGateway {
     const stateHash = resolved.project_state_hash ?? null;
     const risk = effectiveRisk(definition, args);
     const actionHash = computeActionHash({ tool: definition.name, version: definition.version, arguments: args, organization_id: context.organization_id, project_id: project.id, environment: context.environment, target_resource: targetResource, project_version: projectVersion, policy_version: POLICY_VERSION });
-    await recordLineage(this.lineage, "tool_proposal", { tool_call_id: toolCallId, model_run_id: context.model_run_id || null, build_job_id: context.build_job_id || null, project_spec_version: context.project_spec_version || null, project_id: project.id, organization_id: context.organization_id, tool: definition.name, tool_version: definition.version, action_hash: actionHash, requirement_refs: proposal.requirement_refs || [] });
+    await recordLineage(this.lineage, "tool_proposal", { tool_call_id: toolCallId, model_run_id: context.model_run_id || null, build_job_id: context.build_job_id || null, project_spec_id: context.project_spec_id || resolved.project_spec_id || null, project_spec_version: context.project_spec_version || null, project_version_id: projectVersion, project_id: project.id, organization_id: context.organization_id, environment: context.environment, target_resource: targetResource, tool: definition.name, tool_version: definition.version, policy_version: POLICY_VERSION, arguments_sha256: sha256Hex(canonicalizeJson(args)), risk, side_effect: definition.sideEffect, retry_mode: definition.retry, idempotency_mode: definition.idempotency, idempotency_key: args.idempotency_key || null, request_id: args.request_id || null, approval_required: definition.approval === "REQUIRED" || ["HIGH","CRITICAL"].includes(risk), action_hash: actionHash, requirement_refs: proposal.requirement_refs || [] });
 
     let approval = null;
     let grant = null;
@@ -55,16 +55,16 @@ class PandoraToolGateway {
     }
 
     const policy = evaluatePolicy({ definition, args, actor: context.actor, organization_id: context.organization_id, project, environment: context.environment, resource: resolved.resource || {}, approval, verification: context.verification || null, budget: context.budget || null, project_spec_version: context.project_spec_version || null, migration_state_version: context.migration_state_version || null, migration_preflight: context.migration_preflight || null, domain_authorization: context.domain_authorization || null, now });
-    await recordLineage(this.lineage, "policy_decision", { tool_call_id: toolCallId, project_id: project.id, action_hash: actionHash, ...policy, approval_id: grant?.approval_id || null });
+    await recordLineage(this.lineage, "policy_decision", { tool_call_id: toolCallId, organization_id: context.organization_id, project_id: project.id, project_spec_id: context.project_spec_id || resolved.project_spec_id || null, build_job_id: context.build_job_id || null, project_version_id: projectVersion, tool: definition.name, tool_version: definition.version, environment: context.environment, target_resource: targetResource, arguments_sha256: sha256Hex(canonicalizeJson(args)), side_effect: definition.sideEffect, approval_required: definition.approval === "REQUIRED" || ["HIGH","CRITICAL"].includes(policy.risk), action_hash: actionHash, ...policy, approval_id: grant?.approval_id || null, approval_expires_at: grant?.expires_at || null });
     if (policy.disposition !== TOOL_DECISIONS.ALLOW) return Object.freeze({ tool_call_id: toolCallId, executed: false, decision: policy, action_hash: actionHash });
-    assertProductionStatePorts(definition, context.environment, { approvalStore: this.approvalStore, idempotencyCoordinator: this.idempotency, leaseManager: this.leases, rateLimitGuard: this.rate, lineageSink: this.lineage });
+    assertProductionStatePorts(definition, context.environment, { approvalStore: this.approvalStore, idempotencyCoordinator: this.idempotency, leaseManager: this.leases, concurrencyPort: this.adapterRegistry.get(definition.executor).productionConcurrency || null, rateLimitGuard: this.rate, lineageSink: this.lineage });
 
     // Resolve the trusted executor before creating durable mutation state.
     const adapter = this.adapterRegistry.get(definition.executor);
     const idemScope = { organization_id: context.organization_id, project_id: project.id, environment: context.environment, tool: definition.name, idempotency_key: args.idempotency_key };
     if (this.rate && context.rate_limit) await this.rate.consume({ ...idemScope, model_run_id: context.model_run_id, build_job_id: context.build_job_id }, context.rate_limit, now);
     if (this.idempotency && definition.idempotency !== "NONE") {
-      const replay = await this.idempotency.begin({ definition, scope: idemScope, action_hash: actionHash, request_id: args.request_id, now });
+      const replay = await this.idempotency.begin({ definition, scope: idemScope, action_hash: actionHash, request_id: args.request_id, now, metadata: { tool_call_id: toolCallId, project_spec_id: context.project_spec_id || resolved.project_spec_id || null, build_job_id: context.build_job_id || null, model_run_id: context.model_run_id || null, project_version_id: projectVersion, tool_name: definition.name, tool_version: String(definition.version), action_name: definition.name, environment: context.environment, target_resource_ref: targetResource, policy_version: policy.policy_version, arguments_sha256: sha256Hex(canonicalizeJson(args)), risk_level: policy.risk, decision: policy.disposition, side_effect: definition.sideEffect, retry_mode: definition.retry, idempotency_mode: definition.idempotency, approval_required: definition.approval === "REQUIRED" || ["HIGH","CRITICAL"].includes(policy.risk), approval_id: grant?.approval_id || null } });
       if (replay.mode === "replay") return Object.freeze({ tool_call_id: toolCallId, executed: false, replayed: true, decision: policy, action_hash: actionHash, receipt: replay.receipt });
     }
 
@@ -86,7 +86,7 @@ class PandoraToolGateway {
         await this.approvalStore.consume(grant.approval_id, actionHash, now);
       }
 
-      await recordLineage(this.lineage, "tool_execution_started", { tool_call_id: toolCallId, action_hash: actionHash, executor: definition.executor, project_id: project.id });
+      await recordLineage(this.lineage, "tool_execution_started", { tool_call_id: toolCallId, action_hash: actionHash, executor: definition.executor, organization_id: context.organization_id, project_id: project.id, idempotency_key: args.idempotency_key || null });
       let rawResult;
       const networkRequirement = typeof adapter.networkRequirement === "function" ? await adapter.networkRequirement(executionRequest) : null;
       let authorizedNetwork = null;
@@ -125,7 +125,7 @@ class PandoraToolGateway {
       const finished = this.now();
       const receipt = createToolReceipt({ tool_call_id: toolCallId, definition, organization_id: context.organization_id, project_id: project.id, environment: context.environment, action_hash: actionHash, policy_version: policy.policy_version, risk: policy.risk, resource_scope: executionRequest.resource_scope, model_run_id: context.model_run_id || null, build_job_id: context.build_job_id || null, maxOutputBytes: definition.maxPayloadBytes, status: "succeeded", started_at: started.toISOString(), finished_at: finished.toISOString(), retryable: false, artifacts: rawResult?.artifacts || [], output: rawResult?.output ?? rawResult ?? null, provenance: { executor: definition.executor, untrusted_output: true }, canaries: this.canaries });
       if (this.idempotency && definition.idempotency !== "NONE") await this.idempotency.succeeded(idemScope, receipt, finished);
-      await recordLineage(this.lineage, "tool_execution_finished", { tool_call_id: toolCallId, action_hash: actionHash, execution_id: receipt.execution_id, status: receipt.status, project_id: project.id });
+      await recordLineage(this.lineage, "tool_execution_finished", { tool_call_id: toolCallId, action_hash: actionHash, execution_id: receipt.execution_id, status: receipt.status, organization_id: context.organization_id, project_id: project.id, idempotency_key: args.idempotency_key || null, retryable: false, receipt });
       return Object.freeze({ tool_call_id: toolCallId, executed: true, decision: policy, action_hash: actionHash, receipt });
     } catch (error) {
       const failure = normalizeExecutionFailure(error);
@@ -135,7 +135,7 @@ class PandoraToolGateway {
         else await this.idempotency.failedSafe(idemScope, failure, finished);
       }
       const receipt = createToolReceipt({ tool_call_id: toolCallId, definition, organization_id: context.organization_id, project_id: project.id, environment: context.environment, action_hash: actionHash, policy_version: policy.policy_version, risk: policy.risk, resource_scope: executionRequest.resource_scope, model_run_id: context.model_run_id || null, build_job_id: context.build_job_id || null, maxOutputBytes: definition.maxPayloadBytes, status: "failed", started_at: started.toISOString(), finished_at: finished.toISOString(), retryable: failure.retryable, error: failure.owner, provenance: { executor: definition.executor, provider_started: providerStarted }, canaries: this.canaries });
-      await recordLineage(this.lineage, "tool_execution_finished", { tool_call_id: toolCallId, action_hash: actionHash, execution_id: receipt.execution_id, status: receipt.status, error_class: failure.error_class, project_id: project.id });
+      await recordLineage(this.lineage, "tool_execution_finished", { tool_call_id: toolCallId, action_hash: actionHash, execution_id: receipt.execution_id, status: receipt.status, error_class: failure.error_class, organization_id: context.organization_id, project_id: project.id, idempotency_key: args.idempotency_key || null, retryable: failure.retryable, receipt });
       return Object.freeze({ tool_call_id: toolCallId, executed: providerStarted, decision: policy, action_hash: actionHash, receipt });
     } finally {
       if (credentialLease && this.secrets && !credentialLeaseHandedOff) await this.secrets.revoke(credentialLease.lease_id, this.now());
