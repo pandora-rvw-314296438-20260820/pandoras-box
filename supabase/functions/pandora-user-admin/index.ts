@@ -1,5 +1,8 @@
 import "jsr:@supabase/functions-js@2.4.5/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2.57.2";
+import {
+  createClient,
+  type SupabaseClient,
+} from "jsr:@supabase/supabase-js@2.57.2";
 
 const SUPABASE_URL = requiredEnv("SUPABASE_URL");
 const SUPABASE_ANON_KEY = requiredEnv("SUPABASE_ANON_KEY");
@@ -8,7 +11,8 @@ const FUNCTION_NAME = "pandora-user-admin";
 const ROLES = ["owner", "admin", "operator", "member", "viewer"] as const;
 type MemberRole = typeof ROLES[number];
 type Json = Record<string, unknown>;
-type Client = ReturnType<typeof createClient>;
+// Untyped client matches other governed Edge functions (Deno check without generated DB types).
+type Client = SupabaseClient<any, "public", "public", any, any>;
 type Context = {
   userId: string;
   organizationId: string;
@@ -173,7 +177,7 @@ async function authenticate(req: Request): Promise<Context> {
     throw new ApiError(400, "ORGANIZATION_REQUIRED", "A valid organization must be selected.");
   }
 
-  const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  const userClient: Client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -206,7 +210,7 @@ async function authenticate(req: Request): Promise<Context> {
     userClient,
     adminClient: createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
-    }),
+    }) as Client,
   };
 }
 
