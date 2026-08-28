@@ -7,4 +7,8 @@ module.exports = {
   ...require("./registry"),
   ...require("./validation"),
   ...require("./policy"),
+  ...require("./approvals"),
+  ...require("./idempotency"),
+  ...require("./concurrency"),
+  ...require("./rate-limits"),
 };
