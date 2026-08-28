@@ -610,6 +610,59 @@ async function home(context: UserContext) {
   };
 }
 
+const CUSTOMER_BUILD_TYPES = new Set([
+  "website",
+  "web_app",
+  "mobile_app",
+  "internal_tool",
+  "automation",
+  "api_backend",
+  "full_system",
+  "help_me_decide",
+]);
+
+function customerProjectKey(name: string) {
+  const slug = name.toLowerCase().normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 58) || "project";
+  return `${slug}-${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
+}
+
+async function createCustomerProject(context: UserContext, body: JsonRecord) {
+  if (context.isAnonymous) throw new Error("PERMANENT_ACCOUNT_REQUIRED");
+  const name = textValue(body.name).trim();
+  const buildType = textValue(body.buildType).trim().toLowerCase();
+  if (!name || name.length > 160) throw new Error("INVALID_PROJECT_NAME");
+  if (!CUSTOMER_BUILD_TYPES.has(buildType)) throw new Error("INVALID_BUILD_TYPE");
+
+  const projectKey = customerProjectKey(name);
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await admin.from("projectos_projects").insert({
+    organization_id: context.organizationId,
+    project_key: projectKey,
+    name,
+    repository: null,
+    workspace_path: `projectos/projects/${projectKey}`,
+    status: "active",
+    objective: `Build ${buildType.replace(/_/g, " ")}`,
+    config: {
+      customerJourney: {
+        version: "2.0",
+        buildType,
+        lifecycle: "idea",
+      },
+    },
+    created_by: context.userId,
+  }).select(
+    "id, project_key, name, repository, status, objective, current_phase_key, progress_percent, last_reconciled_at, updated_at",
+  ).single();
+  if (error || !data) throw new Error("PROJECT_CREATE_FAILED");
+  return projectSummary(data);
+}
+
 async function projects(context: UserContext) {
   return loadProjectSummaries(context);
 }
@@ -1665,6 +1718,9 @@ Deno.serve(async (req: Request) => {
         })),
       );
     }
+    if (req.method === "POST" && route === "/projects") {
+      return send(await createCustomerProject(context, await bodyJson(req)), 201);
+    }
     if (req.method === "POST" && route === "/ask") {
       return send(
         await acceptIntake(
@@ -1795,6 +1851,8 @@ Deno.serve(async (req: Request) => {
       [
         "INVALID_JSON",
         "INVALID_MESSAGE",
+        "INVALID_PROJECT_NAME",
+        "INVALID_BUILD_TYPE",
         "INVALID_DECISION",
         "INVALID_IDEMPOTENCY_KEY",
         "INVALID_QUERY",
