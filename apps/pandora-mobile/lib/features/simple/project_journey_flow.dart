@@ -10,7 +10,9 @@ import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../approvals/approvals_screen.dart';
 import '../settings/settings_screen.dart';
+import 'owner_project_language.dart';
 import 'pandora_simple_ui.dart';
+import 'project_iteration_experience.dart';
 
 void _openJourney(BuildContext context, Widget screen) {
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
@@ -37,183 +39,6 @@ Future<void> _launchProjectUrl(BuildContext context, String? value) async {
   }
 }
 
-class CreateProjectFlowScreen extends StatefulWidget {
-  const CreateProjectFlowScreen({super.key});
-
-  @override
-  State<CreateProjectFlowScreen> createState() =>
-      _CreateProjectFlowScreenState();
-}
-
-class _CreateProjectFlowScreenState extends State<CreateProjectFlowScreen> {
-  final _name = TextEditingController();
-  final _objective = TextEditingController();
-  ProjectBuildKind _kind = ProjectBuildKind.helpMeDecide;
-  bool _submitting = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _objective.dispose();
-    super.dispose();
-  }
-
-  Future<void> _create() async {
-    final name = _name.text.trim();
-    final objective = _objective.text.trim();
-    if (name.length < 2) {
-      setState(() => _error = 'Give this project a short name.');
-      return;
-    }
-    if (objective.length < 10) {
-      setState(
-        () => _error = 'Tell Pandora a little more about the result you want.',
-      );
-      return;
-    }
-    final runtime = PandoraDependencies.of(context).projectRuntime;
-    if (runtime == null) {
-      setState(
-        () =>
-            _error = 'Project building is not available in this app build yet.',
-      );
-      return;
-    }
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    try {
-      final project = await runtime.createProject(
-        name: name,
-        buildKind: _kind,
-        objective: objective,
-      );
-      if (!mounted) return;
-      await Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => ProjectBuildTheatreScreen(project: project),
-        ),
-      );
-    } on PandoraRepositoryException catch (error) {
-      if (!mounted) return;
-      setState(() => _error = error.message);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _error = 'Pandora could not create that project yet.');
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => PandoraSimplePage(
-        header: PandoraOwnerHeader(
-          title: 'New Project',
-          subtitle: 'Tell Pandora what you want to create.',
-          centerBrand: true,
-          showBack: true,
-          onBack: () => Navigator.of(context).maybePop(),
-          onNotifications: () => _openJourney(context, const ApprovalsScreen()),
-          onAvatar: () => _openJourney(context, const SettingsScreen()),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'What are we building?',
-              style: TextStyle(
-                color: PandoraSimpleColors.ink,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -.6,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Choose a starting point. Pandora can change the shape later as it learns more.',
-              style: pandoraSimpleMutedText,
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _name,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Project name',
-                hintText: 'PLP Boracay',
-              ),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _objective,
-              minLines: 4,
-              maxLines: 8,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'What should this accomplish?',
-                hintText:
-                    'Build a premium resort website where guests can explore rooms, check availability and make reservations.',
-              ),
-            ),
-            const SizedBox(height: 22),
-            const PandoraSectionTitle(title: 'Starting shape'),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (final kind in ProjectBuildKind.values)
-                  ChoiceChip(
-                    label: Text(kind.label),
-                    selected: _kind == kind,
-                    onSelected: _submitting
-                        ? null
-                        : (_) => setState(() => _kind = kind),
-                    selectedColor: PandoraSimpleColors.blush,
-                    side: BorderSide(
-                      color: _kind == kind
-                          ? PandoraSimpleColors.red
-                          : PandoraSimpleColors.line,
-                    ),
-                    labelStyle: TextStyle(
-                      color: _kind == kind
-                          ? PandoraSimpleColors.deepRed
-                          : PandoraSimpleColors.ink,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(_kind.description, style: pandoraSimpleMutedText),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              PandoraSimpleCard(
-                shadow: false,
-                backgroundColor: const Color(0xFFFFF4F5),
-                borderColor: const Color(0xFFF0C3CA),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.deepRed,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 24),
-            PandoraPrimaryButton(
-              label: _submitting ? 'Creating project…' : 'Start building',
-              icon: Icons.auto_awesome_rounded,
-              loading: _submitting,
-              onPressed: _submitting ? null : _create,
-              expanded: true,
-            ),
-          ],
-        ),
-      );
-}
-
 class ProjectBuildTheatreScreen extends StatefulWidget {
   const ProjectBuildTheatreScreen({
     super.key,
@@ -230,26 +55,30 @@ class ProjectBuildTheatreScreen extends StatefulWidget {
 }
 
 class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _orbit;
-  Timer? _stageTimer;
+  Timer? _refreshTimer;
   bool _started = false;
-  int _stage = 0;
-  ProjectPreviewResult? _result;
+  bool _requestStarted = false;
+  bool _refreshing = false;
+  ProjectRuntimeSnapshot? _snapshot;
+  ProjectPreviewResult? _previewResult;
   String? _error;
+  DateTime? _lastCheckedAt;
 
-  static const _steps = <String>[
-    'Understanding your idea',
-    'Designing the experience',
-    'Building your project',
-    'Connecting the runtime',
-    'Checking the result',
-    'Preparing your live preview',
+  static const _normalSteps = <PandoraOwnerBuildStage>[
+    PandoraOwnerBuildStage.understanding,
+    PandoraOwnerBuildStage.designing,
+    PandoraOwnerBuildStage.building,
+    PandoraOwnerBuildStage.connecting,
+    PandoraOwnerBuildStage.preparingPreview,
+    PandoraOwnerBuildStage.previewReady,
   ];
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _orbit = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
@@ -261,54 +90,193 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
-    _stageTimer = Timer.periodic(const Duration(milliseconds: 1200), (_) {
-      if (!mounted || _result != null || _error != null) return;
-      if (_stage < _steps.length - 1) setState(() => _stage += 1);
-    });
-    unawaited(_buildPreview());
+    unawaited(_resumeBuild(requestPreviewIfNeeded: true));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshDurableTruth());
+    }
   }
 
   @override
   void dispose() {
-    _stageTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _refreshTimer?.cancel();
     _orbit.dispose();
     super.dispose();
   }
 
-  Future<void> _buildPreview() async {
+  Future<void> _resumeBuild({required bool requestPreviewIfNeeded}) async {
+    _refreshTimer?.cancel();
+    if (mounted) {
+      setState(() => _error = null);
+    }
+    final snapshot = await _refreshDurableTruth(showBlockingError: true);
+    if (!mounted || snapshot == null) return;
+
+    if (requestPreviewIfNeeded && _shouldRequestPreview(snapshot)) {
+      _requestStarted = true;
+      unawaited(_requestPreview());
+    }
+    _scheduleRefresh();
+  }
+
+  Future<ProjectRuntimeSnapshot?> _refreshDurableTruth({
+    bool showBlockingError = false,
+  }) async {
+    if (_refreshing) return _snapshot;
     final runtime = PandoraDependencies.of(context).projectRuntime;
     if (runtime == null) {
-      setState(
-        () =>
-            _error = 'Project building is not available in this app build yet.',
-      );
+      if (mounted && (showBlockingError || _snapshot == null)) {
+        setState(
+          () => _error = 'Pandora cannot refresh this project right now.',
+        );
+      }
+      return null;
+    }
+
+    _refreshing = true;
+    try {
+      final snapshot = await runtime.runtime(widget.project.id);
+      if (!mounted) return snapshot;
+      setState(() {
+        _snapshot = snapshot;
+        _lastCheckedAt = DateTime.now();
+        _error = null;
+      });
+      return snapshot;
+    } on PandoraRepositoryException {
+      if (!mounted) return null;
+      if (showBlockingError || _snapshot == null) {
+        setState(
+          () => _error = 'Pandora could not refresh this build right now.',
+        );
+      }
+      return null;
+    } catch (_) {
+      if (!mounted) return null;
+      if (showBlockingError || _snapshot == null) {
+        setState(
+          () => _error = 'Pandora could not refresh this build right now.',
+        );
+      }
+      return null;
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  bool _shouldRequestPreview(ProjectRuntimeSnapshot snapshot) {
+    if (_requestStarted || pandoraHasLivePreview(snapshot)) return false;
+    if (snapshot.preview != null || pandoraBuildAppearsInFlight(snapshot)) {
+      return false;
+    }
+    final stage = snapshot.project.stage.toLowerCase();
+    return stage == 'idea' || stage == 'draft' || stage == 'understanding';
+  }
+
+  Future<void> _requestPreview() async {
+    final runtime = PandoraDependencies.of(context).projectRuntime;
+    if (runtime == null) {
+      if (mounted) {
+        setState(() => _error = 'Pandora cannot build this preview right now.');
+      }
       return;
     }
+
     try {
-      final result = await runtime.createPreview(projectId: widget.project.id);
+      final result = await runtime.createPreview(
+        projectId: widget.project.id,
+        idempotencyKey: _previewIdempotencyKey,
+      );
       if (!mounted) return;
-      _stageTimer?.cancel();
       setState(() {
-        _stage = _steps.length;
-        _result = result;
+        _previewResult = result;
+        _lastCheckedAt = DateTime.now();
+        _error = null;
       });
-    } on PandoraRepositoryException catch (error) {
+      await _refreshDurableTruth();
+      _scheduleRefresh();
+    } on PandoraRepositoryException {
       if (!mounted) return;
-      _stageTimer?.cancel();
-      setState(() => _error = error.message);
+      _refreshTimer?.cancel();
+      _requestStarted = false;
+      setState(
+        () => _error =
+            'Pandora found something to fix before your preview is ready.',
+      );
     } catch (_) {
       if (!mounted) return;
-      _stageTimer?.cancel();
-      setState(() => _error = 'Pandora could not finish this preview yet.');
+      _refreshTimer?.cancel();
+      _requestStarted = false;
+      setState(
+        () => _error =
+            'Pandora found something to fix before your preview is ready.',
+      );
     }
+  }
+
+  String get _previewIdempotencyKey {
+    final version = widget.project.updatedAt ?? widget.project.createdAt;
+    final versionKey =
+        version?.toUtc().toIso8601String() ?? widget.project.projectKey;
+    return 'project-preview:${widget.project.id}:$versionKey';
+  }
+
+  void _scheduleRefresh() {
+    _refreshTimer?.cancel();
+    if (_previewUrl != null) return;
+    _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      unawaited(_refreshDurableTruth());
+    });
+  }
+
+  String? get _previewUrl {
+    final durableUrl = _snapshot?.preview?.url ?? _snapshot?.project.previewUrl;
+    if (durableUrl != null && durableUrl.trim().isNotEmpty) return durableUrl;
+    final resultUrl = _previewResult?.previewUrl;
+    return resultUrl == null || resultUrl.trim().isEmpty ? null : resultUrl;
+  }
+
+  PandoraOwnerBuildStage get _currentStage {
+    final snapshot = _snapshot;
+    if (snapshot != null) return pandoraOwnerBuildStage(snapshot);
+    if (_previewUrl != null) return PandoraOwnerBuildStage.previewReady;
+    return PandoraOwnerBuildStage.understanding;
+  }
+
+  List<PandoraOwnerBuildStage> get _visibleSteps {
+    return switch (_currentStage) {
+      PandoraOwnerBuildStage.checking => <PandoraOwnerBuildStage>[
+          ..._normalSteps.take(4),
+          PandoraOwnerBuildStage.checking,
+          PandoraOwnerBuildStage.preparingPreview,
+          PandoraOwnerBuildStage.previewReady,
+        ],
+      PandoraOwnerBuildStage.fixing => <PandoraOwnerBuildStage>[
+          ..._normalSteps.take(4),
+          PandoraOwnerBuildStage.fixing,
+          PandoraOwnerBuildStage.preparingPreview,
+          PandoraOwnerBuildStage.previewReady,
+        ],
+      _ => _normalSteps,
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    final ready = _result?.previewUrl != null;
+    final previewUrl = _previewUrl;
+    final ready = previewUrl != null;
+    final currentStage = _currentStage;
+    final steps = _visibleSteps;
+    final currentIndex = steps.indexOf(currentStage);
+    final copy = pandoraOwnerBuildStageCopy(currentStage);
+
     return PandoraSimplePage(
       header: PandoraOwnerHeader(
-        title: ready ? 'Preview ready' : 'Pandora is building',
+        title: ready ? 'Live preview ready' : 'Pandora is building',
         subtitle: widget.project.name,
         centerBrand: true,
         showBack: true,
@@ -331,8 +299,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Pandora is turning your intent into the first working experience.',
+            Text(
+              copy.detail,
               textAlign: TextAlign.center,
               style: pandoraSimpleMutedText,
             ),
@@ -342,20 +310,41 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
             PandoraSimpleCard(
               shadow: false,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (var index = 0; index < _steps.length; index++)
+                  Text(
+                    copy.label,
+                    style: const TextStyle(
+                      color: PandoraSimpleColors.ink,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  for (var index = 0; index < steps.length; index++)
                     _BuildStageRow(
-                      label: _steps[index],
-                      state: index < _stage
+                      label: pandoraOwnerBuildStageCopy(steps[index]).label,
+                      state: currentIndex >= 0 && index < currentIndex
                           ? _StageState.complete
-                          : index == _stage
+                          : index == currentIndex
                               ? _StageState.current
                               : _StageState.pending,
-                      last: index == _steps.length - 1,
+                      last: index == steps.length - 1,
                     ),
                 ],
               ),
             ),
+            if (_lastCheckedAt != null) ...[
+              const SizedBox(height: 10),
+              const Text(
+                'Build state is synced from Pandora. It will reconnect after you return to the app.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: PandoraSimpleColors.muted,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ],
           if (_error != null) ...[
             PandoraSimpleCard(
@@ -367,7 +356,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                   const PandoraIconBadge(icon: Icons.warning_amber_rounded),
                   const SizedBox(height: 12),
                   const Text(
-                    'The preview needs another try',
+                    'Pandora found something to fix',
                     style: TextStyle(
                       color: PandoraSimpleColors.ink,
                       fontSize: 19,
@@ -381,23 +370,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                     label: 'Try again',
                     icon: Icons.refresh_rounded,
                     onPressed: () {
-                      setState(() {
-                        _error = null;
-                        _stage = 0;
-                      });
-                      _stageTimer?.cancel();
-                      _stageTimer = Timer.periodic(
-                        const Duration(milliseconds: 1200),
-                        (_) {
-                          if (!mounted || _result != null || _error != null) {
-                            return;
-                          }
-                          if (_stage < _steps.length - 1) {
-                            setState(() => _stage += 1);
-                          }
-                        },
-                      );
-                      unawaited(_buildPreview());
+                      _requestStarted = false;
+                      unawaited(_resumeBuild(requestPreviewIfNeeded: true));
                     },
                   ),
                 ],
@@ -413,7 +387,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
             ),
             const SizedBox(height: 14),
             const Text(
-              'Your first preview is ready',
+              'Your preview is ready',
               style: TextStyle(
                 color: PandoraSimpleColors.ink,
                 fontSize: 29,
@@ -423,7 +397,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
             ),
             const SizedBox(height: 8),
             const Text(
-              'This is a real preview deployment. Keep changing it until it feels right, then publish that exact version.',
+              'This version is available to preview. Pandora may still be checking it before publication is allowed.',
               style: pandoraSimpleMutedText,
             ),
             const SizedBox(height: 20),
@@ -439,7 +413,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    _result!.previewUrl!,
+                    previewUrl,
                     style: const TextStyle(
                       color: PandoraSimpleColors.ink,
                       fontSize: 15,
@@ -450,8 +424,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                   PandoraPrimaryButton(
                     label: 'Open Preview',
                     icon: Icons.open_in_new_rounded,
-                    onPressed: () =>
-                        _launchProjectUrl(context, _result!.previewUrl),
+                    onPressed: () => _launchProjectUrl(context, previewUrl),
                     expanded: true,
                   ),
                 ],
@@ -712,6 +685,22 @@ class _ProjectJourneyWorkspaceScreenState
     if (mounted) await _load();
   }
 
+  Future<void> _changeSomething() async {
+    final project = _snapshot?.project;
+    if (project == null) return;
+    final buildUpdatedPreview = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => ProjectIterationExperienceScreen(project: project),
+      ),
+    );
+    if (!mounted) return;
+    if (buildUpdatedPreview == true) {
+      await _buildAgain();
+      return;
+    }
+    await _load();
+  }
+
   Future<void> _publish() async {
     final project = _snapshot?.project;
     if (project == null) return;
@@ -970,15 +959,20 @@ class _ProjectJourneyWorkspaceScreenState
                       ),
                     ],
                     const SizedBox(height: 20),
-                    PandoraPrimaryButton(
-                      label: project.hasPreview
-                          ? 'Build a new preview'
-                          : 'Build preview',
-                      icon: Icons.auto_awesome_rounded,
-                      onPressed: _publishing ? null : _buildAgain,
-                      expanded: true,
-                    ),
+                    if (!project.hasPreview)
+                      PandoraPrimaryButton(
+                        label: 'Build preview',
+                        icon: Icons.auto_awesome_rounded,
+                        onPressed: _publishing ? null : _buildAgain,
+                        expanded: true,
+                      ),
                     if (project.hasPreview) ...[
+                      PandoraPrimaryButton(
+                        label: 'Change something',
+                        icon: Icons.edit_outlined,
+                        onPressed: _publishing ? null : _changeSomething,
+                        expanded: true,
+                      ),
                       const SizedBox(height: 10),
                       PandoraSecondaryButton(
                         label: _publishing ? 'Publishing…' : 'Publish',
