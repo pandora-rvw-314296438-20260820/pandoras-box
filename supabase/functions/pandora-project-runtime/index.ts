@@ -567,7 +567,7 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   if (!Number.isFinite(completedAt) || !Number.isFinite(versionCreatedAt) || !Number.isFinite(previewCreatedAt) || completedAt < Math.max(versionCreatedAt, previewCreatedAt)) throw new Error("VERIFICATION_STALE");
 
   const { data: currentEnvironment, error: environmentError } = await admin.from("pandora_runtime_environments")
-    .select("id, current_version_id, current_deployment_id").eq("project_id", projectId).eq("environment", "production").maybeSingle();
+    .select("id, current_version_id, current_deployment_id").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").maybeSingle();
   if (environmentError) throw new Error("BACKEND_READ_FAILED");
   const { data: latestProduction, error: productionReadError } = await admin.from("pandora_project_deployments")
     .select("id, version_id, provider_deployment_id, url, status, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId)
@@ -746,18 +746,18 @@ async function finalizeProductionVerification(context: UserContext, identifier: 
 
   const metadata = asRecord(deployment.metadata);
   const now = new Date().toISOString();
-  const { error: deploymentUpdateError } = await admin.from("pandora_project_deployments")
+  const { data: deploymentUpdated, error: deploymentUpdateError } = await admin.from("pandora_project_deployments")
     .update({ verification_state: "live_verified", verification_ref: verificationRunId, metadata: { ...metadata, productionVerificationRunId: verificationRunId }, last_provider_check_at: now, updated_at: now })
-    .eq("id", productionRowId).eq("verification_state", "ready_for_verification");
-  if (deploymentUpdateError) throw new Error("BACKEND_WRITE_FAILED");
-  const { error: environmentUpdateError } = await admin.from("pandora_runtime_environments")
+    .eq("id", productionRowId).eq("verification_state", "ready_for_verification").select("id").maybeSingle();
+  if (deploymentUpdateError || !deploymentUpdated) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+  const { data: environmentUpdated, error: environmentUpdateError } = await admin.from("pandora_runtime_environments")
     .update({ verification_state: "live_verified", status: "ready", last_reconciled_at: now, updated_at: now })
-    .eq("id", environment.id).eq("current_version_id", requestedVersion).eq("current_deployment_id", productionRowId).eq("verification_state", "ready_for_verification");
-  if (environmentUpdateError) throw new Error("BACKEND_WRITE_FAILED");
-  const { error: versionUpdateError } = await admin.from("pandora_project_versions")
+    .eq("id", environment.id).eq("current_version_id", requestedVersion).eq("current_deployment_id", productionRowId).eq("verification_state", "ready_for_verification").select("id").maybeSingle();
+  if (environmentUpdateError || !environmentUpdated) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+  const { data: versionUpdated, error: versionUpdateError } = await admin.from("pandora_project_versions")
     .update({ lifecycle_status: "live", rollback_eligible: true, verification_run_id: verificationRunId })
-    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", requestedVersion).eq("lifecycle_status", "production_candidate");
-  if (versionUpdateError) throw new Error("BACKEND_WRITE_FAILED");
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", requestedVersion).eq("lifecycle_status", "production_candidate").select("id").maybeSingle();
+  if (versionUpdateError || !versionUpdated) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
 
   const { data: domainData, error: domainError } = await admin.from("pandora_project_domains")
     .select("domain, ownership_verified, dns_configured, tls_ready, routing_ready, runtime_healthy")
