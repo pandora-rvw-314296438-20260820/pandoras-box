@@ -127,7 +127,14 @@ create or replace function private.pandora_commit_compiled_project_spec_20260829
   p_compiler_model text,
   p_compiler_version text,
   p_compiler_provenance jsonb,
-  p_content_sha256 text
+  p_content_sha256 text,
+  p_model_request_id text,
+  p_model_request_sha256 text,
+  p_model_response_sha256 text,
+  p_model_input_tokens bigint,
+  p_model_output_tokens bigint,
+  p_model_total_tokens bigint,
+  p_model_revision text
 )
 returns jsonb
 language plpgsql
@@ -165,6 +172,15 @@ begin
   end if;
   if p_content_sha256 !~ '^[0-9a-f]{64}$' then
     raise exception 'invalid ProjectSpec content digest' using errcode='22023';
+  end if;
+  if p_model_request_id !~ '^[0-9a-f-]{36}$'
+     or p_model_request_sha256 !~ '^[0-9a-f]{64}$'
+     or p_model_response_sha256 !~ '^[0-9a-f]{64}$'
+     or coalesce(p_model_input_tokens,-1) < 0
+     or coalesce(p_model_output_tokens,-1) < 0
+     or coalesce(p_model_total_tokens,-1) < greatest(coalesce(p_model_input_tokens,0),coalesce(p_model_output_tokens,0))
+     or length(coalesce(p_model_revision,'')) not between 1 and 100 then
+    raise exception 'invalid durable model run identity' using errcode='22023';
   end if;
   if p_compiler_provider !~ '^[a-z][a-z0-9_-]{1,31}$'
      or p_compiler_model !~ '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$'
@@ -330,6 +346,26 @@ begin
     values(v_org,v_project,v_spec_id,'functional.'||v_ord,left(v_item,10000),'acceptance',true,jsonb_build_object('compiler_version',p_compiler_version),v_requester);
   end loop;
 
+  insert into public.pandora_model_runs(
+    organization_id,project_id,project_spec_id,request_id,task,output_mode,status,
+    provider,model,model_revision,request_sha256,response_sha256,
+    input_tokens,output_tokens,total_tokens,attempt,max_attempts,started_at,completed_at
+  ) values (
+    v_org,v_project,v_spec_id,p_model_request_id,'compile_project_spec','structured','succeeded',
+    p_compiler_provider,p_compiler_model,p_model_revision,p_model_request_sha256,p_model_response_sha256,
+    p_model_input_tokens,p_model_output_tokens,p_model_total_tokens,1,1,now(),now()
+  ) on conflict (organization_id,request_id) do nothing;
+
+  if not exists (
+    select 1 from public.pandora_model_runs
+    where organization_id=v_org and request_id=p_model_request_id
+      and project_id=v_project and project_spec_id=v_spec_id
+      and request_sha256=p_model_request_sha256 and response_sha256=p_model_response_sha256
+      and status='succeeded'
+  ) then
+    raise exception 'durable model run lineage mismatch' using errcode='55000';
+  end if;
+
   update public.pandora_project_spec_compilations
   set status='succeeded', project_spec_id=v_spec_id, safe_error_code=null,
       finished_at=now(), retry_after_at=null, updated_at=now()
@@ -338,8 +374,8 @@ begin
   return jsonb_build_object('state','succeeded','projectSpecId',v_spec_id,'version',v_version,'sourceIntentId',p_source_intent_id);
 end;
 $$;
-revoke all on function private.pandora_commit_compiled_project_spec_20260829(uuid,uuid,jsonb,text,text,text,jsonb,text) from public, anon, authenticated;
-grant execute on function private.pandora_commit_compiled_project_spec_20260829(uuid,uuid,jsonb,text,text,text,jsonb,text) to service_role;
+revoke all on function private.pandora_commit_compiled_project_spec_20260829(uuid,uuid,jsonb,text,text,text,jsonb,text,text,text,text,bigint,bigint,bigint,text) from public, anon, authenticated;
+grant execute on function private.pandora_commit_compiled_project_spec_20260829(uuid,uuid,jsonb,text,text,text,jsonb,text,text,text,text,bigint,bigint,bigint,text) to service_role;
 
 create or replace function public.pandora_commit_compiled_project_spec_20260829(
   p_source_intent_id uuid,
@@ -349,7 +385,14 @@ create or replace function public.pandora_commit_compiled_project_spec_20260829(
   p_compiler_model text,
   p_compiler_version text,
   p_compiler_provenance jsonb,
-  p_content_sha256 text
+  p_content_sha256 text,
+  p_model_request_id text,
+  p_model_request_sha256 text,
+  p_model_response_sha256 text,
+  p_model_input_tokens bigint,
+  p_model_output_tokens bigint,
+  p_model_total_tokens bigint,
+  p_model_revision text
 )
 returns jsonb
 language sql
@@ -358,11 +401,13 @@ set search_path = ''
 as $$
   select private.pandora_commit_compiled_project_spec_20260829(
     p_source_intent_id,p_claim_token,p_candidate,p_compiler_provider,p_compiler_model,
-    p_compiler_version,p_compiler_provenance,p_content_sha256
+    p_compiler_version,p_compiler_provenance,p_content_sha256,
+    p_model_request_id,p_model_request_sha256,p_model_response_sha256,
+    p_model_input_tokens,p_model_output_tokens,p_model_total_tokens,p_model_revision
   );
 $$;
-revoke all on function public.pandora_commit_compiled_project_spec_20260829(uuid,uuid,jsonb,text,text,text,jsonb,text) from public, anon, authenticated;
-grant execute on function public.pandora_commit_compiled_project_spec_20260829(uuid,uuid,jsonb,text,text,text,jsonb,text) to service_role;
+revoke all on function public.pandora_commit_compiled_project_spec_20260829(uuid,uuid,jsonb,text,text,text,jsonb,text,text,text,text,bigint,bigint,bigint,text) from public, anon, authenticated;
+grant execute on function public.pandora_commit_compiled_project_spec_20260829(uuid,uuid,jsonb,text,text,text,jsonb,text,text,text,text,bigint,bigint,bigint,text) to service_role;
 
 create or replace function public.pandora_fail_project_spec_compilation_20260829(
   p_source_intent_id uuid,
