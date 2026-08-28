@@ -78,6 +78,18 @@ test("builder, model, and client cannot forge authoritative PASS", () => {
   assert.equal(engine.getVerification(run.verification_run_id).status, "PENDING");
 });
 
+test("builder, model, and client cannot forge verification invalidation", () => {
+  const { engine } = harness();
+  const run = engine.requestVerification(request());
+  for (const forgedAuthority of ["pandora-verification-engine", { role: "builder" }, null, undefined]) {
+    assert.throws(
+      () => engine.assertIdentityCurrent(run.verification_run_id, request({ artifact_digest: D("f") }), forgedAuthority),
+      /trusted Verification Engine executor/,
+    );
+  }
+  assert.equal(engine.getVerification(run.verification_run_id).status, "PENDING");
+});
+
 test("trusted verifier can produce PASS only after every profile requirement passes", () => {
   const { engine, authorityToken } = harness();
   const run = engine.requestVerification(request());
