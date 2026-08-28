@@ -50,3 +50,12 @@ test("runtime exposes an explicit production verification finalizer route", () =
   assert.match(source, /production-verification/);
   assert.match(source, /finalizeProductionVerification/);
 });
+
+
+test("production finalization compare-and-set fails closed on races and is organization scoped", () => {
+  assert.match(publish, /organization_id[^\n]+context\.organizationId[^\n]+project_id[^\n]+projectId[^\n]+environment[^\n]+production/);
+  assert.match(finalize, /deploymentUpdateError \|\| !deploymentUpdated/);
+  assert.match(finalize, /environmentUpdateError \|\| !environmentUpdated/);
+  assert.match(finalize, /versionUpdateError \|\| !versionUpdated/);
+  assert.match(finalize, /select\("id"\)\.maybeSingle\(\)/);
+});
