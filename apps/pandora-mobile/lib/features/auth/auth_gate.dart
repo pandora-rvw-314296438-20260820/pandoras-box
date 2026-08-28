@@ -170,7 +170,12 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
     return NavigatorPopHandler(
-      onPopWithResult: (_) => _authenticatedNavigatorKey.currentState?.pop(),
+      onPopWithResult: (_) {
+        unawaited(
+          _authenticatedNavigatorKey.currentState?.maybePop() ??
+              Future<bool>.value(false),
+        );
+      },
       child: Navigator(
         key: _authenticatedNavigatorKey,
         onGenerateRoute: (settings) => MaterialPageRoute<void>(
