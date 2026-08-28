@@ -151,9 +151,23 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260823164000_harden_governed_worker_validation_boundaries.sql',
     '20260823170000_add_immutable_physical_android_receipts.sql',
     '20260823171000_harden_owner_worker_external_authority.sql',
+    '20260825223743_pandora_canonical_domain_cutover_20260826.sql',
+    '20260826002704_temporary_apply_canonical_working_ui_patch_20260826.sql',
+    '20260826002936_temporary_stage_canonical_ui_patch_payload_20260826.sql',
+    '20260826004028_fix_temporary_canonical_ui_patch_object_count_20260826.sql',
     '20260826005701_pandora_organization_user_administration_v1.sql',
     '20260826010748_pandora_user_administration_service_boundary_v1.sql',
     '20260826011131_remove_legacy_pandora_user_admin_rpc_v1.sql',
+    '20260826044432_retired_temporary_transport.sql',
+    '20260826044622_retired_temporary_transport_followup.sql',
+    '20260826044908_retired_temporary_transport_final.sql',
+    '20260826050315_retired_temporary_helper_1.sql',
+    '20260826050344_retired_temporary_helper_2.sql',
+    '20260826050418_retired_helper_3.sql',
+    '20260826050438_retired_helper_4.sql',
+    '20260826051417_remove_temporary_github_security_helpers_20260826.sql',
+    '20260828091417_remove_temporary_recovery_transports_20260828.sql',
+    '20260828095054_remove_orphaned_canonical_ui_patch_function_20260828.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -171,10 +185,54 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260823164000_harden_governed_worker_validation_boundaries.sql',
     '20260823170000_add_immutable_physical_android_receipts.sql',
     '20260823171000_harden_owner_worker_external_authority.sql',
+    '20260825223743_pandora_canonical_domain_cutover_20260826.sql',
+    '20260826002704_temporary_apply_canonical_working_ui_patch_20260826.sql',
+    '20260826002936_temporary_stage_canonical_ui_patch_payload_20260826.sql',
+    '20260826004028_fix_temporary_canonical_ui_patch_object_count_20260826.sql',
     '20260826005701_pandora_organization_user_administration_v1.sql',
     '20260826010748_pandora_user_administration_service_boundary_v1.sql',
     '20260826011131_remove_legacy_pandora_user_admin_rpc_v1.sql',
+    '20260826044432_retired_temporary_transport.sql',
+    '20260826044622_retired_temporary_transport_followup.sql',
+    '20260826044908_retired_temporary_transport_final.sql',
+    '20260826050315_retired_temporary_helper_1.sql',
+    '20260826050344_retired_temporary_helper_2.sql',
+    '20260826050418_retired_helper_3.sql',
+    '20260826050438_retired_helper_4.sql',
+    '20260826051417_remove_temporary_github_security_helpers_20260826.sql',
+    '20260828091417_remove_temporary_recovery_transports_20260828.sql',
+    '20260828095054_remove_orphaned_canonical_ui_patch_function_20260828.sql',
   ]);
+  const retiredRestoredHistory = [
+    '20260826002704_temporary_apply_canonical_working_ui_patch_20260826.sql',
+    '20260826002936_temporary_stage_canonical_ui_patch_payload_20260826.sql',
+    '20260826004028_fix_temporary_canonical_ui_patch_object_count_20260826.sql',
+    '20260826044432_retired_temporary_transport.sql',
+    '20260826044622_retired_temporary_transport_followup.sql',
+    '20260826044908_retired_temporary_transport_final.sql',
+    '20260826050315_retired_temporary_helper_1.sql',
+    '20260826050344_retired_temporary_helper_2.sql',
+    '20260826050418_retired_helper_3.sql',
+    '20260826050438_retired_helper_4.sql',
+  ];
+  for (const filename of retiredRestoredHistory) {
+    const source = readFileSync(join(migrationRoot, filename), 'utf8');
+    assert.equal(source.replace(/--.*$/gm, '').trim(), '', `${filename}: retired transport must remain non-executable`);
+  }
+  const durableCutoverSource = readFileSync(
+    join(migrationRoot, '20260825223743_pandora_canonical_domain_cutover_20260826.sql'),
+    'utf8',
+  );
+  for (const marker of [
+    'private.project_canonical_registry',
+    'public.projectos_project_resources',
+    'public.projectos_integration_health',
+    'pandoras-box-system.vercel.app',
+    'mcpmaster.vercel.app',
+    'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk',
+  ]) {
+    assert.ok(durableCutoverSource.includes(marker), `durable cutover marker drift: ${marker}`);
+  }
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
     currentReplayResult.migration_count,
