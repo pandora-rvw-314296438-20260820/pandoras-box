@@ -1,6 +1,6 @@
 # Pandora Verification Engine V1
 
-Status: implemented foundation on `packages/pandora-verification/`.
+Status: implemented and durably integrated on `packages/pandora-verification/`. Live closure remains fail-closed while provider proof is externally blocked.
 
 ## Independence principle
 
@@ -187,3 +187,14 @@ Environment-bound verification evidence expires automatically. Exact-source, exa
 Worker D is used only as a bounded sandbox execution substrate. Project/builder receipts are evidence only unless Worker E requested and independently observed the execution; Worker E still owns the authoritative result. The adapter sends exact project/source identity, deny-by-default network policy and no credential leases. Worker F provider facts are normalized into exact preview, production and domain evidence before runtime verification.
 
 Release reports expose machine and owner-safe summaries, explicit failed/blocked/missing/expired checks, exact version/source/artifact identity and evidence references. Repair always creates a new run. Rollback targets are independently re-verified after rollback, and production state distinguishes `verified_current`, `drift_detected`, `verification_expired` and `unknown`.
+
+
+## Live proof status — 2026-08-29
+
+Worker A durable verification persistence is now live and has been exercised on an internal disposable proof project. The canonical control plane preserves three independent histories: an intentional static-site acceptance `FAIL`, a repaired preview run whose source/secret/visual/acceptance checks pass but whose runtime is `BLOCKED` by provider infrastructure, and a disposable `database_change` run that passed preflight/postflight/policy verification and rollback. Builder and verifier identities are distinct in durable state.
+
+Worker D Vercel Sandbox live execution was exercised with Node 24, no credential environment, nonpersistent storage and deny-all network policy. The failing artifact returned nonzero acceptance, the repaired exact artifact returned zero, and the named disposable sandbox was stopped and destroyed.
+
+Worker F provider truth was read through the server-side Vault-backed Vercel broker. A prior immutable preview was `READY` and independently returned HTTP 200, but it is not reused as authoritative proof for the repaired artifact. Creation of a new exact repaired deployment returned HTTP 402 `payment_required` for `api-deployments-free-per-day`; therefore the repaired run remains `BLOCKED`, `publish_eligible=false`, and no preview or production PASS is claimed.
+
+The safe machine-readable live receipt is `docs/verification/WORKER_E_LIVE_PROOF_20260829.json`. It must be updated only after a new exact repaired preview, runtime/browser/accessibility proof, same-artifact disposable production proof, drift/freshness/rollback re-verification, cleanup, exact-head CI, and merge are actually complete.
