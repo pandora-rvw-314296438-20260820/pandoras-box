@@ -396,7 +396,7 @@ async function runtimeSummary(context: UserContext, identifier: string) {
       const version = asRecord(versionData);
       const boundVerificationId = textValue(version.verification_run_id);
       let verificationQuery = admin.from("pandora_verification_runs")
-        .select("id, project_spec_id, project_version_id, build_job_id, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, status, completed_at, created_at")
+        .select("id, project_spec_id, project_version_id, build_job_id, source_kind, source_ref, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, status, completed_at, created_at")
         .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("project_version_id", versionId);
       verificationQuery = boundVerificationId
         ? verificationQuery.eq("id", boundVerificationId)
@@ -508,7 +508,7 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 
   const { data: versionData, error: versionError } = await admin.from("pandora_project_versions")
-    .select("id, source_payload, source_sha256, project_spec_id, build_job_id, source_commit, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, verification_run_id, lifecycle_status, created_at")
+    .select("id, source_payload, source_sha256, project_spec_id, build_job_id, source_kind, source_ref, source_commit, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, verification_run_id, lifecycle_status, created_at")
     .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", requestedVersion).maybeSingle();
   if (versionError) throw new Error("BACKEND_READ_FAILED");
   if (!versionData) throw new Error("PREVIEW_REQUIRED");
@@ -523,9 +523,14 @@ async function publishProject(context: UserContext, identifier: string, body: Js
 
   const projectSpecId = textValue(version.project_spec_id);
   const buildJobId = textValue(version.build_job_id);
-  const sourceCommit = textValue(version.source_commit);
+  const sourceKind = textValue(version.source_kind, version.source_commit ? "git_commit" : "artifact_snapshot");
+  const sourceRef = textValue(version.source_ref, sourceKind === "git_commit" ? textValue(version.source_commit) : requestedVersion);
+  const sourceCommit = textValue(version.source_commit) || null;
   const artifactDigest = textValue(version.artifact_digest_sha256);
-  if (!projectSpecId || !buildJobId || !/^[0-9a-f]{40}$/.test(sourceCommit) || !/^[0-9a-f]{64}$/.test(artifactDigest)) throw new Error("VERIFICATION_REQUIRED");
+  const sourceIdentityValid = sourceKind === "git_commit"
+    ? Boolean(sourceCommit && /^[0-9a-f]{40}$/.test(sourceCommit) && sourceRef === sourceCommit)
+    : sourceKind === "artifact_snapshot" && sourceCommit === null && sourceRef === requestedVersion;
+  if (!projectSpecId || !buildJobId || !sourceIdentityValid || !/^[0-9a-f]{64}$/.test(artifactDigest)) throw new Error("VERIFICATION_REQUIRED");
 
   const { data: previewData, error: previewError } = await admin.from("pandora_project_deployments")
     .select("id, version_id, provider_project_id, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at")
@@ -542,7 +547,7 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   if (textValue(preview.source_commit_sha) && textValue(preview.source_commit_sha) !== sourceCommit) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
 
   let verificationQuery = admin.from("pandora_verification_runs")
-    .select("id, project_spec_id, project_version_id, build_job_id, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, status, completed_at, created_at")
+    .select("id, project_spec_id, project_version_id, build_job_id, source_kind, source_ref, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, status, completed_at, created_at")
     .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("project_version_id", requestedVersion);
   const boundVerificationId = textValue(version.verification_run_id);
   verificationQuery = boundVerificationId
@@ -555,8 +560,8 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   if (textValue(verification.status).toUpperCase() !== "PASS") throw new Error("VERIFICATION_REQUIRED");
   if (textValue(verification.target_environment) !== "preview") throw new Error("VERIFICATION_IDENTITY_MISMATCH");
   if (textValue(verification.project_spec_id) !== projectSpecId || textValue(verification.project_version_id) !== requestedVersion ||
-      textValue(verification.build_job_id) !== buildJobId || textValue(verification.source_commit) !== sourceCommit ||
-      textValue(verification.source_digest) !== sourceDigest || textValue(verification.artifact_digest) !== artifactDigest ||
+      textValue(verification.build_job_id) !== buildJobId || textValue(verification.source_kind) !== sourceKind || textValue(verification.source_ref) !== sourceRef ||
+      (textValue(verification.source_commit) || null) !== sourceCommit || textValue(verification.source_digest) !== sourceDigest || textValue(verification.artifact_digest) !== artifactDigest ||
       textValue(verification.migration_set_digest) !== textValue(version.migration_set_digest_sha256) ||
       textValue(verification.runtime_target_digest) !== textValue(version.runtime_target_digest_sha256) ||
       textValue(verification.preview_deployment_id) !== previewDeploymentId) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
