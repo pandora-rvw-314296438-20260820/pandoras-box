@@ -15,6 +15,7 @@ module.exports = {
   ...require("./network-policy"),
   ...require("./trust"),
   ...require("./durability"),
+  ...require("./control-plane"),
   ...require("./cross-worker"),
   ...require("./secrets"),
   ...require("./adapters"),
