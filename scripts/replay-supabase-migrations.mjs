@@ -62,8 +62,26 @@ function canonicalJson(value) {
   throw new TypeError('Canonical JSON input contains a non-JSON value');
 }
 
+const providerOnlyReplayMarkers = new Map([
+  ['20260825223743_pandora_canonical_domain_cutover_20260826.sql', [
+    'private.project_canonical_registry',
+    'public.projectos_project_resources',
+    'public.projectos_integration_health',
+    'pandoras-box-system.vercel.app',
+    'mcpmaster.vercel.app',
+    'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk',
+  ]],
+]);
+
 function portableSql(filename, source) {
   let transformed = source;
+  const providerMarkers = providerOnlyReplayMarkers.get(filename) || [];
+  for (const marker of providerMarkers) {
+    assert.ok(transformed.includes(marker), `${filename}: provider-only replay marker drift: ${marker}`);
+  }
+  if (providerOnlyReplayMarkers.has(filename)) {
+    return `-- PGLITE PROVIDER-METADATA CUTOVER STUB: ${filename}`;
+  }
   for (const statement of expectedExtensionStatements.get(filename) || []) {
     const occurrences = transformed.split(statement).length - 1;
     assert.equal(occurrences, 1, `${filename}: extension substitution drift`);
