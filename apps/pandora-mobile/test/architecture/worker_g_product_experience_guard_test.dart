@@ -3,8 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 const _journeyPath = 'lib/features/simple/project_journey_flow.dart';
-const _iterationPath =
-    'lib/features/simple/project_iteration_experience.dart';
+const _iterationPath = 'lib/features/simple/project_iteration_experience.dart';
 
 void main() {
   test('Simple Mode primary navigation is project-first and owner-safe', () {
