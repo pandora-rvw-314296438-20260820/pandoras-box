@@ -128,3 +128,10 @@ test("orchestrator digests evidence and does not put binary evidence in run stat
   await orchestrator.run({ project_version_id: "v1" });
   assert.match(recorded.evidence_refs[0], /^sha256:[0-9a-f]{64}$/);
 });
+
+
+test("preview and production fail closed when provider artifact identity is unavailable", () => {
+  const request = { artifact_digest: D("a"), source_commit: C("b"), project_version_id: "v1" };
+  assert.equal(verification.verifyPreviewEvidence({ request, deployment: { source_commit: C("b"), project_version_id: "v1", provider_status: "READY" }, probes: [{ statusCode: 200 }] }).status, "BLOCKED");
+  assert.equal(verification.verifyProductionEvidence({ request, deployment: { source_commit: C("b"), project_version_id: "v1" }, domain: { intended_domain: "app.example", observed_domain: "app.example", ownership_verified: true, dns_resolves: true, tls_valid: true, routing_correct: true, project_binding_correct: true }, probes: [{ statusCode: 200 }] }).status, "BLOCKED");
+});
