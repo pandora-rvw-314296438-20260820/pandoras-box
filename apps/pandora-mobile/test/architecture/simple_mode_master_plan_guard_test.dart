@@ -76,8 +76,8 @@ void main() {
   test('Simple Mode avoids internal state and cache jargon', () {
     final systems =
         File('lib/features/simple/systems_screen.dart').readAsStringSync();
-    final briefing =
-        File('lib/features/simple/simple_briefing_screen.dart').readAsStringSync();
+    final briefing = File('lib/features/simple/simple_briefing_screen.dart')
+        .readAsStringSync();
 
     expect(systems, contains('systems currently visible to you.'));
     expect(systems, isNot(contains('current owner state')));
