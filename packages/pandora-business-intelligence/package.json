@@ -1,0 +1,10 @@
+{
+  "name": "@pandora/business-intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "check": "node --check src/*.js src/analytics/*.js"
+  }
+}
