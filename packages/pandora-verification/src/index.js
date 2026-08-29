@@ -1,19 +1,22 @@
+'use strict';
 
-"use strict";
-
-const contracts = require("./contracts");
-const registry = require("./registry");
-const checks = require("./checks");
-const engine = require("./engine");
-const execution = require("./execution");
-const orchestrator = require("./orchestrator");
-const controlPlane = require("./control-plane");
-const freshness = require("./freshness");
-const workerAdapters = require("./worker-adapters");
-const reports = require("./reports");\nconst primitiveTrust = require("./primitive-trust");
+const contracts = require('./contracts');
+const registry = require('./registry');
+const checks = require('./checks');
+const engine = require('./engine');
+const execution = require('./execution');
+const orchestrator = require('./orchestrator');
+const controlPlane = require('./control-plane');
+const freshness = require('./freshness');
+const workerAdapters = require('./worker-adapters');
+const reports = require('./reports');
+const primitiveTrust = require('./primitive-trust');
 
 function createVerificationService(options = {}) {
   const verifier = new engine.VerificationEngine(options);
+  const primitiveVerificationAuthority = primitiveTrust.createPrimitiveVerificationAuthority({
+    readVerificationRun: (runId) => verifier.getVerification(runId),
+  });
   return Object.freeze({
     request_verification: (request) => verifier.requestVerification(request),
     get_verification: (runId) => verifier.getVerification(runId),
@@ -28,8 +31,22 @@ function createVerificationService(options = {}) {
     invalidate_verification: (runId, reason, actor) => verifier.invalidate(runId, reason, actor),
     assert_identity_current: (runId, request, actor) => verifier.assertIdentityCurrent(runId, request, actor),
     retry_verification: (runId, overrides = {}) => verifier.retry(runId, overrides),
+    primitive_verification_authority: primitiveVerificationAuthority,
     _engine: verifier,
   });
 }
 
-module.exports = Object.freeze({ ...contracts, ...registry, ...checks, ...engine, ...execution, ...orchestrator, ...controlPlane, ...freshness, ...workerAdapters, ...reports, ...primitiveTrust, createVerificationService });
+module.exports = Object.freeze({
+  ...contracts,
+  ...registry,
+  ...checks,
+  ...engine,
+  ...execution,
+  ...orchestrator,
+  ...controlPlane,
+  ...freshness,
+  ...workerAdapters,
+  ...reports,
+  ...primitiveTrust,
+  createVerificationService,
+});
