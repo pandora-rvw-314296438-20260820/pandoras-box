@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
     const storagePath = `${project.organization_id}/${projectId}/${spec.id}/${canonical.sha256}.json`;
     const { error: uploadError } = await admin.storage.from(BUCKET).upload(storagePath, canonical.bytes, { contentType: "application/json", upsert: false });
     if (uploadError && !/already exists|duplicate/i.test(uploadError.message || "")) throw new Error("SOURCE_STORAGE_FAILED");
-    const { data: intake, error: intakeError } = await admin.rpc("pandora_commit_generated_build_intake_20260829", { p_organization_id: project.organization_id, p_project_id: projectId, p_project_spec_id: spec.id, p_requested_by: auth.user.id, p_idempotency_key: idempotencyKey, p_source_sha256: canonical.sha256, p_source_byte_size: canonical.bytes.byteLength, p_storage_path: storagePath, p_model_run_id: modelRun.id, p_build_adapter: adapter });
+    const { data: intake, error: intakeError } = await admin.rpc("pandora_commit_generated_build_intake_v2_20260829", { p_organization_id: project.organization_id, p_project_id: projectId, p_project_spec_id: spec.id, p_requested_by: auth.user.id, p_idempotency_key: idempotencyKey, p_source_sha256: canonical.sha256, p_source_byte_size: canonical.bytes.byteLength, p_storage_path: storagePath, p_model_run_id: modelRun.id, p_build_adapter: adapter });
     if (intakeError) throw new Error("BUILD_INTAKE_FAILED");
     const result = rec(intake); return response({ ok: true, state: text(result.state) || "working", buildJobId: result.buildJobId, projectVersionId: result.projectVersionId }, 202);
   } catch (error) {
