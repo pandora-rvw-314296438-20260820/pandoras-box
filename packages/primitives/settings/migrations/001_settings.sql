@@ -1,0 +1,8 @@
+-- pandora-primitive: pandora-settings@1.0.0
+-- target: customer-app-runtime-only
+DO $$ BEGIN IF to_regclass('public.project_specs') IS NOT NULL OR to_regclass('public.projectos_execution_plans') IS NOT NULL OR to_regclass('public.pandora_projects') IS NOT NULL THEN RAISE EXCEPTION 'pandora-settings customer primitive refused on Pandora Control Plane-like schema'; END IF; END $$;
+CREATE TABLE IF NOT EXISTS public.primitive_settings(scope_id uuid PRIMARY KEY,business_name text CHECK(business_name IS NULL OR char_length(business_name)<=200),timezone text CHECK(timezone IS NULL OR char_length(timezone)<=64),currency text CHECK(currency IS NULL OR currency ~ '^[A-Z]{3}$'),locale text CHECK(locale IS NULL OR char_length(locale)<=32),branding jsonb NOT NULL DEFAULT '{}'::jsonb CHECK(jsonb_typeof(branding)='object' AND pg_column_size(branding)<=16384),operational_defaults jsonb NOT NULL DEFAULT '{}'::jsonb CHECK(jsonb_typeof(operational_defaults)='object' AND pg_column_size(operational_defaults)<=32768),updated_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now());
+ALTER TABLE public.primitive_settings ENABLE ROW LEVEL SECURITY;ALTER TABLE public.primitive_settings FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON public.primitive_settings FROM anon,authenticated;GRANT SELECT ON public.primitive_settings TO authenticated;
+CREATE POLICY primitive_settings_read ON public.primitive_settings FOR SELECT TO authenticated USING(public.primitive_has_permission(scope_id,'settings.read'));
+-- Writes are service-side after settings.manage authorization.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/data/pandora_repository.dart';
+import '../core/data/project_experience_api.dart';
 import '../core/data/project_runtime_api.dart';
 import '../core/design/pandora_theme.dart';
 import '../core/design/pandora_tokens.dart';
@@ -16,11 +17,13 @@ class PandoraApp extends StatefulWidget {
     required this.repository,
     required this.diagnostics,
     this.projectRuntime,
+    this.projectExperience,
   });
 
   final PandoraAuth auth;
   final PandoraRepository repository;
   final ProjectRuntimeApi? projectRuntime;
+  final ProjectExperienceApi? projectExperience;
   final DiagnosticsStore diagnostics;
 
   @override
@@ -40,6 +43,7 @@ class _PandoraAppState extends State<PandoraApp> {
         auth: widget.auth,
         repository: widget.repository,
         projectRuntime: widget.projectRuntime,
+        projectExperience: widget.projectExperience,
         diagnostics: widget.diagnostics,
         child: MaterialApp(
           title: "Pandora's Box",

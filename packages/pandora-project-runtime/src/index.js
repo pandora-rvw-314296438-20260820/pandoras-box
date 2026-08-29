@@ -29,8 +29,22 @@ function sha256(value, field = "artifactDigest") {
 }
 function sourceCommit(value) {
   const v = nonEmpty(value, "sourceCommit").toLowerCase();
-  if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(v)) throw new Error("sourceCommit must be an immutable commit SHA");
+  if (!/^[0-9a-f]{40}$/.test(v)) throw new Error("sourceCommit must be an exact 40-hex commit SHA");
   return v;
+}
+function runtimeSourceIdentity(input, projectVersionId) {
+  const kind = String(input.sourceKind ?? (input.sourceCommit ? "git_commit" : "artifact_snapshot")).trim().toLowerCase();
+  if (!new Set(["git_commit", "artifact_snapshot"]).has(kind)) throw new Error("unsupported source kind");
+  if (kind === "git_commit") {
+    const commit = sourceCommit(input.sourceCommit);
+    const ref = input.sourceRef == null ? commit : nonEmpty(input.sourceRef, "sourceRef").toLowerCase();
+    if (ref !== commit) throw new Error("git sourceRef must equal sourceCommit");
+    return Object.freeze({ sourceKind: kind, sourceRef: ref, sourceCommit: commit });
+  }
+  if (input.sourceCommit != null && input.sourceCommit !== "") throw new Error("artifact snapshot must not carry sourceCommit");
+  const ref = input.sourceRef == null ? projectVersionId : nonEmpty(input.sourceRef, "sourceRef");
+  if (ref.length > 200) throw new Error("sourceRef is too long");
+  return Object.freeze({ sourceKind: kind, sourceRef: ref, sourceCommit: null });
 }
 function environment(value) {
   const v = nonEmpty(value, "environment").toLowerCase();
@@ -46,12 +60,16 @@ function canonicalJson(value) {
 }
 
 function normalizeDeploymentRequest(input) {
+  const projectVersionId = uuid(input.projectVersionId, "projectVersionId");
+  const source = runtimeSourceIdentity(input, projectVersionId);
   const request = {
     organizationId: uuid(input.organizationId, "organizationId"),
     projectId: uuid(input.projectId, "projectId"),
-    projectVersionId: uuid(input.projectVersionId, "projectVersionId"),
+    projectVersionId,
     artifactDigest: sha256(input.artifactDigest),
-    sourceCommit: sourceCommit(input.sourceCommit),
+    sourceKind: source.sourceKind,
+    sourceRef: source.sourceRef,
+    sourceCommit: source.sourceCommit,
     environment: environment(input.environment),
     authorizationRef: nonEmpty(input.authorizationRef, "authorizationRef"),
     verificationRef: nonEmpty(input.verificationRef, "verificationRef"),
@@ -73,7 +91,10 @@ function assertExactLineage(input, fact) {
   const request = normalizeDeploymentRequest({ ...input, allowFirstProduction: input.allowFirstProduction === true });
   if (fact.projectVersionId !== request.projectVersionId) throw new Error("provider project version lineage mismatch");
   if (String(fact.artifactDigest || "").toLowerCase() !== request.artifactDigest) throw new Error("provider artifact lineage mismatch");
-  if (String(fact.sourceCommit || "").toLowerCase() !== request.sourceCommit) throw new Error("provider source commit lineage mismatch");
+  const factKind = String(fact.sourceKind ?? (fact.sourceCommit ? "git_commit" : "artifact_snapshot")).toLowerCase();
+  const factRef = fact.sourceRef ?? (factKind === "git_commit" ? fact.sourceCommit : fact.projectVersionId);
+  if (factKind !== request.sourceKind || String(factRef || "") !== request.sourceRef) throw new Error("provider source identity mismatch");
+  if ((fact.sourceCommit ?? null) !== request.sourceCommit) throw new Error("provider source commit lineage mismatch");
   return true;
 }
 
@@ -187,4 +208,4 @@ class ApplicationDatabaseProvider {
   async recover() { throw new Error("not implemented"); }
 }
 
-module.exports = { ApplicationDatabaseProvider, DEPLOYMENT_STATES, DOMAIN_STATES, DeploymentProvider, PRODUCTION_STATES, RUNTIME_ENVIRONMENTS, RUNTIME_ERROR_KINDS, RUNTIME_TYPES, assertExactLineage, assertProductionPrecondition, canonicalJson, deploymentStateFromProvider, domainStateFromFacts, normalizeDeploymentRequest, normalizeDomain, normalizeProviderError, operationIdempotencyKey, ownerSafeStatus, redactProviderData, shouldReconcileDeployment };
+module.exports = { ApplicationDatabaseProvider, DEPLOYMENT_STATES, DOMAIN_STATES, DeploymentProvider, PRODUCTION_STATES, RUNTIME_ENVIRONMENTS, RUNTIME_ERROR_KINDS, RUNTIME_TYPES, assertExactLineage, assertProductionPrecondition, canonicalJson, deploymentStateFromProvider, domainStateFromFacts, normalizeDeploymentRequest, normalizeDomain, normalizeProviderError, operationIdempotencyKey, ownerSafeStatus, redactProviderData, runtimeSourceIdentity, shouldReconcileDeployment };

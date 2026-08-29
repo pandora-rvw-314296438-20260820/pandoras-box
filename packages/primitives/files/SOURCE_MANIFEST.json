@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-files@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {"path": "files/src/index.js", "sha256": "45092d0fa557a586612814a30f656a51821a344536b617c44cbc094db3f6275d"},
+    {"path": "files/migrations/001_files.sql", "sha256": "fddb4ac0299aae9c52d7fad1040c5dd977310a2fee4e715425622a0935ce03c9"}
+  ],
+  "bundleDigest": "sha256:a7a1525dd2becd8c979180d733d6ddfb976c2d056c70244e49843b7aa42fb3b1"
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-billing@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {
+      "path": "core/src/events.js",
+      "sha256": "679f84c84aded138258092e5d10377c398e4f087b46454ebedf4690ae887d160"
+    },
+    {
+      "path": "billing/src/index.js",
+      "sha256": "88d8cb7093d4345c2a5e54d4f08a65bdd2dce41e1f48315b0dd9047da80c5e8b"
+    },
+    {
+      "path": "billing/migrations/001_payments.sql",
+      "sha256": "d6380f2f7e31e21da6528868b1aff22245f2384eae6623a885a1ef6aafada813"
+    }
+  ],
+  "bundleDigest": "sha256:a33262d419b16b2ca5cd3013a5252f0a94fbdae7b0475940909b747b9e70e43b"
+}
