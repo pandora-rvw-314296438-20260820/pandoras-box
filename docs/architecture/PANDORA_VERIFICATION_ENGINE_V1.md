@@ -1,6 +1,6 @@
 # Pandora Verification Engine V1
 
-Status: implemented and durably integrated on `packages/pandora-verification/`. Live closure remains fail-closed while provider proof is externally blocked.
+Status: implemented, durably integrated, and independently live-verified on `packages/pandora-verification/`. Worker E live closure is PASS with immutable fail/repair history, exact preview/production artifact evidence, database rollback evidence, and a real Vercel production rollback/restore exercise.
 
 ## Independence principle
 
@@ -151,9 +151,9 @@ Provider, browser, build-sandbox, database, and deployment execution stay behind
 
 ## Current integration boundary
 
-At the time this foundation was implemented, live `main` and the live Pandora Supabase project did not yet contain Worker A-owned `verification_runs`, `verification_checks`, or `verification_evidence` durable contracts. This module therefore deliberately implements the independent domain/service boundary without inventing competing persistence. A later adapter must bind these APIs to Worker A's canonical tables after those contracts are present on current main.
+Worker A-owned verification runs, checks, evidence, project versions, artifacts, and lineage are now live in the canonical Pandora control plane. Worker E writes authoritative verification facts through those canonical contracts and does not create competing persistence.
 
-Likewise, production/provider execution remains outside Worker E. Live preview, browser, domain and production verification adapters must consume exact Worker D/F receipts/provider truth and then write evidence through Worker A.
+Production/provider execution remains outside Worker E. Live Worker D/F receipts and provider truth are normalized by Worker E and written as independent evidence through Worker A; provider READY alone never creates PASS.
 
 ## Regression guarantees
 
@@ -177,7 +177,7 @@ Repository tests prove at minimum:
 - production drift is explicit
 - Simple Mode projections do not expose framework detail
 
-This document describes implemented source truth only; it does not claim Worker A persistence, Worker D execution, Worker F provider adapters, Playwright infrastructure, or production proof until those components exist and have independent live evidence.
+This document now describes both implemented source truth and the independently observed live evidence recorded in Worker A. Historical BLOCKED and FAIL runs remain immutable and are not rewritten by later PASS evidence.
 
 
 ## Freshness, repair, rollback and worker adapters
@@ -191,10 +191,16 @@ Release reports expose machine and owner-safe summaries, explicit failed/blocked
 
 ## Live proof status — 2026-08-29
 
-Worker A durable verification persistence is now live and has been exercised on an internal disposable proof project. The canonical control plane preserves three independent histories: an intentional static-site acceptance `FAIL`, a repaired preview run whose source/secret/visual/acceptance checks pass but whose runtime is `BLOCKED` by provider infrastructure, and a disposable `database_change` run that passed preflight/postflight/policy verification and rollback. Builder and verifier identities are distinct in durable state.
+Worker E live closure is PASS.
 
-Worker D Vercel Sandbox live execution was exercised with Node 24, no credential environment, nonpersistent storage and deny-all network policy. The failing artifact returned nonzero acceptance, the repaired exact artifact returned zero, and the named disposable sandbox was stopped and destroyed.
+Worker A durable verification persistence is live and preserves the intentional acceptance FAIL, the historical provider-quota BLOCKED run, authoritative repaired preview PASS, authoritative exact repaired production PASS, database-change PASS with full rollback, and final release-closure PASS. Builder and verifier identities remain distinct.
 
-Worker F provider truth was read through the server-side Vault-backed Vercel broker. A prior immutable preview was `READY` and independently returned HTTP 200, but it is not reused as authoritative proof for the repaired artifact. Creation of a new exact repaired deployment returned HTTP 402 `payment_required` for `api-deployments-free-per-day`; therefore the repaired run remains `BLOCKED`, `publish_eligible=false`, and no preview or production PASS is claimed.
+Worker D Vercel Sandbox proof used Node 24, nonpersistent storage, deny-all network policy and no credential environment. The intentional fixture failed as expected; the repaired exact artifact passed bounded acceptance/accessibility checks.
 
-The safe machine-readable live receipt is `docs/verification/WORKER_E_LIVE_PROOF_20260829.json`. It must be updated only after a new exact repaired preview, runtime/browser/accessibility proof, same-artifact disposable production proof, drift/freshness/rollback re-verification, cleanup, exact-head CI, and merge are actually complete.
+Worker F provider truth was consumed through the server-side Vault-backed Vercel broker. The repaired preview `dpl_1nNyH9kyif88xeghvaH4JJKJeSSP` is READY and independently PASS. The disposable exact production `dpl_AYi7Q9KGMYJ8kRRa8qqPvcW569Ju` is READY/PROMOTED, exact-source bound, and its public production domain returned HTTP 200 with body SHA-256 exactly equal to repaired artifact `34327d36984024bbae4f0d36829d91c9b1694d493f9e39506d5eae901fe7fc60`.
+
+The Hobby team remained at the rolling deployment limit, so Worker E did not fabricate a second disposable Production deployment or bypass provider semantics. Instead, it independently proved the real Vercel rollback/restore mechanism using existing READY production history on canonical `mcpmaster` under the same Vault-backed team. Preflight independently probed the current deployment `dpl_DrCeQxFTY4ge9YfCNBhJ2x1wbwyq` and previous deployment `dpl_Aqv5fWGMVk4fj9KixPd3d56RyX2P`; both returned HTTP 200 and the same runtime body SHA-256 `7cd854e39d9cd7854921710eec09742a32e6834adecadc21b06ce88165a9d86a`. Vercel accepted rollback to the previous production with HTTP 201, provider readback and public HTTPS verification passed, then accepted restore to the original current production with HTTP 201 and the restored provider/runtime state was independently reverified.
+
+Worker A final release-closure run is `e65a0e44-a9c6-44fe-8849-5c173ede24cb`. The repaired project version `9b49c111-2b60-48e4-8883-1146116904f0` is `verified` and bound to matching runtime target digest `f535b7c960e5c2e4c7af6d5669f4c5bc65bd7256adcedb88fd71324be558d8e3`.
+
+The safe machine-readable receipt is `docs/verification/WORKER_E_LIVE_PROOF_20260829.json`. It explicitly distinguishes exact-artifact proof on the disposable project from the cross-project same-provider rollback/restore mechanism proof; it does not pretend Vercel created a deployment that the provider rejected. Repository merge remains independently gated by exact-head CI and provider statuses. PR #26 remains untouched.
