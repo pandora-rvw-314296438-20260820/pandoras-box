@@ -2,13 +2,21 @@
 -- Governed generated-source intake for the customer Build journey.
 -- Source bytes stay in a private content-addressed Storage bucket; the database stores immutable lineage only.
 
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('pandora-build-artifacts', 'pandora-build-artifacts', false, 26214400, array['application/json']::text[])
-on conflict (id) do update
-set public = false,
-    file_size_limit = excluded.file_size_limit,
-    allowed_mime_types = excluded.allowed_mime_types,
-    updated_at = now();
+do $bucket$
+begin
+  if to_regclass('storage.buckets') is not null then
+    execute $sql$
+      insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+      values ('pandora-build-artifacts', 'pandora-build-artifacts', false, 26214400, array['application/json']::text[])
+      on conflict (id) do update
+      set public = false,
+          file_size_limit = excluded.file_size_limit,
+          allowed_mime_types = excluded.allowed_mime_types,
+          updated_at = now()
+    $sql$;
+  end if;
+end
+$bucket$;
 
 create or replace function private.pandora_commit_generated_build_intake_20260829(
   p_organization_id uuid,
