@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_repository.dart';
+import '../../core/data/project_experience_api.dart';
 import '../../core/models/pandora_models.dart';
 import '../../core/models/project_journey_models.dart';
 import '../../core/platform/pandora_native_io.dart';
@@ -59,7 +60,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   late final AnimationController _orbit;
   Timer? _refreshTimer;
   bool _started = false;
-  bool _requestStarted = false;
+  bool _buildRequestStarted = false;
+  bool _previewRequestStarted = false;
   bool _refreshing = false;
   ProjectRuntimeSnapshot? _snapshot;
   ProjectPreviewResult? _previewResult;
@@ -116,9 +118,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     final snapshot = await _refreshDurableTruth(showBlockingError: true);
     if (!mounted || snapshot == null) return;
 
-    if (requestPreviewIfNeeded && _shouldRequestPreview(snapshot)) {
-      _requestStarted = true;
-      unawaited(_requestPreview());
+    if (requestPreviewIfNeeded) {
+      _advanceBuild(snapshot);
     }
     _scheduleRefresh();
   }
@@ -168,16 +169,64 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     }
   }
 
-  bool _shouldRequestPreview(ProjectRuntimeSnapshot snapshot) {
-    if (_requestStarted || pandoraHasLivePreview(snapshot)) return false;
-    if (snapshot.preview != null || pandoraBuildAppearsInFlight(snapshot)) {
+  bool _shouldRequestBuild(ProjectRuntimeSnapshot snapshot) {
+    if (_buildRequestStarted ||
+        snapshot.candidate != null ||
+        pandoraHasLivePreview(snapshot) ||
+        snapshot.preview != null) {
       return false;
     }
     final stage = snapshot.project.stage.toLowerCase();
     return stage == 'idea' || stage == 'draft' || stage == 'understanding';
   }
 
-  Future<void> _requestPreview() async {
+  void _advanceBuild(ProjectRuntimeSnapshot snapshot) {
+    if (_previewUrl != null) return;
+    final candidate = snapshot.candidate;
+    if (candidate == null) {
+      if (_shouldRequestBuild(snapshot)) {
+        _buildRequestStarted = true;
+        unawaited(_requestBuild());
+      }
+      return;
+    }
+    if (_previewRequestStarted || snapshot.preview != null) return;
+    _previewRequestStarted = true;
+    unawaited(_requestPreview(candidate));
+  }
+
+  Future<void> _requestBuild() async {
+    final experience = PandoraDependencies.of(context).projectExperience;
+    if (experience == null) {
+      if (mounted) {
+        setState(() => _error = 'Pandora cannot start this build right now.');
+      }
+      return;
+    }
+    try {
+      await experience.requestBuild(
+        projectId: widget.project.id,
+        idempotencyKey: _buildIdempotencyKey,
+      );
+      if (!mounted) return;
+      setState(() => _error = null);
+      await _refreshDurableTruth();
+      _scheduleRefresh();
+    } on ProjectExperienceException {
+      if (!mounted) return;
+      _buildRequestStarted = false;
+      setState(
+        () => _error =
+            'Pandora found something to resolve before this build can start.',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      _buildRequestStarted = false;
+      setState(() => _error = 'Pandora could not start this build right now.');
+    }
+  }
+
+  Future<void> _requestPreview(ProjectRuntimeCandidate candidate) async {
     final runtime = PandoraDependencies.of(context).projectRuntime;
     if (runtime == null) {
       if (mounted) {
@@ -189,7 +238,9 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     try {
       final result = await runtime.createPreview(
         projectId: widget.project.id,
-        idempotencyKey: _previewIdempotencyKey,
+        versionId: candidate.versionId,
+        artifactDigest: candidate.artifactDigest,
+        idempotencyKey: _previewIdempotencyKey(candidate),
       );
       if (!mounted) return;
       setState(() {
@@ -202,7 +253,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     } on PandoraRepositoryException {
       if (!mounted) return;
       _refreshTimer?.cancel();
-      _requestStarted = false;
+      _previewRequestStarted = false;
       setState(
         () => _error =
             'Pandora found something to fix before your preview is ready.',
@@ -210,7 +261,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     } catch (_) {
       if (!mounted) return;
       _refreshTimer?.cancel();
-      _requestStarted = false;
+      _previewRequestStarted = false;
       setState(
         () => _error =
             'Pandora found something to fix before your preview is ready.',
@@ -218,18 +269,24 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     }
   }
 
-  String get _previewIdempotencyKey {
+  String get _buildIdempotencyKey {
     final version = widget.project.updatedAt ?? widget.project.createdAt;
     final versionKey =
         version?.toUtc().toIso8601String() ?? widget.project.projectKey;
-    return 'project-preview:${widget.project.id}:$versionKey';
+    return 'project-build:${widget.project.id}:$versionKey';
+  }
+
+  String _previewIdempotencyKey(ProjectRuntimeCandidate candidate) {
+    return 'project-preview:${widget.project.id}:${candidate.versionId}';
   }
 
   void _scheduleRefresh() {
     _refreshTimer?.cancel();
     if (_previewUrl != null) return;
     _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      unawaited(_refreshDurableTruth());
+      unawaited(_refreshDurableTruth().then((snapshot) {
+        if (snapshot != null && mounted) _advanceBuild(snapshot);
+      }));
     });
   }
 
@@ -370,7 +427,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                     label: 'Try again',
                     icon: Icons.refresh_rounded,
                     onPressed: () {
-                      _requestStarted = false;
+                      _buildRequestStarted = false;
+                      _previewRequestStarted = false;
                       unawaited(_resumeBuild(requestPreviewIfNeeded: true));
                     },
                   ),

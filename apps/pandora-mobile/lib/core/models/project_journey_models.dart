@@ -194,23 +194,82 @@ class ProjectRuntimeDomain {
   }
 }
 
+class ProjectRuntimeCandidate {
+  const ProjectRuntimeCandidate({
+    required this.versionId,
+    required this.artifactDigest,
+    required this.status,
+  });
+
+  final String versionId;
+  final String artifactDigest;
+  final String status;
+
+  factory ProjectRuntimeCandidate.fromJson(Object? value) {
+    final json = asJsonMap(value);
+    return ProjectRuntimeCandidate(
+      versionId: requiredJsonText(
+        json,
+        const ['versionId'],
+        field: 'projectCandidate.versionId',
+      ),
+      artifactDigest: requiredJsonText(
+        json,
+        const ['artifactDigest'],
+        field: 'projectCandidate.artifactDigest',
+      ),
+      status: jsonText(json['status'], fallback: 'built'),
+    );
+  }
+}
+
+class ProjectRuntimeVerification {
+  const ProjectRuntimeVerification({
+    required this.state,
+    required this.publishEligible,
+    this.versionId,
+    this.checkedAt,
+  });
+
+  final String state;
+  final bool publishEligible;
+  final String? versionId;
+  final DateTime? checkedAt;
+
+  factory ProjectRuntimeVerification.fromJson(Object? value) {
+    final json = asJsonMap(value);
+    return ProjectRuntimeVerification(
+      state: jsonText(json['state'], fallback: 'not_checked_yet'),
+      publishEligible: jsonBool(json['publishEligible']),
+      versionId: _optionalText(json['versionId']),
+      checkedAt: jsonDateTime(json['checkedAt']),
+    );
+  }
+}
+
 class ProjectRuntimeSnapshot {
   const ProjectRuntimeSnapshot({
     required this.project,
     this.preview,
     this.production,
     this.domain,
+    this.candidate,
+    this.verification,
   });
   final CustomerProject project;
   final ProjectRuntimeDeployment? preview;
   final ProjectRuntimeDeployment? production;
   final ProjectRuntimeDomain? domain;
+  final ProjectRuntimeCandidate? candidate;
+  final ProjectRuntimeVerification? verification;
 
   factory ProjectRuntimeSnapshot.fromJson(Object? value) {
     final json = asJsonMap(value);
     final preview = json['preview'];
     final production = json['production'];
     final domain = json['domain'];
+    final candidate = json['candidate'];
+    final verification = json['verification'];
     return ProjectRuntimeSnapshot(
       project: CustomerProject.fromJson(json['project']),
       preview:
@@ -219,6 +278,12 @@ class ProjectRuntimeSnapshot {
           ? null
           : ProjectRuntimeDeployment.fromJson(production),
       domain: domain == null ? null : ProjectRuntimeDomain.fromJson(domain),
+      candidate: candidate == null
+          ? null
+          : ProjectRuntimeCandidate.fromJson(candidate),
+      verification: verification == null
+          ? null
+          : ProjectRuntimeVerification.fromJson(verification),
     );
   }
 }
