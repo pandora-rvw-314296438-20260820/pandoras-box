@@ -3,7 +3,10 @@
   "primitive": "pandora-search@1.0.0",
   "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
   "files": [
-    {"path":"search/src/index.js","sha256":"e6f2e4e4fafc2ca1e46991b7f305efea45b42463b7324982bfc167912d6bd498"}
+    {
+      "path": "search/src/index.js",
+      "sha256": "e6f2e4e4fafc2ca1e46991b7f305efea45b42463b7324982bfc167912d6bd498"
+    }
   ],
   "bundleDigest": "sha256:ebc7498d684de962cb8d583eeb463b84b5c4c672f1db896c42a87d9b6bf57299"
 }
