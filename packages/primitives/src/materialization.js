@@ -55,7 +55,7 @@ function planExecutionBoundaries(steps){
 
 function buildWorkerDMaterializationRequest({manifest,materializationPlan,runtimeBindings={}}={}){
   if(!manifest||!materializationPlan)throw new TypeError('manifest and materializationPlan are required');
-  if(materializationPlan.decision==='BLOCKED'||materializationPlan.collisions&&materializationPlan.collisions.length)throw new Error('materialization is not executable');
+  if(materializationPlan.decision!=='READY'||materializationPlan.collisions&&materializationPlan.collisions.length)throw new Error('materialization is not executable without READY approval state');
   rejectSecrets(runtimeBindings);
   const request={schemaVersion:'1.0',projectId:required(manifest.projectId,'manifest.projectId'),projectVersionId:required(manifest.projectVersionId,'manifest.projectVersionId'),compositionManifestDigest:requiredDigest(manifest.manifestDigest,'manifest.manifestDigest'),materializationPlanDigest:requiredDigest(materializationPlan.planDigest,'materializationPlan.planDigest'),runtimeBindings:sortObject(runtimeBindings),actions:materializationPlan.actions.map(a=>({type:a.type,path:a.path,primitive:a.primitive,contentDigest:a.contentDigest,ownership:a.ownership})),migrations:materializationPlan.migrations||[]};
   return Object.freeze({...request,requestDigest:digest(request)});
