@@ -12,9 +12,10 @@ const FAILURE_CLASSES = Object.freeze([
 const SECURITY_SEVERITIES = Object.freeze(["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]);
 
 const REQUIRED_IDENTITY_FIELDS = Object.freeze([
-  "organization_id", "project_id", "project_spec_id", "project_version_id", "source_commit",
+  "organization_id", "project_id", "project_spec_id", "project_version_id",
   "source_digest", "artifact_digest", "target_environment", "required_check_profile", "requested_by",
 ]);
+const SOURCE_KINDS = Object.freeze(["git_commit", "artifact_snapshot"]);
 
 function stableStringify(value) {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
@@ -36,12 +37,26 @@ function requireDigest(name, value) {
   }
 }
 
+function normalizeSourceIdentity(request) {
+  const inferredKind = request.source_kind ?? (request.source_commit ? "git_commit" : null);
+  if (!SOURCE_KINDS.includes(inferredKind)) throw new Error("verification identity: source_kind must be git_commit or artifact_snapshot");
+  if (inferredKind === "git_commit") {
+    if (typeof request.source_commit !== "string" || !/^[0-9a-f]{40}$/i.test(request.source_commit)) throw new Error("verification identity: source_commit must be an exact 40-hex commit SHA");
+    const commit = request.source_commit.toLowerCase();
+    const ref = request.source_ref ?? commit;
+    if (typeof ref !== "string" || ref.toLowerCase() !== commit) throw new Error("verification identity: git source_ref must equal source_commit");
+    return Object.freeze({ source_kind: "git_commit", source_ref: commit, source_commit: commit });
+  }
+  if (request.source_commit != null && request.source_commit !== "") throw new Error("verification identity: artifact_snapshot must not carry source_commit");
+  requireString("source_ref", request.source_ref);
+  if (request.source_ref.length > 200) throw new Error("verification identity: source_ref is too long");
+  return Object.freeze({ source_kind: "artifact_snapshot", source_ref: request.source_ref, source_commit: null });
+}
+
 function assertExactVerificationRequest(request, profiles) {
   if (!request || typeof request !== "object" || Array.isArray(request)) throw new Error("verification request must be an object");
   for (const field of REQUIRED_IDENTITY_FIELDS) requireString(field, request[field]);
-  if (!/^[0-9a-f]{40}$/i.test(request.source_commit)) {
-    throw new Error("verification identity: source_commit must be an exact 40-hex commit SHA");
-  }
+  normalizeSourceIdentity(request);
   requireDigest("source_digest", request.source_digest);
   requireDigest("artifact_digest", request.artifact_digest);
   if (request.migration_set_digest != null) requireDigest("migration_set_digest", request.migration_set_digest);
@@ -53,11 +68,14 @@ function assertExactVerificationRequest(request, profiles) {
 
 function identityEnvelope(request, profiles) {
   assertExactVerificationRequest(request, profiles);
+  const source = normalizeSourceIdentity(request);
   return {
     project_spec_id: request.project_spec_id,
     project_spec_version: request.project_spec_version ?? null,
     project_version_id: request.project_version_id,
-    source_commit: request.source_commit.toLowerCase(),
+    source_kind: source.source_kind,
+    source_ref: source.source_ref,
+    source_commit: source.source_commit,
     source_digest: request.source_digest.toLowerCase(),
     artifact_digest: request.artifact_digest.toLowerCase(),
     migration_set_digest: request.migration_set_digest?.toLowerCase() ?? null,
@@ -106,6 +124,6 @@ function repairFeedback(result) {
 
 module.exports = {
   RUN_STATUSES, CHECK_STATUSES, FAILURE_CLASSES, SECURITY_SEVERITIES,
-  stableStringify, sha256, requireDigest, assertExactVerificationRequest,
+  stableStringify, sha256, requireDigest, normalizeSourceIdentity, assertExactVerificationRequest,
   identityEnvelope, identityDigest, createEvidence, requirementCoverage, repairFeedback,
 };

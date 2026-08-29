@@ -173,6 +173,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260829113000_pandora_worker_d_vercel_sandbox_broker_v1.sql',
     '20260829114000_pandora_worker_f_runtime_constraint_idempotency.sql',
     '20260829120000_pandora_worker_d_vercel_sandbox_protocol_fix.sql',
+    '20260829121000_pandora_generated_source_identity_v1.sql',
+    '20260829122000_pandora_project_build_intake_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -206,6 +208,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260829113000_pandora_worker_d_vercel_sandbox_broker_v1.sql',
     '20260829114000_pandora_worker_f_runtime_constraint_idempotency.sql',
     '20260829120000_pandora_worker_d_vercel_sandbox_protocol_fix.sql',
+    '20260829121000_pandora_generated_source_identity_v1.sql',
+    '20260829122000_pandora_project_build_intake_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
