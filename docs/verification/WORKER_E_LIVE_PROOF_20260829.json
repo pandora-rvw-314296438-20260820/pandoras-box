@@ -1,5 +1,5 @@
 {
-  "base_main_sha": "b2c834b22e7642e08e607844c50dbc65de01d629",
+  "base_main_sha": "ddc6621378edfa08f6231a3420f85e951e156bd3",
   "closure_branch": "verification/live-proof-closure-20260829",
   "credential_handling": {
     "gemini_required": false,
@@ -32,41 +32,72 @@
       "artifact_sha256": "34327d36984024bbae4f0d36829d91c9b1694d493f9e39506d5eae901fe7fc60",
       "project_version_id": "9b49c111-2b60-48e4-8883-1146116904f0",
       "source_commit": "fbe1de002808d35d3ff57293ebf4585a3461c711",
-      "verification": "BLOCKED",
-      "verification_run_id": "dfd9b5da-cae2-4f72-ba0a-b37ecfcf698f"
+      "historical_blocked_verification_run_id": "dfd9b5da-cae2-4f72-ba0a-b37ecfcf698f",
+      "verification": "PASS",
+      "authoritative_preview_verification_run_id": "1ed8a28a-5e83-424a-a2bb-89909862be7a",
+      "authoritative_production_verification_run_id": "bc2b410d-3feb-461f-ae9a-7875df40589c"
     }
   },
   "proof_project": {
     "organization_id": "2270b266-59da-4c39-bfd9-9f8d08352af0",
     "project_id": "0b2d5082-ee7a-4ab3-88d3-3bb08f34162d",
-    "project_spec_id": "4fce0d00-d586-4eca-a983-535f89bb64e8"
+    "project_spec_id": "4fce0d00-d586-4eca-a983-535f89bb64e8",
+    "vercel_project_id": "prj_3rm7nTxKPCQZWXczqHuP94e5U6pX"
   },
   "provider_truth": {
-    "exact_repaired_deployment": "BLOCKED",
-    "http_status": 402,
-    "limit": "api-deployments-free-per-day",
-    "prior_read_only_preview": {
-      "authoritative_for_repaired_version": false,
-      "deployment_id": "dpl_HgPzcqN3nSbMSgfyUqUcQcERZgoF",
+    "exact_repaired_deployment": "PASS",
+    "vault_backed_vercel_transport": true,
+    "preview": {
+      "baseline_deployment_id": "dpl_HqtbFJSzd8sE3h1aRLGuaxHjZ6Zk",
+      "intentional_fail_deployment_id": "dpl_GWQdmamWVnBxX4Ptzey8zJL6BsF4",
+      "repaired_deployment_id": "dpl_1nNyH9kyif88xeghvaH4JJKJeSSP",
       "provider_state": "READY",
-      "runtime_body_sha256": "57bab6b644bf67d8fd16d8f9933f54a6264ed3922a825ca732eaffc07dd7daa8",
-      "runtime_http_status": 200,
-      "source_commit": "371e77a98c1b4c59ce6072dbefeaa90312281833"
+      "source_commit": "fbe1de002808d35d3ff57293ebf4585a3461c711",
+      "artifact_sha256": "34327d36984024bbae4f0d36829d91c9b1694d493f9e39506d5eae901fe7fc60",
+      "sso_protected": true,
+      "verification": "PASS"
     },
-    "provider_code": "payment_required",
-    "retry_window": "24h",
-    "vault_backed_vercel_transport": true
+    "production": {
+      "deployment_id": "dpl_AYi7Q9KGMYJ8kRRa8qqPvcW569Ju",
+      "provider_state": "READY",
+      "ready_substate": "PROMOTED",
+      "source_commit": "fbe1de002808d35d3ff57293ebf4585a3461c711",
+      "artifact_sha256": "34327d36984024bbae4f0d36829d91c9b1694d493f9e39506d5eae901fe7fc60",
+      "domain": "pandora-worker-e-proof-20260829.vercel.app",
+      "domain_verified": true,
+      "domain_misconfigured": false,
+      "runtime_http_status": 200,
+      "runtime_bytes": 1005,
+      "runtime_body_sha256": "34327d36984024bbae4f0d36829d91c9b1694d493f9e39506d5eae901fe7fc60",
+      "verification": "PASS"
+    },
+    "rollback_restore": {
+      "verification": "BLOCKED",
+      "verification_run_id": "bb249a11-20f8-4a1d-9bd3-2c8c82d37ec7",
+      "reason": "Vercel requires a second production history entry before a real rollback and restore can be exercised; the canonical Hobby team has no deployment slots remaining in the current rolling window.",
+      "current_rollback_candidate": "dpl_AYi7Q9KGMYJ8kRRa8qqPvcW569Ju",
+      "earliest_observed_slot_manila": "2026-08-30T04:46:07.535+08:00"
+    }
+  },
+  "github_head": {
+    "sha_before_receipt_update": "41589b47172c9cf6aa9f7b70a00a132166008ec6",
+    "actions": {
+      "dependency_review": "PASS",
+      "windows_worker_contract": "PASS",
+      "canonical_release_evidence": "PASS",
+      "projectos_security_regression": "PASS",
+      "pandora_mobile_exact_source_gate": "PASS"
+    },
+    "vercel_status": "FAIL_BUILD_RATE_LIMIT"
   },
   "publish_eligible": false,
-  "reason": "exact repaired preview and disposable production proof are blocked by the Vercel daily deployment quota; no PASS is inferred",
+  "reason": "preview, exact production runtime, domain/routing and artifact identity are independently PASS; final release closure remains blocked only until the disposable project completes a real second-production rollback/restore exercise and the resulting exact head receives green Vercel status",
   "remaining_required_proofs": [
-    "new exact repaired preview deployment",
-    "browser/runtime/accessibility verification against that exact preview",
-    "same-artifact disposable production promotion",
-    "production domain/runtime/source/artifact identity proof",
-    "production drift/freshness proof",
-    "rollback target re-verification and cleanup",
-    "exact closure-head green CI and merge"
+    "create one second exact repaired production deployment after the rolling quota slot opens",
+    "rollback production traffic to dpl_AYi7Q9KGMYJ8kRRa8qqPvcW569Ju and independently reverify exact source/artifact/runtime",
+    "restore the second exact repaired production and independently reverify",
+    "update durable release closure and receipt to PASS",
+    "require exact closure-head GitHub Actions and Vercel green, then merge PR #107 and reread main"
   ],
   "repository": "pandora-rvw-314296438-20260820/pandoras-box",
   "sandbox": {
