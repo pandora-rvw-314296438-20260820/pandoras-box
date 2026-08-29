@@ -21,8 +21,8 @@ test('domain registrar remains Vault-backed and price-confirmation gated', () =>
 });
 
 test('RedApple checkout collects through Xendit or PayPal before registrar spend', () => {
-  const foundation = read('supabase/migrations/20260829223009_pandora_domain_checkout_payments_v1.sql');
-  const flow = read('supabase/migrations/20260829223139_pandora_domain_checkout_public_flow_v1.sql');
+  const foundation = read('supabase/migrations/20260830091000_pandora_domain_checkout_payments_v1.sql');
+  const flow = read('supabase/migrations/20260830092000_pandora_domain_checkout_public_flow_v1.sql');
   assert.match(foundation, /xendit_secret_key/);
   assert.match(foundation, /paypal_client_id/);
   assert.match(foundation, /paypal_client_secret/);
