@@ -6,17 +6,37 @@ const { test } = require("node:test");
 
 const receipt = JSON.parse(readFileSync("docs/verification/WORKER_E_LIVE_PROOF_20260829.json", "utf8"));
 
-test("Worker E live proof receipt is fail-closed while provider proof is blocked", () => {
+test("Worker E live proof remains fail-closed only on rollback/restore closure", () => {
   assert.equal(receipt.schema, "pandora.worker-e.live-proof/1");
   assert.equal(receipt.status, "BLOCKED");
   assert.equal(receipt.publish_eligible, false);
   assert.equal(receipt.history.failing_version.verification, "FAIL");
-  assert.equal(receipt.history.repaired_version.verification, "BLOCKED");
+  assert.equal(receipt.history.repaired_version.verification, "PASS");
   assert.equal(receipt.history.failing_version.acceptance_command_exit_code, 1);
   assert.equal(receipt.history.repaired_version.acceptance_command_exit_code, 0);
-  assert.equal(receipt.provider_truth.exact_repaired_deployment, "BLOCKED");
-  assert.equal(receipt.provider_truth.http_status, 402);
-  assert.equal(receipt.provider_truth.prior_read_only_preview.authoritative_for_repaired_version, false);
+  assert.equal(receipt.provider_truth.exact_repaired_deployment, "PASS");
+  assert.equal(receipt.provider_truth.preview.verification, "PASS");
+  assert.equal(receipt.provider_truth.production.verification, "PASS");
+  assert.equal(receipt.provider_truth.rollback_restore.verification, "BLOCKED");
+  assert.match(receipt.reason, /rollback\/restore/i);
+});
+
+test("Worker E production proof is exact-source and exact-artifact bound", () => {
+  assert.equal(
+    receipt.provider_truth.production.source_commit,
+    receipt.history.repaired_version.source_commit,
+  );
+  assert.equal(
+    receipt.provider_truth.production.artifact_sha256,
+    receipt.history.repaired_version.artifact_sha256,
+  );
+  assert.equal(
+    receipt.provider_truth.production.runtime_body_sha256,
+    receipt.history.repaired_version.artifact_sha256,
+  );
+  assert.equal(receipt.provider_truth.production.runtime_http_status, 200);
+  assert.equal(receipt.provider_truth.production.domain_verified, true);
+  assert.equal(receipt.provider_truth.production.domain_misconfigured, false);
 });
 
 test("Worker E live database proof is independently PASS with rollback complete", () => {
