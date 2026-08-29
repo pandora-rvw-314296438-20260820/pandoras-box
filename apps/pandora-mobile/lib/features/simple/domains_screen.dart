@@ -722,7 +722,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
                 )
               else
                 DropdownButtonFormField<ProjectSummary>(
-                  value: _project,
+                  initialValue: _project,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Project',
