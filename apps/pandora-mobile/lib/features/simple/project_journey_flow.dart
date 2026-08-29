@@ -424,6 +424,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                     label: 'Try again',
                     icon: Icons.refresh_rounded,
                     onPressed: () {
+                      _buildRequestStarted = false;
                       _previewRequestStarted = false;
                       unawaited(_resumeBuild(requestPreviewIfNeeded: true));
                     },
