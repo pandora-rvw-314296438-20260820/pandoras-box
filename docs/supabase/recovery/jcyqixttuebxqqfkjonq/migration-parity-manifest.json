@@ -68,8 +68,8 @@
     "legacy_aug17_chain_sha256": "aed27b85780da567ee8b3939e72b6d6d3318d4fe1d088081e18c71bed6c38b04",
     "reconciled_aug17_chain_sha256": "fd612a0dfbf34ab462112898b3050f39fb1c4d2a62b371961e719944c8cea390",
     "current_source_replay_chain_sha256": "de866b5fc1f787d520447464de17f7821ac23cd9f3c107ddc4d45aced9293803",
-    "current_source_receipt_chain_sha256": "8dd4bb44f5c5fe24f7a93af0e41633123026b6085250d3c4eee9a465701fe133",
-    "expected_applied_receipt_chain_sha256": "c8829d290101b882d7dcd5aeb28ef3d3e7e9423488e8dc544a70702af0f2cbc5",
+    "current_source_receipt_chain_sha256": "fb4609454de798cb27c8c930fc95cf21f3cf1cb4e5eec202664f5c2294340e09",
+    "expected_applied_receipt_chain_sha256": "229b1c420d1970ce3af32d2b8c91cb4a5ba86b723d3ae0bed50d1add622ab080",
     "replay_chain_delimiter": "filename:sha256\\n",
     "receipt_chain_delimiter": "filename\\tsha256\\n",
     "live_only_sensitive_bodies_republished": false
