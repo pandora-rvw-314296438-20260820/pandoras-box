@@ -33,7 +33,7 @@ test("Home projection carries owner-safe domain truth",()=>{
 
 test("domain purchase UI stays payment-gated until Xendit or PayPal is connected",()=>{
   assert.equal(domains.includes("class DomainAcquisitionScreen"),true);
-  assert.equal(domains.includes("Search domains"),true);
+  assert.equal(domains.includes("Find your domain"),true);
   assert.equal(domains.includes("Xendit"),true);
   assert.equal(domains.includes("PayPal"),true);
   assert.equal(domains.includes("Check payment"),true);
