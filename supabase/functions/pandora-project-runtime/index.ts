@@ -517,7 +517,7 @@ async function createProject(context: UserContext, body: JsonRecord) {
   const objective = textValue(body.objective);
   const kind = buildKind(body.buildKind);
   if (name.length < 2 || name.length > 100) throw new Error("INVALID_PROJECT_NAME");
-  if (objective.length < 10 || objective.length > 6000) throw new Error("INVALID_OBJECTIVE");
+  if (objective.length < 10 || objective.length > 50000) throw new Error("INVALID_OBJECTIVE");
 
   const projectKey = `${slugify(name)}-${crypto.randomUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
