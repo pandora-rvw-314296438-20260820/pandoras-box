@@ -769,7 +769,7 @@
         "provider_equivalence": false,
         "reconciled_result_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/pglite-replay-result-20260823-source-alignment.json",
         "database_rollback_smoke": "pass",
-        "reconciled_chain_sha256": "53a6d9b365e970698ea94db59887c264146d7a421e2a407288dd4e9481ff0fae",
+        "reconciled_chain_sha256": "0bf9d24a6576475747a5dcd584253fe3d42bbb4c2f629334e4698d53c4e6aa5f",
         "reconciled_migration_count": 99
     },
     "project_ref": "jcyqixttuebxqqfkjonq",
