@@ -1,0 +1,8 @@
+-- pandora-primitive: pandora-files@1.0.0
+-- target: customer-app-runtime-only
+-- object bucket/container provisioning is Worker F responsibility; this migration stores metadata only.
+DO $$ BEGIN IF to_regclass('public.project_specs') IS NOT NULL OR to_regclass('public.projectos_execution_plans') IS NOT NULL OR to_regclass('public.pandora_projects') IS NOT NULL THEN RAISE EXCEPTION 'pandora-files customer primitive refused on Pandora Control Plane-like schema'; END IF; END $$;
+CREATE TABLE IF NOT EXISTS public.primitive_files(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),scope_id uuid NOT NULL,owner_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,object_key text NOT NULL,original_name text NOT NULL CHECK(char_length(original_name) BETWEEN 1 AND 180),detected_content_type text NOT NULL,byte_size bigint NOT NULL CHECK(byte_size>0 AND byte_size<=104857600),sha256 text NOT NULL CHECK(sha256 ~ '^[a-f0-9]{64}$'),image_transform jsonb,status text NOT NULL DEFAULT 'active' CHECK(status IN('active','deleted')),created_at timestamptz NOT NULL DEFAULT now(),deleted_at timestamptz,UNIQUE(scope_id,object_key),UNIQUE(id,scope_id));
+ALTER TABLE public.primitive_files ENABLE ROW LEVEL SECURITY;ALTER TABLE public.primitive_files FORCE ROW LEVEL SECURITY;REVOKE ALL ON public.primitive_files FROM anon,authenticated;GRANT SELECT ON public.primitive_files TO authenticated;
+CREATE POLICY primitive_files_read ON public.primitive_files FOR SELECT TO authenticated USING(scope_id IS NOT NULL AND (owner_user_id=(SELECT auth.uid()) OR public.primitive_has_permission(scope_id,'files.read')));
+-- All object creation, deletion, signed URL issuance, and metadata writes are service-side only.
