@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Syntax check Worker H foundation
+      - name: Syntax check Worker H v1
         run: node --check packages/pandora-business-intelligence/src/*.js packages/pandora-business-intelligence/src/analytics/*.js
-      - name: Test Worker H foundation
+      - name: Test Worker H v1
         run: node --test packages/pandora-business-intelligence/test/*.test.js
