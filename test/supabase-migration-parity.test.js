@@ -181,6 +181,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260829124000_pandora_live_verification_customer_db_v1.sql',
     '20260829125000_pandora_build_authorization_acl_v1.sql',
     '20260829173000_pandora_runtime_bundle_source_root_transition_v1.sql',
+    '20260829174000_pandora_runtime_bundle_parent_insert_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -222,6 +223,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260829124000_pandora_live_verification_customer_db_v1.sql',
     '20260829125000_pandora_build_authorization_acl_v1.sql',
     '20260829173000_pandora_runtime_bundle_source_root_transition_v1.sql',
+    '20260829174000_pandora_runtime_bundle_parent_insert_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
