@@ -824,12 +824,13 @@ async function runtimeSummary(context: UserContext, identifier: string) {
   const project = await projectByIdentifier(context, identifier);
   const projectId = textValue(project.id);
   const admin = serviceClient();
-  const [preview, production, domain] = await Promise.all([
+  const [preview, production, domain, candidate] = await Promise.all([
     admin.from("pandora_project_deployments").select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     admin.from("pandora_project_deployments").select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     admin.from("pandora_project_domains").select("id, domain, status, verified, primary_domain, verification, updated_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("primary_domain", true).limit(1).maybeSingle(),
+    admin.from("pandora_project_versions").select("id, artifact_digest_sha256, lifecycle_status, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).not("root_artifact_version_id", "is", null).not("artifact_digest_sha256", "is", null).in("lifecycle_status", ["built", "verification_pending", "verified", "preview_ready"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
-  if (preview.error || production.error || domain.error) throw new Error("BACKEND_READ_FAILED");
+  if (preview.error || production.error || domain.error || candidate.error) throw new Error("BACKEND_READ_FAILED");
 
   let verificationState = "not_checked_yet";
   let publishEligible = false;
@@ -904,6 +905,7 @@ async function runtimeSummary(context: UserContext, identifier: string) {
     preview: preview.data || null,
     production: production.data || null,
     domain: domain.data || null,
+    candidate: candidate.data ? { versionId: candidate.data.id, artifactDigest: candidate.data.artifact_digest_sha256, status: candidate.data.lifecycle_status } : null,
     verification: {
       state: verificationState,
       publishEligible,
@@ -920,8 +922,8 @@ async function createPreview(context: UserContext, identifier: string, body: Jso
   const versionId = textValue(body.versionId);
   const requestedArtifactDigest = textValue(body.artifactDigest).toLowerCase();
   const idempotencyRef = textValue(body.idempotencyKey);
-  const authorizationRef = textValue(body.authorizationRef);
-  if (!UUID_RE.test(versionId) || !SHA256_RE.test(requestedArtifactDigest) || idempotencyRef.length < 8 || idempotencyRef.length > 200 || authorizationRef.length < 8 || authorizationRef.length > 300) throw new Error("EXACT_VERSION_REQUIRED");
+  const authorizationRef = `owner:${context.userId}`;
+  if (!UUID_RE.test(versionId) || !SHA256_RE.test(requestedArtifactDigest) || idempotencyRef.length < 8 || idempotencyRef.length > 200) throw new Error("EXACT_VERSION_REQUIRED");
 
   const bundle = await loadExactRuntimeBundle(context, projectId, versionId, requestedArtifactDigest);
   const operationKey = await sha256Hex(["create_preview", context.organizationId, projectId, versionId, bundle.artifactDigest, bundle.sourceKind, bundle.sourceRef, bundle.sourceCommit ?? "no-commit", authorizationRef, idempotencyRef].join("|"));
