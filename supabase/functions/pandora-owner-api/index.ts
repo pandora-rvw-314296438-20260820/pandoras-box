@@ -640,6 +640,7 @@ async function home(context: UserContext) {
       needsAttention,
     },
     topProjects: projectItems.slice(0, 3),
+    domains: domainItems,
     recentActivity: activityItems,
   };
 }
