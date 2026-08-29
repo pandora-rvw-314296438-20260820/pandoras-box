@@ -185,7 +185,7 @@ class VercelSandboxProvider extends SandboxProvider {
 
   async cancel(handle, reason = 'cancelled') {
     const sessionId = required(handle?.sessionId, 'session_id', SESSION_ID);
-    const body = responseBody(await this.transport.request('POST', scoped(`/v2/sandboxes/sessions/${sessionId}/stop`, this.teamId), { reason: String(reason).slice(0, 160) }));
+    const body = responseBody(await this.transport.request('POST', scoped(`/v2/sandboxes/sessions/${sessionId}/stop`, this.teamId), {}));
     return Object.freeze({ stopped: true, sessionId, provider: 'vercel-sandbox', providerStatus: body?.session?.status ?? body?.status ?? null });
   }
 
