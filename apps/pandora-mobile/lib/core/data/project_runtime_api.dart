@@ -48,15 +48,21 @@ class ProjectRuntimeApi {
 
   Future<ProjectPreviewResult> createPreview({
     required String projectId,
+    required String versionId,
+    required String artifactDigest,
     String? idempotencyKey,
   }) async {
+    final key = idempotencyKey ?? _keys.create('customer-project-preview');
     final response = await _client.postJson(
       pathSegments: <String>['projects', projectId, 'previews'],
       operation: 'customerProject.preview',
       routeTemplate: '/projects/:id/previews',
-      idempotencyKey:
-          idempotencyKey ?? _keys.create('customer-project-preview'),
-      body: const <String, Object?>{},
+      idempotencyKey: key,
+      body: <String, Object?>{
+        'versionId': versionId.trim(),
+        'artifactDigest': artifactDigest.trim().toLowerCase(),
+        'idempotencyKey': key,
+      },
     );
     return ProjectPreviewResult.fromJson(
       _map(response.data, 'project preview'),
