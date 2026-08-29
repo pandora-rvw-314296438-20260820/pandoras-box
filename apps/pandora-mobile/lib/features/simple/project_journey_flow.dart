@@ -97,7 +97,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      unawaited(_refreshDurableTruth());
+      unawaited(_refreshAndAdvance());
     }
   }
 
@@ -418,7 +418,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                     label: 'Try again',
                     icon: Icons.refresh_rounded,
                     onPressed: () {
-                      _requestStarted = false;
+                      _buildRequestStarted = false;
+                      _previewRequestedVersionId = null;
                       unawaited(_resumeBuild(requestPreviewIfNeeded: true));
                     },
                   ),
