@@ -542,6 +542,39 @@ function approvalSummary(value: unknown, riskCode = "") {
   };
 }
 
+async function loadDomainSummaries(context: UserContext, projectItems: unknown[]) {
+  const { data, error } = await context.client
+    .from("pandora_project_domains")
+    .select("id, project_id, domain, status, verified, primary_domain, updated_at")
+    .eq("organization_id", context.organizationId)
+    .order("primary_domain", { ascending: false })
+    .order("updated_at", { ascending: false })
+    .limit(100);
+  if (error) throw new Error("BACKEND_READ_FAILED");
+
+  const projectNames = new Map<string, string>();
+  for (const item of projectItems) {
+    const project = asRecord(item);
+    const id = textValue(project.id);
+    if (id) projectNames.set(id, textValue(project.name, "Project"));
+  }
+
+  return (data ?? []).map((raw) => {
+    const row = asRecord(raw);
+    const projectId = textValue(row.project_id);
+    return {
+      id: textValue(row.id),
+      projectId,
+      projectName: projectNames.get(projectId) ?? "Project",
+      domain: textValue(row.domain),
+      status: textValue(row.status, "not_checked"),
+      verified: row.verified === true,
+      primaryDomain: row.primary_domain === true,
+      updatedAt: row.updated_at ?? null,
+    };
+  }).filter((item) => item.id && item.domain);
+}
+
 async function home(context: UserContext) {
   const [
     projectItems,
@@ -556,6 +589,7 @@ async function home(context: UserContext) {
     connections(context),
     safety(context),
   ]);
+  const domainItems = await loadDomainSummaries(context, projectItems);
   const blocked = projectItems.filter((item) =>
     item.plainStatus.toLowerCase() === "blocked"
   ).length;
@@ -606,6 +640,7 @@ async function home(context: UserContext) {
       needsAttention,
     },
     topProjects: projectItems.slice(0, 3),
+    domains: domainItems,
     recentActivity: activityItems,
   };
 }
