@@ -227,7 +227,6 @@ Deno.serve(async (req) => {
     if (!claimToken) throw new Error("COMPILATION_CLAIM_FAILED");
 
     const requestId = crypto.randomUUID();
-    const providerRequest = modelRequest(record(intent), record(project));
     let requestDigest = "";
     let responseDigest = "";
     let inputTokens = 0;
@@ -291,7 +290,7 @@ Deno.serve(async (req) => {
       p_compiler_provider: "gemini",
       p_compiler_model: MODEL,
       p_compiler_version: COMPILER_VERSION,
-      p_compiler_provenance: { request_id: requestId, transport: "vault_server_boundary", structured_output: true },
+      p_compiler_provenance: { request_id: requestId, transport: "vault_server_boundary", structured_output: true, structured_output_attempts: structuredOutputAttempt },
       p_content_sha256: digest,
       p_model_request_id: requestId,
       p_model_request_sha256: requestDigest,
