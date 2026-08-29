@@ -26,7 +26,7 @@ A default registry cannot accept a PASS promotion. TRUSTED promotion requires a 
 
 Deliberately vulnerable fixtures cover disabled/allow-all RLS, privileged authenticated writes, secret-boundary leakage, payment spoofing, cross-tenant predicates, webhook replay, destructive migrations, and unsafe upgrades.
 
-## Cross-worker lineae
+## Cross-worker lineage
 
 - Worker A persists exact primitive composition and upgrade lineage against canonical project versions.
 - Worker B may discover/select capabilities but cannot mutate trust.
