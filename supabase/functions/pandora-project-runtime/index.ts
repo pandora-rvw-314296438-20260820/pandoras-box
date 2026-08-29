@@ -1231,21 +1231,23 @@ async function finalizeProductionVerification(context: UserContext, identifier: 
   if (!providerDeploymentId) throw new Error("PROVIDER_LINEAGE_MISMATCH");
 
   const { data: versionData, error: versionError } = await admin.from("pandora_project_versions")
-    .select("id, project_spec_id, build_job_id, source_commit, source_sha256, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, created_at")
+    .select("id, project_spec_id, build_job_id, source_kind, source_ref, source_commit, source_sha256, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, created_at")
     .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", requestedVersion).maybeSingle();
   if (versionError) throw new Error("BACKEND_READ_FAILED");
   if (!versionData) throw new Error("VERIFICATION_REQUIRED");
   const version = asRecord(versionData);
 
   const { data: verificationData, error: verificationError } = await admin.from("pandora_verification_runs")
-    .select("id, project_spec_id, project_version_id, build_job_id, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, required_check_profile, status, completed_at")
+    .select("id, project_spec_id, project_version_id, build_job_id, source_kind, source_ref, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, required_check_profile, status, completed_at")
     .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("project_version_id", requestedVersion).eq("id", verificationRunId).maybeSingle();
   if (verificationError) throw new Error("BACKEND_READ_FAILED");
   if (!verificationData) throw new Error("VERIFICATION_REQUIRED");
   const verification = asRecord(verificationData);
   if (textValue(verification.status).toUpperCase() !== "PASS" || textValue(verification.target_environment) !== "production" || textValue(verification.required_check_profile) !== "production_release") throw new Error("VERIFICATION_REQUIRED");
+  const versionSource = projectSourceIdentity(requestedVersion, version.source_kind, version.source_ref, version.source_commit);
+  const verificationSource = projectSourceIdentity(requestedVersion, verification.source_kind, verification.source_ref, verification.source_commit);
   if (textValue(verification.project_spec_id) !== textValue(version.project_spec_id) || textValue(verification.project_version_id) !== requestedVersion ||
-      textValue(verification.build_job_id) !== textValue(version.build_job_id) || textValue(verification.source_commit) !== textValue(version.source_commit) ||
+      textValue(verification.build_job_id) !== textValue(version.build_job_id) || verificationSource.sourceKind !== versionSource.sourceKind || verificationSource.sourceRef !== versionSource.sourceRef || verificationSource.sourceCommit !== versionSource.sourceCommit ||
       textValue(verification.source_digest) !== textValue(version.source_sha256) || textValue(verification.artifact_digest) !== textValue(version.artifact_digest_sha256) ||
       textValue(verification.migration_set_digest) !== textValue(version.migration_set_digest_sha256) || textValue(verification.runtime_target_digest) !== textValue(version.runtime_target_digest_sha256) ||
       textValue(verification.preview_deployment_id) !== providerDeploymentId) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
@@ -1256,7 +1258,7 @@ async function finalizeProductionVerification(context: UserContext, identifier: 
   const metadata = asRecord(deployment.metadata);
   const now = new Date().toISOString();
   const { data: deploymentUpdated, error: deploymentUpdateError } = await admin.from("pandora_project_deployments")
-    .update({ verification_state: "live_verified", verification_ref: verificationRunId, metadata: { ...metadata, productionVerificationRunId: verificationRunId }, last_provider_check_at: now, updated_at: now })
+    .update({ verification_state: "live_verified", verification_ref: verificationRunId, metadata: { ...metadata, productionVerificationRunId: verificationRunId, sourceKind: versionSource.sourceKind, sourceRef: versionSource.sourceRef }, last_provider_check_at: now, updated_at: now })
     .eq("id", productionRowId).eq("verification_state", "ready_for_verification").select("id").maybeSingle();
   if (deploymentUpdateError || !deploymentUpdated) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
   const { data: environmentUpdated, error: environmentUpdateError } = await admin.from("pandora_runtime_environments")
