@@ -1,0 +1,53 @@
+name: Domain exact format capture
+on:
+  push:
+    branches:
+      - feature/vercel-domain-registrar-20260830-v3
+permissions:
+  contents: read
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - name: Materialize exact mobile workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .pandora-mobile-build
+          mkdir .pandora-mobile-build
+          cd .pandora-mobile-build
+          flutter create --platforms=android,web --org com.banataosystems --project-name pandora_mobile .
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R ../apps/pandora-mobile/lib ./lib
+          cp -R ../apps/pandora-mobile/test ./test
+          cp -R ../apps/pandora-mobile/assets ./assets
+          cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
+          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+          flutter pub get --enforce-lockfile
+      - name: Capture exact formatter changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R .pandora-mobile-build/lib /tmp/lib-before
+          cp -R .pandora-mobile-build/test /tmp/test-before
+          (cd .pandora-mobile-build && dart format lib test)
+          diff -ruN /tmp/lib-before .pandora-mobile-build/lib > domain-exact-format.patch || true
+          diff -ruN /tmp/test-before .pandora-mobile-build/test >> domain-exact-format.patch || true
+          test -s domain-exact-format.patch
+      - name: Upload exact formatter patch
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: domain-exact-format-patch
+          path: domain-exact-format.patch
+          retention-days: 1
