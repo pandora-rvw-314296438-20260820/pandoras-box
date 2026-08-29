@@ -1167,13 +1167,18 @@ class DomainSummary {
     final json = asJsonMap(value);
     return DomainSummary(
       id: jsonText(json['id']),
-      projectId: jsonText(firstJsonValue(json, const ['projectId', 'project_id'])),
-      projectName: jsonText(firstJsonValue(json, const ['projectName', 'project_name']), fallback: 'Project'),
+      projectId:
+          jsonText(firstJsonValue(json, const ['projectId', 'project_id'])),
+      projectName: jsonText(
+          firstJsonValue(json, const ['projectName', 'project_name']),
+          fallback: 'Project'),
       domain: jsonText(json['domain']),
       status: jsonText(json['status'], fallback: 'not_checked'),
       verified: jsonBool(json['verified']),
-      primaryDomain: jsonBool(firstJsonValue(json, const ['primaryDomain', 'primary_domain'])),
-      updatedAt: jsonDateTime(firstJsonValue(json, const ['updatedAt', 'updated_at'])),
+      primaryDomain: jsonBool(
+          firstJsonValue(json, const ['primaryDomain', 'primary_domain'])),
+      updatedAt:
+          jsonDateTime(firstJsonValue(json, const ['updatedAt', 'updated_at'])),
     );
   }
 }
