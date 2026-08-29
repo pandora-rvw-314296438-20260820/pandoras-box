@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-ui-foundations@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {
+      "path": "ui/src/index.js",
+      "sha256": "fdc50efd3c94aba363dcbdc506f78b5b317cbd3e600fadd0ce7235778ea896de"
+    }
+  ],
+  "bundleDigest": "sha256:8de91d620f3cf195b2782ea28353d0b30c919a0dbde5ca4b29b2d7ab7b357ead"
+}
