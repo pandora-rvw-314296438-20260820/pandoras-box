@@ -589,7 +589,8 @@ async function home(context: UserContext) {
     connections(context),
     safety(context),
   ]);
-  const domainItems = await loadDomainSummaries(context, projectItems);\n  const blocked = projectItems.filter((item) =>
+  const domainItems = await loadDomainSummaries(context, projectItems);
+  const blocked = projectItems.filter((item) =>
     item.plainStatus.toLowerCase() === "blocked"
   ).length;
   const connectionProblems =
