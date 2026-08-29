@@ -5,7 +5,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const MODEL = Deno.env.get("PANDORA_PROJECT_SPEC_MODEL") || "gemini-3.5-flash-lite";
-const COMPILER_VERSION = "project-spec-compiler-v1";
+const COMPILER_VERSION = "project-spec-compiler-v2";
 const MAX_BODY_BYTES = 2048;
 const MAX_MODEL_TEXT_BYTES = 262144;
 
@@ -145,7 +145,7 @@ function modelRequest(intent: JsonRecord, project: JsonRecord) {
   const system = [
     "Compile the customer request into one ProjectSpec JSON object.",
     "Return JSON only. Do not add markdown or commentary.",
-    "Use version 1.0 and exactly these top-level sections: version, business, product, data, integrations, design, deployment, acceptance, metadata.",
+    "Use version 1.0 and exactly these top-level sections: version, business, product, data, integrations, design, deployment, acceptance, metadata.",\n    "Use exactly these nested shapes: business={objective:string,expectedOutcome?:string,successMetric?:string,baseline?:string,target?:string,constraints?:string[]}; product={projectType:string,users?:string[],roles?:string[],workflows?:string[],features?:string[],screens?:string[],userStories?:string[]}; data={entities?:{name:string}[],relationships?:{name:string,from:string,to:string}[]}; integrations={payment?:string[],messaging?:string[],analytics?:string[],externalApis?:string[],providerRequirements?:string[]}; design={brandRequirements?:string[],accessibility?:string[],platforms?:string[],responsive?:boolean}; deployment={} or an owner-readable JSON object; acceptance={functional:string[],business?:string[]}; metadata={} or a bounded JSON object.",\n    "For design.platforms use only web, ios, android, desktop, or server. Do not substitute alternate field names and do not put objects inside fields defined as string arrays.",
     "product.projectType must be website, web_application, mobile_application, system, api, automation, or other.",
     "acceptance.functional must contain at least one observable criterion.",
     "Do not invent measured business results, credentials, provider secrets, or deployed URLs.",
