@@ -8,17 +8,20 @@ const _iterationPath = 'lib/features/simple/project_iteration_experience.dart';
 void main() {
   test('Simple Mode primary navigation is project-first and owner-safe', () {
     final shell = File('lib/app/pandora_shell.dart').readAsStringSync();
+    final more = File('lib/features/simple/more_screen.dart').readAsStringSync();
     for (final declaration in const [
       "_Destination('Home'",
       "_Destination('Projects'",
       "'Ask Pandora'",
       "'Needs You'",
-      "_Destination('Business'",
+      "_Destination('More'",
     ]) {
       expect(shell, contains(declaration));
     }
     expect(shell, isNot(contains("_Destination('Systems'")));
-    expect(shell, isNot(contains("_Destination('More'")));
+    expect(shell, isNot(contains("_Destination('Business'")));
+    expect(more, contains("title: 'Business'"));
+    expect(more, contains("title: 'Domains'"));
   });
 
   test('Build Theatre never advances from a presentation timer', () {
