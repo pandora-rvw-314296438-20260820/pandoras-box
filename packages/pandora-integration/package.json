@@ -1,0 +1,10 @@
+{
+  "name": "@pandora/integration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cross-worker Pandora integration adapters and release proofs",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}
