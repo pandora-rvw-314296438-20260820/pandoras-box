@@ -14,3 +14,9 @@ test("source generation defaults to the live-proven bounded Gemini route", () =>
   assert.match(migration, /http_set_curlopt\('CURLOPT_CONNECTTIMEOUT_MS','5000'\)/);
   assert.doesNotMatch(migration.slice(migration.lastIndexOf("CREATE OR REPLACE FUNCTION private.pandora_worker_b_gemini_api_20260829")), /set_config\('http\.curlopt_timeout_ms'/);
 });
+
+
+test("generated source has an admitted durable model-run task", () => {
+  assert.match(generator, /task: "generate_project_source"/);
+  assert.match(migration, /'generate_code','generate_project_source','repair_code'/);
+});
