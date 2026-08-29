@@ -833,13 +833,13 @@ async function runtimeSummary(context: UserContext, identifier: string) {
     verificationVersionId = versionId || null;
     if (versionId) {
       const { data: versionData, error: versionError } = await admin.from("pandora_project_versions")
-        .select("id, project_spec_id, build_job_id, source_sha256, source_commit, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, verification_run_id, lifecycle_status, created_at")
+        .select("id, project_spec_id, build_job_id, source_sha256, source_kind, source_ref, source_commit, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, verification_run_id, lifecycle_status, created_at")
         .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", versionId).maybeSingle();
       if (versionError) throw new Error("BACKEND_READ_FAILED");
       const version = asRecord(versionData);
       const boundVerificationId = textValue(version.verification_run_id);
       let verificationQuery = admin.from("pandora_verification_runs")
-        .select("id, project_spec_id, project_version_id, build_job_id, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, status, completed_at, created_at")
+        .select("id, project_spec_id, project_version_id, build_job_id, source_kind, source_ref, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, status, completed_at, created_at")
         .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("project_version_id", versionId);
       verificationQuery = boundVerificationId
         ? verificationQuery.eq("id", boundVerificationId)
@@ -856,16 +856,21 @@ async function runtimeSummary(context: UserContext, identifier: string) {
           const completedAt = Date.parse(textValue(verification.completed_at));
           const versionCreatedAt = Date.parse(textValue(version.created_at));
           const previewCreatedAt = Date.parse(textValue(previewRow.created_at));
+          let sourceIdentityExact = false;
+          try {
+            const versionSource = projectSourceIdentity(versionId, version.source_kind, version.source_ref, version.source_commit);
+            const verificationSource = projectSourceIdentity(versionId, verification.source_kind, verification.source_ref, verification.source_commit);
+            sourceIdentityExact = versionSource.sourceKind === verificationSource.sourceKind && versionSource.sourceRef === verificationSource.sourceRef && versionSource.sourceCommit === verificationSource.sourceCommit;
+          } catch { sourceIdentityExact = false; }
           const exact = Boolean(
             textValue(version.project_spec_id) &&
             textValue(version.build_job_id) &&
-            textValue(version.source_commit) &&
+            sourceIdentityExact &&
             textValue(version.artifact_digest_sha256) &&
             textValue(previewRow.provider_deployment_id) &&
             textValue(verification.project_spec_id) === textValue(version.project_spec_id) &&
             textValue(verification.project_version_id) === versionId &&
             textValue(verification.build_job_id) === textValue(version.build_job_id) &&
-            textValue(verification.source_commit) === textValue(version.source_commit) &&
             textValue(verification.source_digest) === textValue(version.source_sha256) &&
             textValue(verification.artifact_digest) === textValue(version.artifact_digest_sha256) &&
             textValue(verification.migration_set_digest) === textValue(version.migration_set_digest_sha256) &&
@@ -1054,7 +1059,7 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   if (textValue(preview.source_commit_sha) && textValue(preview.source_commit_sha) !== sourceCommit) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
 
   let verificationQuery = admin.from("pandora_verification_runs")
-    .select("id, project_spec_id, project_version_id, build_job_id, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, status, completed_at, created_at")
+    .select("id, project_spec_id, project_version_id, build_job_id, source_kind, source_ref, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, status, completed_at, created_at")
     .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("project_version_id", requestedVersion);
   const boundVerificationId = textValue(version.verification_run_id);
   verificationQuery = boundVerificationId
