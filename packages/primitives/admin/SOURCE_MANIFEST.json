@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-admin@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {
+      "path": "admin/src/index.js",
+      "sha256": "e320ef039a6118edcb7db7ed5b592478a0bffc5eb5d98363e7643b3bc6416cea"
+    }
+  ],
+  "bundleDigest": "sha256:5f48184a6579dd0550a6d05d8e5413e192de6b326b36562b45e8c54d87c7b441"
+}

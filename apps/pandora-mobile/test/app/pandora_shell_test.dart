@@ -373,6 +373,31 @@ void main() {
     );
   });
 
+  testWidgets('Simple Mode uses a navigation rail on large screens', (
+    tester,
+  ) async {
+    await setTestSurface(tester, logicalSize: const Size(1000, 800));
+    final repository = _Repository();
+    await tester.pumpWidget(
+      testApp(
+        child: PandoraDependencies(
+          auth: const _Auth(),
+          repository: repository,
+          diagnostics: DiagnosticsStore(),
+          child: const PandoraShell(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.folder_outlined));
+    await tester.pumpAndSettle();
+    expect(repository.projectCalls, 1);
+  });
+
   testWidgets('tabs load lazily and preserve their first mounted state', (
     tester,
   ) async {
@@ -396,13 +421,13 @@ void main() {
     expect(repository.actionCalls, 0);
     expect(repository.activityCalls, 0);
 
-    await tester.tap(find.text('Systems').last);
+    await tester.tap(find.text('Projects').last);
     await tester.pumpAndSettle();
     expect(repository.projectCalls, 1);
 
     await tester.tap(find.text('Home').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Systems').last);
+    await tester.tap(find.text('Projects').last);
     await tester.pumpAndSettle();
     expect(repository.projectCalls, 1);
   });

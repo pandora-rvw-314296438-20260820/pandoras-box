@@ -1,0 +1,11 @@
+-- pandora-primitive: pandora-customer-profile@1.0.0
+-- target: customer-app-runtime-only
+DO $$ BEGIN IF to_regclass('public.project_specs') IS NOT NULL OR to_regclass('public.projectos_execution_plans') IS NOT NULL OR to_regclass('public.pandora_projects') IS NOT NULL THEN RAISE EXCEPTION 'pandora-customer-profile customer primitive refused on Pandora Control Plane-like schema'; END IF; END $$;
+CREATE TABLE IF NOT EXISTS public.primitive_customer_profiles(scope_id uuid NOT NULL,user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,display_name text CHECK(display_name IS NULL OR char_length(display_name)<=160),email text CHECK(email IS NULL OR char_length(email)<=320),phone text CHECK(phone IS NULL OR char_length(phone)<=64),locale text CHECK(locale IS NULL OR char_length(locale)<=32),timezone text CHECK(timezone IS NULL OR char_length(timezone)<=64),marketing_opt_in boolean NOT NULL DEFAULT false,preferences jsonb NOT NULL DEFAULT '{}'::jsonb CHECK(jsonb_typeof(preferences)='object' AND pg_column_size(preferences)<=32768),created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(scope_id,user_id));
+ALTER TABLE public.primitive_customer_profiles ENABLE ROW LEVEL SECURITY;ALTER TABLE public.primitive_customer_profiles FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON public.primitive_customer_profiles FROM anon,authenticated;GRANT SELECT,INSERT,UPDATE ON public.primitive_customer_profiles TO authenticated;
+CREATE POLICY primitive_customer_profile_self_read ON public.primitive_customer_profiles FOR SELECT TO authenticated USING(user_id=(SELECT auth.uid()));
+CREATE POLICY primitive_customer_profile_admin_read ON public.primitive_customer_profiles FOR SELECT TO authenticated USING(public.primitive_has_permission(scope_id,'users.read'));
+CREATE POLICY primitive_customer_profile_self_insert ON public.primitive_customer_profiles FOR INSERT TO authenticated WITH CHECK(user_id=(SELECT auth.uid()));
+CREATE POLICY primitive_customer_profile_self_update ON public.primitive_customer_profiles FOR UPDATE TO authenticated USING(user_id=(SELECT auth.uid())) WITH CHECK(user_id=(SELECT auth.uid()));
+-- Schema exposes only approved profile fields; no arbitrary custom/sensitive field bag is persisted.

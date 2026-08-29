@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../core/data/owner_projection.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/models/pandora_models.dart';
 import '../activity/activity_screen.dart';
@@ -416,7 +417,7 @@ class _VerifiedHome extends StatelessWidget {
                 detail: summary.priority?.reason ??
                     (summary.countersVerified
                         ? 'Pandora will surface the next decision here.'
-                        : 'Decision counters have not been verified.'),
+                        : 'Pandora has not confirmed how many decisions need you yet.'),
                 action: summary.approvalCount > 0 ? 'Review' : 'Open',
                 onTap: onOpenNeedsYou,
               ),
@@ -430,7 +431,8 @@ class _VerifiedHome extends StatelessWidget {
                 iconBackground: attention == null
                     ? PandoraSimpleColors.greenWash
                     : PandoraSimpleColors.blueWash,
-                title: attention?.name ?? 'No additional issue is verified',
+                title:
+                    attention?.name ?? 'No other issue is confirmed right now',
                 detail: attention?.blocker ??
                     attention?.nextAction ??
                     'Pandora is monitoring your connected systems.',
@@ -448,13 +450,16 @@ class _VerifiedHome extends StatelessWidget {
                 children: [cards[0], const SizedBox(height: 12), cards[1]],
               );
             }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: cards[0]),
-                const SizedBox(width: 14),
-                Expanded(child: cards[1]),
-              ],
+            // IntrinsicHeight bounds equal-height cards when parent height is unbounded (scroll views).
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: cards[0]),
+                  const SizedBox(width: 14),
+                  Expanded(child: cards[1]),
+                ],
+              ),
             );
           },
         ),
@@ -594,8 +599,8 @@ class _WorkingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (summary.topProjects.isEmpty) {
       return const PandoraEmptyTruth(
-        title: 'No active work is verified',
-        message: 'New work will appear here after Pandora accepts it.',
+        title: 'Pandora has not confirmed any current work yet',
+        message: 'New work will appear here once Pandora starts it.',
       );
     }
     final projects = summary.topProjects.take(3).toList(growable: false);
@@ -622,21 +627,27 @@ class _WorkingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final normalized = project.status.toLowerCase();
-    final testing =
-        normalized.contains('test') || normalized.contains('review');
-    final healthy =
-        normalized.contains('complete') || normalized.contains('live');
+    final ownerState = resolveOwnerProjectState(project);
+    final blocked = ownerState == OwnerProjectState.blocked ||
+        ownerState == OwnerProjectState.ownerActionRequired;
+    final testing = ownerState == OwnerProjectState.executing;
+    final healthy = ownerState == OwnerProjectState.monitoring &&
+        project.evidenceState(EvidenceStage.productionVerified) ==
+            EvidenceClaimState.verified;
     final foreground = healthy
         ? PandoraSimpleColors.green
-        : testing
-            ? PandoraSimpleColors.amber
-            : PandoraSimpleColors.ink;
+        : blocked
+            ? PandoraSimpleColors.red
+            : testing
+                ? PandoraSimpleColors.amber
+                : PandoraSimpleColors.ink;
     final background = healthy
         ? PandoraSimpleColors.greenWash
-        : testing
-            ? PandoraSimpleColors.amberWash
-            : const Color(0xFFF5F1EC);
+        : blocked
+            ? PandoraSimpleColors.blush
+            : testing
+                ? PandoraSimpleColors.amberWash
+                : const Color(0xFFF5F1EC);
     return InkWell(
       onTap: () => _openHome(context, ProjectDetailScreen(project: project)),
       child: Padding(
@@ -677,9 +688,7 @@ class _WorkingRow extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             PandoraStatusPill(
-              label: project.progressVerified
-                  ? project.progressLabel
-                  : project.status,
+              label: ownerWorkStatusLabel(project),
               foreground: foreground,
               background: background,
               icon: healthy ? Icons.check_circle_outline_rounded : null,
@@ -704,7 +713,7 @@ class _BusinessPulse extends StatelessWidget {
         icon: Icons.person_outline_rounded,
         label: 'Active systems',
         value: verified ? '${summary.activeProjectCount}' : '—',
-        note: verified ? 'Verified now' : 'Not verified',
+        note: verified ? 'Confirmed' : 'Not confirmed',
         foreground: PandoraSimpleColors.blue,
         background: PandoraSimpleColors.blueWash,
       ),
@@ -851,7 +860,7 @@ class _RecommendationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final message = recommendation ??
-        'No recommendation is verified yet. Ask Pandora what the safest useful next step should be.';
+        'Pandora has not confirmed a recommendation yet. Ask Pandora what the safest useful next step should be.';
     return PandoraSimpleCard(
       backgroundColor: const Color(0xFFFFF5F6),
       borderColor: const Color(0xFFF2CDD2),
@@ -958,7 +967,7 @@ class _SystemsStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     if (summary.topProjects.isEmpty) {
       return PandoraEmptyTruth(
-        title: 'No verified systems yet',
+        title: 'Pandora has not confirmed any systems yet',
         message: 'Ask Pandora to build or connect the first system.',
         actionLabel: 'Open Systems',
         onAction: onOpenSystems,
@@ -1060,7 +1069,7 @@ class _SystemCard extends StatelessWidget {
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(
-                        project.status,
+                        ownerSystemHealthLabel(project),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -1091,8 +1100,8 @@ class _ActivityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (summary.recentActivity.isEmpty) {
       return PandoraEmptyTruth(
-        title: 'No recent verified activity',
-        message: 'Completed and provider-verified work will appear here.',
+        title: 'Pandora has not confirmed any recent activity yet',
+        message: 'Completed work will appear here after Pandora confirms it.',
         actionLabel: 'Open activity',
         onAction: onOpenActivity,
       );

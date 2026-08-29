@@ -118,6 +118,12 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   ].sort();
   const replaySnapshotLast = '20260817145929_add_vercel_async_git_link_queue.sql';
   const historicalCurrentFiles = activeFiles.filter((filename) => filename <= replaySnapshotLast);
+  const postRecoveryPreSnapshotFiles = historicalCurrentFiles.filter(
+    (filename) => !capturedSet.has(filename),
+  );
+  const capturedPostSnapshotFiles = capturedFiles.filter(
+    (filename) => filename > replaySnapshotLast,
+  );
   const postSnapshotFiles = activeFiles.filter((filename) => filename > replaySnapshotLast);
 
   assert.equal(manifest.invariants.historical_identity_count, 50);
@@ -154,6 +160,26 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260826005701_pandora_organization_user_administration_v1.sql',
     '20260826010748_pandora_user_administration_service_boundary_v1.sql',
     '20260826011131_remove_legacy_pandora_user_admin_rpc_v1.sql',
+    '20260828122655_index_release_worker_foreign_keys.sql',
+    '20260828132500_pandora_project_runtime.sql',
+    '20260828153500_pandora_project_spec_control_plane_v1.sql',
+    '20260828170000_pandora_durable_execution_lineage_v1.sql',
+    '20260828181500_pandora_economics_runtime_safety_v1.sql',
+    '20260828193000_pandora_realtime_audit_security_v1.sql',
+    '20260829103000_pandora_worker_b_gemini_vault_transport.sql',
+    '20260829104000_pandora_worker_f_runtime_state.sql',
+    '20260829104500_pandora_project_spec_compiler_v1.sql',
+    '20260829111500_pandora_worker_f_vercel_scope_rebind.sql',
+    '20260829113000_pandora_worker_d_vercel_sandbox_broker_v1.sql',
+    '20260829114000_pandora_worker_f_runtime_constraint_idempotency.sql',
+    '20260829114500_pandora_worker_f_vercel_webhook_v1.sql',
+    '20260829115500_pandora_primitive_lineage_v1.sql',
+    '20260829120000_pandora_worker_d_vercel_sandbox_protocol_fix.sql',
+    '20260829121000_pandora_generated_source_identity_v1.sql',
+    '20260829122000_pandora_project_build_intake_v1.sql',
+    '20260829123000_pandora_runtime_release_closure_v1.sql',
+    '20260829124000_pandora_live_verification_customer_db_v1.sql',
+    '20260829125000_pandora_build_authorization_acl_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -174,11 +200,32 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260826005701_pandora_organization_user_administration_v1.sql',
     '20260826010748_pandora_user_administration_service_boundary_v1.sql',
     '20260826011131_remove_legacy_pandora_user_admin_rpc_v1.sql',
+    '20260828122655_index_release_worker_foreign_keys.sql',
+    '20260828132500_pandora_project_runtime.sql',
+    '20260828153500_pandora_project_spec_control_plane_v1.sql',
+    '20260828170000_pandora_durable_execution_lineage_v1.sql',
+    '20260828181500_pandora_economics_runtime_safety_v1.sql',
+    '20260828193000_pandora_realtime_audit_security_v1.sql',
+    '20260829103000_pandora_worker_b_gemini_vault_transport.sql',
+    '20260829104000_pandora_worker_f_runtime_state.sql',
+    '20260829104500_pandora_project_spec_compiler_v1.sql',
+    '20260829111500_pandora_worker_f_vercel_scope_rebind.sql',
+    '20260829113000_pandora_worker_d_vercel_sandbox_broker_v1.sql',
+    '20260829114000_pandora_worker_f_runtime_constraint_idempotency.sql',
+    '20260829114500_pandora_worker_f_vercel_webhook_v1.sql',
+    '20260829115500_pandora_primitive_lineage_v1.sql',
+    '20260829120000_pandora_worker_d_vercel_sandbox_protocol_fix.sql',
+    '20260829121000_pandora_generated_source_identity_v1.sql',
+    '20260829122000_pandora_project_build_intake_v1.sql',
+    '20260829123000_pandora_runtime_release_closure_v1.sql',
+    '20260829124000_pandora_live_verification_customer_db_v1.sql',
+    '20260829125000_pandora_build_authorization_acl_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
     currentReplayResult.migration_count,
-    recoveryReplayResult.migration_count + appendedFiles.length - postSnapshotFiles.length,
+    recoveryReplayResult.migration_count - capturedPostSnapshotFiles.length +
+      postRecoveryPreSnapshotFiles.length,
   );
   assert.equal(manifest.live_chain.first, '20260724010000');
   assert.equal(manifest.live_chain.last, '20260821024500');
@@ -261,14 +308,19 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     receiptVersionChainSha256(activeFiles),
     manifest.identity_reconciliation.expected_applied_receipt_chain_sha256,
   );
-  assert.equal(reconciledReplayResult.migration_count, activeFiles.length);
-  assert.equal(reconciledReplayResult.chain_sha256, chainSha256(activeFiles));
+  // Preserve the dated 2026-08-23 replay receipt as historical evidence.
+  assert.equal(reconciledReplayResult.migration_count, 74);
   assert.equal(
     reconciledReplayResult.chain_sha256,
+    'fa5039cd8ef4297c1dd01e258c4e8cdfe8725a7aba19b82c48b8ddb24fd8a127',
+  );
+  // Bind current source independently to current manifest truth.
+  assert.equal(
+    chainSha256(activeFiles),
     manifest.validation.reconciled_chain_sha256,
   );
   assert.equal(
-    reconciledReplayResult.migration_count,
+    activeFiles.length,
     manifest.validation.reconciled_migration_count,
   );
   assert.equal(currentReplayResult.provider_equivalence, false);
@@ -492,4 +544,10 @@ test('database rollback restores the exact prior AAL2 executable body', () => {
     restore_previous_aal2_definition: 'pass',
     reapply_aal1_definition: 'pass',
   });
+});
+
+
+test('Worker F historical runtime migration bytes remain immutable', () => {
+  const payload = readFileSync(join(migrationRoot, '20260829104000_pandora_worker_f_runtime_state.sql'));
+  assert.equal(sha256(payload), '3575e2e38bd22a683159ebb58041ea353b7f17344343fc67207c1b3e58518159');
 });

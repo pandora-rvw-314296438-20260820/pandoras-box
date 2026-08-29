@@ -1,913 +1,913 @@
 {
-  "schema_version": "2.2.0",
-  "artifact_type": "supabase_secret_safe_migration_parity_manifest",
-  "project_ref": "jcyqixttuebxqqfkjonq",
-  "canonical_repository": "banataosystems/Pandoras-box",
-  "starting_main_sha": "171b85c3012f053cfe2e531b82d8e495c5b8007e",
-  "evidence_observed_at": "2026-08-13",
-  "status": {
-    "documented": true,
-    "implemented": true,
-    "tested": "deterministic_local_replay_and_live_readback_pass",
-    "deployed": true,
-    "production_verified": true
-  },
-  "invariants": {
-    "production_mutation_performed": true,
-    "production_history_rewritten": false,
-    "historical_identity_count": 50,
-    "active_file_count": 52,
-    "applied_change_count": 2,
-    "live_identity_count": 59,
-    "source_file_count": 74,
-    "source_live_identity_coverage": 59,
-    "source_only_forward_count": 15,
-    "identity_only_source_record_count": 3,
-    "raw_provider_payloads_committed": false,
-    "live_secret_or_verifier_literals_committed": false,
-    "historical_sensitive_exposure_remediated": false,
-    "coordinated_rotation_required": true
-  },
-  "validation": {
-    "result_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/pglite-replay-result.json",
-    "reconciled_result_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/pglite-replay-result-20260823-source-alignment.json",
-    "engine": "PGlite 0.5.4 / PostgreSQL 18.3",
-    "provider_equivalence": false,
-    "migration_count": 52,
-    "chain_sha256": "77e2dbe177cac4eddd8b6de03bc98cd98c4c4d2bfd5a0dfd7bde6cff174a56fb",
-    "reconciled_migration_count": 74,
-    "reconciled_chain_sha256": "fa5039cd8ef4297c1dd01e258c4e8cdfe8725a7aba19b82c48b8ddb24fd8a127",
-    "authorization_smoke": "pass",
-    "database_rollback_smoke": "pass"
-  },
-  "live_chain": {
-    "first": "20260724010000",
-    "last": "20260821024500",
-    "historical_recovery_last": "20260810104737",
-    "migration_count": 59,
-    "captured_payloads_through": "20260813105011",
-    "executable_payload_count": 48,
-    "placeholder_foundation_count": 2,
-    "exact_payload_bytes": 267883,
-    "ordered_payload_digest_sha256": "4bcda759df90293b8f29f830e03700fc93f6830e45a1c4e021e8f2dd38e91c78",
-    "ordered_version_chain_sha256": "03b95e147f9edb9b903a669d870d435a4e21597fde2fb354fadb9267cf9c347c"
-  },
-  "identity_reconciliation": {
-    "observed_at": "2026-08-23",
-    "production_history_rewritten": false,
-    "legacy_aal1_source_version": "20260812034825",
-    "provider_aal1_version": "20260813014555",
-    "shared_post_capture_paths": [
-      "supabase/migrations/20260817145550_add_vercel_control_adapter.sql",
-      "supabase/migrations/20260817145659_add_vercel_git_binding_clear.sql",
-      "supabase/migrations/20260817145929_add_vercel_async_git_link_queue.sql",
-      "supabase/migrations/20260821024500_projectos_owner_read_completion.sql"
+    "status": {
+        "tested": "deterministic_local_replay_and_live_readback_pass",
+        "deployed": true,
+        "documented": true,
+        "implemented": true,
+        "production_verified": true
+    },
+    "history": [
+        {
+            "live": {
+                "bytes": 64,
+                "sha256": "09e313f5d1e32f3994d57e00e46d227d2b386279a7917f23ccaac0e4081815b8"
+            },
+            "name": "control_plane_foundation",
+            "active": {
+                "path": "supabase/migrations/20260724010000_control_plane_foundation.sql",
+                "bytes": 27543,
+                "sha256": "40ba6991fa1a7caada526a44ed048763387b019a7a66aa42314a1740bf66ace3"
+            },
+            "version": "20260724010000",
+            "classification": "recovered_foundation_unproven_live_bytes"
+        },
+        {
+            "live": {
+                "bytes": 37,
+                "sha256": "492d24c88fa906b3b1567aaa3679e1cbd49967542f340f0238e36bca8748a45f"
+            },
+            "name": "meta_remote_mcp_persistence",
+            "active": {
+                "path": "supabase/migrations/20260724030000_meta_remote_mcp_persistence.sql",
+                "bytes": 7832,
+                "sha256": "9235faca7332d53387d2f7875daae357ecb988687af2c2e1a63f0c506aa9b02f"
+            },
+            "version": "20260724030000",
+            "classification": "catalog_reconstructed_foundation"
+        },
+        {
+            "live": {
+                "bytes": 59,
+                "sha256": "b5b79f616c8cc09827b263ca33c134a193821285b414e16488b6bd533cd7480b"
+            },
+            "name": "enable_http_for_supabase_account_discovery",
+            "active": {
+                "path": "supabase/migrations/20260728150403_enable_http_for_supabase_account_discovery.sql",
+                "bytes": 362,
+                "sha256": "20a770a24e3c5761c1d64faa5548f47599286ae00b3968f9d15c2adb5b05445a"
+            },
+            "version": "20260728150403",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 2021,
+                "sha256": "acdb9231bd640785876b7261c942b2be4c77e7f2d4604a23da4f06c8ef15b11d"
+            },
+            "name": "add_supabase_control_catalog_rpc",
+            "active": {
+                "path": "supabase/migrations/20260728152425_add_supabase_control_catalog_rpc.sql",
+                "bytes": 2324,
+                "sha256": "4a38657f9b25330e58192f63924eae5a07a2a0445c0e0107243098c964b9bd6f"
+            },
+            "version": "20260728152425",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 4595,
+                "sha256": "cc369bf010f329b02fce64656d910d4bb97d85bc68c43f58b2e434865f4cfbee"
+            },
+            "name": "add_github_connector_probe",
+            "active": {
+                "path": "supabase/migrations/20260728155817_add_github_connector_probe.sql",
+                "bytes": 4898,
+                "sha256": "36deb476170615c06ae7ac0207d0951f4aeb6e7044b4a5d68fa96fbef8731ff1"
+            },
+            "version": "20260728155817",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 2133,
+                "sha256": "7d15490455586d3d1df2450f2e06649917bf09744b3437792fe40d3302ccdf24"
+            },
+            "name": "add_github_control_catalog",
+            "active": {
+                "path": "supabase/migrations/20260728160013_add_github_control_catalog.sql",
+                "bytes": 2436,
+                "sha256": "6d7265790a1aafac5fd7a4273d54ceb0cc449ec9cdc0742c2d3daab686dcd8f2"
+            },
+            "version": "20260728160013",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 2395,
+                "sha256": "ed4759f9b2e7b5640c6d2c3e28b2cec95a929717944025570fc0eaee5ff460f5"
+            },
+            "name": "add_runtime_security_config",
+            "active": {
+                "path": "supabase/migrations/20260728171559_add_runtime_security_config.sql",
+                "bytes": 2674,
+                "sha256": "a473ae455442d020c7588480343698989d84ba519e6b3064feade8f18d8493c0"
+            },
+            "version": "20260728171559",
+            "classification": "secret_safe_semantic_reconstruction"
+        },
+        {
+            "live": {
+                "bytes": 18187,
+                "sha256": "af8a7f145752b8260fc4f1625c8b0dd5885c3a4d457344e60ca8876b9c4a1b22"
+            },
+            "name": "add_durable_execution_ledger",
+            "active": {
+                "path": "supabase/migrations/20260728191246_add_durable_execution_ledger.sql",
+                "bytes": 18490,
+                "sha256": "4b20fd25ad42bf8bb267441f7e1882cbda25260fb4dc5db2638fc11dc46c1b26"
+            },
+            "version": "20260728191246",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 4365,
+                "sha256": "ecdc60942c0335be5232299ff69f27d1645f2cca72b9f595f92129a7765d9490"
+            },
+            "name": "add_control_catalog_scopes",
+            "active": {
+                "path": "supabase/migrations/20260728194505_add_control_catalog_scopes.sql",
+                "bytes": 4668,
+                "sha256": "d741f6029b5d3e2ef766a58b9cafe609e478ee1af9665660b516aee1f8160361"
+            },
+            "version": "20260728194505",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 3182,
+                "sha256": "326c7715226316dfad6c8ae9d636fe198777fb744b1dc85d0d1931d606fb4e86"
+            },
+            "name": "add_distributed_runtime_rate_limits",
+            "active": {
+                "path": "supabase/migrations/20260728213723_add_distributed_runtime_rate_limits.sql",
+                "bytes": 3485,
+                "sha256": "326cc519f41224eae88680b89ad2d6dcd9fabd2efa142ea9a887a6f20f42aed5"
+            },
+            "version": "20260728213723",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 320,
+                "sha256": "704e0bc0bf015ef6de022134495b4485cc182468ebd57524e65b52bb60b213c7"
+            },
+            "name": "noop_verify_distributed_runtime_rate_limits",
+            "active": {
+                "path": "supabase/migrations/20260728213829_noop_verify_distributed_runtime_rate_limits.sql",
+                "bytes": 623,
+                "sha256": "64cf601d945d6f0191b3860ddeabc37ccbe8aa48fa27db269b61feb6d5af6a0a"
+            },
+            "version": "20260728213829",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 618,
+                "sha256": "8cacae4f4fcbd13b3da8534ac716601fc71eccb8d671873d63779f1096fb7941"
+            },
+            "name": "verify_rate_limit_rpc_grants",
+            "active": {
+                "path": "supabase/migrations/20260728213846_verify_rate_limit_rpc_grants.sql",
+                "bytes": 921,
+                "sha256": "422ffc6528d418c2e86b1d6d88a7e6b06ec7344d7cd9ed11f37c0f78f7f9c2b1"
+            },
+            "version": "20260728213846",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 1440,
+                "sha256": "3cd1aae20a433819c7108014c8f1bcc022b6b2812ab47f6cd4139ebc264c6b70"
+            },
+            "name": "add_execution_plan_listing",
+            "active": {
+                "path": "supabase/migrations/20260729125913_add_execution_plan_listing.sql",
+                "bytes": 1742,
+                "sha256": "51b818bddb49746c691eb5a4721134e07092cde485eb0cd089cae58661dee158"
+            },
+            "version": "20260729125913",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 5558,
+                "sha256": "bb549fce600216e1523198be7eeab5351fba2e2fedc27734a1ca5182e0b206f4"
+            },
+            "name": "add_project_resource_bindings",
+            "active": {
+                "path": "supabase/migrations/20260730210432_add_project_resource_bindings.sql",
+                "bytes": 5861,
+                "sha256": "9931031a4ea1b100c2d8c7cf9013b379f9aea8e02a2785400531a8a777ab5d08"
+            },
+            "version": "20260730210432",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 2106,
+                "sha256": "c8b90cd4af13e7d4f381259e881f1e1784b932aa56a9cb84d4f607b9dfb1019d"
+            },
+            "name": "fxpass_product_intake_bridge",
+            "active": {
+                "path": "supabase/migrations/20260731092135_fxpass_product_intake_bridge.sql",
+                "bytes": 2512,
+                "sha256": "dd320a04500df5e1b04d3358db1f06cff9490361399680329558971c06aabedb"
+            },
+            "version": "20260731092135",
+            "classification": "secret_safe_semantic_reconstruction"
+        },
+        {
+            "live": {
+                "bytes": 4974,
+                "sha256": "6414aee9219a0df20ea56872644ca072acbed955886b39d51a53c58863746459"
+            },
+            "name": "fxpass_product_intake_rpc",
+            "active": {
+                "path": "supabase/migrations/20260731092225_fxpass_product_intake_rpc.sql",
+                "bytes": 5276,
+                "sha256": "73cf3a63de04b47c41075fd18787de72230a49b73563777f7519ccae34a013ac"
+            },
+            "version": "20260731092225",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 22820,
+                "sha256": "c3baca57e1813f3b3989ef8723e4581a7731d596d38a071d7ad5d39d815ea8f7"
+            },
+            "name": "projectos_operating_kernel",
+            "active": {
+                "path": "supabase/migrations/20260731092908_projectos_operating_kernel.sql",
+                "bytes": 23123,
+                "sha256": "fb5c22d92fdd7a08edd89d005f1e41172a3941135743e5eda77b7ce3954bb155"
+            },
+            "version": "20260731092908",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 43011,
+                "sha256": "557f30641ef442c6c0947ebc5c794b4d290d56401ab90abd41d0787b5c865d3a"
+            },
+            "name": "projectos_operating_functions",
+            "active": {
+                "path": "supabase/migrations/20260731093257_projectos_operating_functions.sql",
+                "bytes": 43314,
+                "sha256": "d3a7a0e7d8397c69a1b180899514adbf958011bcdd49575b3114c33ec0422a24"
+            },
+            "version": "20260731093257",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 2422,
+                "sha256": "7474f5ec011eb02f61c3ee818b802e29c1ab8c8c2ea6d0656fb53e4f7ed87469"
+            },
+            "name": "projectos_reconciliation_registry",
+            "active": {
+                "path": "supabase/migrations/20260731094541_projectos_reconciliation_registry.sql",
+                "bytes": 2725,
+                "sha256": "836ecba52555c8ae64e207875d9441783cf1cffd6f9f72d0acb8e9601a933f70"
+            },
+            "version": "20260731094541",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 1796,
+                "sha256": "ad72c7d60d86cbbb89874dbe04baf118a68a158b5081e4eaebb3d8467f15706f"
+            },
+            "name": "projectos_integration_health_rpc",
+            "active": {
+                "path": "supabase/migrations/20260731095029_projectos_integration_health_rpc.sql",
+                "bytes": 2099,
+                "sha256": "62273bd60db53e934df305208df2bc3d366bca3761e355915289516097ba39bb"
+            },
+            "version": "20260731095029",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 18006,
+                "sha256": "fba23ecd127d10770860fcafc0ba94cf71c9e2497ad86e70bf99881a737ba064"
+            },
+            "name": "projectos_bootstrap_and_intelligence",
+            "active": {
+                "path": "supabase/migrations/20260731100319_projectos_bootstrap_and_intelligence.sql",
+                "bytes": 18309,
+                "sha256": "01a4baa9cedf465d266670ce6fb9323d53fc72c562101edb7dee179c441c5854"
+            },
+            "version": "20260731100319",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 350,
+                "sha256": "a3a1738e1225b4ea5044ec175be5ed0fdbc729375a91da6bd5558f2e8c9eafe9"
+            },
+            "name": "projectos_pgcrypto_search_path",
+            "active": {
+                "path": "supabase/migrations/20260731101521_projectos_pgcrypto_search_path.sql",
+                "bytes": 653,
+                "sha256": "c4768b006ee8dc494d710b55f5812d257bac3b763c29e92d8460e656ce7a990d"
+            },
+            "version": "20260731101521",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 844,
+                "sha256": "72bdbc6f8e2b66b0c83edba455e1766ae72f618b7d3a956261ef546206af9415"
+            },
+            "name": "projectos_revoke_legacy_server_reads",
+            "active": {
+                "path": "supabase/migrations/20260731102654_projectos_revoke_legacy_server_reads.sql",
+                "bytes": 1147,
+                "sha256": "88b6386b3f4e579e6c8dc7d803cd340f59a240a03dd587b8ad8a3b90daf261e9"
+            },
+            "version": "20260731102654",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 1995,
+                "sha256": "62b2805f48f05371c0ff30acfd64ea3cdde6d12c8612858946f4c50c3c11b28a"
+            },
+            "name": "projectos_reconciliation_run_rpc",
+            "active": {
+                "path": "supabase/migrations/20260731103336_projectos_reconciliation_run_rpc.sql",
+                "bytes": 2298,
+                "sha256": "17d0de10bb59f058ef4a6a0b7693a1516f5d2bf42fbfec6594b4abf1a01f125e"
+            },
+            "version": "20260731103336",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 1194,
+                "sha256": "93e4d9ce5bb1f43c3942310b39c2c975ae3fa243e6da8e2114b683a20cb74ab8"
+            },
+            "name": "projectos_harden_legacy_private_tables",
+            "active": {
+                "path": "supabase/migrations/20260731105433_projectos_harden_legacy_private_tables.sql",
+                "bytes": 1497,
+                "sha256": "486a4d950d1a3032445604d2b43101211c593cfb4e12d1764e055f473b278f0d"
+            },
+            "version": "20260731105433",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 9908,
+                "sha256": "86d458b22bb7c40d43258a4e73ae19172ee058c780a6412ddc0e731e1ea62658"
+            },
+            "name": "projectos_product_intelligence_schema",
+            "active": {
+                "path": "supabase/migrations/20260731122011_projectos_product_intelligence_schema.sql",
+                "bytes": 10211,
+                "sha256": "9313ec9e2912e5ba2079ed8f5aab6b47c6d6d03fde53814afdba5133d8813b75"
+            },
+            "version": "20260731122011",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 10278,
+                "sha256": "6a46b4cb78f4d6c6b0bda83493d65912b71c0bf88734b7ec00d5bf988d35e902"
+            },
+            "name": "projectos_product_intelligence_functions",
+            "active": {
+                "path": "supabase/migrations/20260731122055_projectos_product_intelligence_functions.sql",
+                "bytes": 10581,
+                "sha256": "a6f7d7be7b880d4fbcc19604d1800d97d3e64c0c63e53728bb913573e0d919eb"
+            },
+            "version": "20260731122055",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 2001,
+                "sha256": "2d34674f872c20fd51031f995cbaf988cbbeff6794ec60dc4fd5ba55646bd717"
+            },
+            "name": "projectos_product_intelligence_context",
+            "active": {
+                "path": "supabase/migrations/20260731122358_projectos_product_intelligence_context.sql",
+                "bytes": 2304,
+                "sha256": "594272a1dc9b5858ec8b598c0ac7beaea041348a8539692eb004d74a0d295cf5"
+            },
+            "version": "20260731122358",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 2163,
+                "sha256": "a5559509f8f3e2e56c9e1f2ca05b11976ce1453d8c9589071cccc812679c5656"
+            },
+            "name": "projectos_product_intelligence_access_hardening",
+            "active": {
+                "path": "supabase/migrations/20260731123437_projectos_product_intelligence_access_hardening.sql",
+                "bytes": 2466,
+                "sha256": "1219aa7b1a66701a84ee3504dd4ea3a197286fa9dda1df246005870810dce95b"
+            },
+            "version": "20260731123437",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 246,
+                "sha256": "a90814f7fd7b5f5d65c456ff64a1d887043473957684dcee31033be0fe6f6ecb"
+            },
+            "name": "projectos_integration_secrets_deny_clients",
+            "active": {
+                "path": "supabase/migrations/20260731124653_projectos_integration_secrets_deny_clients.sql",
+                "bytes": 549,
+                "sha256": "f7aae9b44c0566f98988c195bfd9866c9676147274ad7e3dceffe97bb862d163"
+            },
+            "version": "20260731124653",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 3974,
+                "sha256": "307f324d43c89d7e4ef260bdcb4a63bc3a911400fa4bdd8d29c6f89c522ad260"
+            },
+            "name": "fxpass_growth_signal_contracts",
+            "active": {
+                "path": "supabase/migrations/20260801163303_fxpass_growth_signal_contracts.sql",
+                "bytes": 4277,
+                "sha256": "0dd136664e2ba47d98cac12ea50e462a754d613df9d6dfdc0bb6ef18a496e08f"
+            },
+            "version": "20260801163303",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 642,
+                "sha256": "a8638bac239f39fb0da2bb08b8f4af7522187a1c9eba2d8dc5cb55777ff49d67"
+            },
+            "name": "fxpass_growth_contract_property_alignment",
+            "active": {
+                "path": "supabase/migrations/20260801164335_fxpass_growth_contract_property_alignment.sql",
+                "bytes": 945,
+                "sha256": "90332865296c9ea5a2124d52d1c7d6c49ef9379d8a5fb2f197bd7583836aa9f0"
+            },
+            "version": "20260801164335",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 8575,
+                "sha256": "3d71629bbd7dd1a9987c5576b40255d2e1a1b8d9f02831aa24a0075dd4da225e"
+            },
+            "name": "add_execution_plan_memory_context",
+            "active": {
+                "path": "supabase/migrations/20260802141551_add_execution_plan_memory_context.sql",
+                "bytes": 8878,
+                "sha256": "64d617620763ac605abff5338f1a0f82af40108721d974b36620488627964a4d"
+            },
+            "version": "20260802141551",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 18288,
+                "sha256": "5abcf764ef3506830ea39179c65fadbd63c777f9054a295b584510a9aa22c9d9"
+            },
+            "name": "enforce_mandatory_execution_intake",
+            "active": {
+                "path": "supabase/migrations/20260802143055_enforce_mandatory_execution_intake.sql",
+                "bytes": 18591,
+                "sha256": "26c15cf52ac08b80971c5137c982e864d91ff4d38b32787c4dc663697700170f"
+            },
+            "version": "20260802143055",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 21240,
+                "sha256": "f7de650db6f616f4711cdba25b3523e41a2422d85a63dc22491edcf9c1d8e548"
+            },
+            "name": "agent_runtime_proof_registry",
+            "active": {
+                "path": "supabase/migrations/20260804153000_agent_runtime_proof_registry.sql",
+                "bytes": 21542,
+                "sha256": "8ec5e8c345106d58aa3ea6f42a35e2325a2792a36ce041bdf73c6667de38e406"
+            },
+            "version": "20260804153000",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 7959,
+                "sha256": "12472c77015447a98f0eaab42278364d5004e7da447d9876dbb693e132149e81"
+            },
+            "name": "harden_agent_runtime_proof_registry",
+            "active": {
+                "path": "supabase/migrations/20260804154500_harden_agent_runtime_proof_registry.sql",
+                "bytes": 8261,
+                "sha256": "2f6742748ac5b6c48b887b23acd83756ee6e1af47cd32addfbced26502c64e02"
+            },
+            "version": "20260804154500",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 4546,
+                "sha256": "4321e0fc64659a9bfc7e2900590f64adbdbe4d982e30007c9d41fb65e6132da9"
+            },
+            "name": "harden_projectos_rpc_execution_grants",
+            "active": {
+                "path": "supabase/migrations/20260804201049_harden_projectos_rpc_execution_grants.sql",
+                "bytes": 4848,
+                "sha256": "3ce95ec887e65707af5438a75f8b11a74a4d1022443e4d19f204a0c2a7d7d2d4"
+            },
+            "version": "20260804201049",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 1945,
+                "sha256": "be8f8f7c2055d1c8c5b8d321890cb4d46342a8194c4641c02ec8335faf2e1692"
+            },
+            "name": "optimize_projectos_nano_hot_paths",
+            "active": {
+                "path": "supabase/migrations/20260806114515_optimize_projectos_nano_hot_paths.sql",
+                "bytes": 2248,
+                "sha256": "c91eacda774bf6f837d5e8261ae7418d5bfe8effa0d121e3e5685dac15df4e9c"
+            },
+            "version": "20260806114515",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 15138,
+                "sha256": "4e82bfc6283fe6d816fceb9ef36f28c2d81c032db8206a062225ddf4cca7c0cd"
+            },
+            "name": "projectos_memory_lifecycle_enforcement",
+            "active": {
+                "path": "supabase/migrations/20260807083337_projectos_memory_lifecycle_enforcement.sql",
+                "bytes": 15549,
+                "sha256": "0276ff2f5fb80d03c76dbc8f7ff5c3346ed67151ed6532915bed8bbe7cdda126"
+            },
+            "version": "20260807083337",
+            "classification": "secret_safe_semantic_reconstruction"
+        },
+        {
+            "live": {
+                "bytes": 744,
+                "sha256": "9c95ae7832e286631584f8a5825cc88cda07368e216f8219dee51103366e0239"
+            },
+            "name": "projectos_pg_net_client_privilege_revoke",
+            "active": {
+                "path": "supabase/migrations/20260807090425_projectos_pg_net_client_privilege_revoke.sql",
+                "bytes": 1047,
+                "sha256": "61b59e9212299a1ca0d214932552ddd7ce5dbacbe1c24731394e06412042e669"
+            },
+            "version": "20260807090425",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 635,
+                "sha256": "0a74209d47db24656ea85b4d4660a647a425f3152b8d482594a856e2511148d4"
+            },
+            "name": "projectos_memory_private_function_execution_boundary",
+            "active": {
+                "path": "supabase/migrations/20260807090628_projectos_memory_private_function_execution_boundary.sql",
+                "bytes": 938,
+                "sha256": "d6c80b77121bfc8d02e4b63e2087277bc181a6e5f519ad856102bfe308f15a0b"
+            },
+            "version": "20260807090628",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 72,
+                "sha256": "fec87d85f083693a619081c78d86f71322c293dd3c31d805ac3752378b9f3f8e"
+            },
+            "name": "enable_rls_execution_learning_outbox",
+            "active": {
+                "path": "supabase/migrations/20260807230810_enable_rls_execution_learning_outbox.sql",
+                "bytes": 375,
+                "sha256": "d2f1a4ae7ae64c6706dbde4a1e53fe5f0d4215e7cc2101ebbcd6008de9eec4a5"
+            },
+            "version": "20260807230810",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 73,
+                "sha256": "aaf84c581945eecd9ee39ac6e14a4238088c1e1234ac839b974b08f0d60b9a4b"
+            },
+            "name": "rollback_execution_learning_outbox_rls",
+            "active": {
+                "path": "supabase/migrations/20260808003751_rollback_execution_learning_outbox_rls.sql",
+                "bytes": 376,
+                "sha256": "1da9e552230436705e952241f282fdd8536c88f70243ab94a23e71d830625459"
+            },
+            "version": "20260808003751",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 72,
+                "sha256": "fec87d85f083693a619081c78d86f71322c293dd3c31d805ac3752378b9f3f8e"
+            },
+            "name": "reapply_execution_learning_outbox_rls",
+            "active": {
+                "path": "supabase/migrations/20260808003804_reapply_execution_learning_outbox_rls.sql",
+                "bytes": 375,
+                "sha256": "d2f1a4ae7ae64c6706dbde4a1e53fe5f0d4215e7cc2101ebbcd6008de9eec4a5"
+            },
+            "version": "20260808003804",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 1932,
+                "sha256": "602bf6eb12f1f8d2b24106aae937ce07bf75dd717e52713f07337a76a2d7fa5b"
+            },
+            "name": "add_execution_plan_expiry_reconciler",
+            "active": {
+                "path": "supabase/migrations/20260809064611_add_execution_plan_expiry_reconciler.sql",
+                "bytes": 2235,
+                "sha256": "16de3dacc6f91572169e9cc0f26e4230bd7a0b1cde4de6fff7958e272b151072"
+            },
+            "version": "20260809064611",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 1552,
+                "sha256": "6cbfeee54b524aa78e0972f2130c4aa7cf1108cee6212bc10581206fe4cfec02"
+            },
+            "name": "reject_anonymous_organization_creation",
+            "active": {
+                "path": "supabase/migrations/20260810080332_reject_anonymous_organization_creation.sql",
+                "bytes": 1855,
+                "sha256": "33c40e010ff1f080002e3e99d025aa99e8f06c9b04d6ed263a7f70736a17999e"
+            },
+            "version": "20260810080332",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 3647,
+                "sha256": "73687a1bf620d281527eacab80a0db93c91b3a10964c3e193c36c508a5d1d8dc"
+            },
+            "name": "enforce_aal2_approval_boundary",
+            "active": {
+                "path": "supabase/migrations/20260810083416_enforce_aal2_approval_boundary.sql",
+                "bytes": 3949,
+                "sha256": "beed75b3e0e52c490b727616fd87214d939570dcd882d336eca7bf71bd3264ec"
+            },
+            "version": "20260810083416",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 3659,
+                "sha256": "a36dd947d0fcc376af4f90449a07d3ff1270a12c3012cdef821898d1b4b44d35"
+            },
+            "name": "reject_anonymous_projectos_intake",
+            "active": {
+                "path": "supabase/migrations/20260810083717_reject_anonymous_projectos_intake.sql",
+                "bytes": 3961,
+                "sha256": "700bba863a3944ef9a061bddb1b1cda8eb64b7a5875f7bf328f8d9e76bf4b40e"
+            },
+            "version": "20260810083717",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 2471,
+                "sha256": "404a6b3ea6c232ad6a1b7ea22001828de0d410282e783b2243b22b424c84c17f"
+            },
+            "name": "reject_anonymous_organization_creation",
+            "active": {
+                "path": "supabase/migrations/20260810104102_reject_anonymous_organization_creation.sql",
+                "bytes": 2773,
+                "sha256": "51f68a00f8cc10c5c9deb22cfeac130b828172c7472064d8e7b286417f6224fd"
+            },
+            "version": "20260810104102",
+            "classification": "semantic_copy"
+        },
+        {
+            "live": {
+                "bytes": 1732,
+                "sha256": "2ae35ec8c802816a8da3bee2536d78592888fe8651baa064f5e1e4d9cace5a77"
+            },
+            "name": "reject_anonymous_org_membership_helpers",
+            "active": {
+                "path": "supabase/migrations/20260810104737_reject_anonymous_org_membership_helpers.sql",
+                "bytes": 2034,
+                "sha256": "0f9696291c5eeb49a6724a9a4343d2f557f1eaef4317663e46084665f183ff86"
+            },
+            "version": "20260810104737",
+            "classification": "semantic_copy"
+        }
     ],
-    "legacy_recovery_chain_sha256": "77e2dbe177cac4eddd8b6de03bc98cd98c4c4d2bfd5a0dfd7bde6cff174a56fb",
-    "reconciled_recovery_chain_sha256": "fd919e3a587bd5e910154eec815c05e0074c2ccbe079e427de1030bcf2001c93",
-    "legacy_aug17_chain_sha256": "aed27b85780da567ee8b3939e72b6d6d3318d4fe1d088081e18c71bed6c38b04",
-    "reconciled_aug17_chain_sha256": "fd612a0dfbf34ab462112898b3050f39fb1c4d2a62b371961e719944c8cea390",
-    "current_source_replay_chain_sha256": "fa5039cd8ef4297c1dd01e258c4e8cdfe8725a7aba19b82c48b8ddb24fd8a127",
-    "current_source_receipt_chain_sha256": "e09c201a55433b6607162e175c02f5e193d8ec46815a52562e6104e458a2471d",
-    "expected_applied_receipt_chain_sha256": "6cd22e517e2af95dee98a86c9720485131fd6407ef6bdb9846afa6a9a8dc7700",
-    "replay_chain_delimiter": "filename:sha256\\n",
-    "receipt_chain_delimiter": "filename\\tsha256\\n",
-    "live_only_sensitive_bodies_republished": false
-  },
-  "provenance": {
-    "evidence_commit": "f73c477d6eb2e287c59c895bc1c5017ab4b17980",
-    "warning": "Historical Git objects contain credential-bearing payloads. Do not materialize or republish them.",
-    "foundation_1": {
-      "kind": "canonical_recovery_shard_member",
-      "source_sha256": "15733a9714e81fb0689438b8c92eec1490310c7476a45d5144902c09c9ec3fd5",
-      "live_byte_equivalence": "unprovable"
+    "invariants": {
+        "active_file_count": 52,
+        "source_file_count": 94,
+        "live_identity_count": 59,
+        "applied_change_count": 2,
+        "historical_identity_count": 50,
+        "source_only_forward_count": 35,
+        "production_history_rewritten": false,
+        "coordinated_rotation_required": true,
+        "production_mutation_performed": true,
+        "source_live_identity_coverage": 59,
+        "raw_provider_payloads_committed": false,
+        "identity_only_source_record_count": 3,
+        "historical_sensitive_exposure_remediated": false,
+        "live_secret_or_verifier_literals_committed": false
     },
-    "foundation_2": {
-      "kind": "catalog_informed_reconstruction",
-      "original_source": "unavailable",
-      "live_byte_equivalence": "unprovable",
-      "live_catalog_end_state_verified": true,
-      "live_table_column_counts": {
-        "webhook_events": 14,
-        "meta_drafts": 11,
-        "meta_webhook_health": 9
-      },
-      "live_function_definition_sha256": {
-        "claim_meta_webhook_delivery": "b6ac6f8de7d9dc73b5710eed0e8a795148d23c422b7ba44ff780e30358f171a0",
-        "record_meta_webhook_health": "8819fcb068647307172b91717561279e559bf953e7ea2653f5feaf878a5d4444"
-      }
-    }
-  },
-  "sensitive_transformations": [
-    {
-      "version": "20260728171559",
-      "values": 2,
-      "treatment": "database_generated_verifiers_on_fresh_replay",
-      "conflict_behavior": "preserve_existing"
+    "live_chain": {
+        "last": "20260821024500",
+        "first": "20260724010000",
+        "migration_count": 59,
+        "exact_payload_bytes": 267883,
+        "executable_payload_count": 48,
+        "historical_recovery_last": "20260810104737",
+        "captured_payloads_through": "20260813105011",
+        "ordered_version_chain_sha256": "03b95e147f9edb9b903a669d870d435a4e21597fde2fb354fadb9267cf9c347c",
+        "placeholder_foundation_count": 2,
+        "ordered_payload_digest_sha256": "4bcda759df90293b8f29f830e03700fc93f6830e45a1c4e021e8f2dd38e91c78"
     },
-    {
-      "version": "20260731092135",
-      "values": 1,
-      "treatment": "database_generated_hmac_on_fresh_replay",
-      "conflict_behavior": "preserve_existing"
+    "provenance": {
+        "warning": "Historical Git objects contain credential-bearing payloads. Do not materialize or republish them.",
+        "foundation_1": {
+            "kind": "canonical_recovery_shard_member",
+            "source_sha256": "15733a9714e81fb0689438b8c92eec1490310c7476a45d5144902c09c9ec3fd5",
+            "live_byte_equivalence": "unprovable"
+        },
+        "foundation_2": {
+            "kind": "catalog_informed_reconstruction",
+            "original_source": "unavailable",
+            "live_byte_equivalence": "unprovable",
+            "live_table_column_counts": {
+                "meta_drafts": 11,
+                "webhook_events": 14,
+                "meta_webhook_health": 9
+            },
+            "live_catalog_end_state_verified": true,
+            "live_function_definition_sha256": {
+                "record_meta_webhook_health": "8819fcb068647307172b91717561279e559bf953e7ea2653f5feaf878a5d4444",
+                "claim_meta_webhook_delivery": "b6ac6f8de7d9dc73b5710eed0e8a795148d23c422b7ba44ff780e30358f171a0"
+            }
+        },
+        "evidence_commit": "f73c477d6eb2e287c59c895bc1c5017ab4b17980"
     },
-    {
-      "version": "20260807083337",
-      "values": 1,
-      "treatment": "database_generated_hmac_on_fresh_replay",
-      "conflict_behavior": "preserve_existing"
-    }
-  ],
-  "history": [
-    {
-      "version": "20260724010000",
-      "name": "control_plane_foundation",
-      "live": {
-        "bytes": 64,
-        "sha256": "09e313f5d1e32f3994d57e00e46d227d2b386279a7917f23ccaac0e4081815b8"
-      },
-      "active": {
-        "path": "supabase/migrations/20260724010000_control_plane_foundation.sql",
-        "bytes": 27543,
-        "sha256": "40ba6991fa1a7caada526a44ed048763387b019a7a66aa42314a1740bf66ace3"
-      },
-      "classification": "recovered_foundation_unproven_live_bytes"
+    "validation": {
+        "engine": "PGlite 0.5.4 / PostgreSQL 18.3",
+        "result_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/pglite-replay-result.json",
+        "chain_sha256": "77e2dbe177cac4eddd8b6de03bc98cd98c4c4d2bfd5a0dfd7bde6cff174a56fb",
+        "migration_count": 52,
+        "authorization_smoke": "pass",
+        "provider_equivalence": false,
+        "reconciled_result_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/pglite-replay-result-20260823-source-alignment.json",
+        "database_rollback_smoke": "pass",
+        "reconciled_chain_sha256": "9f0561f1b0fae50fd46413bfb1be5ae85dc3df2551058b969b2722400040aca1",
+        "reconciled_migration_count": 94
     },
-    {
-      "version": "20260724030000",
-      "name": "meta_remote_mcp_persistence",
-      "live": {
-        "bytes": 37,
-        "sha256": "492d24c88fa906b3b1567aaa3679e1cbd49967542f340f0238e36bca8748a45f"
-      },
-      "active": {
-        "path": "supabase/migrations/20260724030000_meta_remote_mcp_persistence.sql",
-        "bytes": 7832,
-        "sha256": "9235faca7332d53387d2f7875daae357ecb988687af2c2e1a63f0c506aa9b02f"
-      },
-      "classification": "catalog_reconstructed_foundation"
+    "project_ref": "jcyqixttuebxqqfkjonq",
+    "artifact_type": "supabase_secret_safe_migration_parity_manifest",
+    "release_gates": [
+        "full_replay_pass",
+        "catalog_assertions_pass",
+        "coordinated_secret_rotation",
+        "exact_head_ci_pass",
+        "different_vendor_exact_head_review",
+        "callable_provider_rollbacks"
+    ],
+    "pending_change": {
+        "name": "remove_projectos_approval_aal2",
+        "path": "supabase/migrations/20260813014555_remove_projectos_approval_aal2.sql",
+        "bytes": 3472,
+        "sha256": "8e9acf74b5ee5ea552697989768afc5aac938b92947e3495c2deecde30dadd31",
+        "status": "applied_and_verified",
+        "version": "20260813014555",
+        "provider_bytes": 3472,
+        "live_at_capture": true,
+        "provider_sha256": "8e9acf74b5ee5ea552697989768afc5aac938b92947e3495c2deecde30dadd31",
+        "provider_version": "20260813014555",
+        "legacy_source_version": "20260812034825",
+        "legacy_source_path_at_capture": "supabase/migrations/20260812034825_remove_projectos_approval_aal2.sql",
+        "legacy_source_path_expected_absent": true
     },
-    {
-      "version": "20260728150403",
-      "name": "enable_http_for_supabase_account_discovery",
-      "live": {
-        "bytes": 59,
-        "sha256": "b5b79f616c8cc09827b263ca33c134a193821285b414e16488b6bd533cd7480b"
-      },
-      "active": {
-        "path": "supabase/migrations/20260728150403_enable_http_for_supabase_account_discovery.sql",
-        "bytes": 362,
-        "sha256": "20a770a24e3c5761c1d64faa5548f47599286ae00b3968f9d15c2adb5b05445a"
-      },
-      "classification": "semantic_copy"
+    "schema_version": "2.2.0",
+    "starting_main_sha": "171b85c3012f053cfe2e531b82d8e495c5b8007e",
+    "canonical_repository": "banataosystems/Pandoras-box",
+    "evidence_observed_at": "2026-08-13",
+    "identity_reconciliation": {
+        "observed_at": "2026-08-23",
+        "provider_aal1_version": "20260813014555",
+        "replay_chain_delimiter": "filename:sha256\\n",
+        "receipt_chain_delimiter": "filename\\tsha256\\n",
+        "legacy_aug17_chain_sha256": "aed27b85780da567ee8b3939e72b6d6d3318d4fe1d088081e18c71bed6c38b04",
+        "shared_post_capture_paths": [
+            "supabase/migrations/20260817145550_add_vercel_control_adapter.sql",
+            "supabase/migrations/20260817145659_add_vercel_git_binding_clear.sql",
+            "supabase/migrations/20260817145929_add_vercel_async_git_link_queue.sql",
+            "supabase/migrations/20260821024500_projectos_owner_read_completion.sql"
+        ],
+        "legacy_aal1_source_version": "20260812034825",
+        "legacy_recovery_chain_sha256": "77e2dbe177cac4eddd8b6de03bc98cd98c4c4d2bfd5a0dfd7bde6cff174a56fb",
+        "production_history_rewritten": false,
+        "reconciled_aug17_chain_sha256": "fd612a0dfbf34ab462112898b3050f39fb1c4d2a62b371961e719944c8cea390",
+        "reconciled_recovery_chain_sha256": "fd919e3a587bd5e910154eec815c05e0074c2ccbe079e427de1030bcf2001c93",
+        "current_source_replay_chain_sha256": "9f0561f1b0fae50fd46413bfb1be5ae85dc3df2551058b969b2722400040aca1",
+        "current_source_receipt_chain_sha256": "ad2235b340685841f9cbe5d5630736becea20cb5589b98ec2653f068f1ca2117",
+        "expected_applied_receipt_chain_sha256": "4ddb1492e282844d486c158258a7897ee1faec82d2421fd384fc0e22281943d6",
+        "live_only_sensitive_bodies_republished": false
     },
-    {
-      "version": "20260728152425",
-      "name": "add_supabase_control_catalog_rpc",
-      "live": {
-        "bytes": 2021,
-        "sha256": "acdb9231bd640785876b7261c942b2be4c77e7f2d4604a23da4f06c8ef15b11d"
-      },
-      "active": {
-        "path": "supabase/migrations/20260728152425_add_supabase_control_catalog_rpc.sql",
-        "bytes": 2324,
-        "sha256": "4a38657f9b25330e58192f63924eae5a07a2a0445c0e0107243098c964b9bd6f"
-      },
-      "classification": "semantic_copy"
+    "source_authority_change": {
+        "name": "blacklist_mbanatao_sources_and_bind_fxpass",
+        "path": "supabase/migrations/20260813105011_blacklist_mbanatao_sources_and_bind_fxpass.sql",
+        "bytes": 11313,
+        "sha256": "cfe30bf56790ff462c627da6bf6639574d030e907a2fb4af3c68b1e1e4a477d1",
+        "status": "applied_and_verified",
+        "version": "20260813105011",
+        "durable_plans": {
+            "vercel_repository_rebind": "7689cb24-dd8a-4855-8a33-752526df901a",
+            "control_plane_source_policy": "acaef6fa-1ee8-4695-93ef-46453949e93b"
+        },
+        "provider_bytes": 11312,
+        "verified_state": {
+            "source_policy": "mbanatao/* historical_only",
+            "production_alias": "fxpass.vercel.app",
+            "vercel_project_id": "prj_t9cl0GiY9APSTw2NUNJLtRg6auwZ",
+            "vercel_repository": "banataosystems/fxpass",
+            "supabase_project_ref": "jhygppdcfrmejbzyozud",
+            "production_deployment_id": "dpl_5yzg3jWUeZqZdNuzR8vMPwYxQGe1",
+            "production_deployment_changed": false
+        },
+        "live_at_capture": true,
+        "provider_sha256": "dfbbfe2d429b19158d7caf4e3fdd61d97cabbb86097ec18ad005e32f93f089dd",
+        "provider_version": "20260813105011",
+        "provider_normalization": "terminal_newline_removed"
     },
-    {
-      "version": "20260728155817",
-      "name": "add_github_connector_probe",
-      "live": {
-        "bytes": 4595,
-        "sha256": "cc369bf010f329b02fce64656d910d4bb97d85bc68c43f58b2e434865f4cfbee"
-      },
-      "active": {
-        "path": "supabase/migrations/20260728155817_add_github_connector_probe.sql",
-        "bytes": 4898,
-        "sha256": "36deb476170615c06ae7ac0207d0951f4aeb6e7044b4a5d68fa96fbef8731ff1"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260728160013",
-      "name": "add_github_control_catalog",
-      "live": {
-        "bytes": 2133,
-        "sha256": "7d15490455586d3d1df2450f2e06649917bf09744b3437792fe40d3302ccdf24"
-      },
-      "active": {
-        "path": "supabase/migrations/20260728160013_add_github_control_catalog.sql",
-        "bytes": 2436,
-        "sha256": "6d7265790a1aafac5fd7a4273d54ceb0cc449ec9cdc0742c2d3daab686dcd8f2"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260728171559",
-      "name": "add_runtime_security_config",
-      "live": {
-        "bytes": 2395,
-        "sha256": "ed4759f9b2e7b5640c6d2c3e28b2cec95a929717944025570fc0eaee5ff460f5"
-      },
-      "active": {
-        "path": "supabase/migrations/20260728171559_add_runtime_security_config.sql",
-        "bytes": 2674,
-        "sha256": "a473ae455442d020c7588480343698989d84ba519e6b3064feade8f18d8493c0"
-      },
-      "classification": "secret_safe_semantic_reconstruction"
-    },
-    {
-      "version": "20260728191246",
-      "name": "add_durable_execution_ledger",
-      "live": {
-        "bytes": 18187,
-        "sha256": "af8a7f145752b8260fc4f1625c8b0dd5885c3a4d457344e60ca8876b9c4a1b22"
-      },
-      "active": {
-        "path": "supabase/migrations/20260728191246_add_durable_execution_ledger.sql",
-        "bytes": 18490,
-        "sha256": "4b20fd25ad42bf8bb267441f7e1882cbda25260fb4dc5db2638fc11dc46c1b26"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260728194505",
-      "name": "add_control_catalog_scopes",
-      "live": {
-        "bytes": 4365,
-        "sha256": "ecdc60942c0335be5232299ff69f27d1645f2cca72b9f595f92129a7765d9490"
-      },
-      "active": {
-        "path": "supabase/migrations/20260728194505_add_control_catalog_scopes.sql",
-        "bytes": 4668,
-        "sha256": "d741f6029b5d3e2ef766a58b9cafe609e478ee1af9665660b516aee1f8160361"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260728213723",
-      "name": "add_distributed_runtime_rate_limits",
-      "live": {
-        "bytes": 3182,
-        "sha256": "326c7715226316dfad6c8ae9d636fe198777fb744b1dc85d0d1931d606fb4e86"
-      },
-      "active": {
-        "path": "supabase/migrations/20260728213723_add_distributed_runtime_rate_limits.sql",
-        "bytes": 3485,
-        "sha256": "326cc519f41224eae88680b89ad2d6dcd9fabd2efa142ea9a887a6f20f42aed5"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260728213829",
-      "name": "noop_verify_distributed_runtime_rate_limits",
-      "live": {
-        "bytes": 320,
-        "sha256": "704e0bc0bf015ef6de022134495b4485cc182468ebd57524e65b52bb60b213c7"
-      },
-      "active": {
-        "path": "supabase/migrations/20260728213829_noop_verify_distributed_runtime_rate_limits.sql",
-        "bytes": 623,
-        "sha256": "64cf601d945d6f0191b3860ddeabc37ccbe8aa48fa27db269b61feb6d5af6a0a"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260728213846",
-      "name": "verify_rate_limit_rpc_grants",
-      "live": {
-        "bytes": 618,
-        "sha256": "8cacae4f4fcbd13b3da8534ac716601fc71eccb8d671873d63779f1096fb7941"
-      },
-      "active": {
-        "path": "supabase/migrations/20260728213846_verify_rate_limit_rpc_grants.sql",
-        "bytes": 921,
-        "sha256": "422ffc6528d418c2e86b1d6d88a7e6b06ec7344d7cd9ed11f37c0f78f7f9c2b1"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260729125913",
-      "name": "add_execution_plan_listing",
-      "live": {
-        "bytes": 1440,
-        "sha256": "3cd1aae20a433819c7108014c8f1bcc022b6b2812ab47f6cd4139ebc264c6b70"
-      },
-      "active": {
-        "path": "supabase/migrations/20260729125913_add_execution_plan_listing.sql",
-        "bytes": 1742,
-        "sha256": "51b818bddb49746c691eb5a4721134e07092cde485eb0cd089cae58661dee158"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260730210432",
-      "name": "add_project_resource_bindings",
-      "live": {
-        "bytes": 5558,
-        "sha256": "bb549fce600216e1523198be7eeab5351fba2e2fedc27734a1ca5182e0b206f4"
-      },
-      "active": {
-        "path": "supabase/migrations/20260730210432_add_project_resource_bindings.sql",
-        "bytes": 5861,
-        "sha256": "9931031a4ea1b100c2d8c7cf9013b379f9aea8e02a2785400531a8a777ab5d08"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731092135",
-      "name": "fxpass_product_intake_bridge",
-      "live": {
-        "bytes": 2106,
-        "sha256": "c8b90cd4af13e7d4f381259e881f1e1784b932aa56a9cb84d4f607b9dfb1019d"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731092135_fxpass_product_intake_bridge.sql",
-        "bytes": 2512,
-        "sha256": "dd320a04500df5e1b04d3358db1f06cff9490361399680329558971c06aabedb"
-      },
-      "classification": "secret_safe_semantic_reconstruction"
-    },
-    {
-      "version": "20260731092225",
-      "name": "fxpass_product_intake_rpc",
-      "live": {
-        "bytes": 4974,
-        "sha256": "6414aee9219a0df20ea56872644ca072acbed955886b39d51a53c58863746459"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731092225_fxpass_product_intake_rpc.sql",
-        "bytes": 5276,
-        "sha256": "73cf3a63de04b47c41075fd18787de72230a49b73563777f7519ccae34a013ac"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731092908",
-      "name": "projectos_operating_kernel",
-      "live": {
-        "bytes": 22820,
-        "sha256": "c3baca57e1813f3b3989ef8723e4581a7731d596d38a071d7ad5d39d815ea8f7"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731092908_projectos_operating_kernel.sql",
-        "bytes": 23123,
-        "sha256": "fb5c22d92fdd7a08edd89d005f1e41172a3941135743e5eda77b7ce3954bb155"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731093257",
-      "name": "projectos_operating_functions",
-      "live": {
-        "bytes": 43011,
-        "sha256": "557f30641ef442c6c0947ebc5c794b4d290d56401ab90abd41d0787b5c865d3a"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731093257_projectos_operating_functions.sql",
-        "bytes": 43314,
-        "sha256": "d3a7a0e7d8397c69a1b180899514adbf958011bcdd49575b3114c33ec0422a24"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731094541",
-      "name": "projectos_reconciliation_registry",
-      "live": {
-        "bytes": 2422,
-        "sha256": "7474f5ec011eb02f61c3ee818b802e29c1ab8c8c2ea6d0656fb53e4f7ed87469"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731094541_projectos_reconciliation_registry.sql",
-        "bytes": 2725,
-        "sha256": "836ecba52555c8ae64e207875d9441783cf1cffd6f9f72d0acb8e9601a933f70"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731095029",
-      "name": "projectos_integration_health_rpc",
-      "live": {
-        "bytes": 1796,
-        "sha256": "ad72c7d60d86cbbb89874dbe04baf118a68a158b5081e4eaebb3d8467f15706f"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731095029_projectos_integration_health_rpc.sql",
-        "bytes": 2099,
-        "sha256": "62273bd60db53e934df305208df2bc3d366bca3761e355915289516097ba39bb"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731100319",
-      "name": "projectos_bootstrap_and_intelligence",
-      "live": {
-        "bytes": 18006,
-        "sha256": "fba23ecd127d10770860fcafc0ba94cf71c9e2497ad86e70bf99881a737ba064"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731100319_projectos_bootstrap_and_intelligence.sql",
-        "bytes": 18309,
-        "sha256": "01a4baa9cedf465d266670ce6fb9323d53fc72c562101edb7dee179c441c5854"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731101521",
-      "name": "projectos_pgcrypto_search_path",
-      "live": {
-        "bytes": 350,
-        "sha256": "a3a1738e1225b4ea5044ec175be5ed0fdbc729375a91da6bd5558f2e8c9eafe9"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731101521_projectos_pgcrypto_search_path.sql",
-        "bytes": 653,
-        "sha256": "c4768b006ee8dc494d710b55f5812d257bac3b763c29e92d8460e656ce7a990d"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731102654",
-      "name": "projectos_revoke_legacy_server_reads",
-      "live": {
-        "bytes": 844,
-        "sha256": "72bdbc6f8e2b66b0c83edba455e1766ae72f618b7d3a956261ef546206af9415"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731102654_projectos_revoke_legacy_server_reads.sql",
-        "bytes": 1147,
-        "sha256": "88b6386b3f4e579e6c8dc7d803cd340f59a240a03dd587b8ad8a3b90daf261e9"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731103336",
-      "name": "projectos_reconciliation_run_rpc",
-      "live": {
-        "bytes": 1995,
-        "sha256": "62b2805f48f05371c0ff30acfd64ea3cdde6d12c8612858946f4c50c3c11b28a"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731103336_projectos_reconciliation_run_rpc.sql",
-        "bytes": 2298,
-        "sha256": "17d0de10bb59f058ef4a6a0b7693a1516f5d2bf42fbfec6594b4abf1a01f125e"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731105433",
-      "name": "projectos_harden_legacy_private_tables",
-      "live": {
-        "bytes": 1194,
-        "sha256": "93e4d9ce5bb1f43c3942310b39c2c975ae3fa243e6da8e2114b683a20cb74ab8"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731105433_projectos_harden_legacy_private_tables.sql",
-        "bytes": 1497,
-        "sha256": "486a4d950d1a3032445604d2b43101211c593cfb4e12d1764e055f473b278f0d"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731122011",
-      "name": "projectos_product_intelligence_schema",
-      "live": {
-        "bytes": 9908,
-        "sha256": "86d458b22bb7c40d43258a4e73ae19172ee058c780a6412ddc0e731e1ea62658"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731122011_projectos_product_intelligence_schema.sql",
-        "bytes": 10211,
-        "sha256": "9313ec9e2912e5ba2079ed8f5aab6b47c6d6d03fde53814afdba5133d8813b75"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731122055",
-      "name": "projectos_product_intelligence_functions",
-      "live": {
-        "bytes": 10278,
-        "sha256": "6a46b4cb78f4d6c6b0bda83493d65912b71c0bf88734b7ec00d5bf988d35e902"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731122055_projectos_product_intelligence_functions.sql",
-        "bytes": 10581,
-        "sha256": "a6f7d7be7b880d4fbcc19604d1800d97d3e64c0c63e53728bb913573e0d919eb"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731122358",
-      "name": "projectos_product_intelligence_context",
-      "live": {
-        "bytes": 2001,
-        "sha256": "2d34674f872c20fd51031f995cbaf988cbbeff6794ec60dc4fd5ba55646bd717"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731122358_projectos_product_intelligence_context.sql",
-        "bytes": 2304,
-        "sha256": "594272a1dc9b5858ec8b598c0ac7beaea041348a8539692eb004d74a0d295cf5"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731123437",
-      "name": "projectos_product_intelligence_access_hardening",
-      "live": {
-        "bytes": 2163,
-        "sha256": "a5559509f8f3e2e56c9e1f2ca05b11976ce1453d8c9589071cccc812679c5656"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731123437_projectos_product_intelligence_access_hardening.sql",
-        "bytes": 2466,
-        "sha256": "1219aa7b1a66701a84ee3504dd4ea3a197286fa9dda1df246005870810dce95b"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260731124653",
-      "name": "projectos_integration_secrets_deny_clients",
-      "live": {
-        "bytes": 246,
-        "sha256": "a90814f7fd7b5f5d65c456ff64a1d887043473957684dcee31033be0fe6f6ecb"
-      },
-      "active": {
-        "path": "supabase/migrations/20260731124653_projectos_integration_secrets_deny_clients.sql",
-        "bytes": 549,
-        "sha256": "f7aae9b44c0566f98988c195bfd9866c9676147274ad7e3dceffe97bb862d163"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260801163303",
-      "name": "fxpass_growth_signal_contracts",
-      "live": {
-        "bytes": 3974,
-        "sha256": "307f324d43c89d7e4ef260bdcb4a63bc3a911400fa4bdd8d29c6f89c522ad260"
-      },
-      "active": {
-        "path": "supabase/migrations/20260801163303_fxpass_growth_signal_contracts.sql",
-        "bytes": 4277,
-        "sha256": "0dd136664e2ba47d98cac12ea50e462a754d613df9d6dfdc0bb6ef18a496e08f"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260801164335",
-      "name": "fxpass_growth_contract_property_alignment",
-      "live": {
-        "bytes": 642,
-        "sha256": "a8638bac239f39fb0da2bb08b8f4af7522187a1c9eba2d8dc5cb55777ff49d67"
-      },
-      "active": {
-        "path": "supabase/migrations/20260801164335_fxpass_growth_contract_property_alignment.sql",
-        "bytes": 945,
-        "sha256": "90332865296c9ea5a2124d52d1c7d6c49ef9379d8a5fb2f197bd7583836aa9f0"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260802141551",
-      "name": "add_execution_plan_memory_context",
-      "live": {
-        "bytes": 8575,
-        "sha256": "3d71629bbd7dd1a9987c5576b40255d2e1a1b8d9f02831aa24a0075dd4da225e"
-      },
-      "active": {
-        "path": "supabase/migrations/20260802141551_add_execution_plan_memory_context.sql",
-        "bytes": 8878,
-        "sha256": "64d617620763ac605abff5338f1a0f82af40108721d974b36620488627964a4d"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260802143055",
-      "name": "enforce_mandatory_execution_intake",
-      "live": {
-        "bytes": 18288,
-        "sha256": "5abcf764ef3506830ea39179c65fadbd63c777f9054a295b584510a9aa22c9d9"
-      },
-      "active": {
-        "path": "supabase/migrations/20260802143055_enforce_mandatory_execution_intake.sql",
-        "bytes": 18591,
-        "sha256": "26c15cf52ac08b80971c5137c982e864d91ff4d38b32787c4dc663697700170f"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260804153000",
-      "name": "agent_runtime_proof_registry",
-      "live": {
-        "bytes": 21240,
-        "sha256": "f7de650db6f616f4711cdba25b3523e41a2422d85a63dc22491edcf9c1d8e548"
-      },
-      "active": {
-        "path": "supabase/migrations/20260804153000_agent_runtime_proof_registry.sql",
-        "bytes": 21542,
-        "sha256": "8ec5e8c345106d58aa3ea6f42a35e2325a2792a36ce041bdf73c6667de38e406"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260804154500",
-      "name": "harden_agent_runtime_proof_registry",
-      "live": {
-        "bytes": 7959,
-        "sha256": "12472c77015447a98f0eaab42278364d5004e7da447d9876dbb693e132149e81"
-      },
-      "active": {
-        "path": "supabase/migrations/20260804154500_harden_agent_runtime_proof_registry.sql",
-        "bytes": 8261,
-        "sha256": "2f6742748ac5b6c48b887b23acd83756ee6e1af47cd32addfbced26502c64e02"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260804201049",
-      "name": "harden_projectos_rpc_execution_grants",
-      "live": {
-        "bytes": 4546,
-        "sha256": "4321e0fc64659a9bfc7e2900590f64adbdbe4d982e30007c9d41fb65e6132da9"
-      },
-      "active": {
-        "path": "supabase/migrations/20260804201049_harden_projectos_rpc_execution_grants.sql",
-        "bytes": 4848,
-        "sha256": "3ce95ec887e65707af5438a75f8b11a74a4d1022443e4d19f204a0c2a7d7d2d4"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260806114515",
-      "name": "optimize_projectos_nano_hot_paths",
-      "live": {
-        "bytes": 1945,
-        "sha256": "be8f8f7c2055d1c8c5b8d321890cb4d46342a8194c4641c02ec8335faf2e1692"
-      },
-      "active": {
-        "path": "supabase/migrations/20260806114515_optimize_projectos_nano_hot_paths.sql",
-        "bytes": 2248,
-        "sha256": "c91eacda774bf6f837d5e8261ae7418d5bfe8effa0d121e3e5685dac15df4e9c"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260807083337",
-      "name": "projectos_memory_lifecycle_enforcement",
-      "live": {
-        "bytes": 15138,
-        "sha256": "4e82bfc6283fe6d816fceb9ef36f28c2d81c032db8206a062225ddf4cca7c0cd"
-      },
-      "active": {
-        "path": "supabase/migrations/20260807083337_projectos_memory_lifecycle_enforcement.sql",
-        "bytes": 15549,
-        "sha256": "0276ff2f5fb80d03c76dbc8f7ff5c3346ed67151ed6532915bed8bbe7cdda126"
-      },
-      "classification": "secret_safe_semantic_reconstruction"
-    },
-    {
-      "version": "20260807090425",
-      "name": "projectos_pg_net_client_privilege_revoke",
-      "live": {
-        "bytes": 744,
-        "sha256": "9c95ae7832e286631584f8a5825cc88cda07368e216f8219dee51103366e0239"
-      },
-      "active": {
-        "path": "supabase/migrations/20260807090425_projectos_pg_net_client_privilege_revoke.sql",
-        "bytes": 1047,
-        "sha256": "61b59e9212299a1ca0d214932552ddd7ce5dbacbe1c24731394e06412042e669"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260807090628",
-      "name": "projectos_memory_private_function_execution_boundary",
-      "live": {
-        "bytes": 635,
-        "sha256": "0a74209d47db24656ea85b4d4660a647a425f3152b8d482594a856e2511148d4"
-      },
-      "active": {
-        "path": "supabase/migrations/20260807090628_projectos_memory_private_function_execution_boundary.sql",
-        "bytes": 938,
-        "sha256": "d6c80b77121bfc8d02e4b63e2087277bc181a6e5f519ad856102bfe308f15a0b"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260807230810",
-      "name": "enable_rls_execution_learning_outbox",
-      "live": {
-        "bytes": 72,
-        "sha256": "fec87d85f083693a619081c78d86f71322c293dd3c31d805ac3752378b9f3f8e"
-      },
-      "active": {
-        "path": "supabase/migrations/20260807230810_enable_rls_execution_learning_outbox.sql",
-        "bytes": 375,
-        "sha256": "d2f1a4ae7ae64c6706dbde4a1e53fe5f0d4215e7cc2101ebbcd6008de9eec4a5"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260808003751",
-      "name": "rollback_execution_learning_outbox_rls",
-      "live": {
-        "bytes": 73,
-        "sha256": "aaf84c581945eecd9ee39ac6e14a4238088c1e1234ac839b974b08f0d60b9a4b"
-      },
-      "active": {
-        "path": "supabase/migrations/20260808003751_rollback_execution_learning_outbox_rls.sql",
-        "bytes": 376,
-        "sha256": "1da9e552230436705e952241f282fdd8536c88f70243ab94a23e71d830625459"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260808003804",
-      "name": "reapply_execution_learning_outbox_rls",
-      "live": {
-        "bytes": 72,
-        "sha256": "fec87d85f083693a619081c78d86f71322c293dd3c31d805ac3752378b9f3f8e"
-      },
-      "active": {
-        "path": "supabase/migrations/20260808003804_reapply_execution_learning_outbox_rls.sql",
-        "bytes": 375,
-        "sha256": "d2f1a4ae7ae64c6706dbde4a1e53fe5f0d4215e7cc2101ebbcd6008de9eec4a5"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260809064611",
-      "name": "add_execution_plan_expiry_reconciler",
-      "live": {
-        "bytes": 1932,
-        "sha256": "602bf6eb12f1f8d2b24106aae937ce07bf75dd717e52713f07337a76a2d7fa5b"
-      },
-      "active": {
-        "path": "supabase/migrations/20260809064611_add_execution_plan_expiry_reconciler.sql",
-        "bytes": 2235,
-        "sha256": "16de3dacc6f91572169e9cc0f26e4230bd7a0b1cde4de6fff7958e272b151072"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260810080332",
-      "name": "reject_anonymous_organization_creation",
-      "live": {
-        "bytes": 1552,
-        "sha256": "6cbfeee54b524aa78e0972f2130c4aa7cf1108cee6212bc10581206fe4cfec02"
-      },
-      "active": {
-        "path": "supabase/migrations/20260810080332_reject_anonymous_organization_creation.sql",
-        "bytes": 1855,
-        "sha256": "33c40e010ff1f080002e3e99d025aa99e8f06c9b04d6ed263a7f70736a17999e"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260810083416",
-      "name": "enforce_aal2_approval_boundary",
-      "live": {
-        "bytes": 3647,
-        "sha256": "73687a1bf620d281527eacab80a0db93c91b3a10964c3e193c36c508a5d1d8dc"
-      },
-      "active": {
-        "path": "supabase/migrations/20260810083416_enforce_aal2_approval_boundary.sql",
-        "bytes": 3949,
-        "sha256": "beed75b3e0e52c490b727616fd87214d939570dcd882d336eca7bf71bd3264ec"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260810083717",
-      "name": "reject_anonymous_projectos_intake",
-      "live": {
-        "bytes": 3659,
-        "sha256": "a36dd947d0fcc376af4f90449a07d3ff1270a12c3012cdef821898d1b4b44d35"
-      },
-      "active": {
-        "path": "supabase/migrations/20260810083717_reject_anonymous_projectos_intake.sql",
-        "bytes": 3961,
-        "sha256": "700bba863a3944ef9a061bddb1b1cda8eb64b7a5875f7bf328f8d9e76bf4b40e"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260810104102",
-      "name": "reject_anonymous_organization_creation",
-      "live": {
-        "bytes": 2471,
-        "sha256": "404a6b3ea6c232ad6a1b7ea22001828de0d410282e783b2243b22b424c84c17f"
-      },
-      "active": {
-        "path": "supabase/migrations/20260810104102_reject_anonymous_organization_creation.sql",
-        "bytes": 2773,
-        "sha256": "51f68a00f8cc10c5c9deb22cfeac130b828172c7472064d8e7b286417f6224fd"
-      },
-      "classification": "semantic_copy"
-    },
-    {
-      "version": "20260810104737",
-      "name": "reject_anonymous_org_membership_helpers",
-      "live": {
-        "bytes": 1732,
-        "sha256": "2ae35ec8c802816a8da3bee2536d78592888fe8651baa064f5e1e4d9cace5a77"
-      },
-      "active": {
-        "path": "supabase/migrations/20260810104737_reject_anonymous_org_membership_helpers.sql",
-        "bytes": 2034,
-        "sha256": "0f9696291c5eeb49a6724a9a4343d2f557f1eaef4317663e46084665f183ff86"
-      },
-      "classification": "semantic_copy"
-    }
-  ],
-  "pending_change": {
-    "version": "20260813014555",
-    "provider_version": "20260813014555",
-    "legacy_source_version": "20260812034825",
-    "legacy_source_path_at_capture": "supabase/migrations/20260812034825_remove_projectos_approval_aal2.sql",
-    "legacy_source_path_expected_absent": true,
-    "name": "remove_projectos_approval_aal2",
-    "path": "supabase/migrations/20260813014555_remove_projectos_approval_aal2.sql",
-    "bytes": 3472,
-    "sha256": "8e9acf74b5ee5ea552697989768afc5aac938b92947e3495c2deecde30dadd31",
-    "live_at_capture": true,
-    "provider_bytes": 3472,
-    "provider_sha256": "8e9acf74b5ee5ea552697989768afc5aac938b92947e3495c2deecde30dadd31",
-    "status": "applied_and_verified"
-  },
-  "source_authority_change": {
-    "version": "20260813105011",
-    "provider_version": "20260813105011",
-    "name": "blacklist_mbanatao_sources_and_bind_fxpass",
-    "path": "supabase/migrations/20260813105011_blacklist_mbanatao_sources_and_bind_fxpass.sql",
-    "bytes": 11313,
-    "sha256": "cfe30bf56790ff462c627da6bf6639574d030e907a2fb4af3c68b1e1e4a477d1",
-    "provider_bytes": 11312,
-    "provider_sha256": "dfbbfe2d429b19158d7caf4e3fdd61d97cabbb86097ec18ad005e32f93f089dd",
-    "provider_normalization": "terminal_newline_removed",
-    "live_at_capture": true,
-    "status": "applied_and_verified",
-    "durable_plans": {
-      "vercel_repository_rebind": "7689cb24-dd8a-4855-8a33-752526df901a",
-      "control_plane_source_policy": "acaef6fa-1ee8-4695-93ef-46453949e93b"
-    },
-    "verified_state": {
-      "source_policy": "mbanatao/* historical_only",
-      "vercel_repository": "banataosystems/fxpass",
-      "vercel_project_id": "prj_t9cl0GiY9APSTw2NUNJLtRg6auwZ",
-      "supabase_project_ref": "jhygppdcfrmejbzyozud",
-      "production_deployment_id": "dpl_5yzg3jWUeZqZdNuzR8vMPwYxQGe1",
-      "production_alias": "fxpass.vercel.app",
-      "production_deployment_changed": false
-    }
-  },
-  "source_alignment_records": [
-    {
-      "version": "20260820085400",
-      "name": "plp_vercel_env_metadata_probe_20260820",
-      "path": "supabase/migrations/20260820085400_plp_vercel_env_metadata_probe_20260820.sql",
-      "classification": "sensitive_obsolete_identity_only",
-      "historical_object": "private.plp_vercel_env_metadata_probe_20260820()",
-      "provider_bytes": 3138,
-      "provider_sha256": "24f57a5d536dbf7c2987d013dbe9859e245f3629884ed9a256c573c70b484fdd",
-      "active_bytes": 823,
-      "active_sha256": "d2f4d6d41fd7a648aee133440c4e904fcd632aed9c03456bb96c6d45dacc6d85",
-      "live_at_capture": true,
-      "executable_body_republished": false
-    },
-    {
-      "version": "20260820085633",
-      "name": "plp_hotfix_preview_env_bridge_20260820",
-      "path": "supabase/migrations/20260820085633_plp_hotfix_preview_env_bridge_20260820.sql",
-      "classification": "sensitive_obsolete_identity_only",
-      "historical_object": "private.plp_configure_hotfix_preview_env_20260820()",
-      "provider_bytes": 8989,
-      "provider_sha256": "0a6b798086353e7b59611fad936263dca3d8e508e13486a97df5a01b208dd266",
-      "active_bytes": 828,
-      "active_sha256": "771e06efc18e67b30cfaf5ecf858ca417d93a671356ccb743fdce6bef8dc65b4",
-      "live_at_capture": true,
-      "executable_body_republished": false
-    },
-    {
-      "version": "20260820085705",
-      "name": "plp_hotfix_preview_deploy_20260820",
-      "path": "supabase/migrations/20260820085705_plp_hotfix_preview_deploy_20260820.sql",
-      "classification": "sensitive_obsolete_identity_only",
-      "historical_object": "private.plp_deploy_hotfix_preview_20260820()",
-      "provider_bytes": 3135,
-      "provider_sha256": "a08e911410cbb0c35f5d07b10c1d522c14c4ee4c0435343dba27e2c9adec86b0",
-      "active_bytes": 816,
-      "active_sha256": "35a08c3d746ccaee2dcd19a5a942b94ac7e77f0267bed484ddb3dbb92ab81722",
-      "live_at_capture": true,
-      "executable_body_republished": false
-    }
-  ],
-  "release_gates": [
-    "full_replay_pass",
-    "catalog_assertions_pass",
-    "coordinated_secret_rotation",
-    "exact_head_ci_pass",
-    "different_vendor_exact_head_review",
-    "callable_provider_rollbacks"
-  ]
+    "source_alignment_records": [
+        {
+            "name": "plp_vercel_env_metadata_probe_20260820",
+            "path": "supabase/migrations/20260820085400_plp_vercel_env_metadata_probe_20260820.sql",
+            "version": "20260820085400",
+            "active_bytes": 823,
+            "active_sha256": "d2f4d6d41fd7a648aee133440c4e904fcd632aed9c03456bb96c6d45dacc6d85",
+            "classification": "sensitive_obsolete_identity_only",
+            "provider_bytes": 3138,
+            "live_at_capture": true,
+            "provider_sha256": "24f57a5d536dbf7c2987d013dbe9859e245f3629884ed9a256c573c70b484fdd",
+            "historical_object": "private.plp_vercel_env_metadata_probe_20260820()",
+            "executable_body_republished": false
+        },
+        {
+            "name": "plp_hotfix_preview_env_bridge_20260820",
+            "path": "supabase/migrations/20260820085633_plp_hotfix_preview_env_bridge_20260820.sql",
+            "version": "20260820085633",
+            "active_bytes": 828,
+            "active_sha256": "771e06efc18e67b30cfaf5ecf858ca417d93a671356ccb743fdce6bef8dc65b4",
+            "classification": "sensitive_obsolete_identity_only",
+            "provider_bytes": 8989,
+            "live_at_capture": true,
+            "provider_sha256": "0a6b798086353e7b59611fad936263dca3d8e508e13486a97df5a01b208dd266",
+            "historical_object": "private.plp_configure_hotfix_preview_env_20260820()",
+            "executable_body_republished": false
+        },
+        {
+            "name": "plp_hotfix_preview_deploy_20260820",
+            "path": "supabase/migrations/20260820085705_plp_hotfix_preview_deploy_20260820.sql",
+            "version": "20260820085705",
+            "active_bytes": 816,
+            "active_sha256": "35a08c3d746ccaee2dcd19a5a942b94ac7e77f0267bed484ddb3dbb92ab81722",
+            "classification": "sensitive_obsolete_identity_only",
+            "provider_bytes": 3135,
+            "live_at_capture": true,
+            "provider_sha256": "a08e911410cbb0c35f5d07b10c1d522c14c4ee4c0435343dba27e2c9adec86b0",
+            "historical_object": "private.plp_deploy_hotfix_preview_20260820()",
+            "executable_body_republished": false
+        }
+    ],
+    "sensitive_transformations": [
+        {
+            "values": 2,
+            "version": "20260728171559",
+            "treatment": "database_generated_verifiers_on_fresh_replay",
+            "conflict_behavior": "preserve_existing"
+        },
+        {
+            "values": 1,
+            "version": "20260731092135",
+            "treatment": "database_generated_hmac_on_fresh_replay",
+            "conflict_behavior": "preserve_existing"
+        },
+        {
+            "values": 1,
+            "version": "20260807083337",
+            "treatment": "database_generated_hmac_on_fresh_replay",
+            "conflict_behavior": "preserve_existing"
+        }
+    ]
 }

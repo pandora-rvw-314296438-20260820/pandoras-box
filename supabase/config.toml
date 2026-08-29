@@ -1,6 +1,12 @@
 [functions.pandora-owner-api]
 verify_jwt = true
 
+[functions.pandora-project-runtime]
+verify_jwt = true
+
+[functions.pandora-project-spec-compiler]
+verify_jwt = true
+
 [functions.pandora-user-admin]
 verify_jwt = true
 
@@ -36,3 +42,9 @@ verify_jwt = true
 # no minting credential; the DB binds and consumes the exact issuer/JTI/request.
 [functions.pandora-physical-android-attestation]
 verify_jwt = true
+
+
+# Vercel authenticates this provider callback with x-vercel-signature; the
+# service validates the exact raw body against the signing secret kept in Vault.
+[functions.pandora-vercel-runtime-webhook]
+verify_jwt = false

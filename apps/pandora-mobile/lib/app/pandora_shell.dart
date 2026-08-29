@@ -7,10 +7,10 @@ import '../core/analytics/owner_analytics.dart';
 import '../core/widgets/pandora_mark.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
-import '../features/simple/more_screen.dart';
+import '../features/simple/business_screen.dart';
 import '../features/simple/pandora_simple_ui.dart';
+import '../features/simple/projects_screen.dart';
 import '../features/simple/simple_home_screen.dart';
-import '../features/simple/systems_screen.dart';
 
 class PandoraShell extends StatefulWidget {
   const PandoraShell({super.key});
@@ -22,7 +22,7 @@ class PandoraShell extends StatefulWidget {
 class _PandoraShellState extends State<PandoraShell> {
   static const _destinations = <_Destination>[
     _Destination('Home', Icons.home_outlined, Icons.home_rounded),
-    _Destination('Systems', Icons.grid_view_outlined, Icons.grid_view_rounded),
+    _Destination('Projects', Icons.folder_outlined, Icons.folder_rounded),
     _Destination(
       'Ask Pandora',
       Icons.auto_awesome_outlined,
@@ -34,7 +34,7 @@ class _PandoraShellState extends State<PandoraShell> {
       Icons.notifications_none_rounded,
       Icons.notifications_rounded,
     ),
-    _Destination('More', Icons.menu_rounded, Icons.menu_rounded),
+    _Destination('Business', Icons.insights_outlined, Icons.insights_rounded),
   ];
 
   final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(
@@ -64,12 +64,11 @@ class _PandoraShellState extends State<PandoraShell> {
               onAskPandora: (prompt) => _openAskPandora(prompt),
               onOpenSystems: () => _select(1),
               onOpenNeedsYou: () => _select(3),
-              onOpenMore: () => _select(4),
             ),
-          1 => const SystemsScreen(),
+          1 => const ProjectsScreen(),
           2 => const AskPandoraScreen(),
           3 => const ApprovalsScreen(),
-          4 => const MoreScreen(),
+          4 => const SimpleBusinessScreen(),
           _ => const SimpleHomeScreen(),
         },
       );
@@ -111,10 +110,10 @@ class _PandoraShellState extends State<PandoraShell> {
     });
     final screen = switch (value) {
       0 => 'home',
-      1 => 'systems',
+      1 => 'projects',
       2 => 'ask_pandora',
       3 => 'needs_you',
-      4 => 'more',
+      4 => 'business',
       _ => 'home',
     };
     unawaited(
@@ -210,14 +209,68 @@ class _PandoraShellState extends State<PandoraShell> {
       child: PopScope<Object?>(
         canPop: false,
         onPopInvokedWithResult: _handleBack,
-        child: Scaffold(
-          backgroundColor: PandoraSimpleColors.canvas,
-          body: body,
-          bottomNavigationBar: _PandoraBottomBar(
-            destinations: _destinations,
-            selectedIndex: _index,
-            onSelected: _select,
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final useRail = constraints.maxWidth >= 900;
+            if (!useRail) {
+              return Scaffold(
+                backgroundColor: PandoraSimpleColors.canvas,
+                body: body,
+                bottomNavigationBar: _PandoraBottomBar(
+                  destinations: _destinations,
+                  selectedIndex: _index,
+                  onSelected: _select,
+                ),
+              );
+            }
+            return Scaffold(
+              backgroundColor: PandoraSimpleColors.canvas,
+              body: Row(
+                children: [
+                  NavigationRail(
+                    selectedIndex: _index,
+                    onDestinationSelected: _select,
+                    backgroundColor: PandoraSimpleColors.surface,
+                    indicatorColor: PandoraSimpleColors.blush,
+                    labelType: NavigationRailLabelType.all,
+                    minWidth: 92,
+                    groupAlignment: -0.55,
+                    leading: const Padding(
+                      padding: EdgeInsets.only(top: 18, bottom: 18),
+                      child: PandoraMark(
+                        size: 44,
+                        color: PandoraSimpleColors.red,
+                      ),
+                    ),
+                    destinations: [
+                      for (final destination in _destinations)
+                        NavigationRailDestination(
+                          icon: destination.emphasized
+                              ? const PandoraMark(
+                                  size: 25,
+                                  color: PandoraSimpleColors.red,
+                                )
+                              : Icon(destination.icon),
+                          selectedIcon: destination.emphasized
+                              ? const PandoraMark(
+                                  size: 27,
+                                  color: PandoraSimpleColors.deepRed,
+                                )
+                              : Icon(destination.selectedIcon),
+                          label: Text(destination.label),
+                        ),
+                    ],
+                  ),
+                  const VerticalDivider(
+                    width: 1,
+                    thickness: 1,
+                    color: PandoraSimpleColors.line,
+                  ),
+                  Expanded(child: body),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

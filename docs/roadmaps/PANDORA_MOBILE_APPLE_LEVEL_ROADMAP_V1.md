@@ -1,3 +1,8 @@
+> **SUPERSEDED FOR CURRENT STATUS — 2026-08-28**
+>
+> The canonical current Pandora roadmap/status source is `docs/roadmaps/PANDORAS_BOX_CANONICAL_ROADMAP_V2.md`.
+> This v1 file remains historical product/design evidence. Its old canonical-repository, baseline, mobile-version, issue-number and “next slice” statements must not be used as current provider truth or completion evidence.
+
 # Pandora Mobile — Apple-Level Product Roadmap & Execution Plan v1.0
 
 **Status:** Owner-approved roadmap source candidate  

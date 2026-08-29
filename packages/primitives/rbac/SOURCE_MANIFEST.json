@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-rbac@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {
+      "path": "rbac/migrations/001_rbac.sql",
+      "sha256": "84f51469600ebf5f00636d868599c9b7161da247eefad0702e07812c4657afe7"
+    },
+    {
+      "path": "rbac/src/index.js",
+      "sha256": "00943d32ebecfd271a3b549a46356759bdd7b3e360fdb0006e1acae5d2e48c5f"
+    }
+  ],
+  "bundleDigest": "sha256:7ce794620e444755ac9701677ca58821178b9ea0e0e0ebf4e33048e0f68388c4"
+}

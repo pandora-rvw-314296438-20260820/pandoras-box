@@ -1,0 +1,28 @@
+name: Pandora Business Intelligence
+on:
+  pull_request:
+    paths:
+      - 'packages/pandora-business-intelligence/**'
+      - 'docs/architecture/PANDORA_BUSINESS_INTELLIGENCE_*.md'
+      - '.github/workflows/pandora-business-intelligence.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/pandora-business-intelligence/**'
+      - 'docs/architecture/PANDORA_BUSINESS_INTELLIGENCE_*.md'
+      - '.github/workflows/pandora-business-intelligence.yml'
+permissions:
+  contents: read
+jobs:
+  deterministic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax check Worker H v1
+        run: node --check packages/pandora-business-intelligence/src/*.js packages/pandora-business-intelligence/src/analytics/*.js
+      - name: Test Worker H v1
+        run: node --test packages/pandora-business-intelligence/test/*.test.js

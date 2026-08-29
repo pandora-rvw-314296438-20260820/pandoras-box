@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-auth@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {
+      "path": "core/src/identity.js",
+      "sha256": "6f49e862261df124d433d08f3ddb0701a393f7602eba64fa5f4047c2d5ccafe2"
+    },
+    {
+      "path": "auth/src/index.js",
+      "sha256": "d67ca7ec0a5e22382b8fef4fbc7e2399d57ace81a6f225a71061e04c4b14df93"
+    },
+    {
+      "path": "auth/migrations/001_auth_profile.sql",
+      "sha256": "d1d742aba53ccabe52533bb2d38a0e6fdd3df5f08275409466a7116253c94ff7"
+    }
+  ],
+  "bundleDigest": "sha256:f06d34a7aabd1fd1ab94fdc0374efa88d093bc8211f70ccd769d78c9e1e6849c"
+}

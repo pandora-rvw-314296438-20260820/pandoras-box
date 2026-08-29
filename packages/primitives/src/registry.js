@@ -1,0 +1,118 @@
+'use strict';
+const crypto = require('node:crypto');
+const { clone, deepFreeze, TRUST_STATES, validatePrimitiveDefinition } = require('./contracts');
+const { compareVersions } = require('./semver');
+
+class TrustedPrimitiveRegistry {
+  constructor(definitions = [], options = {}) {
+    if (!Array.isArray(definitions)) throw new TypeError('primitive definitions must be an array');
+    if (options == null || typeof options !== 'object' || Array.isArray(options)) throw new TypeError('registry options must be an object');
+    if (options.verificationAuthority != null && typeof options.verificationAuthority.verifyDecision !== 'function') {
+      throw new TypeError('verificationAuthority.verifyDecision is required');
+    }
+    this._definitions = new Map();
+    this._verification = new Map();
+    this._verificationAuthority = options.verificationAuthority || null;
+    definitions.forEach((definition) => this.register(definition));
+  }
+
+  register(definition) {
+    const validation = validatePrimitiveDefinition(definition);
+    if (!validation.ok) throw new TypeError(`invalid primitive definition: ${validation.errors.join('; ')}`);
+    const value = validation.value;
+    if (value.trustState === 'TRUSTED') throw new Error('direct TRUSTED registration is forbidden; apply exact Worker E verification evidence after registration');
+    const key = primitiveKey(value.name, value.version);
+    if (this._definitions.has(key)) throw new Error(`primitive version already registered: ${key}`);
+    const definitionDigest = digest({ ...value, sourceDigest: value.sourceDigest || null });
+    this._definitions.set(key, deepFreeze({ ...clone(value), definitionDigest }));
+    return this.getExact(value.name, value.version);
+  }
+
+  getExact(name, version) {
+    if (version === 'latest') throw new TypeError('mutable latest references are forbidden');
+    const value = this._definitions.get(primitiveKey(name, version));
+    return value ? deepFreeze(clone(value)) : null;
+  }
+
+  list({ includeBlocked = true } = {}) {
+    return [...this._definitions.values()]
+      .filter((item) => includeBlocked || item.trustState !== 'BLOCKED')
+      .sort((a, b) => a.name.localeCompare(b.name) || compareVersions(b.version, a.version))
+      .map((item) => deepFreeze(clone(item)));
+  }
+
+  findByCapability(capability, options = {}) {
+    const allowedTrustStates = new Set(options.trustStates || ['TRUSTED', 'EXPERIMENTAL', 'DEPRECATED']);
+    return this.list({ includeBlocked: false })
+      .filter((item) => item.capabilities.includes(capability))
+      .filter((item) => allowedTrustStates.has(item.trustState))
+      .filter((item) => !options.projectType || item.supportedProjectTypes.includes(options.projectType))
+      .map((item) => ({
+        name: item.name,
+        version: item.version,
+        trustState: item.trustState,
+        capabilities: item.capabilities,
+        runtimeRequirements: item.runtimeRequirements,
+        configurationSchema: item.configurationSchema,
+        complexity: item.complexity || 'medium',
+        historicalVerificationSuccess: this._verificationSummary(item.name, item.version),
+      }));
+  }
+
+  applyVerificationDecision(name, version, decision) {
+    const key = primitiveKey(name, version);
+    const current = this._definitions.get(key);
+    if (!current) throw new Error(`unknown primitive version: ${key}`);
+    if (!decision || decision.authority !== 'worker-e') throw new Error('primitive trust decisions require Worker E authority');
+    if (!decision.evidenceId || typeof decision.evidenceId !== 'string') throw new Error('verification evidenceId is required');
+    if (!['PASS', 'FAIL', 'BLOCKED'].includes(decision.status)) throw new Error('verification status must be PASS, FAIL, or BLOCKED');
+
+    if (decision.status === 'PASS') {
+      if (!current.sourceDigest) throw new Error('cannot mark TRUSTED without an immutable sourceDigest');
+      if (decision.sourceDigest !== current.sourceDigest) throw new Error('verification evidence does not match primitive sourceDigest');
+      if (!this._verificationAuthority) throw new Error('TRUSTED promotion requires configured Worker E verification authority');
+      const accepted = this._verificationAuthority.verifyDecision({
+        definition: deepFreeze(clone(current)),
+        decision: deepFreeze(clone(decision)),
+      });
+      if (accepted !== true) throw new Error('Worker E verification authority rejected primitive trust decision');
+    }
+
+    const nextTrustState = decision.status === 'PASS' ? 'TRUSTED' : decision.status === 'BLOCKED' ? 'BLOCKED' : 'EXPERIMENTAL';
+    const updated = deepFreeze({ ...clone(current), trustState: nextTrustState });
+    this._definitions.set(key, updated);
+    const history = this._verification.get(key) || [];
+    history.push(deepFreeze(clone({ ...decision, recordedAt: decision.recordedAt || null })));
+    this._verification.set(key, history);
+    return this.getExact(name, version);
+  }
+
+  setLifecycleState(name, version, state, metadata = {}) {
+    if (!TRUST_STATES.includes(state) || state === 'TRUSTED') throw new Error('lifecycle may set EXPERIMENTAL, DEPRECATED, or BLOCKED; TRUSTED requires Worker E evidence');
+    const key = primitiveKey(name, version);
+    const current = this._definitions.get(key);
+    if (!current) throw new Error(`unknown primitive version: ${key}`);
+    this._definitions.set(key, deepFreeze({ ...clone(current), trustState: state, deprecation: state === 'DEPRECATED' ? clone(metadata) : current.deprecation }));
+    return this.getExact(name, version);
+  }
+
+  verificationHistory(name, version) {
+    return deepFreeze(clone(this._verification.get(primitiveKey(name, version)) || []));
+  }
+
+  _verificationSummary(name, version) {
+    const history = this._verification.get(primitiveKey(name, version)) || [];
+    const passes = history.filter((item) => item.status === 'PASS').length;
+    const failures = history.filter((item) => item.status !== 'PASS').length;
+    return { passes, failures, sampleSize: history.length };
+  }
+}
+
+function primitiveKey(name, version) { return `${name}@${version}`; }
+function digest(value) { return `sha256:${crypto.createHash('sha256').update(stableStringify(value)).digest('hex')}`; }
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+  return JSON.stringify(value);
+}
+module.exports = { TrustedPrimitiveRegistry, digest, primitiveKey, stableStringify };
