@@ -1,4 +1,3 @@
-
 import 'pandora_models.dart';
 
 enum DomainPaymentGateway {
@@ -121,11 +120,11 @@ class DomainCheckout {
   bool get canOpenPayment =>
       status == 'pending' && checkoutUrl != null && checkoutUrl!.isNotEmpty;
   bool get canReconcile => const <String>{
-        'pending',
-        'paid',
-        'fulfilling',
-        'needs_attention',
-      }.contains(status);
+    'pending',
+    'paid',
+    'fulfilling',
+    'needs_attention',
+  }.contains(status);
 
   String get formattedAmount => _formatMoney(amount, currency);
 
