@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-customer-profile@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {
+      "path": "customer-profile/src/index.js",
+      "sha256": "6bd23d64f6a28240fd863d388de8dfe5cefc732c615b5812c4c5357e2c9ee0b7"
+    },
+    {
+      "path": "customer-profile/migrations/001_customer_profile.sql",
+      "sha256": "53d501c5b88e5d58264ee8b4713b51f144b32c4706a37886db114158414fca92"
+    }
+  ],
+  "bundleDigest": "sha256:301003c5c76eccf794e09a0bb244328b4f0f48c0f5e17269471617929780158f"
+}

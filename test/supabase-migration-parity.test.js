@@ -171,7 +171,15 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260829104500_pandora_project_spec_compiler_v1.sql',
     '20260829111500_pandora_worker_f_vercel_scope_rebind.sql',
     '20260829113000_pandora_worker_d_vercel_sandbox_broker_v1.sql',
+    '20260829114000_pandora_worker_f_runtime_constraint_idempotency.sql',
+    '20260829114500_pandora_worker_f_vercel_webhook_v1.sql',
+    '20260829115500_pandora_primitive_lineage_v1.sql',
     '20260829120000_pandora_worker_d_vercel_sandbox_protocol_fix.sql',
+    '20260829121000_pandora_generated_source_identity_v1.sql',
+    '20260829122000_pandora_project_build_intake_v1.sql',
+    '20260829123000_pandora_runtime_release_closure_v1.sql',
+    '20260829124000_pandora_live_verification_customer_db_v1.sql',
+    '20260829125000_pandora_build_authorization_acl_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -203,7 +211,15 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260829104500_pandora_project_spec_compiler_v1.sql',
     '20260829111500_pandora_worker_f_vercel_scope_rebind.sql',
     '20260829113000_pandora_worker_d_vercel_sandbox_broker_v1.sql',
+    '20260829114000_pandora_worker_f_runtime_constraint_idempotency.sql',
+    '20260829114500_pandora_worker_f_vercel_webhook_v1.sql',
+    '20260829115500_pandora_primitive_lineage_v1.sql',
     '20260829120000_pandora_worker_d_vercel_sandbox_protocol_fix.sql',
+    '20260829121000_pandora_generated_source_identity_v1.sql',
+    '20260829122000_pandora_project_build_intake_v1.sql',
+    '20260829123000_pandora_runtime_release_closure_v1.sql',
+    '20260829124000_pandora_live_verification_customer_db_v1.sql',
+    '20260829125000_pandora_build_authorization_acl_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
@@ -528,4 +544,10 @@ test('database rollback restores the exact prior AAL2 executable body', () => {
     restore_previous_aal2_definition: 'pass',
     reapply_aal1_definition: 'pass',
   });
+});
+
+
+test('Worker F historical runtime migration bytes remain immutable', () => {
+  const payload = readFileSync(join(migrationRoot, '20260829104000_pandora_worker_f_runtime_state.sql'));
+  assert.equal(sha256(payload), '3575e2e38bd22a683159ebb58041ea353b7f17344343fc67207c1b3e58518159');
 });

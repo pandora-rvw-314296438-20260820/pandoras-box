@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-commerce@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {
+      "path": "core/src/events.js",
+      "sha256": "679f84c84aded138258092e5d10377c398e4f087b46454ebedf4690ae887d160"
+    },
+    {
+      "path": "commerce/src/index.js",
+      "sha256": "037035c055743d086f1aa20bd473f5b9a46a2f7b8b54a180b4efa559be313dae"
+    },
+    {
+      "path": "commerce/migrations/001_commerce.sql",
+      "sha256": "bfbc7d11e2a5e3a7593bb6153ce8c2e39237fc5677523c3040e281b7a3eeabf1"
+    }
+  ],
+  "bundleDigest": "sha256:036157e688c199bf61f4a851e13d525653ca27af76568e8d3bc684632636371e"
+}
