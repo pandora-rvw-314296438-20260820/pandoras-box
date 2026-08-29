@@ -1,0 +1,43 @@
+name: Pandora Integration
+on:
+  pull_request:
+    paths:
+      - 'packages/pandora-integration/**'
+      - 'packages/pandora-intelligence/**'
+      - 'packages/pandora-tools/**'
+      - 'packages/pandora-project-runtime/**'
+      - 'workers/pandora-builder/**'
+      - 'package.json'
+      - '.github/workflows/pandora-integration.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/pandora-integration/**'
+      - 'packages/pandora-intelligence/**'
+      - 'packages/pandora-tools/**'
+      - 'packages/pandora-project-runtime/**'
+      - 'workers/pandora-builder/**'
+      - 'package.json'
+      - '.github/workflows/pandora-integration.yml'
+permissions:
+  contents: read
+jobs:
+  deterministic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Build Pandora Intelligence
+        run: ./node_modules/.bin/tsc -p packages/pandora-intelligence/tsconfig.json
+      - name: Test Intelligence, Gateway, Builder and Integration boundaries
+        run: >-
+          node --test
+          packages/pandora-intelligence/test/*.test.js
+          packages/pandora-tools/test/*.test.js
+          workers/pandora-builder/test/*.test.mjs
+          packages/pandora-integration/test/*.test.mjs
