@@ -531,7 +531,7 @@ async function createProject(context: UserContext, body: JsonRecord) {
     },
   };
   const { data, error } = await serviceClient().from("projectos_projects")
-    .insert({ organization_id: context.organizationId, project_key: projectKey, name, workspace_path: `projects/${projectKey}`, status: "active", objective, roadmap_version: "2.0.0", config, created_by: context.userId })
+    .insert({ organization_id: context.organizationId, project_key: projectKey, name, workspace_path: `projectos/projects/${projectKey}`, status: "active", objective, roadmap_version: "2.0.0", config, created_by: context.userId })
     .select("id, project_key, name, objective, status, config, created_at, updated_at").single();
   if (error || !data) throw new Error("BACKEND_WRITE_FAILED");
   return projectResponse(asRecord(data));
