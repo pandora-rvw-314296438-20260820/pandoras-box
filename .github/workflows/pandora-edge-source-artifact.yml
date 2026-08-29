@@ -1,0 +1,45 @@
+name: Pandora Edge source artifact
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  edge-source-artifact:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove exact clean checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse HEAD)" = "$expected"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          sha256sum \
+            supabase/functions/pandora-project-runtime/index.ts \
+            supabase/functions/pandora-project-source-generator/index.ts \
+            supabase/functions/pandora-project-spec-compiler/index.ts \
+            > edge-source-sha256.txt
+
+      - name: Upload exact Edge sources
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pandora-edge-source-${{ github.event.pull_request.head.sha || github.sha }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            supabase/functions/pandora-project-runtime/index.ts
+            supabase/functions/pandora-project-source-generator/index.ts
+            supabase/functions/pandora-project-spec-compiler/index.ts
+            edge-source-sha256.txt
