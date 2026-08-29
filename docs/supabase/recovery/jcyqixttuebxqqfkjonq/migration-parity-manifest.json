@@ -69,7 +69,7 @@
     "reconciled_aug17_chain_sha256": "fd612a0dfbf34ab462112898b3050f39fb1c4d2a62b371961e719944c8cea390",
     "current_source_replay_chain_sha256": "f3e70ece6a7989839dccaade75ddda776620b714a697abdde4cb2a3ec0468a2c",
     "current_source_receipt_chain_sha256": "b3a6823bf2a7089c2f11db7ebefc6f8ab39544fd1a59e003cbc0e5f0a0c471d7",
-    "expected_applied_receipt_chain_sha256": "dbeeacabd9d650c53a874683c6d9be9397be71c331996568999f0c9d49ff8689",
+    "expected_applied_receipt_chain_sha256": "04ec65e6e2736b7db922beb540ae044c8809c3ad245d027a6a534340f843004e",
     "replay_chain_delimiter": "filename:sha256\\n",
     "receipt_chain_delimiter": "filename\\tsha256\\n",
     "live_only_sensitive_bodies_republished": false
