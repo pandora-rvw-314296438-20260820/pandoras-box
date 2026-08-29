@@ -818,7 +818,7 @@
         "production_history_rewritten": false,
         "reconciled_aug17_chain_sha256": "fd612a0dfbf34ab462112898b3050f39fb1c4d2a62b371961e719944c8cea390",
         "reconciled_recovery_chain_sha256": "fd919e3a587bd5e910154eec815c05e0074c2ccbe079e427de1030bcf2001c93",
-        "current_source_replay_chain_sha256": "e9a8b29653edef88fbcd3c52bde4ab409f875ec84df5f7cf9a47635a41a4a4a4a5",
+        "current_source_replay_chain_sha256": "e9a8b29653edef88fbcd3c52bde4ab409f875ec84df5f7cf9a47635a41a4a4a5",
         "current_source_receipt_chain_sha256": "d266ed228ef264af5f1bab50662e23f8ad144bd586de81a085fd7e20083819dd",
         "expected_applied_receipt_chain_sha256": "8a5cae7b1644204684ff507437d3441a82a29a0a600ddccad851ae5d3585224b",
         "live_only_sensitive_bodies_republished": false
