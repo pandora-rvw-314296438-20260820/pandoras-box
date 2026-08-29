@@ -1,4 +1,5 @@
--- Forward-only repair: allow the authorized source snapshot root to transition to the exact Worker D runtime bundle.\nCREATE OR REPLACE FUNCTION private.pandora_finalize_runtime_bundle_20260829(p_project_version_id uuid, p_build_job_id uuid, p_build_step_id uuid, p_bundle text)
+-- Forward-only repair: allow the authorized source snapshot root to transition to the exact Worker D runtime bundle.
+CREATE OR REPLACE FUNCTION private.pandora_finalize_runtime_bundle_20260829(p_project_version_id uuid, p_build_job_id uuid, p_build_step_id uuid, p_bundle text)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
