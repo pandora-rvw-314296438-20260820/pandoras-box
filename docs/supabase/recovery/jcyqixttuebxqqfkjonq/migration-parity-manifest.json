@@ -770,7 +770,7 @@
         "reconciled_result_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/pglite-replay-result-20260823-source-alignment.json",
         "database_rollback_smoke": "pass",
         "reconciled_chain_sha256": "5183b3a36e29aaf9efa9743422df2498842759977f29d4c87db6bf8bfa3fb962",
-        "reconciled_migration_count": 91
+        "reconciled_migration_count": 92
     },
     "project_ref": "jcyqixttuebxqqfkjonq",
     "artifact_type": "supabase_secret_safe_migration_parity_manifest",
