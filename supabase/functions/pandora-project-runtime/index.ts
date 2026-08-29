@@ -310,11 +310,25 @@ type ExactRuntimeBundle = {
   artifact: JsonRecord;
   artifactDigest: string;
   sourceDigest: string;
-  sourceCommit: string;
+  sourceKind: "git_commit" | "artifact_snapshot";
+  sourceRef: string;
+  sourceCommit: string | null;
   buildJobId: string;
   projectSpecId: string;
   files: RuntimeFile[];
 };
+
+function projectSourceIdentity(versionIdValue: unknown, sourceKindValue: unknown, sourceRefValue: unknown, sourceCommitValue: unknown) {
+  const versionId = textValue(versionIdValue).toLowerCase();
+  const rawCommit = textValue(sourceCommitValue).toLowerCase() || null;
+  const sourceKind = textValue(sourceKindValue, rawCommit ? "git_commit" : "artifact_snapshot").toLowerCase();
+  const sourceRef = textValue(sourceRefValue, sourceKind === "git_commit" ? rawCommit : versionId).toLowerCase();
+  const valid = UUID_RE.test(versionId) && (sourceKind === "git_commit"
+    ? Boolean(rawCommit && SHA40_RE.test(rawCommit) && sourceRef === rawCommit)
+    : sourceKind === "artifact_snapshot" && rawCommit === null && sourceRef === versionId);
+  if (!valid) throw new Error("SOURCE_IDENTITY_MISMATCH");
+  return { sourceKind: sourceKind as "git_commit" | "artifact_snapshot", sourceRef, sourceCommit: rawCommit };
+}
 
 async function sha256BytesHex(bytes: Uint8Array) {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -361,7 +375,7 @@ async function loadExactRuntimeBundle(context: UserContext, projectId: string, v
   if (!UUID_RE.test(versionId) || !SHA256_RE.test(requestedArtifactDigest)) throw new Error("EXACT_VERSION_REQUIRED");
   const admin = serviceClient();
   const { data: versionData, error: versionError } = await admin.from("pandora_project_versions")
-    .select("id, organization_id, project_id, project_spec_id, build_job_id, root_artifact_version_id, source_sha256, source_commit, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, lifecycle_status, created_at")
+    .select("id, organization_id, project_id, project_spec_id, build_job_id, root_artifact_version_id, source_sha256, source_kind, source_ref, source_commit, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, lifecycle_status, created_at")
     .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", versionId).maybeSingle();
   if (versionError) throw new Error("BACKEND_READ_FAILED");
   if (!versionData) throw new Error("EXACT_VERSION_REQUIRED");
@@ -369,10 +383,10 @@ async function loadExactRuntimeBundle(context: UserContext, projectId: string, v
   const rootArtifactVersionId = textValue(version.root_artifact_version_id);
   const artifactDigest = textValue(version.artifact_digest_sha256).toLowerCase();
   const sourceDigest = textValue(version.source_sha256).toLowerCase();
-  const sourceCommit = textValue(version.source_commit).toLowerCase();
+  const { sourceKind, sourceRef, sourceCommit } = projectSourceIdentity(versionId, version.source_kind, version.source_ref, version.source_commit);
   const buildJobId = textValue(version.build_job_id);
   const projectSpecId = textValue(version.project_spec_id);
-  if (!UUID_RE.test(rootArtifactVersionId) || !UUID_RE.test(buildJobId) || !UUID_RE.test(projectSpecId) || !SHA256_RE.test(artifactDigest) || !SHA256_RE.test(sourceDigest) || !SHA40_RE.test(sourceCommit)) throw new Error("ARTIFACT_LINEAGE_INCOMPLETE");
+  if (!UUID_RE.test(rootArtifactVersionId) || !UUID_RE.test(buildJobId) || !UUID_RE.test(projectSpecId) || !SHA256_RE.test(artifactDigest) || !SHA256_RE.test(sourceDigest)) throw new Error("ARTIFACT_LINEAGE_INCOMPLETE");
   if (artifactDigest !== requestedArtifactDigest) throw new Error("ARTIFACT_DIGEST_MISMATCH");
 
   const { data: artifactVersionData, error: artifactVersionError } = await admin.from("pandora_artifact_versions")
@@ -395,7 +409,8 @@ async function loadExactRuntimeBundle(context: UserContext, projectId: string, v
   if (!new Set(["build_output", "runtime_bundle"]).has(textValue(artifact.artifact_kind).toLowerCase())) throw new Error("ARTIFACT_KIND_NOT_DEPLOYABLE");
 
   const provenance = asRecord(artifactVersion.provenance_redacted);
-  if (textValue(provenance.buildJobId ?? provenance.build_job_id) !== buildJobId || textValue(provenance.projectVersionId ?? provenance.project_version_id) !== versionId || textValue(provenance.sourceCommit ?? provenance.source_commit).toLowerCase() !== sourceCommit) throw new Error("ARTIFACT_PROVENANCE_MISMATCH");
+  const provenanceSource = projectSourceIdentity(versionId, provenance.sourceKind ?? provenance.source_kind, provenance.sourceRef ?? provenance.source_ref, provenance.sourceCommit ?? provenance.source_commit);
+  if (textValue(provenance.buildJobId ?? provenance.build_job_id) !== buildJobId || textValue(provenance.projectVersionId ?? provenance.project_version_id) !== versionId || provenanceSource.sourceKind !== sourceKind || provenanceSource.sourceRef !== sourceRef || provenanceSource.sourceCommit !== sourceCommit) throw new Error("ARTIFACT_PROVENANCE_MISMATCH");
   const coordinate = safeStorageCoordinate(artifactVersion.storage_bucket, artifactVersion.storage_path);
   const { data: objectData, error: objectError } = await admin.storage.from(coordinate.bucket).download(coordinate.path);
   if (objectError || !objectData) throw new Error("ARTIFACT_STORAGE_READ_FAILED");
@@ -407,7 +422,8 @@ async function loadExactRuntimeBundle(context: UserContext, projectId: string, v
   let bundle: JsonRecord;
   try { bundle = asRecord(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes))); } catch { throw new Error("ARTIFACT_BUNDLE_JSON_INVALID"); }
   if (bundle.kind !== "pandora.runtime-bundle.v1" || bundle.schemaVersion !== 1) throw new Error("ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED");
-  if (textValue(bundle.projectVersionId) !== versionId || textValue(bundle.buildJobId) !== buildJobId || textValue(bundle.sourceCommit).toLowerCase() !== sourceCommit) throw new Error("ARTIFACT_BUNDLE_LINEAGE_MISMATCH");
+  const bundleSource = projectSourceIdentity(versionId, bundle.sourceKind, bundle.sourceRef, bundle.sourceCommit);
+  if (textValue(bundle.projectVersionId) !== versionId || textValue(bundle.buildJobId) !== buildJobId || bundleSource.sourceKind !== sourceKind || bundleSource.sourceRef !== sourceRef || bundleSource.sourceCommit !== sourceCommit) throw new Error("ARTIFACT_BUNDLE_LINEAGE_MISMATCH");
   if (!Array.isArray(bundle.files) || bundle.files.length < 1 || bundle.files.length > MAX_RUNTIME_FILES) throw new Error("ARTIFACT_BUNDLE_FILES_INVALID");
 
   const seen = new Set<string>();
@@ -432,7 +448,7 @@ async function loadExactRuntimeBundle(context: UserContext, projectId: string, v
     files.push({ file, data: textValue(entry.data), encoding: "base64", sha256: fileDigest, byteSize: fileBytes.byteLength });
   }
   if (!hasEntrypoint) throw new Error("ARTIFACT_ENTRYPOINT_MISSING");
-  return { version, artifactVersion, artifact, artifactDigest, sourceDigest, sourceCommit, buildJobId, projectSpecId, files };
+  return { version, artifactVersion, artifact, artifactDigest, sourceDigest, sourceKind, sourceRef, sourceCommit, buildJobId, projectSpecId, files };
 }
 
 function exactPreviewMeta(bundle: ExactRuntimeBundle, projectId: string, versionId: string, operationId: string, authorizationRef: string) {
@@ -441,7 +457,9 @@ function exactPreviewMeta(bundle: ExactRuntimeBundle, projectId: string, version
     pandoraProjectId: projectId,
     pandoraProjectVersionId: versionId,
     pandoraArtifactDigest: bundle.artifactDigest,
-    pandoraSourceCommit: bundle.sourceCommit,
+    pandoraSourceKind: bundle.sourceKind,
+    pandoraSourceRef: bundle.sourceRef,
+    ...(bundle.sourceCommit ? { pandoraSourceCommit: bundle.sourceCommit } : {}),
     pandoraAuthorizationRef: authorizationRef,
     pandoraEnvironment: "preview",
   };
@@ -449,7 +467,8 @@ function exactPreviewMeta(bundle: ExactRuntimeBundle, projectId: string, version
 
 function assertPreviewProviderLineage(deployment: JsonRecord, bundle: ExactRuntimeBundle, projectId: string, versionId: string, operationId: string) {
   const meta = asRecord(deployment.meta);
-  if (textValue(meta.pandoraOperationId) !== operationId || textValue(meta.pandoraProjectId) !== projectId || textValue(meta.pandoraProjectVersionId) !== versionId || textValue(meta.pandoraArtifactDigest).toLowerCase() !== bundle.artifactDigest || textValue(meta.pandoraSourceCommit).toLowerCase() !== bundle.sourceCommit) throw new Error("PROVIDER_LINEAGE_MISMATCH");
+  const providerCommit = textValue(meta.pandoraSourceCommit).toLowerCase() || null;
+  if (textValue(meta.pandoraOperationId) !== operationId || textValue(meta.pandoraProjectId) !== projectId || textValue(meta.pandoraProjectVersionId) !== versionId || textValue(meta.pandoraArtifactDigest).toLowerCase() !== bundle.artifactDigest || textValue(meta.pandoraSourceKind).toLowerCase() !== bundle.sourceKind || textValue(meta.pandoraSourceRef).toLowerCase() !== bundle.sourceRef || providerCommit !== bundle.sourceCommit) throw new Error("PROVIDER_LINEAGE_MISMATCH");
 }
 
 async function findVercelDeploymentByOperation(providerProjectId: string, operationId: string) {
@@ -892,7 +911,7 @@ async function createPreview(context: UserContext, identifier: string, body: Jso
   if (!UUID_RE.test(versionId) || !SHA256_RE.test(requestedArtifactDigest) || idempotencyRef.length < 8 || idempotencyRef.length > 200 || authorizationRef.length < 8 || authorizationRef.length > 300) throw new Error("EXACT_VERSION_REQUIRED");
 
   const bundle = await loadExactRuntimeBundle(context, projectId, versionId, requestedArtifactDigest);
-  const operationKey = await sha256Hex(["create_preview", context.organizationId, projectId, versionId, bundle.artifactDigest, bundle.sourceCommit, authorizationRef, idempotencyRef].join("|"));
+  const operationKey = await sha256Hex(["create_preview", context.organizationId, projectId, versionId, bundle.artifactDigest, bundle.sourceKind, bundle.sourceRef, bundle.sourceCommit ?? "no-commit", authorizationRef, idempotencyRef].join("|"));
   const admin = serviceClient();
   let operationId = "";
   const operationRecord = {
