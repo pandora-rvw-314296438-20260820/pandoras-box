@@ -15,6 +15,7 @@ import '../projects/projects_screen.dart';
 import '../safety/safety_screen.dart';
 import '../settings/settings_screen.dart';
 import '../team/team_screen.dart';
+import 'domains_screen.dart';
 import 'offline_evidence_screen.dart';
 import 'simple_briefing_screen.dart';
 import 'simple_safety_screen.dart';
@@ -42,6 +43,12 @@ class MoreScreen extends StatelessWidget {
               title: 'Business & history',
               child: Column(
                 children: [
+                  _MoreTile(
+                    icon: Icons.language_rounded,
+                    title: 'Domains',
+                    subtitle: 'Your addresses and publishing status',
+                    onTap: () => _openMore(context, const DomainsScreen()),
+                  ),
                   _MoreTile(
                     icon: Icons.query_stats_outlined,
                     title: 'Business',
