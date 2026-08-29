@@ -194,23 +194,62 @@ class ProjectRuntimeDomain {
   }
 }
 
+class ProjectRuntimeCandidate {
+  const ProjectRuntimeCandidate({
+    required this.versionId,
+    required this.artifactDigest,
+    required this.status,
+  });
+
+  final String versionId;
+  final String artifactDigest;
+  final String status;
+
+  bool get isBuilt => const <String>{
+        'built',
+        'verification_pending',
+        'verified',
+        'preview_ready',
+      }.contains(status.toLowerCase());
+
+  factory ProjectRuntimeCandidate.fromJson(Object? value) {
+    final json = asJsonMap(value);
+    return ProjectRuntimeCandidate(
+      versionId: requiredJsonText(
+        json,
+        const ['versionId', 'version_id'],
+        field: 'projectRuntimeCandidate.versionId',
+      ),
+      artifactDigest: requiredJsonText(
+        json,
+        const ['artifactDigest', 'artifact_digest'],
+        field: 'projectRuntimeCandidate.artifactDigest',
+      ),
+      status: jsonText(json['status'], fallback: 'built'),
+    );
+  }
+}
+
 class ProjectRuntimeSnapshot {
   const ProjectRuntimeSnapshot({
     required this.project,
     this.preview,
     this.production,
     this.domain,
+    this.candidate,
   });
   final CustomerProject project;
   final ProjectRuntimeDeployment? preview;
   final ProjectRuntimeDeployment? production;
   final ProjectRuntimeDomain? domain;
+  final ProjectRuntimeCandidate? candidate;
 
   factory ProjectRuntimeSnapshot.fromJson(Object? value) {
     final json = asJsonMap(value);
     final preview = json['preview'];
     final production = json['production'];
     final domain = json['domain'];
+    final candidate = json['candidate'];
     return ProjectRuntimeSnapshot(
       project: CustomerProject.fromJson(json['project']),
       preview:
@@ -219,6 +258,9 @@ class ProjectRuntimeSnapshot {
           ? null
           : ProjectRuntimeDeployment.fromJson(production),
       domain: domain == null ? null : ProjectRuntimeDomain.fromJson(domain),
+      candidate: candidate == null
+          ? null
+          : ProjectRuntimeCandidate.fromJson(candidate),
     );
   }
 }
