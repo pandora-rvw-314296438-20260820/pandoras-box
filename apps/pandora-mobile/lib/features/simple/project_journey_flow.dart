@@ -169,8 +169,10 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   }
 
   bool _shouldRequestBuild(ProjectRuntimeSnapshot snapshot) {
-    if (_buildRequestStarted || snapshot.candidate != null ||
-        pandoraHasLivePreview(snapshot) || snapshot.preview != null) {
+    if (_buildRequestStarted ||
+        snapshot.candidate != null ||
+        pandoraHasLivePreview(snapshot) ||
+        snapshot.preview != null) {
       return false;
     }
     final stage = snapshot.project.stage.toLowerCase();
