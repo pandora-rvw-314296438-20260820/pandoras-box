@@ -32,3 +32,13 @@ test('Worker D provider is non-production and uses direct executable commands on
   assert.match(provider, /mode: 'deny-all'/);
   assert.doesNotMatch(provider, /process\.env|VERCEL_TOKEN|Bearer /);
 });
+
+
+test('Worker D service wrapper normalizes bodyless control POSTs without exposing credentials', () => {
+  const protocolFix = fs.readFileSync(path.join(root, 'supabase/migrations/20260829120000_pandora_worker_d_vercel_sandbox_protocol_fix.sql'), 'utf8');
+  assert.match(protocolFix, /upper\(coalesce\(p_method,''\)\)='POST'/i);
+  assert.match(protocolFix, /p_body is null[\s\S]*'\{\}'::jsonb/i);
+  assert.match(protocolFix, /private\.pandora_worker_d_vercel_sandbox_api_20260829/);
+  assert.match(protocolFix, /revoke all on function public\.pandora_worker_d_vercel_sandbox_request_20260829[\s\S]*from public,anon,authenticated/i);
+  assert.doesNotMatch(protocolFix, /vault\.decrypted_secrets|Bearer\s+[A-Za-z0-9_-]{20,}/);
+});
