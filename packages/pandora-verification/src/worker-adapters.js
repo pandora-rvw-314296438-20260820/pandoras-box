@@ -1,7 +1,7 @@
 
 "use strict";
 
-const { requireDigest } = require("./contracts");
+const { requireDigest, normalizeSourceIdentity } = require("./contracts");
 
 const WORKER_D_OPERATION_BY_CHECK = Object.freeze({
   source_lint: "run_lint",
@@ -24,6 +24,10 @@ function buildWorkerDVerificationRequest({ verificationRequest, checkId, executi
   const operation = WORKER_D_OPERATION_BY_CHECK[checkId];
   if (!operation) throw new Error(`Worker D adapter does not support ${checkId}`);
   const capability = ["run_unit_tests", "run_integration_tests"].includes(operation) ? "build.tests.execute" : "build.project.execute";
+  const sourceIdentity = normalizeSourceIdentity(verificationRequest);
+  const source = sourceIdentity.source_kind === "git_commit"
+    ? Object.freeze({ kind: "git_commit", repository, commitSha: requireCommit(sourceIdentity.source_commit) })
+    : Object.freeze({ kind: "artifact_snapshot", artifactId: sourceIdentity.source_ref, sha256: verificationRequest.source_digest });
   return Object.freeze({
     schemaVersion: 1,
     executionId: requireUuid(executionId, "executionId"),
@@ -31,7 +35,7 @@ function buildWorkerDVerificationRequest({ verificationRequest, checkId, executi
     projectId: requireUuid(verificationRequest.project_id, "projectId"),
     organizationId: requireUuid(verificationRequest.organization_id, "organizationId"),
     projectVersionId: requireUuid(verificationRequest.project_version_id, "projectVersionId"),
-    source: Object.freeze({ kind: "git_commit", repository, commitSha: requireCommit(verificationRequest.source_commit) }),
+    source,
     authorizedCapability: capability,
     operation,
     environment: "test",
