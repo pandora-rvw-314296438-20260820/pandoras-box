@@ -710,11 +710,11 @@
     ],
     "invariants": {
         "active_file_count": 52,
-        "source_file_count": 92,
+        "source_file_count": 93,
         "live_identity_count": 59,
         "applied_change_count": 2,
         "historical_identity_count": 50,
-        "source_only_forward_count": 33,
+        "source_only_forward_count": 34,
         "production_history_rewritten": false,
         "coordinated_rotation_required": true,
         "production_mutation_performed": true,
@@ -769,8 +769,8 @@
         "provider_equivalence": false,
         "reconciled_result_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/pglite-replay-result-20260823-source-alignment.json",
         "database_rollback_smoke": "pass",
-        "reconciled_chain_sha256": "b0f572aa93e78204041c5baa1de39d0eb5f00314d98be987cc9cd03c0ec93bc6",
-        "reconciled_migration_count": 92
+        "reconciled_chain_sha256": "ffd42ac2acc8c898c0db3675ffc4b325e6fc9fc162b1180dd0591d763e0599f6",
+        "reconciled_migration_count": 93
     },
     "project_ref": "jcyqixttuebxqqfkjonq",
     "artifact_type": "supabase_secret_safe_migration_parity_manifest",
@@ -818,9 +818,9 @@
         "production_history_rewritten": false,
         "reconciled_aug17_chain_sha256": "fd612a0dfbf34ab462112898b3050f39fb1c4d2a62b371961e719944c8cea390",
         "reconciled_recovery_chain_sha256": "fd919e3a587bd5e910154eec815c05e0074c2ccbe079e427de1030bcf2001c93",
-        "current_source_replay_chain_sha256": "b0f572aa93e78204041c5baa1de39d0eb5f00314d98be987cc9cd03c0ec93bc6",
-        "current_source_receipt_chain_sha256": "424ccf038009aca50d77c057cd5615c907d6cca9a48004bf1efb2fddd0c0cd1a",
-        "expected_applied_receipt_chain_sha256": "02a95988bd0718759f55376be2cc612901877ee95e96a90f29bc85cce031a5a7",
+        "current_source_replay_chain_sha256": "ffd42ac2acc8c898c0db3675ffc4b325e6fc9fc162b1180dd0591d763e0599f6",
+        "current_source_receipt_chain_sha256": "6b288d1875af7c4df7bf8147b34dc10b6831c57f56e408a02a5890de3badd79c",
+        "expected_applied_receipt_chain_sha256": "5346398468cd63ec4a889efb02397d1303a84c90c364abd8e857eea1c1e828a0",
         "live_only_sensitive_bodies_republished": false
     },
     "source_authority_change": {

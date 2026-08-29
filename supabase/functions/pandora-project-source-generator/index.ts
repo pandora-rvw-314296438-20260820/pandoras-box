@@ -5,7 +5,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2.57.2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-const MODEL = Deno.env.get("PANDORA_SOURCE_GENERATION_MODEL") || "gemini-3.7-flash";
+const MODEL = Deno.env.get("PANDORA_SOURCE_GENERATION_MODEL") || "gemini-3.5-flash-lite";
 const MAX_BODY_BYTES = 4096;
 const MAX_FILES = 120;
 const MAX_FILE_BYTES = 512 * 1024;
