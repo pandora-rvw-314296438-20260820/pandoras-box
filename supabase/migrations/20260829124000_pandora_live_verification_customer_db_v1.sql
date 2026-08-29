@@ -625,3 +625,14 @@ begin
 end;
 $function$
 
+
+
+-- E2E-discovered lineage convergence: generated project source is a first-class model-run task.
+alter table public.pandora_model_runs drop constraint if exists pandora_model_runs_task_check;
+alter table public.pandora_model_runs
+  add constraint pandora_model_runs_task_check
+  check (task in (
+    'understand_intent','compile_project_spec','classify_task','plan_build','design_experience','plan_architecture',
+    'generate_code','generate_project_source','repair_code','inspect_error','inspect_visual','write_copy',
+    'summarize_context','extract_structure','derive_acceptance_tests'
+  ));
