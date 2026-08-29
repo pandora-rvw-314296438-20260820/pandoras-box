@@ -64,7 +64,10 @@ test('maps Worker D deny policy to a non-persistent deny-all microVM without cre
   assert.equal(create.body.persistent, false);
   assert.equal(create.body.networkPolicy.mode, 'deny-all');
   assert.deepEqual(create.body.env, {});
-  assert.equal(create.body.ports.length, 0);\n  assert.equal(typeof create.body.resources.vcpus, 'number');\n  assert.equal(typeof create.body.resources.memory, 'number');\n  assert.equal(typeof create.body.timeout, 'number');
+  assert.equal(create.body.ports.length, 0);
+  assert.equal(typeof create.body.resources.vcpus, 'number');
+  assert.equal(typeof create.body.resources.memory, 'number');
+  assert.equal(typeof create.body.timeout, 'number');
   assert.equal(JSON.stringify(create.body).match(/token|password|api.?key|authorization/gi), null);
 });
 
@@ -78,7 +81,10 @@ test('executes only a bounded direct executable with sudo disabled', async () =>
   const exec = transport.calls.find((call) => call.method === 'POST' && call.path.includes('/cmd?'));
   assert.equal(exec.body.sudo, false);
   assert.equal(exec.body.wait, false);
-  assert.equal(exec.body.logs, false);\n  const poll = transport.calls.find((call) => call.method === 'GET' && call.path.includes('/cmd/cmd_'));\n  assert.ok(poll);\n  assert.match(poll.path, /[?&]wait=true(?:&|$)/);
+  assert.equal(exec.body.logs, false);
+  const poll = transport.calls.find((call) => call.method === 'GET' && call.path.includes('/cmd/cmd_'));
+  assert.ok(poll);
+  assert.match(poll.path, /[?&]wait=true(?:&|$)/);
 });
 
 test('fails closed for shell execution, secret-shaped env and production authority', async () => {
