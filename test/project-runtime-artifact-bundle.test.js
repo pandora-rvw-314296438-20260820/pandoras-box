@@ -120,5 +120,6 @@ test("generated artifact snapshot binds source kind and ProjectVersion ref witho
   assert.equal(parsed.sourceKind, "artifact_snapshot");
   assert.equal(parsed.sourceRef, ids.version);
   assert.equal(parsed.sourceCommit, null);
-  assert.throws(() => parseRuntimeBundle(bundleBytes({ sourceKind: "artifact_snapshot", sourceRef: ids.project, sourceCommit: null }), binding), /SOURCE/);
+  const drifted = bundleBytes({ sourceKind: "artifact_snapshot", sourceRef: ids.project, sourceCommit: null });
+  assert.throws(() => parseRuntimeBundle(drifted, { ...binding, artifactDigest: hash(drifted) }), /SOURCE/);
 });
