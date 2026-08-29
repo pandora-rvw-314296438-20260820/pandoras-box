@@ -9,7 +9,7 @@ test('ProjectSpec compiler retries malformed structured output without weakening
   assert.match(compiler, /for \(let attempt = 1; attempt <= 3; attempt\+\+\)/);
   assert.match(compiler, /candidate = validateCandidate\(parsed\)/);
   assert.match(compiler, /attempt === 3/);
-  assert.match(compiler, /generationConfig\\.temperature = 0/);
+  assert.match(compiler, /generationConfig\.temperature = 0/);
   assert.match(compiler, /structured_output_attempts: structuredOutputAttempt/);
   assert.match(compiler, /inputTokens \+= attemptInputTokens/);
   assert.match(compiler, /outputTokens \+= attemptOutputTokens/);
