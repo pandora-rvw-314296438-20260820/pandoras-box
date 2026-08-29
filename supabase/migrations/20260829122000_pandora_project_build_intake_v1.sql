@@ -91,7 +91,7 @@ begin
   v_source_intent_id := v_spec.source_intent_id;
 
   if not exists (
-    select 1 from public.organization_memberships
+    select 1 from public.memberships
     where organization_id = p_organization_id and user_id = p_requested_by and status = 'active'
   ) then
     raise exception 'BUILD_INTAKE_REQUESTER_NOT_MEMBER' using errcode='42501';
@@ -193,7 +193,7 @@ as $$
     from public.pandora_build_jobs j
     where j.project_id = p_project_id
       and exists (
-        select 1 from public.organization_memberships m
+        select 1 from public.memberships m
         where m.organization_id = j.organization_id and m.user_id = auth.uid() and m.status = 'active'
       )
     order by j.created_at desc
