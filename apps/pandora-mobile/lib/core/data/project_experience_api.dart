@@ -173,6 +173,43 @@ class ProjectExperienceApi {
     }
   }
 
+  Future<void> requestBuild({
+    required String projectId,
+    required String idempotencyKey,
+  }) async {
+    if (_client.auth.currentUser == null) {
+      throw const ProjectExperienceException(
+        'Please sign in again before building this project.',
+      );
+    }
+    final key = idempotencyKey.trim();
+    if (key.length < 8 || key.length > 200) {
+      throw const ProjectExperienceException(
+        'Pandora could not identify this build safely.',
+      );
+    }
+    try {
+      final response = await _client.functions.invoke(
+        'pandora-project-source-generator',
+        body: <String, Object?>{
+          'projectId': projectId,
+          'idempotencyKey': key,
+        },
+      );
+      if (response.status < 200 || response.status >= 300) {
+        throw const ProjectExperienceException(
+          'Pandora found something to fix before this build can start.',
+        );
+      }
+    } on ProjectExperienceException {
+      rethrow;
+    } catch (_) {
+      throw const ProjectExperienceException(
+        'Pandora could not start this build right now.',
+      );
+    }
+  }
+
   void beginAuthenticatedIdentityEpoch() {
     _lastCompilationRequest.clear();
   }
