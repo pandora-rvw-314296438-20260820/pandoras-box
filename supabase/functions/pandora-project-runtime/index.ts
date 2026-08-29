@@ -518,6 +518,281 @@ async function createProject(context: UserContext, body: JsonRecord) {
   return projectResponse(asRecord(data));
 }
 
+
+type DomainFacts = {
+  ownershipVerified: boolean;
+  dnsConfigured: boolean;
+  tlsReady: boolean;
+  routingReady: boolean;
+  runtimeHealthy: boolean;
+  allReady: boolean;
+  httpStatus: number | null;
+  verification: unknown[];
+};
+
+async function inspectVercelDomainFacts(providerProjectId: string, hostname: string): Promise<DomainFacts> {
+  const domain = normalizeDomain(hostname);
+  if (!domain) throw new Error("INVALID_DOMAIN");
+  const projectDomain = await vercelRequest(`/v9/projects/${encodeURIComponent(providerProjectId)}/domains/${encodeURIComponent(domain)}`, { method: "GET" }, [200]);
+  const config = await vercelRequest(`/v6/domains/${encodeURIComponent(domain)}/config`, { method: "GET" }, [200]);
+  const ownershipVerified = projectDomain.verified === true;
+  const dnsConfigured = config.misconfigured === false;
+  let tlsReady = false;
+  let routingReady = false;
+  let runtimeHealthy = false;
+  let httpStatus: number | null = null;
+  try {
+    let response = await fetch(`https://${domain}/`, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(6000), headers: { "user-agent": "Pandora-Worker-F-Domain-Probe/1.0" } });
+    if (response.status === 405) response = await fetch(`https://${domain}/`, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(6000), headers: { "user-agent": "Pandora-Worker-F-Domain-Probe/1.0", range: "bytes=0-0" } });
+    httpStatus = response.status;
+    tlsReady = true;
+    routingReady = Boolean(response.headers.get("x-vercel-id"));
+    runtimeHealthy = response.status >= 200 && response.status < 400;
+    try { await response.body?.cancel(); } catch { /* bounded probe body */ }
+  } catch {
+    tlsReady = false;
+    routingReady = false;
+    runtimeHealthy = false;
+  }
+  const rawVerification = Array.isArray(projectDomain.verification) ? projectDomain.verification : [];
+  const verification = rawVerification.slice(0, 20).map((item) => {
+    const row = asRecord(item);
+    return { type: textValue(row.type), domain: textValue(row.domain), reason: textValue(row.reason) };
+  });
+  return { ownershipVerified, dnsConfigured, tlsReady, routingReady, runtimeHealthy, allReady: ownershipVerified && dnsConfigured && tlsReady && routingReady && runtimeHealthy, httpStatus, verification };
+}
+
+async function saveDomainFacts(context: UserContext, projectId: string, providerProjectId: string, hostname: string, environment: string, facts: DomainFacts, primaryDomain: boolean) {
+  const admin = serviceClient();
+  const domain = normalizeDomain(hostname);
+  if (!domain) throw new Error("INVALID_DOMAIN");
+  const status = facts.allReady ? "ready" : !facts.ownershipVerified ? "verification_required" : !facts.dnsConfigured ? "dns_pending" : !facts.tlsReady ? "tls_pending" : !facts.routingReady ? "routing_pending" : "unhealthy";
+  const now = new Date().toISOString();
+  if (primaryDomain) {
+    const { error: clearError } = await admin.from("pandora_project_domains").update({ primary_domain: false }).eq("organization_id", context.organizationId).eq("project_id", projectId).eq("primary_domain", true).neq("domain", domain);
+    if (clearError) throw new Error("BACKEND_WRITE_FAILED");
+  }
+  const payload = {
+    provider: "vercel", environment, provider_project_id: providerProjectId, status, verified: facts.allReady, primary_domain: primaryDomain,
+    verification: facts.verification, ownership_verified: facts.ownershipVerified, dns_configured: facts.dnsConfigured, tls_ready: facts.tlsReady,
+    routing_ready: facts.routingReady, runtime_healthy: facts.runtimeHealthy, provider_payload: { httpStatus: facts.httpStatus }, last_checked_at: now, failed_at: null,
+  };
+  const { data: existing, error: existingError } = await admin.from("pandora_project_domains").select("id").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("domain", domain).maybeSingle();
+  if (existingError) throw new Error("BACKEND_READ_FAILED");
+  if (existing) {
+    const { data, error } = await admin.from("pandora_project_domains").update(payload).eq("id", existing.id).select("id, domain, status, verified, primary_domain, ownership_verified, dns_configured, tls_ready, routing_ready, runtime_healthy, last_checked_at").single();
+    if (error || !data) throw new Error("BACKEND_WRITE_FAILED");
+    return data;
+  }
+  const { data, error } = await admin.from("pandora_project_domains").insert({ organization_id: context.organizationId, project_id: projectId, domain, ...payload }).select("id, domain, status, verified, primary_domain, ownership_verified, dns_configured, tls_ready, routing_ready, runtime_healthy, last_checked_at").single();
+  if (error || !data) throw new Error("BACKEND_WRITE_FAILED");
+  return data;
+}
+
+async function attachProjectDomain(context: UserContext, identifier: string, body: JsonRecord) {
+  const project = await projectByIdentifier(context, identifier);
+  const projectId = textValue(project.id);
+  const hostname = normalizeDomain(body.hostname);
+  const targetEnvironment = textValue(body.targetEnvironment || body.environment).toLowerCase();
+  const deploymentId = textValue(body.deploymentId);
+  const idempotencyRef = textValue(body.idempotencyKey);
+  const authorizationRef = textValue(body.authorizationRef);
+  if (!hostname || !new Set(["preview", "production"]).has(targetEnvironment) || !UUID_RE.test(deploymentId) || idempotencyRef.length < 8 || idempotencyRef.length > 200 || authorizationRef.length < 8 || authorizationRef.length > 300) throw new Error("INVALID_DOMAIN_REQUEST");
+  const admin = serviceClient();
+  const { data: deploymentData, error: deploymentError } = await admin.from("pandora_project_deployments")
+    .select("id, version_id, provider_project_id, provider_deployment_id, artifact_digest, source_commit_sha, verification_state, environment")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", deploymentId).eq("environment", targetEnvironment).maybeSingle();
+  if (deploymentError) throw new Error("BACKEND_READ_FAILED");
+  if (!deploymentData) throw new Error("DOMAIN_DEPLOYMENT_REQUIRED");
+  const deployment = asRecord(deploymentData);
+  const providerProjectId = textValue(deployment.provider_project_id);
+  const providerDeploymentId = textValue(deployment.provider_deployment_id);
+  if (!/^prj_[A-Za-z0-9]+$/.test(providerProjectId) || !/^dpl_[A-Za-z0-9]+$/.test(providerDeploymentId)) throw new Error("PROVIDER_LINEAGE_MISMATCH");
+  const operationKey = await sha256Hex(["attach_domain", context.organizationId, projectId, deploymentId, hostname, targetEnvironment, authorizationRef, idempotencyRef].join("|"));
+  const operation = { idempotency_key: operationKey, action: "attach_domain", organization_id: context.organizationId, project_id: projectId, project_version_id: deployment.version_id, environment: targetEnvironment, provider: "vercel", authorization_ref: authorizationRef, verification_ref: textValue(deployment.verification_state) === "live_verified" ? `deployment:${deploymentId}` : null, provider_project_id: providerProjectId, provider_resource_id: providerDeploymentId, status: "claimed" };
+  const { data: claimed, error: claimError } = await admin.from("pandora_runtime_operations").insert(operation).select("id").single();
+  if (claimError) {
+    if (claimError.code !== "23505") throw new Error("DOMAIN_CLAIM_FAILED");
+    const { data: existing, error } = await admin.from("pandora_runtime_operations").select("id, status").eq("provider", "vercel").eq("idempotency_key", operationKey).maybeSingle();
+    if (error || !existing) throw new Error("DOMAIN_CLAIM_FAILED");
+    if (existing.status === "succeeded") {
+      const facts = await inspectVercelDomainFacts(providerProjectId, hostname);
+      return { domain: await saveDomainFacts(context, projectId, providerProjectId, hostname, targetEnvironment, facts, targetEnvironment === "production"), facts, reconciled: true };
+    }
+    if (existing.status === "uncertain") throw new Error("DOMAIN_RECONCILIATION_REQUIRED");
+    throw new Error("DOMAIN_IN_PROGRESS");
+  }
+  const operationId = textValue(claimed.id);
+  await admin.from("pandora_runtime_operations").update({ status: "running", started_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
+  try {
+    try {
+      await vercelRequest(`/v10/projects/${encodeURIComponent(providerProjectId)}/domains`, { method: "POST", body: JSON.stringify({ name: hostname }) }, [200, 201]);
+    } catch {
+      try { await vercelRequest(`/v9/projects/${encodeURIComponent(providerProjectId)}/domains/${encodeURIComponent(hostname)}`, { method: "GET" }, [200]); }
+      catch {
+        await admin.from("pandora_runtime_operations").update({ status: "uncertain", ambiguous: true, normalized_error: { code: "domain_reconciliation_required" }, updated_at: new Date().toISOString() }).eq("id", operationId);
+        throw new Error("DOMAIN_RECONCILIATION_REQUIRED");
+      }
+    }
+    const facts = await inspectVercelDomainFacts(providerProjectId, hostname);
+    const domainRow = await saveDomainFacts(context, projectId, providerProjectId, hostname, targetEnvironment, facts, targetEnvironment === "production");
+    const now = new Date().toISOString();
+    await admin.from("pandora_runtime_operations").update({ status: "succeeded", ambiguous: false, result_facts: { hostname, deploymentId, providerDeploymentId, ...facts }, finished_at: now, last_reconciled_at: now, updated_at: now }).eq("id", operationId);
+    const config = asRecord(project.config); const journey = asRecord(config.customerJourney);
+    const nextConfig = { ...config, customerJourney: { ...journey, requestedDomain: hostname, domainStatus: domainRow.status, runtimeUpdatedAt: now } };
+    await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
+    return { domain: domainRow, facts };
+  } catch (error) {
+    if (error instanceof Error && error.message === "DOMAIN_RECONCILIATION_REQUIRED") throw error;
+    await admin.from("pandora_runtime_operations").update({ status: "failed", normalized_error: { code: error instanceof Error ? error.message : "domain_failed" }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
+    throw error;
+  }
+}
+
+async function inspectProjectDomain(context: UserContext, identifier: string, hostnameValue: string) {
+  const project = await projectByIdentifier(context, identifier);
+  const projectId = textValue(project.id);
+  const hostname = normalizeDomain(hostnameValue);
+  if (!hostname) throw new Error("INVALID_DOMAIN");
+  const admin = serviceClient();
+  const { data: domainData, error } = await admin.from("pandora_project_domains").select("environment, provider_project_id, primary_domain").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("domain", hostname).maybeSingle();
+  if (error) throw new Error("BACKEND_READ_FAILED");
+  if (!domainData) throw new Error("DOMAIN_NOT_FOUND");
+  const providerProjectId = textValue(domainData.provider_project_id);
+  const facts = await inspectVercelDomainFacts(providerProjectId, hostname);
+  const domain = await saveDomainFacts(context, projectId, providerProjectId, hostname, textValue(domainData.environment, "production"), facts, domainData.primary_domain === true);
+  return { domain, facts };
+}
+
+async function rollbackProject(context: UserContext, identifier: string, body: JsonRecord) {
+  const project = await projectByIdentifier(context, identifier);
+  const projectId = textValue(project.id);
+  const targetVersionId = textValue(body.targetVersionId);
+  const expectedProductionVersionId = textValue(body.expectedProductionVersionId);
+  const idempotencyRef = textValue(body.idempotencyKey);
+  const authorizationRef = textValue(body.authorizationRef);
+  if (!UUID_RE.test(targetVersionId) || !UUID_RE.test(expectedProductionVersionId) || targetVersionId === expectedProductionVersionId || idempotencyRef.length < 8 || authorizationRef.length < 8) throw new Error("INVALID_ROLLBACK_REQUEST");
+  const admin = serviceClient();
+  const { data: environmentData, error: environmentError } = await admin.from("pandora_runtime_environments").select("id, current_version_id, current_deployment_id, provider_project_id").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").maybeSingle();
+  if (environmentError) throw new Error("BACKEND_READ_FAILED");
+  if (!environmentData || textValue(environmentData.current_version_id) !== expectedProductionVersionId) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+  const providerProjectId = textValue(environmentData.provider_project_id);
+  const { data: targetVersionData, error: targetVersionError } = await admin.from("pandora_project_versions").select("id, rollback_eligible, source_sha256, source_commit, artifact_digest_sha256, project_spec_id, build_job_id").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", targetVersionId).maybeSingle();
+  if (targetVersionError) throw new Error("BACKEND_READ_FAILED");
+  if (!targetVersionData || targetVersionData.rollback_eligible !== true) throw new Error("ROLLBACK_TARGET_NOT_ELIGIBLE");
+  const targetVersion = asRecord(targetVersionData);
+  const { data: targetDeploymentData, error: targetDeploymentError } = await admin.from("pandora_project_deployments")
+    .select("id, provider_project_id, provider_deployment_id, url, immutable_url, artifact_digest, source_commit_sha, source_sha256, verification_state, created_at")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("version_id", targetVersionId).eq("environment", "production").eq("verification_state", "live_verified").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (targetDeploymentError) throw new Error("BACKEND_READ_FAILED");
+  if (!targetDeploymentData) throw new Error("ROLLBACK_TARGET_NOT_VERIFIED");
+  const targetDeployment = asRecord(targetDeploymentData);
+  const providerDeploymentId = textValue(targetDeployment.provider_deployment_id);
+  if (textValue(targetDeployment.provider_project_id) !== providerProjectId || !/^dpl_[A-Za-z0-9]+$/.test(providerDeploymentId) || textValue(targetDeployment.artifact_digest) !== textValue(targetVersion.artifact_digest_sha256) || textValue(targetDeployment.source_commit_sha) !== textValue(targetVersion.source_commit)) throw new Error("PROVIDER_LINEAGE_MISMATCH");
+  const operationKey = await sha256Hex(["rollback", context.organizationId, projectId, expectedProductionVersionId, targetVersionId, providerDeploymentId, authorizationRef, idempotencyRef].join("|"));
+  const { data: claimed, error: claimError } = await admin.from("pandora_runtime_operations").insert({ idempotency_key: operationKey, action: "rollback", organization_id: context.organizationId, project_id: projectId, project_version_id: targetVersionId, environment: "production", provider: "vercel", authorization_ref: authorizationRef, verification_ref: `previous-live:${targetDeployment.id}`, provider_project_id: providerProjectId, provider_resource_id: providerDeploymentId, status: "claimed" }).select("id").single();
+  if (claimError) {
+    if (claimError.code !== "23505") throw new Error("ROLLBACK_CLAIM_FAILED");
+    const { data: existing, error } = await admin.from("pandora_runtime_operations").select("id,status").eq("provider", "vercel").eq("idempotency_key", operationKey).maybeSingle();
+    if (error || !existing) throw new Error("ROLLBACK_CLAIM_FAILED");
+    if (existing.status === "succeeded") return runtimeSummary(context, projectId);
+    if (existing.status === "uncertain") throw new Error("ROLLBACK_RECONCILIATION_REQUIRED");
+    throw new Error("ROLLBACK_IN_PROGRESS");
+  }
+  const operationId = textValue(claimed.id);
+  await admin.from("pandora_runtime_operations").update({ status: "running", started_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
+  try {
+    try { await vercelRequest(`/v1/projects/${encodeURIComponent(providerProjectId)}/rollback/${encodeURIComponent(providerDeploymentId)}`, { method: "POST" }, [200, 201, 202, 204]); }
+    catch { /* read back the production target before deciding ambiguity */ }
+    const providerProject = await vercelRequest(`/v9/projects/${encodeURIComponent(providerProjectId)}`, { method: "GET" }, [200]);
+    const productionTarget = asRecord(asRecord(providerProject.targets).production);
+    if (textValue(productionTarget.id) !== providerDeploymentId) {
+      await admin.from("pandora_runtime_operations").update({ status: "uncertain", ambiguous: true, normalized_error: { code: "rollback_reconciliation_required" }, updated_at: new Date().toISOString() }).eq("id", operationId);
+      throw new Error("ROLLBACK_RECONCILIATION_REQUIRED");
+    }
+    const now = new Date().toISOString();
+    const { data: rollbackRow, error: rollbackRowError } = await admin.from("pandora_project_deployments").insert({
+      organization_id: context.organizationId, project_id: projectId, version_id: targetVersionId, provider: "vercel", environment: "production", provider_project_id: providerProjectId,
+      provider_deployment_id: providerDeploymentId, url: targetDeployment.url, status: "ready_for_verification", source_sha256: targetDeployment.source_sha256,
+      artifact_digest: targetDeployment.artifact_digest, source_commit_sha: targetDeployment.source_commit_sha, authorization_ref: authorizationRef, verification_ref: null,
+      idempotency_key: operationKey, provider_state: "READY", immutable_url: targetDeployment.immutable_url ?? targetDeployment.url, promoted_from_id: environmentData.current_deployment_id,
+      verification_state: "ready_for_verification", ready_at: now, last_provider_check_at: now, metadata: { rollback: true, rolledBackFromVersionId: expectedProductionVersionId, priorVerifiedDeploymentId: targetDeployment.id },
+    }).select("id,version_id,provider_deployment_id,url,verification_state").single();
+    if (rollbackRowError || !rollbackRow) throw new Error("BACKEND_WRITE_FAILED");
+    const { data: updatedEnvironment, error: updateEnvironmentError } = await admin.from("pandora_runtime_environments")
+      .update({ current_version_id: targetVersionId, current_deployment_id: rollbackRow.id, status: "ready", verification_state: "ready_for_verification", last_reconciled_at: now, updated_at: now })
+      .eq("id", environmentData.id).eq("current_version_id", expectedProductionVersionId).select("id").maybeSingle();
+    if (updateEnvironmentError || !updatedEnvironment) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+    await admin.from("pandora_project_versions").update({ lifecycle_status: "rolled_back", rolled_back_at: now, rollback_eligible: true }).eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", targetVersionId);
+    const config = asRecord(project.config); const journey = asRecord(config.customerJourney); const nextConfig = { ...config, customerJourney: { ...journey, stage: "publishing", runtimeStatus: "verifying", productionCandidateUrl: rollbackRow.url, publishedVersionId: targetVersionId, productionVerificationState: "ready_for_verification", runtimeUpdatedAt: now } };
+    await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
+    await admin.from("pandora_runtime_operations").update({ status: "succeeded", ambiguous: false, result_facts: { targetVersionId, providerDeploymentId, verificationState: "ready_for_verification" }, finished_at: now, last_reconciled_at: now, updated_at: now }).eq("id", operationId);
+    return { project: projectResponse({ ...project, config: nextConfig }), production: rollbackRow, verificationState: "ready_for_verification" };
+  } catch (error) {
+    if (error instanceof Error && error.message === "ROLLBACK_RECONCILIATION_REQUIRED") throw error;
+    await admin.from("pandora_runtime_operations").update({ status: "failed", normalized_error: { code: error instanceof Error ? error.message : "rollback_failed" }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
+    throw error;
+  }
+}
+
+async function reconcileProjectRuntime(context: UserContext, identifier: string) {
+  const project = await projectByIdentifier(context, identifier);
+  const projectId = textValue(project.id);
+  const admin = serviceClient();
+  const { data: deploymentsData, error: deploymentsError } = await admin.from("pandora_project_deployments")
+    .select("id, environment, provider_deployment_id, provider_state, status, verification_state")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("provider", "vercel").order("created_at", { ascending: false }).limit(50);
+  if (deploymentsError) throw new Error("BACKEND_READ_FAILED");
+  let deploymentUpdates = 0;
+  for (const raw of deploymentsData ?? []) {
+    const row = asRecord(raw); const deploymentId = textValue(row.provider_deployment_id);
+    if (!/^dpl_[A-Za-z0-9]+$/.test(deploymentId)) continue;
+    if (textValue(row.verification_state) === "live_verified" && textValue(row.status) === "ready") continue;
+    try {
+      const provider = await vercelRequest(`/v13/deployments/${encodeURIComponent(deploymentId)}`, { method: "GET" }, [200]);
+      const state = textValue(provider.readyState ?? provider.status).toUpperCase();
+      const failed = new Set(["ERROR", "CANCELED"]).has(state); const ready = state === "READY";
+      const nextVerification = textValue(row.verification_state) === "live_verified" ? "live_verified" : ready ? "ready_for_verification" : failed ? "failed" : "not_verified";
+      const nextStatus = textValue(row.verification_state) === "live_verified" && ready ? "ready" : ready ? "ready_for_verification" : failed ? "failed" : state.toLowerCase();
+      const now = new Date().toISOString();
+      const { error } = await admin.from("pandora_project_deployments").update({ provider_state: state, status: nextStatus, verification_state: nextVerification, last_provider_check_at: now, ready_at: ready ? now : null, failed_at: failed ? now : null, updated_at: now }).eq("id", row.id);
+      if (!error) deploymentUpdates++;
+    } catch { /* keep durable last-known state; next reconciliation will retry */ }
+  }
+
+  const { data: operationsData } = await admin.from("pandora_runtime_operations").select("id, action, idempotency_key, provider_project_id, provider_resource_id, status")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("provider", "vercel").in("status", ["running", "uncertain"]).order("updated_at", { ascending: true }).limit(20);
+  let operationUpdates = 0;
+  for (const raw of operationsData ?? []) {
+    const op = asRecord(raw); const providerProjectId = textValue(op.provider_project_id); let providerResourceId = textValue(op.provider_resource_id);
+    try {
+      if (textValue(op.action) === "create_preview" && !providerResourceId && /^prj_[A-Za-z0-9]+$/.test(providerProjectId)) {
+        const found = await findVercelDeploymentByOperation(providerProjectId, textValue(op.idempotency_key)); providerResourceId = textValue(found.id ?? found.uid);
+      }
+      if (!/^dpl_[A-Za-z0-9]+$/.test(providerResourceId)) continue;
+      const provider = await vercelRequest(`/v13/deployments/${encodeURIComponent(providerResourceId)}`, { method: "GET" }, [200]);
+      const state = textValue(provider.readyState ?? provider.status).toUpperCase();
+      if (["READY", "ERROR", "CANCELED"].includes(state)) {
+        const success = state === "READY";
+        const now = new Date().toISOString();
+        await admin.from("pandora_runtime_operations").update({ status: success ? "succeeded" : "failed", ambiguous: false, provider_resource_id: providerResourceId, normalized_error: success ? {} : { code: `provider_${state.toLowerCase()}` }, last_reconciled_at: now, finished_at: now, updated_at: now }).eq("id", op.id);
+        operationUpdates++;
+      }
+    } catch { /* bounded reconciliation: preserve uncertain state */ }
+  }
+
+  const { data: domainsData } = await admin.from("pandora_project_domains").select("domain, environment, provider_project_id, primary_domain").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("provider", "vercel").limit(20);
+  let domainUpdates = 0;
+  for (const raw of domainsData ?? []) {
+    const row = asRecord(raw); const providerProjectId = textValue(row.provider_project_id); const hostname = textValue(row.domain);
+    if (!providerProjectId || !hostname) continue;
+    try { const facts = await inspectVercelDomainFacts(providerProjectId, hostname); await saveDomainFacts(context, projectId, providerProjectId, hostname, textValue(row.environment, "production"), facts, row.primary_domain === true); domainUpdates++; } catch { /* retry later */ }
+  }
+  const now = new Date().toISOString();
+  const { data: processedEvents } = await admin.from("pandora_runtime_provider_events").update({ status: "processed", processed_at: now }).eq("organization_id", context.organizationId).eq("project_id", projectId).eq("status", "received").select("id");
+  return { projectId, deploymentUpdates, operationUpdates, domainUpdates, providerEventsProcessed: processedEvents?.length ?? 0, reconciledAt: now };
+}
+
 async function runtimeSummary(context: UserContext, identifier: string) {
   const project = await projectByIdentifier(context, identifier);
   const projectId = textValue(project.id);
@@ -1015,20 +1290,24 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ code: "PROJECT_RUNTIME_ROUTE_NOT_FOUND", plainMessage: "That project action is not available yet.", requestId }, 404, requestId, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
-    const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "INVALID_DOMAIN", "VERSION_REQUIRED", "INVALID_PRODUCTION_PRECONDITION", "EXACT_VERSION_REQUIRED", "ARTIFACT_FILE_BASE64_INVALID", "ARTIFACT_FILE_BASE64_NON_CANONICAL", "ARTIFACT_FILE_PATH_INVALID", "ARTIFACT_BUNDLE_JSON_INVALID", "ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED", "ARTIFACT_BUNDLE_FILES_INVALID"]);
-    const conflicts = new Set(["PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED", "ARTIFACT_LINEAGE_INCOMPLETE", "ARTIFACT_NOT_FOUND", "ARTIFACT_DIGEST_MISMATCH", "ARTIFACT_STORAGE_INVALID", "ARTIFACT_STORAGE_READ_FAILED", "ARTIFACT_KIND_NOT_DEPLOYABLE", "ARTIFACT_PROVENANCE_MISMATCH", "ARTIFACT_BUNDLE_SIZE_INVALID", "ARTIFACT_BUNDLE_DIGEST_MISMATCH", "ARTIFACT_BUNDLE_LINEAGE_MISMATCH", "ARTIFACT_FILES_NOT_CANONICAL", "ARTIFACT_FILE_ENCODING_UNSUPPORTED", "ARTIFACT_FILE_TOO_LARGE", "ARTIFACT_FILES_TOTAL_TOO_LARGE", "ARTIFACT_FILE_DIGEST_MISMATCH", "ARTIFACT_FILE_SIZE_MISMATCH", "ARTIFACT_ENTRYPOINT_MISSING"]);
+    const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "INVALID_DOMAIN", "VERSION_REQUIRED", "INVALID_PRODUCTION_PRECONDITION", "EXACT_VERSION_REQUIRED", "ARTIFACT_FILE_BASE64_INVALID", "ARTIFACT_FILE_BASE64_NON_CANONICAL", "ARTIFACT_FILE_PATH_INVALID", "ARTIFACT_BUNDLE_JSON_INVALID", "ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED", "ARTIFACT_BUNDLE_FILES_INVALID", "INVALID_DOMAIN_REQUEST", "INVALID_ROLLBACK_REQUEST"]);
+    const conflicts = new Set(["PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED", "ARTIFACT_LINEAGE_INCOMPLETE", "ARTIFACT_NOT_FOUND", "ARTIFACT_DIGEST_MISMATCH", "ARTIFACT_STORAGE_INVALID", "ARTIFACT_STORAGE_READ_FAILED", "ARTIFACT_KIND_NOT_DEPLOYABLE", "ARTIFACT_PROVENANCE_MISMATCH", "ARTIFACT_BUNDLE_SIZE_INVALID", "ARTIFACT_BUNDLE_DIGEST_MISMATCH", "ARTIFACT_BUNDLE_LINEAGE_MISMATCH", "ARTIFACT_FILES_NOT_CANONICAL", "ARTIFACT_FILE_ENCODING_UNSUPPORTED", "ARTIFACT_FILE_TOO_LARGE", "ARTIFACT_FILES_TOTAL_TOO_LARGE", "ARTIFACT_FILE_DIGEST_MISMATCH", "ARTIFACT_FILE_SIZE_MISMATCH", "ARTIFACT_ENTRYPOINT_MISSING", "DOMAIN_DEPLOYMENT_REQUIRED", "DOMAIN_NOT_FOUND", "ROLLBACK_TARGET_NOT_ELIGIBLE", "ROLLBACK_TARGET_NOT_VERIFIED"]);
     if (code === "SIGN_IN_REQUIRED") return jsonResponse({ code, plainMessage: "Please sign in again.", requestId }, 401, requestId, origin);
     if (["ORGANIZATION_ACCESS_REQUIRED", "OWNER_ROLE_REQUIRED"].includes(code)) return jsonResponse({ code, plainMessage: "You do not have permission for this project.", requestId }, 403, requestId, origin);
     if (code === "ORGANIZATION_SELECTION_REQUIRED") return jsonResponse({ code, plainMessage: "Choose which organization you want to use.", requestId }, 409, requestId, origin);
     if (code === "RATE_LIMITED") return jsonResponse({ code, plainMessage: "Please wait a moment before trying again.", requestId }, 429, requestId, origin);
     if (invalid.has(code)) return jsonResponse({ code, plainMessage: "Check that project information and try again.", requestId }, 400, requestId, origin);
     if (code === "PROJECT_NOT_FOUND") return jsonResponse({ code, plainMessage: "Pandora could not find that project.", requestId }, 404, requestId, origin);
+    if (code === "DOMAIN_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already attaching that domain.", requestId }, 409, requestId, origin);
+    if (code === "DOMAIN_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming the domain with Vercel. Do not attach it again yet.", requestId }, 409, requestId, origin);
+    if (code === "ROLLBACK_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already rolling back this project.", requestId }, 409, requestId, origin);
+    if (code === "ROLLBACK_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming the production rollback. Do not roll back again yet.", requestId }, 409, requestId, origin);
     if (code === "PREVIEW_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already creating this exact preview.", requestId }, 409, requestId, origin);
     if (code === "PREVIEW_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming whether that preview was created. Do not create it again yet.", requestId }, 409, requestId, origin);
     if (code === "PUBLISH_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already publishing this version.", requestId }, 409, requestId, origin);
     if (code === "PUBLISH_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming whether that publish completed. Do not publish again yet.", requestId }, 409, requestId, origin);
     if (conflicts.has(code)) return jsonResponse({ code, plainMessage: "That project cannot be published in its current state.", requestId }, 409, requestId, origin);
-    if (["RUNTIME_BROKER_NOT_CONFIGURED", "VERCEL_NOT_CONFIGURED", "PUBLISH_CLAIM_FAILED", "PREVIEW_CLAIM_FAILED"].includes(code)) return jsonResponse({ code, plainMessage: "Project publishing is temporarily unavailable.", requestId }, 503, requestId, origin);
+    if (["RUNTIME_BROKER_NOT_CONFIGURED", "VERCEL_NOT_CONFIGURED", "PUBLISH_CLAIM_FAILED", "PREVIEW_CLAIM_FAILED", "DOMAIN_CLAIM_FAILED", "ROLLBACK_CLAIM_FAILED"].includes(code)) return jsonResponse({ code, plainMessage: "Project publishing is temporarily unavailable.", requestId }, 503, requestId, origin);
     console.error(JSON.stringify({ requestId, code }));
     return jsonResponse({ code: "PROJECT_RUNTIME_UNAVAILABLE", plainMessage: "Pandora cannot reach the project runtime right now.", requestId }, 503, requestId, origin);
   }
