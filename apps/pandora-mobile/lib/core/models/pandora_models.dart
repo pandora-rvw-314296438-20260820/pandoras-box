@@ -1126,6 +1126,58 @@ class RuntimeIdentity {
   final String sourceCommit;
 }
 
+class DomainSummary {
+  const DomainSummary({
+    required this.id,
+    required this.projectId,
+    required this.projectName,
+    required this.domain,
+    required this.status,
+    required this.verified,
+    required this.primaryDomain,
+    this.updatedAt,
+  });
+
+  final String id;
+  final String projectId;
+  final String projectName;
+  final String domain;
+  final String status;
+  final bool verified;
+  final bool primaryDomain;
+  final DateTime? updatedAt;
+
+  bool get isLive => verified && status.toLowerCase() == 'ready';
+
+  String get statusLabel {
+    if (isLive) return 'Live';
+    return switch (status.toLowerCase()) {
+      'verification_required' => 'Verification required',
+      'dns_pending' => 'Connecting DNS',
+      'tls_pending' => 'Preparing security',
+      'routing_pending' => 'Connecting',
+      'unhealthy' => 'Needs attention',
+      'failed' => 'Needs attention',
+      'pending' => 'Connecting',
+      _ => humanizeToken(status, fallback: 'Not checked'),
+    };
+  }
+
+  factory DomainSummary.fromJson(Object? value) {
+    final json = asJsonMap(value);
+    return DomainSummary(
+      id: jsonText(json['id']),
+      projectId: jsonText(firstJsonValue(json, const ['projectId', 'project_id'])),
+      projectName: jsonText(firstJsonValue(json, const ['projectName', 'project_name']), fallback: 'Project'),
+      domain: jsonText(json['domain']),
+      status: jsonText(json['status'], fallback: 'not_checked'),
+      verified: jsonBool(json['verified']),
+      primaryDomain: jsonBool(firstJsonValue(json, const ['primaryDomain', 'primary_domain'])),
+      updatedAt: jsonDateTime(firstJsonValue(json, const ['updatedAt', 'updated_at'])),
+    );
+  }
+}
+
 class HomeSummary {
   const HomeSummary({
     required this.healthState,
@@ -1137,6 +1189,7 @@ class HomeSummary {
     this.countersVerified = true,
     required this.topProjects,
     required this.recentActivity,
+    this.domains = const <DomainSummary>[],
     this.priority,
   });
 
@@ -1150,6 +1203,7 @@ class HomeSummary {
   final ApprovalSummary? priority;
   final List<ProjectSummary> topProjects;
   final List<AuditEvent> recentActivity;
+  final List<DomainSummary> domains;
 
   factory HomeSummary.fromJson(Object? value) {
     final json = asJsonMap(value);
@@ -1188,6 +1242,10 @@ class HomeSummary {
           .toList(growable: false),
       recentActivity: asJsonList(json['recentActivity'])
           .map(AuditEvent.fromJson)
+          .toList(growable: false),
+      domains: asJsonList(json['domains'])
+          .map(DomainSummary.fromJson)
+          .where((domain) => domain.domain.isNotEmpty)
           .toList(growable: false),
     );
   }
