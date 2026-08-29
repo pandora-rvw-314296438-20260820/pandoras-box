@@ -8,7 +8,7 @@ const test = require("node:test");
 const source = fs.readFileSync(path.join(process.cwd(), "supabase/functions/pandora-project-spec-compiler/index.ts"), "utf8");
 
 test("Gemini compiler prompt exactly matches the validator nested ProjectSpec contract", () => {
-  assert.match(source, /project-spec-compiler-v2/);
+  assert.match(source, /project-spec-compiler-v3/);
   assert.match(source, /business=\{objective:string/);
   assert.match(source, /product=\{projectType:string,users\?:string\[\],roles\?:string\[\],workflows\?:string\[\],features\?:string\[\]/);
   assert.match(source, /acceptance=\{functional:string\[\],business\?:string\[\]\}/);
