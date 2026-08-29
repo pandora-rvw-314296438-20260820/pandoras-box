@@ -247,10 +247,7 @@ Deno.serve(async (req) => {
             text: `${text(first.text)} Previous output failed strict ProjectSpec validation. Return only the exact required JSON shape with no extra fields and no alternate nested types.`,
           }],
         };
-        attemptRequest.generationConfig = {
-          ...record(attemptRequest.generationConfig),
-          temperature: 0,
-        };
+        attemptRequest.generationConfig.temperature = 0;
       }
       const attemptRequestDigest = await sha256(JSON.stringify(attemptRequest));
       const { data: modelData, error: modelError } = await admin.rpc("pandora_worker_b_gemini_request_20260829", {
