@@ -20,6 +20,7 @@ class TrustedPrimitiveRegistry {
     const validation = validatePrimitiveDefinition(definition);
     if (!validation.ok) throw new TypeError(`invalid primitive definition: ${validation.errors.join('; ')}`);
     const value = validation.value;
+    if (value.trustState === 'TRUSTED') throw new Error('direct TRUSTED registration is forbidden; apply exact Worker E verification evidence after registration');
     const key = primitiveKey(value.name, value.version);
     if (this._definitions.has(key)) throw new Error(`primitive version already registered: ${key}`);
     const definitionDigest = digest({ ...value, sourceDigest: value.sourceDigest || null });
