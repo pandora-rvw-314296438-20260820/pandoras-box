@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-analytics@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {
+      "path": "core/src/events.js",
+      "sha256": "679f84c84aded138258092e5d10377c398e4f087b46454ebedf4690ae887d160"
+    },
+    {
+      "path": "analytics/src/index.js",
+      "sha256": "ce0b5e9d92eaae2c4d12c64538eb4acab09a129891f2ff2a769df1d7c87b2c82"
+    },
+    {
+      "path": "analytics/migrations/001_analytics_outbox.sql",
+      "sha256": "1f7fbd80f6a132d77855d8ac73c9b2b5e0c588f7e3b5bc3a4c0fab94d0011bf5"
+    }
+  ],
+  "bundleDigest": "sha256:4a2f838a5a7c0a0e9e562cd38a553cafcd27dc20003ae92bc13d00c1a3adc774"
+}

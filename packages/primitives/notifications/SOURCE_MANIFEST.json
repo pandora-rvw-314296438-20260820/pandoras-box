@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-notifications@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {
+      "path": "notifications/src/index.js",
+      "sha256": "84101014fa713991deac13750fa05e98a6c2e154786cbc43a71516774e04ae3b"
+    },
+    {
+      "path": "notifications/migrations/001_notifications.sql",
+      "sha256": "6631f844629fce7921c4c4e1d28bd2b37904cb2b2775e8834a4860a4ad108984"
+    }
+  ],
+  "bundleDigest": "sha256:446bcbb4d197d6709f73c7045880eaac052cb206259d67805284f20823ff06f6"
+}

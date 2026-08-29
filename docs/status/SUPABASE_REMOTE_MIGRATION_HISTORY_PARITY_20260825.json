@@ -863,11 +863,32 @@
             "replayMode": "history_receipt_noop",
             "originalSqlSha256": "3362d1a5f0122923cf51ad568dd9b43cde7b9dfdfdab850421b860b5de032d4b",
             "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_worker_b_gemini_vault_transport",
+            "version": "20260828184736",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "0d134ab71e29476a2f82ebc81ccbacd83fe314a9023875fcd9fee08b90c3a8fb",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_worker_f_runtime_state",
+            "version": "20260828203236",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "02bffa1763ea90482a993526af41b6b23cfb6f005a534f0683d874ab71301145",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_worker_d_vercel_sandbox_broker_v1",
+            "version": "20260828225219",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "974e985fbc512583a243e5fcf60cf665aad2139e87b856ba393389c77aa18453",
+            "originalStatementCount": 1
         }
     ],
     "projectRef": "jcyqixttuebxqqfkjonq",
     "repository": "pandora-rvw-314296438-20260820/pandoras-box",
     "generatedAt": "2026-08-25T17:15:27.687Z",
     "schemaVersion": 1,
-    "migrationCount": 123
+    "migrationCount": 126
 }

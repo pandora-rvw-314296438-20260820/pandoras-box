@@ -1,0 +1,22 @@
+'use strict';
+const {assertIdempotentEventSink,createDomainEvent}=require('../../core/src/events');
+class PandoraContentService {
+  constructor({repository,authorization,eventSink}){
+    for(const m of ['getBySlug','listPublished','createDraft','updateDraft','setStatus'])if(!repository||typeof repository[m]!=='function')throw new TypeError(`content repository.${m} is required`);
+    if(!authorization||typeof authorization.assertAllowed!=='function')throw new TypeError('content authorization.assertAllowed is required');
+    assertIdempotentEventSink(eventSink,'content event sink');this.repository=repository;this.authorization=authorization;this.eventSink=eventSink;
+  }
+  async getPublished({scopeId,kind,slug}){const row=await this.repository.getBySlug({scopeId:required(scopeId,'scopeId'),kind:contentKind(kind),slug:contentSlug(slug)});if(!row||row.status!=='published')return null;return publicRecord(row);}
+  async listPublished({scopeId,kind=null,limit=50,cursor=null}){if(!Number.isInteger(limit)||limit<1||limit>100)throw new TypeError('limit must be 1-100');const rows=await this.repository.listPublished({scopeId:required(scopeId,'scopeId'),kind:kind==null?null:contentKind(kind),limit,cursor});if(!Array.isArray(rows)||rows.some(x=>x.status!=='published'))throw new Error('content repository returned non-published public content');return Object.freeze(rows.map(publicRecord));}
+  async createDraft({project,scopeId,identity,kind,slug,title,body,idempotencyKey}){await this.#manage(scopeId,identity);const row=await this.repository.createDraft({scopeId:required(scopeId,'scopeId'),kind:contentKind(kind),slug:contentSlug(slug),title:text(title,200,'title'),body:text(body,100000,'body'),actorUserId:required(identity.userId,'identity.userId'),idempotencyKey:required(idempotencyKey,'idempotencyKey')});return this.#emit(project,identity,row,'draft',idempotencyKey);}
+  async updateDraft({project,scopeId,identity,contentId,title,body,idempotencyKey}){await this.#manage(scopeId,identity);const row=await this.repository.updateDraft({scopeId:required(scopeId,'scopeId'),contentId:required(contentId,'contentId'),title:text(title,200,'title'),body:text(body,100000,'body'),actorUserId:required(identity.userId,'identity.userId'),idempotencyKey:required(idempotencyKey,'idempotencyKey')});if(row.status!=='draft')throw new Error('only draft content can be edited');return this.#emit(project,identity,row,'draft',idempotencyKey);}
+  async setStatus({project,scopeId,identity,contentId,status,idempotencyKey}){if(!['published','archived'].includes(status))throw new TypeError('status must be published or archived');await this.#manage(scopeId,identity);const row=await this.repository.setStatus({scopeId:required(scopeId,'scopeId'),contentId:required(contentId,'contentId'),status,actorUserId:required(identity.userId,'identity.userId'),idempotencyKey:required(idempotencyKey,'idempotencyKey')});return this.#emit(project,identity,row,status,idempotencyKey);}
+  async #manage(scopeId,identity){await this.authorization.assertAllowed({userId:required(identity&&identity.userId,'identity.userId'),tenantId:required(scopeId,'scopeId'),permission:'data.write'});}
+  async #emit(project,identity,row,status,key){const event=createDomainEvent({name:'content.changed',schemaVersion:'1.0',project,actor:{userId:identity.userId},aggregate:{type:'content',id:String(row.id)},payload:{kind:String(row.kind),slug:String(row.slug),status},idempotencyKey:`event:${key}`});await this.eventSink.publish(event);return Object.freeze({...row,event});}
+}
+function publicRecord(row){return Object.freeze({id:String(row.id),kind:contentKind(row.kind),slug:contentSlug(row.slug),title:text(row.title,200,'title'),body:text(row.body,100000,'body'),status:'published',publishedAt:row.publishedAt||null,version:Number.isInteger(row.version)?row.version:1});}
+function contentKind(v){if(!['page','article','faq'].includes(v))throw new TypeError('content kind must be page, article, or faq');return v;}
+function contentSlug(v){if(typeof v!=='string'||!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v)||v.length>120)throw new TypeError('content slug is invalid');return v;}
+function text(v,max,field){if(typeof v!=='string'||v.length>max)throw new TypeError(`${field} must be text <= ${max} characters`);return v.trim();}
+function required(v,f){if(typeof v!=='string'||!v.trim())throw new TypeError(`${f} is required`);return v.trim();}
+module.exports={PandoraContentService,contentKind,contentSlug,publicRecord};
