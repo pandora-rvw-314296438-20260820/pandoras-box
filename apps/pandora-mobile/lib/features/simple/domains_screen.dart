@@ -185,9 +185,8 @@ class _DomainCard extends StatelessWidget {
           PandoraIconBadge(
             icon: Icons.public_rounded,
             size: 48,
-            foreground: live
-                ? PandoraSimpleColors.green
-                : PandoraSimpleColors.deepRed,
+            foreground:
+                live ? PandoraSimpleColors.green : PandoraSimpleColors.deepRed,
             background: live
                 ? PandoraSimpleColors.greenWash
                 : PandoraSimpleColors.blush,
@@ -240,13 +239,15 @@ class _DomainStatus extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: live ? PandoraSimpleColors.greenWash : PandoraSimpleColors.blush,
+          color:
+              live ? PandoraSimpleColors.greenWash : PandoraSimpleColors.blush,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: live ? PandoraSimpleColors.green : PandoraSimpleColors.deepRed,
+            color:
+                live ? PandoraSimpleColors.green : PandoraSimpleColors.deepRed,
             fontSize: 11.5,
             fontWeight: FontWeight.w700,
           ),
