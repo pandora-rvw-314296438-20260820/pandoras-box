@@ -53,8 +53,9 @@ test("provider truth writes use server authority after customer ownership is pro
   const previewEnd = source.indexOf("\n\nasync function publishProject", previewStart);
   const preview = source.slice(previewStart, previewEnd);
   assert.match(source, /function serviceClient\(\)/);
-  assert.match(preview, /serviceClient\(\)\.from\("pandora_project_versions"\)/);
-  assert.match(preview, /serviceClient\(\)\.from\("pandora_project_deployments"\)/);
+  assert.match(preview, /const admin = serviceClient\(\);/);
+  assert.match(preview, /admin\.from\("pandora_project_versions"\)/);
+  assert.match(preview, /admin\.from\("pandora_project_deployments"\)/);
   assert.doesNotMatch(source, /PANDORA_VERCEL_TOKEN/);
   assert.match(source, /pandora_worker_f_vercel_request_20260829/);
 });
