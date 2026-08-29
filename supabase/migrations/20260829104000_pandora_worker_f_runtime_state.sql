@@ -42,13 +42,7 @@ alter table public.pandora_project_deployments
 
 alter table public.pandora_project_deployments
   drop constraint if exists pandora_project_deployments_provider_check,
-  drop constraint if exists pandora_project_deployments_environment_check,
-  drop constraint if exists pandora_project_deployments_provider_nonempty_check,
-  drop constraint if exists pandora_project_deployments_environment_v2_check,
-  drop constraint if exists pandora_project_deployments_artifact_digest_check,
-  drop constraint if exists pandora_project_deployments_source_commit_check,
-  drop constraint if exists pandora_project_deployments_config_digest_check,
-  drop constraint if exists pandora_project_deployments_verification_state_check;
+  drop constraint if exists pandora_project_deployments_environment_check;
 
 alter table public.pandora_project_deployments
   add constraint pandora_project_deployments_provider_nonempty_check
@@ -84,9 +78,7 @@ alter table public.pandora_project_domains
   add column if not exists failed_at timestamptz;
 
 alter table public.pandora_project_domains
-  drop constraint if exists pandora_project_domains_provider_check,
-  drop constraint if exists pandora_project_domains_provider_nonempty_check,
-  drop constraint if exists pandora_project_domains_environment_check;
+  drop constraint if exists pandora_project_domains_provider_check;
 alter table public.pandora_project_domains
   add constraint pandora_project_domains_provider_nonempty_check
     check (provider ~ '^[a-z][a-z0-9_-]{1,31}$') not valid,
