@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/domain_registrar_api.dart';
@@ -258,14 +259,17 @@ class _DomainStatus extends StatelessWidget {
       );
 }
 
+
 class DomainAcquisitionScreen extends StatefulWidget {
   const DomainAcquisitionScreen({super.key});
 
   @override
-  State<DomainAcquisitionScreen> createState() => _DomainAcquisitionScreenState();
+  State<DomainAcquisitionScreen> createState() =>
+      _DomainAcquisitionScreenState();
 }
 
-class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
+class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _domain = TextEditingController();
   final TextEditingController _firstName = TextEditingController();
   final TextEditingController _lastName = TextEditingController();
@@ -282,23 +286,36 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
   List<ProjectSummary> _projects = const <ProjectSummary>[];
   ProjectSummary? _project;
   DomainQuote? _quote;
+  DomainCheckout? _checkout;
+  DomainPaymentGateway _gateway = DomainPaymentGateway.xendit;
   String? _error;
   var _started = false;
   var _loadingProjects = true;
   var _searching = false;
-  var _buying = false;
-  var _autoRenew = true;
+  var _startingCheckout = false;
+  var _reconciling = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
+    WidgetsBinding.instance.addObserver(this);
     unawaited(_loadProjects());
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _checkout?.canReconcile == true &&
+        !_reconciling) {
+      unawaited(_reconcileCheckout());
+    }
+  }
+
+  @override
   void dispose() {
+    if (_started) WidgetsBinding.instance.removeObserver(this);
     for (final controller in <TextEditingController>[
       _domain,
       _firstName,
@@ -340,15 +357,18 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
 
   Future<void> _search() async {
     final query = _domain.text.trim();
-    if (query.isEmpty || _searching) return;
+    if (query.isEmpty || _searching || _startingCheckout) return;
     final registrar = PandoraDependencies.of(context).domainRegistrar;
     if (registrar == null) {
-      setState(() => _error = 'Domain registration is not available in this build.');
+      setState(
+        () => _error = 'Domain registration is not available in this build.',
+      );
       return;
     }
     setState(() {
       _searching = true;
       _quote = null;
+      _checkout = null;
       _error = null;
     });
     try {
@@ -388,7 +408,9 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
     };
     for (final entry in required.entries) {
       if (entry.value.text.trim().isEmpty) {
-        setState(() => _error = '${entry.key} is required for registration.');
+        setState(
+          () => _error = '${entry.key} is required for registration.',
+        );
         return null;
       }
     }
@@ -397,7 +419,10 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
       return null;
     }
     if (!RegExp(r'^\+[1-9][0-9]{7,14}$').hasMatch(_phone.text.trim())) {
-      setState(() => _error = 'Use an international phone number such as +639171234567.');
+      setState(
+        () => _error =
+            'Use an international phone number such as +639171234567.',
+      );
       return null;
     }
     final country = _country.text.trim().toUpperCase();
@@ -421,18 +446,20 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
     };
   }
 
-  Future<void> _buy() async {
+  Future<void> _startCheckout() async {
     final quote = _quote;
     final project = _project;
     final registrar = PandoraDependencies.of(context).domainRegistrar;
-    if (quote == null || !quote.available || quote.purchasePrice == null) return;
+    if (quote == null || !quote.available || quote.displayPrice == null) return;
     if (project == null) {
       setState(() => _error = 'Choose a project for this domain.');
       return;
     }
     if (quote.hasUnsupportedAdditionalContactFields) {
-      setState(() => _error =
-          'This domain ending needs extra registration details that Pandora does not support yet. Choose another domain for now.');
+      setState(
+        () => _error =
+            'This domain ending needs extra registration details that Pandora does not support yet. Choose another domain for now.',
+      );
       return;
     }
     final contact = _contactInformation();
@@ -441,11 +468,10 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Buy ${quote.domain}?'),
+        title: Text('Pay for ${quote.domain}?'),
         content: Text(
-          '${quote.formattedPurchasePrice} ${quote.currency} will be charged now for ${quote.years} year${quote.years == 1 ? '' : 's'}. '
-          'Pandora will register the domain and connect it to ${project.name}. '
-          '${_autoRenew ? 'Auto-renew will be on.' : 'Auto-renew will be off.'}',
+          '${quote.formattedPurchasePrice} ${quote.currency} will be paid through ${_gateway.label}. '
+          'Pandora registers the domain only after payment is confirmed, then connects it to ${project.name}.',
         ),
         actions: [
           TextButton(
@@ -454,7 +480,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Buy domain'),
+            child: const Text('Continue to payment'),
           ),
         ],
       ),
@@ -462,74 +488,96 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
     if (confirmed != true || !mounted) return;
 
     setState(() {
-      _buying = true;
+      _startingCheckout = true;
       _error = null;
     });
     try {
-      final receipt = await registrar.purchaseDomain(
+      final checkout = await registrar.createCheckout(
         projectIdentifier: project.id,
         quote: quote,
+        gateway: _gateway,
         contactInformation: contact,
-        autoRenew: _autoRenew,
+        autoRenewRequested: false,
       );
       if (!mounted) return;
-      if (receipt.ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${receipt.domain} is registered. Pandora is connecting it to ${receipt.projectName ?? project.name}.',
-            ),
-          ),
-        );
-        Navigator.of(context).pop(true);
-        return;
-      }
-      if (receipt.code == 'DOMAIN_PRICE_CHANGED' &&
-          receipt.purchasePrice != null &&
-          receipt.quoteId != null) {
-        setState(() {
-          _quote = DomainQuote(
-            quoteId: receipt.quoteId!,
-            domain: receipt.domain,
-            available: true,
-            currency: receipt.currency,
-            contactSchema: quote.contactSchema,
-            years: receipt.years,
-            purchasePrice: receipt.purchasePrice,
-            renewalPrice: quote.renewalPrice,
-            expiresAt: receipt.expiresAt,
-          );
-          _error =
-              'The price changed to \$${receipt.purchasePrice!.toStringAsFixed(2)}. Review it and confirm again.';
-          _buying = false;
-        });
-        return;
-      }
-      final message = switch (receipt.code) {
-        'DOMAIN_NOT_AVAILABLE' =>
-          'That domain was just taken. Search for another name.',
-        'DOMAIN_PURCHASE_RECONCILIATION_REQUIRED' =>
-          'Pandora is confirming the registration. Do not buy this domain again yet.',
-        'DOMAIN_PURCHASE_IN_PROGRESS' =>
-          'Pandora is already processing this domain purchase.',
-        _ => 'Pandora could not complete the domain purchase.',
-      };
       setState(() {
-        _error = message;
-        _buying = false;
-        if (receipt.code == 'DOMAIN_NOT_AVAILABLE') _quote = null;
+        _checkout = checkout;
+        _startingCheckout = false;
       });
+      if (checkout.checkoutUrl != null) {
+        await _openPayment(checkout.checkoutUrl!);
+      }
     } on DomainRegistrarException catch (error) {
       if (!mounted) return;
       setState(() {
         _error = error.message;
-        _buying = false;
+        _startingCheckout = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Pandora could not complete the domain purchase.';
-        _buying = false;
+        _error = 'RedApple could not start the payment checkout.';
+        _startingCheckout = false;
+      });
+    }
+  }
+
+  Future<void> _openPayment(String rawUrl) async {
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null || uri.scheme != 'https') {
+      if (mounted) {
+        setState(() => _error = 'That payment link could not be opened safely.');
+      }
+      return;
+    }
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        setState(() => _error = 'The payment page could not be opened.');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'The payment page could not be opened.');
+      }
+    }
+  }
+
+  Future<void> _reconcileCheckout() async {
+    final checkout = _checkout;
+    final registrar = PandoraDependencies.of(context).domainRegistrar;
+    if (checkout == null || registrar == null || _reconciling) return;
+    setState(() {
+      _reconciling = true;
+      _error = null;
+    });
+    try {
+      final updated = await registrar.reconcileCheckout(checkout.checkoutId);
+      if (!mounted) return;
+      setState(() {
+        _checkout = updated;
+        _reconciling = false;
+      });
+      if (updated.isFulfilled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${updated.domain} is registered. Pandora is connecting it to your project.',
+            ),
+          ),
+        );
+        Navigator.of(context).pop(true);
+      }
+    } on DomainRegistrarException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _reconciling = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Pandora could not confirm that payment yet.';
+        _reconciling = false;
       });
     }
   }
@@ -537,6 +585,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
   @override
   Widget build(BuildContext context) {
     final quote = _quote;
+    final checkout = _checkout;
     return PandoraSimplePage(
       header: PandoraOwnerHeader(
         title: 'Get a domain',
@@ -569,7 +618,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
             controller: _domain,
             textInputAction: TextInputAction.search,
             autocorrect: false,
-            enabled: !_searching && !_buying,
+            enabled: !_searching && !_startingCheckout,
             onSubmitted: (_) => unawaited(_search()),
             decoration: const InputDecoration(
               labelText: 'Domain',
@@ -581,7 +630,9 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
           PandoraPrimaryButton(
             label: _searching ? 'Checking…' : 'Check availability',
             icon: Icons.search_rounded,
-            onPressed: _searching || _buying ? null : () => unawaited(_search()),
+            onPressed: _searching || _startingCheckout
+                ? null
+                : () => unawaited(_search()),
             expanded: true,
           ),
           if (_error != null) ...[
@@ -647,11 +698,6 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
                             '${quote.formattedPurchasePrice} ${quote.currency} for ${quote.years} year${quote.years == 1 ? '' : 's'}',
                             style: pandoraSimpleMutedText,
                           ),
-                          if (quote.renewalPrice != null)
-                            Text(
-                              'Renews at \$${quote.renewalPrice!.toStringAsFixed(2)} ${quote.currency}',
-                              style: pandoraSimpleMutedText,
-                            ),
                         ],
                       ),
                     ),
@@ -696,14 +742,14 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
                         ),
                       )
                       .toList(growable: false),
-                  onChanged: _buying
+                  onChanged: _startingCheckout
                       ? null
                       : (value) => setState(() => _project = value),
                 ),
               const SizedBox(height: 22),
               const PandoraSectionTitle(title: 'Registration details'),
               const Text(
-                'These details are sent securely to the domain registry and are not saved by Pandora.',
+                'These details are encrypted temporarily for checkout and deleted after registration or refund.',
                 style: pandoraSimpleMutedText,
               ),
               const SizedBox(height: 14),
@@ -720,9 +766,15 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
                 hint: '+639171234567',
                 keyboardType: TextInputType.phone,
               ),
-              _ContactField(controller: _companyName, label: 'Company (optional)'),
+              _ContactField(
+                controller: _companyName,
+                label: 'Company (optional)',
+              ),
               _ContactField(controller: _address1, label: 'Address'),
-              _ContactField(controller: _address2, label: 'Address line 2 (optional)'),
+              _ContactField(
+                controller: _address2,
+                label: 'Address line 2 (optional)',
+              ),
               _ContactField(controller: _city, label: 'City'),
               _ContactField(controller: _state, label: 'State / province'),
               _ContactField(controller: _zip, label: 'Postal code'),
@@ -732,31 +784,91 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
                 hint: 'PH',
                 textCapitalization: TextCapitalization.characters,
               ),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: const Text(
-                  'Auto-renew this domain',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-                subtitle: const Text(
-                  'Recommended so your business address does not expire.',
-                ),
-                value: _autoRenew,
-                onChanged: _buying
+              const SizedBox(height: 8),
+              const PandoraSectionTitle(title: 'Pay with'),
+              SegmentedButton<DomainPaymentGateway>(
+                segments: const <ButtonSegment<DomainPaymentGateway>>[
+                  ButtonSegment<DomainPaymentGateway>(
+                    value: DomainPaymentGateway.xendit,
+                    label: Text('Xendit'),
+                  ),
+                  ButtonSegment<DomainPaymentGateway>(
+                    value: DomainPaymentGateway.paypal,
+                    label: Text('PayPal'),
+                  ),
+                ],
+                selected: <DomainPaymentGateway>{_gateway},
+                onSelectionChanged: _startingCheckout
                     ? null
-                    : (value) => setState(() => _autoRenew = value),
+                    : (selection) => setState(() => _gateway = selection.first),
               ),
               const SizedBox(height: 12),
-              PandoraPrimaryButton(
-                label: _buying
-                    ? 'Registering…'
-                    : 'Buy ${quote.domain} · ${quote.formattedPurchasePrice}',
-                icon: Icons.lock_outline_rounded,
-                onPressed: _buying || _project == null
-                    ? null
-                    : () => unawaited(_buy()),
-                expanded: true,
+              const PandoraSimpleCard(
+                shadow: false,
+                child: Text(
+                  'Auto-renew is off for now. RedApple will ask you before renewal so there are no surprise charges.',
+                  style: pandoraSimpleMutedText,
+                ),
               ),
+              const SizedBox(height: 12),
+              if (checkout == null)
+                PandoraPrimaryButton(
+                  label: _startingCheckout
+                      ? 'Starting payment…'
+                      : 'Pay & register ${quote.domain}',
+                  icon: Icons.lock_outline_rounded,
+                  onPressed: _startingCheckout || _project == null
+                      ? null
+                      : () => unawaited(_startCheckout()),
+                  expanded: true,
+                )
+              else ...[
+                PandoraSimpleCard(
+                  shadow: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        _checkoutHeadline(checkout),
+                        style: const TextStyle(
+                          color: PandoraSimpleColors.ink,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        checkout.plainMessage ??
+                            'Return to Pandora after payment to finish registration.',
+                        style: pandoraSimpleMutedText,
+                      ),
+                      if (checkout.canOpenPayment) ...[
+                        const SizedBox(height: 14),
+                        PandoraSecondaryButton(
+                          label: 'Open ${checkout.gateway.label}',
+                          icon: Icons.open_in_new_rounded,
+                          onPressed: () =>
+                              unawaited(_openPayment(checkout.checkoutUrl!)),
+                          expanded: true,
+                        ),
+                      ],
+                      if (checkout.canReconcile) ...[
+                        const SizedBox(height: 10),
+                        PandoraPrimaryButton(
+                          label: _reconciling
+                              ? 'Checking payment…'
+                              : 'Check payment',
+                          icon: Icons.verified_outlined,
+                          onPressed: _reconciling
+                              ? null
+                              : () => unawaited(_reconcileCheckout()),
+                          expanded: true,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ],
           ],
           const SizedBox(height: 18),
@@ -771,6 +883,16 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen> {
       ),
     );
   }
+
+  String _checkoutHeadline(DomainCheckout checkout) => switch (checkout.status) {
+        'fulfilled' => '${checkout.domain} is registered',
+        'refunded' => 'Payment refunded',
+        'refund_pending' => 'Refund processing',
+        'needs_attention' => 'Pandora is checking this payment',
+        'expired' => 'Payment expired',
+        'failed' => 'Payment could not start',
+        _ => 'Finish payment with ${checkout.gateway.label}',
+      };
 }
 
 class _ContactField extends StatelessWidget {
