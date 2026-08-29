@@ -135,7 +135,7 @@ async function enforceRateLimit(context: UserContext, method: string) {
     new TextEncoder().encode(`${context.userId}:${method}:pandora-project-runtime`),
   );
   const key = [...new Uint8Array(keyBytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  const { data, error } = await context.client.rpc("consume_runtime_rate_limit", {
+  const { data, error } = await serviceClient().rpc("consume_runtime_rate_limit", {
     p_organization_id: context.organizationId,
     p_key_hash: key,
     p_limit: method === "GET" ? 120 : 20,
