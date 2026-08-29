@@ -28,7 +28,7 @@ begin
     'wholesalePurchasePrice',v_wholesale,
     'markupBps',v_markup
   );
-end; $function$
+end; $function$;
 
 revoke all on function public.pandora_quote_domain_checkout(uuid,text) from public,anon;
 grant execute on function public.pandora_quote_domain_checkout(uuid,text) to authenticated;
@@ -172,7 +172,7 @@ begin
     'expiresAt',coalesce(v_provider_expires,v_checkout.expires_at),'projectId',v_project.id,
     'plainMessage','Complete payment, then return to Pandora to finish registration.'
   );
-end; $function$
+end; $function$;
 
 revoke all on function public.pandora_create_domain_checkout(uuid,text,uuid,text,jsonb,boolean,text) from public,anon;
 grant execute on function public.pandora_create_domain_checkout(uuid,text,uuid,text,jsonb,boolean,text) to authenticated;
@@ -384,7 +384,7 @@ begin
   where id=v_checkout.id;
 
   return jsonb_build_object('checkoutId',v_checkout.id,'domain',v_checkout.domain,'gateway',v_checkout.gateway,'status',v_status,'amount',v_checkout.retail_price,'currency',v_checkout.currency,'projectId',v_checkout.project_id,'refundId',v_refund_id,'plainMessage',case when v_status='refunded' then 'Registration could not be completed, so the payment was refunded.' when v_status='refund_pending' then 'Registration could not be completed. The refund is being processed.' else 'Registration could not be completed and Pandora needs to reconcile the refund.' end);
-end; $function$
+end; $function$;
 
 revoke all on function public.pandora_reconcile_domain_checkout(uuid,uuid) from public,anon;
 grant execute on function public.pandora_reconcile_domain_checkout(uuid,uuid) to authenticated;
