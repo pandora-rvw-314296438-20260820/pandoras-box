@@ -769,7 +769,7 @@
         "provider_equivalence": false,
         "reconciled_result_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/pglite-replay-result-20260823-source-alignment.json",
         "database_rollback_smoke": "pass",
-        "reconciled_chain_sha256": "5183b3a36e29aaf9efa9743422df2498842759977f29d4c87db6bf8bfa3fb962",
+        "reconciled_chain_sha256": "b0f572aa93e78204041c5baa1de39d0eb5f00314d98be987cc9cd03c0ec93bc6",
         "reconciled_migration_count": 92
     },
     "project_ref": "jcyqixttuebxqqfkjonq",
@@ -818,7 +818,7 @@
         "production_history_rewritten": false,
         "reconciled_aug17_chain_sha256": "fd612a0dfbf34ab462112898b3050f39fb1c4d2a62b371961e719944c8cea390",
         "reconciled_recovery_chain_sha256": "fd919e3a587bd5e910154eec815c05e0074c2ccbe079e427de1030bcf2001c93",
-        "current_source_replay_chain_sha256": "5183b3a36e29aaf9efa9743422df2498842759977f29d4c87db6bf8bfa3fb962",
+        "current_source_replay_chain_sha256": "b0f572aa93e78204041c5baa1de39d0eb5f00314d98be987cc9cd03c0ec93bc6",
         "current_source_receipt_chain_sha256": "e8c7f85f85b59b630a3010a55cf555f5a1d6a571bbd0d62196744accff35e2e3",
         "expected_applied_receipt_chain_sha256": "421195d6d62fd223b097dca94f4cc1d29dd794390b6f8b2c43604f1ac09b7d1b",
         "live_only_sensitive_bodies_republished": false
