@@ -52,16 +52,16 @@ const d = [
 
   tool("list_files", "List authorized project files", object({ ...base, path }), ["workspace.files.read"], "WorkspaceExecutor"),
   tool("read_file", "Read an authorized project file", object({ ...base, path }), ["workspace.files.read"], "WorkspaceExecutor", { maxPayloadBytes: 16 * 1024 }),
-  mut("write_file", "Write artifact-backed project content", { path, content_ref: artifact }, ["workspace.files.write"], "WorkspaceExecutor"),
-  mut("delete_file", "Delete an authorized project file", { path }, ["workspace.files.delete"], "WorkspaceExecutor"),
-  mut("move_file", "Move a project file within authorized paths", { from_path: path, to_path: path }, ["workspace.files.write", "workspace.files.delete"], "WorkspaceExecutor"),
+  mut("write_file", "Write artifact-backed project content", { path, content_ref: artifact }, ["workspace.files.write"], "WorkspaceExecutor", { environments: ["development", "preview"] }),
+  mut("delete_file", "Delete an authorized project file", { path }, ["workspace.files.delete"], "WorkspaceExecutor", { environments: ["development", "preview"] }),
+  mut("move_file", "Move a project file within authorized paths", { from_path: path, to_path: path }, ["workspace.files.write", "workspace.files.delete"], "WorkspaceExecutor", { environments: ["development", "preview"] }),
 
   tool("inspect_schema", "Inspect database schema metadata", object(base), ["database.inspect"], "DatabaseExecutor"),
   tool("query_schema", "Run a bounded structured read query", object({ ...base, query: object({ operation: { type: "string", enum: ["select"] }, table: id, columns: { type: "array", items: id, minItems: 1, maxItems: 50 }, limit: { type: "integer", minimum: 1, maximum: 500 } }, ["operation", "table", "columns"]) }), ["database.inspect"], "DatabaseExecutor", { maxPayloadBytes: 32 * 1024 }),
   mut("request_migration", "Request governed migration preflight", { migration_ref: artifact, migration_kind: { type: "string", enum: ["schema_change", "data_change", "rls_policy", "index", "constraint"] }, destructive: { type: "boolean" } }, ["database.migration.request"], "DatabaseExecutor", { sideEffect: C.SIDE_EFFECTS.EXTERNAL_MUTATION, expensive: true }),
   tool("inspect_migration_result", "Inspect migration result", object({ ...base, migration_execution_id: id }), ["database.inspect"], "DatabaseExecutor"),
 
-  mut("request_build", "Request bounded project build", { version_id: id }, ["build.execute"], "BuildExecutor", { risk: C.RISK_LEVELS.LOW, approval: C.APPROVAL_MODES.NONE, sideEffect: C.SIDE_EFFECTS.EXTERNAL_MUTATION, expensive: true }),
+  mut("request_build", "Request bounded project build", { version_id: id }, ["build.execute"], "BuildExecutor", { risk: C.RISK_LEVELS.LOW, approval: C.APPROVAL_MODES.NONE, environments: ["development", "preview"], sideEffect: C.SIDE_EFFECTS.EXTERNAL_MUTATION, expensive: true }),
   tool("get_build_status", "Read build status", object({ ...base, build_id: id }), ["build.execute"], "BuildExecutor"),
   tool("inspect_build_error", "Read normalized build diagnostics", object({ ...base, build_id: id }), ["build.execute"], "BuildExecutor"),
   mut("request_tests", "Request project tests", { version_id: id, test_profile: { type: "string", enum: ["unit", "integration", "full"] } }, ["test.execute"], "VerificationExecutor", { risk: C.RISK_LEVELS.LOW, approval: C.APPROVAL_MODES.NONE, sideEffect: C.SIDE_EFFECTS.EXTERNAL_MUTATION, expensive: true }),
