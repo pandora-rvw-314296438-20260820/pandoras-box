@@ -22,7 +22,12 @@ function passRun(definition) {
 test('default primitive registry cannot promote a caller-forged Worker E-looking PASS', () => {
   const registry = createDefaultPrimitiveRegistry();
   const definition = registry.getExact('pandora-auth', '1.0.0');
-  const decision = buildPrimitiveVerificationDecision({ definition, run: passRun(definition) });
+  const { definitionDigest: _definitionDigest, ...directTrusted } = definition;
+  assert.throws(
+    () => registry.register({ ...directTrusted, version: '1.0.1', trustState: 'TRUSTED' }),
+    /direct TRUSTED registration is forbidden/,
+  );
+  const decision = buildPrimitiveVerificationDecision({ definition: definition, run: passRun(definition) });
   assert.throws(
     () => registry.applyVerificationDecision(definition.name, definition.version, decision),
     /configured Worker E verification authority/,
