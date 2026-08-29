@@ -343,7 +343,7 @@ begin
     if v_file is null or length(v_file)>512 or left(v_file,1)='/' or right(v_file,1)='/'
        or position(E'\\' in v_file)>0
        or position('?' in v_file)>0 or position('#' in v_file)>0
-       or exists (select 1 from unnest(string_to_array(v_file,'/')) s where s in ('','.', '..') or length(s)>255) then
+       or exists (select 1 from unnest(string_to_array(v_file,'/')) as seg(part) where part in ('','.', '..') or length(part)>255) then
       raise exception 'runtime file path invalid' using errcode='22023';
     end if;
     if v_prev_file is not null and v_prev_file collate "C" >= v_file collate "C" then
