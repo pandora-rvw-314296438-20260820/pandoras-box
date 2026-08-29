@@ -117,9 +117,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     final snapshot = await _refreshDurableTruth(showBlockingError: true);
     if (!mounted || snapshot == null) return;
 
-    if (requestPreviewIfNeeded && _shouldRequestPreview(snapshot)) {
-      _requestStarted = true;
-      unawaited(_requestPreview());
+    if (requestPreviewIfNeeded) {
+      await _advanceBuild(snapshot, requestBuildIfNeeded: true);
     }
     _scheduleRefresh();
   }
@@ -169,16 +168,49 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     }
   }
 
-  bool _shouldRequestPreview(ProjectRuntimeSnapshot snapshot) {
-    if (_requestStarted || pandoraHasLivePreview(snapshot)) return false;
-    if (snapshot.preview != null || pandoraBuildAppearsInFlight(snapshot)) {
-      return false;
+  Future<void> _advanceBuild(
+    ProjectRuntimeSnapshot snapshot, {
+    required bool requestBuildIfNeeded,
+  }) async {
+    if (pandoraHasLivePreview(snapshot) || snapshot.preview != null) return;
+
+    final candidate = snapshot.candidate;
+    if (candidate != null && candidate.isBuilt) {
+      if (_previewRequestedVersionId == candidate.versionId) return;
+      _previewRequestedVersionId = candidate.versionId;
+      await _requestPreview(candidate);
+      return;
     }
-    final stage = snapshot.project.stage.toLowerCase();
-    return stage == 'idea' || stage == 'draft' || stage == 'understanding';
+
+    if (!requestBuildIfNeeded || _buildRequestStarted) return;
+    final experience = PandoraDependencies.of(context).projectExperience;
+    if (experience == null) {
+      if (mounted) {
+        setState(() => _error = 'Pandora cannot start this build right now.');
+      }
+      return;
+    }
+
+    _buildRequestStarted = true;
+    try {
+      await experience.requestBuild(
+        projectId: widget.project.id,
+        idempotencyKey: _buildIdempotencyKey,
+      );
+      if (!mounted) return;
+      setState(() => _error = null);
+    } catch (_) {
+      _buildRequestStarted = false;
+      if (mounted) {
+        setState(
+          () => _error =
+              'Pandora found something to fix before this build can start.',
+        );
+      }
+    }
   }
 
-  Future<void> _requestPreview() async {
+  Future<void> _requestPreview(ProjectRuntimeCandidate candidate) async {
     final runtime = PandoraDependencies.of(context).projectRuntime;
     if (runtime == null) {
       if (mounted) {
@@ -190,7 +222,9 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     try {
       final result = await runtime.createPreview(
         projectId: widget.project.id,
-        idempotencyKey: _previewIdempotencyKey,
+        versionId: candidate.versionId,
+        artifactDigest: candidate.artifactDigest,
+        idempotencyKey: _previewIdempotencyKey(candidate),
       );
       if (!mounted) return;
       setState(() {
