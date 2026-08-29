@@ -295,45 +295,192 @@ function projectResponse(project: JsonRecord) {
   };
 }
 
-function escapeHtml(value: string) {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SHA40_RE = /^[0-9a-f]{40}$/;
+const SHA256_RE = /^[0-9a-f]{64}$/;
+const MAX_RUNTIME_BUNDLE_BYTES = 25 * 1024 * 1024;
+const MAX_RUNTIME_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_RUNTIME_FILES = 1000;
+
+type RuntimeFile = { file: string; data: string; encoding: "base64"; sha256: string; byteSize: number };
+type ExactRuntimeBundle = {
+  version: JsonRecord;
+  artifactVersion: JsonRecord;
+  artifact: JsonRecord;
+  artifactDigest: string;
+  sourceDigest: string;
+  sourceCommit: string;
+  buildJobId: string;
+  projectSpecId: string;
+  files: RuntimeFile[];
+};
+
+async function sha256BytesHex(bytes: Uint8Array) {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function kindLabel(kind: string) {
-  return ({ website: "Website", web_app: "Web app", mobile_app: "Mobile app", internal_tool: "Internal business tool", automation: "Automation", api_backend: "API / backend", full_system: "Full system", help_me_decide: "Digital product" } as Record<string, string>)[kind] || "Digital product";
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunk, bytes.length)));
+  }
+  return btoa(binary);
 }
 
-function featureSet(kind: string) {
-  const map: Record<string, string[]> = {
-    website: ["Clear customer journey", "Responsive pages", "Strong calls to action", "Lead and enquiry capture"],
-    web_app: ["Customer workflow", "Accounts and dashboard", "Structured data views", "Responsive application UI"],
-    mobile_app: ["Mobile-first experience", "Clear app navigation", "Primary user action", "Web preview before store release"],
-    internal_tool: ["Simple operator workflow", "Business dashboard", "Roles and access", "Action history"],
-    automation: ["Trigger and workflow", "Human approval points", "Result tracking", "Failure-safe handling"],
-    api_backend: ["API contract", "Secure data boundary", "Observable operations", "Deployment-ready service"],
-    full_system: ["Customer frontend", "Business operations", "Data and integrations", "Deployment and monitoring"],
-    help_me_decide: ["Outcome-first design", "Fast visual prototype", "Business workflow", "Room to evolve"],
+function canonicalBase64(value: unknown) {
+  const text = textValue(value);
+  if (!text || text.length % 4 !== 0 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(text)) throw new Error("ARTIFACT_FILE_BASE64_INVALID");
+  let binary: string;
+  try { binary = atob(text); } catch { throw new Error("ARTIFACT_FILE_BASE64_INVALID"); }
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  if (bytesToBase64(bytes) !== text) throw new Error("ARTIFACT_FILE_BASE64_NON_CANONICAL");
+  return bytes;
+}
+
+function safeRuntimePath(value: unknown) {
+  const path = textValue(value);
+  if (!path || path.length > 512 || path.startsWith("/") || path.endsWith("/") || path.includes("\\") || path.includes("\0") || path.includes("?") || path.includes("#")) throw new Error("ARTIFACT_FILE_PATH_INVALID");
+  const parts = path.split("/");
+  if (parts.some((part) => !part || part === "." || part === ".." || part.length > 255)) throw new Error("ARTIFACT_FILE_PATH_INVALID");
+  return path;
+}
+
+function safeStorageCoordinate(bucketValue: unknown, pathValue: unknown) {
+  const bucket = textValue(bucketValue);
+  const path = textValue(pathValue);
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,126}$/.test(bucket)) throw new Error("ARTIFACT_STORAGE_INVALID");
+  if (!path || path.length > 1024 || path.startsWith("/") || path.endsWith("/") || path.includes("\\") || path.includes("\0") || path.split("/").some((part) => !part || part === "." || part === "..")) throw new Error("ARTIFACT_STORAGE_INVALID");
+  return { bucket, path };
+}
+
+async function loadExactRuntimeBundle(context: UserContext, projectId: string, versionId: string, requestedArtifactDigest: string): Promise<ExactRuntimeBundle> {
+  if (!UUID_RE.test(versionId) || !SHA256_RE.test(requestedArtifactDigest)) throw new Error("EXACT_VERSION_REQUIRED");
+  const admin = serviceClient();
+  const { data: versionData, error: versionError } = await admin.from("pandora_project_versions")
+    .select("id, organization_id, project_id, project_spec_id, build_job_id, root_artifact_version_id, source_sha256, source_commit, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, lifecycle_status, created_at")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", versionId).maybeSingle();
+  if (versionError) throw new Error("BACKEND_READ_FAILED");
+  if (!versionData) throw new Error("EXACT_VERSION_REQUIRED");
+  const version = asRecord(versionData);
+  const rootArtifactVersionId = textValue(version.root_artifact_version_id);
+  const artifactDigest = textValue(version.artifact_digest_sha256).toLowerCase();
+  const sourceDigest = textValue(version.source_sha256).toLowerCase();
+  const sourceCommit = textValue(version.source_commit).toLowerCase();
+  const buildJobId = textValue(version.build_job_id);
+  const projectSpecId = textValue(version.project_spec_id);
+  if (!UUID_RE.test(rootArtifactVersionId) || !UUID_RE.test(buildJobId) || !UUID_RE.test(projectSpecId) || !SHA256_RE.test(artifactDigest) || !SHA256_RE.test(sourceDigest) || !SHA40_RE.test(sourceCommit)) throw new Error("ARTIFACT_LINEAGE_INCOMPLETE");
+  if (artifactDigest !== requestedArtifactDigest) throw new Error("ARTIFACT_DIGEST_MISMATCH");
+
+  const { data: artifactVersionData, error: artifactVersionError } = await admin.from("pandora_artifact_versions")
+    .select("id, organization_id, project_id, artifact_id, content_sha256, byte_size, media_type, storage_provider, storage_bucket, storage_path, produced_by_build_step_id, provenance_redacted, created_at")
+    .eq("id", rootArtifactVersionId).eq("organization_id", context.organizationId).eq("project_id", projectId).maybeSingle();
+  if (artifactVersionError) throw new Error("BACKEND_READ_FAILED");
+  if (!artifactVersionData) throw new Error("ARTIFACT_NOT_FOUND");
+  const artifactVersion = asRecord(artifactVersionData);
+  if (textValue(artifactVersion.content_sha256).toLowerCase() !== artifactDigest) throw new Error("ARTIFACT_DIGEST_MISMATCH");
+  if (textValue(artifactVersion.storage_provider).toLowerCase() !== "supabase_storage") throw new Error("ARTIFACT_STORAGE_INVALID");
+  const artifactId = textValue(artifactVersion.artifact_id);
+  if (!UUID_RE.test(artifactId)) throw new Error("ARTIFACT_LINEAGE_INCOMPLETE");
+
+  const { data: artifactData, error: artifactError } = await admin.from("pandora_artifacts")
+    .select("id, organization_id, project_id, logical_key, artifact_kind, created_at")
+    .eq("id", artifactId).eq("organization_id", context.organizationId).eq("project_id", projectId).maybeSingle();
+  if (artifactError) throw new Error("BACKEND_READ_FAILED");
+  if (!artifactData) throw new Error("ARTIFACT_NOT_FOUND");
+  const artifact = asRecord(artifactData);
+  if (!new Set(["build_output", "runtime_bundle"]).has(textValue(artifact.artifact_kind).toLowerCase())) throw new Error("ARTIFACT_KIND_NOT_DEPLOYABLE");
+
+  const provenance = asRecord(artifactVersion.provenance_redacted);
+  if (textValue(provenance.buildJobId ?? provenance.build_job_id) !== buildJobId || textValue(provenance.projectVersionId ?? provenance.project_version_id) !== versionId || textValue(provenance.sourceCommit ?? provenance.source_commit).toLowerCase() !== sourceCommit) throw new Error("ARTIFACT_PROVENANCE_MISMATCH");
+  const coordinate = safeStorageCoordinate(artifactVersion.storage_bucket, artifactVersion.storage_path);
+  const { data: objectData, error: objectError } = await admin.storage.from(coordinate.bucket).download(coordinate.path);
+  if (objectError || !objectData) throw new Error("ARTIFACT_STORAGE_READ_FAILED");
+  const bytes = new Uint8Array(await objectData.arrayBuffer());
+  const expectedByteSize = Number(artifactVersion.byte_size);
+  if (!Number.isSafeInteger(expectedByteSize) || expectedByteSize < 1 || expectedByteSize > MAX_RUNTIME_BUNDLE_BYTES || bytes.byteLength !== expectedByteSize) throw new Error("ARTIFACT_BUNDLE_SIZE_INVALID");
+  if ((await sha256BytesHex(bytes)) !== artifactDigest) throw new Error("ARTIFACT_BUNDLE_DIGEST_MISMATCH");
+
+  let bundle: JsonRecord;
+  try { bundle = asRecord(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes))); } catch { throw new Error("ARTIFACT_BUNDLE_JSON_INVALID"); }
+  if (bundle.kind !== "pandora.runtime-bundle.v1" || bundle.schemaVersion !== 1) throw new Error("ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED");
+  if (textValue(bundle.projectVersionId) !== versionId || textValue(bundle.buildJobId) !== buildJobId || textValue(bundle.sourceCommit).toLowerCase() !== sourceCommit) throw new Error("ARTIFACT_BUNDLE_LINEAGE_MISMATCH");
+  if (!Array.isArray(bundle.files) || bundle.files.length < 1 || bundle.files.length > MAX_RUNTIME_FILES) throw new Error("ARTIFACT_BUNDLE_FILES_INVALID");
+
+  const seen = new Set<string>();
+  let prior = "";
+  let totalBytes = 0;
+  let hasEntrypoint = false;
+  const files: RuntimeFile[] = [];
+  for (const raw of bundle.files) {
+    const entry = asRecord(raw);
+    const file = safeRuntimePath(entry.file);
+    if (seen.has(file) || prior && prior.localeCompare(file, "en") >= 0) throw new Error("ARTIFACT_FILES_NOT_CANONICAL");
+    seen.add(file); prior = file;
+    if (file === "index.html") hasEntrypoint = true;
+    if (entry.encoding !== "base64") throw new Error("ARTIFACT_FILE_ENCODING_UNSUPPORTED");
+    const fileBytes = canonicalBase64(entry.data);
+    if (fileBytes.byteLength > MAX_RUNTIME_FILE_BYTES) throw new Error("ARTIFACT_FILE_TOO_LARGE");
+    totalBytes += fileBytes.byteLength;
+    if (totalBytes > MAX_RUNTIME_BUNDLE_BYTES) throw new Error("ARTIFACT_FILES_TOTAL_TOO_LARGE");
+    const fileDigest = textValue(entry.sha256).toLowerCase();
+    if (!SHA256_RE.test(fileDigest) || await sha256BytesHex(fileBytes) !== fileDigest) throw new Error("ARTIFACT_FILE_DIGEST_MISMATCH");
+    if (!Number.isSafeInteger(Number(entry.byteSize)) || Number(entry.byteSize) !== fileBytes.byteLength) throw new Error("ARTIFACT_FILE_SIZE_MISMATCH");
+    files.push({ file, data: textValue(entry.data), encoding: "base64", sha256: fileDigest, byteSize: fileBytes.byteLength });
+  }
+  if (!hasEntrypoint) throw new Error("ARTIFACT_ENTRYPOINT_MISSING");
+  return { version, artifactVersion, artifact, artifactDigest, sourceDigest, sourceCommit, buildJobId, projectSpecId, files };
+}
+
+function exactPreviewMeta(bundle: ExactRuntimeBundle, projectId: string, versionId: string, operationId: string, authorizationRef: string) {
+  return {
+    pandoraOperationId: operationId,
+    pandoraProjectId: projectId,
+    pandoraProjectVersionId: versionId,
+    pandoraArtifactDigest: bundle.artifactDigest,
+    pandoraSourceCommit: bundle.sourceCommit,
+    pandoraAuthorizationRef: authorizationRef,
+    pandoraEnvironment: "preview",
   };
-  return map[kind] || map.help_me_decide;
 }
 
-function previewHtml(project: JsonRecord) {
-  const config = asRecord(project.config);
-  const journey = asRecord(config.customerJourney);
-  const kind = textValue(journey.buildKind, "help_me_decide");
-  const name = escapeHtml(textValue(project.name, "Your new project"));
-  const objective = escapeHtml(textValue(project.objective, "Pandora is turning your idea into a working digital experience."));
-  const features = featureSet(kind).map((feature) => `<article class="feature"><span>✓</span><strong>${escapeHtml(feature)}</strong></article>`).join("");
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${name} — Pandora Preview</title><style>
-:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#181818;background:#fbfaf8}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -10%,#fff 0,#fbfaf8 45%,#f7f3f2 100%)}main{max-width:1120px;margin:auto;padding:28px 22px 72px}.nav{display:flex;align-items:center;justify-content:space-between;padding:10px 0 42px}.brand{display:flex;align-items:center;gap:10px;font-weight:800}.mark{width:34px;height:34px;border-radius:50%;background:#df0a2b;color:white;display:grid;place-items:center;box-shadow:0 8px 24px #df0a2b2c}.pill{font-size:12px;background:white;border:1px solid #e8e3df;border-radius:999px;padding:8px 12px;color:#6c6864}.hero{padding:72px 0 52px;max-width:850px}.eyebrow{color:#c90726;font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase}.hero h1{font-size:clamp(42px,7vw,78px);line-height:.98;letter-spacing:-.055em;margin:16px 0 22px}.hero p{font-size:clamp(18px,2.2vw,24px);line-height:1.5;color:#605d59;max-width:760px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:30px 0 60px}.feature{min-height:118px;background:rgba(255,255,255,.86);border:1px solid #ebe6e2;border-radius:22px;padding:22px;box-shadow:0 14px 38px rgba(54,36,32,.055);display:flex;flex-direction:column;gap:18px}.feature span{color:#df0a2b;font-weight:900}.stage{background:#181818;color:#fff;border-radius:30px;padding:34px;display:flex;justify-content:space-between;gap:30px;align-items:center}.stage p{color:#bbb;margin:7px 0 0;line-height:1.5}.live{width:12px;height:12px;border-radius:50%;background:#29b765;box-shadow:0 0 0 7px #29b76522}@media(max-width:760px){.grid{grid-template-columns:1fr 1fr}.hero{padding-top:42px}.stage{flex-direction:column;align-items:flex-start}}@media(max-width:480px){.grid{grid-template-columns:1fr}.hero h1{font-size:48px}}
-</style></head><body><main><nav class="nav"><div class="brand"><div class="mark">✦</div><span>Pandora Preview</span></div><div class="pill">${escapeHtml(kindLabel(kind))}</div></nav><section class="hero"><div class="eyebrow">First live preview</div><h1>${name}</h1><p>${objective}</p></section><section class="grid">${features}</section><section class="stage"><div><strong>Pandora is building this project</strong><p>This live preview is the visual starting point. Pandora can keep changing it before you publish.</p></div><div class="live"></div></section></main></body></html>`;
+function assertPreviewProviderLineage(deployment: JsonRecord, bundle: ExactRuntimeBundle, projectId: string, versionId: string, operationId: string) {
+  const meta = asRecord(deployment.meta);
+  if (textValue(meta.pandoraOperationId) !== operationId || textValue(meta.pandoraProjectId) !== projectId || textValue(meta.pandoraProjectVersionId) !== versionId || textValue(meta.pandoraArtifactDigest).toLowerCase() !== bundle.artifactDigest || textValue(meta.pandoraSourceCommit).toLowerCase() !== bundle.sourceCommit) throw new Error("PROVIDER_LINEAGE_MISMATCH");
 }
 
-async function createVercelDeployment(provider: { id: string; name: string }, html: string, target: "preview" | "production", metadata: JsonRecord) {
-  const requestBody: JsonRecord = { name: provider.name, project: provider.id, files: [{ file: "index.html", data: html }], meta: metadata };
-  if (target === "production") requestBody.target = "production";
-  const deployment = await vercelRequest("/v13/deployments", { method: "POST", body: JSON.stringify(requestBody) }, [200, 201]);
-  const deploymentId = textValue(deployment.id);
+async function findVercelDeploymentByOperation(providerProjectId: string, operationId: string) {
+  const result = await vercelRequest(`/v6/deployments?projectId=${encodeURIComponent(providerProjectId)}&limit=100`, { method: "GET" }, [200]);
+  const deployments = Array.isArray(result.deployments) ? result.deployments : [];
+  return asRecord(deployments.find((item) => textValue(asRecord(asRecord(item).meta).pandoraOperationId) === operationId));
+}
+
+async function createVercelDeployment(provider: { id: string; name: string }, bundle: ExactRuntimeBundle, versionId: string, operationId: string, authorizationRef: string) {
+  const prior = await findVercelDeploymentByOperation(provider.id, operationId);
+  if (Object.keys(prior).length) {
+    assertPreviewProviderLineage(prior, bundle, textValue(bundle.version.project_id), versionId, operationId);
+    return prior;
+  }
+  const requestBody: JsonRecord = {
+    name: provider.name,
+    project: provider.id,
+    target: "preview",
+    files: bundle.files.map(({ file, data, encoding }) => ({ file, data, encoding })),
+    meta: exactPreviewMeta(bundle, textValue(bundle.version.project_id), versionId, operationId, authorizationRef),
+  };
+  let deployment: JsonRecord;
+  try {
+    deployment = await vercelRequest("/v13/deployments", { method: "POST", body: JSON.stringify(requestBody) }, [200, 201]);
+  } catch (error) {
+    const reconciled = await findVercelDeploymentByOperation(provider.id, operationId);
+    if (!Object.keys(reconciled).length) throw new Error("PREVIEW_RECONCILIATION_REQUIRED");
+    assertPreviewProviderLineage(reconciled, bundle, textValue(bundle.version.project_id), versionId, operationId);
+    deployment = reconciled;
+  }
+  const deploymentId = textValue(deployment.id ?? deployment.uid);
   if (!deploymentId) throw new Error("VERCEL_DEPLOYMENT_INVALID");
   let latest = deployment;
   for (let attempt = 0; attempt < 8; attempt++) {
@@ -342,6 +489,7 @@ async function createVercelDeployment(provider: { id: string; name: string }, ht
     await new Promise((resolve) => setTimeout(resolve, 750));
     try { latest = await vercelRequest(`/v13/deployments/${encodeURIComponent(deploymentId)}`, { method: "GET" }, [200]); } catch { break; }
   }
+  if (Object.keys(asRecord(latest.meta)).length) assertPreviewProviderLineage(latest, bundle, textValue(bundle.version.project_id), versionId, operationId);
   return latest;
 }
 
@@ -458,43 +606,112 @@ async function runtimeSummary(context: UserContext, identifier: string) {
   };
 }
 
-async function createPreview(context: UserContext, identifier: string) {
+
+async function createPreview(context: UserContext, identifier: string, body: JsonRecord) {
   let project = await projectByIdentifier(context, identifier);
+  const projectId = textValue(project.id);
+  const versionId = textValue(body.versionId);
+  const requestedArtifactDigest = textValue(body.artifactDigest).toLowerCase();
+  const idempotencyRef = textValue(body.idempotencyKey);
+  const authorizationRef = textValue(body.authorizationRef);
+  if (!UUID_RE.test(versionId) || !SHA256_RE.test(requestedArtifactDigest) || idempotencyRef.length < 8 || idempotencyRef.length > 200 || authorizationRef.length < 8 || authorizationRef.length > 300) throw new Error("EXACT_VERSION_REQUIRED");
+
+  const bundle = await loadExactRuntimeBundle(context, projectId, versionId, requestedArtifactDigest);
+  const operationKey = await sha256Hex(["create_preview", context.organizationId, projectId, versionId, bundle.artifactDigest, bundle.sourceCommit, authorizationRef, idempotencyRef].join("|"));
+  const admin = serviceClient();
+  let operationId = "";
+  const operationRecord = {
+    idempotency_key: operationKey,
+    action: "create_preview",
+    organization_id: context.organizationId,
+    project_id: projectId,
+    project_version_id: versionId,
+    environment: "preview",
+    provider: "vercel",
+    authorization_ref: authorizationRef,
+    provider_project_id: null,
+    status: "claimed",
+  };
+  const { data: claimed, error: claimError } = await admin.from("pandora_runtime_operations").insert(operationRecord).select("id").single();
+  if (claimError) {
+    if (claimError.code !== "23505") throw new Error("PREVIEW_CLAIM_FAILED");
+    const { data: existing, error: existingError } = await admin.from("pandora_runtime_operations")
+      .select("id, status, provider_resource_id, result_facts").eq("provider", "vercel").eq("idempotency_key", operationKey).maybeSingle();
+    if (existingError || !existing) throw new Error("PREVIEW_CLAIM_FAILED");
+    const status = textValue(existing.status);
+    if (status === "succeeded") {
+      const { data: prior, error: priorError } = await admin.from("pandora_project_deployments")
+        .select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, verification_state, created_at")
+        .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("version_id", versionId).eq("environment", "preview").eq("idempotency_key", operationKey).maybeSingle();
+      if (priorError || !prior) throw new Error("PREVIEW_RECONCILIATION_REQUIRED");
+      return { project: projectResponse(project), version: bundle.version, deployment: prior, previewUrl: prior.url ?? null, reconciled: true };
+    }
+    if (status === "uncertain") throw new Error("PREVIEW_RECONCILIATION_REQUIRED");
+    if (new Set(["claimed", "running"]).has(status)) throw new Error("PREVIEW_IN_PROGRESS");
+    const { data: reclaimed, error: reclaimError } = await admin.from("pandora_runtime_operations")
+      .update({ status: "claimed", ambiguous: false, normalized_error: {}, result_facts: {}, claimed_at: new Date().toISOString(), started_at: null, finished_at: null, updated_at: new Date().toISOString() })
+      .eq("id", existing.id).eq("status", "failed").select("id").maybeSingle();
+    if (reclaimError || !reclaimed) throw new Error("PREVIEW_CLAIM_FAILED");
+    operationId = textValue(reclaimed.id);
+  } else operationId = textValue(claimed.id);
+
   const provider = await ensureVercelProject(context, project);
   project = { ...project, config: provider.config };
-  const html = previewHtml(project);
-  const sourceSha = await sha256Hex(html);
-  const sourcePayload = { files: [{ file: "index.html", data: html }] };
-  const { data: version, error: versionError } = await serviceClient().from("pandora_project_versions")
-    .insert({ organization_id: context.organizationId, project_id: project.id, kind: "preview", source_payload: sourcePayload, source_sha256: sourceSha, created_by: context.userId })
-    .select("id, sequence_no, source_sha256, created_at").single();
-  if (versionError || !version) throw new Error("BACKEND_WRITE_FAILED");
+  await admin.from("pandora_runtime_operations").update({ status: "running", provider_project_id: provider.id, started_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
 
   let deployment: JsonRecord;
   try {
-    deployment = await createVercelDeployment({ id: provider.id, name: provider.name }, html, "preview", { pandoraProjectId: textValue(project.id), pandoraVersionId: textValue(version.id), sourceSha256: sourceSha });
-  } catch {
-    const { data: failed } = await serviceClient().from("pandora_project_deployments")
-      .insert({ organization_id: context.organizationId, project_id: project.id, version_id: version.id, provider: "vercel", environment: "preview", provider_project_id: provider.id, status: "failed", source_sha256: sourceSha, metadata: { reason: "provider_request_failed" } })
-      .select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, created_at").single();
-    return { project: projectResponse(project), version, deployment: failed || { status: "failed" }, previewUrl: null };
+    deployment = await createVercelDeployment(provider, bundle, versionId, operationKey, authorizationRef);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
+    if (code === "PREVIEW_RECONCILIATION_REQUIRED") {
+      await admin.from("pandora_runtime_operations").update({ status: "uncertain", ambiguous: true, normalized_error: { code: "reconciliation_required" }, updated_at: new Date().toISOString() }).eq("id", operationId);
+    } else {
+      await admin.from("pandora_runtime_operations").update({ status: "failed", ambiguous: false, normalized_error: { code }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
+    }
+    throw error;
   }
 
-  const providerDeploymentId = textValue(deployment.id);
+  const providerDeploymentId = textValue(deployment.id ?? deployment.uid);
+  if (!providerDeploymentId) throw new Error("VERCEL_DEPLOYMENT_INVALID");
   const rawUrl = textValue(deployment.url);
   const previewUrl = rawUrl ? `https://${rawUrl.replace(/^https?:\/\//, "")}` : null;
-  const status = textValue(deployment.readyState ?? deployment.status, "pending").toLowerCase();
-  const { data: deploymentRow, error: deploymentError } = await serviceClient().from("pandora_project_deployments")
-    .insert({ organization_id: context.organizationId, project_id: project.id, version_id: version.id, provider: "vercel", environment: "preview", provider_project_id: provider.id, provider_deployment_id: providerDeploymentId || null, url: previewUrl, status, source_sha256: sourceSha, metadata: { providerName: provider.name, readyState: deployment.readyState ?? null } })
-    .select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, created_at").single();
+  const providerState = textValue(deployment.readyState ?? deployment.status, "QUEUED").toUpperCase();
+  const terminalFailure = new Set(["ERROR", "CANCELED"]).has(providerState);
+  const ready = providerState === "READY";
+  const status = ready ? "ready_for_verification" : terminalFailure ? "failed" : providerState.toLowerCase();
+  const verificationState = ready ? "ready_for_verification" : terminalFailure ? "failed" : "not_verified";
+  const now = new Date().toISOString();
+  const { data: deploymentRow, error: deploymentError } = await admin.from("pandora_project_deployments")
+    .insert({
+      organization_id: context.organizationId, project_id: projectId, version_id: versionId, provider: "vercel", environment: "preview",
+      provider_project_id: provider.id, provider_deployment_id: providerDeploymentId, url: previewUrl, status, source_sha256: bundle.sourceDigest,
+      artifact_digest: bundle.artifactDigest, source_commit_sha: bundle.sourceCommit, authorization_ref: authorizationRef, idempotency_key: operationKey,
+      provider_state: providerState, immutable_url: previewUrl, last_provider_check_at: now, ready_at: ready ? now : null, failed_at: terminalFailure ? now : null,
+      verification_state: verificationState,
+      metadata: { providerName: provider.name, pandoraOperationId: operationKey, rootArtifactVersionId: textValue(bundle.version.root_artifact_version_id), projectSpecId: bundle.projectSpecId, buildJobId: bundle.buildJobId },
+    })
+    .select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, verification_state, created_at").single();
   if (deploymentError || !deploymentRow) throw new Error("BACKEND_WRITE_FAILED");
+
+  const environmentStatus = terminalFailure ? "failed" : ready ? "ready" : "provisioning";
+  const { error: environmentError } = await admin.from("pandora_runtime_environments").upsert({
+    organization_id: context.organizationId, project_id: projectId, environment: "preview", provider: "vercel", provider_project_id: provider.id,
+    status: environmentStatus, current_version_id: versionId, current_deployment_id: deploymentRow.id, verification_state: verificationState, last_reconciled_at: now, updated_at: now,
+  }, { onConflict: "project_id,environment" });
+  if (environmentError) throw new Error("BACKEND_WRITE_FAILED");
+
+  const nextLifecycle = terminalFailure ? "rejected" : "verification_pending";
+  const { error: versionUpdateError } = await admin.from("pandora_project_versions").update({ lifecycle_status: nextLifecycle }).eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", versionId);
+  if (versionUpdateError) throw new Error("BACKEND_WRITE_FAILED");
 
   const config = asRecord(project.config);
   const journey = asRecord(config.customerJourney);
-  const nextConfig = { ...config, customerJourney: { ...journey, stage: "preview_ready", runtimeStatus: status === "ready" ? "ready" : "working", previewUrl, previewVersionId: version.id, previewDeploymentId: providerDeploymentId || null, runtimeUpdatedAt: new Date().toISOString() } };
-  const { error: updateError } = await serviceClient().from("projectos_projects").update({ config: nextConfig, updated_at: new Date().toISOString() }).eq("organization_id", context.organizationId).eq("id", project.id);
-  if (updateError) throw new Error("BACKEND_WRITE_FAILED");
-  return { project: projectResponse({ ...project, config: nextConfig }), version, deployment: deploymentRow, previewUrl };
+  const nextConfig = { ...config, customerJourney: { ...journey, stage: ready ? "preview_ready" : terminalFailure ? "needs_attention" : "building", runtimeStatus: ready ? "verifying" : terminalFailure ? "failed" : "working", previewUrl, previewVersionId: versionId, previewDeploymentId: providerDeploymentId, previewVerificationState: verificationState, runtimeUpdatedAt: now } };
+  const { error: projectError } = await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
+  if (projectError) throw new Error("BACKEND_WRITE_FAILED");
+  await admin.from("pandora_runtime_operations").update({ status: terminalFailure ? "failed" : "succeeded", ambiguous: false, provider_resource_id: providerDeploymentId, result_facts: { projectVersionId: versionId, providerDeploymentId, artifactDigest: bundle.artifactDigest, sourceCommit: bundle.sourceCommit, verificationState }, finished_at: now, last_reconciled_at: now, updated_at: now }).eq("id", operationId);
+  return { project: projectResponse({ ...project, config: nextConfig }), version: bundle.version, deployment: deploymentRow, previewUrl, verificationState };
 }
 
 async function publishProject(context: UserContext, identifier: string, body: JsonRecord) {
@@ -790,7 +1007,7 @@ Deno.serve(async (req: Request) => {
     const runtimeMatch = route.match(/^\/projects\/([^/]+)\/runtime$/);
     if (req.method === "GET" && runtimeMatch) return jsonResponse(await runtimeSummary(context, decodeURIComponent(runtimeMatch[1])), 200, requestId, origin);
     const previewMatch = route.match(/^\/projects\/([^/]+)\/previews$/);
-    if (req.method === "POST" && previewMatch) return jsonResponse(await createPreview(context, decodeURIComponent(previewMatch[1])), 201, requestId, origin);
+    if (req.method === "POST" && previewMatch) return jsonResponse(await createPreview(context, decodeURIComponent(previewMatch[1]), await bodyJson(req)), 201, requestId, origin);
     const publishMatch = route.match(/^\/projects\/([^/]+)\/publish$/);
     if (req.method === "POST" && publishMatch) return jsonResponse(await publishProject(context, decodeURIComponent(publishMatch[1]), await bodyJson(req)), 201, requestId, origin);
     const productionVerificationMatch = route.match(/^\/projects\/([^/]+)\/production-verification$/);
@@ -798,18 +1015,18 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ code: "PROJECT_RUNTIME_ROUTE_NOT_FOUND", plainMessage: "That project action is not available yet.", requestId }, 404, requestId, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
-    const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "INVALID_DOMAIN", "VERSION_REQUIRED", "INVALID_PRODUCTION_PRECONDITION"]);
-    const conflicts = new Set(["PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED"]);
+    const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "INVALID_DOMAIN", "VERSION_REQUIRED", "INVALID_PRODUCTION_PRECONDITION", "EXACT_VERSION_REQUIRED", "ARTIFACT_FILE_BASE64_INVALID", "ARTIFACT_FILE_BASE64_NON_CANONICAL", "ARTIFACT_FILE_PATH_INVALID", "ARTIFACT_BUNDLE_JSON_INVALID", "ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED", "ARTIFACT_BUNDLE_FILES_INVALID"]);
+    const conflicts = new Set(["PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED", "ARTIFACT_LINEAGE_INCOMPLETE", "ARTIFACT_NOT_FOUND", "ARTIFACT_DIGEST_MISMATCH", "ARTIFACT_STORAGE_INVALID", "ARTIFACT_STORAGE_READ_FAILED", "ARTIFACT_KIND_NOT_DEPLOYABLE", "ARTIFACT_PROVENANCE_MISMATCH", "ARTIFACT_BUNDLE_SIZE_INVALID", "ARTIFACT_BUNDLE_DIGEST_MISMATCH", "ARTIFACT_BUNDLE_LINEAGE_MISMATCH", "ARTIFACT_FILES_NOT_CANONICAL", "ARTIFACT_FILE_ENCODING_UNSUPPORTED", "ARTIFACT_FILE_TOO_LARGE", "ARTIFACT_FILES_TOTAL_TOO_LARGE", "ARTIFACT_FILE_DIGEST_MISMATCH", "ARTIFACT_FILE_SIZE_MISMATCH", "ARTIFACT_ENTRYPOINT_MISSING"]);
     if (code === "SIGN_IN_REQUIRED") return jsonResponse({ code, plainMessage: "Please sign in again.", requestId }, 401, requestId, origin);
     if (["ORGANIZATION_ACCESS_REQUIRED", "OWNER_ROLE_REQUIRED"].includes(code)) return jsonResponse({ code, plainMessage: "You do not have permission for this project.", requestId }, 403, requestId, origin);
     if (code === "ORGANIZATION_SELECTION_REQUIRED") return jsonResponse({ code, plainMessage: "Choose which organization you want to use.", requestId }, 409, requestId, origin);
     if (code === "RATE_LIMITED") return jsonResponse({ code, plainMessage: "Please wait a moment before trying again.", requestId }, 429, requestId, origin);
     if (invalid.has(code)) return jsonResponse({ code, plainMessage: "Check that project information and try again.", requestId }, 400, requestId, origin);
     if (code === "PROJECT_NOT_FOUND") return jsonResponse({ code, plainMessage: "Pandora could not find that project.", requestId }, 404, requestId, origin);
-    if (code === "PUBLISH_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already publishing this version.", requestId }, 409, requestId, origin);
+    if (code === "PREVIEW_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already creating this exact preview.", requestId }, 409, requestId, origin);\n    if (code === "PREVIEW_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming whether that preview was created. Do not create it again yet.", requestId }, 409, requestId, origin);\n    if (code === "PUBLISH_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already publishing this version.", requestId }, 409, requestId, origin);
     if (code === "PUBLISH_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming whether that publish completed. Do not publish again yet.", requestId }, 409, requestId, origin);
     if (conflicts.has(code)) return jsonResponse({ code, plainMessage: "That project cannot be published in its current state.", requestId }, 409, requestId, origin);
-    if (["RUNTIME_BROKER_NOT_CONFIGURED", "VERCEL_NOT_CONFIGURED", "PUBLISH_CLAIM_FAILED"].includes(code)) return jsonResponse({ code, plainMessage: "Project publishing is temporarily unavailable.", requestId }, 503, requestId, origin);
+    if (["RUNTIME_BROKER_NOT_CONFIGURED", "VERCEL_NOT_CONFIGURED", "PUBLISH_CLAIM_FAILED", "PREVIEW_CLAIM_FAILED"].includes(code)) return jsonResponse({ code, plainMessage: "Project publishing is temporarily unavailable.", requestId }, 503, requestId, origin);
     console.error(JSON.stringify({ requestId, code }));
     return jsonResponse({ code: "PROJECT_RUNTIME_UNAVAILABLE", plainMessage: "Pandora cannot reach the project runtime right now.", requestId }, 503, requestId, origin);
   }
