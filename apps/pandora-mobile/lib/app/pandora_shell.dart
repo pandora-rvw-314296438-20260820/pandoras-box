@@ -63,7 +63,8 @@ class _PandoraShellState extends State<PandoraShell> {
           0 => SimpleHomeScreen(
               onAskPandora: (prompt) => _openAskPandora(prompt),
               onOpenSystems: () => _select(1),
-              onOpenNeedsYou: () => _select(3),\n              onOpenMore: () => _select(4),
+              onOpenNeedsYou: () => _select(3),
+              onOpenMore: () => _select(4),
             ),
           1 => const ProjectsScreen(),
           2 => const AskPandoraScreen(),
