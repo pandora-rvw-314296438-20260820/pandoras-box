@@ -296,7 +296,6 @@ begin
     'storageProvider','supabase_storage','storageBucket','pandora-build-artifacts','storagePath',v_storage_path,
     'verificationState','waiting_verification');
 end;
-$function$
-
+$function$;
 
 comment on function private.pandora_finalize_runtime_bundle_20260829(uuid,uuid,uuid,text) is 'Worker D to Worker F exact runtime bundle finalizer. Runtime artifact version chains remain same-artifact; cross-artifact source lineage is immutable provenance. Claimed jobs advance through running before waiting_verification.';
