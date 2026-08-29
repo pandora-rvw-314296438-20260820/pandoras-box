@@ -100,3 +100,25 @@ test("artifact storage must be private canonical Supabase storage coordinates", 
     assert.throws(() => normalizeArtifactBinding(rows));
   }
 });
+
+
+test("generated artifact snapshot binds source kind and ProjectVersion ref without fake Git commit", () => {
+  const raw = bundleBytes({ sourceKind: "artifact_snapshot", sourceRef: ids.version, sourceCommit: null });
+  const digest = hash(raw);
+  const rows = bindingRows(digest);
+  rows.projectVersion.source_kind = "artifact_snapshot";
+  rows.projectVersion.source_ref = ids.version;
+  rows.projectVersion.source_commit = null;
+  rows.artifactVersion.provenance_redacted.sourceKind = "artifact_snapshot";
+  rows.artifactVersion.provenance_redacted.sourceRef = ids.version;
+  rows.artifactVersion.provenance_redacted.sourceCommit = null;
+  const binding = normalizeArtifactBinding(rows);
+  assert.equal(binding.sourceKind, "artifact_snapshot");
+  assert.equal(binding.sourceRef, ids.version);
+  assert.equal(binding.sourceCommit, null);
+  const parsed = parseRuntimeBundle(raw, binding);
+  assert.equal(parsed.sourceKind, "artifact_snapshot");
+  assert.equal(parsed.sourceRef, ids.version);
+  assert.equal(parsed.sourceCommit, null);
+  assert.throws(() => parseRuntimeBundle(bundleBytes({ sourceKind: "artifact_snapshot", sourceRef: ids.project, sourceCommit: null }), binding), /SOURCE/);
+});
