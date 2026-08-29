@@ -24,7 +24,7 @@ function request(overrides = {}) {
     operation: 'build_project',
     environment: 'preview-build',
     timeoutMs: 60_000,
-    resourceLimits: { wallClockMs: 60_000, memoryBytes: 512 * 1024 ** 2 },
+    resourceLimits: { wallClockMs: 60_000, memoryBytes: 2 * 1024 ** 3 },
     networkPolicy: { mode: 'deny' },
     credentialLeaseRefs: [],
     idempotencyKey: 'build:test:1',
@@ -65,6 +65,11 @@ test('maps Worker D deny policy to a non-persistent deny-all microVM without cre
   assert.equal(create.body.networkPolicy.mode, 'deny-all');
   assert.deepEqual(create.body.env, {});
   assert.equal(create.body.ports.length, 0);
+  assert.equal(typeof create.body.resources.vcpus, 'number');
+  assert.equal(typeof create.body.resources.memory, 'number');
+  assert.equal(create.body.resources.memory, create.body.resources.vcpus * 2048);
+  assert.equal(create.body.resources.memory, 2048);
+  assert.equal(typeof create.body.timeout, 'number');
   assert.equal(JSON.stringify(create.body).match(/token|password|api.?key|authorization/gi), null);
 });
 
@@ -79,6 +84,9 @@ test('executes only a bounded direct executable with sudo disabled', async () =>
   assert.equal(exec.body.sudo, false);
   assert.equal(exec.body.wait, false);
   assert.equal(exec.body.logs, false);
+  const poll = transport.calls.find((call) => call.method === 'GET' && call.path.includes('/cmd/cmd_'));
+  assert.ok(poll);
+  assert.match(poll.path, /[?&]wait=true(?:&|$)/);
 });
 
 test('fails closed for shell execution, secret-shaped env and production authority', async () => {
@@ -88,6 +96,13 @@ test('fails closed for shell execution, secret-shaped env and production authori
   await assert.rejects(() => provider.execute(handle, { executable: 'sh', args: ['-c','echo no'], env: {} }), /GENERIC_SHELL_FORBIDDEN/);
   await assert.rejects(() => provider.execute(handle, { executable: 'node', args: ['app.js'], env: { API_KEY: 'fake' } }), /SANDBOX_CREDENTIAL_ENV_FORBIDDEN/);
   await assert.rejects(() => provider.create(request({ environment: 'production' })), /ENVIRONMENT_NOT_ALLOWED/);
+});
+
+test('fails closed when the authorized memory ceiling is below Vercel Sandbox minimum', async () => {
+  const transport = new FakeTransport();
+  const provider = new VercelSandboxProvider({ transport, teamId: 'team_ABC', projectId: 'prj_ABCDE' });
+  await assert.rejects(() => provider.create(request({ resourceLimits: { wallClockMs: 60_000, memoryBytes: 512 * 1024 ** 2 } })), /VERCEL_SANDBOX_MEMORY_LIMIT_BELOW_PROVIDER_MINIMUM/);
+  assert.equal(transport.calls.length, 0);
 });
 
 test('allowlist network policy remains explicit and host-only', () => {
