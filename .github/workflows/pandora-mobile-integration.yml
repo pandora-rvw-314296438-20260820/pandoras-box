@@ -135,7 +135,11 @@ jobs:
 
       - name: Format
         working-directory: .pandora-mobile-build
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: |
+          dart format lib test
+          git diff --no-index ../apps/pandora-mobile/lib lib || true
+          git diff --no-index ../apps/pandora-mobile/test test || true
+          dart format --output=none --set-exit-if-changed ../apps/pandora-mobile/lib ../apps/pandora-mobile/test
 
       - name: Analyze
         working-directory: .pandora-mobile-build
