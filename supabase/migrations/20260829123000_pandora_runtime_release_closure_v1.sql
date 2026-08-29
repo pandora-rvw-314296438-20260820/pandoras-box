@@ -308,7 +308,7 @@ begin
   if v_step.status<>'succeeded' then
     raise exception 'successful Worker D build step required' using errcode='22023';
   end if;
-  if v_job.status not in ('claimed','running','waiting_verification','succeeded') then
+  if v_job.status not in ('claimed','running','waiting_verification') then
     raise exception 'build job state cannot finalize runtime bundle' using errcode='22023';
   end if;
   if v_version.lifecycle_status not in ('draft','built','verification_pending','verified','preview_ready') then
@@ -341,7 +341,7 @@ begin
     if jsonb_typeof(v_entry)<>'object' then raise exception 'runtime file invalid' using errcode='22023'; end if;
     v_file := nullif(v_entry->>'file','');
     if v_file is null or length(v_file)>512 or left(v_file,1)='/' or right(v_file,1)='/'
-       or position(E'\\' in v_file)>0 or position(chr(0) in v_file)>0
+       or position(E'\\' in v_file)>0
        or position('?' in v_file)>0 or position('#' in v_file)>0
        or exists (select 1 from unnest(string_to_array(v_file,'/')) s where s in ('','.', '..') or length(s)>255) then
       raise exception 'runtime file path invalid' using errcode='22023';
@@ -494,7 +494,7 @@ begin
   update public.pandora_build_jobs
   set status='waiting_verification',current_stage='verifying',lease_owner=null,lease_token_sha256=null,lease_expires_at=null,
       heartbeat_at=v_now,updated_at=v_now
-  where id=v_job.id and status in ('claimed','running','waiting_verification','succeeded');
+  where id=v_job.id and status in ('claimed','running','waiting_verification');
   if not found then raise exception 'build job finalization compare-and-set failed' using errcode='40001'; end if;
 
   return jsonb_build_object('replayed',false,'projectVersionId',v_version.id,'buildJobId',v_job.id,
