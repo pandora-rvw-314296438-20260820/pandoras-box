@@ -274,7 +274,7 @@ class _ProjectsHomeCard extends StatelessWidget {
             SizedBox(width: 14),
             Expanded(
               child: Text(
-                'Your projects will appear here after you create one.',
+                'Pandora has not confirmed any current work yet. Your projects will appear here after you create one.',
                 style: pandoraSimpleMutedText,
               ),
             ),
