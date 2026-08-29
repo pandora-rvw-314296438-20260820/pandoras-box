@@ -391,9 +391,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationRail), findsOneWidget);
-    expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
+    final projectsDestination = find.descendant(
+      of: find.byType(NavigationRail),
+      matching: find.byIcon(Icons.folder_outlined),
+    );
+    expect(projectsDestination, findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.folder_outlined));
+    await tester.tap(projectsDestination);
     await tester.pumpAndSettle();
     expect(repository.projectCalls, 1);
   });
