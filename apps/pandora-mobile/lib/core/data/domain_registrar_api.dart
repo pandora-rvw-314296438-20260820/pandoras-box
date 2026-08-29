@@ -1,4 +1,3 @@
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/domain_registrar_models.dart';
@@ -9,9 +8,9 @@ class DomainRegistrarApi {
     required SupabaseClient client,
     required String organizationId,
     IdempotencyKeyFactory? idempotencyKeys,
-  })  : _client = client,
-        _organizationId = organizationId,
-        _keys = idempotencyKeys ?? IdempotencyKeyFactory();
+  }) : _client = client,
+       _organizationId = organizationId,
+       _keys = idempotencyKeys ?? IdempotencyKeyFactory();
 
   final SupabaseClient _client;
   final String _organizationId;
@@ -42,7 +41,9 @@ class DomainRegistrarApi {
     String? idempotencyKey,
   }) async {
     _requireUser();
-    if (!quote.available || quote.displayPrice == null || quote.quoteId.isEmpty) {
+    if (!quote.available ||
+        quote.displayPrice == null ||
+        quote.quoteId.isEmpty) {
       throw const DomainRegistrarException(
         'Get a fresh domain price before continuing.',
       );
