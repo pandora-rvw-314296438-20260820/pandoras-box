@@ -155,6 +155,36 @@ class ProjectExperienceApi {
     }
   }
 
+  Future<void> requestBuild({
+    required String projectId,
+    required String idempotencyKey,
+  }) async {
+    if (_client.auth.currentUser == null) {
+      throw const ProjectExperienceException(
+        'Please sign in again before building this project.',
+      );
+    }
+    try {
+      final result = await _client.functions.invoke(
+        'pandora-project-source-generator',
+        body: <String, Object?>{
+          'projectId': projectId,
+          'idempotencyKey': idempotencyKey,
+        },
+      );
+      final data = result.data;
+      if (data is Map && data['ok'] == false && data['state'] == 'blocked') {
+        throw const ProjectExperienceException(
+          'Pandora found something to resolve before this build can start.',
+        );
+      }
+    } on FunctionException {
+      throw const ProjectExperienceException(
+        'Pandora could not start this build right now.',
+      );
+    }
+  }
+
   Future<void> _ensureCompilation(String sourceIntentId) async {
     final now = DateTime.now();
     final last = _lastCompilationRequest[sourceIntentId];
