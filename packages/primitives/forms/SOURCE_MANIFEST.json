@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0",
+  "primitive": "pandora-forms@1.0.0",
+  "algorithm": "sha256(path\\0file_sha256\\n sorted by path)",
+  "files": [
+    {"path": "core/src/events.js", "sha256": "679f84c84aded138258092e5d10377c398e4f087b46454ebedf4690ae887d160"},
+    {"path": "forms/src/index.js", "sha256": "1f4f25a65ac034b8721370f8c111890f982c82a2d60b413077a4578a44e57cf5"},
+    {"path": "forms/migrations/001_forms.sql", "sha256": "428433ca8e84817117a8233af3a4918cf45ffd1b1a2b5e42713047800248d579"}
+  ],
+  "bundleDigest": "sha256:2d1a4a084e953ebf1223c26018da17230e24c0f38d17dd225bbf24e5c73d6e0c"
+}

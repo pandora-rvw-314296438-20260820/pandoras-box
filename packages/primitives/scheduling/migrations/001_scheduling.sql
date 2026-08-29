@@ -1,0 +1,8 @@
+-- pandora-primitive: pandora-scheduling@1.0.0
+-- target: customer-app-runtime-only
+DO $$ BEGIN IF to_regclass('public.project_specs') IS NOT NULL OR to_regclass('public.projectos_execution_plans') IS NOT NULL OR to_regclass('public.pandora_projects') IS NOT NULL THEN RAISE EXCEPTION 'pandora-scheduling customer primitive refused on Pandora Control Plane-like schema'; END IF; END $$;
+CREATE TABLE IF NOT EXISTS public.primitive_schedules(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),scope_id uuid NOT NULL,resource_id text NOT NULL CHECK(char_length(resource_id) BETWEEN 1 AND 128),timezone text NOT NULL CHECK(char_length(timezone)<=64),weekly jsonb NOT NULL CHECK(jsonb_typeof(weekly)='array' AND pg_column_size(weekly)<=32768),exceptions jsonb NOT NULL DEFAULT '[]'::jsonb CHECK(jsonb_typeof(exceptions)='array' AND pg_column_size(exceptions)<=65536),version integer NOT NULL DEFAULT 1 CHECK(version>0),updated_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),UNIQUE(scope_id,resource_id),UNIQUE(id,scope_id));
+ALTER TABLE public.primitive_schedules ENABLE ROW LEVEL SECURITY;ALTER TABLE public.primitive_schedules FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON public.primitive_schedules FROM anon,authenticated;GRANT SELECT ON public.primitive_schedules TO authenticated;
+CREATE POLICY primitive_schedules_read ON public.primitive_schedules FOR SELECT TO authenticated USING(public.primitive_has_permission(scope_id,'data.read'));
+-- Writes are service-side after data.write authorization and recurrence validation.
