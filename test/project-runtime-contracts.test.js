@@ -107,3 +107,14 @@ test("Simple Mode projection contains no provider identifiers", () => {
   assert.equal(runtime.ownerSafeStatus({ productionState: "deploying", providerDeploymentId: "dpl_internal" }), "Publishing");
   assert.equal(runtime.ownerSafeStatus({ previewState: "ready_for_verification", previewVerified: true }), "Preview ready");
 });
+
+
+test("artifact snapshot runtime lineage is exact without a synthetic git commit", () => {
+  const input = request({ sourceCommit: null, sourceKind: "artifact_snapshot", sourceRef: ids.projectVersionId });
+  const exact = runtime.normalizeDeploymentRequest(input);
+  assert.equal(exact.sourceKind, "artifact_snapshot");
+  assert.equal(exact.sourceRef, ids.projectVersionId);
+  assert.equal(exact.sourceCommit, null);
+  assert.equal(runtime.assertExactLineage(input, { projectVersionId: ids.projectVersionId, artifactDigest, sourceKind: "artifact_snapshot", sourceRef: ids.projectVersionId, sourceCommit: null }), true);
+  assert.throws(() => runtime.assertExactLineage(input, { projectVersionId: ids.projectVersionId, artifactDigest, sourceKind: "git_commit", sourceRef: sourceCommit, sourceCommit }), /source identity mismatch/);
+});
