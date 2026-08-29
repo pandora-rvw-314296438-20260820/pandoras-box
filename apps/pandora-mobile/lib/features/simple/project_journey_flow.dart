@@ -59,8 +59,9 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   late final AnimationController _orbit;
   Timer? _refreshTimer;
   bool _started = false;
-  bool _requestStarted = false;
+  bool _buildRequestStarted = false;
   bool _refreshing = false;
+  String? _previewRequestedVersionId;
   ProjectRuntimeSnapshot? _snapshot;
   ProjectPreviewResult? _previewResult;
   String? _error;
