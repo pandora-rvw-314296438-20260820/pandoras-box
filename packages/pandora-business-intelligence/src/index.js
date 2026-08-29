@@ -11,6 +11,7 @@ module.exports = {
   ...require('./analytics/provider.js'),
   ...require('./analytics/posthog.js'),
   ...require('./economics.js'),
+  ...require('./primitive-economics.js'),
   ...require('./experiments.js'),
   ...require('./pilots.js'),
   ...require('./business-api.js'),
