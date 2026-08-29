@@ -7,7 +7,7 @@ import '../core/analytics/owner_analytics.dart';
 import '../core/widgets/pandora_mark.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
-import '../features/simple/business_screen.dart';
+import '../features/simple/more_screen.dart';
 import '../features/simple/pandora_simple_ui.dart';
 import '../features/simple/projects_screen.dart';
 import '../features/simple/simple_home_screen.dart';
@@ -34,7 +34,7 @@ class _PandoraShellState extends State<PandoraShell> {
       Icons.notifications_none_rounded,
       Icons.notifications_rounded,
     ),
-    _Destination('Business', Icons.insights_outlined, Icons.insights_rounded),
+    _Destination('More', Icons.menu_outlined, Icons.menu_rounded),
   ];
 
   final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(
@@ -63,12 +63,12 @@ class _PandoraShellState extends State<PandoraShell> {
           0 => SimpleHomeScreen(
               onAskPandora: (prompt) => _openAskPandora(prompt),
               onOpenSystems: () => _select(1),
-              onOpenNeedsYou: () => _select(3),
+              onOpenNeedsYou: () => _select(3),\n              onOpenMore: () => _select(4),
             ),
           1 => const ProjectsScreen(),
           2 => const AskPandoraScreen(),
           3 => const ApprovalsScreen(),
-          4 => const SimpleBusinessScreen(),
+          4 => const MoreScreen(),
           _ => const SimpleHomeScreen(),
         },
       );
@@ -113,7 +113,7 @@ class _PandoraShellState extends State<PandoraShell> {
       1 => 'projects',
       2 => 'ask_pandora',
       3 => 'needs_you',
-      4 => 'business',
+      4 => 'more',
       _ => 'home',
     };
     unawaited(
