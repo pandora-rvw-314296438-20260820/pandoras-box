@@ -16,6 +16,7 @@ const {
 const {
   AUTHORITATIVE_ISSUER,
   buildPrimitiveVerificationDecision,
+  createPrimitiveVerificationAuthority,
   scanPrimitiveAdversarialFixtures,
 } = require('../packages/pandora-verification/src/primitive-trust');
 const { createPrimitiveEconomicsFacts } = require('../packages/pandora-business-intelligence/src/primitive-economics');
@@ -72,7 +73,11 @@ function workerEPass(definition) {
 }
 
 test('Worker J composes all 18 exact primitive families and carries them through release lineage', () => {
-  const registry = createDefaultPrimitiveRegistry();
+  const sealedWorkerERuns = new Map();
+  const verificationAuthority = createPrimitiveVerificationAuthority({
+    readVerificationRun: (evidenceId) => sealedWorkerERuns.get(evidenceId) || null,
+  });
+  const registry = createDefaultPrimitiveRegistry({ verificationAuthority });
   const baseDefinitions = registry.list();
   assert.equal(baseDefinitions.length, 18);
   assert.ok(baseDefinitions.every((definition) => /^sha256:[0-9a-f]{64}$/.test(definition.sourceDigest || '')));
@@ -104,9 +109,16 @@ test('Worker J composes all 18 exact primitive families and carries them through
   registry.register({
     ...authDefinition,
     version: '1.1.0',
-    trustState: 'TRUSTED',
+    trustState: 'EXPERIMENTAL',
     sourceDigest: digest({ primitive: 'pandora-auth', version: '1.1.0', source: 'immutable-fixture' }),
   });
+
+  const authV11Candidate = registry.getExact('pandora-auth', '1.1.0');
+  const authV11Run = workerEPass(authV11Candidate);
+  sealedWorkerERuns.set(authV11Run.verification_run_id, authV11Run);
+  const authV11TrustDecision = buildPrimitiveVerificationDecision({ definition: authV11Candidate, run: authV11Run });
+  const authV11Trusted = registry.applyVerificationDecision('pandora-auth', '1.1.0', authV11TrustDecision);
+  assert.equal(authV11Trusted.trustState, 'TRUSTED');
 
   const migrationDigest = digest({ migration: 'pandora-auth-1.0.0-to-1.1.0' });
   const upgrade = planPrimitiveUpgrades(registry, {
@@ -158,10 +170,18 @@ test('Worker J composes all 18 exact primitive families and carries them through
   const preserved = materialization.actions.find((action) => action.path === 'src/customer/branding.js');
   assert.equal(preserved.type, 'PRESERVE');
   assert.equal(preserved.contentDigest, customerDigest);
+  assert.throws(
+    () => buildWorkerDMaterializationRequest({
+      manifest: upgraded.manifest,
+      materializationPlan: { ...materialization, decision: 'MANUAL_REVIEW' },
+      runtimeBindings: {},
+    }),
+    /READY approval state/,
+  );
 
   const execution = planExecutionBoundaries([
     { id: 'persist-runtime', provider: 'postgres', transactional: true },
-    { id: 'authorize-payment', provider: 'payments', transactional: false, compensation: 'void-payment' },
+   { id: 'authorize-payment', provider: 'payments', transactional: false, compensation: 'void-payment' },
     { id: 'publish-runtime', provider: 'vercel', transactional: false, compensation: 'rollback-deployment' },
   ]);
   assert.equal(execution.ok, true, execution.errors.join('\n'));
@@ -180,7 +200,7 @@ test('Worker J composes all 18 exact primitive families and carries them through
   assert.match(workerD.requestDigest, /^sha256:[0-9a-f]{64}$/);
 
   const authV11 = registry.getExact('pandora-auth', '1.1.0');
-  const workerEDecision = buildPrimitiveVerificationDecision({ definition: authV11, run: workerEPass(authV11) });
+  const workerEDecision = buildPrimitiveVerificationDecision({ definition: authV11, run: authV11Run });
   assert.equal(workerEDecision.authority, 'worker-e');
   assert.equal(workerEDecision.status, 'PASS');
 
