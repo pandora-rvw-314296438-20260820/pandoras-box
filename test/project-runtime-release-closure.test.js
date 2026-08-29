@@ -27,7 +27,13 @@ test("Supabase management credential stays behind the security-definer broker", 
   assert.match(sql, /functions\/deploy\?slug=/);
   assert.match(sql, /revoke all on function private\.pandora_release_deploy_edge_from_github_20260829/);
   assert.match(sql, /grant execute on function private\.pandora_release_deploy_edge_from_github_20260829\(text,text\) to service_role/);
-  assert.doesNotMatch(sql, /return jsonb_build_object\([\s\S]{0,600}(decrypted_secret|v_token)/i);
+  const releaseBroker = sql.slice(
+    sql.indexOf("create or replace function private.pandora_release_deploy_edge_from_github_20260829"),
+    sql.indexOf("create or replace function public.pandora_release_deploy_edge_from_github_20260829"),
+  );
+  const releaseReturn = releaseBroker.slice(releaseBroker.lastIndexOf("return jsonb_build_object("));
+  assert.match(releaseReturn, /'sourceSha256',v_source_sha/);
+  assert.doesNotMatch(releaseReturn, /decrypted_secret|v_token|authorization|Bearer /i);
 });
 
 test("Vercel broker returns only safe retry and rate-limit headers", () => {
