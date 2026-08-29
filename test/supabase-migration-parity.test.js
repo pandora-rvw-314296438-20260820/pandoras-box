@@ -172,6 +172,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260829111500_pandora_worker_f_vercel_scope_rebind.sql',
     '20260829113000_pandora_worker_d_vercel_sandbox_broker_v1.sql',
     '20260829114000_pandora_worker_f_runtime_constraint_idempotency.sql',
+    '20260829114500_pandora_worker_f_vercel_webhook_v1.sql',
     '20260829120000_pandora_worker_d_vercel_sandbox_protocol_fix.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
@@ -205,6 +206,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260829111500_pandora_worker_f_vercel_scope_rebind.sql',
     '20260829113000_pandora_worker_d_vercel_sandbox_broker_v1.sql',
     '20260829114000_pandora_worker_f_runtime_constraint_idempotency.sql',
+    '20260829114500_pandora_worker_f_vercel_webhook_v1.sql',
     '20260829120000_pandora_worker_d_vercel_sandbox_protocol_fix.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
