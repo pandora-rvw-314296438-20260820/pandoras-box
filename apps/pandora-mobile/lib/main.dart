@@ -17,9 +17,7 @@ import 'pandora_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-
   await Supabase.initialize(
     url: PandoraConfig.supabaseUrl,
     publishableKey: PandoraConfig.supabasePublishableKey,
