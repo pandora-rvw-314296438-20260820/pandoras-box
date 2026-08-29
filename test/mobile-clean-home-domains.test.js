@@ -31,9 +31,12 @@ test("Home projection carries owner-safe domain truth",()=>{
   assert.equal(owner.includes("domains: domainItems"),true);
 });
 
-test("domain purchase UI fails closed until registrar commerce is connected",()=>{
+test("domain purchase UI stays payment-gated until Xendit or PayPal is connected",()=>{
   assert.equal(domains.includes("class DomainAcquisitionScreen"),true);
   assert.equal(domains.includes("Search domains"),true);
-  assert.equal(domains.includes("RedApple registrar connection"),true);
+  assert.equal(domains.includes("Xendit"),true);
+  assert.equal(domains.includes("PayPal"),true);
+  assert.equal(domains.includes("Check payment"),true);
+  assert.equal(domains.includes("Auto-renew is off for now"),true);
   assert.equal(/namecheap.*(?:token|secret|api.?key)/i.test(domains),false);
 });
