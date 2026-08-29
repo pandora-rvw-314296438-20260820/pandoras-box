@@ -549,7 +549,7 @@ begin
     'ezbrSha256',v_response_body->'ezbr_sha256'
   );
 end;
-$function$
+$function$;
 
 
 
@@ -623,7 +623,7 @@ begin
     'body',v_body
   );
 end;
-$function$
+$function$;
 
 
 
