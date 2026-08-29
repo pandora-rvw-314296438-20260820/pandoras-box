@@ -16,6 +16,19 @@ function required(value, field, pattern = null) {
   return value.trim();
 }
 
+function normalizeSourceIdentity({ versionId, sourceKind, sourceRef, sourceCommit }, fieldPrefix = "source") {
+  const version = required(versionId, `${fieldPrefix}_version_id`, UUID).toLowerCase();
+  const rawCommit = typeof sourceCommit === "string" && sourceCommit.trim() ? sourceCommit.trim().toLowerCase() : null;
+  const kind = required(sourceKind ?? (rawCommit ? "git_commit" : "artifact_snapshot"), `${fieldPrefix}_kind`).toLowerCase();
+  const commit = rawCommit == null ? null : required(rawCommit, `${fieldPrefix}_commit`, SHA40).toLowerCase();
+  const ref = required(sourceRef ?? (kind === "git_commit" ? commit : version), `${fieldPrefix}_ref`).toLowerCase();
+  const valid = kind === "git_commit"
+    ? Boolean(commit && ref === commit)
+    : kind === "artifact_snapshot" && commit === null && ref === version;
+  if (!valid) throw new Error("SOURCE_IDENTITY_MISMATCH");
+  return Object.freeze({ sourceKind: kind, sourceRef: ref, sourceCommit: commit });
+}
+
 function sha256Bytes(value) {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -56,7 +69,12 @@ function normalizeArtifactBinding({ organizationId, projectId, projectVersion, a
   const versionId = required(projectVersion.id, "project_version_id", UUID).toLowerCase();
   const rootArtifactVersionId = required(projectVersion.root_artifact_version_id ?? projectVersion.rootArtifactVersionId, "root_artifact_version_id", UUID).toLowerCase();
   const buildJobId = required(projectVersion.build_job_id ?? projectVersion.buildJobId, "build_job_id", UUID).toLowerCase();
-  const sourceCommit = required(projectVersion.source_commit ?? projectVersion.sourceCommit, "source_commit", SHA40).toLowerCase();
+  const { sourceKind, sourceRef, sourceCommit } = normalizeSourceIdentity({
+    versionId,
+    sourceKind: projectVersion.source_kind ?? projectVersion.sourceKind,
+    sourceRef: projectVersion.source_ref ?? projectVersion.sourceRef,
+    sourceCommit: projectVersion.source_commit ?? projectVersion.sourceCommit,
+  });
   const artifactDigest = required(projectVersion.artifact_digest_sha256 ?? projectVersion.artifactDigest, "artifact_digest", SHA256).toLowerCase();
 
   const avId = required(artifactVersion.id, "artifact_version_id", UUID).toLowerCase();
@@ -81,10 +99,15 @@ function normalizeArtifactBinding({ organizationId, projectId, projectVersion, a
   if (!provenance || typeof provenance !== "object" || Array.isArray(provenance)) throw new Error("ARTIFACT_PROVENANCE_REQUIRED");
   const producedBuildJobId = required(provenance.buildJobId ?? provenance.build_job_id, "artifact_build_job_id", UUID).toLowerCase();
   const producedProjectVersionId = required(provenance.projectVersionId ?? provenance.project_version_id, "artifact_project_version_id", UUID).toLowerCase();
-  const producedSourceCommit = required(provenance.sourceCommit ?? provenance.source_commit, "artifact_source_commit", SHA40).toLowerCase();
-  if (producedBuildJobId !== buildJobId || producedProjectVersionId !== versionId || producedSourceCommit !== sourceCommit) throw new Error("ARTIFACT_PROVENANCE_MISMATCH");
+  const producedSource = normalizeSourceIdentity({
+    versionId: producedProjectVersionId,
+    sourceKind: provenance.sourceKind ?? provenance.source_kind,
+    sourceRef: provenance.sourceRef ?? provenance.source_ref,
+    sourceCommit: provenance.sourceCommit ?? provenance.source_commit,
+  }, "artifact_source");
+  if (producedBuildJobId !== buildJobId || producedProjectVersionId !== versionId || producedSource.sourceKind !== sourceKind || producedSource.sourceRef !== sourceRef || producedSource.sourceCommit !== sourceCommit) throw new Error("ARTIFACT_PROVENANCE_MISMATCH");
 
-  return Object.freeze({ organizationId: org, projectId: project, projectVersionId: versionId, buildJobId, sourceCommit, artifactVersionId: avId, artifactId, artifactDigest, storageProvider, storageBucket, storagePath, artifactKind });
+  return Object.freeze({ organizationId: org, projectId: project, projectVersionId: versionId, buildJobId, sourceKind, sourceRef, sourceCommit, artifactVersionId: avId, artifactId, artifactDigest, storageProvider, storageBucket, storagePath, artifactKind });
 }
 
 function parseRuntimeBundle(raw, expected) {
@@ -99,10 +122,17 @@ function parseRuntimeBundle(raw, expected) {
   if (value.kind !== BUNDLE_KIND || value.schemaVersion !== 1) throw new Error("ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED");
   const projectVersionId = required(value.projectVersionId, "bundle_project_version_id", UUID).toLowerCase();
   const buildJobId = required(value.buildJobId, "bundle_build_job_id", UUID).toLowerCase();
-  const sourceCommit = required(value.sourceCommit, "bundle_source_commit", SHA40).toLowerCase();
+  const { sourceKind, sourceRef, sourceCommit } = normalizeSourceIdentity({
+    versionId: projectVersionId,
+    sourceKind: value.sourceKind,
+    sourceRef: value.sourceRef,
+    sourceCommit: value.sourceCommit,
+  }, "bundle_source");
   if (expected?.projectVersionId && projectVersionId !== String(expected.projectVersionId).toLowerCase()) throw new Error("ARTIFACT_BUNDLE_VERSION_MISMATCH");
   if (expected?.buildJobId && buildJobId !== String(expected.buildJobId).toLowerCase()) throw new Error("ARTIFACT_BUNDLE_BUILD_JOB_MISMATCH");
-  if (expected?.sourceCommit && sourceCommit !== String(expected.sourceCommit).toLowerCase()) throw new Error("ARTIFACT_BUNDLE_SOURCE_MISMATCH");
+  if (expected?.sourceKind && sourceKind !== String(expected.sourceKind).toLowerCase()) throw new Error("ARTIFACT_BUNDLE_SOURCE_MISMATCH");
+  if (expected?.sourceRef && sourceRef !== String(expected.sourceRef).toLowerCase()) throw new Error("ARTIFACT_BUNDLE_SOURCE_MISMATCH");
+  if (Object.prototype.hasOwnProperty.call(expected ?? {}, "sourceCommit") && sourceCommit !== (expected.sourceCommit == null ? null : String(expected.sourceCommit).toLowerCase())) throw new Error("ARTIFACT_BUNDLE_SOURCE_MISMATCH");
   if (!Array.isArray(value.files) || value.files.length < 1 || value.files.length > MAX_FILES) throw new Error("ARTIFACT_BUNDLE_FILES_INVALID");
 
   const seen = new Set();
@@ -128,7 +158,7 @@ function parseRuntimeBundle(raw, expected) {
     return Object.freeze({ file, data: entry.data, encoding: "base64", sha256: fileDigest, byteSize: fileBytes.length });
   });
   if (!hasIndex) throw new Error("ARTIFACT_ENTRYPOINT_MISSING");
-  return Object.freeze({ kind: BUNDLE_KIND, schemaVersion: 1, projectVersionId, buildJobId, sourceCommit, artifactDigest: digest, totalBytes, files: Object.freeze(files) });
+  return Object.freeze({ kind: BUNDLE_KIND, schemaVersion: 1, projectVersionId, buildJobId, sourceKind, sourceRef, sourceCommit, artifactDigest: digest, totalBytes, files: Object.freeze(files) });
 }
 
 function toVercelFiles(bundle) {
