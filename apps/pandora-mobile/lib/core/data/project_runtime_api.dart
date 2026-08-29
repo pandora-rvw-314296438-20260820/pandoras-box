@@ -48,15 +48,30 @@ class ProjectRuntimeApi {
 
   Future<ProjectPreviewResult> createPreview({
     required String projectId,
+    required String versionId,
+    required String artifactDigest,
     String? idempotencyKey,
   }) async {
+    final exactVersion = versionId.trim();
+    final exactArtifact = artifactDigest.trim().toLowerCase();
+    final key = idempotencyKey ?? _keys.create('customer-project-preview');
+    if (exactVersion.isEmpty || exactArtifact.length != 64) {
+      throw PandoraApiError(
+        kind: PandoraApiErrorKind.contract,
+        message: 'Pandora is still preparing the exact preview version.',
+        code: 'EXACT_PREVIEW_IDENTITY_REQUIRED',
+      );
+    }
     final response = await _client.postJson(
       pathSegments: <String>['projects', projectId, 'previews'],
       operation: 'customerProject.preview',
       routeTemplate: '/projects/:id/previews',
-      idempotencyKey:
-          idempotencyKey ?? _keys.create('customer-project-preview'),
-      body: const <String, Object?>{},
+      idempotencyKey: key,
+      body: <String, Object?>{
+        'versionId': exactVersion,
+        'artifactDigest': exactArtifact,
+        'idempotencyKey': key,
+      },
     );
     return ProjectPreviewResult.fromJson(
       _map(response.data, 'project preview'),
