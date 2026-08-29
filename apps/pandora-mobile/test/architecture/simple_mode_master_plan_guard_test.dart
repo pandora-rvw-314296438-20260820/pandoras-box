@@ -94,7 +94,7 @@ void main() {
     for (final phrase in const [
       'Pandora has not confirmed how many decisions need you yet.',
       'Pandora has not confirmed any current work yet',
-      "note: verified ? 'Confirmed' : 'Not confirmed',",
+      'Nothing is published on a verified domain yet.',
     ]) {
       expect(home, contains(phrase));
     }
