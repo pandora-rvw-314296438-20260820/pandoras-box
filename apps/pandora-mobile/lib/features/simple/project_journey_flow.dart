@@ -237,7 +237,9 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     } on PandoraRepositoryException {
       if (!mounted) return;
       _refreshTimer?.cancel();
-      _requestStarted = false;
+      if (_previewRequestedVersionId == candidate.versionId) {
+        _previewRequestedVersionId = null;
+      }
       setState(
         () => _error =
             'Pandora found something to fix before your preview is ready.',
@@ -245,7 +247,9 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     } catch (_) {
       if (!mounted) return;
       _refreshTimer?.cancel();
-      _requestStarted = false;
+      if (_previewRequestedVersionId == candidate.versionId) {
+        _previewRequestedVersionId = null;
+      }
       setState(
         () => _error =
             'Pandora found something to fix before your preview is ready.',
@@ -253,18 +257,27 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     }
   }
 
-  String get _previewIdempotencyKey {
+  String get _buildIdempotencyKey {
     final version = widget.project.updatedAt ?? widget.project.createdAt;
     final versionKey =
         version?.toUtc().toIso8601String() ?? widget.project.projectKey;
-    return 'project-preview:${widget.project.id}:$versionKey';
+    return 'project-build:${widget.project.id}:$versionKey';
+  }
+
+  String _previewIdempotencyKey(ProjectRuntimeCandidate candidate) =>
+      'project-preview:${widget.project.id}:${candidate.versionId}:${candidate.artifactDigest}';
+
+  Future<void> _refreshAndAdvance() async {
+    final snapshot = await _refreshDurableTruth();
+    if (!mounted || snapshot == null) return;
+    await _advanceBuild(snapshot, requestBuildIfNeeded: true);
   }
 
   void _scheduleRefresh() {
     _refreshTimer?.cancel();
     if (_previewUrl != null) return;
     _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      unawaited(_refreshDurableTruth());
+      unawaited(_refreshAndAdvance());
     });
   }
 
