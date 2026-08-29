@@ -322,7 +322,7 @@ function projectSourceIdentity(versionIdValue: unknown, sourceKindValue: unknown
   const versionId = textValue(versionIdValue).toLowerCase();
   const rawCommit = textValue(sourceCommitValue).toLowerCase() || null;
   const sourceKind = textValue(sourceKindValue, rawCommit ? "git_commit" : "artifact_snapshot").toLowerCase();
-  const sourceRef = textValue(sourceRefValue, sourceKind === "git_commit" ? rawCommit : versionId).toLowerCase();
+  const sourceRef = textValue(sourceRefValue, sourceKind === "git_commit" ? (rawCommit ?? "") : versionId).toLowerCase();
   const valid = UUID_RE.test(versionId) && (sourceKind === "git_commit"
     ? Boolean(rawCommit && SHA40_RE.test(rawCommit) && sourceRef === rawCommit)
     : sourceKind === "artifact_snapshot" && rawCommit === null && sourceRef === versionId);
