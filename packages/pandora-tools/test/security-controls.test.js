@@ -99,10 +99,16 @@ test("Vault secret holder exposes only callback-based secret access", async () =
 
 test("Worker D bridge receives opaque credential lease refs, never raw credentials", async () => {
   const metadata=new T.MemorySecretMetadataStore([{secret_ref:"vault://registry",provider:"registry",purpose:"install",scope:{organization_id:ORG,project_id:PROJECT,environment:"preview",operation:"write_file",resource_id:"workspace"}}]);
-  const broker=new T.SecretsBroker({metadataStore:metadata,secretHolder:new T.MemorySecretHolder({"vault://registry":"RAW_SECRET_SHOULD_NOT_TRAVEL"})});
-  const lease=await broker.issueLease({secret_ref:"vault://registry",purpose:"install",scope:{organization_id:ORG,project_id:PROJECT,environment:"preview",operation:"write_file",resource_id:"workspace"},requested_by:"job",ttl_ms:1000},{actor_capabilities:["secrets.use.scoped"],now:new Date("2026-08-28T00:00:00Z")});
+  const leaseRecords=new Map();
+  const leaseStore=new T.DurableSecretLeaseStore({
+    putLease:async record=>{leaseRecords.set(record.lease_id,structuredClone(record));return structuredClone(record);},
+    getLease:async id=>leaseRecords.get(id) ? structuredClone(leaseRecords.get(id)) : null,
+    revokeLease:async(id,at)=>{const record=leaseRecords.get(id);if(!record)return false;record.revoked_at=at;return true;},
+  });
+  const broker=new T.SecretsBroker({metadataStore:metadata,secretHolder:new T.MemorySecretHolder({"vault://registry":"RAW_SECRET_SHOULD_NOT_TRAVEL"}),leaseStore});
+  const lease=await broker.issueLease({secret_ref:"vault://registry",purpose:"install",scope:{organization_id:ORG,project_id:PROJECT,environment:"preview",operation:"write_file",resource_id:"workspace"},requested_by:"job",ttl_ms:1000,handoff:"cross_worker"},{actor_capabilities:["secrets.use.scoped"],now:new Date("2026-08-28T00:00:00Z")});
   const executionRequest={tool:"write_file",organization_id:ORG,project_id:PROJECT,environment:"preview",arguments:{idempotency_key:"idem-1234",path:"src/a.js"}};
-  const d=T.toWorkerDBuildExecutionRequest({...executionRequest,action_hash:"d".repeat(64)},{execution_id:"11111111-1111-4111-8111-111111111111",build_job_id:"22222222-2222-4222-8222-222222222222",project_version_id:"33333333-3333-4333-8333-333333333333",source:{kind:"git_commit",repository:"owner/repo",commitSha:"a".repeat(40)},timeout_ms:1000,credential_lease_refs:[lease.lease_id]});
+  const d=T.toWorkerDBuildExecutionRequest({...executionRequest,action_hash:"d".repeat(64)},{execution_id:"11111111-1111-4111-8111-111111111111",build_job_id:"22222222-2222-4222-8222-222222222222",project_version_id:"33333333-3333-4333-8333-333333333333",source:{kind:"git_commit",repository:"owner/repo",commitSha:"a".repeat(40)},timeout_ms:1000,credential_lease_refs:[lease.lease_id],credential_lease_store_durability:"durable"});
   assert.equal(d.request.credentialLeaseRefs[0],lease.lease_id); assert.equal(d.request.authorizedCapability,"build.files.write"); assert.equal(d.gatewayAuthorization.capability,"workspace.files.write"); assert.equal(d.gatewayAuthorization.authorizationId,"d".repeat(64)); assert.equal(JSON.stringify(d).includes("RAW_SECRET_SHOULD_NOT_TRAVEL"),false); assert.equal(Object.hasOwn(d.request,"credentials"),false);
 });
 

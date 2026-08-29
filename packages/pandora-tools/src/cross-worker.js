@@ -21,6 +21,9 @@ function toWorkerDBuildExecutionRequest(executionRequest, trusted) {
   if (!trusted?.execution_id || !trusted?.build_job_id || !trusted?.project_version_id || !trusted?.source) throw new PandoraToolError("invalid_request", "WORKER_D_TRUSTED_CONTEXT_INCOMPLETE", "Build runtime delegation requires exact trusted identity");
   if (!executionRequest.action_hash) throw new PandoraToolError("invalid_request", "WORKER_C_AUTHORIZATION_IDENTITY_MISSING", "Build runtime delegation requires an exact Worker C authorization identity");
   const environment = executionRequest.environment === "development" ? "sandbox" : executionRequest.tool === "request_tests" ? "test" : "preview-build";
+  const credentialLeaseRefs = [...(trusted.credential_lease_refs || [])];
+  if (credentialLeaseRefs.length > 0 && trusted.credential_lease_store_durability !== "durable") throw new PandoraToolError("policy_denied", "WORKER_D_DURABLE_CREDENTIAL_LEASE_REQUIRED", "Cross-worker credential lease references require durable lease state");
+  if (credentialLeaseRefs.some((ref) => typeof ref !== "string" || !ref.trim())) throw new PandoraToolError("invalid_request", "WORKER_D_CREDENTIAL_LEASE_REF_INVALID", "Credential lease reference is invalid");
   const idempotencyKey = executionRequest.arguments.idempotency_key;
   const request = Object.freeze({
     schemaVersion: 1,
@@ -36,7 +39,7 @@ function toWorkerDBuildExecutionRequest(executionRequest, trusted) {
     timeoutMs: trusted.timeout_ms,
     resourceLimits: structuredClone(trusted.resource_limits || {}),
     networkPolicy: structuredClone(trusted.network_policy || { mode: "deny" }),
-    credentialLeaseRefs: [...(trusted.credential_lease_refs || [])],
+    credentialLeaseRefs,
     idempotencyKey,
     attempt: trusted.attempt || 1,
     cancellationRef: trusted.cancellation_ref || null,
