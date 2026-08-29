@@ -111,3 +111,15 @@ test('allowlist network policy remains explicit and host-only', () => {
   });
   assert.throws(() => vercelSandboxNetworkPolicy({ mode: 'allowlist', allow: ['https://github.com/path'] }), /INVALID_NETWORK_POLICY_HOST/);
 });
+
+
+test('cancel uses the live Vercel stop protocol with an empty body', async () => {
+  const transport = new FakeTransport();
+  const provider = new VercelSandboxProvider({ transport, teamId: 'team_ABC', projectId: 'prj_ABCDE' });
+  const handle = await provider.create(request());
+  const result = await provider.cancel(handle, 'diagnostic reason must remain local');
+  assert.equal(result.stopped, true);
+  const stop = transport.calls.find((call) => call.method === 'POST' && call.path.includes('/stop?'));
+  assert.ok(stop);
+  assert.deepEqual(stop.body, {});
+});
