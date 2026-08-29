@@ -480,7 +480,7 @@ class _NeedsYouHomeCard extends StatelessWidget {
                   summary.priority?.reason ??
                       (summary.countersVerified
                           ? 'Pandora will surface the next decision here.'
-                          : 'Pandora has not confirmed your decision count yet.'),
+                          : 'Pandora has not confirmed how many decisions need you yet.'),
                   style: pandoraSimpleMutedText,
                 ),
               ],
