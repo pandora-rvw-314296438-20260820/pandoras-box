@@ -1025,24 +1025,17 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 
   const { data: versionData, error: versionError } = await admin.from("pandora_project_versions")
-    .select("id, source_payload, source_sha256, project_spec_id, build_job_id, source_commit, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, verification_run_id, lifecycle_status, created_at")
+    .select("id, source_sha256, project_spec_id, build_job_id, source_kind, source_ref, source_commit, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, verification_run_id, lifecycle_status, created_at")
     .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", requestedVersion).maybeSingle();
   if (versionError) throw new Error("BACKEND_READ_FAILED");
   if (!versionData) throw new Error("PREVIEW_REQUIRED");
   const version = asRecord(versionData);
-  const payload = asRecord(version.source_payload);
-  const files = Array.isArray(payload.files) ? payload.files : [];
-  const first = asRecord(files[0]);
-  const html = textValue(first.data);
-  if (textValue(first.file) !== "index.html" || !html) throw new Error("VERSION_SOURCE_INVALID");
-  const sourceDigest = await sha256Hex(html);
-  if (sourceDigest !== textValue(version.source_sha256)) throw new Error("VERSION_SOURCE_MISMATCH");
-
+  const sourceDigest = textValue(version.source_sha256).toLowerCase();
   const projectSpecId = textValue(version.project_spec_id);
   const buildJobId = textValue(version.build_job_id);
-  const sourceCommit = textValue(version.source_commit);
-  const artifactDigest = textValue(version.artifact_digest_sha256);
-  if (!projectSpecId || !buildJobId || !/^[0-9a-f]{40}$/.test(sourceCommit) || !/^[0-9a-f]{64}$/.test(artifactDigest)) throw new Error("VERIFICATION_REQUIRED");
+  const { sourceKind, sourceRef, sourceCommit } = projectSourceIdentity(requestedVersion, version.source_kind, version.source_ref, version.source_commit);
+  const artifactDigest = textValue(version.artifact_digest_sha256).toLowerCase();
+  if (!SHA256_RE.test(sourceDigest) || !UUID_RE.test(projectSpecId) || !UUID_RE.test(buildJobId) || !SHA256_RE.test(artifactDigest)) throw new Error("VERIFICATION_REQUIRED");
 
   const { data: previewData, error: previewError } = await admin.from("pandora_project_deployments")
     .select("id, version_id, provider_project_id, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at")
@@ -1056,7 +1049,7 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   if (!previewDeploymentId || !new Set(["ready", "ready_for_verification"]).has(previewStatus)) throw new Error("PREVIEW_NOT_READY");
   if (textValue(preview.source_sha256) !== sourceDigest) throw new Error("VERSION_SOURCE_MISMATCH");
   if (textValue(preview.artifact_digest) && textValue(preview.artifact_digest) !== artifactDigest) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
-  if (textValue(preview.source_commit_sha) && textValue(preview.source_commit_sha) !== sourceCommit) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
+  if ((textValue(preview.source_commit_sha) || null) !== sourceCommit) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
 
   let verificationQuery = admin.from("pandora_verification_runs")
     .select("id, project_spec_id, project_version_id, build_job_id, source_kind, source_ref, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, status, completed_at, created_at")
@@ -1072,8 +1065,8 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   if (textValue(verification.status).toUpperCase() !== "PASS") throw new Error("VERIFICATION_REQUIRED");
   if (textValue(verification.target_environment) !== "preview") throw new Error("VERIFICATION_IDENTITY_MISMATCH");
   if (textValue(verification.project_spec_id) !== projectSpecId || textValue(verification.project_version_id) !== requestedVersion ||
-      textValue(verification.build_job_id) !== buildJobId || textValue(verification.source_commit) !== sourceCommit ||
-      textValue(verification.source_digest) !== sourceDigest || textValue(verification.artifact_digest) !== artifactDigest ||
+      textValue(verification.build_job_id) !== buildJobId || textValue(verification.source_kind) !== sourceKind || textValue(verification.source_ref) !== sourceRef ||
+      (textValue(verification.source_commit) || null) !== sourceCommit || textValue(verification.source_digest) !== sourceDigest || textValue(verification.artifact_digest) !== artifactDigest ||
       textValue(verification.migration_set_digest) !== textValue(version.migration_set_digest_sha256) ||
       textValue(verification.runtime_target_digest) !== textValue(version.runtime_target_digest_sha256) ||
       textValue(verification.preview_deployment_id) !== previewDeploymentId) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
@@ -1148,7 +1141,7 @@ async function publishProject(context: UserContext, identifier: string, body: Js
       organization_id: context.organizationId, project_id: projectId, version_id: requestedVersion, provider: "vercel", environment: "production",
       provider_project_id: provider.id, provider_deployment_id: previewDeploymentId, url: deploymentUrl, status, source_sha256: sourceDigest,
       promoted_from_id: preview.id, artifact_digest: artifactDigest, source_commit_sha: sourceCommit, verification_ref: textValue(verification.id), verification_state: "ready_for_verification",
-      provider_state: providerState, immutable_url: deploymentUrl, metadata: { providerName: provider.name, promotionOnly: true, previewVerificationRunId: textValue(verification.id), productionVerificationRunId: null },
+      provider_state: providerState, immutable_url: deploymentUrl, metadata: { providerName: provider.name, promotionOnly: true, previewVerificationRunId: textValue(verification.id), productionVerificationRunId: null, sourceKind, sourceRef },
     }).select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, verification_state, created_at").single();
     if (productionError || !productionRow) throw new Error("BACKEND_WRITE_FAILED");
 
@@ -1195,7 +1188,7 @@ async function publishProject(context: UserContext, identifier: string, body: Js
     const nextConfig = { ...config, customerJourney: { ...journey, stage: "publishing", runtimeStatus: "verifying", liveUrl: previousLiveUrl, productionCandidateUrl, productionDeploymentId: previewDeploymentId, publishedVersionId: requestedVersion, requestedDomain: domain, domainStatus, productionVerificationState: "ready_for_verification", runtimeUpdatedAt: new Date().toISOString() } };
     const { error: projectError } = await admin.from("projectos_projects").update({ config: nextConfig, updated_at: new Date().toISOString() }).eq("organization_id", context.organizationId).eq("id", projectId);
     if (projectError) throw new Error("BACKEND_WRITE_FAILED");
-    await admin.from("pandora_runtime_operations").update({ status: "succeeded", ambiguous: false, provider_resource_id: previewDeploymentId, result_facts: { projectVersionId: requestedVersion, providerDeploymentId: previewDeploymentId, previewVerificationRunId: textValue(verification.id), promotedFromDeploymentId: previewDeploymentId, verificationState: "ready_for_verification" }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
+    await admin.from("pandora_runtime_operations").update({ status: "succeeded", ambiguous: false, provider_resource_id: previewDeploymentId, result_facts: { projectVersionId: requestedVersion, providerDeploymentId: previewDeploymentId, previewVerificationRunId: textValue(verification.id), promotedFromDeploymentId: previewDeploymentId, sourceKind, sourceRef, verificationState: "ready_for_verification" }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
     return { project: projectResponse({ ...project, config: nextConfig }), production: productionRow, domain: domainRow, liveUrl: previousLiveUrl, productionCandidateUrl, domainVerified, verificationState: "ready_for_verification" };
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
