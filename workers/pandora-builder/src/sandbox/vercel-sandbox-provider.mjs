@@ -123,14 +123,17 @@ class VercelSandboxProvider extends SandboxProvider {
     const request = validateBuildExecutionRequest(rawRequest);
     const name = sandboxName(request.executionId);
     const policy = networkPolicy(request.networkPolicy);
-    const memoryMiB = Math.max(2048, Math.min(8192, Math.ceil(request.resourceLimits.memoryBytes / 1024 / 1024)));
+    const requestedMemoryMiB = Math.ceil(request.resourceLimits.memoryBytes / 1024 / 1024);
+    if (requestedMemoryMiB < 2048) throw new Error('VERCEL_SANDBOX_MEMORY_LIMIT_BELOW_PROVIDER_MINIMUM');
+    const memoryMiB = Math.min(8192, Math.floor(requestedMemoryMiB / 2048) * 2048);
+    const vcpus = memoryMiB / 2048;
     const body = responseBody(await this.transport.request('POST', scoped('/v2/sandboxes', this.teamId), {
       name,
       projectId: this.projectId,
       runtime: 'node24',
       persistent: false,
       timeout: request.timeoutMs,
-      resources: { vcpus: 2, memory: memoryMiB },
+      resources: { vcpus, memory: memoryMiB },
       networkPolicy: policy,
       env: {},
       ports: [],
