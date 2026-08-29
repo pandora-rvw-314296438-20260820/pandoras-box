@@ -250,7 +250,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     } on PandoraRepositoryException {
       if (!mounted) return;
       _refreshTimer?.cancel();
-      _requestStarted = false;
+      _previewRequestStarted = false;
       setState(
         () => _error =
             'Pandora found something to fix before your preview is ready.',
@@ -258,7 +258,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     } catch (_) {
       if (!mounted) return;
       _refreshTimer?.cancel();
-      _requestStarted = false;
+      _previewRequestStarted = false;
       setState(
         () => _error =
             'Pandora found something to fix before your preview is ready.',
@@ -266,18 +266,24 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     }
   }
 
-  String get _previewIdempotencyKey {
+  String get _buildIdempotencyKey {
     final version = widget.project.updatedAt ?? widget.project.createdAt;
     final versionKey =
         version?.toUtc().toIso8601String() ?? widget.project.projectKey;
-    return 'project-preview:${widget.project.id}:$versionKey';
+    return 'project-build:${widget.project.id}:$versionKey';
+  }
+
+  String _previewIdempotencyKey(ProjectRuntimeCandidate candidate) {
+    return 'project-preview:${widget.project.id}:${candidate.versionId}';
   }
 
   void _scheduleRefresh() {
     _refreshTimer?.cancel();
     if (_previewUrl != null) return;
     _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      unawaited(_refreshDurableTruth());
+      unawaited(_refreshDurableTruth().then((snapshot) {
+        if (snapshot != null && mounted) _advanceBuild(snapshot);
+      }));
     });
   }
 
@@ -418,7 +424,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                     label: 'Try again',
                     icon: Icons.refresh_rounded,
                     onPressed: () {
-                      _requestStarted = false;
+                      _previewRequestStarted = false;
                       unawaited(_resumeBuild(requestPreviewIfNeeded: true));
                     },
                   ),
