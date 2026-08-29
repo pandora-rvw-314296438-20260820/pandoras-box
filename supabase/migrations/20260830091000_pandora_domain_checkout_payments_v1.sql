@@ -20,17 +20,31 @@ values
   ('paypal','mode','sandbox',true,now())
 on conflict (provider,config_key) do nothing;
 
-do $$
+do $domain_contact_key$
+declare
+  v_secret_exists boolean := false;
 begin
-  if not exists(select 1 from vault.decrypted_secrets where name='domain_contact_encryption_key') then
-    perform vault.create_secret(
-      encode(extensions.gen_random_bytes(32),'hex'),
-      'domain_contact_encryption_key',
-      'Pandora domain checkout transient registrant-contact encryption key',
-      null
-    );
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema='vault'
+      and table_name='decrypted_secrets'
+      and column_name='name'
+  ) then
+    execute 'select exists(select 1 from vault.decrypted_secrets where name=$1)'
+      into v_secret_exists
+      using 'domain_contact_encryption_key';
+    if not v_secret_exists then
+      perform vault.create_secret(
+        encode(extensions.gen_random_bytes(32),'hex'),
+        'domain_contact_encryption_key',
+        'Pandora domain checkout transient registrant-contact encryption key',
+        null
+      );
+    end if;
   end if;
-end $$;
+end
+$domain_contact_key$;
 
 create table if not exists public.pandora_domain_checkouts (
   id uuid primary key default gen_random_uuid(),
