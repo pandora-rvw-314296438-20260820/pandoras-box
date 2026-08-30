@@ -4,6 +4,9 @@ verify_jwt = true
 [functions.pandora-project-runtime]
 verify_jwt = true
 
+[functions.pandora-intelligence-chat]
+verify_jwt = true
+
 [functions.pandora-project-spec-compiler]
 verify_jwt = true
 
