@@ -388,6 +388,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   final _change = TextEditingController();
   ProjectRuntimeSnapshot? _snapshot;
   String? _error;
+  String? _intelligenceReply;
   bool _started = false;
   bool _loading = true;
   bool _openingPreview = false;
