@@ -486,6 +486,32 @@ Deno.serve(async (req) => {
       return response({ ok: true, state: "cancelled" });
     }
 
+    const primitiveResolutionResult = await admin.rpc(
+      "pandora_worker_i_resolve_project_spec_primitives_20260831",
+      { p_project_spec_id: text(spec.id), p_require_trusted: true },
+    );
+    if (primitiveResolutionResult.error) throw new Error("PRIMITIVE_SELECTION_UNAVAILABLE");
+    const primitiveResolution = rec(primitiveResolutionResult.data);
+    const primitiveState = text(primitiveResolution.state);
+    if (primitiveState === "BLOCKED") {
+      const blockedPrimitives = Array.isArray(primitiveResolution.blockedPrimitives)
+        ? primitiveResolution.blockedPrimitives.map((value) => text(value)).filter(Boolean).slice(0, 50)
+        : [];
+      await admin.from("pandora_source_generation_queue").update({
+        status: "failed",
+        last_error_code: "TRUSTED_PRIMITIVE_UNAVAILABLE",
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("id", queueId);
+      return response({
+        ok: false,
+        state: "blocked",
+        error: { code: "TRUSTED_PRIMITIVE_UNAVAILABLE" },
+        blockedPrimitives,
+      }, 409);
+    }
+    if (primitiveState !== "READY") throw new Error("PRIMITIVE_SELECTION_UNAVAILABLE");
+
     const projectResult = await admin.from("projectos_projects")
       .select("id,organization_id,name,objective,status")
       .eq("id", row.project_id)
