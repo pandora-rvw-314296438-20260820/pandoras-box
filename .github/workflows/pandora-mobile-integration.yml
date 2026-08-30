@@ -210,6 +210,7 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "android_artifact_name=${ANDROID_ARTIFACT_NAME}"
             echo "app_version=${EXPECTED_APP_VERSION}"
+            echo 'android_package=com.banataosystems.pandora_mobile'
             echo "flutter_version=${FLUTTER_VERSION}"
             echo 'runner_image=ubuntu-24.04'
             echo 'java_version=17.0.20+8'
@@ -264,12 +265,25 @@ jobs:
           set -euo pipefail
           [[ "$ARTIFACT_ID" =~ ^[1-9][0-9]{0,19}$ ]]
           [[ "$ARTIFACT_DIGEST" =~ ^[0-9a-f]{64}$ ]]
+          manifest=.pandora-mobile-build/pandora-mobile-artifact-manifest.txt
+          apk_sha256="$(grep '^apk_sha256=' "$manifest" | cut -d= -f2-)"
+          apk_size_bytes="$(grep '^apk_size_bytes=' "$manifest" | cut -d= -f2-)"
+          android_package="$(grep '^android_package=' "$manifest" | cut -d= -f2-)"
+          app_version="$(grep '^app_version=' "$manifest" | cut -d= -f2-)"
+          [[ "$apk_sha256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$apk_size_bytes" =~ ^[1-9][0-9]*$ ]]
+          test "$android_package" = 'com.banataosystems.pandora_mobile'
+          test "$app_version" = "$EXPECTED_APP_VERSION"
           artifact_api_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}"
           {
             echo "artifact_id=${ARTIFACT_ID}"
             echo "artifact_name=${ANDROID_ARTIFACT_NAME}"
             echo "artifact_api_url=${artifact_api_url}"
             echo "artifact_digest_sha256=${ARTIFACT_DIGEST}"
+            echo "apk_sha256=${apk_sha256}"
+            echo "apk_size_bytes=${apk_size_bytes}"
+            echo "android_package=${android_package}"
+            echo "app_version=${app_version}"
           } >> "$GITHUB_OUTPUT"
           {
             echo '### Android validation artifact provider locator'
@@ -278,6 +292,10 @@ jobs:
             echo "- Artifact name: \`${ANDROID_ARTIFACT_NAME}\`"
             echo "- Artifact API URL: \`${artifact_api_url}\`"
             echo "- GitHub artifact digest: \`sha256:${ARTIFACT_DIGEST}\`"
+            echo "- APK SHA-256: \`${apk_sha256}\`"
+            echo "- APK size bytes: \`${apk_size_bytes}\`"
+            echo "- Android package: \`${android_package}\`"
+            echo "- App version: \`${app_version}\`"
             echo "- Source SHA: \`${SOURCE_SHA}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
