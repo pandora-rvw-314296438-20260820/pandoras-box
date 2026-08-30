@@ -10,6 +10,7 @@ const MAX_BODY_BYTES = 4096;
 const MAX_FILES = 120;
 const MAX_FILE_BYTES = 512 * 1024;
 const MAX_SOURCE_BYTES = 4 * 1024 * 1024;
+const MAX_BASE_CONTEXT_BYTES = 120 * 1024;
 const MIN_STATIC_INDEX_BYTES = 1024;
 const BUCKET = "pandora-build-artifacts";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -26,6 +27,7 @@ function userClient(authorization: string) { if (!SUPABASE_URL || !SUPABASE_ANON
 async function sha256Bytes(bytes: Uint8Array) { const digest = await crypto.subtle.digest("SHA-256", bytes); return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join(""); }
 async function sha256Text(value: string) { return sha256Bytes(new TextEncoder().encode(value)); }
 function base64(bytes: Uint8Array) { let binary = ""; for (const b of bytes) binary += String.fromCharCode(b); return btoa(binary); }
+function decodeBase64(value: string) { const binary = atob(value); const bytes = new Uint8Array(binary.length); for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i); return bytes; }
 
 async function readBody(req: Request) {
   const declared = Number(req.headers.get("content-length") || "0");
@@ -48,7 +50,7 @@ function chooseAdapter(spec: JsonRecord) {
   throw new Error("BUILD_TYPE_NOT_SUPPORTED");
 }
 
-function sourcePrompt(spec: JsonRecord, project: JsonRecord, adapter: string) {
+function sourcePrompt(spec: JsonRecord, project: JsonRecord, adapter: string, priorSource: JsonRecord | null) {
   const contract = adapter === "static-web"
     ? "Create a self-contained production-quality website. index.html is mandatory; keep JavaScript and CSS inline unless additional local files materially improve quality."
     : adapter === "flutter-web"
@@ -61,10 +63,12 @@ function sourcePrompt(spec: JsonRecord, project: JsonRecord, adapter: string) {
       "schemaVersion must be 1. files is an array of {path,content} UTF-8 text files.",
       "Do not return markdown fences, commentary, shell commands, credentials, API keys, tokens, .env files, generated binaries, lockfiles, node_modules, build output, or remote secrets.",
       "Use relative POSIX file paths only. Implement the requested experience and acceptance criteria. Never invent measured business results.",
-      "For change requests, preserve the existing product identity, content depth, responsive behavior, and working experience; never replace a complete product with a loading shell, placeholder, or skeletal page.",
+      priorSource
+        ? "An exact previously verified source snapshot is supplied. Treat it as the product baseline. Change only what the active ProjectSpec requires while preserving identity, content depth, responsive behavior, accessibility, and working interactions."
+        : "Build a complete first working version; never return a loading shell, placeholder, or skeletal page.",
       contract,
     ].join(" ") }] },
-    contents: [{ role: "user", parts: [{ text: JSON.stringify({ project: { name: text(project.name), objective: text(project.objective) }, projectSpec: { id: spec.id, projectType: spec.project_type, businessSummary: spec.business_summary, product: spec.product_scope, data: spec.data_scope, integrations: spec.integration_scope, experience: spec.experience_scope, deployment: spec.deployment_scope, acceptance: spec.acceptance_scope }, buildAdapter: adapter }) }] }],
+    contents: [{ role: "user", parts: [{ text: JSON.stringify({ project: { name: text(project.name), objective: text(project.objective) }, projectSpec: { id: spec.id, projectType: spec.project_type, businessSummary: spec.business_summary, product: spec.product_scope, data: spec.data_scope, integrations: spec.integration_scope, experience: spec.experience_scope, deployment: spec.deployment_scope, acceptance: spec.acceptance_scope }, existingVerifiedSource: priorSource, buildAdapter: adapter }) }] }],
     generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 32768 },
   };
 }
@@ -106,6 +110,80 @@ async function canonicalBundle(raw: unknown, projectSpecId: string, adapter: str
   const bytes = new TextEncoder().encode(JSON.stringify(bundle));
   if (bytes.byteLength > MAX_SOURCE_BYTES * 2) throw new Error("INVALID_GENERATED_SOURCE");
   return { bundle, bytes, sha256: await sha256Bytes(bytes) };
+}
+
+async function loadLatestVerifiedSource(
+  admin: ReturnType<typeof adminClient>,
+  organizationId: string,
+  projectId: string,
+) {
+  const version = await admin.from("pandora_project_versions")
+    .select("id,root_artifact_version_id")
+    .eq("organization_id", organizationId)
+    .eq("project_id", projectId)
+    .in("lifecycle_status", ["verified", "preview_ready", "live"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (version.error) throw new Error("BASE_SOURCE_READ_FAILED");
+  if (!version.data?.root_artifact_version_id) return null;
+
+  const artifact = await admin.from("pandora_artifact_versions")
+    .select("id,storage_bucket,storage_path,content_sha256")
+    .eq("id", version.data.root_artifact_version_id)
+    .eq("organization_id", organizationId)
+    .eq("project_id", projectId)
+    .maybeSingle();
+  if (artifact.error) throw new Error("BASE_SOURCE_READ_FAILED");
+  if (!artifact.data?.storage_bucket || !artifact.data?.storage_path) return null;
+
+  const downloaded = await admin.storage
+    .from(String(artifact.data.storage_bucket))
+    .download(String(artifact.data.storage_path));
+  if (downloaded.error || !downloaded.data) {
+    throw new Error("BASE_SOURCE_READ_FAILED");
+  }
+  const raw = await downloaded.data.text();
+  if (SECRET.test(raw)) throw new Error("BASE_SOURCE_UNSAFE");
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { throw new Error("BASE_SOURCE_INVALID"); }
+  const bundle = rec(parsed);
+  const rows = Array.isArray(bundle.files) ? bundle.files : [];
+  const prioritized = [...rows].sort((left, right) => {
+    const a = text(rec(left).file);
+    const b = text(rec(right).file);
+    const rank = (path: string) =>
+      path === "index.html" ? 0 :
+      path === "package.json" || path === "pubspec.yaml" ? 1 :
+      path.startsWith("src/main.") || path === "lib/main.dart" ? 2 : 3;
+    return rank(a) - rank(b) || a.localeCompare(b, "en");
+  });
+  let used = 0;
+  const files: JsonRecord[] = [];
+  for (const value of prioritized) {
+    const row = rec(value);
+    const path = text(row.file);
+    const encoded = text(row.data);
+    if (!path || !encoded || text(row.encoding) !== "base64") continue;
+    let content = "";
+    try {
+      content = new TextDecoder("utf-8", { fatal: true })
+        .decode(decodeBase64(encoded));
+    } catch {
+      continue;
+    }
+    if (SECRET.test(content)) throw new Error("BASE_SOURCE_UNSAFE");
+    const bytes = new TextEncoder().encode(content).byteLength;
+    if (used + bytes > MAX_BASE_CONTEXT_BYTES) continue;
+    used += bytes;
+    files.push({ path, content });
+  }
+  return files.length ? {
+    versionId: version.data.id,
+    artifactVersionId: version.data.root_artifact_version_id,
+    sourceDigest: artifact.data.content_sha256,
+    files,
+  } : null;
 }
 
 Deno.serve(async (req) => {
@@ -152,7 +230,8 @@ Deno.serve(async (req) => {
       spec = retry.data;
     }
     const adapter = chooseAdapter(rec(spec));
-    const providerRequest = sourcePrompt(rec(spec), rec(project), adapter); const requestSha = await sha256Text(JSON.stringify(providerRequest));
+    const priorSource = await loadLatestVerifiedSource(admin, String(project.organization_id), projectId);
+    const providerRequest = sourcePrompt(rec(spec), rec(project), adapter, priorSource); const requestSha = await sha256Text(JSON.stringify(providerRequest));
     const { data: modelData, error: modelError } = await admin.rpc("pandora_worker_b_gemini_request_20260829", { p_model: MODEL, p_body: providerRequest }); if (modelError) throw new Error("PROVIDER_UNAVAILABLE");
     const modelEnvelope = rec(modelData); const output = providerText(modelEnvelope); const responseSha = await sha256Text(output);
     let parsed: unknown; try { parsed = JSON.parse(output); } catch { throw new Error("INVALID_GENERATED_SOURCE"); }
