@@ -195,20 +195,12 @@ Future<void> _waitForRenderedPandoraMark(
   final markFinder = find.byType(PandoraMark);
   if (markFinder.evaluate().isEmpty) return;
 
-  const attempts = 100;
-  const decodeSlice = Duration(milliseconds: 20);
-  for (var attempt = 0; attempt < attempts; attempt++) {
-    final imageFinder =
-        find.descendant(of: markFinder, matching: find.byType(Image)).first;
-    final renderImage = tester.renderObject<RenderImage>(imageFinder);
-    if (renderImage.image != null) return;
-    await tester.runAsync(() => Future<void>.delayed(decodeSlice));
-    await tester.pump();
+  // PandoraMark is now a synchronous vector-painted app icon. One frame is
+  // sufficient to prove the mark has a render object before golden capture.
+  await tester.pump();
+  if (markFinder.evaluate().isEmpty) {
+    throw TestFailure('$caseName did not render the Pandora app icon.');
   }
-  throw TestFailure(
-    '$caseName did not paint the exact Pandora product mark within '
-    '100 bounded engine-decode slices.',
-  );
 }
 
 class _VisualCase {
