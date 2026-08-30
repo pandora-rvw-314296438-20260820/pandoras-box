@@ -69,6 +69,27 @@ class ProjectRuntimeApi {
     );
   }
 
+  Future<ProjectRuntimeSnapshot> undo({
+    required String projectId,
+    required String versionId,
+    String? idempotencyKey,
+  }) async {
+    final key = idempotencyKey ?? _keys.create('customer-project-undo');
+    final response = await _client.postJson(
+      pathSegments: <String>['projects', projectId, 'undo'],
+      operation: 'customerProject.undo',
+      routeTemplate: '/projects/:id/undo',
+      idempotencyKey: key,
+      body: <String, Object?>{
+        'expectedVersionId': versionId.trim(),
+        'idempotencyKey': key,
+      },
+    );
+    return ProjectRuntimeSnapshot.fromJson(
+      _map(response.data, 'project undo'),
+    );
+  }
+
   Future<ProjectPublishResult> publish({
     required String projectId,
     String? versionId,
