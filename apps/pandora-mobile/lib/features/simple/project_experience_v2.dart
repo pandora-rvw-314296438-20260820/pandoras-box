@@ -50,6 +50,7 @@ class _ProjectBuildExperienceV2ScreenState
   List<Map<String, Object?>>? _localPreviewFiles;
   String? _localPreviewVersionId;
   String? _error;
+  String? _intelligenceReply;
   bool _started = false;
   bool _buildRequested = false;
   bool _previewRequested = false;
@@ -387,6 +388,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   final _change = TextEditingController();
   ProjectRuntimeSnapshot? _snapshot;
   String? _error;
+  String? _intelligenceReply;
   bool _started = false;
   bool _loading = true;
   bool _openingPreview = false;
@@ -508,17 +510,77 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   Future<void> _requestChange(String text) async {
-    final experience = PandoraDependencies.of(context).projectExperience;
-    if (experience == null || text.trim().length < 4 || _changing) return;
+    final request = text.trim();
+    if (request.length < 4 || _changing) return;
+    final dependencies = PandoraDependencies.of(context);
+    final experience = dependencies.projectExperience;
+    final intelligence = dependencies.intelligence;
+    if (experience == null || intelligence == null) {
+      setState(
+        () => _error = 'Pandora cannot understand that request right now.',
+      );
+      return;
+    }
     final baseVersion = _candidate?.versionId;
     setState(() {
       _changing = true;
       _error = null;
+      _intelligenceReply = null;
     });
     try {
+      final turn = await intelligence.chat(
+        message: request,
+        projectId: widget.project.id,
+      );
+      if (!mounted) return;
+
+      if (turn.needsClarification) {
+        _change.clear();
+        setState(() {
+          _changing = false;
+          _intelligenceReply = turn.clarifyingQuestion ?? turn.reply;
+        });
+        return;
+      }
+
+      if (turn.intent == 'preview') {
+        _change.clear();
+        setState(() {
+          _changing = false;
+          _intelligenceReply = turn.reply;
+        });
+        await _openPreview();
+        return;
+      }
+      if (turn.intent == 'publish') {
+        _change.clear();
+        setState(() {
+          _changing = false;
+          _intelligenceReply = turn.reply;
+        });
+        await _showPublish();
+        return;
+      }
+
+      final handoff = turn.handoff;
+      if (turn.intent != 'change_project' || handoff == null) {
+        _change.clear();
+        setState(() {
+          _changing = false;
+          _intelligenceReply = turn.reply;
+        });
+        return;
+      }
+
+      final actionRequest = handoff.request.trim();
+      if (actionRequest.length < 4) {
+        throw const ProjectExperienceException(
+          'Pandora needs a clearer change before it can continue.',
+        );
+      }
       final intentId = await experience.submitIntent(
         projectId: widget.project.id,
-        intentText: text.trim(),
+        intentText: actionRequest,
         intentKind: 'change',
         idempotencyKey:
             'pandora-v2-change:${widget.project.id}:${DateTime.now().microsecondsSinceEpoch}',
@@ -541,9 +603,12 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       }
       if (!understanding.isReady) {
         throw const ProjectExperienceException(
-          'Pandora is still preparing that change. Try again shortly.',
+          'Pandora is still preparing that change. It will continue in the background.',
         );
       }
+
+      // The durable source-convergence worker will also pick up this exact active
+      // ProjectSpec if the app closes before this immediate request completes.
       await experience.requestBuild(
         projectId: widget.project.id,
         idempotencyKey:
@@ -551,7 +616,10 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       );
       if (!mounted) return;
       _change.clear();
-      setState(() => _changing = false);
+      setState(() {
+        _changing = false;
+        _intelligenceReply = null;
+      });
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
           builder: (_) => ProjectBuildExperienceV2Screen(
@@ -571,7 +639,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (!mounted) return;
       setState(() {
         _changing = false;
-        _error = 'Pandora could not start that change right now.';
+        _error = 'Pandora could not understand or start that request right now.';
       });
     }
   }
@@ -840,6 +908,16 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                 ),
               ),
             ),
+            if (_intelligenceReply != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: PandoraV2InlineMessage(
+                  title: 'Pandora',
+                  message: _intelligenceReply!,
+                  actionLabel: 'Dismiss',
+                  onAction: () => setState(() => _intelligenceReply = null),
+                ),
+              ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
