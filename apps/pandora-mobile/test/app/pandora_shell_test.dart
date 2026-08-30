@@ -427,7 +427,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-open')));
     await tester.pumpAndSettle();
 
-    expect(find.text('What can I help you build?'), findsOneWidget);
+    expect(find.text('What can I help with?'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('ask-pandora-open')),
       findsNothing,
