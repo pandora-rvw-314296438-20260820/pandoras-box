@@ -29,7 +29,7 @@ function createExternalSkillCandidate(input) {
     purpose: 'SKILL_SEED',
     materializeContent: instructions != null,
   });
-  const blocked = source.licenseStatus !== 'APPROVED' || source.contentImportAllowed !== true;
+  const blocked = source.licenseStatus !== 'APPROVED';
   return normalizeSkillDefinition({
     skillId: requiredText(input.skillId, 'skillId'),
     version: requiredText(input.version, 'version'),
