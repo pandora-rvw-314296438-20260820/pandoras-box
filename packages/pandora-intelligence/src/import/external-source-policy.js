@@ -61,6 +61,37 @@ const EXTERNAL_SOURCE_CATALOG = Object.freeze({
   }),
 });
 
+/**
+ * A per-entry review never approves an entire external repository. Each record
+ * binds one reviewed path to one exact SHA-256 source identity and its own
+ * license evidence. Raw upstream instructions may remain non-materializable
+ * even when metadata adoption is approved.
+ */
+/**
+ * @typedef {{
+ *   sourceId:string, path:string, sourceDigest:string, gitBlobSha:string,
+ *   license:string, licenseStatus:string, contentImportAllowed:boolean,
+ *   reviewMode:string, reviewedAt:string, licenseEvidencePath:string,
+ *   licenseEvidenceGitBlobSha:string
+ * }} ExternalSourceEntryPolicy
+ */
+/** @type {Readonly<Record<string, Readonly<ExternalSourceEntryPolicy>>>} */
+const EXTERNAL_SOURCE_ENTRY_CATALOG = Object.freeze({
+  'awesome_claude_skills:mcp-builder/SKILL.md': Object.freeze({
+    sourceId: 'awesome_claude_skills',
+    path: 'mcp-builder/SKILL.md',
+    sourceDigest: 'sha256:b1010e90adcb8fd6bf57640df34ab6454fbf7e4216e150a4620f7caccadc4e63',
+    gitBlobSha: 'c9ef8a261f80e0c37dc73300ce90679e946c4407',
+    license: 'Apache-2.0',
+    licenseStatus: 'APPROVED',
+    contentImportAllowed: false,
+    reviewMode: 'METADATA_ONLY',
+    reviewedAt: '2026-08-30',
+    licenseEvidencePath: 'mcp-builder/LICENSE.txt',
+    licenseEvidenceGitBlobSha: '7a4a3ea2424c09fbe48d455aed1eaa94d9124835',
+  }),
+});
+
 /** @param {unknown} value @param {string} field */
 function requiredText(value, field) {
   if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${field} is required`);
@@ -96,6 +127,13 @@ function getExternalSourcePolicy(sourceId) {
   return policy;
 }
 
+/** @param {string} sourceId @param {string} path */
+function getExternalSourceEntryPolicy(sourceId, path) {
+  const normalizedSourceId = requiredText(sourceId, 'sourceId');
+  const normalizedPath = safeSourcePath(path);
+  return EXTERNAL_SOURCE_ENTRY_CATALOG[`${normalizedSourceId}:${normalizedPath}`] ?? null;
+}
+
 /**
  * Binds an import/reference request to a reviewed fork, exact commit, exact path,
  * and exact SHA-256 content identity. Source policy never grants execution authority.
@@ -108,11 +146,21 @@ function authorizeExternalSourceReference(input) {
   const repository = requiredText(input.repository, 'repository');
   const commit = exactCommit(input.commit, 'commit');
   const purpose = requiredText(input.purpose, 'purpose');
+  const path = safeSourcePath(input.path);
+  const sourceDigest = exactSourceDigest(input.sourceDigest);
   if (!EXTERNAL_SOURCE_MODES.includes(purpose)) throw new TypeError('unsupported external source purpose');
   if (repository !== policy.repository) throw new Error('external source repository drift');
   if (commit !== policy.commit) throw new Error('external source commit drift');
   if (purpose !== policy.mode) throw new Error(`external source purpose mismatch: ${sourceId}`);
-  if (input.materializeContent === true && policy.contentImportAllowed !== true) {
+
+  const entryReview = getExternalSourceEntryPolicy(sourceId, path);
+  if (entryReview && sourceDigest !== entryReview.sourceDigest) {
+    throw new Error('external source entry digest drift');
+  }
+  const license = entryReview?.license ?? policy.license;
+  const licenseStatus = entryReview?.licenseStatus ?? policy.licenseStatus;
+  const contentImportAllowed = entryReview?.contentImportAllowed ?? policy.contentImportAllowed;
+  if (input.materializeContent === true && contentImportAllowed !== true) {
     throw new Error(`external source content import is not licensed/approved: ${sourceId}`);
   }
   return Object.freeze({
@@ -120,15 +168,24 @@ function authorizeExternalSourceReference(input) {
     repository,
     upstreamRepository: policy.upstreamRepository,
     commit,
-    path: safeSourcePath(input.path),
-    sourceDigest: exactSourceDigest(input.sourceDigest),
+    path,
+    sourceDigest,
     purpose,
-    license: policy.license,
-    licenseStatus: policy.licenseStatus,
-    contentImportAllowed: policy.contentImportAllowed,
+    license,
+    licenseStatus,
+    contentImportAllowed,
     referenceOnly: policy.referenceOnly,
     executionAuthority: false,
     runtimeDependency: false,
+    entryReview: entryReview
+      ? Object.freeze({
+        gitBlobSha: entryReview.gitBlobSha,
+        reviewMode: entryReview.reviewMode,
+        reviewedAt: entryReview.reviewedAt,
+        licenseEvidencePath: entryReview.licenseEvidencePath,
+        licenseEvidenceGitBlobSha: entryReview.licenseEvidenceGitBlobSha,
+      })
+      : null,
   });
 }
 
@@ -136,9 +193,11 @@ module.exports = {
   EXACT_COMMIT,
   EXACT_SHA256,
   EXTERNAL_SOURCE_CATALOG,
+  EXTERNAL_SOURCE_ENTRY_CATALOG,
   EXTERNAL_SOURCE_MODES,
   authorizeExternalSourceReference,
   exactSourceDigest,
+  getExternalSourceEntryPolicy,
   getExternalSourcePolicy,
   safeSourcePath,
 };
