@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
@@ -68,7 +67,8 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
     }
     final spacer = _objective.text.trim().isEmpty ? '' : ' ';
     _objective.text = '${_objective.text}$spacer$text';
-    _objective.selection = TextSelection.collapsed(offset: _objective.text.length);
+    _objective.selection =
+        TextSelection.collapsed(offset: _objective.text.length);
     setState(() => _error = null);
   }
 
@@ -128,7 +128,8 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
       });
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => BuildProgressScreen(receipt: receipt, request: objective),
+          builder: (_) =>
+              BuildProgressScreen(receipt: receipt, request: objective),
         ),
       );
     } on PandoraRepositoryException catch (error) {
@@ -300,7 +301,8 @@ class _EmptyConversation extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
-                      onPressed: disabled ? null : () => onSuggestion(suggestion),
+                      onPressed:
+                          disabled ? null : () => onSuggestion(suggestion),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: PandoraSimpleColors.ink,
                         alignment: Alignment.centerLeft,
@@ -451,7 +453,8 @@ class _Composer extends StatelessWidget {
                   child: InputChip(
                     avatar: const Icon(Icons.description_outlined, size: 17),
                     label: Text(attachment!.name),
-                    onDeleted: submitting || disabled ? null : onRemoveAttachment,
+                    onDeleted:
+                        submitting || disabled ? null : onRemoveAttachment,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -509,7 +512,8 @@ class _Composer extends StatelessWidget {
                           ),
                           IconButton(
                             tooltip: 'Voice input',
-                            onPressed: disabled || submitting ? null : onDictate,
+                            onPressed:
+                                disabled || submitting ? null : onDictate,
                             icon: const Icon(Icons.mic_none_rounded),
                             color: PandoraSimpleColors.ink,
                           ),
@@ -518,11 +522,13 @@ class _Composer extends StatelessWidget {
                             dimension: 42,
                             child: FilledButton(
                               key: const ValueKey<String>('ask-pandora-submit'),
-                              onPressed: disabled || submitting ? null : onSubmit,
+                              onPressed:
+                                  disabled || submitting ? null : onSubmit,
                               style: FilledButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 backgroundColor: PandoraSimpleColors.ink,
-                                disabledBackgroundColor: const Color(0xFFE4E3E0),
+                                disabledBackgroundColor:
+                                    const Color(0xFFE4E3E0),
                                 shape: const CircleBorder(),
                               ),
                               child: submitting
