@@ -41,6 +41,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
   PandoraTextAttachment? _attachment;
   PandoraImageAttachment? _imageAttachment;
   String? _threadId;
+  String? _pendingMessage;
   bool _submitting = false;
   bool _outcomeUnknown = false;
   String? _submissionKey;
@@ -112,6 +113,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
     }
     setState(() {
       _submitting = true;
+      _pendingMessage = objective;
       _error = null;
     });
     try {
@@ -127,6 +129,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
         setState(() {
           _messages.add(_ChatMessage.user(objective));
           _messages.add(_ChatMessage.pandora(receipt.reply));
+          _pendingMessage = null;
           _objective.clear();
           _attachment = null;
           _imageAttachment = null;
@@ -152,6 +155,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
         _threadId = turn.threadId;
         _messages.add(_ChatMessage.user(objective));
         _messages.add(_ChatMessage.pandora(turn.reply));
+        _pendingMessage = null;
         _objective.clear();
         _attachment = null;
         _imageAttachment = null;
@@ -196,7 +200,12 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
         _submissionKey = null;
       });
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _pendingMessage = null;
+        });
+      }
     }
   }
 
@@ -216,6 +225,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
       _attachment = null;
       _imageAttachment = null;
       _threadId = null;
+      _pendingMessage = null;
       _error = null;
       _outcomeUnknown = false;
       _submissionKey = null;
@@ -255,13 +265,17 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
               _ChatHeader(onNewChat: _newChat),
               const Divider(height: 1, color: PandoraSimpleColors.line),
               Expanded(
-                child: _messages.isEmpty
+                child: _messages.isEmpty && _pendingMessage == null
                     ? _EmptyConversation(
                         suggestions: _suggestions,
                         onSuggestion: _useSuggestion,
                         disabled: _outcomeUnknown || _submitting,
                       )
-                    : _Conversation(messages: _messages),
+                    : _Conversation(
+                        messages: _messages,
+                        pendingMessage: _pendingMessage,
+                        thinking: _submitting,
+                      ),
               ),
               _Composer(
                 controller: _objective,
@@ -342,64 +356,67 @@ class _EmptyConversation extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - 52),
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 42),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const PandoraMark(size: 64),
-                const SizedBox(height: 20),
+                const PandoraMark(size: 42),
+                const SizedBox(height: 18),
                 const Text(
-                  'What can I help you build?',
+                  'What can I help with?',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: PandoraSimpleColors.ink,
-                    fontSize: 27,
+                    fontSize: 25,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: -.5,
+                    letterSpacing: -.45,
                   ),
                 ),
-                const SizedBox(height: 9),
-                const Text(
-                  'Describe the result in your own words. Pandora will handle the technical work behind it.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: PandoraSimpleColors.muted,
-                    fontSize: 14,
-                    height: 1.45,
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  child: const Text(
+                    'Ask a question, describe a change, or tell Pandora what you want to build.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: PandoraSimpleColors.muted,
+                      fontSize: 14,
+                      height: 1.45,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 26),
-                for (final suggestion in suggestions) ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed:
-                          disabled ? null : () => onSuggestion(suggestion),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: PandoraSimpleColors.ink,
-                        alignment: Alignment.centerLeft,
+                const SizedBox(height: 22),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final suggestion in suggestions)
+                      ActionChip(
+                        onPressed:
+                            disabled ? null : () => onSuggestion(suggestion),
                         backgroundColor: PandoraSimpleColors.surface,
                         side: const BorderSide(color: PandoraSimpleColors.line),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 15,
-                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
                         ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        label: Text(
+                          suggestion,
+                          style: const TextStyle(
+                            color: PandoraSimpleColors.ink,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          Expanded(child: Text(suggestion)),
-                          const Icon(Icons.arrow_upward_rounded, size: 18),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 9),
-                ],
+                  ],
+                ),
               ],
             ),
           ),
@@ -408,66 +425,122 @@ class _EmptyConversation extends StatelessWidget {
 }
 
 class _Conversation extends StatelessWidget {
-  const _Conversation({required this.messages});
+  const _Conversation({
+    required this.messages,
+    required this.pendingMessage,
+    required this.thinking,
+  });
 
   final List<_ChatMessage> messages;
+  final String? pendingMessage;
+  final bool thinking;
 
   @override
-  Widget build(BuildContext context) => ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
-        itemCount: messages.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 16),
-        itemBuilder: (context, index) {
-          final message = messages[index];
-          if (message.isUser) {
-            return Align(
-              alignment: Alignment.centerRight,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 310),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEDECEA),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    child: Text(
-                      message.text,
-                      style: const TextStyle(
-                        color: PandoraSimpleColors.ink,
-                        fontSize: 15.5,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
+  Widget build(BuildContext context) {
+    final hasPending = pendingMessage != null && pendingMessage!.isNotEmpty;
+    final count = messages.length + (hasPending ? 1 : 0) + (thinking ? 1 : 0);
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      itemCount: count,
+      itemBuilder: (context, index) {
+        Widget child;
+        if (index < messages.length) {
+          child = _ChatBubble(message: messages[index]);
+        } else if (hasPending && index == messages.length) {
+          child = _ChatBubble(message: _ChatMessage.user(pendingMessage!));
+        } else {
+          child = const _PandoraThinkingBubble();
+        }
+        return Padding(
+          padding: EdgeInsets.only(bottom: index == count - 1 ? 0 : 18),
+          child: child,
+        );
+      },
+    );
+  }
+}
+
+class _ChatBubble extends StatelessWidget {
+  const _ChatBubble({required this.message});
+
+  final _ChatMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    if (message.isUser) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0EFED),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+              child: Text(
+                message.text,
+                style: const TextStyle(
+                  color: PandoraSimpleColors.ink,
+                  fontSize: 15.5,
+                  height: 1.42,
                 ),
               ),
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 2),
-                child: PandoraMark(size: 26),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  message.text,
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 15.5,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+            ),
+          ),
+        ),
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 2),
+          child: PandoraMark(size: 24),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: SelectableText(
+            message.text,
+            style: const TextStyle(
+              color: PandoraSimpleColors.ink,
+              fontSize: 15.5,
+              height: 1.52,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PandoraThinkingBubble extends StatelessWidget {
+  const _PandoraThinkingBubble();
+
+  @override
+  Widget build(BuildContext context) => const Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          PandoraMark(size: 24),
+          SizedBox(width: 11),
+          SizedBox.square(
+            dimension: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.8,
+              color: PandoraSimpleColors.muted,
+            ),
+          ),
+          SizedBox(width: 9),
+          Text(
+            'Thinking…',
+            style: TextStyle(
+              color: PandoraSimpleColors.muted,
+              fontSize: 14,
+            ),
+          ),
+        ],
       );
 }
 
@@ -523,15 +596,38 @@ class _Composer extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (error != null) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                  child: Text(
-                    error!,
-                    style: const TextStyle(
-                      color: Color(0xFFB42318),
-                      fontSize: 12.5,
-                      height: 1.35,
-                    ),
+                Container(
+                  margin: const EdgeInsets.fromLTRB(2, 0, 2, 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1F0),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFF7D5D1)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 1),
+                        child: Icon(
+                          Icons.info_outline_rounded,
+                          size: 17,
+                          color: Color(0xFFB42318),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          error!,
+                          style: const TextStyle(
+                            color: Color(0xFF8F2D24),
+                            fontSize: 12.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
