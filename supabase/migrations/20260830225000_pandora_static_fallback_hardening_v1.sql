@@ -136,7 +136,7 @@ begin
     'sourceArtifactVersionId',v_artifact_version_id,'sourceSha256',p_source_sha256,'buildAdapter',p_build_adapter
   );
 end;
-$function$
+$function$;
 
 revoke all on function private.pandora_commit_generated_build_intake_20260829(uuid,uuid,uuid,uuid,text,text,bigint,text,uuid,text) from public,anon,authenticated;
 grant execute on function private.pandora_commit_generated_build_intake_20260829(uuid,uuid,uuid,uuid,text,text,bigint,text,uuid,text) to service_role;
@@ -230,7 +230,7 @@ begin
   return jsonb_build_object('ok',true,'deploymentId',v_dep_id,'providerDeploymentId',v_provider_deployment_id,
     'providerState','READY','previewUrl',v_url,'verificationState','ready_for_verification','previewProvider','supabase_preview');
 end;
-$function$
+$function$;
 
 revoke all on function private.pandora_create_supabase_preview_fallback_20260830(uuid,uuid,uuid,text) from public,anon,authenticated;
 grant execute on function private.pandora_create_supabase_preview_fallback_20260830(uuid,uuid,uuid,text) to service_role;
@@ -410,7 +410,7 @@ begin
   if v_all then update public.pandora_project_versions set verification_run_id=v_run_id,lifecycle_status='verified' where id=v_ver.id; end if;
   return jsonb_build_object('verificationRunId',v_run_id,'status',case when v_all then 'PASS' else 'FAIL' end,'profile','static_site','replayed',false,'providerReady',v_provider_ok,'runtimeHealthy',v_runtime_ok,'previewProvider','supabase_preview');
 end;
-$function$
+$function$;
 
 revoke all on function private.pandora_worker_e_verify_supabase_preview_20260830(uuid,uuid) from public,anon,authenticated;
 grant execute on function private.pandora_worker_e_verify_supabase_preview_20260830(uuid,uuid) to service_role;
@@ -498,7 +498,7 @@ begin
     'previewUrl',v_fallback->>'previewUrl','previewProvider','supabase_preview','fallback',true
   );
 end;
-$function$
+$function$;
 
 revoke all on function private.pandora_converge_static_site_build_v2_20260830(uuid) from public,anon,authenticated;
 grant execute on function private.pandora_converge_static_site_build_v2_20260830(uuid) to service_role;
@@ -508,7 +508,7 @@ CREATE OR REPLACE FUNCTION public.pandora_converge_static_site_build_20260830(p_
  LANGUAGE sql
  SECURITY DEFINER
  SET search_path TO ''
-AS $function$ select private.pandora_converge_static_site_build_v2_20260830($1); $function$
+AS $function$ select private.pandora_converge_static_site_build_v2_20260830($1); $function$;
 
 revoke all on function public.pandora_converge_static_site_build_20260830(uuid) from public,anon,authenticated;
 grant execute on function public.pandora_converge_static_site_build_20260830(uuid) to service_role;
@@ -567,7 +567,7 @@ begin
   end loop;
   return jsonb_build_object('processed',jsonb_array_length(v_results),'results',v_results,'checkedAt',clock_timestamp());
 end;
-$function$
+$function$;
 
 revoke all on function private.pandora_converge_pending_static_sites_20260830(integer) from public,anon,authenticated;
 grant execute on function private.pandora_converge_pending_static_sites_20260830(integer) to service_role;
@@ -577,7 +577,7 @@ CREATE OR REPLACE FUNCTION public.pandora_converge_pending_static_sites_20260830
  LANGUAGE sql
  SECURITY DEFINER
  SET search_path TO ''
-AS $function$ select private.pandora_converge_pending_static_sites_20260830($1); $function$
+AS $function$ select private.pandora_converge_pending_static_sites_20260830($1); $function$;
 
 revoke all on function public.pandora_converge_pending_static_sites_20260830(integer) from public,anon,authenticated;
 grant execute on function public.pandora_converge_pending_static_sites_20260830(integer) to service_role;
