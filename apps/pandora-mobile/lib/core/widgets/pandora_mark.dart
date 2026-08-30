@@ -20,7 +20,10 @@ class PandoraMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor = color ?? const Color(0xFF171717);
+    final effectiveColor = color ??
+        (Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFFF7F6F3)
+            : const Color(0xFF171717));
     return Semantics(
       image: true,
       label: semanticLabel,
