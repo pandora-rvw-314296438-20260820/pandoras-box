@@ -459,16 +459,23 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   String get _subtitle {
     final snapshot = _snapshot;
-    if (snapshot?.production != null || snapshot?.project.isLive == true) {
-      final live = _safeHttps(
-        snapshot?.project.liveUrl ?? snapshot?.production?.url,
-      );
-      return live == null ? 'Live' : 'Live · ${Uri.parse(live).host}';
+    final candidate = _candidate;
+    final production = snapshot?.production;
+    if (candidate != null && production?.versionId == candidate.versionId) {
+      if (snapshot?.project.isLive == true) {
+        final live = _safeHttps(snapshot?.project.liveUrl ?? production?.url);
+        return live == null ? 'Live' : 'Live · ${Uri.parse(live).host}';
+      }
+      return 'Publishing · verifying';
     }
     if (snapshot?.verification?.publishEligible == true) {
       return 'Ready to publish';
     }
-    if (_candidate != null) return 'Preview ready';
+    if (candidate != null) return 'Preview ready';
+    if (snapshot?.project.isLive == true) {
+      final live = _safeHttps(snapshot?.project.liveUrl);
+      return live == null ? 'Live' : 'Live · ${Uri.parse(live).host}';
+    }
     return 'Working';
   }
 
@@ -582,7 +589,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   Future<void> _showPublish() async {
     final snapshot = _snapshot;
     final candidate = snapshot?.candidate;
-    if (candidate == null || snapshot?.verification?.publishEligible != true) {
+    if (candidate == null ||
+        snapshot?.verification?.publishEligible != true ||
+        snapshot?.production?.versionId == candidate.versionId) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Pandora is still checking this version.'),
@@ -668,6 +677,27 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     domainController.dispose();
   }
 
+  Future<void> _watchPublishCompletion() async {
+    for (var attempt = 0; attempt < 45; attempt++) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      await _refresh();
+      if (!mounted) return;
+      final project = _snapshot?.project;
+      if (project?.isLive == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Live.')),
+        );
+        return;
+      }
+      if (project?.runtimeStatus == 'failed') {
+        setState(() => _error =
+            'Pandora found something to resolve before this version can go live.');
+        return;
+      }
+    }
+  }
+
   Future<void> _publish(String domain) async {
     final runtime = PandoraDependencies.of(context).projectRuntime;
     final candidate = _candidate;
@@ -687,8 +717,15 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (!mounted) return;
       await _refresh();
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Live.')));
+      if (_snapshot?.project.isLive == true) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Live.')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Publishing. Pandora is verifying this exact version.')),
+        );
+        unawaited(_watchPublishCompletion());
+      }
     } catch (_) {
       if (!mounted) return;
       final protected = _snapshot?.production != null;
@@ -828,7 +865,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
               child: Column(
                 children: [
                   if (_snapshot?.verification?.publishEligible == true &&
-                      _candidate != null) ...[
+                      _candidate != null &&
+                      _snapshot?.production?.versionId != _candidate?.versionId) ...[
                     Row(
                       children: [
                         Expanded(
