@@ -51,3 +51,9 @@ verify_jwt = true
 # service validates the exact raw body against the signing secret kept in Vault.
 [functions.pandora-vercel-runtime-webhook]
 verify_jwt = false
+
+
+# This private workload endpoint validates a one-purpose Vault-backed key before
+# it may use the server-only service role for durable source convergence.
+[functions.pandora-source-convergence-worker]
+verify_jwt = false
