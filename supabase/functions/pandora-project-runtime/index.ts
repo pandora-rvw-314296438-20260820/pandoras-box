@@ -1051,7 +1051,7 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   if (!SHA256_RE.test(sourceDigest) || !UUID_RE.test(projectSpecId) || !UUID_RE.test(buildJobId) || !SHA256_RE.test(artifactDigest)) throw new Error("VERIFICATION_REQUIRED");
 
   const { data: previewData, error: previewError } = await admin.from("pandora_project_deployments")
-    .select("id, version_id, provider_project_id, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at")
+    .select("id, version_id, provider, provider_project_id, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at")
     .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview").eq("version_id", requestedVersion)
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (previewError) throw new Error("BACKEND_READ_FAILED");
@@ -1098,11 +1098,37 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   const currentVersionId = currentEnvironment?.current_version_id == null ? (latestProduction?.version_id == null ? null : textValue(latestProduction.version_id)) : textValue(currentEnvironment.current_version_id);
   if (currentVersionId !== expectedProductionVersionId) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
 
+  const domain = normalizeDomain(body.domain);
+  const previewProvider = textValue(preview.provider).toLowerCase();
+  if (previewProvider === "supabase_preview") {
+    if (domain) throw new Error("SUPABASE_FALLBACK_DOMAIN_UNAVAILABLE");
+    const { data: fallbackData, error: fallbackError } = await admin.rpc("pandora_publish_supabase_fallback_20260831", {
+      p_project_id: projectId,
+      p_version_id: requestedVersion,
+      p_requested_by: context.userId,
+      p_expected_production_version_id: expectedProductionVersionId,
+    });
+    if (fallbackError) throw new Error("SUPABASE_PRODUCTION_FALLBACK_FAILED");
+    const fallback = asRecord(fallbackData);
+    const snapshot = await runtimeSummary(context, projectId);
+    return {
+      project: snapshot.project,
+      production: snapshot.production,
+      domain: snapshot.domain,
+      liveUrl: asRecord(snapshot.project).liveUrl ?? null,
+      productionCandidateUrl: asRecord(snapshot.production).url ?? null,
+      domainVerified: asRecord(snapshot.domain).verified === true,
+      verificationState: textValue(fallback.state) === "live" ? "live_verified" : "ready_for_verification",
+      provider: "supabase_static",
+      state: textValue(fallback.state, "working"),
+    };
+  }
+  if (previewProvider !== "vercel") throw new Error("PRODUCTION_PROVIDER_UNSUPPORTED");
+
   const provider = await ensureVercelProject(context, project);
   project = { ...project, config: provider.config };
   const providerProjectId = textValue(preview.provider_project_id) || provider.id;
   if (providerProjectId !== provider.id) throw new Error("PROVIDER_LINEAGE_MISMATCH");
-  const domain = normalizeDomain(body.domain);
   const operationKey = await sha256Hex(["publish_version", context.organizationId, projectId, requestedVersion, textValue(verification.id), expectedProductionVersionId ?? "empty", domain ?? "no-domain"].join("|"));
   const operationRecord = { idempotency_key: operationKey, action: "publish_version", organization_id: context.organizationId, project_id: projectId, project_version_id: requestedVersion, environment: "production", provider: "vercel", authorization_ref: `owner:${context.userId}`, verification_ref: textValue(verification.id), provider_project_id: provider.id, status: "claimed" };
   let operationId = "";
@@ -1323,7 +1349,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
     const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "INVALID_DOMAIN", "VERSION_REQUIRED", "INVALID_PRODUCTION_PRECONDITION", "EXACT_VERSION_REQUIRED", "ARTIFACT_FILE_BASE64_INVALID", "ARTIFACT_FILE_BASE64_NON_CANONICAL", "ARTIFACT_FILE_PATH_INVALID", "ARTIFACT_BUNDLE_JSON_INVALID", "ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED", "ARTIFACT_BUNDLE_FILES_INVALID", "INVALID_DOMAIN_REQUEST", "INVALID_ROLLBACK_REQUEST"]);
-    const conflicts = new Set(["PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED", "ARTIFACT_LINEAGE_INCOMPLETE", "ARTIFACT_NOT_FOUND", "ARTIFACT_DIGEST_MISMATCH", "ARTIFACT_STORAGE_INVALID", "ARTIFACT_STORAGE_READ_FAILED", "ARTIFACT_KIND_NOT_DEPLOYABLE", "ARTIFACT_PROVENANCE_MISMATCH", "ARTIFACT_BUNDLE_SIZE_INVALID", "ARTIFACT_BUNDLE_DIGEST_MISMATCH", "ARTIFACT_BUNDLE_LINEAGE_MISMATCH", "ARTIFACT_FILES_NOT_CANONICAL", "ARTIFACT_FILE_ENCODING_UNSUPPORTED", "ARTIFACT_FILE_TOO_LARGE", "ARTIFACT_FILES_TOTAL_TOO_LARGE", "ARTIFACT_FILE_DIGEST_MISMATCH", "ARTIFACT_FILE_SIZE_MISMATCH", "ARTIFACT_ENTRYPOINT_MISSING", "DOMAIN_DEPLOYMENT_REQUIRED", "DOMAIN_NOT_FOUND", "ROLLBACK_TARGET_NOT_ELIGIBLE", "ROLLBACK_TARGET_NOT_VERIFIED"]);
+    const conflicts = new Set(["PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED", "ARTIFACT_LINEAGE_INCOMPLETE", "ARTIFACT_NOT_FOUND", "ARTIFACT_DIGEST_MISMATCH", "ARTIFACT_STORAGE_INVALID", "ARTIFACT_STORAGE_READ_FAILED", "ARTIFACT_KIND_NOT_DEPLOYABLE", "ARTIFACT_PROVENANCE_MISMATCH", "ARTIFACT_BUNDLE_SIZE_INVALID", "ARTIFACT_BUNDLE_DIGEST_MISMATCH", "ARTIFACT_BUNDLE_LINEAGE_MISMATCH", "ARTIFACT_FILES_NOT_CANONICAL", "ARTIFACT_FILE_ENCODING_UNSUPPORTED", "ARTIFACT_FILE_TOO_LARGE", "ARTIFACT_FILES_TOTAL_TOO_LARGE", "ARTIFACT_FILE_DIGEST_MISMATCH", "ARTIFACT_FILE_SIZE_MISMATCH", "ARTIFACT_ENTRYPOINT_MISSING", "DOMAIN_DEPLOYMENT_REQUIRED", "DOMAIN_NOT_FOUND", "ROLLBACK_TARGET_NOT_ELIGIBLE", "ROLLBACK_TARGET_NOT_VERIFIED", "SUPABASE_FALLBACK_DOMAIN_UNAVAILABLE", "PRODUCTION_PROVIDER_UNSUPPORTED"]);
     if (code === "SIGN_IN_REQUIRED") return jsonResponse({ code, plainMessage: "Please sign in again.", requestId }, 401, requestId, origin);
     if (["ORGANIZATION_ACCESS_REQUIRED", "OWNER_ROLE_REQUIRED"].includes(code)) return jsonResponse({ code, plainMessage: "You do not have permission for this project.", requestId }, 403, requestId, origin);
     if (code === "ORGANIZATION_SELECTION_REQUIRED") return jsonResponse({ code, plainMessage: "Choose which organization you want to use.", requestId }, 409, requestId, origin);
@@ -1340,7 +1366,7 @@ Deno.serve(async (req: Request) => {
     if (code === "PUBLISH_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already publishing this version.", requestId }, 409, requestId, origin);
     if (code === "PUBLISH_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming whether that publish completed. Do not publish again yet.", requestId }, 409, requestId, origin);
     if (conflicts.has(code)) return jsonResponse({ code, plainMessage: "That project cannot be published in its current state.", requestId }, 409, requestId, origin);
-    if (["RUNTIME_BROKER_NOT_CONFIGURED", "VERCEL_NOT_CONFIGURED", "PUBLISH_CLAIM_FAILED", "PREVIEW_CLAIM_FAILED", "DOMAIN_CLAIM_FAILED", "ROLLBACK_CLAIM_FAILED"].includes(code)) return jsonResponse({ code, plainMessage: "Project publishing is temporarily unavailable.", requestId }, 503, requestId, origin);
+    if (["RUNTIME_BROKER_NOT_CONFIGURED", "VERCEL_NOT_CONFIGURED", "PUBLISH_CLAIM_FAILED", "PREVIEW_CLAIM_FAILED", "DOMAIN_CLAIM_FAILED", "ROLLBACK_CLAIM_FAILED", "SUPABASE_PRODUCTION_FALLBACK_FAILED"].includes(code)) return jsonResponse({ code, plainMessage: "Project publishing is temporarily unavailable.", requestId }, 503, requestId, origin);
     console.error(JSON.stringify({ requestId, code }));
     return jsonResponse({ code: "PROJECT_RUNTIME_UNAVAILABLE", plainMessage: "Pandora cannot reach the project runtime right now.", requestId }, 503, requestId, origin);
   }
