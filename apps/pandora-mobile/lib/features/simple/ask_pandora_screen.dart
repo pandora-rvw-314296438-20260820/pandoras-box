@@ -375,9 +375,9 @@ class _EmptyConversation extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: 380),
-                  child: Text(
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  child: const Text(
                     'Ask a question, describe a change, or tell Pandora what you want to build.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
