@@ -353,6 +353,9 @@ class _BottomDestination extends StatelessWidget {
         child: Tooltip(
           message: selected ? 'Back to Home' : 'Ask Pandora',
           child: InkResponse(
+            key: ValueKey<String>(
+              selected ? 'ask-pandora-close' : 'ask-pandora-open',
+            ),
             onTap: onTap,
             radius: 42,
             child: Transform.translate(
