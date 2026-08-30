@@ -149,7 +149,8 @@ jobs:
           format_status=$?
           if [[ "$format_status" -ne 0 ]]; then
             echo 'Show formatter diff when source is not canonical'
-            git diff -- lib test
+            diff -ru ../apps/pandora-mobile/lib lib || true
+            diff -ru ../apps/pandora-mobile/test test || true
           fi
           exit "$format_status"
 
