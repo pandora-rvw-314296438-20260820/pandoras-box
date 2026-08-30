@@ -9,9 +9,18 @@ import 'build_preview_flow.dart';
 import 'pandora_simple_ui.dart';
 
 class AskPandoraScreen extends StatefulWidget {
-  const AskPandoraScreen({super.key, this.initialPrompt});
+  const AskPandoraScreen({
+    super.key,
+    this.initialPrompt,
+    this.onHome,
+    this.onProjects,
+    this.onMore,
+  });
 
   final String? initialPrompt;
+  final VoidCallback? onHome;
+  final VoidCallback? onProjects;
+  final VoidCallback? onMore;
 
   @override
   State<AskPandoraScreen> createState() => _AskPandoraScreenState();
@@ -177,6 +186,16 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
     _objectiveFocus.requestFocus();
   }
 
+  void _visualAttachmentUnavailable(String source) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '$source is visible here as part of the chat attachment menu. Visual upload transport is not enabled in this validation build yet.',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: PandoraSimpleColors.canvas,
@@ -206,6 +225,11 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
                 },
+                onHome: widget.onHome,
+                onProjects: widget.onProjects,
+                onMore: widget.onMore,
+                onCamera: () => _visualAttachmentUnavailable('Camera'),
+                onPhotos: () => _visualAttachmentUnavailable('Photos'),
                 onAttach: _attach,
                 onDictate: _dictate,
                 onSubmit: _submit,
@@ -406,6 +430,11 @@ class _Composer extends StatelessWidget {
     required this.submitting,
     required this.disabled,
     required this.onChanged,
+    required this.onHome,
+    required this.onProjects,
+    required this.onMore,
+    required this.onCamera,
+    required this.onPhotos,
     required this.onAttach,
     required this.onDictate,
     required this.onSubmit,
@@ -419,6 +448,11 @@ class _Composer extends StatelessWidget {
   final bool submitting;
   final bool disabled;
   final VoidCallback onChanged;
+  final VoidCallback? onHome;
+  final VoidCallback? onProjects;
+  final VoidCallback? onMore;
+  final VoidCallback onCamera;
+  final VoidCallback onPhotos;
   final VoidCallback onAttach;
   final VoidCallback onDictate;
   final VoidCallback onSubmit;
@@ -504,11 +538,91 @@ class _Composer extends StatelessWidget {
                       ),
                       Row(
                         children: [
-                          IconButton(
-                            tooltip: 'Attach text file',
-                            onPressed: disabled || submitting ? null : onAttach,
-                            icon: const Icon(Icons.add_rounded),
-                            color: PandoraSimpleColors.ink,
+                          MenuAnchor(
+                            alignmentOffset: const Offset(0, -8),
+                            style: MenuStyle(
+                              backgroundColor: const WidgetStatePropertyAll(
+                                PandoraSimpleColors.surface,
+                              ),
+                              elevation: const WidgetStatePropertyAll(10),
+                              padding: const WidgetStatePropertyAll(
+                                EdgeInsets.symmetric(vertical: 8),
+                              ),
+                              shape: WidgetStatePropertyAll(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  side: const BorderSide(
+                                    color: PandoraSimpleColors.line,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            menuChildren: [
+                              _ComposerMenuItem(
+                                key: const ValueKey<String>(
+                                  'ask-pandora-menu-home',
+                                ),
+                                label: 'Home',
+                                icon: Icons.home_outlined,
+                                onPressed: onHome,
+                              ),
+                              _ComposerMenuItem(
+                                key: const ValueKey<String>(
+                                  'ask-pandora-menu-projects',
+                                ),
+                                label: 'Projects',
+                                icon: Icons.folder_outlined,
+                                onPressed: onProjects,
+                              ),
+                              _ComposerMenuItem(
+                                key: const ValueKey<String>(
+                                  'ask-pandora-menu-more',
+                                ),
+                                label: 'More',
+                                icon: Icons.menu_rounded,
+                                onPressed: onMore,
+                              ),
+                              const Divider(height: 12),
+                              _ComposerMenuItem(
+                                key: const ValueKey<String>(
+                                  'ask-pandora-menu-camera',
+                                ),
+                                label: 'Camera',
+                                icon: Icons.camera_alt_outlined,
+                                onPressed: onCamera,
+                              ),
+                              _ComposerMenuItem(
+                                key: const ValueKey<String>(
+                                  'ask-pandora-menu-photos',
+                                ),
+                                label: 'Photos',
+                                icon: Icons.photo_outlined,
+                                onPressed: onPhotos,
+                              ),
+                              _ComposerMenuItem(
+                                key: const ValueKey<String>(
+                                  'ask-pandora-menu-files',
+                                ),
+                                label: 'Files',
+                                icon: Icons.insert_drive_file_outlined,
+                                onPressed: onAttach,
+                              ),
+                            ],
+                            builder: (context, controller, child) => IconButton(
+                              key: const ValueKey<String>('ask-pandora-plus'),
+                              tooltip: 'Open menu',
+                              onPressed: disabled || submitting
+                                  ? null
+                                  : () {
+                                      if (controller.isOpen) {
+                                        controller.close();
+                                      } else {
+                                        controller.open();
+                                      }
+                                    },
+                              icon: const Icon(Icons.add_rounded),
+                              color: PandoraSimpleColors.ink,
+                            ),
                           ),
                           IconButton(
                             tooltip: 'Voice input',
@@ -566,6 +680,36 @@ class _Composer extends StatelessWidget {
         ),
       );
 }
+
+class _ComposerMenuItem extends StatelessWidget {
+  const _ComposerMenuItem({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => MenuItemButton(
+        onPressed: onPressed,
+        leadingIcon: Icon(icon, size: 21),
+        style: ButtonStyle(
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          ),
+          foregroundColor: const WidgetStatePropertyAll(
+            PandoraSimpleColors.ink,
+          ),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+        ),
+      );
 
 class _ChatMessage {
   const _ChatMessage._(this.text, this.isUser);
