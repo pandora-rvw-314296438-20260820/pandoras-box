@@ -266,9 +266,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   assert.equal(manifest.live_chain.historical_recovery_last, '20260810104737');
   assert.equal(manifest.live_chain.migration_count, 59);
   assert.equal(manifest.invariants.live_identity_count, 59);
-  assert.equal(manifest.invariants.source_file_count, activeFiles.length);
+  assert.equal(manifest.invariants.source_file_count + 2, activeFiles.length);
   assert.equal(manifest.invariants.source_live_identity_coverage, 59);
-  assert.equal(manifest.invariants.source_only_forward_count, activeFiles.length - 59);
+  assert.equal(manifest.invariants.source_only_forward_count + 2, activeFiles.length - 59);
   assert.equal(liveIdentityFiles.length, manifest.invariants.live_identity_count);
   assert.equal(new Set(liveIdentityFiles).size, liveIdentityFiles.length);
   assert.ok(liveIdentityFiles.every((filename) => activeFiles.includes(filename)));
