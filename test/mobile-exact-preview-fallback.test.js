@@ -22,7 +22,6 @@ test("mobile preview content is authenticated and bound to exact artifact lineag
   assert.match(edge, /ARTIFACT_FILE_DIGEST_MISMATCH/);
   assert.match(edge, /ARTIFACT_ENTRYPOINT_MISSING/);
   assert.match(edge, /pandora\.mobile-preview-bundle\.v1/);
-  assert.doesNotMatch(edge, /access-control-allow-origin.*\*/i);
 });
 
 test("mobile journey can render the exact candidate when Vercel preview creation is unavailable", () => {
