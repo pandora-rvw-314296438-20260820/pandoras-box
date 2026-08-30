@@ -7,6 +7,7 @@ const shell=fs.readFileSync("apps/pandora-mobile/lib/app/pandora_shell.dart","ut
 const model=fs.readFileSync("apps/pandora-mobile/lib/core/models/pandora_models.dart","utf8");
 const owner=fs.readFileSync("supabase/functions/pandora-owner-api/index.ts","utf8");
 const domains=fs.readFileSync("apps/pandora-mobile/lib/features/simple/domains_screen.dart","utf8");
+const registrar=fs.readFileSync("apps/pandora-mobile/lib/core/data/domain_registrar_api.dart","utf8");
 
 test("Simple Home is a clean dashboard, not a duplicate Pandora composer",()=>{
   assert.equal(home.includes("What do you want Pandora to do?"),false);
@@ -15,6 +16,9 @@ test("Simple Home is a clean dashboard, not a duplicate Pandora composer",()=>{
     assert.equal(home.includes(label),true,`missing ${label}`);
   }
   assert.equal(home.includes("CreateProjectExperienceScreen"),true);
+  assert.equal(home.includes("_homeProjectSummary(project)"),true);
+  assert.equal(home.includes("maxLines: 2"),true);
+  assert.equal(home.includes("Text(project.purpose"),false);
 });
 
 test("primary navigation reserves fifth destination for More",()=>{
@@ -39,4 +43,8 @@ test("domain purchase UI stays payment-gated until Xendit or PayPal is connected
   assert.equal(domains.includes("Check payment"),true);
   assert.equal(domains.includes("Auto-renew is off for now"),true);
   assert.equal(/namecheap.*(?:token|secret|api.?key)/i.test(domains),false);
+  assert.equal(domains.includes("RedApple"),false);
+  assert.equal(registrar.includes("RedApple"),false);
+  assert.equal(domains.includes("Pandora’s Box"),true);
+  assert.equal(registrar.includes("Pandora’s Box"),true);
 });
