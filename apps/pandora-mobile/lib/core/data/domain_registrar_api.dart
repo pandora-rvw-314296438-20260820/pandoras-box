@@ -95,10 +95,10 @@ class DomainRegistrarApi {
   String _plainMessage(String providerMessage) {
     final message = providerMessage.toUpperCase();
     if (message.contains('XENDIT_NOT_CONFIGURED')) {
-      return 'Xendit is not connected to RedApple yet.';
+      return 'Xendit is not connected to Pandora’s Box yet.';
     }
     if (message.contains('PAYPAL_NOT_CONFIGURED')) {
-      return 'PayPal is not connected to RedApple yet.';
+      return 'PayPal is not connected to Pandora’s Box yet.';
     }
     if (message.contains('QUOTE_EXPIRED')) {
       return 'That price expired. Search again for a fresh price.';
@@ -119,7 +119,7 @@ class DomainRegistrarApi {
       return 'Choose Xendit or PayPal to continue.';
     }
     if (message.contains('CHECKOUT')) {
-      return 'RedApple could not start that payment checkout.';
+      return 'Pandora’s Box could not start that payment checkout.';
     }
     return 'Pandora could not complete the domain request right now.';
   }
