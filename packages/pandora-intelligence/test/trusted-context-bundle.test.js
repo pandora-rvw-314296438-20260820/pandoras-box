@@ -137,11 +137,23 @@ test('prompt material cannot self-certify, cannot hide credential material, and 
 
 test('trusted context is bounded rather than silently truncating verified instructions', () => {
   const f = fixture();
+  const oversized = new PandoraPromptMaterialRegistry();
+  const prompt = oversized.register({
+    materialId: 'runtime-diagnostics',
+    version: '1.0.0',
+    materialType: 'skill_instructions',
+    sourceDigest: sourceA,
+    content: 'Read exact provider state. '.repeat(240),
+    trustState: 'EXPERIMENTAL',
+  });
+  oversized.certify('skill_instructions', 'runtime-diagnostics', '1.0.0', {
+    worker: 'E', verdict: 'PASS', sourceDigest: sourceA, contentDigest: String(prompt.contentDigest), evidenceId: 'worker-e-oversized-prompt-pass',
+  });
   assert.throws(() => buildTrustedIntelligenceContext({
     composition: f.composition,
     skillRegistry: f.skills,
     knowledgeRegistry: f.knowledge,
-    materialRegistry: f.material,
+    materialRegistry: oversized,
     maxChars: 4000,
     nowMs: Date.parse('2026-08-30T04:00:00.000Z'),
   }), /exceeds bounded prompt budget/);
