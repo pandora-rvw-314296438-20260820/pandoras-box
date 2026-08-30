@@ -1234,11 +1234,18 @@
             "replayMode": "history_receipt_noop",
             "originalSqlSha256": "d4230ff7940c18a207cf75796fc29aae2ddd9dad928194105d17e427af2c788b",
             "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_self_healing_projection_state_patch_v2",
+            "version": "20260830185015",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "91b9fbb9e8d9af8a669694120004403d4d9a5b255b8efa5a1526212ae73f5ebb",
+            "originalStatementCount": 1
         }
     ],
     "projectRef": "jcyqixttuebxqqfkjonq",
     "repository": "pandora-rvw-314296438-20260820/pandoras-box",
     "generatedAt": "2026-08-29T15:07:37.693Z",
     "schemaVersion": 1,
-    "migrationCount": 176
+    "migrationCount": 177
 }
