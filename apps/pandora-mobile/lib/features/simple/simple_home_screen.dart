@@ -570,7 +570,7 @@ class _LiveHomeCard extends StatelessWidget {
   }
 }
 
-'String _homeProjectSummary(ProjectSummary project) {
+String _homeProjectSummary(ProjectSummary project) {
   var summary = project.purpose
       .replaceAll(RegExp(r'(?m)^\s*[>#*+-]+\s*'), '')
       .replaceAll(RegExp(r'\s+'), ' ')
@@ -592,7 +592,7 @@ class _LiveHomeCard extends StatelessWidget {
   return '${clipped.substring(0, safeEnd).trimRight()}…';
 }
 
-String _projectOwnerState(String status) {'
+String _projectOwnerState(String status) {
   final normalized = status.toLowerCase();
   if (normalized.contains('live')) return 'Live';
   if (normalized.contains('block') || normalized.contains('attention')) {
