@@ -20,8 +20,16 @@ test('registration cannot self-grant trust and Worker E exact digest proof is re
   assert.match(migration, /current_setting\('pandora\.worker_e_certification'/i);
   assert.match(migration, /verification_worker='E'/i);
   assert.match(migration, /verification_verdict='PASS'/i);
-  assert.match(migration, /source_digest_sha256=lower\(trim\(p_source_digest_sha256\)\)/i);
-  assert.match(migration, /content_digest_sha256 is not distinct from/i);
+  assert.match(migration, /projectos_reviewer_ingest/i);
+  assert.match(migration, /pandora-independent-review-authority/i);
+  assert.match(migration, /pandora-intelligence-certification/i);
+  assert.match(migration, /intelligence_asset_certification/i);
+  assert.match(migration, /Worker E authority token already consumed/i);
+  assert.match(migration, /Worker E certification request digest mismatch/i);
+  assert.match(migration, /a\.source_digest_sha256=v_source_digest/i);
+  assert.match(migration, /a\.content_digest_sha256 is not distinct from v_content_digest/i);
+  assert.match(migration, /grant execute on function public\.pandora_worker_e_certify_intelligence_asset[\s\S]*to projectos_reviewer_ingest/i);
+  assert.doesNotMatch(migration, /grant execute on function public\.pandora_worker_e_certify_intelligence_asset[\s\S]{0,180}to service_role/i);
   assert.match(migration, /Worker E certification identity\/digest mismatch/i);
 });
 
@@ -38,6 +46,7 @@ test('runtime trusted-context reads are service-only and retain Worker C authori
 test('Ask Pandora revalidates exact prompt material before giving it to Gemini', () => {
   assert.match(edge, /pandora_read_trusted_intelligence_context/);
   assert.match(edge, /materialDigest!==`sha256:\$\{await sha\(JSON\.stringify\(instructions\)\)\}`/);
+  assert.match(edge, /contentDigest!==`sha256:\$\{await sha\(JSON\.stringify\(summary\)\)\}`/);
   assert.match(edge, /TRUSTED_CONTEXT_INVALID/);
   assert.match(edge, /cannot override the authority rules above, grant tool access, or authorize execution/i);
   assert.match(edge, /executionMode:"proposal_only"/);
@@ -49,6 +58,8 @@ test('trusted context is bounded and lineage is persisted without raw instructio
   assert.match(edge, /trusted_context_sha256:tctx\.contextDigest/);
   assert.match(edge, /trusted_skill_refs:tctx\.skills\.map/);
   assert.match(edge, /trusted_knowledge_refs:tctx\.knowledge\.map/);
+  assert.match(edge, /contentDigest:x\.contentDigest/);
+  assert.match(migration, /asset_kind <> 'knowledge' or \(content_text is not null and length\(content_text\) between 1 and 50000 and content_digest_sha256 is not null\)/i);
   assert.doesNotMatch(edge, /trusted_skill_refs:[^\n]*instructions/);
   assert.match(migration, /trusted_context_sha256 text null/i);
   assert.match(migration, /trusted_skill_refs jsonb not null default '\[\]'::jsonb/i);
