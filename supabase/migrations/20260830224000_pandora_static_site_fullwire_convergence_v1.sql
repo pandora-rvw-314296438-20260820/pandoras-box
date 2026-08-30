@@ -236,9 +236,7 @@ CREATE OR REPLACE FUNCTION public.pandora_worker_d_finalize_static_web_20260830(
  SET search_path TO ''
 AS $function$
   select private.pandora_worker_d_finalize_static_web_20260830($1);
-$function$
-
-
+$function$;
 
 revoke all on function private.pandora_worker_d_finalize_static_web_20260830(uuid) from public, anon, authenticated;
 grant execute on function private.pandora_worker_d_finalize_static_web_20260830(uuid) to service_role;
