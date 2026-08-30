@@ -823,17 +823,96 @@ async function reconcileProjectRuntime(context: UserContext, identifier: string)
   return { projectId, deploymentUpdates, operationUpdates, domainUpdates, providerEventsProcessed: processedEvents?.length ?? 0, reconciledAt: now };
 }
 
+async function undoProject(context: UserContext, identifier: string, body: JsonRecord) {
+  const project = await projectByIdentifier(context, identifier);
+  const projectId = textValue(project.id);
+  const expectedVersionId = textValue(body.expectedVersionId);
+  const idempotencyRef = textValue(body.idempotencyKey);
+  if (!UUID_RE.test(expectedVersionId) || idempotencyRef.length < 8 || idempotencyRef.length > 200) throw new Error("INVALID_UNDO_REQUEST");
+  const admin = serviceClient();
+
+  const { data: currentData, error: currentError } = await admin.from("pandora_project_versions")
+    .select("id, parent_version_id, lifecycle_status, source_sha256, artifact_digest_sha256")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", expectedVersionId).maybeSingle();
+  if (currentError) throw new Error("BACKEND_READ_FAILED");
+  if (!currentData) throw new Error("EXACT_VERSION_REQUIRED");
+  const current = asRecord(currentData);
+  const parentVersionId = textValue(current.parent_version_id);
+  if (!UUID_RE.test(parentVersionId)) throw new Error("UNDO_NOT_AVAILABLE");
+
+  const { data: productionEnvironment, error: productionEnvironmentError } = await admin.from("pandora_runtime_environments")
+    .select("current_version_id").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").maybeSingle();
+  if (productionEnvironmentError) throw new Error("BACKEND_READ_FAILED");
+  if (textValue(current.lifecycle_status) === "live" || textValue(current.lifecycle_status) === "production_candidate" || textValue(productionEnvironment?.current_version_id) === expectedVersionId) {
+    throw new Error("UNDO_REQUIRES_ROLLBACK");
+  }
+
+  const { data: latestData, error: latestError } = await admin.from("pandora_project_versions")
+    .select("id").eq("organization_id", context.organizationId).eq("project_id", projectId)
+    .not("root_artifact_version_id", "is", null).not("artifact_digest_sha256", "is", null)
+    .in("lifecycle_status", ["built", "verification_pending", "verified", "preview_ready", "live"])
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (latestError) throw new Error("BACKEND_READ_FAILED");
+  if (textValue(latestData?.id) !== expectedVersionId) throw new Error("UNDO_PRECONDITION_MISMATCH");
+
+  const { data: parentData, error: parentError } = await admin.from("pandora_project_versions")
+    .select("id, lifecycle_status, source_sha256, artifact_digest_sha256, source_commit")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", parentVersionId).maybeSingle();
+  if (parentError) throw new Error("BACKEND_READ_FAILED");
+  if (!parentData || !new Set(["verified", "preview_ready", "live"]).has(textValue(parentData.lifecycle_status))) throw new Error("UNDO_PARENT_NOT_VERIFIED");
+
+  const { data: parentPreviewData, error: parentPreviewError } = await admin.from("pandora_project_deployments")
+    .select("id, url, status, verification_state, source_sha256, artifact_digest, source_commit_sha")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview").eq("version_id", parentVersionId)
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (parentPreviewError) throw new Error("BACKEND_READ_FAILED");
+  if (!parentPreviewData || textValue(parentPreviewData.status) !== "ready" || textValue(parentPreviewData.verification_state) !== "live_verified" ||
+      textValue(parentPreviewData.source_sha256) !== textValue(parentData.source_sha256) || textValue(parentPreviewData.artifact_digest) !== textValue(parentData.artifact_digest_sha256) ||
+      (textValue(parentPreviewData.source_commit_sha) || null) !== (textValue(parentData.source_commit) || null)) {
+    throw new Error("UNDO_PARENT_PREVIEW_UNAVAILABLE");
+  }
+
+  const { data: rolledBack, error: rollBackError } = await admin.from("pandora_project_versions")
+    .update({ lifecycle_status: "rolled_back" })
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", expectedVersionId).eq("parent_version_id", parentVersionId)
+    .in("lifecycle_status", ["built", "verification_pending", "verified", "preview_ready"]).select("id").maybeSingle();
+  if (rollBackError) throw new Error("BACKEND_WRITE_FAILED");
+  if (!rolledBack) {
+    const { data: replayData, error: replayError } = await admin.from("pandora_project_versions").select("lifecycle_status").eq("id", expectedVersionId).maybeSingle();
+    if (replayError || textValue(replayData?.lifecycle_status) !== "rolled_back") throw new Error("UNDO_PRECONDITION_MISMATCH");
+  }
+
+  const now = new Date().toISOString();
+  const config = asRecord(project.config);
+  const journey = asRecord(config.customerJourney);
+  const parentIsProduction = textValue(productionEnvironment?.current_version_id) === parentVersionId;
+  const nextConfig = { ...config, customerJourney: { ...journey, stage: parentIsProduction ? "live" : "preview_ready", runtimeStatus: "ready", previewUrl: parentPreviewData.url, productionCandidateUrl: null, runtimeUpdatedAt: now } };
+  const { error: projectError } = await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
+  if (projectError) throw new Error("BACKEND_WRITE_FAILED");
+  return runtimeSummary(context, projectId);
+}
+
 async function runtimeSummary(context: UserContext, identifier: string) {
   const project = await projectByIdentifier(context, identifier);
   const projectId = textValue(project.id);
   const admin = serviceClient();
-  const [preview, production, domain, candidate] = await Promise.all([
-    admin.from("pandora_project_deployments").select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+  const candidate = await admin.from("pandora_project_versions")
+    .select("id, parent_version_id, artifact_digest_sha256, lifecycle_status, created_at")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId)
+    .not("root_artifact_version_id", "is", null).not("artifact_digest_sha256", "is", null)
+    .in("lifecycle_status", ["built", "verification_pending", "verified", "preview_ready", "live"])
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (candidate.error) throw new Error("BACKEND_READ_FAILED");
+  let previewQuery = admin.from("pandora_project_deployments")
+    .select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview");
+  if (candidate.data?.id) previewQuery = previewQuery.eq("version_id", candidate.data.id);
+  const [preview, production, domain] = await Promise.all([
+    previewQuery.order("created_at", { ascending: false }).limit(1).maybeSingle(),
     admin.from("pandora_project_deployments").select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     admin.from("pandora_project_domains").select("id, domain, status, verified, primary_domain, verification, updated_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("primary_domain", true).limit(1).maybeSingle(),
-    admin.from("pandora_project_versions").select("id, artifact_digest_sha256, lifecycle_status, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).not("root_artifact_version_id", "is", null).not("artifact_digest_sha256", "is", null).in("lifecycle_status", ["built", "verification_pending", "verified", "preview_ready"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
-  if (preview.error || production.error || domain.error || candidate.error) throw new Error("BACKEND_READ_FAILED");
+  if (preview.error || production.error || domain.error) throw new Error("BACKEND_READ_FAILED");
 
   let verificationState = "not_checked_yet";
   let publishEligible = false;
@@ -908,7 +987,7 @@ async function runtimeSummary(context: UserContext, identifier: string) {
     preview: preview.data || null,
     production: production.data || null,
     domain: domain.data || null,
-    candidate: candidate.data ? { versionId: candidate.data.id, artifactDigest: candidate.data.artifact_digest_sha256, status: candidate.data.lifecycle_status } : null,
+    candidate: candidate.data ? { versionId: candidate.data.id, parentVersionId: candidate.data.parent_version_id ?? null, artifactDigest: candidate.data.artifact_digest_sha256, status: candidate.data.lifecycle_status } : null,
     verification: {
       state: verificationState,
       publishEligible,
@@ -1341,6 +1420,8 @@ Deno.serve(async (req: Request) => {
     if (req.method === "GET" && runtimeMatch) return jsonResponse(await runtimeSummary(context, decodeURIComponent(runtimeMatch[1])), 200, requestId, origin);
     const previewMatch = route.match(/^\/projects\/([^/]+)\/previews$/);
     if (req.method === "POST" && previewMatch) return jsonResponse(await createPreview(context, decodeURIComponent(previewMatch[1]), await bodyJson(req)), 201, requestId, origin);
+    const undoMatch = route.match(/^\/projects\/([^/]+)\/undo$/);
+    if (req.method === "POST" && undoMatch) return jsonResponse(await undoProject(context, decodeURIComponent(undoMatch[1]), await bodyJson(req)), 200, requestId, origin);
     const publishMatch = route.match(/^\/projects\/([^/]+)\/publish$/);
     if (req.method === "POST" && publishMatch) return jsonResponse(await publishProject(context, decodeURIComponent(publishMatch[1]), await bodyJson(req)), 201, requestId, origin);
     const productionVerificationMatch = route.match(/^\/projects\/([^/]+)\/production-verification$/);
@@ -1348,7 +1429,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ code: "PROJECT_RUNTIME_ROUTE_NOT_FOUND", plainMessage: "That project action is not available yet.", requestId }, 404, requestId, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
-    const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "INVALID_DOMAIN", "VERSION_REQUIRED", "INVALID_PRODUCTION_PRECONDITION", "EXACT_VERSION_REQUIRED", "ARTIFACT_FILE_BASE64_INVALID", "ARTIFACT_FILE_BASE64_NON_CANONICAL", "ARTIFACT_FILE_PATH_INVALID", "ARTIFACT_BUNDLE_JSON_INVALID", "ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED", "ARTIFACT_BUNDLE_FILES_INVALID", "INVALID_DOMAIN_REQUEST", "INVALID_ROLLBACK_REQUEST"]);
+    const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "INVALID_DOMAIN", "VERSION_REQUIRED", "INVALID_PRODUCTION_PRECONDITION", "EXACT_VERSION_REQUIRED", "ARTIFACT_FILE_BASE64_INVALID", "ARTIFACT_FILE_BASE64_NON_CANONICAL", "ARTIFACT_FILE_PATH_INVALID", "ARTIFACT_BUNDLE_JSON_INVALID", "ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED", "ARTIFACT_BUNDLE_FILES_INVALID", "INVALID_DOMAIN_REQUEST", "INVALID_ROLLBACK_REQUEST", "INVALID_UNDO_REQUEST"]);
     const conflicts = new Set(["PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED", "ARTIFACT_LINEAGE_INCOMPLETE", "ARTIFACT_NOT_FOUND", "ARTIFACT_DIGEST_MISMATCH", "ARTIFACT_STORAGE_INVALID", "ARTIFACT_STORAGE_READ_FAILED", "ARTIFACT_KIND_NOT_DEPLOYABLE", "ARTIFACT_PROVENANCE_MISMATCH", "ARTIFACT_BUNDLE_SIZE_INVALID", "ARTIFACT_BUNDLE_DIGEST_MISMATCH", "ARTIFACT_BUNDLE_LINEAGE_MISMATCH", "ARTIFACT_FILES_NOT_CANONICAL", "ARTIFACT_FILE_ENCODING_UNSUPPORTED", "ARTIFACT_FILE_TOO_LARGE", "ARTIFACT_FILES_TOTAL_TOO_LARGE", "ARTIFACT_FILE_DIGEST_MISMATCH", "ARTIFACT_FILE_SIZE_MISMATCH", "ARTIFACT_ENTRYPOINT_MISSING", "DOMAIN_DEPLOYMENT_REQUIRED", "DOMAIN_NOT_FOUND", "ROLLBACK_TARGET_NOT_ELIGIBLE", "ROLLBACK_TARGET_NOT_VERIFIED", "SUPABASE_FALLBACK_DOMAIN_UNAVAILABLE", "PRODUCTION_PROVIDER_UNSUPPORTED"]);
     if (code === "SIGN_IN_REQUIRED") return jsonResponse({ code, plainMessage: "Please sign in again.", requestId }, 401, requestId, origin);
     if (["ORGANIZATION_ACCESS_REQUIRED", "OWNER_ROLE_REQUIRED"].includes(code)) return jsonResponse({ code, plainMessage: "You do not have permission for this project.", requestId }, 403, requestId, origin);
@@ -1359,6 +1440,8 @@ Deno.serve(async (req: Request) => {
     if (code === "PROJECT_NOT_FOUND") return jsonResponse({ code, plainMessage: "Pandora could not find that project.", requestId }, 404, requestId, origin);
     if (code === "DOMAIN_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already attaching that domain.", requestId }, 409, requestId, origin);
     if (code === "DOMAIN_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming the domain with Vercel. Do not attach it again yet.", requestId }, 409, requestId, origin);
+    if (code === "UNDO_REQUIRES_ROLLBACK") return jsonResponse({ code, plainMessage: "That version is already live. Use the governed rollback action instead of Undo.", requestId }, 409, requestId, origin);
+    if (["UNDO_NOT_AVAILABLE", "UNDO_PRECONDITION_MISMATCH", "UNDO_PARENT_NOT_VERIFIED", "UNDO_PARENT_PREVIEW_UNAVAILABLE"].includes(code)) return jsonResponse({ code, plainMessage: "That change cannot be undone from the current project state.", requestId }, 409, requestId, origin);
     if (code === "ROLLBACK_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already rolling back this project.", requestId }, 409, requestId, origin);
     if (code === "ROLLBACK_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming the production rollback. Do not roll back again yet.", requestId }, 409, requestId, origin);
     if (code === "PREVIEW_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already creating this exact preview.", requestId }, 409, requestId, origin);
