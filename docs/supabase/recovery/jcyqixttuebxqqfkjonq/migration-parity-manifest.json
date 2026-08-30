@@ -710,11 +710,11 @@
     ],
     "invariants": {
         "active_file_count": 52,
-        "source_file_count": 106,
+        "source_file_count": 107,
         "live_identity_count": 59,
         "applied_change_count": 2,
         "historical_identity_count": 50,
-        "source_only_forward_count": 47,
+        "source_only_forward_count": 48,
         "production_history_rewritten": false,
         "coordinated_rotation_required": true,
         "production_mutation_performed": true,
@@ -818,7 +818,7 @@
         "production_history_rewritten": false,
         "reconciled_aug17_chain_sha256": "fd612a0dfbf34ab462112898b3050f39fb1c4d2a62b371961e719944c8cea390",
         "reconciled_recovery_chain_sha256": "fd919e3a587bd5e910154eec815c05e0074c2ccbe079e427de1030bcf2001c93",
-        "current_source_replay_chain_sha256": "43092f368a87a7cc83f27084672187bd01589dafaef46a42e42a15cd9608f4b5",
+        "current_source_replay_chain_sha256": "cb91c3ab3126bf72f0c995f8bfecae0c10858c01d708a1b9db860945448e7592",
         "current_source_receipt_chain_sha256": "778bcf92c7fcec3aae6b1b372c9bea6a072f286ae1069aed28fe16cf518b118f",
         "expected_applied_receipt_chain_sha256": "15cd17f972021545d2370ab6f76223977606bc5e96cf83d9fadb50c606a4686d",
         "live_only_sensitive_bodies_republished": false
