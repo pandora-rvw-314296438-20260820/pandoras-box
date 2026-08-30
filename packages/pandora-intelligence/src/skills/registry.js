@@ -100,6 +100,7 @@ function normalizeSkillDefinition(input) {
     version,
     description: optionalText(input.description, 'description'),
     capabilities: Object.freeze(capabilities),
+    dependsOn: Object.freeze(stringList(input.dependsOn, 'dependsOn')),
     supportedProjectTypes: Object.freeze(stringList(input.supportedProjectTypes, 'supportedProjectTypes')),
     requiredKnowledge: Object.freeze(stringList(input.requiredKnowledge, 'requiredKnowledge')),
     requiredTools: Object.freeze(stringList(input.requiredTools, 'requiredTools')),
@@ -193,9 +194,12 @@ class PandoraSkillRegistry {
   }
 }
 
+const PandoraTrustedSkillRegistry = PandoraSkillRegistry;
+
 module.exports = {
   EXACT_SEMVER,
   PandoraSkillRegistry,
+  PandoraTrustedSkillRegistry,
   RISK_CLASSES,
   SKILL_TRUST_STATES,
   normalizeSkillDefinition,

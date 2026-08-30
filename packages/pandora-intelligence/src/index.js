@@ -11,6 +11,7 @@ module.exports = {
   ...require('./routing/policy.js'),
   ...require('./routing/model-router.js'),
   ...require('./skills/registry.js'),
+  ...require('./skills/agent-catalog-adapter.js'),
   ...require('./knowledge/registry.js'),
   ...require('./lineage/ai-execution-receipt.js'),
   ...require('./planning/intelligence-composer.js'),
