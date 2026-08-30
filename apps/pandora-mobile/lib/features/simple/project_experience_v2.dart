@@ -463,7 +463,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     final production = snapshot?.production;
     if (candidate != null && production?.versionId == candidate.versionId) {
       if (snapshot?.project.isLive == true) {
-        final live = _safeHttps(snapshot?.project.liveUrl ?? production?.url);
+        final live = _safeHttps(
+          snapshot?.project.liveUrl ?? production?.url,
+        );
         return live == null ? 'Live' : 'Live · ${Uri.parse(live).host}';
       }
       return 'Publishing · verifying';
@@ -691,8 +693,10 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         return;
       }
       if (project?.runtimeStatus == 'failed') {
-        setState(() => _error =
-            'Pandora found something to resolve before this version can go live.');
+        setState(
+          () => _error =
+              'Pandora found something to resolve before this version can go live.',
+        );
         return;
       }
     }
@@ -722,7 +726,11 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
             .showSnackBar(const SnackBar(content: Text('Live.')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Publishing. Pandora is verifying this exact version.')),
+          const SnackBar(
+            content: Text(
+              'Publishing. Pandora is verifying this exact version.',
+            ),
+          ),
         );
         unawaited(_watchPublishCompletion());
       }
@@ -866,7 +874,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                 children: [
                   if (_snapshot?.verification?.publishEligible == true &&
                       _candidate != null &&
-                      _snapshot?.production?.versionId != _candidate?.versionId) ...[
+                      _snapshot?.production?.versionId !=
+                          _candidate?.versionId) ...[
                     Row(
                       children: [
                         Expanded(
