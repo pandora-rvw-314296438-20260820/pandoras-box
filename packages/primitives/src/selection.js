@@ -60,7 +60,7 @@ function resolvePrimitiveRequirements(registry, { requiredPrimitives = [], proje
     const requirement = queue.shift();
     const prior = selected.get(requirement.name);
     if (prior) {
-      if (!satisfies(prior.version, requirement.range)) errors.push(`primitive dependency conflict for ${requirement.name}: selected ${prior.version} does not satisfy ${requirement.range}`);
+      if (!satisfies(prior.definition.version, requirement.range)) errors.push(`primitive dependency conflict for ${requirement.name}: selected ${prior.version} does not satisfy ${requirement.range}`);
       continue;
     }
     const candidates = definitions
