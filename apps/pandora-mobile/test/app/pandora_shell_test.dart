@@ -402,7 +402,7 @@ void main() {
     expect(repository.projectCalls, 1);
   });
 
-  testWidgets('Ask Pandora uses a close control that returns to Home', (
+  testWidgets('Ask Pandora hides shell chrome and uses the composer plus menu', (
     tester,
   ) async {
     await setTestSurface(tester, logicalSize: const Size(400, 800));
@@ -418,7 +418,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Ask Pandora'), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('ask-pandora-open')),
       findsOneWidget,
@@ -429,11 +428,31 @@ void main() {
 
     expect(find.text('What can I help you build?'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey<String>('ask-pandora-close')),
+      find.byKey(const ValueKey<String>('ask-pandora-open')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-plus')),
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-close')));
+    await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-plus')));
+    await tester.pumpAndSettle();
+
+    for (final key in const [
+      'ask-pandora-menu-home',
+      'ask-pandora-menu-projects',
+      'ask-pandora-menu-more',
+      'ask-pandora-menu-camera',
+      'ask-pandora-menu-photos',
+      'ask-pandora-menu-files',
+    ]) {
+      expect(find.byKey(ValueKey<String>(key)), findsOneWidget);
+    }
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('ask-pandora-menu-home')),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Good morning, Mark'), findsOneWidget);
