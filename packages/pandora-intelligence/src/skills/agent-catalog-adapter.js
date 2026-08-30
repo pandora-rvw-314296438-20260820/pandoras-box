@@ -3,6 +3,7 @@
 
 const { normalizeSkillDefinition } = require('./registry.js');
 
+/** @type {Readonly<Record<string, string>>} */
 const AGENT_RISK_TO_TRUSTED_RISK = Object.freeze({
   read: 'READ_ONLY_DIAGNOSTIC',
   'reversible-write': 'SAFE_MUTATION',
