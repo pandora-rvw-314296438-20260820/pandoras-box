@@ -143,6 +143,28 @@ jobs:
         working-directory: .pandora-mobile-build
         run: dart format --output=none --set-exit-if-changed lib test
 
+      - name: Emit formatter-written source
+        if: ${{ failure() }}
+        working-directory: .pandora-mobile-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format lib/app/pandora_shell.dart \
+            test/app/pandora_shell_test.dart \
+            test/architecture/foundation_source_guard_test.dart >/dev/null
+          files=(
+            lib/app/pandora_shell.dart
+            test/app/pandora_shell_test.dart
+            test/architecture/foundation_source_guard_test.dart
+          )
+          for file in "${files[@]}"; do
+            marker="$(echo "$file" | tr '/.' '__')"
+            echo "PANDORA_FORMAT_WRITTEN_${marker}_BEGIN"
+            base64 -w0 "$file"
+            echo
+            echo "PANDORA_FORMAT_WRITTEN_${marker}_END"
+          done
+
       - name: Analyze
         working-directory: .pandora-mobile-build
         run: flutter analyze
