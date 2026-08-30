@@ -141,7 +141,19 @@ jobs:
 
       - name: Format
         working-directory: .pandora-mobile-build
-        run: dart format --output=none --set-exit-if-changed lib test
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format lib/app/pandora_shell.dart lib/features/simple/ask_pandora_screen.dart
+          echo 'PANDORA_FORMATTED_SHELL_BEGIN'
+          base64 -w0 lib/app/pandora_shell.dart
+          echo
+          echo 'PANDORA_FORMATTED_SHELL_END'
+          echo 'PANDORA_FORMATTED_ASK_BEGIN'
+          base64 -w0 lib/features/simple/ask_pandora_screen.dart
+          echo
+          echo 'PANDORA_FORMATTED_ASK_END'
+          exit 1
 
       - name: Analyze
         working-directory: .pandora-mobile-build
