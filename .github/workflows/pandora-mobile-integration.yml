@@ -151,6 +151,31 @@ jobs:
         working-directory: .pandora-mobile-build
         run: flutter test --reporter expanded
 
+      - name: Emit reviewed golden candidate bytes
+        if: ${{ failure() }}
+        working-directory: .pandora-mobile-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          names=(
+            foundation_graphite_360x800
+            foundation_porcelain_2x_text
+            foundation_porcelain_320x800
+            foundation_porcelain_360x800
+            home_attention_porcelain_320x800
+            home_attention_porcelain_390x844
+            home_degraded_graphite_390x844
+            home_loading_porcelain_390x844
+          )
+          for name in "${names[@]}"; do
+            file="test/goldens/failures/${name}_testImage.png"
+            test -f "$file"
+            echo "PANDORA_GOLDEN_${name}_BEGIN"
+            base64 -w0 "$file"
+            echo
+            echo "PANDORA_GOLDEN_${name}_END"
+          done
+
       - name: Build non-production Web candidate
         working-directory: .pandora-mobile-build
         run: >-
