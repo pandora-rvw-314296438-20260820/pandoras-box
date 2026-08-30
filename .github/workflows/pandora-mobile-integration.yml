@@ -149,8 +149,10 @@ jobs:
           format_status=$?
           if [[ "$format_status" -ne 0 ]]; then
             echo 'Show formatter diff when source is not canonical'
-            diff -ru ../apps/pandora-mobile/lib lib || true
-            diff -ru ../apps/pandora-mobile/test test || true
+            echo PANDORA_FORMATTED_JOURNEY_BASE64_BEGIN
+            base64 -w0 lib/features/simple/project_journey_flow.dart
+            echo
+            echo PANDORA_FORMATTED_JOURNEY_BASE64_END
           fi
           exit "$format_status"
 
