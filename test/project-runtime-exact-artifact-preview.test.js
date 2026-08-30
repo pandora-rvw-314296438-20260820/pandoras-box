@@ -53,6 +53,13 @@ test("provider READY maps only to ready_for_verification and ambiguous create is
   assert.doesNotMatch(preview, /live_verified/);
 });
 
+test("deterministic Vercel deployment quota exhaustion stays retryable instead of becoming ambiguous", () => {
+  const provider = block("async function createVercelDeployment", "async function createProject");
+  assert.match(source, /VERCEL_DEPLOYMENT_QUOTA_EXHAUSTED/);
+  assert.match(provider, /error\.message === "VERCEL_DEPLOYMENT_QUOTA_EXHAUSTED"/);
+  assert.match(source, /Preview capacity is temporarily full/);
+});
+
 test("preview API requires an explicit request body and exact version lineage", () => {
   assert.match(source, /createPreview\(context, decodeURIComponent\(previewMatch\[1\]\), await bodyJson\(req\)\)/);
   assert.match(source, /const versionId = textValue\(body\.versionId\)/);
