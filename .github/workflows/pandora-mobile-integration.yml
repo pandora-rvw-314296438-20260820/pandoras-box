@@ -142,17 +142,7 @@ jobs:
 
       - name: Format
         working-directory: .pandora-mobile-build
-        shell: bash
-        run: |
-          set +e
-          cp lib/features/simple/project_journey_flow.dart /tmp/project_journey_flow.before.dart
-          dart format --output=none --set-exit-if-changed lib test
-          format_status=$?
-          if [[ "$format_status" -ne 0 ]]; then
-            dart format lib/features/simple/project_journey_flow.dart
-            diff -u /tmp/project_journey_flow.before.dart lib/features/simple/project_journey_flow.dart > /tmp/project_journey_flow.format.diff || true
-          fi
-          exit "$format_status"
+        run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Analyze
         working-directory: .pandora-mobile-build
@@ -290,16 +280,6 @@ jobs:
             echo "- GitHub artifact digest: \`sha256:${ARTIFACT_DIGEST}\`"
             echo "- Source SHA: \`${SOURCE_SHA}\`"
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload formatted source on failure
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
-        with:
-          name: pandora-mobile-format-diff
-          path: /tmp/project_journey_flow.format.diff
-          if-no-files-found: ignore
-          include-hidden-files: true
-          retention-days: 1
 
       - name: Upload visual failures
         if: ${{ failure() }}
