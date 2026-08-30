@@ -45,6 +45,7 @@ test('mobile domain flow offers Xendit and PayPal hosted checkout instead of dir
   const models = read('apps/pandora-mobile/lib/core/models/domain_registrar_models.dart');
   const screen = read('apps/pandora-mobile/lib/features/simple/domains_screen.dart');
   const pubspec = read('apps/pandora-mobile/pubspec.yaml');
+  const bootstrap = read('apps/pandora-mobile/lib/app/pandora_runtime_bootstrap.dart');
   const main = read('apps/pandora-mobile/lib/main.dart');
   assert.match(api, /pandora_quote_domain_checkout/);
   assert.match(api, /pandora_create_domain_checkout/);
@@ -60,6 +61,7 @@ test('mobile domain flow offers Xendit and PayPal hosted checkout instead of dir
   assert.match(screen, /Auto-renew is off for now/);
   assert.doesNotMatch(screen, /Buy domain/);
   assert.match(pubspec, /url_launcher: 6\.3\.2/);
-  assert.match(main, /DomainRegistrarApi/);
-  assert.match(main, /domainRegistrar: domainRegistrar/);
+  assert.match(bootstrap, /DomainRegistrarApi/);
+  assert.match(bootstrap, /domainRegistrar: DomainRegistrarApi/);
+  assert.match(main, /domainRegistrar: runtime\.domainRegistrar/);
 });
