@@ -193,9 +193,11 @@ class _ProjectConversationScreenState extends State<ProjectConversationScreen>
   @override
   Widget build(BuildContext context) {
     final activeSourceIntentId = _activeSourceIntentId;
-    final waiting = activeSourceIntentId != null &&
+    final waiting =
+        activeSourceIntentId != null &&
         _understanding.state == OwnerProjectUnderstandingState.waiting;
-    final rejected = activeSourceIntentId != null &&
+    final rejected =
+        activeSourceIntentId != null &&
         _understanding.state == OwnerProjectUnderstandingState.rejected;
     final ready = activeSourceIntentId != null && _understanding.isReady;
 
@@ -209,9 +211,9 @@ class _ProjectConversationScreenState extends State<ProjectConversationScreen>
         onNotifications: () => Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const ApprovalsScreen()),
         ),
-        onAvatar: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
-        ),
+        onAvatar: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
       ),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
       child: Column(
@@ -315,10 +317,7 @@ class _ProjectConversationScreenState extends State<ProjectConversationScreen>
           const Text(
             'Nothing is built or published until you confirm it.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: PandoraSimpleColors.muted,
-              fontSize: 12.5,
-            ),
+            style: TextStyle(color: PandoraSimpleColors.muted, fontSize: 12.5),
           ),
         ],
       ),
@@ -342,9 +341,8 @@ class _UserMessageBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(
           color: PandoraSimpleColors.ink,
-          borderRadius: BorderRadius.circular(20).copyWith(
-            bottomRight: const Radius.circular(6),
-          ),
+          borderRadius: BorderRadius.circular(20)
+              .copyWith(bottomRight: const Radius.circular(6)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,41 +380,40 @@ class _PandoraMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 660),
-          margin: const EdgeInsets.only(right: 28, bottom: 14),
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-          decoration: BoxDecoration(
-            color: PandoraSimpleColors.surface,
-            borderRadius: BorderRadius.circular(20).copyWith(
-              bottomLeft: const Radius.circular(6),
-            ),
-            border: Border.all(color: PandoraSimpleColors.line),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    alignment: Alignment.centerLeft,
+    child: Container(
+      constraints: const BoxConstraints(maxWidth: 660),
+      margin: const EdgeInsets.only(right: 28, bottom: 14),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: PandoraSimpleColors.surface,
+        borderRadius: BorderRadius.circular(20)
+            .copyWith(bottomLeft: const Radius.circular(6)),
+        border: Border.all(color: PandoraSimpleColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
             children: [
-              const Row(
-                children: [
-                  PandoraMark(size: 27, color: PandoraSimpleColors.red),
-                  SizedBox(width: 8),
-                  Text(
-                    'Pandora',
-                    style: TextStyle(
-                      color: PandoraSimpleColors.ink,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+              PandoraMark(size: 27, color: PandoraSimpleColors.red),
+              SizedBox(width: 8),
+              Text(
+                'Pandora',
+                style: TextStyle(
+                  color: PandoraSimpleColors.ink,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              const SizedBox(height: 10),
-              child,
             ],
           ),
-        ),
-      );
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    ),
+  );
 }
 
 class _UnderstandingIndicator extends StatelessWidget {
@@ -424,27 +421,27 @@ class _UnderstandingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Row(
-        children: [
-          SizedBox.square(
-            dimension: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.2,
-              color: PandoraSimpleColors.red,
-            ),
+    children: [
+      SizedBox.square(
+        dimension: 18,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.2,
+          color: PandoraSimpleColors.red,
+        ),
+      ),
+      SizedBox(width: 11),
+      Expanded(
+        child: Text(
+          'I’m understanding what you want and turning it into a buildable prototype…',
+          style: TextStyle(
+            color: PandoraSimpleColors.ink,
+            fontSize: 15.5,
+            height: 1.42,
           ),
-          SizedBox(width: 11),
-          Expanded(
-            child: Text(
-              'I’m understanding what you want and turning it into a buildable prototype…',
-              style: TextStyle(
-                color: PandoraSimpleColors.ink,
-                fontSize: 15.5,
-                height: 1.42,
-              ),
-            ),
-          ),
-        ],
-      );
+        ),
+      ),
+    ],
+  );
 }
 
 class _PrototypeReply extends StatelessWidget {
@@ -577,31 +574,31 @@ class _PrototypeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: last ? 0 : 13),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: PandoraSimpleColors.muted,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                color: PandoraSimpleColors.ink,
-                fontSize: 14.5,
-                fontWeight: FontWeight.w600,
-                height: 1.38,
-              ),
-            ),
-          ],
+    padding: EdgeInsets.only(bottom: last ? 0 : 13),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: PandoraSimpleColors.muted,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-      );
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: PandoraSimpleColors.ink,
+            fontSize: 14.5,
+            fontWeight: FontWeight.w600,
+            height: 1.38,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _MiniLabel extends StatelessWidget {
@@ -611,20 +608,20 @@ class _MiniLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: PandoraSimpleColors.blush,
-          borderRadius: BorderRadius.circular(99),
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: PandoraSimpleColors.deepRed,
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    decoration: BoxDecoration(
+      color: PandoraSimpleColors.blush,
+      borderRadius: BorderRadius.circular(99),
+    ),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: PandoraSimpleColors.deepRed,
+        fontSize: 11.5,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 }
 
 class _ConversationComposer extends StatelessWidget {
@@ -640,60 +637,60 @@ class _ConversationComposer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: PandoraSimpleColors.surface,
+    color: PandoraSimpleColors.surface,
+    borderRadius: BorderRadius.circular(22),
+    child: Container(
+      padding: const EdgeInsets.fromLTRB(14, 7, 7, 7),
+      decoration: BoxDecoration(
+        border: Border.all(color: PandoraSimpleColors.line),
         borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 7, 7, 7),
-          decoration: BoxDecoration(
-            border: Border.all(color: PandoraSimpleColors.line),
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  enabled: !sending,
-                  minLines: 1,
-                  maxLines: 6,
-                  textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.newline,
-                  decoration: const InputDecoration(
-                    hintText: 'Tell Pandora what to change…',
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    filled: false,
-                    contentPadding: EdgeInsets.symmetric(vertical: 10),
-                  ),
-                ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              enabled: !sending,
+              minLines: 1,
+              maxLines: 6,
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.newline,
+              decoration: const InputDecoration(
+                hintText: 'Tell Pandora what to change…',
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                filled: false,
+                contentPadding: EdgeInsets.symmetric(vertical: 10),
               ),
-              const SizedBox(width: 8),
-              SizedBox.square(
-                dimension: 44,
-                child: IconButton.filled(
-                  onPressed: sending ? null : () => unawaited(onSend()),
-                  style: IconButton.styleFrom(
-                    backgroundColor: PandoraSimpleColors.red,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: PandoraSimpleColors.line,
-                  ),
-                  icon: sending
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.arrow_upward_rounded),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      );
+          const SizedBox(width: 8),
+          SizedBox.square(
+            dimension: 44,
+            child: IconButton.filled(
+              onPressed: sending ? null : () => unawaited(onSend()),
+              style: IconButton.styleFrom(
+                backgroundColor: PandoraSimpleColors.red,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: PandoraSimpleColors.line,
+              ),
+              icon: sending
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.arrow_upward_rounded),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 String _compactMessage(String value) {

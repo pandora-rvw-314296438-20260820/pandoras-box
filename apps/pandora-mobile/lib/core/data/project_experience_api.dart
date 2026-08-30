@@ -9,9 +9,9 @@ class ProjectExperienceApi {
     required SupabaseClient client,
     required String organizationId,
     IdempotencyKeyFactory? idempotencyKeys,
-  })  : _client = client,
-        _organizationId = organizationId,
-        _keys = idempotencyKeys ?? IdempotencyKeyFactory();
+  }) : _client = client,
+       _organizationId = organizationId,
+       _keys = idempotencyKeys ?? IdempotencyKeyFactory();
 
   final SupabaseClient _client;
   final String _organizationId;
@@ -271,13 +271,14 @@ OwnerProjectConversationTurn _conversationTurnFromRows(
     assistantSummary: assistantState == OwnerProjectUnderstandingState.ready
         ? _optionalText(spec?['business_summary'])
         : assistantState == OwnerProjectUnderstandingState.rejected
-            ? 'I need a little more direction before I can turn that into a reliable build plan.'
-            : null,
+        ? 'I need a little more direction before I can turn that into a reliable build plan.'
+        : null,
     projectType: _optionalText(spec?['project_type']),
     targetUsers: _optionalText(spec?['target_user_summary']),
     specVersion: spec == null ? null : _int(spec['version']),
-    compiledAt:
-        spec == null ? null : DateTime.tryParse(_text(spec['created_at'])),
+    compiledAt: spec == null
+        ? null
+        : DateTime.tryParse(_text(spec['created_at'])),
   );
 }
 
@@ -331,10 +332,10 @@ class OwnerProjectUnderstanding {
   });
 
   const OwnerProjectUnderstanding.waiting()
-      : this._(state: OwnerProjectUnderstandingState.waiting);
+    : this._(state: OwnerProjectUnderstandingState.waiting);
 
   const OwnerProjectUnderstanding.rejected()
-      : this._(state: OwnerProjectUnderstandingState.rejected);
+    : this._(state: OwnerProjectUnderstandingState.rejected);
 
   factory OwnerProjectUnderstanding.ready({
     required String specId,
@@ -345,18 +346,17 @@ class OwnerProjectUnderstanding {
     required List<String> objectives,
     required List<String> requirements,
     required DateTime? compiledAt,
-  }) =>
-      OwnerProjectUnderstanding._(
-        state: OwnerProjectUnderstandingState.ready,
-        specId: specId,
-        version: version,
-        projectType: projectType,
-        targetUsers: targetUsers,
-        businessSummary: businessSummary,
-        objectives: List<String>.unmodifiable(objectives),
-        requirements: List<String>.unmodifiable(requirements),
-        compiledAt: compiledAt,
-      );
+  }) => OwnerProjectUnderstanding._(
+    state: OwnerProjectUnderstandingState.ready,
+    specId: specId,
+    version: version,
+    projectType: projectType,
+    targetUsers: targetUsers,
+    businessSummary: businessSummary,
+    objectives: List<String>.unmodifiable(objectives),
+    requirements: List<String>.unmodifiable(requirements),
+    compiledAt: compiledAt,
+  );
 
   final OwnerProjectUnderstandingState state;
   final String? specId;
