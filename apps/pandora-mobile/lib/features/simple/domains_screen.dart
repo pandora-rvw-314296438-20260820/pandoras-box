@@ -511,7 +511,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'RedApple could not start the payment checkout.';
+        _error = 'Pandora’s Box could not start the payment checkout.';
         _startingCheckout = false;
       });
     }
@@ -803,7 +803,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
               const PandoraSimpleCard(
                 shadow: false,
                 child: Text(
-                  'Auto-renew is off for now. RedApple will ask you before renewal so there are no surprise charges.',
+                  'Auto-renew is off for now. Pandora’s Box will ask you before renewal so there are no surprise charges.',
                   style: pandoraSimpleMutedText,
                 ),
               ),
