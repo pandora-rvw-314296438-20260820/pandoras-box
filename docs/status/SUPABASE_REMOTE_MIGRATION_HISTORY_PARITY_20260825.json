@@ -1241,11 +1241,18 @@
             "replayMode": "history_receipt_noop",
             "originalSqlSha256": "91b9fbb9e8d9af8a669694120004403d4d9a5b255b8efa5a1526212ae73f5ebb",
             "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_project_version_parent_lineage_finalize_v1",
+            "version": "20260830200344",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "bdfab8f0a010382086e256a7abc1f2667fb9b71a90126a0d20d28f977c4a25d3",
+            "originalStatementCount": 2
         }
     ],
     "projectRef": "jcyqixttuebxqqfkjonq",
     "repository": "pandora-rvw-314296438-20260820/pandoras-box",
     "generatedAt": "2026-08-29T15:07:37.693Z",
     "schemaVersion": 1,
-    "migrationCount": 177
+    "migrationCount": 178
 }
