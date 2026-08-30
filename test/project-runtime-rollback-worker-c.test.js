@@ -37,7 +37,7 @@ test('supabase static production has a governed rollback executor with Worker E 
   assert.match(migration, /pandora_publish_supabase_fallback_20260831/);
   assert.match(migration, /pandora_worker_e_verify_supabase_production_20260831/);
   assert.match(migration, /pandora_finalize_verified_production_20260830/);
-  assert.match(migration, /action,'rollback'/);
+  assert.match(migration, /v_operation_key,'rollback'/);
   assert.match(migration, /authorization_ref,v_authorization_ref/);
 });
 
