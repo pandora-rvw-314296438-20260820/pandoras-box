@@ -3,7 +3,7 @@
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'pg_catalog', 'private', 'vault', 'extensions', 'public'
-AS $function$
+AS $$
 declare
   v_path text;
   v_verify_jwt boolean;
@@ -158,4 +158,4 @@ begin
     'ezbrSha256',v_response_body->'ezbr_sha256'
   );
 end;
-$function$
+$$
