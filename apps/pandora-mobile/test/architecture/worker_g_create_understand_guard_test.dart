@@ -11,7 +11,7 @@ void main() {
     final legacy = File('lib/features/simple/project_journey_flow.dart')
         .readAsStringSync();
 
-    expect(source, contains('What do you want\nto make happen?'));
+    expect(source, contains(r'What do you want\nto make happen?'));
     expect(
       source,
       contains(

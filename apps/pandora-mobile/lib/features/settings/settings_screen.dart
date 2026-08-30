@@ -13,7 +13,9 @@ import '../intelligence/owner_intelligence_screen.dart';
 import '../safety/safety_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.installedBuildLabel});
+
+  final String? installedBuildLabel;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -62,7 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: PandoraSpacing.md),
             OwnerSignal(
               label: 'Installed build',
-              value:
+              value: widget.installedBuildLabel ??
                   '${PandoraConfig.releaseLabel} · ${PandoraConfig.artifactClass} · Not a production release',
               icon: Icons.science_outlined,
               tone: PandoraStatusTone.informative,

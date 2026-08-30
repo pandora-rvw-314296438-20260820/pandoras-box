@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_repository.dart';
@@ -285,42 +284,16 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   }
 
   Future<List<Map<String, Object?>>> _loadPreviewFiles(String versionId) async {
-    final response = await Supabase.instance.client.functions.invoke(
-      'pandora-preview-content',
-      body: <String, Object?>{
-        'projectId': widget.project.id,
-        'versionId': versionId,
-      },
+    final experience = PandoraDependencies.of(context).projectExperience;
+    if (experience == null) {
+      throw const ProjectExperienceException(
+        'Pandora cannot open this preview right now.',
+      );
+    }
+    return experience.loadExactPreviewFiles(
+      projectId: widget.project.id,
+      versionId: versionId,
     );
-    final data = response.data;
-    if (data is! Map || data['kind'] != 'pandora.mobile-preview-bundle.v1') {
-      throw StateError('Invalid preview bundle');
-    }
-    final rawFiles = data['files'];
-    if (rawFiles is! List || rawFiles.isEmpty || rawFiles.length > 1000) {
-      throw StateError('Invalid preview files');
-    }
-    final files = <Map<String, Object?>>[];
-    for (final raw in rawFiles) {
-      if (raw is! Map) throw StateError('Invalid preview file');
-      final file = raw['file'];
-      final mimeType = raw['mimeType'];
-      final dataBase64 = raw['dataBase64'];
-      if (file is! String ||
-          file.trim().isEmpty ||
-          mimeType is! String ||
-          mimeType.trim().isEmpty ||
-          dataBase64 is! String ||
-          dataBase64.isEmpty) {
-        throw StateError('Invalid preview file');
-      }
-      files.add(<String, Object?>{
-        'file': file.trim(),
-        'mimeType': mimeType.trim(),
-        'dataBase64': dataBase64,
-      });
-    }
-    return files;
   }
 
   Future<bool> _activateLocalPreview(ProjectRuntimeCandidate candidate) async {
