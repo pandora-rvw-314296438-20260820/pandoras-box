@@ -135,7 +135,7 @@ async function enforceRateLimit(context: UserContext, method: string) {
     new TextEncoder().encode(`${context.userId}:${method}:pandora-project-runtime`),
   );
   const key = [...new Uint8Array(keyBytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  const { data, error } = await context.client.rpc("consume_runtime_rate_limit", {
+  const { data, error } = await serviceClient().rpc("consume_runtime_rate_limit", {
     p_organization_id: context.organizationId,
     p_key_hash: key,
     p_limit: method === "GET" ? 120 : 20,
@@ -517,7 +517,7 @@ async function createProject(context: UserContext, body: JsonRecord) {
   const objective = textValue(body.objective);
   const kind = buildKind(body.buildKind);
   if (name.length < 2 || name.length > 100) throw new Error("INVALID_PROJECT_NAME");
-  if (objective.length < 10 || objective.length > 6000) throw new Error("INVALID_OBJECTIVE");
+  if (objective.length < 10 || objective.length > 50000) throw new Error("INVALID_OBJECTIVE");
 
   const projectKey = `${slugify(name)}-${crypto.randomUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
