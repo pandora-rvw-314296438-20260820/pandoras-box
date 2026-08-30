@@ -419,24 +419,28 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ask Pandora'), findsNothing);
-    expect(find.bySemanticsLabel('Ask Pandora'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-open')),
+      findsOneWidget,
+    );
 
-    await tester.tap(find.bySemanticsLabel('Ask Pandora'));
+    await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-open')));
     await tester.pumpAndSettle();
 
     expect(find.text('What can I help you build?'), findsOneWidget);
     expect(
-      find.bySemanticsLabel('Close Ask Pandora and return Home'),
+      find.byKey(const ValueKey<String>('ask-pandora-close')),
       findsOneWidget,
     );
 
-    await tester.tap(
-      find.bySemanticsLabel('Close Ask Pandora and return Home'),
-    );
+    await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-close')));
     await tester.pumpAndSettle();
 
     expect(find.text('Good morning, Mark'), findsOneWidget);
-    expect(find.bySemanticsLabel('Ask Pandora'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-open')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('tabs load lazily and preserve their first mounted state', (
