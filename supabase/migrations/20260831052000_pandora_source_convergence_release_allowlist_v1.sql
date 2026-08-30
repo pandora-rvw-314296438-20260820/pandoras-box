@@ -1,14 +1,11 @@
 -- Pandora release helper: exact source-convergence worker deployment allowlist.
--- Reuses the replay-proven canonical helper source and adds one closed allowlist case.
-create or replace function private.pandora_release_deploy_edge_from_github_20260829(
-  p_commit_sha text,
-  p_slug text
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path='pg_catalog','private','vault','extensions','public'
-as $$
+-- Reuses the latest replay-proven canonical helper source and adds one closed allowlist case.
+CREATE OR REPLACE FUNCTION private.pandora_release_deploy_edge_from_github_20260829(p_commit_sha text, p_slug text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'pg_catalog', 'private', 'vault', 'extensions', 'public'
+AS $function$
 declare
   v_path text;
   v_verify_jwt boolean;
@@ -41,6 +38,14 @@ begin
     when 'pandora-project-source-generator' then
       v_path := 'supabase/functions/pandora-project-source-generator/index.ts';
       v_verify_jwt := true;
+      v_import_map_path := null;
+    when 'pandora-project-spec-compiler' then
+      v_path := 'supabase/functions/pandora-project-spec-compiler/index.ts';
+      v_verify_jwt := true;
+      v_import_map_path := null;
+    when 'pandora-source-convergence-worker' then
+      v_path := 'supabase/functions/pandora-source-convergence-worker/index.ts';
+      v_verify_jwt := false;
       v_import_map_path := null;
     else
       raise exception 'Edge function slug outside Pandora release allowlist' using errcode='22023';
@@ -155,8 +160,4 @@ begin
     'ezbrSha256',v_response_body->'ezbr_sha256'
   );
 end;
-$$;
-
-revoke all on function private.pandora_release_deploy_edge_from_github_20260829(text,text) from public,anon,authenticated;
-grant execute on function private.pandora_release_deploy_edge_from_github_20260829(text,text) to service_role;
-
+$function$;
