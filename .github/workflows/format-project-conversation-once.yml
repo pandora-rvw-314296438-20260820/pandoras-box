@@ -1,0 +1,43 @@
+name: Format project conversation once
+
+on:
+  push:
+    branches:
+      - feature/project-conversation-prototype-20260830
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: feature/project-conversation-prototype-20260830
+          fetch-depth: 0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Normalize changed Dart
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format \
+            apps/pandora-mobile/lib/core/data/project_experience_api.dart \
+            apps/pandora-mobile/lib/features/simple/project_create_experience.dart \
+            apps/pandora-mobile/lib/features/simple/project_conversation_screen.dart \
+            apps/pandora-mobile/lib/features/simple/project_iteration_experience.dart \
+            apps/pandora-mobile/test/architecture/worker_g_create_understand_guard_test.dart
+          rm .github/workflows/format-project-conversation-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'style(mobile): format project conversation'
+          git push origin HEAD:feature/project-conversation-prototype-20260830
