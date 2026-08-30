@@ -61,4 +61,5 @@ test('rollback policy identity is immutable and idempotency collisions fail clos
   assert.match(migration, /policy_version<>v_policy_version/);
   assert.match(migration, /idempotency_mode<>'REQUIRED'/);
   assert.match(migration, /v_tool\.idempotency_key<>trim\(p_idempotency_key\)/);
+  assert.match(migration, /'production_candidate','rolled_back'/);
 });
