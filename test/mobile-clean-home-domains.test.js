@@ -21,10 +21,12 @@ test("Simple Home is a clean dashboard, not a duplicate Pandora composer",()=>{
   assert.equal(home.includes("Text(project.purpose"),false);
 });
 
-test("primary navigation reserves fifth destination for More",()=>{
+test("primary navigation keeps More as fourth destination and gives Ask Pandora a full-screen shell",()=>{
   assert.equal(shell.includes("_Destination('More'"),true);
-  assert.equal(shell.includes("4 => const MoreScreen()"),true);
-  assert.equal(shell.includes("4 => 'more'"),true);
+  assert.equal(shell.includes("3 => const MoreScreen()"),true);
+  assert.equal(shell.includes("3 => 'more'"),true);
+  assert.equal(shell.includes("static const _askIndex = 2"),true);
+  assert.equal(shell.includes("if (_index == _askIndex)"),true);
   assert.equal(shell.includes("_Destination('Business'"),false);
 });
 
