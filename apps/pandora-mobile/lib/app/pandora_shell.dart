@@ -27,6 +27,8 @@ class _PandoraShellState extends State<PandoraShell> {
     ),
   ];
 
+  final Map<int, Widget> _roots = <int, Widget>{};
+  final Set<int> _visited = <int>{0};
   int _index = 0;
 
   @override
@@ -44,7 +46,10 @@ class _PandoraShellState extends State<PandoraShell> {
   void _select(int value) {
     if (value < 0 || value >= _destinations.length || value == _index) return;
     HapticFeedback.selectionClick();
-    setState(() => _index = value);
+    setState(() {
+      _index = value;
+      _visited.add(value);
+    });
     final screen = switch (value) {
       0 => 'home',
       1 => 'work',
@@ -59,15 +64,18 @@ class _PandoraShellState extends State<PandoraShell> {
     );
   }
 
-  Widget _screen(int index) => switch (index) {
-    0 => SimpleHomeScreen(
-      onOpenSystems: () => _select(1),
-      onOpenNeedsYou: () => _select(2),
-    ),
-    1 => const ProjectsScreen(),
-    2 => const ApprovalsScreen(),
-    _ => const SimpleHomeScreen(),
-  };
+  Widget _root(int index) => _roots.putIfAbsent(
+    index,
+    () => switch (index) {
+      0 => SimpleHomeScreen(
+        onOpenSystems: () => _select(1),
+        onOpenNeedsYou: () => _select(2),
+      ),
+      1 => const ProjectsScreen(),
+      2 => const ApprovalsScreen(),
+      _ => const SimpleHomeScreen(),
+    },
+  );
 
   ThemeData _theme(ThemeData base) {
     const scheme = ColorScheme.light(
@@ -131,7 +139,12 @@ class _PandoraShellState extends State<PandoraShell> {
       builder: (context, constraints) {
         final body = IndexedStack(
           index: _index,
-          children: [for (var i = 0; i < _destinations.length; i++) _screen(i)],
+          children: [
+            for (var i = 0; i < _destinations.length; i++)
+              _visited.contains(i) || i == _index
+                  ? _root(i)
+                  : const SizedBox.shrink(),
+          ],
         );
         if (constraints.maxWidth >= 900) {
           return Scaffold(
