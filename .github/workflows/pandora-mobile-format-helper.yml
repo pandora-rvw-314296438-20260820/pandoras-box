@@ -21,15 +21,22 @@ jobs:
           flutter-version: '3.47.0'
           channel: stable
           cache: true
+      - name: Resolve exact lockfile
+        working-directory: apps/pandora-mobile
+        run: flutter pub get --enforce-lockfile
       - name: Format current Pandora mobile sources
-        run: dart format apps/pandora-mobile/lib apps/pandora-mobile/test
+        working-directory: apps/pandora-mobile
+        run: dart format lib test
+      - name: Record changed files
+        run: git diff --name-only -- apps/pandora-mobile/lib apps/pandora-mobile/test | tee formatted-files.txt
       - name: Stage formatted sources
         run: |
           mkdir -p formatted
           cp -R apps formatted/
+          cp formatted-files.txt formatted/
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: pandora-mobile-current-formatted-${{ github.event.pull_request.head.sha }}
-          path: formatted/apps/pandora-mobile
+          name: pandora-mobile-exact-formatted-${{ github.event.pull_request.head.sha }}
+          path: formatted
           include-hidden-files: true
           retention-days: 1
