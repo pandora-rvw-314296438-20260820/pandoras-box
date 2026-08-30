@@ -21,10 +21,12 @@ jobs:
         with:
           flutter-version: '3.47.0'
           cache: true
-      - name: Print exact formatter diff
+      - name: Print exact formatted source
         shell: bash
         run: |
           set -euo pipefail
           dart format apps/pandora-mobile/lib/features/simple/project_experience_v2.dart
-          git diff -- apps/pandora-mobile/lib/features/simple/project_experience_v2.dart
+          printf "FORMATTED_GZIP_BASE64="
+          gzip -c apps/pandora-mobile/lib/features/simple/project_experience_v2.dart | base64 -w0
+          printf "\n"
           exit 1
