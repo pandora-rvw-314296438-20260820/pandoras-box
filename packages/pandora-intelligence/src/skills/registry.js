@@ -178,6 +178,9 @@ class PandoraSkillRegistry {
     const key = `${skillId}@${version}`;
     const existing = this.skills.get(key);
     if (!existing) throw new Error(`skill not found: ${key}`);
+    if (existing.trustState === 'BLOCKED' || existing.trustState === 'DEPRECATED') {
+      throw new Error(`skill cannot be certified from ${existing.trustState} state`);
+    }
     if (evidence.worker !== 'E') throw new Error('only Worker E verification evidence may certify a skill');
     if (evidence.verdict !== 'PASS') throw new Error('skill certification requires PASS evidence');
     const sourceDigest = String(existing.sourceDigest ?? '');
