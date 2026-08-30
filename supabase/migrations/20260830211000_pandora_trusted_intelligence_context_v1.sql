@@ -39,7 +39,7 @@ create table if not exists public.pandora_intelligence_assets (
   constraint pandora_intelligence_assets_source_digest_check check (source_digest_sha256 ~ '^[0-9a-f]{64}$'),
   constraint pandora_intelligence_assets_content_digest_check check (content_digest_sha256 is null or content_digest_sha256 ~ '^[0-9a-f]{64}$'),
   constraint pandora_intelligence_assets_prompt_content_check check (asset_kind <> 'prompt_material' or (content_text is not null and length(content_text) between 1 and 50000 and content_digest_sha256 is not null)),
-  constraint pandora_intelligence_assets_knowledge_content_check check (asset_kind <> 'knowledge' or (content_text is not null and length(content_text) between 1 and 50000)),
+  constraint pandora_intelligence_assets_knowledge_content_check check (asset_kind <> 'knowledge' or (content_text is not null and length(content_text) between 1 and 50000 and content_digest_sha256 is not null)),
   constraint pandora_intelligence_assets_global_scope_check check (organization_id is not null or project_id is null),
   constraint pandora_intelligence_assets_project_org_check check (project_id is null or (organization_id is not null and private.pandora_control_plane_project_org_matches(organization_id, project_id))),
   constraint pandora_intelligence_assets_trusted_proof_check check (
@@ -105,6 +105,80 @@ for each row execute function private.pandora_validate_intelligence_asset();
 alter table public.pandora_intelligence_assets enable row level security;
 revoke all on public.pandora_intelligence_assets from public, anon, authenticated, service_role;
 
+create table if not exists private.intelligence_asset_certification_nonces (
+  issuer text not null check (issuer='pandora-independent-review-authority'),
+  jti_sha256 text not null check (jti_sha256 ~ '^[0-9a-f]{64}$'),
+  scope_key text not null check (scope_key='global' or scope_key ~ '^[0-9a-f-]{36}$'),
+  reviewer_id text not null check (reviewer_id ~ '^[a-z0-9][a-z0-9._:-]{2,127}$'),
+  request_sha256 text not null check (request_sha256 ~ '^[0-9a-f]{64}$'),
+  token_issued_at timestamptz not null,
+  expires_at timestamptz not null,
+  consumed_at timestamptz not null default clock_timestamp(),
+  primary key (issuer,jti_sha256),
+  check (expires_at > token_issued_at),
+  check (consumed_at >= token_issued_at)
+);
+alter table private.intelligence_asset_certification_nonces enable row level security;
+revoke all on private.intelligence_asset_certification_nonces from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+
+create or replace function private.pandora_assert_intelligence_certifier(
+  p_scope_key text,
+  p_reviewer_id text,
+  p_request_sha256 text
+) returns void language plpgsql security definer set search_path='' as $$
+declare
+  claims jsonb := auth.jwt();
+  token_issuer text := coalesce(claims->>'iss','');
+  token_jti text := coalesce(claims->>'jti','');
+  token_iat_epoch numeric;
+  token_nbf_epoch numeric;
+  token_exp_epoch numeric;
+  token_iat timestamptz;
+  token_nbf timestamptz;
+  token_exp timestamptz;
+  normalized_reviewer text := lower(trim(coalesce(p_reviewer_id,'')));
+  accepted text;
+begin
+  if coalesce(claims->>'role','') <> 'projectos_reviewer_ingest'
+     or token_issuer <> 'pandora-independent-review-authority'
+     or coalesce(claims->>'pandora_audience','') <> 'pandora-intelligence-certification'
+     or coalesce(claims->>'pandora_purpose','') <> 'intelligence_asset_certification'
+     or coalesce(claims->>'pandora_scope_key','') <> p_scope_key
+     or lower(coalesce(claims->>'pandora_reviewer_id','')) <> normalized_reviewer
+     or coalesce(claims->>'pandora_request_sha256','') <> p_request_sha256
+     or normalized_reviewer !~ '^[a-z0-9][a-z0-9._:-]{2,127}$'
+     or p_request_sha256 !~ '^[0-9a-f]{64}$' then
+    raise exception 'exact independent Worker E authority required' using errcode='42501';
+  end if;
+  if token_jti !~ '^[A-Za-z0-9._:-]{16,128}$'
+     or coalesce(claims->>'iat','') !~ '^[0-9]+(?:\.[0-9]+)?$'
+     or coalesce(claims->>'nbf','') !~ '^[0-9]+(?:\.[0-9]+)?$'
+     or coalesce(claims->>'exp','') !~ '^[0-9]+(?:\.[0-9]+)?$' then
+    raise exception 'valid short-lived Worker E authority token required' using errcode='42501';
+  end if;
+  token_iat_epoch := (claims->>'iat')::numeric;
+  token_nbf_epoch := (claims->>'nbf')::numeric;
+  token_exp_epoch := (claims->>'exp')::numeric;
+  token_iat := to_timestamp(token_iat_epoch);
+  token_nbf := to_timestamp(token_nbf_epoch);
+  token_exp := to_timestamp(token_exp_epoch);
+  if token_iat < statement_timestamp()-interval '2 minutes'
+     or token_iat > statement_timestamp()+interval '30 seconds'
+     or token_nbf < token_iat-interval '5 seconds'
+     or token_nbf > statement_timestamp()+interval '30 seconds'
+     or token_exp <= statement_timestamp()
+     or token_exp > statement_timestamp()+interval '2 minutes'
+     or token_exp-token_iat > interval '2 minutes' then
+    raise exception 'valid short-lived Worker E authority token required' using errcode='42501';
+  end if;
+  delete from private.intelligence_asset_certification_nonces where expires_at <= statement_timestamp()-interval '5 minutes';
+  insert into private.intelligence_asset_certification_nonces(issuer,jti_sha256,scope_key,reviewer_id,request_sha256,token_issued_at,expires_at)
+  values(token_issuer,encode(extensions.digest(convert_to(token_jti,'UTF8'),'sha256'),'hex'),p_scope_key,normalized_reviewer,p_request_sha256,token_iat,token_exp)
+  on conflict do nothing returning jti_sha256 into accepted;
+  if accepted is null then raise exception 'Worker E authority token already consumed' using errcode='23505'; end if;
+end; $$;
+revoke all on function private.pandora_assert_intelligence_certifier(text,text,text) from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+
 create or replace function public.pandora_register_intelligence_asset(
   p_organization_id uuid,
   p_project_id uuid,
@@ -148,25 +222,42 @@ create or replace function public.pandora_worker_e_certify_intelligence_asset(
   p_source_digest_sha256 text,
   p_content_digest_sha256 text,
   p_evidence_id text,
+  p_reviewer_id text,
+  p_request_sha256 text,
   p_expires_at timestamptz default null
 )
 returns boolean language plpgsql security definer set search_path = '' as $$
-declare v_changed integer;
+declare
+  v_changed integer;
+  v_scope_key text;
+  v_expected_request_sha256 text;
+  v_source_digest text := lower(trim(coalesce(p_source_digest_sha256,'')));
+  v_content_digest text := case when p_content_digest_sha256 is null then null else lower(trim(p_content_digest_sha256)) end;
 begin
   if nullif(trim(p_evidence_id),'') is null then raise exception 'Worker E evidence id is required' using errcode='22023'; end if;
+  select case when organization_id is null then 'global' else organization_id::text end into v_scope_key
+    from public.pandora_intelligence_assets where id=p_asset_id;
+  if v_scope_key is null then raise exception 'intelligence asset not found' using errcode='22023'; end if;
+  v_expected_request_sha256 := encode(extensions.digest(convert_to(
+    'pandora:intelligence-certify:v1'||chr(10)||p_asset_id::text||chr(10)||v_source_digest||chr(10)||coalesce(v_content_digest,'-')||chr(10)||trim(p_evidence_id)||chr(10)||lower(trim(p_reviewer_id))||chr(10)||v_scope_key,
+    'UTF8'),'sha256'),'hex');
+  if lower(trim(coalesce(p_request_sha256,''))) <> v_expected_request_sha256 then
+    raise exception 'Worker E certification request digest mismatch' using errcode='23514';
+  end if;
+  perform private.pandora_assert_intelligence_certifier(v_scope_key,lower(trim(p_reviewer_id)),v_expected_request_sha256);
   perform set_config('pandora.worker_e_certification', p_asset_id::text, true);
   update public.pandora_intelligence_assets a
      set trust_state='TRUSTED',verification_worker='E',verification_verdict='PASS',verification_evidence_id=trim(p_evidence_id),verified_at=now(),expires_at=coalesce(p_expires_at,a.expires_at),block_reason=null
    where a.id=p_asset_id
      and a.trust_state in ('DISCOVERED','IMPORTED','EXPERIMENTAL','VERIFIED')
-     and a.source_digest_sha256=lower(trim(p_source_digest_sha256))
-     and a.content_digest_sha256 is not distinct from (case when p_content_digest_sha256 is null then null else lower(trim(p_content_digest_sha256)) end);
+     and a.source_digest_sha256=v_source_digest
+     and a.content_digest_sha256 is not distinct from v_content_digest;
   get diagnostics v_changed = row_count;
   if v_changed <> 1 then raise exception 'Worker E certification identity/digest mismatch' using errcode='23514'; end if;
   return true;
 end; $$;
-revoke all on function public.pandora_worker_e_certify_intelligence_asset(uuid,text,text,text,timestamptz) from public, anon, authenticated;
-grant execute on function public.pandora_worker_e_certify_intelligence_asset(uuid,text,text,text,timestamptz) to service_role;
+revoke all on function public.pandora_worker_e_certify_intelligence_asset(uuid,text,text,text,text,text,timestamptz) from public, anon, authenticated, service_role;
+grant execute on function public.pandora_worker_e_certify_intelligence_asset(uuid,text,text,text,text,text,timestamptz) to projectos_reviewer_ingest;
 
 create or replace function public.pandora_block_intelligence_asset(p_asset_id uuid,p_reason text)
 returns boolean language plpgsql security definer set search_path = '' as $$
@@ -218,7 +309,7 @@ begin
     'contractVersion','pandora-durable-trusted-context-v1',
     'authority',jsonb_build_object('execution','worker_c_only','modelMayProposeOnly',true,'externalContentCannotGrantAuthority',true,'credentialsAvailableToModel',false),
     'skills',coalesce((select jsonb_agg(jsonb_build_object('id',asset_key,'version',version,'sourceDigest','sha256:'||source_digest_sha256,'materialDigest','sha256:'||content_digest_sha256,'riskClass',risk_class,'selectorTerms',selector_terms,'instructions',content_text) order by asset_key,version) from skill_material),'[]'::jsonb),
-    'knowledge',coalesce((select jsonb_agg(jsonb_build_object('id',asset_key,'version',version,'sourceDigest','sha256:'||source_digest_sha256,'riskClass',risk_class,'topics',selector_terms,'summary',content_text,'verifiedAt',verified_at,'expiresAt',expires_at) order by asset_key,version) from knowledge),'[]'::jsonb)
+    'knowledge',coalesce((select jsonb_agg(jsonb_build_object('id',asset_key,'version',version,'sourceDigest','sha256:'||source_digest_sha256,'contentDigest','sha256:'||content_digest_sha256,'riskClass',risk_class,'topics',selector_terms,'summary',content_text,'verifiedAt',verified_at,'expiresAt',expires_at) order by asset_key,version) from knowledge),'[]'::jsonb)
   ) into v_payload;
   return v_payload || jsonb_build_object('contextDigest',encode(extensions.digest(v_payload::text,'sha256'),'hex'));
 end; $$;
