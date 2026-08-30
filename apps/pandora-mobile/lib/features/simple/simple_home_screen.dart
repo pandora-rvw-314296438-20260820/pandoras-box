@@ -314,7 +314,12 @@ class _ProjectsHomeCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 5),
-                Text(project.purpose, style: pandoraSimpleMutedText),
+                Text(
+                  project.purpose,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: pandoraSimpleMutedText,
+                ),
                 const SizedBox(height: 8),
                 PandoraStatusPill(
                   label: state,
