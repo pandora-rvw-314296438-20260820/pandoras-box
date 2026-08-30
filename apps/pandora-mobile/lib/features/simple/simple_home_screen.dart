@@ -314,7 +314,12 @@ class _ProjectsHomeCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 5),
-                Text(project.purpose, style: pandoraSimpleMutedText),
+                Text(
+                  _homeProjectSummary(project),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: pandoraSimpleMutedText,
+                ),
                 const SizedBox(height: 8),
                 PandoraStatusPill(
                   label: state,
@@ -563,6 +568,28 @@ class _LiveHomeCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _homeProjectSummary(ProjectSummary project) {
+  var summary = project.purpose
+      .replaceAll(RegExp(r'^\s*[-#>*+]+\s*', multiLine: true), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  if (summary.isEmpty ||
+      summary.toLowerCase().contains('if you cannot directly inspect') ||
+      summary.toLowerCase().contains('implementation instructions')) {
+    return '${project.name} project';
+  }
+
+  final sentenceEnd = summary.indexOf('.');
+  if (sentenceEnd > 0) summary = summary.substring(0, sentenceEnd + 1);
+  if (summary.length <= 180) return summary;
+
+  final clipped = summary.substring(0, 180);
+  final lastSpace = clipped.lastIndexOf(' ');
+  final safeEnd = lastSpace >= 120 ? lastSpace : 180;
+  return '${clipped.substring(0, safeEnd).trimRight()}…';
 }
 
 String _projectOwnerState(String status) {
