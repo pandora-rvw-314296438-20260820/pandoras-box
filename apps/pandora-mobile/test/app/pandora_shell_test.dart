@@ -402,7 +402,8 @@ void main() {
     expect(repository.projectCalls, 1);
   });
 
-  testWidgets('Ask Pandora hides shell chrome and uses the composer plus menu', (
+  testWidgets('Ask Pandora hides shell chrome and uses the composer plus menu',
+      (
     tester,
   ) async {
     await setTestSurface(tester, logicalSize: const Size(400, 800));
