@@ -173,6 +173,9 @@ class PandoraKnowledgeRegistry {
     const key = `${knowledgeId}@${version}`;
     const existing = this.entries.get(key);
     if (!existing) throw new Error(`knowledge not found: ${key}`);
+    if (existing.trustState === 'BLOCKED' || existing.trustState === 'DEPRECATED') {
+      throw new Error(`knowledge cannot be certified from ${existing.trustState} state`);
+    }
     if (evidence.worker !== 'E') throw new Error('only Worker E verification evidence may certify knowledge');
     if (evidence.verdict !== 'PASS') throw new Error('knowledge certification requires PASS evidence');
     const sourceDigest = String(existing.sourceDigest ?? '');

@@ -13,6 +13,8 @@ module.exports = {
   ...require('./skills/registry.js'),
   ...require('./skills/agent-catalog-adapter.js'),
   ...require('./knowledge/registry.js'),
+  ...require('./import/external-source-policy.js'),
+  ...require('./import/candidate-importer.js'),
   ...require('./lineage/ai-execution-receipt.js'),
   ...require('./planning/intelligence-composer.js'),
 };
