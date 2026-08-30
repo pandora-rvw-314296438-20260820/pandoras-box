@@ -16,14 +16,16 @@ class PandoraMark extends StatelessWidget {
 
   final double size;
   final String semanticLabel;
+
+  // Kept for source compatibility with older screens. The product identity is
+  // intentionally canonical monochrome now; callers cannot recolor the mark.
   final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor = color ??
-        (Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFFF7F6F3)
-            : const Color(0xFF171717));
+    final effectiveColor = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFF7F6F3)
+        : const Color(0xFF171717);
     return Semantics(
       image: true,
       label: semanticLabel,
