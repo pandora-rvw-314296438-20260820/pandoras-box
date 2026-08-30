@@ -390,6 +390,9 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     return 'project-preview:${widget.project.id}:${candidate.versionId}';
   }
 
+  bool get _hasRenderablePreview =>
+      _previewUrl != null || _localPreviewFiles != null;
+
   void _scheduleRefresh() {
     _refreshTimer?.cancel();
     if (_hasRenderablePreview) return;
