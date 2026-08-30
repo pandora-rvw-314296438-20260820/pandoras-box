@@ -47,7 +47,7 @@ test('Edge gateway validates exact reviewer JWT and Ed25519 signature before rec
   assert.match(edge, /pandora-independent-review-authority/);
   assert.match(edge, /pandora-intelligence-certification/);
   assert.match(edge, /intelligence_asset_certification/);
-  assert.match(edge, /crypto\.subtle\.importKey/[Symbol.match] ? /crypto\.subtle\.importKey/ : /crypto\.subtle\.importKey/);
+  assert.match(edge, /crypto\.subtle\.importKey/);
   assert.match(edge, /name: "Ed25519"/);
   assert.match(edge, /REVIEW_SIGNATURE_INVALID/);
   assert.match(edge, /pandora_resolve_intelligence_review_target/);
