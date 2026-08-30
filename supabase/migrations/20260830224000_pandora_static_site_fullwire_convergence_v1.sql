@@ -227,8 +227,7 @@ begin
     'finalization',v_finalized
   );
 end;
-$function$
-
+$function$;
 
 CREATE OR REPLACE FUNCTION public.pandora_worker_d_finalize_static_web_20260830(p_build_job_id uuid)
  RETURNS jsonb
