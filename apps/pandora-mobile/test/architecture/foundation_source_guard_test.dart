@@ -39,7 +39,7 @@ void main() {
       "'Projects'",
       "'Ask Pandora'",
       "'Needs You'",
-      "'Business'",
+      "'More'",
     ].map(source.indexOf).toList(growable: false);
     expect(positions, everyElement(greaterThanOrEqualTo(0)));
     expect(List<int>.from(positions)..sort(), positions);

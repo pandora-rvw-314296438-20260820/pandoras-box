@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_repository.dart';
+import '../../core/data/project_experience_api.dart';
 import '../../core/models/pandora_models.dart';
 import '../../core/models/project_journey_models.dart';
 import '../../core/platform/pandora_native_io.dart';
@@ -60,6 +61,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   Timer? _refreshTimer;
   bool _started = false;
   bool _buildRequestStarted = false;
+  DateTime? _lastBuildRequestAt;
   bool _previewRequestStarted = false;
   bool _refreshing = false;
   ProjectRuntimeSnapshot? _snapshot;
@@ -169,8 +171,15 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   }
 
   bool _shouldRequestBuild(ProjectRuntimeSnapshot snapshot) {
-    if (_buildRequestStarted || snapshot.candidate != null ||
-        pandoraHasLivePreview(snapshot) || snapshot.preview != null) {
+    if (_buildRequestStarted ||
+        snapshot.candidate != null ||
+        pandoraHasLivePreview(snapshot) ||
+        snapshot.preview != null) {
+      return false;
+    }
+    final lastRequest = _lastBuildRequestAt;
+    if (lastRequest != null &&
+        DateTime.now().difference(lastRequest) < const Duration(seconds: 20)) {
       return false;
     }
     final stage = snapshot.project.stage.toLowerCase();
@@ -183,6 +192,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     if (candidate == null) {
       if (_shouldRequestBuild(snapshot)) {
         _buildRequestStarted = true;
+        _lastBuildRequestAt = DateTime.now();
         unawaited(_requestBuild());
       }
       return;
@@ -206,7 +216,10 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
         idempotencyKey: _buildIdempotencyKey,
       );
       if (!mounted) return;
-      setState(() => _error = null);
+      setState(() {
+        _error = null;
+        _buildRequestStarted = false;
+      });
       await _refreshDurableTruth();
       _scheduleRefresh();
     } on ProjectExperienceException {
@@ -425,6 +438,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                     icon: Icons.refresh_rounded,
                     onPressed: () {
                       _buildRequestStarted = false;
+                      _lastBuildRequestAt = null;
                       _previewRequestStarted = false;
                       unawaited(_resumeBuild(requestPreviewIfNeeded: true));
                     },

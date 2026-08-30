@@ -6,6 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260829125000_pandora_build_authorization_acl_v1.sql'), 'utf8');
 const generator = fs.readFileSync(path.join(root, 'supabase/functions/pandora-project-source-generator/index.ts'), 'utf8');
+const bridge = fs.readFileSync(path.join(root, 'supabase/migrations/20260829173334_pandora_generated_build_rpc_bridge_v1.sql'), 'utf8');
 
 test('build status ACL denies PUBLIC/anon and preserves authenticated owner reads', () => {
   assert.match(migration, /revoke all on function public\.pandora_project_build_status_20260829\(uuid\) from public, anon;/i);
@@ -13,7 +14,8 @@ test('build status ACL denies PUBLIC/anon and preserves authenticated owner read
 });
 
 test('generated build intake records exact Worker C request_build authorization', () => {
-  assert.match(generator, /pandora_commit_generated_build_intake_v2_20260829/);
+  assert.match(generator, /pandora_commit_generated_build_intake_service_20260830/);
+  assert.match(bridge, /pandora_commit_generated_build_intake_v2_20260829/);
   assert.match(migration, /pandora_authorize_generated_build_20260829/);
   assert.match(migration, /'request_build','1','request_build','preview','BuildExecutor'/);
   assert.match(migration, /'pandora-tool-policy\/1\.1\.0'/);

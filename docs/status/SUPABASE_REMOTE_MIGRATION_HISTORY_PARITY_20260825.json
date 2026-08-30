@@ -912,11 +912,46 @@
             "replayMode": "history_receipt_noop",
             "originalSqlSha256": "a68409e35aaabf4079526afcc807971518591816d12584f8d32ab8afa00eab39",
             "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_runtime_bundle_source_root_transition_v1",
+            "version": "20260829174311",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "f67e77368cbb131586df000588f9d82d035f50bd5bdc219a2d477f60fe361175",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_runtime_bundle_parent_insert_v1",
+            "version": "20260829175417",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "19160b8bd9c690b4fb335a90ce46c71c53b1b3bdea84b58846c7e0514f1a5926",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_runtime_storage_duplicate_replay_v1",
+            "version": "20260829180627",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "56dc07cb2a10dbea581461b3005b073a023de9e2cdd653ec7258021af47e5e4c",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_runtime_storage_resume_v1",
+            "version": "20260829182530",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "339fd574dbf8e6691ba09404e8effb84cc8d5c17d69ad58262c7d55fb1d2508b",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_runtime_bundle_ledger_state_fix_v1",
+            "version": "20260829185225",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "cb66f355447b5f7b30cc08fdd2826c53319f0012747690a6bf5d7abe78504434",
+            "originalStatementCount": 1
         }
     ],
     "projectRef": "jcyqixttuebxqqfkjonq",
     "repository": "pandora-rvw-314296438-20260820/pandoras-box",
     "generatedAt": "2026-08-29T15:07:37.693Z",
     "schemaVersion": 1,
-    "migrationCount": 130
+    "migrationCount": 135
 }

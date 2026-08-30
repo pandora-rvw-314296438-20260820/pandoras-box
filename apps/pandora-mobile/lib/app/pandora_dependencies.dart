@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../core/data/domain_registrar_api.dart';
 import '../core/data/pandora_repository.dart';
 import '../core/data/project_experience_api.dart';
 import '../core/data/project_runtime_api.dart';
@@ -14,6 +15,7 @@ class PandoraDependencies extends InheritedWidget {
     required this.diagnostics,
     this.projectRuntime,
     this.projectExperience,
+    this.domainRegistrar,
     required super.child,
   });
 
@@ -21,6 +23,7 @@ class PandoraDependencies extends InheritedWidget {
   final PandoraRepository repository;
   final ProjectRuntimeApi? projectRuntime;
   final ProjectExperienceApi? projectExperience;
+  final DomainRegistrarApi? domainRegistrar;
   final DiagnosticsStore diagnostics;
 
   static PandoraDependencies of(BuildContext context) {
@@ -36,5 +39,6 @@ class PandoraDependencies extends InheritedWidget {
       repository != oldWidget.repository ||
       projectRuntime != oldWidget.projectRuntime ||
       projectExperience != oldWidget.projectExperience ||
+      domainRegistrar != oldWidget.domainRegistrar ||
       diagnostics != oldWidget.diagnostics;
 }

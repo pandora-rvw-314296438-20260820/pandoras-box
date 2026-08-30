@@ -5,7 +5,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const MODEL = Deno.env.get("PANDORA_PROJECT_SPEC_MODEL") || "gemini-3.5-flash-lite";
-const COMPILER_VERSION = "project-spec-compiler-v2";
+const COMPILER_VERSION = "project-spec-compiler-v3";
 const MAX_BODY_BYTES = 2048;
 const MAX_MODEL_TEXT_BYTES = 262144;
 
@@ -227,25 +227,58 @@ Deno.serve(async (req) => {
     if (!claimToken) throw new Error("COMPILATION_CLAIM_FAILED");
 
     const requestId = crypto.randomUUID();
-    const providerRequest = modelRequest(record(intent), record(project));
-    const requestDigest = await sha256(JSON.stringify(providerRequest));
-    const { data: modelData, error: modelError } = await admin.rpc("pandora_worker_b_gemini_request_20260829", {
-      p_model: MODEL,
-      p_body: providerRequest,
-    });
-    if (modelError) throw new Error("PROVIDER_UNAVAILABLE");
-    const modelEnvelope = record(modelData);
-    const outputText = providerText(modelEnvelope);
-    const responseDigest = await sha256(outputText);
-    const providerBody = record(modelEnvelope.body);
-    const usage = record(providerBody.usageMetadata);
-    const inputTokens = tokenCount(usage.promptTokenCount);
-    const outputTokens = tokenCount(usage.candidatesTokenCount);
-    const totalTokens = Math.max(tokenCount(usage.totalTokenCount), inputTokens, outputTokens);
-    const modelRevision = text(providerBody.modelVersion) || MODEL;
-    let parsed: unknown;
-    try { parsed = JSON.parse(outputText); } catch { throw new Error("INVALID_STRUCTURED_OUTPUT"); }
-    const candidate = validateCandidate(parsed);
+    let requestDigest = "";
+    let responseDigest = "";
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let totalTokens = 0;
+    let modelRevision = MODEL;
+    let candidate: JsonRecord | null = null;
+    let structuredOutputAttempt = 0;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      structuredOutputAttempt = attempt;
+      const attemptRequest = modelRequest(record(intent), record(project));
+      if (attempt > 1) {
+        const instruction = record(attemptRequest.systemInstruction);
+        const parts = Array.isArray(instruction.parts) ? instruction.parts : [];
+        const first = record(parts[0]);
+        attemptRequest.systemInstruction = {
+          parts: [{
+            text: `${text(first.text)} Previous output failed strict ProjectSpec validation. Return only the exact required JSON shape with no extra fields and no alternate nested types.`,
+          }],
+        };
+        attemptRequest.generationConfig.temperature = 0;
+      }
+      const attemptRequestDigest = await sha256(JSON.stringify(attemptRequest));
+      const { data: modelData, error: modelError } = await admin.rpc("pandora_worker_b_gemini_request_20260829", {
+        p_model: MODEL,
+        p_body: attemptRequest,
+      });
+      if (modelError) throw new Error("PROVIDER_UNAVAILABLE");
+      const modelEnvelope = record(modelData);
+      const outputText = providerText(modelEnvelope);
+      const providerBody = record(modelEnvelope.body);
+      const usage = record(providerBody.usageMetadata);
+      const attemptInputTokens = tokenCount(usage.promptTokenCount);
+      const attemptOutputTokens = tokenCount(usage.candidatesTokenCount);
+      const attemptTotalTokens = Math.max(tokenCount(usage.totalTokenCount), attemptInputTokens, attemptOutputTokens);
+      inputTokens += attemptInputTokens;
+      outputTokens += attemptOutputTokens;
+      totalTokens += attemptTotalTokens;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(outputText);
+        candidate = validateCandidate(parsed);
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== "INVALID_STRUCTURED_OUTPUT" || attempt === 3) throw error;
+        continue;
+      }
+      requestDigest = attemptRequestDigest;
+      responseDigest = await sha256(outputText);
+      modelRevision = text(providerBody.modelVersion) || MODEL;
+      break;
+    }
+    if (!candidate) throw new Error("INVALID_STRUCTURED_OUTPUT");
     const digest = await sha256(JSON.stringify(candidate));
     const { data: committed, error: commitError } = await admin.rpc("pandora_commit_compiled_project_spec_20260829", {
       p_source_intent_id: intentId,
@@ -254,7 +287,7 @@ Deno.serve(async (req) => {
       p_compiler_provider: "gemini",
       p_compiler_model: MODEL,
       p_compiler_version: COMPILER_VERSION,
-      p_compiler_provenance: { request_id: requestId, transport: "vault_server_boundary", structured_output: true },
+      p_compiler_provenance: { request_id: requestId, transport: "vault_server_boundary", structured_output: true, structured_output_attempts: structuredOutputAttempt },
       p_content_sha256: digest,
       p_model_request_id: requestId,
       p_model_request_sha256: requestDigest,

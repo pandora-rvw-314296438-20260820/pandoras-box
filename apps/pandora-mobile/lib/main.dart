@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/pandora_app.dart';
+import 'core/data/domain_registrar_api.dart';
 import 'core/data/project_experience_api.dart';
 import 'core/data/project_runtime_api.dart';
 import 'core/data/remote_pandora_repository.dart';
@@ -16,9 +17,7 @@ import 'pandora_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-
   await Supabase.initialize(
     url: PandoraConfig.supabaseUrl,
     publishableKey: PandoraConfig.supabasePublishableKey,
@@ -61,6 +60,10 @@ Future<void> main() async {
     client: supabase,
     organizationId: PandoraConfig.organizationId,
   );
+  final domainRegistrar = DomainRegistrarApi(
+    client: supabase,
+    organizationId: PandoraConfig.organizationId,
+  );
 
   runApp(
     PandoraApp(
@@ -68,6 +71,7 @@ Future<void> main() async {
       repository: repository,
       projectRuntime: projectRuntime,
       projectExperience: projectExperience,
+      domainRegistrar: domainRegistrar,
       diagnostics: diagnostics,
     ),
   );
