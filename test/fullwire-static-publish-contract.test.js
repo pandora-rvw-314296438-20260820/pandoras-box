@@ -50,10 +50,10 @@ test('production promotion automatically receives independent Worker E proof bef
 });
 
 test('mobile never calls a production candidate Live before verified state arrives', () => {
+  assert.match(projectExperience, /candidate != null && production\?\.versionId == candidate\.versionId/);
   assert.match(projectExperience, /return 'Publishing · verifying';/);
-  assert.match(projectExperience, /Publishing\. Pandora is verifying this exact version\./);
-  assert.match(projectExperience, /_watchPublishCompletion/);
   assert.match(projectExperience, /_snapshot\?\.project\.isLive == true/);
-  assert.match(projectExperience, /production\.versionId == candidate\.versionId/);
-  assert.match(projectExperience, /_snapshot\?\.production\?\.versionId !=\s+_candidate\?\.versionId/);
+  assert.match(projectExperience, /Publishing\. Pandora is verifying this exact version\./);
+  assert.match(projectExperience, /unawaited\(_watchPublishCompletion\(\)\)/);
+  assert.match(projectExperience, /snapshot\?\.production\?\.versionId == candidate\.versionId/);
 });
