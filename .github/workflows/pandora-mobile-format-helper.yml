@@ -1,0 +1,35 @@
+name: Pandora mobile format helper
+
+on:
+  pull_request:
+    paths:
+      - 'apps/pandora-mobile/**'
+      - '.github/workflows/pandora-mobile-format-helper.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - name: Format current Pandora mobile sources
+        run: dart format apps/pandora-mobile/lib apps/pandora-mobile/test
+      - name: Stage formatted sources
+        run: |
+          mkdir -p formatted
+          cp -R apps formatted/
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pandora-mobile-current-formatted-${{ github.event.pull_request.head.sha }}
+          path: formatted/apps/pandora-mobile
+          include-hidden-files: true
+          retention-days: 1
