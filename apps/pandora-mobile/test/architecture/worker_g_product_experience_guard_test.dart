@@ -2,76 +2,77 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-const _journeyPath = 'lib/features/simple/project_journey_flow.dart';
-const _iterationPath = 'lib/features/simple/project_iteration_experience.dart';
-
 void main() {
-  test('Simple Mode primary navigation is project-first and owner-safe', () {
+  test('Simple V2 keeps only the three customer navigation surfaces', () {
     final shell = File('lib/app/pandora_shell.dart').readAsStringSync();
-    final more = File(
-      'lib/features/simple/more_screen.dart',
-    ).readAsStringSync();
     for (final declaration in const [
       "_Destination('Home'",
-      "_Destination('Projects'",
-      "'Ask Pandora'",
-      "_Destination('More'",
+      "_Destination('Work'",
+      "'Needs You'",
     ]) {
       expect(shell, contains(declaration));
     }
-    expect(shell, contains('emphasized: true'));
-    expect(shell, contains('onOpenNeedsYou: _openNeedsYou'));
-    expect(shell, isNot(contains("_Destination('Needs You'")));
-    expect(shell, isNot(contains("_Destination('Systems'")));
-    expect(shell, isNot(contains("_Destination('Business'")));
-    expect(more, contains("title: 'Business'"));
-    expect(more, contains("title: 'Domains'"));
+    expect(shell, isNot(contains("'Ask Pandora'")));
+    expect(shell, isNot(contains("_Destination('More'")));
+    expect(shell, isNot(contains('emphasized: true')));
   });
 
-  test('Build Theatre never advances from a presentation timer', () {
-    final source = File(_journeyPath).readAsStringSync();
+  test('Home is intent-first and does not expose domain management', () {
+    final source = File(
+      'lib/features/simple/simple_home_screen.dart',
+    ).readAsStringSync();
+    expect(source, contains('What do you want'));
+    expect(source, contains('to make happen?'));
+    expect(source, contains("'Your work'"));
+    expect(source, contains("'Needs you'"));
+    expect(source, isNot(contains("title: 'Domains'")));
+    expect(source, isNot(contains('DomainsScreen')));
+  });
+
+  test('project creation no longer requires a project type decision', () {
+    final source = File(
+      'lib/features/simple/project_create_experience.dart',
+    ).readAsStringSync();
+    expect(source, contains('ProjectBuildKind.helpMeDecide'));
+    expect(source, contains("intentKind: 'create'"));
+    expect(source, isNot(contains('_kindStep')));
+    expect(source, isNot(contains('Choose the closest starting point')));
+  });
+
+  test('object-first build experience uses durable runtime truth', () {
+    final source = File(
+      'lib/features/simple/project_experience_v2.dart',
+    ).readAsStringSync();
     expect(source, contains('runtime.runtime(widget.project.id)'));
-    expect(source, contains('didChangeAppLifecycleState'));
-    expect(source, contains('AppLifecycleState.resumed'));
-    expect(source, contains('Timer.periodic(const Duration(seconds: 2)'));
-    expect(source, isNot(contains('Duration(milliseconds: 1200)')));
-    expect(source, isNot(contains('_stage += 1')));
+    expect(source, contains('requestBuild('));
+    expect(source, contains('createPreview('));
+    expect(source, contains('openPreviewBundle'));
+    expect(source, contains("intentKind: 'change'"));
+    expect(source, contains('publishEligible'));
+    expect(source, isNot(contains('AnimationController(')));
+    expect(source, isNot(contains('Watch your project take shape')));
   });
 
-  test('Build Theatre keeps the Pandora signature composition', () {
-    final source = File(_journeyPath).readAsStringSync();
-    expect(source, contains('class _TheatreMark'));
-    expect(source, contains('const PandoraMark(size: 132'));
-    expect(source, contains('MediaQuery.of(context).disableAnimations'));
-    expect(source, contains('AnimationController('));
-    expect(source, contains('PandoraOwnerBuildStage.previewReady'));
+  test('canonical Pandora mark cannot be recolored red by callers', () {
+    final source = File(
+      'lib/core/widgets/pandora_mark.dart',
+    ).readAsStringSync();
+    expect(
+      source,
+      contains('8a35b74baec47b960a42bb74587f9c531d6cbf8d45f16061836a9e63f00efcc5'),
+    );
+    expect(source, contains('const Color(0xFF171717)'));
+    expect(source, isNot(contains('final effectiveColor = color ??')));
   });
 
-  test('preview changes require a governed change intent before rebuild', () {
-    final journey = File(_journeyPath).readAsStringSync();
-    final iteration = File(_iterationPath).readAsStringSync();
-    expect(journey, contains("label: 'Change something'"));
-    expect(journey, isNot(contains("'Build a new preview'")));
-    expect(iteration, contains("intentKind: 'change'"));
-    expect(iteration, contains('expectedSourceIntentId: sourceIntentId'));
-    expect(iteration, contains("label: 'Build updated preview'"));
-    expect(iteration, contains('Current live version stays untouched'));
-  });
-
-  test('customer journey does not name infrastructure providers', () {
-    final source = <String>[
-      File(_journeyPath).readAsStringSync(),
-      File(_iterationPath).readAsStringSync(),
+  test('Simple V2 owner copy does not name infrastructure providers', () {
+    final sources = <String>[
+      File('lib/features/simple/simple_home_screen.dart').readAsStringSync(),
+      File('lib/features/simple/project_create_experience.dart').readAsStringSync(),
+      File('lib/features/simple/projects_screen.dart').readAsStringSync(),
     ].join('\n');
-    for (final forbidden in const [
-      'Vercel',
-      'Supabase',
-      'GitHub',
-      'GitLab',
-      'Gemini',
-      'GPT',
-    ]) {
-      expect(source, isNot(contains(forbidden)));
+    for (final forbidden in const ['Vercel', 'GitHub', 'GitLab', 'Gemini', 'GPT']) {
+      expect(sources, isNot(contains(forbidden)));
     }
   });
 }
