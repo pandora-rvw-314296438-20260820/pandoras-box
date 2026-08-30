@@ -186,6 +186,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260829175000_pandora_runtime_storage_duplicate_replay_v1.sql',
     '20260829176000_pandora_runtime_storage_resume_v1.sql',
     '20260829177000_pandora_runtime_bundle_ledger_state_fix_v1.sql',
+    '20260830090000_pandora_vercel_domain_registrar.sql',
+    '20260830091000_pandora_domain_checkout_payments_v1.sql',
+    '20260830092000_pandora_domain_checkout_public_flow_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -232,6 +235,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260829175000_pandora_runtime_storage_duplicate_replay_v1.sql',
     '20260829176000_pandora_runtime_storage_resume_v1.sql',
     '20260829177000_pandora_runtime_bundle_ledger_state_fix_v1.sql',
+    '20260830090000_pandora_vercel_domain_registrar.sql',
+    '20260830091000_pandora_domain_checkout_payments_v1.sql',
+    '20260830092000_pandora_domain_checkout_public_flow_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
