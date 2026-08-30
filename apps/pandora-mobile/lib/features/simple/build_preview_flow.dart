@@ -59,7 +59,10 @@ class BuildProgressScreen extends StatelessWidget {
                 label: 'Understand',
                 state: PandoraFlowStepState.complete,
               ),
-              PandoraFlowStep(label: 'Build', state: buildState),
+              PandoraFlowStep(
+                label: 'Build',
+                state: buildState,
+              ),
               PandoraFlowStep(label: 'Review', state: reviewState),
             ],
           ),
@@ -67,11 +70,11 @@ class BuildProgressScreen extends StatelessWidget {
           Text(
             waitingForDecision
                 ? (releaseRequest
-                      ? 'Release is waiting for your decision'
-                      : 'Pandora is waiting for your decision')
+                    ? 'Release is waiting for your decision'
+                    : 'Pandora is waiting for your decision')
                 : (releaseRequest
-                      ? 'Pandora is preparing your release'
-                      : 'Pandora is preparing your system'),
+                    ? 'Pandora is preparing your release'
+                    : 'Pandora is preparing your system'),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: PandoraSimpleColors.ink,
@@ -85,8 +88,8 @@ class BuildProgressScreen extends StatelessWidget {
             waitingForDecision
                 ? 'Nothing will change until you approve the decision in Needs You.'
                 : (releaseRequest
-                      ? 'Pandora is preparing the reviewed result for final checks, your approval, and a safe release.'
-                      : 'Pandora is doing the work and will notify you when your decision is required.'),
+                    ? 'Pandora is preparing the reviewed result for final checks, your approval, and a safe release.'
+                    : 'Pandora is doing the work and will notify you when your decision is required.'),
             textAlign: TextAlign.center,
             style: pandoraSimpleMutedText,
           ),
@@ -136,7 +139,8 @@ class BuildProgressScreen extends StatelessWidget {
                 ),
                 const _BuildTaskRow(
                   label: 'Verifying the result',
-                  detail: 'Pandora will not claim completion before evidence exists',
+                  detail:
+                      'Pandora will not claim completion before evidence exists',
                   state: _BuildTaskState.pending,
                   last: true,
                 ),
@@ -173,15 +177,15 @@ class BuildProgressScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   PandoraSecondaryButton(
-                    label: receipt.needsApproval
-                        ? 'Needs You'
-                        : 'Open activity',
+                    label:
+                        receipt.needsApproval ? 'Needs You' : 'Open activity',
                     onPressed: () => _openPreview(
                       context,
                       receipt.needsApproval
                           ? const ApprovalsScreen()
                           : const CommandScreen(
-                              initialPrompt: 'Show the current verified release status and supporting proof.',
+                              initialPrompt:
+                                  'Show the current verified release status and supporting proof.',
                             ),
                     ),
                   ),
@@ -367,15 +371,15 @@ class _OrbitDot extends StatelessWidget {
   }
 
   Widget _dot() => Container(
-    width: 15,
-    height: 15,
-    decoration: BoxDecoration(
-      color: color,
-      shape: BoxShape.circle,
-      border: Border.all(color: Colors.white, width: 3),
-      boxShadow: const [BoxShadow(color: Color(0x26000000), blurRadius: 8)],
-    ),
-  );
+        width: 15,
+        height: 15,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: const [BoxShadow(color: Color(0x26000000), blurRadius: 8)],
+        ),
+      );
 }
 
 enum _BuildTaskState { complete, current, pending, blocked }
@@ -474,112 +478,112 @@ class _PrototypePreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
-    shadow: false,
-    borderColor: const Color(0xFFE7C1C8),
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final copy = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const PandoraStatusPill(
-              label: 'Prototype preview',
-              icon: Icons.visibility_outlined,
-              foreground: PandoraSimpleColors.purple,
-              background: PandoraSimpleColors.purpleWash,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Preview the proposed experience',
-              style: TextStyle(
-                color: PandoraSimpleColors.ink,
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
+        shadow: false,
+        borderColor: const Color(0xFFE7C1C8),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final copy = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const PandoraStatusPill(
+                  label: 'Prototype preview',
+                  icon: Icons.visibility_outlined,
+                  foreground: PandoraSimpleColors.purple,
+                  background: PandoraSimpleColors.purpleWash,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Preview the proposed experience',
+                  style: TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  request,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: pandoraSimpleMutedText,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This is a prototype. It is not live or production verified.',
+                  style: pandoraSimpleMutedText,
+                ),
+                const SizedBox(height: 14),
+                PandoraPrimaryButton(
+                  label: 'Open prototype',
+                  icon: Icons.open_in_full_rounded,
+                  onPressed: onOpen,
+                ),
+              ],
+            );
+            final miniature = Container(
+              width: 150,
+              height: 180,
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: const Color(0xFF171717),
+                borderRadius: BorderRadius.circular(28),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              request,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: pandoraSimpleMutedText,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'This is a prototype. It is not live or production verified.',
-              style: pandoraSimpleMutedText,
-            ),
-            const SizedBox(height: 14),
-            PandoraPrimaryButton(
-              label: 'Open prototype',
-              icon: Icons.open_in_full_rounded,
-              onPressed: onOpen,
-            ),
-          ],
-        );
-        final miniature = Container(
-          width: 150,
-          height: 180,
-          padding: const EdgeInsets.all(9),
-          decoration: BoxDecoration(
-            color: const Color(0xFF171717),
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(21),
-            child: const ColoredBox(
-              color: Colors.white,
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(21),
+                child: const ColoredBox(
+                  color: Colors.white,
+                  child: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.ac_unit_rounded,
-                          color: PandoraSimpleColors.red,
-                          size: 19,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Icon(
+                              Icons.ac_unit_rounded,
+                              color: PandoraSimpleColors.red,
+                              size: 19,
+                            ),
+                            Icon(Icons.menu_rounded, size: 17),
+                          ],
                         ),
-                        Icon(Icons.menu_rounded, size: 17),
+                        SizedBox(height: 16),
+                        Text(
+                          'Book Your Aircon Service',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(height: 7),
+                        PandoraAirconHero(),
                       ],
                     ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Book Your Aircon Service',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 7),
-                    PandoraAirconHero(),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-        );
-        if (constraints.maxWidth < 520) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              copy,
-              const SizedBox(height: 16),
-              Center(child: miniature),
-            ],
-          );
-        }
-        return Row(
-          children: [
-            Expanded(child: copy),
-            const SizedBox(width: 20),
-            miniature,
-          ],
-        );
-      },
-    ),
-  );
+            );
+            if (constraints.maxWidth < 520) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  copy,
+                  const SizedBox(height: 16),
+                  Center(child: miniature),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: copy),
+                const SizedBox(width: 20),
+                miniature,
+              ],
+            );
+          },
+        ),
+      );
 }
 
 enum _PreviewDevice {
@@ -608,128 +612,129 @@ class _FirstPreviewScreenState extends State<FirstPreviewScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraSimplePage(
-    header: PandoraOwnerHeader(
-      title: 'Prototype',
-      subtitle: widget.request,
-      centerBrand: true,
-      showBack: true,
-      onBack: () => Navigator.of(context).maybePop(),
-      onNotifications: () => _openPreview(context, const ApprovalsScreen()),
-      onAvatar: () => _openPreview(context, const SettingsScreen()),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const PandoraFlowStepper(
-          steps: [
-            PandoraFlowStep(label: 'Ask', state: PandoraFlowStepState.complete),
-            PandoraFlowStep(
-              label: 'Understand',
-              state: PandoraFlowStepState.complete,
+        header: PandoraOwnerHeader(
+          title: 'Prototype',
+          subtitle: widget.request,
+          centerBrand: true,
+          showBack: true,
+          onBack: () => Navigator.of(context).maybePop(),
+          onNotifications: () => _openPreview(context, const ApprovalsScreen()),
+          onAvatar: () => _openPreview(context, const SettingsScreen()),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const PandoraFlowStepper(
+              steps: [
+                PandoraFlowStep(
+                    label: 'Ask', state: PandoraFlowStepState.complete),
+                PandoraFlowStep(
+                  label: 'Understand',
+                  state: PandoraFlowStepState.complete,
+                ),
+                PandoraFlowStep(
+                  label: 'Build',
+                  state: PandoraFlowStepState.complete,
+                ),
+                PandoraFlowStep(
+                  label: 'Review',
+                  state: PandoraFlowStepState.current,
+                ),
+              ],
             ),
-            PandoraFlowStep(
-              label: 'Build',
-              state: PandoraFlowStepState.complete,
+            const SizedBox(height: 28),
+            const Text(
+              "Here's the prototype",
+              style: TextStyle(
+                color: PandoraSimpleColors.ink,
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -.6,
+              ),
             ),
-            PandoraFlowStep(
-              label: 'Review',
-              state: PandoraFlowStepState.current,
+            const SizedBox(height: 7),
+            const Text(
+              'Pandora created a reviewable prototype. It is not live and nothing will be released until the governed result is approved and verified.',
+              style: pandoraSimpleMutedText,
+            ),
+            const SizedBox(height: 18),
+            PandoraDeviceSelector<_PreviewDevice>(
+              values: _PreviewDevice.values,
+              selected: _device,
+              labelBuilder: (value) => value.label,
+              iconBuilder: (value) => value.icon,
+              onSelected: (value) => setState(() => _device = value),
+            ),
+            const SizedBox(height: 24),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final preview = _ResponsivePreviewFrame(
+                  device: _device,
+                  child: _BookingPreview(
+                    interactive: false,
+                    onContinue: () => _openPreview(
+                      context,
+                      InteractivePreviewScreen(request: widget.request),
+                    ),
+                  ),
+                );
+                final side = _PreviewSideRail(request: widget.request);
+                if (constraints.maxWidth < 640) {
+                  return Column(
+                    children: [preview, const SizedBox(height: 18), side],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 6, child: preview),
+                    const SizedBox(width: 18),
+                    Expanded(flex: 4, child: side),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 22),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final change = PandoraSecondaryButton(
+                  label: 'Needs changes',
+                  icon: Icons.edit_outlined,
+                  onPressed: () => _openPreview(
+                    context,
+                    CommandScreen(
+                      initialPrompt:
+                          'Change the booking preview for "${widget.request}". ',
+                    ),
+                  ),
+                  expanded: constraints.maxWidth < 520,
+                );
+                final approve = PandoraPrimaryButton(
+                  label: 'Prototype looks right',
+                  icon: Icons.check_rounded,
+                  onPressed: () => _openPreview(
+                    context,
+                    InteractivePreviewScreen(request: widget.request),
+                  ),
+                  expanded: constraints.maxWidth < 520,
+                );
+                if (constraints.maxWidth < 520) {
+                  return Column(
+                    children: [change, const SizedBox(height: 10), approve],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: change),
+                    const SizedBox(width: 12),
+                    Expanded(child: approve),
+                  ],
+                );
+              },
             ),
           ],
         ),
-        const SizedBox(height: 28),
-        const Text(
-          "Here's the prototype",
-          style: TextStyle(
-            color: PandoraSimpleColors.ink,
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -.6,
-          ),
-        ),
-        const SizedBox(height: 7),
-        const Text(
-          'Pandora created a reviewable prototype. It is not live and nothing will be released until the governed result is approved and verified.',
-          style: pandoraSimpleMutedText,
-        ),
-        const SizedBox(height: 18),
-        PandoraDeviceSelector<_PreviewDevice>(
-          values: _PreviewDevice.values,
-          selected: _device,
-          labelBuilder: (value) => value.label,
-          iconBuilder: (value) => value.icon,
-          onSelected: (value) => setState(() => _device = value),
-        ),
-        const SizedBox(height: 24),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final preview = _ResponsivePreviewFrame(
-              device: _device,
-              child: _BookingPreview(
-                interactive: false,
-                onContinue: () => _openPreview(
-                  context,
-                  InteractivePreviewScreen(request: widget.request),
-                ),
-              ),
-            );
-            final side = _PreviewSideRail(request: widget.request);
-            if (constraints.maxWidth < 640) {
-              return Column(
-                children: [preview, const SizedBox(height: 18), side],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 6, child: preview),
-                const SizedBox(width: 18),
-                Expanded(flex: 4, child: side),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 22),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final change = PandoraSecondaryButton(
-              label: 'Needs changes',
-              icon: Icons.edit_outlined,
-              onPressed: () => _openPreview(
-                context,
-                CommandScreen(
-                  initialPrompt:
-                      'Change the booking preview for "${widget.request}". ',
-                ),
-              ),
-              expanded: constraints.maxWidth < 520,
-            );
-            final approve = PandoraPrimaryButton(
-              label: 'Prototype looks right',
-              icon: Icons.check_rounded,
-              onPressed: () => _openPreview(
-                context,
-                InteractivePreviewScreen(request: widget.request),
-              ),
-              expanded: constraints.maxWidth < 520,
-            );
-            if (constraints.maxWidth < 520) {
-              return Column(
-                children: [change, const SizedBox(height: 10), approve],
-              );
-            }
-            return Row(
-              children: [
-                Expanded(child: change),
-                const SizedBox(width: 12),
-                Expanded(child: approve),
-              ],
-            );
-          },
-        ),
-      ],
-    ),
-  );
+      );
 }
 
 class _ResponsivePreviewFrame extends StatelessWidget {
@@ -740,44 +745,44 @@ class _ResponsivePreviewFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final available = constraints.maxWidth;
-      final targetWidth = device.width.clamp(260.0, available).toDouble();
-      if (device == _PreviewDevice.mobile) {
-        return Center(
-          child: PandoraPhoneFrame(
+        builder: (context, constraints) {
+          final available = constraints.maxWidth;
+          final targetWidth = device.width.clamp(260.0, available).toDouble();
+          if (device == _PreviewDevice.mobile) {
+            return Center(
+              child: PandoraPhoneFrame(
+                width: targetWidth,
+                height: device.height,
+                child: child,
+              ),
+            );
+          }
+          return Container(
             width: targetWidth,
             height: device.height,
-            child: child,
-          ),
-        );
-      }
-      return Container(
-        width: targetWidth,
-        height: device.height,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: const Color(0xFF171717),
-          borderRadius: BorderRadius.circular(
-            device == _PreviewDevice.tablet ? 30 : 18,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x30000000),
-              blurRadius: 24,
-              offset: Offset(0, 12),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF171717),
+              borderRadius: BorderRadius.circular(
+                device == _PreviewDevice.tablet ? 30 : 18,
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x30000000),
+                  blurRadius: 24,
+                  offset: Offset(0, 12),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(
-            device == _PreviewDevice.tablet ? 23 : 11,
-          ),
-          child: child,
-        ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(
+                device == _PreviewDevice.tablet ? 23 : 11,
+              ),
+              child: child,
+            ),
+          );
+        },
       );
-    },
-  );
 }
 
 class _PreviewSideRail extends StatelessWidget {
@@ -787,79 +792,79 @@ class _PreviewSideRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    children: [
-      PandoraSimpleCard(
-        shadow: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const PandoraIconBadge(
-              icon: Icons.shield_outlined,
-              foreground: PandoraSimpleColors.blue,
-              background: PandoraSimpleColors.blueWash,
-              size: 48,
-            ),
-            const SizedBox(height: 13),
-            const Text(
-              'What the prototype demonstrates',
-              style: TextStyle(
-                color: PandoraSimpleColors.ink,
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const _CapabilityLine('Customers can book online'),
-            const _CapabilityLine('You receive booking notifications'),
-            const _CapabilityLine('Bookings are managed in one place'),
-            const _CapabilityLine('Works on mobile and desktop'),
-            const SizedBox(height: 14),
-            PandoraPrimaryButton(
-              label: 'Open prototype',
-              icon: Icons.open_in_full_rounded,
-              onPressed: () => _openPreview(
-                context,
-                InteractivePreviewScreen(request: request),
-              ),
-              expanded: true,
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 14),
-      PandoraSimpleCard(
-        shadow: false,
-        backgroundColor: const Color(0xFFFFF8F8),
-        borderColor: const Color(0xFFF0D1D6),
-        child: const Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            PandoraIconBadge(icon: Icons.tune_rounded, size: 46),
-            SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Pandora can change anything',
-                    style: TextStyle(
-                      color: PandoraSimpleColors.ink,
-                      fontWeight: FontWeight.w700,
-                    ),
+        children: [
+          PandoraSimpleCard(
+            shadow: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const PandoraIconBadge(
+                  icon: Icons.shield_outlined,
+                  foreground: PandoraSimpleColors.blue,
+                  background: PandoraSimpleColors.blueWash,
+                  size: 48,
+                ),
+                const SizedBox(height: 13),
+                const Text(
+                  'What the prototype demonstrates',
+                  style: TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
                   ),
-                  SizedBox(height: 5),
-                  Text(
-                    'Tell Pandora what feels wrong before approving the result.',
-                    style: pandoraSimpleMutedText,
+                ),
+                const SizedBox(height: 12),
+                const _CapabilityLine('Customers can book online'),
+                const _CapabilityLine('You receive booking notifications'),
+                const _CapabilityLine('Bookings are managed in one place'),
+                const _CapabilityLine('Works on mobile and desktop'),
+                const SizedBox(height: 14),
+                PandoraPrimaryButton(
+                  label: 'Open prototype',
+                  icon: Icons.open_in_full_rounded,
+                  onPressed: () => _openPreview(
+                    context,
+                    InteractivePreviewScreen(request: request),
                   ),
-                ],
-              ),
+                  expanded: true,
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-    ],
-  );
+          ),
+          const SizedBox(height: 14),
+          PandoraSimpleCard(
+            shadow: false,
+            backgroundColor: const Color(0xFFFFF8F8),
+            borderColor: const Color(0xFFF0D1D6),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PandoraIconBadge(icon: Icons.tune_rounded, size: 46),
+                SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pandora can change anything',
+                        style: TextStyle(
+                          color: PandoraSimpleColors.ink,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: 5),
+                      Text(
+                        'Tell Pandora what feels wrong before approving the result.',
+                        style: pandoraSimpleMutedText,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
 }
 
 class _CapabilityLine extends StatelessWidget {
@@ -869,19 +874,19 @@ class _CapabilityLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 9),
-    child: Row(
-      children: [
-        const Icon(
-          Icons.check_circle_rounded,
-          color: PandoraSimpleColors.green,
-          size: 19,
+        padding: const EdgeInsets.only(bottom: 9),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.check_circle_rounded,
+              color: PandoraSimpleColors.green,
+              size: 19,
+            ),
+            const SizedBox(width: 9),
+            Expanded(child: Text(label, style: pandoraSimpleText)),
+          ],
         ),
-        const SizedBox(width: 9),
-        Expanded(child: Text(label, style: pandoraSimpleText)),
-      ],
-    ),
-  );
+      );
 }
 
 class InteractivePreviewScreen extends StatefulWidget {
@@ -1047,7 +1052,8 @@ class _InteractivePreviewScreenState extends State<InteractivePreviewScreen> {
   Future<void> _continueToRelease() async {
     if (_date == null || _time == null) {
       setState(() {
-        _error = 'Choose a date and time in the interactive preview before continuing.';
+        _error =
+            'Choose a date and time in the interactive preview before continuing.';
       });
       return;
     }
@@ -1058,9 +1064,9 @@ class _InteractivePreviewScreenState extends State<InteractivePreviewScreen> {
     _submissionKey ??= _keys.create('preview-release');
     try {
       final receipt = await PandoraDependencies.of(context).repository.ask(
-        message: _releaseIntent(context),
-        idempotencyKey: _submissionKey,
-      );
+            message: _releaseIntent(context),
+            idempotencyKey: _submissionKey,
+          );
       if (!mounted) return;
       setState(() {
         _submissionKey = null;
@@ -1088,7 +1094,8 @@ class _InteractivePreviewScreenState extends State<InteractivePreviewScreen> {
       if (!mounted) return;
       setState(() {
         _outcomeUnknown = true;
-        _error = 'Pandora could not confirm the release request. It will not retry the write. Check Activity first.';
+        _error =
+            'Pandora could not confirm the release request. It will not retry the write. Check Activity first.';
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -1109,153 +1116,154 @@ class _InteractivePreviewScreenState extends State<InteractivePreviewScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraSimplePage(
-    header: PandoraOwnerHeader(
-      title: 'Interactive preview',
-      subtitle: widget.request,
-      centerBrand: true,
-      showBack: true,
-      onBack: () => Navigator.of(context).maybePop(),
-      onNotifications: () => _openPreview(context, const ApprovalsScreen()),
-      onAvatar: () => _openPreview(context, const SettingsScreen()),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const PandoraFlowStepper(
-          steps: [
-            PandoraFlowStep(label: 'Ask', state: PandoraFlowStepState.complete),
-            PandoraFlowStep(
-              label: 'Understand',
-              state: PandoraFlowStepState.complete,
+        header: PandoraOwnerHeader(
+          title: 'Interactive preview',
+          subtitle: widget.request,
+          centerBrand: true,
+          showBack: true,
+          onBack: () => Navigator.of(context).maybePop(),
+          onNotifications: () => _openPreview(context, const ApprovalsScreen()),
+          onAvatar: () => _openPreview(context, const SettingsScreen()),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const PandoraFlowStepper(
+              steps: [
+                PandoraFlowStep(
+                    label: 'Ask', state: PandoraFlowStepState.complete),
+                PandoraFlowStep(
+                  label: 'Understand',
+                  state: PandoraFlowStepState.complete,
+                ),
+                PandoraFlowStep(
+                  label: 'Build',
+                  state: PandoraFlowStepState.complete,
+                ),
+                PandoraFlowStep(
+                  label: 'Review',
+                  state: PandoraFlowStepState.complete,
+                ),
+                PandoraFlowStep(
+                  label: 'Preview',
+                  state: PandoraFlowStepState.current,
+                ),
+              ],
             ),
-            PandoraFlowStep(
-              label: 'Build',
-              state: PandoraFlowStepState.complete,
+            const SizedBox(height: 28),
+            const Text(
+              'Try your new system',
+              style: TextStyle(
+                color: PandoraSimpleColors.ink,
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -.6,
+              ),
             ),
-            PandoraFlowStep(
-              label: 'Review',
-              state: PandoraFlowStepState.complete,
+            const SizedBox(height: 7),
+            const Text(
+              'This is an interactive preview. Test it like a real customer before approving a release.',
+              style: pandoraSimpleMutedText,
             ),
-            PandoraFlowStep(
-              label: 'Preview',
-              state: PandoraFlowStepState.current,
+            const SizedBox(height: 22),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final phone = Center(
+                  child: PandoraPhoneFrame(
+                    width: constraints.maxWidth < 430
+                        ? constraints.maxWidth.clamp(286.0, 356.0).toDouble()
+                        : 356,
+                    height: 760,
+                    child: _BookingPreview(
+                      interactive: true,
+                      service: _service,
+                      location: _location,
+                      date: _date,
+                      time: _time,
+                      onServiceChanged: (value) =>
+                          setState(() => _service = value),
+                      onLocationChanged: (value) =>
+                          setState(() => _location = value),
+                      onChooseDate: _chooseDate,
+                      onChooseTime: _chooseTime,
+                      onContinue: _showBookingSummary,
+                    ),
+                  ),
+                );
+                final side = _InteractiveSideRail(
+                  feedback: _feedback,
+                  feedbackFocus: _feedbackFocus,
+                  onDictate: _dictateFeedback,
+                  onAttach: _attachFeedback,
+                );
+                if (constraints.maxWidth < 650) {
+                  return Column(
+                    children: [phone, const SizedBox(height: 18), side],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 6, child: phone),
+                    const SizedBox(width: 18),
+                    Expanded(flex: 4, child: side),
+                  ],
+                );
+              },
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 14),
+              PandoraSimpleCard(
+                shadow: false,
+                backgroundColor: const Color(0xFFFFF4F5),
+                borderColor: const Color(0xFFF0C3CA),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(
+                    color: PandoraSimpleColors.deepRed,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 22),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final change = PandoraSecondaryButton(
+                  label: 'Needs changes',
+                  icon: Icons.edit_outlined,
+                  onPressed:
+                      _outcomeUnknown || _submitting ? null : _requestChanges,
+                  expanded: constraints.maxWidth < 520,
+                );
+                final approve = PandoraPrimaryButton(
+                  label: _submitting
+                      ? 'Submitting safely…'
+                      : 'Looks good, continue',
+                  icon: Icons.check_rounded,
+                  loading: _submitting,
+                  onPressed: _outcomeUnknown || _submitting
+                      ? null
+                      : _continueToRelease,
+                  expanded: constraints.maxWidth < 520,
+                );
+                if (constraints.maxWidth < 520) {
+                  return Column(
+                    children: [change, const SizedBox(height: 10), approve],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: change),
+                    const SizedBox(width: 12),
+                    Expanded(child: approve),
+                  ],
+                );
+              },
             ),
           ],
         ),
-        const SizedBox(height: 28),
-        const Text(
-          'Try your new system',
-          style: TextStyle(
-            color: PandoraSimpleColors.ink,
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -.6,
-          ),
-        ),
-        const SizedBox(height: 7),
-        const Text(
-          'This is an interactive preview. Test it like a real customer before approving a release.',
-          style: pandoraSimpleMutedText,
-        ),
-        const SizedBox(height: 22),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final phone = Center(
-              child: PandoraPhoneFrame(
-                width: constraints.maxWidth < 430
-                    ? constraints.maxWidth.clamp(286.0, 356.0).toDouble()
-                    : 356,
-                height: 760,
-                child: _BookingPreview(
-                  interactive: true,
-                  service: _service,
-                  location: _location,
-                  date: _date,
-                  time: _time,
-                  onServiceChanged: (value) => setState(() => _service = value),
-                  onLocationChanged: (value) =>
-                      setState(() => _location = value),
-                  onChooseDate: _chooseDate,
-                  onChooseTime: _chooseTime,
-                  onContinue: _showBookingSummary,
-                ),
-              ),
-            );
-            final side = _InteractiveSideRail(
-              feedback: _feedback,
-              feedbackFocus: _feedbackFocus,
-              onDictate: _dictateFeedback,
-              onAttach: _attachFeedback,
-            );
-            if (constraints.maxWidth < 650) {
-              return Column(
-                children: [phone, const SizedBox(height: 18), side],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 6, child: phone),
-                const SizedBox(width: 18),
-                Expanded(flex: 4, child: side),
-              ],
-            );
-          },
-        ),
-        if (_error != null) ...[
-          const SizedBox(height: 14),
-          PandoraSimpleCard(
-            shadow: false,
-            backgroundColor: const Color(0xFFFFF4F5),
-            borderColor: const Color(0xFFF0C3CA),
-            child: Text(
-              _error!,
-              style: const TextStyle(
-                color: PandoraSimpleColors.deepRed,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-        const SizedBox(height: 22),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final change = PandoraSecondaryButton(
-              label: 'Needs changes',
-              icon: Icons.edit_outlined,
-              onPressed: _outcomeUnknown || _submitting
-                  ? null
-                  : _requestChanges,
-              expanded: constraints.maxWidth < 520,
-            );
-            final approve = PandoraPrimaryButton(
-              label: _submitting
-                  ? 'Submitting safely…'
-                  : 'Looks good, continue',
-              icon: Icons.check_rounded,
-              loading: _submitting,
-              onPressed: _outcomeUnknown || _submitting
-                  ? null
-                  : _continueToRelease,
-              expanded: constraints.maxWidth < 520,
-            );
-            if (constraints.maxWidth < 520) {
-              return Column(
-                children: [change, const SizedBox(height: 10), approve],
-              );
-            }
-            return Row(
-              children: [
-                Expanded(child: change),
-                const SizedBox(width: 12),
-                Expanded(child: approve),
-              ],
-            );
-          },
-        ),
-      ],
-    ),
-  );
+      );
 }
 
 class _InteractiveSideRail extends StatelessWidget {
@@ -1273,100 +1281,100 @@ class _InteractiveSideRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    children: [
-      PandoraSimpleCard(
-        shadow: false,
-        backgroundColor: const Color(0xFFFFF8F8),
-        borderColor: const Color(0xFFF0D1D6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
+        children: [
+          PandoraSimpleCard(
+            shadow: false,
+            backgroundColor: const Color(0xFFFFF8F8),
+            borderColor: const Color(0xFFF0D1D6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                PandoraIconBadge(
-                  icon: Icons.record_voice_over_outlined,
-                  size: 46,
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Talk to Pandora while you test',
-                    style: TextStyle(
-                      color: PandoraSimpleColors.ink,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                const Row(
+                  children: [
+                    PandoraIconBadge(
+                      icon: Icons.record_voice_over_outlined,
+                      size: 46,
                     ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Talk to Pandora while you test',
+                        style: TextStyle(
+                          color: PandoraSimpleColors.ink,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: feedback,
+                  focusNode: feedbackFocus,
+                  minLines: 3,
+                  maxLines: 7,
+                  decoration: const InputDecoration(
+                    hintText: 'Make the button larger…\nChange the colors…',
                   ),
                 ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      tooltip: 'Speak feedback',
+                      onPressed: onDictate,
+                      icon: const Icon(Icons.mic_none_rounded),
+                      color: PandoraSimpleColors.red,
+                    ),
+                    IconButton(
+                      tooltip: 'Attach feedback',
+                      onPressed: onAttach,
+                      icon: const Icon(Icons.attach_file_rounded),
+                      color: PandoraSimpleColors.red,
+                    ),
+                  ],
+                ),
               ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: feedback,
-              focusNode: feedbackFocus,
-              minLines: 3,
-              maxLines: 7,
-              decoration: const InputDecoration(
-                hintText: 'Make the button larger…\nChange the colors…',
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+          ),
+          const SizedBox(height: 14),
+          const PandoraSimpleCard(
+            shadow: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                IconButton(
-                  tooltip: 'Speak feedback',
-                  onPressed: onDictate,
-                  icon: const Icon(Icons.mic_none_rounded),
-                  color: PandoraSimpleColors.red,
+                Row(
+                  children: [
+                    PandoraIconBadge(
+                      icon: Icons.checklist_rounded,
+                      foreground: PandoraSimpleColors.blue,
+                      background: PandoraSimpleColors.blueWash,
+                      size: 46,
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Key features',
+                      style: TextStyle(
+                        color: PandoraSimpleColors.ink,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-                IconButton(
-                  tooltip: 'Attach feedback',
-                  onPressed: onAttach,
-                  icon: const Icon(Icons.attach_file_rounded),
-                  color: PandoraSimpleColors.red,
-                ),
+                SizedBox(height: 14),
+                _CapabilityLine('Service selection'),
+                _CapabilityLine('Date & time picker'),
+                _CapabilityLine('Customer location'),
+                _CapabilityLine('Booking confirmation'),
+                _CapabilityLine('Mobile responsive'),
               ],
             ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 14),
-      const PandoraSimpleCard(
-        shadow: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                PandoraIconBadge(
-                  icon: Icons.checklist_rounded,
-                  foreground: PandoraSimpleColors.blue,
-                  background: PandoraSimpleColors.blueWash,
-                  size: 46,
-                ),
-                SizedBox(width: 12),
-                Text(
-                  'Key features',
-                  style: TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 14),
-            _CapabilityLine('Service selection'),
-            _CapabilityLine('Date & time picker'),
-            _CapabilityLine('Customer location'),
-            _CapabilityLine('Booking confirmation'),
-            _CapabilityLine('Mobile responsive'),
-          ],
-        ),
-      ),
-    ],
-  );
+          ),
+        ],
+      );
 }
 
 class _BookingPreview extends StatelessWidget {
@@ -1640,29 +1648,29 @@ class _SummaryLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 7),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 96,
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: PandoraSimpleColors.muted,
-              fontWeight: FontWeight.w600,
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 96,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: PandoraSimpleColors.muted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              color: PandoraSimpleColors.ink,
-              fontWeight: FontWeight.w700,
+            Expanded(
+              child: Text(
+                value,
+                style: const TextStyle(
+                  color: PandoraSimpleColors.ink,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }

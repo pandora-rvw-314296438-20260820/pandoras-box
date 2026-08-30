@@ -82,7 +82,8 @@ void main() {
                 child: Column(
                   children: [
                     DegradedContentNotice(
-                      message: 'Showing the previous usable owner view while fresh verification is unavailable.',
+                      message:
+                          'Showing the previous usable owner view while fresh verification is unavailable.',
                       onRetry: () {},
                     ),
                     const _OwnerMatrixFixture(),
@@ -106,59 +107,63 @@ class _OwnerMatrixFixture extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      const OwnerBriefingHero(
-        eyebrow: 'Owner briefing',
-        title: 'A very long project name remains readable during verification changes',
-        message: 'Pandora preserves the previous usable result while a long verification message refreshes in the background without collapsing the mobile layout.',
-        icon: Icons.auto_awesome_rounded,
-        statusLabel: '2 of 5 verified · Tested missing',
-      ),
-      const SizedBox(height: PandoraSpacing.md),
-      const OwnerMetricGrid(
-        metrics: [
-          OwnerMetric(
-            label: 'Owner decisions that genuinely require action',
-            value: '0',
-            icon: Icons.approval_outlined,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const OwnerBriefingHero(
+            eyebrow: 'Owner briefing',
+            title:
+                'A very long project name remains readable during verification changes',
+            message:
+                'Pandora preserves the previous usable result while a long verification message refreshes in the background without collapsing the mobile layout.',
+            icon: Icons.auto_awesome_rounded,
+            statusLabel: '2 of 5 verified · Tested missing',
           ),
-          OwnerMetric(
-            label: 'Working now with verified execution evidence',
-            value: '0',
-            icon: Icons.play_circle_outline_rounded,
+          const SizedBox(height: PandoraSpacing.md),
+          const OwnerMetricGrid(
+            metrics: [
+              OwnerMetric(
+                label: 'Owner decisions that genuinely require action',
+                value: '0',
+                icon: Icons.approval_outlined,
+              ),
+              OwnerMetric(
+                label: 'Working now with verified execution evidence',
+                value: '0',
+                icon: Icons.play_circle_outline_rounded,
+              ),
+              OwnerMetric(
+                label: 'Portfolio attention with verified blockers',
+                value: '6',
+                icon: Icons.warning_amber_rounded,
+              ),
+            ],
           ),
-          OwnerMetric(
-            label: 'Portfolio attention with verified blockers',
-            value: '6',
-            icon: Icons.warning_amber_rounded,
+          const SizedBox(height: PandoraSpacing.md),
+          OwnerSectionHeading(
+            title: 'Recommended next action with long explanatory text',
+            subtitle:
+                'The trailing control must stack instead of squeezing this copy into a one-character column.',
+            trailing: FilledButton.tonal(
+              onPressed: _noop,
+              child: const Text('Prepare this exact action'),
+            ),
+          ),
+          const SizedBox(height: PandoraSpacing.sm),
+          const OwnerSignal(
+            label: 'Current execution',
+            value: 'No verified work is running.',
+            icon: Icons.pause_circle_outline_rounded,
+          ),
+          const SizedBox(height: PandoraSpacing.sm),
+          const OwnerSignal(
+            label: 'Long verification detail',
+            value:
+                'Deployment has not been checked. The last verified source exists, but current production behavior remains unknown until fresh evidence is returned.',
+            icon: Icons.verified_outlined,
+            tone: PandoraStatusTone.attention,
           ),
         ],
-      ),
-      const SizedBox(height: PandoraSpacing.md),
-      OwnerSectionHeading(
-        title: 'Recommended next action with long explanatory text',
-        subtitle: 'The trailing control must stack instead of squeezing this copy into a one-character column.',
-        trailing: FilledButton.tonal(
-          onPressed: _noop,
-          child: const Text('Prepare this exact action'),
-        ),
-      ),
-      const SizedBox(height: PandoraSpacing.sm),
-      const OwnerSignal(
-        label: 'Current execution',
-        value: 'No verified work is running.',
-        icon: Icons.pause_circle_outline_rounded,
-      ),
-      const SizedBox(height: PandoraSpacing.sm),
-      const OwnerSignal(
-        label: 'Long verification detail',
-        value: 'Deployment has not been checked. The last verified source exists, but current production behavior remains unknown until fresh evidence is returned.',
-        icon: Icons.verified_outlined,
-        tone: PandoraStatusTone.attention,
-      ),
-    ],
-  );
+      );
 }
 
 void _noop() {}

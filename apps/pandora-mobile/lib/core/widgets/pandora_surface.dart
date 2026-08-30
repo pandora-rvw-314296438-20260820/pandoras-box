@@ -49,8 +49,10 @@ class PandoraSurface extends StatelessWidget {
                       Text(
                         subtitle!,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                       ),
                     ],
                   ],

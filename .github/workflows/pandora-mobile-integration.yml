@@ -61,13 +61,19 @@ jobs:
             'cp -R ../apps/pandora-mobile/platform ./platform' \
             .github/workflows/pandora-mobile-integration.yml
 
-      - name: Verify the pinned mobile brand asset
+      - name: Verify the canonical Pandora apple identity
         shell: bash
         run: |
           set -euo pipefail
-          app_asset=apps/pandora-mobile/assets/brand/pandora-product-mark-ui-1024.png
-          expected=8a35b74baec47b960a42bb74587f9c531d6cbf8d45f16061836a9e63f00efcc5
-          test "$(sha256sum "$app_asset" | cut -d ' ' -f1)" = "$expected"
+          mark=apps/pandora-mobile/lib/core/widgets/pandora_mark.dart
+          android_tool=apps/pandora-mobile/tool/configure_validation_android.py
+          grep -Fq 'class _PandoraApplePainter extends CustomPainter' "$mark"
+          grep -Fq 'PathOperation.difference' "$mark"
+          grep -Fq 'Color(0xFFB72DFF)' "$mark"
+          grep -Fq 'Color(0xFF2063FF)' "$mark"
+          grep -Fq 'pandora_launcher_icon' "$android_tool"
+          grep -Fq '#FFB72DFF' "$android_tool"
+          grep -Fq '#FF2063FF' "$android_tool"
 
       - name: Scan the candidate for private-key literals
         shell: bash
@@ -279,7 +285,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
           name: pandora-mobile-visual-failures
-          path: .pandora-mobile-build/test/failures
+          path: .pandora-mobile-build/test/goldens/failures
           if-no-files-found: ignore
           include-hidden-files: true
           retention-days: 7

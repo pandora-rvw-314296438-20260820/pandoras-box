@@ -3,12 +3,11 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/core/design/pandora_tokens.dart';
 
-List<File> dartFiles(String directory) =>
-    Directory(directory)
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((file) => file.path.endsWith('.dart'))
-        .toList(growable: false);
+List<File> dartFiles(String directory) => Directory(directory)
+    .listSync(recursive: true)
+    .whereType<File>()
+    .where((file) => file.path.endsWith('.dart'))
+    .toList(growable: false);
 
 void main() {
   test('bootstrap owns initialization, not feature presentation', () {
@@ -33,18 +32,35 @@ void main() {
     },
   );
 
-  test('canonical shell has five owner destinations in order', () {
-    final source = File('lib/app/pandora_shell.dart').readAsStringSync();
-    final positions = <String>[
-      "'Home'",
-      "'Projects'",
-      "'Ask Pandora'",
-      "'Needs You'",
-      "'More'",
-    ].map(source.indexOf).toList(growable: false);
-    expect(positions, everyElement(greaterThanOrEqualTo(0)));
-    expect(List<int>.from(positions)..sort(), positions);
-  });
+  test(
+    'canonical shell keeps three labeled owner destinations and Ask action',
+    () {
+      final source = File('lib/app/pandora_shell.dart').readAsStringSync();
+      final positions = <String>[
+        "'Home'",
+        "'Projects'",
+        "'Ask Pandora'",
+        "'More'",
+      ].map(source.indexOf).toList(growable: false);
+      expect(positions, everyElement(greaterThanOrEqualTo(0)));
+      expect(List<int>.from(positions)..sort(), positions);
+      final askSource = File('lib/features/simple/ask_pandora_screen.dart')
+          .readAsStringSync();
+      expect(source, contains('emphasized: true'));
+      expect(source, contains("const ValueKey<String>('ask-pandora-open')"));
+      expect(source, contains('if (_index == _askIndex)'));
+      expect(source, contains('onOpenNeedsYou: _openNeedsYou'));
+      expect(source, isNot(contains('ask-pandora-close')));
+      expect(source, isNot(contains("_Destination('Needs You'")));
+      expect(askSource, contains("'ask-pandora-plus'"));
+      for (final destination in const ['home', 'projects', 'more']) {
+        expect(askSource, contains("'ask-pandora-menu-$destination'"));
+      }
+      for (final attachment in const ['camera', 'photos', 'files']) {
+        expect(askSource, contains("'ask-pandora-menu-$attachment'"));
+      }
+    },
+  );
 
   test('foundation geometry and minimum target are canonical', () {
     expect(
@@ -72,8 +88,8 @@ void main() {
   });
 
   test('memory cache is limited to explicitly safe summary lists', () {
-    final source = File('lib/core/data/read_only_memory_cache.dart')
-        .readAsStringSync();
+    final source =
+        File('lib/core/data/read_only_memory_cache.dart').readAsStringSync();
     expect(source, contains('List<ProjectSummary>'));
     expect(source, contains('List<AuditEvent>'));
     expect(source, contains('List<ConnectionSummary>'));

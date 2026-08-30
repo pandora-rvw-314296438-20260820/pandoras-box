@@ -65,7 +65,9 @@ PandoraOwnerBuildStageCopy pandoraOwnerBuildStageCopy(
   }
 }
 
-PandoraOwnerBuildStage pandoraOwnerBuildStage(ProjectRuntimeSnapshot snapshot) {
+PandoraOwnerBuildStage pandoraOwnerBuildStage(
+  ProjectRuntimeSnapshot snapshot,
+) {
   final project = snapshot.project;
   final previewStatus = snapshot.preview?.status.toLowerCase() ?? '';
   final signal = <String>[
@@ -128,7 +130,10 @@ PandoraOwnerBuildStage pandoraOwnerBuildStage(ProjectRuntimeSnapshot snapshot) {
 bool pandoraHasLivePreview(ProjectRuntimeSnapshot snapshot) {
   final url = snapshot.preview?.url ?? snapshot.project.previewUrl;
   final status = snapshot.preview?.status.toLowerCase() ?? '';
-  final failed = _containsAny(status, const ['failed', 'error', 'canceled']);
+  final failed = _containsAny(
+    status,
+    const ['failed', 'error', 'canceled'],
+  );
   return url != null && url.trim().isNotEmpty && !failed;
 }
 

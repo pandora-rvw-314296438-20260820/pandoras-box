@@ -74,7 +74,6 @@ Object? _shiftFixtureTimeline(Object? value) {
 const _visualFontFamily = 'Roboto';
 const _visualIconFontFamily = 'MaterialIcons';
 bool _visualFontLoaded = false;
-bool _pandoraMarkImageSeeded = false;
 
 Future<void> _loadVisualFont() async {
   if (_visualFontLoaded) return;
@@ -126,67 +125,19 @@ Future<void> _loadVisualFont() async {
 }
 
 Widget _withVisualFont(Widget child) => Builder(
-  builder: (context) {
-    final theme = Theme.of(context);
-    return Theme(
-      data: theme.copyWith(
-        textTheme: theme.textTheme.apply(fontFamily: _visualFontFamily),
-        primaryTextTheme: theme.primaryTextTheme.apply(
-          fontFamily: _visualFontFamily,
-        ),
-      ),
-      child: child,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Theme(
+          data: theme.copyWith(
+            textTheme: theme.textTheme.apply(fontFamily: _visualFontFamily),
+            primaryTextTheme: theme.primaryTextTheme.apply(
+              fontFamily: _visualFontFamily,
+            ),
+          ),
+          child: child,
+        );
+      },
     );
-  },
-);
-
-Future<void> _seedPandoraMarkImageCache(WidgetTester tester) async {
-  if (_pandoraMarkImageSeeded) return;
-
-  final asset = File(PandoraMark.assetPath);
-  if (!asset.existsSync()) {
-    throw StateError(
-      'The exact Pandora mark asset is missing at ${PandoraMark.assetPath}.',
-    );
-  }
-  final encoded = asset.readAsBytesSync();
-  final decoded = await tester.runAsync<ImageInfo>(() async {
-    final codec = await ui
-        .instantiateImageCodec(encoded)
-        .timeout(const Duration(seconds: 5));
-    try {
-      final frame = await codec.getNextFrame().timeout(
-        const Duration(seconds: 5),
-      );
-      return ImageInfo(image: frame.image, scale: 1.0);
-    } finally {
-      codec.dispose();
-    }
-  });
-  if (decoded == null) {
-    throw TestFailure('Flutter did not return the decoded exact Pandora mark.');
-  }
-  if (decoded.image.width != 1024 || decoded.image.height != 1024) {
-    final dimensions = '${decoded.image.width}x${decoded.image.height}';
-    decoded.image.dispose();
-    throw TestFailure(
-      'Unexpected Pandora mark dimensions: $dimensions; expected 1024x1024.',
-    );
-  }
-
-  final key = AssetBundleImageKey(
-    bundle: rootBundle,
-    name: PandoraMark.assetPath,
-    scale: 1.0,
-  );
-  final cache = PaintingBinding.instance.imageCache;
-  cache.evict(key, includeLive: true);
-  cache.putIfAbsent(
-    key,
-    () => OneFrameImageStreamCompleter(Future<ImageInfo>.value(decoded)),
-  );
-  _pandoraMarkImageSeeded = true;
-}
 
 Future<void> _waitForRenderedPandoraMark(
   WidgetTester tester,
@@ -195,21 +146,12 @@ Future<void> _waitForRenderedPandoraMark(
   final markFinder = find.byType(PandoraMark);
   if (markFinder.evaluate().isEmpty) return;
 
-  const attempts = 100;
-  const decodeSlice = Duration(milliseconds: 20);
-  for (var attempt = 0; attempt < attempts; attempt++) {
-    final imageFinder = find
-        .descendant(of: markFinder, matching: find.byType(Image))
-        .first;
-    final renderImage = tester.renderObject<RenderImage>(imageFinder);
-    if (renderImage.image != null) return;
-    await tester.runAsync(() => Future<void>.delayed(decodeSlice));
-    await tester.pump();
+  // PandoraMark is now a synchronous vector-painted app icon. One frame is
+  // sufficient to prove the mark has a render object before golden capture.
+  await tester.pump();
+  if (markFinder.evaluate().isEmpty) {
+    throw TestFailure('$caseName did not render the Pandora app icon.');
   }
-  throw TestFailure(
-    '$caseName did not paint the exact Pandora product mark within '
-    '100 bounded engine-decode slices.',
-  );
 }
 
 class _VisualCase {
@@ -267,13 +209,13 @@ class _FixtureRepository implements PandoraRepository {
   }
 
   RepositorySnapshot<T> _snapshot<T>(T data) => RepositorySnapshot<T>(
-    data: data,
-    source: RepositorySource.network,
-    fetchedAt: _verifiedAt,
-    verifiedAt: _verifiedAt,
-    staleAfter: _staleAfter,
-    requestId: 'visual-evidence-fixture',
-  );
+        data: data,
+        source: RepositorySource.network,
+        fetchedAt: _verifiedAt,
+        verifiedAt: _verifiedAt,
+        staleAfter: _staleAfter,
+        requestId: 'visual-evidence-fixture',
+      );
 
   List<T> _list<T>(String name, T Function(Object?) parse) =>
       asJsonList(_read(name)).map(parse).toList(growable: false);
@@ -360,7 +302,8 @@ class _FixtureRepository implements PandoraRepository {
     required String message,
     String? projectId,
     String? idempotencyKey,
-  }) => throw UnimplementedError('Visual evidence never performs mutations.');
+  }) =>
+      throw UnimplementedError('Visual evidence never performs mutations.');
 
   @override
   Future<IntakeReceipt> runAction({
@@ -368,7 +311,8 @@ class _FixtureRepository implements PandoraRepository {
     String? projectId,
     String? message,
     String? idempotencyKey,
-  }) => throw UnimplementedError('Visual evidence never performs mutations.');
+  }) =>
+      throw UnimplementedError('Visual evidence never performs mutations.');
 
   @override
   Future<IntakeReceipt> verifyExactSource({
@@ -377,7 +321,8 @@ class _FixtureRepository implements PandoraRepository {
     required WorkerJobClass jobClass,
     int? maxRuntimeSeconds,
     String? idempotencyKey,
-  }) => throw UnimplementedError('Visual evidence never performs mutations.');
+  }) =>
+      throw UnimplementedError('Visual evidence never performs mutations.');
 
   @override
   Future<WorkerExecutionStatus> workerExecution({required String planId}) =>
@@ -388,7 +333,8 @@ class _FixtureRepository implements PandoraRepository {
     required String approvalId,
     required ApprovalDecision decision,
     String reason = '',
-  }) => throw UnimplementedError('Visual evidence never performs mutations.');
+  }) =>
+      throw UnimplementedError('Visual evidence never performs mutations.');
 
   @override
   void clearReadOnlyCache() {}
@@ -402,9 +348,6 @@ class _FixtureRepository implements PandoraRepository {
 Future<void> _captureScreen(WidgetTester tester, _VisualCase visual) async {
   if (!_visualFontLoaded) {
     await tester.runAsync(_loadVisualFont);
-  }
-  if (!_pandoraMarkImageSeeded) {
-    await _seedPandoraMarkImageCache(tester);
   }
   await setTestSurface(tester, logicalSize: visual.logicalSize);
   final repository = _FixtureRepository(
@@ -430,9 +373,8 @@ Future<void> _captureScreen(WidgetTester tester, _VisualCase visual) async {
     );
 
     // Keep repository microtasks and visual state changes inside the finite
-    // widget-test clock. The exact production mark has already been decoded
-    // from the checked-in PNG and seeded under its production AssetImage key.
-    // No case can hide later CI stages behind an unbounded settle.
+    // widget-test clock. The Pandora apple is vector-painted synchronously, so
+    // no asset decode can hide later CI stages behind an unbounded settle.
     for (final frame in _renderFrames) {
       await tester.pump(frame);
     }

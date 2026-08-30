@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """Regression tests for the bounded Android validation manifest patch."""
 
@@ -15,7 +16,10 @@ _BASE_MANIFEST = """<manifest xmlns:android=\"http://schemas.android.com/apk/res
 
 
 class ConfigureValidationAndroidTest(unittest.TestCase):
-    def _run(self, manifest_text: str) -> tuple[subprocess.CompletedProcess[str], str]:
+    def _run(
+        self,
+        manifest_text: str,
+    ) -> tuple[subprocess.CompletedProcess[str], str, str | None]:
         with tempfile.TemporaryDirectory() as directory:
             manifest = Path(directory) / "AndroidManifest.xml"
             manifest.write_text(manifest_text, encoding="utf-8")
@@ -25,10 +29,12 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
                 capture_output=True,
                 text=True,
             )
-            return result, manifest.read_text(encoding="utf-8")
+            icon = manifest.parent / "res" / "drawable" / "pandora_launcher_icon.xml"
+            icon_text = icon.read_text(encoding="utf-8") if icon.is_file() else None
+            return result, manifest.read_text(encoding="utf-8"), icon_text
 
-    def test_adds_internet_permission_and_product_label(self) -> None:
-        result, updated = self._run(_BASE_MANIFEST)
+    def test_adds_internet_permission_product_label_and_apple_icon(self) -> None:
+        result, updated, icon_text = self._run(_BASE_MANIFEST)
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(updated.count("android.permission.INTERNET"), 1)
@@ -38,6 +44,14 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
         )
         self.assertIn('android:label="Pandora"', updated)
         self.assertNotIn('android:label="pandora_mobile"', updated)
+        self.assertIn('android:icon="@drawable/pandora_launcher_icon"', updated)
+        self.assertNotIn('android:icon="@mipmap/ic_launcher"', updated)
+        self.assertIsNotNone(icon_text)
+        assert icon_text is not None
+        self.assertIn('android:fillType="evenOdd"', icon_text)
+        self.assertIn("#FFB72DFF", icon_text)
+        self.assertIn("#FF2063FF", icon_text)
+        self.assertIn("Pandora gradient apple", result.stdout)
 
     def test_preserves_one_approved_existing_internet_permission(self) -> None:
         manifest = _BASE_MANIFEST.replace(
@@ -45,7 +59,7 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
             '\n    <uses-permission android:name="android.permission.INTERNET"/>\n'
             "    <application",
         )
-        result, updated = self._run(manifest)
+        result, updated, _ = self._run(manifest)
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(updated.count("android.permission.INTERNET"), 1)
@@ -56,7 +70,7 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
             "\n    <application",
             f"\n    {permission}\n    {permission}\n    <application",
         )
-        result, _ = self._run(manifest)
+        result, _, _ = self._run(manifest)
 
         self.assertEqual(result.returncode, 1)
         self.assertIn("at most one Android INTERNET permission", result.stderr)
@@ -66,10 +80,21 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
             'android:icon="@mipmap/ic_launcher"',
             'android:icon="@mipmap/ic_launcher" android:usesCleartextTraffic="true"',
         )
-        result, _ = self._run(manifest)
+        result, _, _ = self._run(manifest)
 
         self.assertEqual(result.returncode, 1)
         self.assertIn("must not explicitly enable cleartext traffic", result.stderr)
+
+    def test_refuses_ambiguous_launcher_icon_reference(self) -> None:
+        manifest = _BASE_MANIFEST.replace(
+            'android:icon="@mipmap/ic_launcher"',
+            'android:icon="@drawable/unknown"',
+        )
+        result, _, icon_text = self._run(manifest)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("launcher icon reference", result.stderr)
+        self.assertIsNone(icon_text)
 
 
 if __name__ == "__main__":

@@ -43,20 +43,20 @@ class _PandoraAppState extends State<PandoraApp> {
 
   @override
   Widget build(BuildContext context) => PandoraDependencies(
-    auth: widget.auth,
-    repository: widget.repository,
-    projectRuntime: widget.projectRuntime,
-    projectExperience: widget.projectExperience,
-    domainRegistrar: widget.domainRegistrar,
-    diagnostics: widget.diagnostics,
-    child: MaterialApp(
-      title: "Pandora's Box",
-      color: PandoraPalette.porcelain.canvas,
-      debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
-      theme: PandoraTheme.porcelain,
-      darkTheme: PandoraTheme.graphite,
-      home: const AuthGate(),
-    ),
-  );
+        auth: widget.auth,
+        repository: widget.repository,
+        projectRuntime: widget.projectRuntime,
+        projectExperience: widget.projectExperience,
+        domainRegistrar: widget.domainRegistrar,
+        diagnostics: widget.diagnostics,
+        child: MaterialApp(
+          title: "Pandora's Box",
+          color: PandoraPalette.porcelain.canvas,
+          debugShowCheckedModeBanner: false,
+          themeMode: ThemeMode.system,
+          theme: PandoraTheme.porcelain,
+          darkTheme: PandoraTheme.graphite,
+          home: const AuthGate(),
+        ),
+      );
 }

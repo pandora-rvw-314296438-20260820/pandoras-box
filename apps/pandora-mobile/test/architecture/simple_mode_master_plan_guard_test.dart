@@ -32,22 +32,22 @@ void main() {
   });
 
   test('professional safety details remain behind More', () {
-    final source = File('lib/features/simple/more_screen.dart')
-        .readAsStringSync();
+    final source =
+        File('lib/features/simple/more_screen.dart').readAsStringSync();
     expect(source, contains('const SimpleSafetyScreen()'));
     expect(source, contains("title: 'Safety details'"));
     expect(source, contains('const SafetyScreen()'));
   });
 
   test('owner journeys cover the remaining source-level master-plan gaps', () {
-    final more = File('lib/features/simple/more_screen.dart')
-        .readAsStringSync();
-    final projects = File('lib/features/projects/projects_screen.dart')
-        .readAsStringSync();
+    final more =
+        File('lib/features/simple/more_screen.dart').readAsStringSync();
+    final projects =
+        File('lib/features/projects/projects_screen.dart').readAsStringSync();
     final connections = File('lib/features/connections/connections_screen.dart')
         .readAsStringSync();
-    final approvals = File('lib/features/approvals/approvals_screen.dart')
-        .readAsStringSync();
+    final approvals =
+        File('lib/features/approvals/approvals_screen.dart').readAsStringSync();
     expect(more, contains("title: 'Daily briefing'"));
     expect(more, contains("title: 'Saved evidence'"));
     for (final label in const [
@@ -74,8 +74,8 @@ void main() {
   });
 
   test('Simple Mode avoids internal state and cache jargon', () {
-    final systems = File('lib/features/simple/systems_screen.dart')
-        .readAsStringSync();
+    final systems =
+        File('lib/features/simple/systems_screen.dart').readAsStringSync();
     final briefing = File('lib/features/simple/simple_briefing_screen.dart')
         .readAsStringSync();
 
@@ -88,8 +88,8 @@ void main() {
   });
 
   test('Simple Home keeps fail-closed truth in owner language', () {
-    final home = File('lib/features/simple/simple_home_screen.dart')
-        .readAsStringSync();
+    final home =
+        File('lib/features/simple/simple_home_screen.dart').readAsStringSync();
 
     for (final phrase in const [
       'Pandora has not confirmed how many decisions need you yet.',
@@ -103,8 +103,8 @@ void main() {
   });
 
   test('build preview separates prototype from live execution', () {
-    final source = File('lib/features/simple/build_preview_flow.dart')
-        .readAsStringSync();
+    final source =
+        File('lib/features/simple/build_preview_flow.dart').readAsStringSync();
     expect(
       source,
       contains('final waitingForDecision = receipt.needsApproval;'),
@@ -113,7 +113,9 @@ void main() {
     expect(source, contains('Prototype preview'));
     expect(
       source,
-      contains('This is a prototype. It is not live or production verified.'),
+      contains(
+        'This is a prototype. It is not live or production verified.',
+      ),
     );
     expect(
       source,
