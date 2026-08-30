@@ -120,10 +120,11 @@ class _CreateProjectExperienceScreenState
     } on PandoraRepositoryException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error = 'Pandora could not start that project right now.',
         );
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -292,6 +293,9 @@ class _ProjectUnderstandingScreenState
   Widget build(BuildContext context) {
     final u = _understanding;
     final ready = u?.isReady ?? false;
+    final businessSummary = u?.businessSummary;
+    final objectives = u?.objectives ?? const <String>[];
+    final requirements = u?.requirements ?? const <String>[];
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
       body: SafeArea(
@@ -326,10 +330,10 @@ class _ProjectUnderstandingScreenState
                 PandoraV2InlineMessage(
                   title: 'What Pandora understands',
                   message: [
-                    if (u?.businessSummary != null) u.businessSummary!,
-                    if (u! > objectives.isNotEmpty) ...u.objectives,
-                    if (u! > requirements.isNotEmpty)
-                      'Key needs: ${u.requirements.take(3).join(' • ')}',
+                    if (businessSummary != null) businessSummary,
+                    if (objectives.isNotEmpty) ...objectives,
+                    if (requirements.isNotEmpty)
+                      'Key needs: ${requirements.take(3).join(' • ')}',
                   ].join('\n').trim(),
                 ),
                 const SizedBox(height: 28),

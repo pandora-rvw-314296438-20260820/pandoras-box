@@ -68,23 +68,30 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       );
       if (mounted) await _load();
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error = 'Pandora could not open ${project.name} right now.',
         );
+      }
     } finally {
       if (mounted) setState(() => _openingId = null);
     }
   }
 
   String _state(ProjectSummary project) {
-    if (project.blocker != null && project.blocker!.trim().isNotEmpty)
+    if (project.blocker != null && project.blocker!.trim().isNotEmpty) {
       return 'Needs you';
+    }
     final live = project.evidenceState(EvidenceStage.productionVerified) ==
             EvidenceClaimState.verified &&
         project.freshness.isFresh;
     if (live) return 'Live';
-    if (project.pendingApprovalCount > 0) return 'Ready for review';
+    final status = project.status.toLowerCase();
+    if (status.contains('ready') ||
+        status.contains('review') ||
+        status.contains('approval')) {
+      return 'Ready for review';
+    }
     return 'Working';
   }
 

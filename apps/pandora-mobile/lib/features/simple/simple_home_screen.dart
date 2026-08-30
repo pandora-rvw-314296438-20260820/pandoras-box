@@ -94,22 +94,30 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
       );
       if (mounted) await _load();
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error = 'Pandora could not open ${project.name} right now.',
         );
+      }
     } finally {
       if (mounted) setState(() => _openingId = null);
     }
   }
 
   String _state(ProjectSummary p) {
-    if (p.blocker != null && p.blocker!.trim().isNotEmpty) return 'Needs you';
+    if (p.blocker != null && p.blocker!.trim().isNotEmpty) {
+      return 'Needs you';
+    }
     final live = p.evidenceState(EvidenceStage.productionVerified) ==
             EvidenceClaimState.verified &&
         p.freshness.isFresh;
     if (live) return 'Live';
-    if (p.pendingApprovalCount > 0) return 'Ready for review';
+    final status = p.status.toLowerCase();
+    if (status.contains('ready') ||
+        status.contains('review') ||
+        status.contains('approval')) {
+      return 'Ready for review';
+    }
     return 'Working';
   }
 
@@ -151,13 +159,16 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
               onSubmit: _create,
               onVoice: () async {
                 final value = await PandoraNativeIo.dictate();
-                if (value != null && mounted) _intent.text = value;
+                if (value != null && mounted) {
+                  _intent.text = value;
+                }
               },
               onAttachment: () async {
                 final file = await PandoraNativeIo.pickTextAttachment();
-                if (file != null && mounted)
+                if (file != null && mounted) {
                   _intent.text =
                       '${_intent.text.trim()}\n${file.promptBlock}'.trim();
+                }
               },
             ),
             const SizedBox(height: 42),

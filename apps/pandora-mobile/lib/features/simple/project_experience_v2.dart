@@ -263,10 +263,12 @@ class _ProjectBuildExperienceV2ScreenState
   }
 
   String get _stageMessage {
-    if (_ready)
+    if (_ready) {
       return 'Open it, experience it, then tell Pandora what should change.';
-    if (_candidate != null)
+    }
+    if (_candidate != null) {
       return 'Pandora is turning the verified build into something you can experience.';
+    }
     return 'Your project stays here while Pandora handles the technical work underneath.';
   }
 
@@ -489,8 +491,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       );
       return live == null ? 'Live' : 'Live · ${Uri.parse(live).host}';
     }
-    if (snapshot?.verification?.publishEligible == true)
+    if (snapshot?.verification?.publishEligible == true) {
       return 'Ready to publish';
+    }
     if (_candidate != null) return 'Preview ready';
     return 'Working';
   }
