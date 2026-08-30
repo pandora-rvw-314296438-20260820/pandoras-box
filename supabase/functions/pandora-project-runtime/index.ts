@@ -955,11 +955,11 @@ async function createPreview(context: UserContext, identifier: string, body: Jso
       if (priorError || !prior) throw new Error("PREVIEW_RECONCILIATION_REQUIRED");
       return { project: projectResponse(project), version: bundle.version, deployment: prior, previewUrl: prior.url ?? null, reconciled: true };
     }
-    if (status === "uncertain") throw new Error("PREVIEW_RECONCILIATION_REQUIRED");
     if (new Set(["claimed", "running"]).has(status)) throw new Error("PREVIEW_IN_PROGRESS");
+    if (!new Set(["failed", "uncertain"]).has(status)) throw new Error("PREVIEW_RECONCILIATION_REQUIRED");
     const { data: reclaimed, error: reclaimError } = await admin.from("pandora_runtime_operations")
       .update({ status: "claimed", ambiguous: false, normalized_error: {}, result_facts: {}, claimed_at: new Date().toISOString(), started_at: null, finished_at: null, updated_at: new Date().toISOString() })
-      .eq("id", existing.id).eq("status", "failed").select("id").maybeSingle();
+      .eq("id", existing.id).eq("status", status).select("id").maybeSingle();
     if (reclaimError || !reclaimed) throw new Error("PREVIEW_CLAIM_FAILED");
     operationId = textValue(reclaimed.id);
   } else operationId = textValue(claimed.id);
