@@ -315,7 +315,7 @@ class _ProjectsHomeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  project.purpose,
+                  _homeProjectSummary(project),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: pandoraSimpleMutedText,
@@ -570,7 +570,29 @@ class _LiveHomeCard extends StatelessWidget {
   }
 }
 
-String _projectOwnerState(String status) {
+'String _homeProjectSummary(ProjectSummary project) {
+  var summary = project.purpose
+      .replaceAll(RegExp(r'(?m)^\s*[>#*+-]+\s*'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  if (summary.isEmpty ||
+      summary.toLowerCase().contains('if you cannot directly inspect') ||
+      summary.toLowerCase().contains('implementation instructions')) {
+    return '${project.name} project';
+  }
+
+  final sentenceEnd = summary.indexOf('.');
+  if (sentenceEnd > 0) summary = summary.substring(0, sentenceEnd + 1);
+  if (summary.length <= 180) return summary;
+
+  final clipped = summary.substring(0, 180);
+  final lastSpace = clipped.lastIndexOf(' ');
+  final safeEnd = lastSpace >= 120 ? lastSpace : 180;
+  return '${clipped.substring(0, safeEnd).trimRight()}…';
+}
+
+String _projectOwnerState(String status) {'
   final normalized = status.toLowerCase();
   if (normalized.contains('live')) return 'Live';
   if (normalized.contains('block') || normalized.contains('attention')) {
