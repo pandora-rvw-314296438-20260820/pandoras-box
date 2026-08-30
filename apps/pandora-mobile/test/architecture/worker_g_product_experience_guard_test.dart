@@ -15,11 +15,13 @@ void main() {
       "_Destination('Home'",
       "_Destination('Projects'",
       "'Ask Pandora'",
-      "'Needs You'",
       "_Destination('More'",
     ]) {
       expect(shell, contains(declaration));
     }
+    expect(shell, contains('emphasized: true'));
+    expect(shell, contains('onOpenNeedsYou: _openNeedsYou'));
+    expect(shell, isNot(contains("_Destination('Needs You'")));
     expect(shell, isNot(contains("_Destination('Systems'")));
     expect(shell, isNot(contains("_Destination('Business'")));
     expect(more, contains("title: 'Business'"));

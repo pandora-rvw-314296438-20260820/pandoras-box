@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pandora_mobile/core/widgets/pandora_mark.dart';
 
 import '../helpers/foundation_catalog.dart';
 import '../helpers/test_app.dart';
@@ -30,12 +29,6 @@ void main() {
         ),
         themeMode: themeMode,
         textScaler: textScaler,
-      ),
-    );
-    await tester.runAsync(
-      () => precacheImage(
-        const AssetImage(PandoraMark.assetPath),
-        tester.element(find.byKey(catalogKey)),
       ),
     );
     await tester.pumpAndSettle();

@@ -402,6 +402,67 @@ void main() {
     expect(repository.projectCalls, 1);
   });
 
+  testWidgets('Ask Pandora hides shell chrome and uses the composer plus menu',
+      (
+    tester,
+  ) async {
+    await setTestSurface(tester, logicalSize: const Size(400, 800));
+    await tester.pumpWidget(
+      testApp(
+        child: PandoraDependencies(
+          auth: const _Auth(),
+          repository: _Repository(),
+          diagnostics: DiagnosticsStore(),
+          child: const PandoraShell(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-open')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-open')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('What can I help you build?'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-open')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-plus')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-plus')));
+    await tester.pumpAndSettle();
+
+    for (final key in const [
+      'ask-pandora-menu-home',
+      'ask-pandora-menu-projects',
+      'ask-pandora-menu-more',
+      'ask-pandora-menu-camera',
+      'ask-pandora-menu-photos',
+      'ask-pandora-menu-files',
+    ]) {
+      expect(find.byKey(ValueKey<String>(key)), findsOneWidget);
+    }
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('ask-pandora-menu-home')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Good morning, Mark'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-open')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('tabs load lazily and preserve their first mounted state', (
     tester,
   ) async {
