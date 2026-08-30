@@ -63,7 +63,11 @@ class _PandoraShellState extends State<PandoraShell> {
               onOpenMore: () => _select(3),
             ),
           1 => const ProjectsScreen(),
-          2 => const AskPandoraScreen(),
+          2 => AskPandoraScreen(
+              onHome: () => _select(0),
+              onProjects: () => _select(1),
+              onMore: () => _select(3),
+            ),
           3 => const MoreScreen(),
           _ => const SimpleHomeScreen(),
         },
@@ -91,26 +95,20 @@ class _PandoraShellState extends State<PandoraShell> {
       if (navigator == null || prompt == null || prompt.trim().isEmpty) return;
       navigator.push(
         MaterialPageRoute<void>(
-          builder: (_) => AskPandoraScreen(initialPrompt: prompt),
+          builder: (_) => AskPandoraScreen(
+            initialPrompt: prompt,
+            onHome: () => _select(0),
+            onProjects: () => _select(1),
+            onMore: () => _select(3),
+          ),
         ),
       );
     });
   }
 
-  void _closeAskPandora() {
-    final navigator = _navigatorKeys[_askIndex].currentState;
-    if (navigator != null && navigator.canPop()) {
-      navigator.popUntil((route) => route.isFirst);
-    }
-    _select(0);
-  }
 
   void _select(int value) {
     if (value < 0 || value >= _destinations.length) return;
-    if (value == _askIndex && _index == _askIndex) {
-      _closeAskPandora();
-      return;
-    }
     if (value == _index) {
       final navigator = _navigatorKeys[value].currentState;
       if (navigator != null && navigator.canPop()) {
@@ -225,6 +223,12 @@ class _PandoraShellState extends State<PandoraShell> {
         onPopInvokedWithResult: _handleBack,
         child: LayoutBuilder(
           builder: (context, constraints) {
+            if (_index == _askIndex) {
+              return Scaffold(
+                backgroundColor: PandoraSimpleColors.canvas,
+                body: body,
+              );
+            }
             final useRail = constraints.maxWidth >= 900;
             if (!useRail) {
               return Scaffold(
@@ -260,7 +264,7 @@ class _PandoraShellState extends State<PandoraShell> {
                               ? const PandoraMark(size: 25)
                               : Icon(_destinations[index].icon),
                           selectedIcon: _destinations[index].emphasized
-                              ? const Icon(Icons.close_rounded, size: 28)
+                              ? const PandoraMark(size: 27)
                               : Icon(_destinations[index].selectedIcon),
                           label: _destinations[index].emphasized
                               ? const SizedBox.shrink()
@@ -349,13 +353,11 @@ class _BottomDestination extends StatelessWidget {
       return Semantics(
         selected: selected,
         button: true,
-        label: selected ? 'Close Ask Pandora and return Home' : 'Ask Pandora',
+        label: 'Ask Pandora',
         child: Tooltip(
-          message: selected ? 'Back to Home' : 'Ask Pandora',
+          message: 'Ask Pandora',
           child: InkResponse(
-            key: ValueKey<String>(
-              selected ? 'ask-pandora-close' : 'ask-pandora-open',
-            ),
+            key: const ValueKey<String>('ask-pandora-open'),
             onTap: onTap,
             radius: 42,
             child: Transform.translate(
@@ -365,9 +367,7 @@ class _BottomDestination extends StatelessWidget {
                 height: 62,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: selected
-                      ? PandoraSimpleColors.ink
-                      : PandoraSimpleColors.red,
+                  color: PandoraSimpleColors.red,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 5),
                   boxShadow: const [
@@ -378,13 +378,7 @@ class _BottomDestination extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: selected
-                    ? const Icon(
-                        Icons.close_rounded,
-                        color: Colors.white,
-                        size: 30,
-                      )
-                    : const PandoraMark(size: 32, color: Colors.white),
+                child: const PandoraMark(size: 32, color: Colors.white),
               ),
             ),
           ),
