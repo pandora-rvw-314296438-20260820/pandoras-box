@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/pandora_app.dart';
 import 'core/data/domain_registrar_api.dart';
+import 'core/data/pandora_intelligence_api.dart';
 import 'core/data/project_experience_api.dart';
 import 'core/data/project_runtime_api.dart';
 import 'core/data/remote_pandora_repository.dart';
@@ -55,6 +56,10 @@ Future<void> main() async {
     timeout: const Duration(seconds: 60),
   );
   final repository = RemotePandoraRepository(client: apiClient);
+  final intelligence = PandoraIntelligenceApi(
+    client: supabase,
+    organizationId: PandoraConfig.organizationId,
+  );
   final projectRuntime = ProjectRuntimeApi(client: projectRuntimeClient);
   final projectExperience = ProjectExperienceApi(
     client: supabase,
@@ -69,6 +74,7 @@ Future<void> main() async {
     PandoraApp(
       auth: SupabasePandoraAuth(supabase),
       repository: repository,
+      intelligence: intelligence,
       projectRuntime: projectRuntime,
       projectExperience: projectExperience,
       domainRegistrar: domainRegistrar,
