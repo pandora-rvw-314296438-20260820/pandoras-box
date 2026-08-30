@@ -21,15 +21,11 @@ jobs:
         with:
           flutter-version: '3.47.0'
           cache: true
-      - name: Format exact mobile source
+      - name: Print exact formatted source
         shell: bash
         run: |
           set -euo pipefail
           dart format apps/pandora-mobile/lib/features/simple/project_experience_v2.dart
-      - name: Upload exact formatted source
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: pandora-mobile-formatted-source
-          path: apps/pandora-mobile/lib/features/simple/project_experience_v2.dart
-          if-no-files-found: error
-          retention-days: 1
+          printf "FORMATTED_BASE64="
+          base64 -w0 apps/pandora-mobile/lib/features/simple/project_experience_v2.dart
+          printf "\n"
