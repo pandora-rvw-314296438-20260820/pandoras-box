@@ -1199,11 +1199,46 @@
             "replayMode": "history_receipt_noop",
             "originalSqlSha256": "125331572b4c818238b9240ad297cc090ebecd08c4c70e149092696c09d0d2ee",
             "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_mirror_broker_v1",
+            "version": "20260830181344",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "afef2241cab432a15a8eddd9a2341177dbc4fbed7ed2aa9a7720012a06dc7db5",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_mirror_runtime_v1",
+            "version": "20260830181755",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "2c1fe73e354f1e10679fedf65d58abb887fa60f7e8c7270cd29b14b61434e412",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_mirror_internal_trigger_v1",
+            "version": "20260830182011",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "939ea3bc13d99bd25ea2a072331a0575b5e8955bc813b3aa6b2d81c04991573f",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_bootstrap_trigger_v1",
+            "version": "20260830182442",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "dfb501aa8f7a1300403b07d88a668c2192f70747950f87fc1b7187af3efc70b8",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_dedicated_credential_name_v1",
+            "version": "20260830182638",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "d4230ff7940c18a207cf75796fc29aae2ddd9dad928194105d17e427af2c788b",
+            "originalStatementCount": 1
         }
     ],
     "projectRef": "jcyqixttuebxqqfkjonq",
     "repository": "pandora-rvw-314296438-20260820/pandoras-box",
     "generatedAt": "2026-08-29T15:07:37.693Z",
     "schemaVersion": 1,
-    "migrationCount": 171
+    "migrationCount": 176
 }
