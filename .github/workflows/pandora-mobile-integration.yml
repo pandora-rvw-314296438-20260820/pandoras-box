@@ -141,30 +141,7 @@ jobs:
 
       - name: Format
         working-directory: .pandora-mobile-build
-        shell: bash
-        run: |
-          set -euo pipefail
-          dart format lib/app/pandora_shell.dart lib/features/simple/ask_pandora_screen.dart
-          echo 'PANDORA_FORMATTED_SHELL_BEGIN'
-          base64 -w0 lib/app/pandora_shell.dart
-          echo
-          echo 'PANDORA_FORMATTED_SHELL_END'
-          echo 'PANDORA_FORMATTED_ASK_BEGIN'
-          base64 -w0 lib/features/simple/ask_pandora_screen.dart
-          echo
-          echo 'PANDORA_FORMATTED_ASK_END'
-          exit 1
-
-      - name: Upload formatter-normalized Dart sources
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
-        with:
-          name: pandora-mobile-formatted-dart
-          path: |
-            .pandora-mobile-build/lib/app/pandora_shell.dart
-            .pandora-mobile-build/lib/features/simple/ask_pandora_screen.dart
-          if-no-files-found: error
-          retention-days: 1
+        run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Analyze
         working-directory: .pandora-mobile-build
