@@ -572,7 +572,7 @@ class _LiveHomeCard extends StatelessWidget {
 
 String _homeProjectSummary(ProjectSummary project) {
   var summary = project.purpose
-      .replaceAll(RegExp(r'(?m)^\s*[-#>*+]+\s*'), '')
+      .replaceAll(RegExp(r'^\s*[-#>*+]+\s*', multiLine: true), '')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
 
