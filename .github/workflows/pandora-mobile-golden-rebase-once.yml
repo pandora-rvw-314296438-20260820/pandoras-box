@@ -1,0 +1,51 @@
+name: Pandora mobile golden rebase once
+
+on:
+  push:
+    branches:
+      - fix/pandora-logo-chat-live-20260830
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebase-goldens:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: fix/pandora-logo-chat-live-20260830
+          fetch-depth: 1
+
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: 3.47.0
+          channel: stable
+          cache: true
+
+      - name: Rebase reviewed Pandora spiral goldens
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/pandora-mobile
+          flutter pub get --enforce-lockfile
+          flutter test --update-goldens test/goldens/foundation_catalog_golden_test.dart
+          flutter test --update-goldens test/goldens/owner_screens_visual_evidence_test.dart
+
+      - name: Commit reviewed baselines and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/pandora-mobile-golden-rebase-once.yml
+          git config user.name 'pandora-rvw-314296438-20260820'
+          git config user.email 'plpboracay@gmail.com'
+          git add apps/pandora-mobile/test/goldens/baselines/*.png
+          git add apps/pandora-mobile/test/goldens/owner_screens/*.png
+          git add .github/workflows/pandora-mobile-golden-rebase-once.yml
+          git diff --cached --quiet && { echo 'No reviewed golden changes were produced.'; exit 1; }
+          git commit -m 'test(mobile): approve Pandora spiral visual baselines'
+          git push origin HEAD:fix/pandora-logo-chat-live-20260830
