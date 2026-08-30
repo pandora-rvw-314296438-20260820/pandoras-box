@@ -30,7 +30,6 @@ test('static site build convergence is automatic and preserves worker separation
   assert.doesNotMatch(convergence, /AIza[0-9A-Za-z_-]{20,}/);
 });
 
-
 const productionConvergence = readFileSync(
   new URL('../supabase/migrations/20260830224500_pandora_production_release_convergence_v1.sql', import.meta.url),
   'utf8',
@@ -55,6 +54,6 @@ test('mobile never calls a production candidate Live before verified state arriv
   assert.match(projectExperience, /Publishing\. Pandora is verifying this exact version\./);
   assert.match(projectExperience, /_watchPublishCompletion/);
   assert.match(projectExperience, /_snapshot\?\.project\.isLive == true/);
-  assert.match(projectExperience, /_snapshot\?\.production\?\.versionId == candidate\.versionId/);
-  assert.match(projectExperience, /_snapshot\?\.production\?\.versionId != _candidate\?\.versionId/);
+  assert.match(projectExperience, /production\.versionId == candidate\.versionId/);
+  assert.match(projectExperience, /_snapshot\?\.production\?\.versionId !=\s+_candidate\?\.versionId/);
 });
