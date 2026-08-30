@@ -67,7 +67,16 @@ const EXTERNAL_SOURCE_CATALOG = Object.freeze({
  * license evidence. Raw upstream instructions may remain non-materializable
  * even when metadata adoption is approved.
  */
-/**\n * @typedef {{\n *   sourceId:string, path:string, sourceDigest:string, gitBlobSha:string,\n *   license:string, licenseStatus:string, contentImportAllowed:boolean,\n *   reviewMode:string, reviewedAt:string, licenseEvidencePath:string,\n *   licenseEvidenceGitBlobSha:string\n * }} ExternalSourceEntryPolicy\n */\n/** @type {Readonly<Record<string, Readonly<ExternalSourceEntryPolicy>>>} */\nconst EXTERNAL_SOURCE_ENTRY_CATALOG = Object.freeze({
+/**
+ * @typedef {{
+ *   sourceId:string, path:string, sourceDigest:string, gitBlobSha:string,
+ *   license:string, licenseStatus:string, contentImportAllowed:boolean,
+ *   reviewMode:string, reviewedAt:string, licenseEvidencePath:string,
+ *   licenseEvidenceGitBlobSha:string
+ * }} ExternalSourceEntryPolicy
+ */
+/** @type {Readonly<Record<string, Readonly<ExternalSourceEntryPolicy>>>} */
+const EXTERNAL_SOURCE_ENTRY_CATALOG = Object.freeze({
   'awesome_claude_skills:mcp-builder/SKILL.md': Object.freeze({
     sourceId: 'awesome_claude_skills',
     path: 'mcp-builder/SKILL.md',
