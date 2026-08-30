@@ -8,6 +8,10 @@ const migration = readFileSync(
   join(root, 'supabase', 'migrations', '20260830233000_pandora_self_healing_source_convergence_v1.sql'),
   'utf8',
 );
+const projectionPatch = readFileSync(
+  join(root, 'supabase', 'migrations', '20260830235000_pandora_self_healing_projection_state_patch_v2.sql'),
+  'utf8',
+);
 const worker = readFileSync(
   join(root, 'supabase', 'functions', 'pandora-source-convergence-worker', 'index.ts'),
   'utf8',
@@ -30,6 +34,8 @@ test('active ProjectSpecs converge without an open mobile screen', () => {
   assert.match(migration, /\* \* \* \* \*/);
   assert.match(migration, /net\.http_post/);
   assert.match(migration, /limit 3\s+for update skip locked/i);
+  assert.match(projectionPatch, /owner_state='building'/);
+  assert.doesNotMatch(projectionPatch, /owner_state='working'/);
 });
 
 test('self-healing is bounded and Worker E acceptance proof remains authoritative', () => {
@@ -63,6 +69,7 @@ test('workspace questions go through Pandora intelligence instead of becoming mu
 
 test('internal worker has a one-purpose fail-closed authorization boundary', () => {
   assert.match(config, /\[functions\.pandora-source-convergence-worker\]\s*verify_jwt = false/);
+  assert.match(config, /\[functions\.pandora-project-source-generator\]\s*verify_jwt = true/);
   assert.match(migration, /pandora_source_worker_internal_20260831/);
   assert.match(migration, /pandora_validate_source_worker_key_20260831/);
   assert.match(worker, /x-pandora-internal-key/);
