@@ -199,11 +199,15 @@ class ProjectRuntimeCandidate {
     required this.versionId,
     required this.artifactDigest,
     required this.status,
+    this.parentVersionId,
   });
 
   final String versionId;
   final String artifactDigest;
   final String status;
+  final String? parentVersionId;
+
+  bool get canUndo => parentVersionId != null && parentVersionId!.isNotEmpty;
 
   factory ProjectRuntimeCandidate.fromJson(Object? value) {
     final json = asJsonMap(value);
@@ -219,6 +223,7 @@ class ProjectRuntimeCandidate {
         field: 'projectCandidate.artifactDigest',
       ),
       status: jsonText(json['status'], fallback: 'built'),
+      parentVersionId: _optionalText(json['parentVersionId']),
     );
   }
 }

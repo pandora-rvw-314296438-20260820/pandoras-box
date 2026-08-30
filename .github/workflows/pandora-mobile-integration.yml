@@ -285,6 +285,8 @@ jobs:
             echo "android_package=${android_package}"
             echo "app_version=${app_version}"
           } >> "$GITHUB_OUTPUT"
+          printf 'PANDORA_ANDROID_RECEIPT source_sha=%s apk_sha256=%s apk_size_bytes=%s android_package=%s app_version=%s artifact_id=%s artifact_digest_sha256=%s artifact_name=%s\n' \
+            "$SOURCE_SHA" "$apk_sha256" "$apk_size_bytes" "$android_package" "$app_version" "$ARTIFACT_ID" "$ARTIFACT_DIGEST" "$ANDROID_ARTIFACT_NAME"
           {
             echo '### Android validation artifact provider locator'
             echo
