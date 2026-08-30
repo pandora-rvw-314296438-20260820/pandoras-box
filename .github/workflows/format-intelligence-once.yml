@@ -1,0 +1,41 @@
+name: Format Pandora intelligence once
+
+on:
+  push:
+    branches:
+      - feat/gemini-intelligence-chat-20260830
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: contains(github.event.head_commit.message, 'ci(format): run pinned formatter once')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: feat/gemini-intelligence-chat-20260830
+          fetch-depth: 0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Apply exact formatter and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format \
+            apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart \
+            apps/pandora-mobile/lib/core/platform/pandora_native_io.dart \
+            apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
+          rm .github/workflows/format-intelligence-once.yml
+          git config user.name 'pandora-ci'
+          git config user.email 'pandora-ci@users.noreply.github.com'
+          git add apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart \
+                  apps/pandora-mobile/lib/core/platform/pandora_native_io.dart \
+                  apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart \
+                  .github/workflows/format-intelligence-once.yml
+          git diff --cached --quiet && exit 0
+          git commit -m 'style(mobile): apply pinned Dart formatter'
+          git push origin HEAD:feat/gemini-intelligence-chat-20260830
