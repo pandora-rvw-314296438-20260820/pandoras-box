@@ -204,5 +204,4 @@ begin
     'dispatchesReset',v_reset
   );
 end
-$function$
-
+$function$;
