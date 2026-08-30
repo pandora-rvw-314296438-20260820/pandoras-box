@@ -41,6 +41,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
   PandoraTextAttachment? _attachment;
   PandoraImageAttachment? _imageAttachment;
   String? _threadId;
+  String? _pendingMessage;
   bool _submitting = false;
   bool _outcomeUnknown = false;
   String? _submissionKey;
@@ -112,6 +113,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
     }
     setState(() {
       _submitting = true;
+      _pendingMessage = objective;
       _error = null;
     });
     try {
@@ -196,7 +198,12 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
         _submissionKey = null;
       });
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _pendingMessage = null;
+        });
+      }
     }
   }
 
@@ -216,6 +223,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
       _attachment = null;
       _imageAttachment = null;
       _threadId = null;
+      _pendingMessage = null;
       _error = null;
       _outcomeUnknown = false;
       _submissionKey = null;
@@ -255,13 +263,17 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
               _ChatHeader(onNewChat: _newChat),
               const Divider(height: 1, color: PandoraSimpleColors.line),
               Expanded(
-                child: _messages.isEmpty
+                child: _messages.isEmpty && _pendingMessage == null
                     ? _EmptyConversation(
                         suggestions: _suggestions,
                         onSuggestion: _useSuggestion,
                         disabled: _outcomeUnknown || _submitting,
                       )
-                    : _Conversation(messages: _messages),
+                    : _Conversation(
+                        messages: _messages,
+                        pendingMessage: _pendingMessage,
+                        thinking: _submitting,
+                      ),
               ),
               _Composer(
                 controller: _objective,
