@@ -3,7 +3,7 @@ declare
   r record;
 begin
   for r in select secret_name, secret_value from private.integration_secrets loop
-    perform vault.create_secret(r.secret_value, r.secret_name, 'Migrated from retired private.integration_secrets by Pandora convergence', null);
+    perform vault.create_secret(r.secret_value, r.secret_name);
   end loop;
 end $$;
 
