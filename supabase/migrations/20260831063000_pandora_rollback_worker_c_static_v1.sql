@@ -67,7 +67,7 @@ begin
      or v_target.root_artifact_version_id is null
      or v_target.artifact_digest_sha256 is null
      or v_target.verification_run_id is null
-     or v_target.lifecycle_status not in ('verified','preview_ready','live','production_candidate') then
+     or v_target.lifecycle_status not in ('verified','preview_ready','live','production_candidate','rolled_back') then
     raise exception 'ROLLBACK_TARGET_NOT_ELIGIBLE' using errcode='22023';
   end if;
 
