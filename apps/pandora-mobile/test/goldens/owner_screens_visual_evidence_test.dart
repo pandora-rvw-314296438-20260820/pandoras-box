@@ -148,10 +148,12 @@ Future<void> _waitForRenderedPandoraMark(
 
   // The canonical Pandora spiral is an asset-backed alpha mask. Precache it
   // so golden capture always contains the reviewed mark pixels.
-  await precacheImage(
-    const AssetImage(PandoraMark.assetPath),
-    tester.element(markFinder.first),
-  );
+  await tester.runAsync(() async {
+    await precacheImage(
+      const AssetImage(PandoraMark.assetPath),
+      tester.element(markFinder.first),
+    );
+  });
   await tester.pump();
   if (markFinder.evaluate().isEmpty) {
     throw TestFailure('$caseName did not render the Pandora app icon.');
