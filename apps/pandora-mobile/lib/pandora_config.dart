@@ -13,9 +13,6 @@ class PandoraConfig {
     defaultValue: 'sb_publishable_LGu6ncwUVEYI5THBjSV-3g_71AInQZt',
   );
 
-  // The installed APK proved the currently deployed Vercel compatibility route
-  // returns HTTP 404 for owner screens. The original Pandora client contract
-  // targets this Supabase Edge Function, using the signed-in user's JWT.
   static const ownerApiBaseUrl = String.fromEnvironment(
     'PANDORA_OWNER_API_BASE_URL',
     defaultValue:
@@ -35,7 +32,7 @@ class PandoraConfig {
 
   static const appVersion = String.fromEnvironment(
     'PANDORA_APP_VERSION',
-    defaultValue: '0.3.0-rc.3+6',
+    defaultValue: '0.4.0-rc.1+7',
   );
   static String get releaseLabel => '${appVersion.split('+').first} Owner Test';
   static const artifactClass = 'Owner Test — Android debug signed';
@@ -46,9 +43,5 @@ class PandoraConfig {
     defaultValue: 'local-development',
   );
 
-  // A fallback is intentionally absent. The Vercel operator route implements
-  // a different contract, and retrying a mutation after an ambiguous outcome
-  // could duplicate work. Contract parity must be proven before another base
-  // can be offered explicitly.
   static const ownerApiEndpointLabel = 'Supabase owner API';
 }

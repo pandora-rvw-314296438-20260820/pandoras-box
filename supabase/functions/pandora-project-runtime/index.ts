@@ -218,6 +218,8 @@ async function vercelRequest(path: string, init: RequestInit, accepted: number[]
     const payload = asRecord(decoded);
     const nested = asRecord(payload.error);
     const providerCode = textValue(nested.code ?? payload.code);
+    const providerResource = textValue(nested.resource ?? payload.resource);
+    if (status === 402 && providerCode === "payment_required" && providerResource === "api-deployments-free-per-day") throw new Error("VERCEL_DEPLOYMENT_QUOTA_EXHAUSTED");
     if (status === 409 || providerCode.includes("conflict")) throw new Error("VERCEL_CONFLICT");
     if (providerCode.includes("domain") || status === 400 && path.includes("/domains")) throw new Error("VERCEL_DOMAIN_REJECTED");
     throw new Error("VERCEL_REQUEST_FAILED");
@@ -494,6 +496,7 @@ async function createVercelDeployment(provider: { id: string; name: string }, bu
   try {
     deployment = await vercelRequest("/v13/deployments", { method: "POST", body: JSON.stringify(requestBody) }, [200, 201]);
   } catch (error) {
+    if (error instanceof Error && error.message === "VERCEL_DEPLOYMENT_QUOTA_EXHAUSTED") throw error;
     const reconciled = await findVercelDeploymentByOperation(provider.id, operationId);
     if (!Object.keys(reconciled).length) throw new Error("PREVIEW_RECONCILIATION_REQUIRED");
     assertPreviewProviderLineage(reconciled, bundle, textValue(bundle.version.project_id), versionId, operationId);
@@ -955,11 +958,11 @@ async function createPreview(context: UserContext, identifier: string, body: Jso
       if (priorError || !prior) throw new Error("PREVIEW_RECONCILIATION_REQUIRED");
       return { project: projectResponse(project), version: bundle.version, deployment: prior, previewUrl: prior.url ?? null, reconciled: true };
     }
-    if (status === "uncertain") throw new Error("PREVIEW_RECONCILIATION_REQUIRED");
     if (new Set(["claimed", "running"]).has(status)) throw new Error("PREVIEW_IN_PROGRESS");
+    if (!new Set(["failed", "uncertain"]).has(status)) throw new Error("PREVIEW_RECONCILIATION_REQUIRED");
     const { data: reclaimed, error: reclaimError } = await admin.from("pandora_runtime_operations")
       .update({ status: "claimed", ambiguous: false, normalized_error: {}, result_facts: {}, claimed_at: new Date().toISOString(), started_at: null, finished_at: null, updated_at: new Date().toISOString() })
-      .eq("id", existing.id).eq("status", "failed").select("id").maybeSingle();
+      .eq("id", existing.id).eq("status", status).select("id").maybeSingle();
     if (reclaimError || !reclaimed) throw new Error("PREVIEW_CLAIM_FAILED");
     operationId = textValue(reclaimed.id);
   } else operationId = textValue(claimed.id);
@@ -1325,6 +1328,7 @@ Deno.serve(async (req: Request) => {
     if (["ORGANIZATION_ACCESS_REQUIRED", "OWNER_ROLE_REQUIRED"].includes(code)) return jsonResponse({ code, plainMessage: "You do not have permission for this project.", requestId }, 403, requestId, origin);
     if (code === "ORGANIZATION_SELECTION_REQUIRED") return jsonResponse({ code, plainMessage: "Choose which organization you want to use.", requestId }, 409, requestId, origin);
     if (code === "RATE_LIMITED") return jsonResponse({ code, plainMessage: "Please wait a moment before trying again.", requestId }, 429, requestId, origin);
+    if (code === "VERCEL_DEPLOYMENT_QUOTA_EXHAUSTED") return jsonResponse({ code, plainMessage: "Preview capacity is temporarily full. Pandora can retry when Vercel resets the daily deployment allowance.", requestId }, 503, requestId, origin);
     if (invalid.has(code)) return jsonResponse({ code, plainMessage: "Check that project information and try again.", requestId }, 400, requestId, origin);
     if (code === "PROJECT_NOT_FOUND") return jsonResponse({ code, plainMessage: "Pandora could not find that project.", requestId }, 404, requestId, origin);
     if (code === "DOMAIN_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already attaching that domain.", requestId }, 409, requestId, origin);

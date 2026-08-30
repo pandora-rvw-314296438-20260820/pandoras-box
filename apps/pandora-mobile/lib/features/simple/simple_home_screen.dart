@@ -5,17 +5,11 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/models/pandora_models.dart';
-import '../approvals/approvals_screen.dart';
-import '../projects/project_detail_screen.dart';
+import '../../core/platform/pandora_native_io.dart';
 import '../settings/settings_screen.dart';
-import 'domains_screen.dart';
-import 'pandora_simple_ui.dart';
+import 'pandora_v2_ui.dart';
 import 'project_create_experience.dart';
-import 'projects_screen.dart';
-
-void _openHome(BuildContext context, Widget screen) {
-  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
-}
+import 'project_experience_v2.dart';
 
 class SimpleHomeScreen extends StatefulWidget {
   const SimpleHomeScreen({
@@ -25,21 +19,21 @@ class SimpleHomeScreen extends StatefulWidget {
     this.onOpenNeedsYou,
     this.onOpenMore,
   });
-
   final ValueChanged<String>? onAskPandora;
   final VoidCallback? onOpenSystems;
   final VoidCallback? onOpenNeedsYou;
   final VoidCallback? onOpenMore;
-
   @override
   State<SimpleHomeScreen> createState() => _SimpleHomeScreenState();
 }
 
 class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
+  final _intent = TextEditingController();
   HomeSummary? _summary;
   bool _loading = true;
-  String? _error;
   bool _started = false;
+  String? _error;
+  String? _openingId;
 
   @override
   void didChangeDependencies() {
@@ -49,20 +43,20 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
     unawaited(_load());
   }
 
+  @override
+  void dispose() {
+    _intent.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
-    final repository = PandoraDependencies.of(context).repository;
-    if (mounted) {
-      setState(() {
-        _loading = true;
-        _error = null;
-      });
-    }
     try {
-      final snapshot = await repository.home();
+      final value = await PandoraDependencies.of(context).repository.home();
       if (!mounted) return;
       setState(() {
-        _summary = snapshot.data;
+        _summary = value.data;
         _loading = false;
+        _error = null;
       });
     } on PandoraRepositoryException catch (error) {
       if (!mounted) return;
@@ -74,535 +68,203 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Pandora could not verify the current business state.';
+        _error = 'Pandora could not refresh your work right now.';
       });
     }
   }
 
-  void _openProjects() {
-    if (widget.onOpenSystems != null) {
-      widget.onOpenSystems!();
-      return;
+  void _create(String value) => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CreateProjectExperienceScreen(initialIntent: value),
+        ),
+      );
+
+  Future<void> _open(ProjectSummary project) async {
+    if (_openingId != null) return;
+    final runtime = PandoraDependencies.of(context).projectRuntime;
+    if (runtime == null) return;
+    setState(() => _openingId = project.id);
+    try {
+      final snapshot = await runtime.runtime(project.id);
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ProjectWorkspaceV2Screen(project: snapshot.project),
+        ),
+      );
+      if (mounted) await _load();
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error = 'Pandora could not open ${project.name} right now.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _openingId = null);
     }
-    _openHome(context, const ProjectsScreen());
   }
 
-  void _openNeedsYou() {
-    if (widget.onOpenNeedsYou != null) {
-      widget.onOpenNeedsYou!();
-      return;
+  String _state(ProjectSummary p) {
+    if (p.blocker != null && p.blocker!.trim().isNotEmpty) {
+      return 'Needs you';
     }
-    _openHome(context, const ApprovalsScreen());
+    final live = p.evidenceState(EvidenceStage.productionVerified) ==
+            EvidenceClaimState.verified &&
+        p.freshness.isFresh;
+    if (live) return 'Live';
+    final status = p.status.toLowerCase();
+    if (status.contains('ready') ||
+        status.contains('review') ||
+        status.contains('approval')) {
+      return 'Ready for review';
+    }
+    return 'Working';
   }
 
   @override
-  Widget build(BuildContext context) => PandoraSimplePage(
-        onRefresh: _load,
-        header: PandoraOwnerHeader(
-          title: 'Good morning, Mark',
-          subtitle: "Here's your business today.",
-          onNotifications: _openNeedsYou,
-          onAvatar: () => _openHome(context, const SettingsScreen()),
-        ),
+  Widget build(BuildContext context) {
+    final summary = _summary;
+    return RefreshIndicator(
+      color: PandoraV2Colors.ink,
+      onRefresh: _load,
+      child: PandoraV2Page(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _StartProjectCard(
-              onTap: () =>
-                  _openHome(context, const CreateProjectExperienceScreen()),
+            PandoraV2BrandHeader(
+              onAvatar: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+              ),
             ),
-            const SizedBox(height: 22),
-            if (_loading)
-              const PandoraSimpleCard(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 34),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: PandoraSimpleColors.red,
-                    ),
+            const SizedBox(height: 38),
+            const Text(
+              'Good afternoon, Mark',
+              style: TextStyle(color: PandoraV2Colors.muted, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'What do you want\nto make happen?',
+              style: TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 36,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -1.35,
+                height: 1.02,
+              ),
+            ),
+            const SizedBox(height: 24),
+            PandoraV2IntentSurface(
+              controller: _intent,
+              hintText: 'Tell Pandora what you want…',
+              onSubmit: _create,
+              onVoice: () async {
+                final value = await PandoraNativeIo.dictate();
+                if (value != null && mounted) {
+                  _intent.text = value;
+                }
+              },
+              onAttachment: () async {
+                final file = await PandoraNativeIo.pickTextAttachment();
+                if (file != null && mounted) {
+                  _intent.text =
+                      '${_intent.text.trim()}\n${file.promptBlock}'.trim();
+                }
+              },
+            ),
+            const SizedBox(height: 42),
+            Row(
+              children: [
+                const Text(
+                  'Your work',
+                  style: TextStyle(
+                    color: PandoraV2Colors.ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              )
-            else if (_error != null)
-              PandoraEmptyTruth(
-                title: 'Current state unavailable',
-                message: _error!,
-                actionLabel: 'Check again',
+                const Spacer(),
+                if ((summary?.topProjects.length ?? 0) >= 3 &&
+                    widget.onOpenSystems != null)
+                  TextButton(
+                    onPressed: widget.onOpenSystems,
+                    style: TextButton.styleFrom(
+                      foregroundColor: PandoraV2Colors.ink,
+                    ),
+                    child: const Text('All work'),
+                  ),
+              ],
+            ),
+            if (_loading) ...[
+              const SizedBox(height: 12),
+              const PandoraV2Skeleton(),
+              const SizedBox(height: 12),
+              const PandoraV2Skeleton(),
+            ] else if (summary == null)
+              PandoraV2InlineMessage(
+                title: 'Your work is still safe',
+                message: _error ?? 'Pandora could not load it yet.',
+                actionLabel: 'Try again',
                 onAction: _load,
               )
+            else if (summary.topProjects.isEmpty)
+              PandoraV2InlineMessage(
+                title: 'Nothing here yet',
+                message:
+                    'Describe what you want above and Pandora will create the first working version.',
+              )
             else
-              _CleanHome(
-                summary: _summary!,
-                onOpenProjects: _openProjects,
-                onOpenNeedsYou: _openNeedsYou,
-                onOpenDomains: () => _openHome(context, const DomainsScreen()),
+              for (final project in summary.topProjects)
+                PandoraV2ObjectWindow(
+                  title: project.name,
+                  subtitle: _state(project),
+                  detail:
+                      project.purpose.trim().isEmpty ? null : project.purpose,
+                  onTap: _openingId == project.id ? null : () => _open(project),
+                  trailing: _openingId == project.id
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: PandoraV2Colors.ink,
+                          ),
+                        )
+                      : null,
+                ),
+            if (_error != null && summary != null) ...[
+              const SizedBox(height: 16),
+              PandoraV2InlineMessage(
+                title: 'Latest refresh did not complete',
+                message: _error!,
+                actionLabel: 'Try again',
+                onAction: _load,
               ),
+            ],
+            if (summary != null &&
+                summary.countersVerified &&
+                summary.approvalCount > 0) ...[
+              const SizedBox(height: 38),
+              const Text(
+                'Needs you',
+                style: TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              PandoraV2InlineMessage(
+                title: summary.approvalCount == 1
+                    ? 'One decision is waiting for you'
+                    : '${summary.approvalCount} decisions are waiting for you',
+                message:
+                    'Pandora has paused only the work that requires your judgment.',
+                actionLabel: 'Review',
+                onAction: widget.onOpenNeedsYou,
+              ),
+            ],
+            const SizedBox(height: 60),
           ],
         ),
-      );
-}
-
-class _StartProjectCard extends StatelessWidget {
-  const _StartProjectCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => PandoraSimpleCard(
-        onTap: onTap,
-        padding: const EdgeInsets.all(20),
-        backgroundColor: const Color(0xFFFFF8F9),
-        borderColor: const Color(0xFFF1D9DE),
-        child: Row(
-          children: [
-            const PandoraIconBadge(
-              icon: Icons.auto_awesome_rounded,
-              size: 58,
-            ),
-            const SizedBox(width: 16),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Start a new project',
-                    style: TextStyle(
-                      color: PandoraSimpleColors.ink,
-                      fontSize: 21,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -.25,
-                    ),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    'Tell Pandora what you want to build.',
-                    style: pandoraSimpleMutedText,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Icon(
-              Icons.arrow_forward_rounded,
-              color: PandoraSimpleColors.red,
-              size: 26,
-            ),
-          ],
-        ),
-      );
-}
-
-class _CleanHome extends StatelessWidget {
-  const _CleanHome({
-    required this.summary,
-    required this.onOpenProjects,
-    required this.onOpenNeedsYou,
-    required this.onOpenDomains,
-  });
-
-  final HomeSummary summary;
-  final VoidCallback onOpenProjects;
-  final VoidCallback onOpenNeedsYou;
-  final VoidCallback onOpenDomains;
-
-  @override
-  Widget build(BuildContext context) {
-    DomainSummary? liveDomain;
-    for (final domain in summary.domains) {
-      if (domain.isLive) {
-        liveDomain = domain;
-        break;
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        PandoraSectionTitle(
-          title: 'Projects',
-          actionLabel: 'View all',
-          onAction: onOpenProjects,
-        ),
-        _ProjectsHomeCard(
-          projects: summary.topProjects,
-          onOpenProjects: onOpenProjects,
-        ),
-        const SizedBox(height: 22),
-        PandoraSectionTitle(
-          title: 'Domains',
-          actionLabel: 'View all',
-          onAction: onOpenDomains,
-        ),
-        _DomainsHomeCard(
-          domains: summary.domains,
-          onOpenDomains: onOpenDomains,
-        ),
-        const SizedBox(height: 22),
-        PandoraSectionTitle(
-          title: 'Needs You',
-          meta: summary.countersVerified ? '· ${summary.approvalCount}' : '· —',
-          actionLabel: 'View all',
-          onAction: onOpenNeedsYou,
-        ),
-        _NeedsYouHomeCard(summary: summary, onTap: onOpenNeedsYou),
-        const SizedBox(height: 22),
-        const PandoraSectionTitle(title: 'Live'),
-        _LiveHomeCard(domain: liveDomain, onOpenDomains: onOpenDomains),
-      ],
-    );
-  }
-}
-
-class _ProjectsHomeCard extends StatelessWidget {
-  const _ProjectsHomeCard({
-    required this.projects,
-    required this.onOpenProjects,
-  });
-
-  final List<ProjectSummary> projects;
-  final VoidCallback onOpenProjects;
-
-  @override
-  Widget build(BuildContext context) {
-    if (projects.isEmpty) {
-      return PandoraSimpleCard(
-        shadow: false,
-        onTap: onOpenProjects,
-        child: const Row(
-          children: [
-            PandoraIconBadge(icon: Icons.folder_outlined, size: 48),
-            SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                'Pandora has not confirmed any current work yet. Your projects will appear here after you create one.',
-                style: pandoraSimpleMutedText,
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 17,
-              color: PandoraSimpleColors.muted,
-            ),
-          ],
-        ),
-      );
-    }
-
-    final project = projects.first;
-    final state = _projectOwnerState(project.status);
-    final live = state == 'Live';
-    return PandoraSimpleCard(
-      shadow: false,
-      onTap: () => _openHome(
-        context,
-        ProjectDetailScreen(project: project),
-      ),
-      child: Row(
-        children: [
-          const PandoraIconBadge(icon: Icons.storefront_outlined, size: 50),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  project.name,
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  _homeProjectSummary(project),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: pandoraSimpleMutedText,
-                ),
-                const SizedBox(height: 8),
-                PandoraStatusPill(
-                  label: state,
-                  icon: live ? Icons.circle : null,
-                  foreground: live
-                      ? PandoraSimpleColors.green
-                      : PandoraSimpleColors.deepRed,
-                  background: live
-                      ? PandoraSimpleColors.greenWash
-                      : PandoraSimpleColors.blush,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Icon(
-            Icons.arrow_forward_ios_rounded,
-            size: 17,
-            color: PandoraSimpleColors.muted,
-          ),
-        ],
       ),
     );
   }
-}
-
-class _DomainsHomeCard extends StatelessWidget {
-  const _DomainsHomeCard({
-    required this.domains,
-    required this.onOpenDomains,
-  });
-
-  final List<DomainSummary> domains;
-  final VoidCallback onOpenDomains;
-
-  @override
-  Widget build(BuildContext context) {
-    if (domains.isEmpty) {
-      return PandoraSimpleCard(
-        shadow: false,
-        onTap: onOpenDomains,
-        child: const Row(
-          children: [
-            PandoraIconBadge(icon: Icons.language_rounded, size: 48),
-            SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Give your project its own address',
-                    style: TextStyle(
-                      color: PandoraSimpleColors.ink,
-                      fontSize: 16.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text('Get or connect a domain.',
-                      style: pandoraSimpleMutedText),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.add_circle_outline_rounded,
-              color: PandoraSimpleColors.red,
-            ),
-          ],
-        ),
-      );
-    }
-
-    final domain = domains.first;
-    return PandoraSimpleCard(
-      shadow: false,
-      onTap: onOpenDomains,
-      child: Row(
-        children: [
-          PandoraIconBadge(
-            icon: Icons.public_rounded,
-            size: 50,
-            foreground: domain.isLive
-                ? PandoraSimpleColors.green
-                : PandoraSimpleColors.red,
-            background: domain.isLive
-                ? PandoraSimpleColors.greenWash
-                : PandoraSimpleColors.blush,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  domain.domain,
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(domain.projectName, style: pandoraSimpleMutedText),
-                const SizedBox(height: 8),
-                PandoraStatusPill(
-                  label: domain.statusLabel,
-                  icon: domain.isLive ? Icons.circle : null,
-                  foreground: domain.isLive
-                      ? PandoraSimpleColors.green
-                      : PandoraSimpleColors.deepRed,
-                  background: domain.isLive
-                      ? PandoraSimpleColors.greenWash
-                      : PandoraSimpleColors.blush,
-                ),
-              ],
-            ),
-          ),
-          const Icon(
-            Icons.arrow_forward_ios_rounded,
-            size: 17,
-            color: PandoraSimpleColors.muted,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NeedsYouHomeCard extends StatelessWidget {
-  const _NeedsYouHomeCard({required this.summary, required this.onTap});
-
-  final HomeSummary summary;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasDecisions = summary.countersVerified && summary.approvalCount > 0;
-    return PandoraSimpleCard(
-      shadow: false,
-      onTap: onTap,
-      child: Row(
-        children: [
-          const PandoraIconBadge(icon: Icons.fact_check_outlined, size: 50),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  summary.priority?.action ??
-                      (hasDecisions
-                          ? '${summary.approvalCount} decision${summary.approvalCount == 1 ? '' : 's'} ready for review'
-                          : 'Nothing needs your decision right now'),
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w700,
-                    height: 1.25,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  summary.priority?.reason ??
-                      (summary.countersVerified
-                          ? 'Pandora will surface the next decision here.'
-                          : 'Pandora has not confirmed how many decisions need you yet.'),
-                  style: pandoraSimpleMutedText,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Icon(
-            Icons.arrow_forward_ios_rounded,
-            size: 17,
-            color: PandoraSimpleColors.muted,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LiveHomeCard extends StatelessWidget {
-  const _LiveHomeCard({required this.domain, required this.onOpenDomains});
-
-  final DomainSummary? domain;
-  final VoidCallback onOpenDomains;
-
-  @override
-  Widget build(BuildContext context) {
-    final current = domain;
-    if (current == null) {
-      return PandoraSimpleCard(
-        shadow: false,
-        onTap: onOpenDomains,
-        child: const Row(
-          children: [
-            PandoraIconBadge(icon: Icons.public_off_outlined, size: 48),
-            SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                'Nothing is published on a verified domain yet.',
-                style: pandoraSimpleMutedText,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return PandoraSimpleCard(
-      shadow: false,
-      onTap: onOpenDomains,
-      child: Row(
-        children: [
-          const PandoraIconBadge(
-            icon: Icons.public_rounded,
-            size: 50,
-            foreground: PandoraSimpleColors.green,
-            background: PandoraSimpleColors.greenWash,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  current.projectName,
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(current.domain, style: pandoraSimpleMutedText),
-              ],
-            ),
-          ),
-          const PandoraStatusPill(
-            label: 'Live',
-            icon: Icons.circle,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-String _homeProjectSummary(ProjectSummary project) {
-  var summary = project.purpose
-      .replaceAll(RegExp(r'^\s*[-#>*+]+\s*', multiLine: true), '')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-
-  if (summary.isEmpty ||
-      summary.toLowerCase().contains('if you cannot directly inspect') ||
-      summary.toLowerCase().contains('implementation instructions')) {
-    return '${project.name} project';
-  }
-
-  final sentenceEnd = summary.indexOf('.');
-  if (sentenceEnd > 0) summary = summary.substring(0, sentenceEnd + 1);
-  if (summary.length <= 180) return summary;
-
-  final clipped = summary.substring(0, 180);
-  final lastSpace = clipped.lastIndexOf(' ');
-  final safeEnd = lastSpace >= 120 ? lastSpace : 180;
-  return '${clipped.substring(0, safeEnd).trimRight()}…';
-}
-
-String _projectOwnerState(String status) {
-  final normalized = status.toLowerCase();
-  if (normalized.contains('live')) return 'Live';
-  if (normalized.contains('block') || normalized.contains('attention')) {
-    return 'Needs You';
-  }
-  if (normalized.contains('ready')) return 'Ready';
-  if (normalized.contains('active') ||
-      normalized.contains('progress') ||
-      normalized.contains('working')) {
-    return 'Working';
-  }
-  return status.isEmpty ? 'Not verified' : status;
 }

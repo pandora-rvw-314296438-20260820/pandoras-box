@@ -66,6 +66,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   bool _refreshing = false;
   ProjectRuntimeSnapshot? _snapshot;
   ProjectPreviewResult? _previewResult;
+  ProjectRuntimeCandidate? _localPreviewCandidate;
+  List<Map<String, Object?>>? _localPreviewFiles;
   String? _error;
   DateTime? _lastCheckedAt;
 
@@ -187,7 +189,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   }
 
   void _advanceBuild(ProjectRuntimeSnapshot snapshot) {
-    if (_previewUrl != null) return;
+    if (_hasRenderablePreview) return;
     final candidate = snapshot.candidate;
     if (candidate == null) {
       if (_shouldRequestBuild(snapshot)) {
@@ -261,21 +263,93 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
       await _refreshDurableTruth();
       _scheduleRefresh();
     } on PandoraRepositoryException {
-      if (!mounted) return;
       _refreshTimer?.cancel();
       _previewRequestStarted = false;
+      if (await _activateLocalPreview(candidate)) return;
+      if (!mounted) return;
       setState(
         () => _error =
             'Pandora found something to fix before your preview is ready.',
       );
     } catch (_) {
-      if (!mounted) return;
       _refreshTimer?.cancel();
       _previewRequestStarted = false;
+      if (await _activateLocalPreview(candidate)) return;
+      if (!mounted) return;
       setState(
         () => _error =
             'Pandora found something to fix before your preview is ready.',
       );
+    }
+  }
+
+  Future<List<Map<String, Object?>>> _loadPreviewFiles(String versionId) async {
+    final experience = PandoraDependencies.of(context).projectExperience;
+    if (experience == null) {
+      throw const ProjectExperienceException(
+        'Pandora cannot open this preview right now.',
+      );
+    }
+    return experience.loadExactPreviewFiles(
+      projectId: widget.project.id,
+      versionId: versionId,
+    );
+  }
+
+  Future<bool> _activateLocalPreview(ProjectRuntimeCandidate candidate) async {
+    try {
+      final files = await _loadPreviewFiles(candidate.versionId);
+      if (!mounted) return false;
+      setState(() {
+        _localPreviewCandidate = candidate;
+        _localPreviewFiles = files;
+        _lastCheckedAt = DateTime.now();
+        _error = null;
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _openExactPreview() async {
+    final versionId = _localPreviewCandidate?.versionId ??
+        _snapshot?.preview?.versionId ??
+        _previewResult?.deployment?.versionId ??
+        _previewResult?.versionId ??
+        _snapshot?.candidate?.versionId;
+    if (versionId == null || versionId.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('That preview is not available yet.')),
+        );
+      }
+      return;
+    }
+    try {
+      final files = _localPreviewCandidate?.versionId == versionId &&
+              _localPreviewFiles != null
+          ? _localPreviewFiles!
+          : await _loadPreviewFiles(versionId);
+      final opened = await PandoraNativeIo.openPreviewBundle(files);
+      if (!opened) throw StateError('Preview renderer unavailable');
+      return;
+    } catch (_) {
+      final external = _previewUrl;
+      final uri = Uri.tryParse(external ?? '');
+      if (uri != null &&
+          uri.scheme == 'https' &&
+          uri.host.isNotEmpty &&
+          !uri.host.endsWith('supabase.co')) {
+        if (mounted) await _launchProjectUrl(context, external);
+        return;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Pandora could not open this preview right now.')),
+        );
+      }
     }
   }
 
@@ -290,9 +364,12 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     return 'project-preview:${widget.project.id}:${candidate.versionId}';
   }
 
+  bool get _hasRenderablePreview =>
+      _previewUrl != null || _localPreviewFiles != null;
+
   void _scheduleRefresh() {
     _refreshTimer?.cancel();
-    if (_previewUrl != null) return;
+    if (_hasRenderablePreview) return;
     _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       unawaited(_refreshDurableTruth().then((snapshot) {
         if (snapshot != null && mounted) _advanceBuild(snapshot);
@@ -308,9 +385,9 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   }
 
   PandoraOwnerBuildStage get _currentStage {
+    if (_hasRenderablePreview) return PandoraOwnerBuildStage.previewReady;
     final snapshot = _snapshot;
     if (snapshot != null) return pandoraOwnerBuildStage(snapshot);
-    if (_previewUrl != null) return PandoraOwnerBuildStage.previewReady;
     return PandoraOwnerBuildStage.understanding;
   }
 
@@ -335,7 +412,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   @override
   Widget build(BuildContext context) {
     final previewUrl = _previewUrl;
-    final ready = previewUrl != null;
+    final ready = _hasRenderablePreview;
     final currentStage = _currentStage;
     final steps = _visibleSteps;
     final currentIndex = steps.indexOf(currentStage);
@@ -482,7 +559,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    previewUrl,
+                    previewUrl ?? 'Pandora secure preview',
                     style: const TextStyle(
                       color: PandoraSimpleColors.ink,
                       fontSize: 15,
@@ -493,7 +570,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                   PandoraPrimaryButton(
                     label: 'Open Preview',
                     icon: Icons.open_in_new_rounded,
-                    onPressed: () => _launchProjectUrl(context, previewUrl),
+                    onPressed: _openExactPreview,
                     expanded: true,
                   ),
                 ],

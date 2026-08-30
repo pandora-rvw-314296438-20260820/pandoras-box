@@ -28,7 +28,7 @@ void main() {
     final source = File('lib/app/pandora_shell.dart').readAsStringSync();
     expect(source, contains('constraints.maxWidth >= 900'));
     expect(source, contains('NavigationRail('));
-    expect(source, contains('_PandoraBottomBar('));
+    expect(source, contains('_PandoraV2BottomBar('));
   });
 
   test('professional safety details remain behind More', () {
@@ -91,13 +91,10 @@ void main() {
     final home =
         File('lib/features/simple/simple_home_screen.dart').readAsStringSync();
 
-    for (final phrase in const [
-      'Pandora has not confirmed how many decisions need you yet.',
-      'Pandora has not confirmed any current work yet',
-      'Nothing is published on a verified domain yet.',
-    ]) {
-      expect(home, contains(phrase));
-    }
+    expect(home, contains('summary.countersVerified'));
+    expect(home, contains('summary.approvalCount > 0'));
+    expect(home, contains('Your work is still safe'));
+    expect(home, contains('Pandora could not load it yet.'));
     expect(home, isNot(contains('Decision counters have not been verified.')));
     expect(home, isNot(contains('No active work is verified')));
   });

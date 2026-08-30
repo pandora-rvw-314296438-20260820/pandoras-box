@@ -393,7 +393,7 @@ void main() {
     expect(find.byType(NavigationRail), findsOneWidget);
     final projectsDestination = find.descendant(
       of: find.byType(NavigationRail),
-      matching: find.byIcon(Icons.folder_outlined),
+      matching: find.byIcon(Icons.view_agenda_outlined),
     );
     expect(projectsDestination, findsOneWidget);
 
@@ -402,7 +402,7 @@ void main() {
     expect(repository.projectCalls, 1);
   });
 
-  testWidgets('Ask Pandora hides shell chrome and uses the composer plus menu',
+  testWidgets('V2 home exposes intent without the legacy floating Ask control',
       (
     tester,
   ) async {
@@ -419,48 +419,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey<String>('ask-pandora-open')),
-      findsOneWidget,
-    );
-
-    await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-open')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('What can I help with?'), findsOneWidget);
+    expect(find.text('What do you want\nto make happen?'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('ask-pandora-open')),
       findsNothing,
     );
-    expect(
-      find.byKey(const ValueKey<String>('ask-pandora-plus')),
-      findsOneWidget,
-    );
-
-    await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-plus')));
-    await tester.pumpAndSettle();
-
-    for (final key in const [
-      'ask-pandora-menu-home',
-      'ask-pandora-menu-projects',
-      'ask-pandora-menu-more',
-      'ask-pandora-menu-camera',
-      'ask-pandora-menu-photos',
-      'ask-pandora-menu-files',
-    ]) {
-      expect(find.byKey(ValueKey<String>(key)), findsOneWidget);
-    }
-
-    await tester.tap(
-      find.byKey(const ValueKey<String>('ask-pandora-menu-home')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Good morning, Mark'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey<String>('ask-pandora-open')),
-      findsOneWidget,
-    );
+    expect(find.text('Home'), findsWidgets);
+    expect(find.text('Work'), findsWidgets);
+    expect(find.text('Needs You'), findsWidgets);
   });
 
   testWidgets('tabs load lazily and preserve their first mounted state', (
@@ -486,13 +452,13 @@ void main() {
     expect(repository.actionCalls, 0);
     expect(repository.activityCalls, 0);
 
-    await tester.tap(find.text('Projects').last);
+    await tester.tap(find.text('Work').last);
     await tester.pumpAndSettle();
     expect(repository.projectCalls, 1);
 
     await tester.tap(find.text('Home').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Projects').last);
+    await tester.tap(find.text('Work').last);
     await tester.pumpAndSettle();
     expect(repository.projectCalls, 1);
   });

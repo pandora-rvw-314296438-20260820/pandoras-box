@@ -57,6 +57,23 @@ abstract final class PandoraNativeIo {
     }
   }
 
+  static Future<bool> openPreviewBundle(
+    List<Map<String, Object?>> files,
+  ) async {
+    if (files.isEmpty) return false;
+    try {
+      return await _channel.invokeMethod<bool>(
+            'openPreviewBundle',
+            <String, Object?>{'files': files},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   static Future<PandoraTextAttachment?> pickTextAttachment() async {
     try {
       final value = await _channel.invokeMapMethod<String, Object?>(

@@ -1,18 +1,28 @@
 package com.banataosystems.pandora_mobile
 
 import android.app.Activity
+import android.app.Dialog
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.net.Uri
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
 import android.util.Base64
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.Button
+import android.widget.LinearLayout
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.Locale
 
@@ -43,6 +53,7 @@ class MainActivity : FlutterActivity() {
             "pickPhoto" -> startPhotoPicker(result)
             "takePhoto" -> startCamera(result)
             "openExternalUrl" -> openExternalUrl(call, result)
+            "openPreviewBundle" -> openPreviewBundle(call, result)
             else -> result.notImplemented()
         }
     }
@@ -61,6 +72,102 @@ class MainActivity : FlutterActivity() {
         }
         startActivity(intent)
         result.success(true)
+    }
+
+    private data class PreviewFile(val bytes: ByteArray, val mimeType: String)
+
+    private fun openPreviewBundle(call: MethodCall, result: MethodChannel.Result) {
+        val rawFiles = call.argument<List<Map<String, Any?>>>("files")
+        if (rawFiles.isNullOrEmpty() || rawFiles.size > 1000) {
+            result.error("INVALID_PREVIEW_BUNDLE", "Pandora could not open that preview safely.", null)
+            return
+        }
+        val files = LinkedHashMap<String, PreviewFile>()
+        var totalBytes = 0
+        try {
+            for (entry in rawFiles) {
+                val path = (entry["file"] as? String)?.trim().orEmpty()
+                val mimeType = (entry["mimeType"] as? String)?.trim().orEmpty()
+                val dataBase64 = (entry["dataBase64"] as? String)?.trim().orEmpty()
+                if (!isSafePreviewPath(path) || mimeType.isEmpty() || dataBase64.isEmpty() || files.containsKey(path)) {
+                    throw IllegalArgumentException("Invalid preview file")
+                }
+                val bytes = Base64.decode(dataBase64, Base64.DEFAULT)
+                if (bytes.size > 10 * 1024 * 1024) throw IllegalArgumentException("Preview file too large")
+                totalBytes += bytes.size
+                if (totalBytes > 12 * 1024 * 1024) throw IllegalArgumentException("Preview bundle too large")
+                files[path] = PreviewFile(bytes, mimeType)
+            }
+            if (!files.containsKey("index.html")) throw IllegalArgumentException("Preview entrypoint missing")
+        } catch (_: Exception) {
+            result.error("INVALID_PREVIEW_BUNDLE", "Pandora could not open that preview safely.", null)
+            return
+        }
+
+        val dialog = Dialog(this, android.R.style.Theme_Material_Light_NoActionBar_Fullscreen)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
+        }
+        val close = Button(this).apply {
+            text = "Close preview"
+            setOnClickListener { dialog.dismiss() }
+        }
+        val webView = WebView(this)
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = false
+            allowContentAccess = false
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            mediaPlaybackRequiresUserGesture = true
+            setSupportMultipleWindows(false)
+        }
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+                val uri = request?.url ?: return null
+                if (uri.scheme != "https" || uri.host != "pandora.local") return null
+                val requested = uri.path?.removePrefix("/")?.ifBlank { "index.html" } ?: "index.html"
+                val resolved = files[requested] ?: if (!requested.substringAfterLast('/').contains('.')) files["index.html"] else null
+                if (resolved == null) {
+                    return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream("Not found".toByteArray()))
+                }
+                val encoding = if (
+                    resolved.mimeType.startsWith("text/") ||
+                    resolved.mimeType.contains("javascript") ||
+                    resolved.mimeType.contains("json") ||
+                    resolved.mimeType.contains("xml") ||
+                    resolved.mimeType.contains("svg")
+                ) "UTF-8" else null
+                return WebResourceResponse(resolved.mimeType, encoding, ByteArrayInputStream(resolved.bytes))
+            }
+
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val uri = request?.url ?: return true
+                return uri.scheme != "https"
+            }
+        }
+        root.addView(
+            close,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        )
+        root.addView(
+            webView,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+        )
+        dialog.setContentView(root)
+        dialog.setOnDismissListener {
+            webView.stopLoading()
+            webView.destroy()
+        }
+        dialog.show()
+        webView.loadUrl("https://pandora.local/index.html")
+        result.success(true)
+    }
+
+    private fun isSafePreviewPath(path: String): Boolean {
+        if (path.isBlank() || path.length > 512 || path.startsWith("/") || path.endsWith("/") || path.contains('\\') || path.contains('\u0000') || path.contains("?") || path.contains("#")) return false
+        return path.split("/").none { it.isBlank() || it == "." || it == ".." || it.length > 255 }
     }
 
     private fun startSpeech(result: MethodChannel.Result) {

@@ -526,7 +526,10 @@ void main() {
     ),
     _VisualCase(
       name: 'settings_porcelain_390x844',
-      build: () => const SettingsScreen(),
+      build: () => const SettingsScreen(
+        installedBuildLabel:
+            '0.3.0-rc.3 Owner Test · Owner Test — Android debug signed · Not a production release',
+      ),
     ),
   ];
 

@@ -32,35 +32,24 @@ void main() {
     },
   );
 
-  test(
-    'canonical shell keeps three labeled owner destinations and Ask action',
-    () {
-      final source = File('lib/app/pandora_shell.dart').readAsStringSync();
-      final positions = <String>[
-        "'Home'",
-        "'Projects'",
-        "'Ask Pandora'",
-        "'More'",
-      ].map(source.indexOf).toList(growable: false);
-      expect(positions, everyElement(greaterThanOrEqualTo(0)));
-      expect(List<int>.from(positions)..sort(), positions);
-      final askSource = File('lib/features/simple/ask_pandora_screen.dart')
-          .readAsStringSync();
-      expect(source, contains('emphasized: true'));
-      expect(source, contains("const ValueKey<String>('ask-pandora-open')"));
-      expect(source, contains('if (_index == _askIndex)'));
-      expect(source, contains('onOpenNeedsYou: _openNeedsYou'));
-      expect(source, isNot(contains('ask-pandora-close')));
-      expect(source, isNot(contains("_Destination('Needs You'")));
-      expect(askSource, contains("'ask-pandora-plus'"));
-      for (final destination in const ['home', 'projects', 'more']) {
-        expect(askSource, contains("'ask-pandora-menu-$destination'"));
-      }
-      for (final attachment in const ['camera', 'photos', 'files']) {
-        expect(askSource, contains("'ask-pandora-menu-$attachment'"));
-      }
-    },
-  );
+  test('canonical shell keeps the three V2 owner destinations', () {
+    final source = File('lib/app/pandora_shell.dart').readAsStringSync();
+    final positions = <String>[
+      "'Home'",
+      "'Work'",
+      "'Needs You'",
+    ].map(source.indexOf).toList(growable: false);
+    expect(positions, everyElement(greaterThanOrEqualTo(0)));
+    expect(List<int>.from(positions)..sort(), positions);
+    expect(source, contains('NavigationRail('));
+    expect(source, contains('_PandoraV2BottomBar('));
+    expect(source, isNot(contains("_Destination('Ask Pandora'")));
+
+    final home =
+        File('lib/features/simple/simple_home_screen.dart').readAsStringSync();
+    expect(home, contains('PandoraV2IntentSurface('));
+    expect(home, contains("hintText: 'Tell Pandora what you want…'"));
+  });
 
   test('foundation geometry and minimum target are canonical', () {
     expect(

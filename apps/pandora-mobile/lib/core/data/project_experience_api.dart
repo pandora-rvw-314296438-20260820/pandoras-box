@@ -185,6 +185,71 @@ class ProjectExperienceApi {
     }
   }
 
+  Future<List<Map<String, Object?>>> loadExactPreviewFiles({
+    required String projectId,
+    required String versionId,
+  }) async {
+    if (_client.auth.currentUser == null) {
+      throw const ProjectExperienceException(
+        'Please sign in again before opening this preview.',
+      );
+    }
+    try {
+      final response = await _client.functions.invoke(
+        'pandora-preview-content',
+        body: <String, Object?>{
+          'projectId': projectId.trim(),
+          'versionId': versionId.trim(),
+        },
+      );
+      final data = response.data;
+      if (data is! Map || data['kind'] != 'pandora.mobile-preview-bundle.v1') {
+        throw const ProjectExperienceException(
+          'Pandora returned an unreadable preview.',
+        );
+      }
+      final rawFiles = data['files'];
+      if (rawFiles is! List || rawFiles.isEmpty || rawFiles.length > 1000) {
+        throw const ProjectExperienceException(
+          'Pandora returned an unreadable preview.',
+        );
+      }
+      final files = <Map<String, Object?>>[];
+      for (final raw in rawFiles) {
+        if (raw is! Map) {
+          throw const ProjectExperienceException(
+            'Pandora returned an unreadable preview.',
+          );
+        }
+        final file = raw['file'];
+        final mimeType = raw['mimeType'];
+        final dataBase64 = raw['dataBase64'];
+        if (file is! String ||
+            file.trim().isEmpty ||
+            mimeType is! String ||
+            mimeType.trim().isEmpty ||
+            dataBase64 is! String ||
+            dataBase64.isEmpty) {
+          throw const ProjectExperienceException(
+            'Pandora returned an unreadable preview.',
+          );
+        }
+        files.add(<String, Object?>{
+          'file': file.trim(),
+          'mimeType': mimeType.trim(),
+          'dataBase64': dataBase64,
+        });
+      }
+      return files;
+    } on ProjectExperienceException {
+      rethrow;
+    } on FunctionException {
+      throw const ProjectExperienceException(
+        'Pandora could not open this preview right now.',
+      );
+    }
+  }
+
   Future<void> _ensureCompilation(String sourceIntentId) async {
     final now = DateTime.now();
     final last = _lastCompilationRequest[sourceIntentId];

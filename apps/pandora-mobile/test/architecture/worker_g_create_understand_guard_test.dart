@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Create Project follows the owner-first three-step journey', () {
+  test('Create Project follows the V2 intent-first journey', () {
     final source = File('lib/features/simple/project_create_experience.dart')
         .readAsStringSync();
     final projects =
@@ -11,12 +11,19 @@ void main() {
     final legacy = File('lib/features/simple/project_journey_flow.dart')
         .readAsStringSync();
 
-    expect(source, contains('Name your project'));
-    expect(source, contains('What do you want to build?'));
-    expect(source, contains('What do you want Pandora to build?'));
-    expect(source, contains('Here’s what I understood'));
+    expect(source, contains(r'What do you want\nto make happen?'));
+    expect(
+      source,
+      contains(
+        'Describe the result in your own words. Pandora will choose the technical shape.',
+      ),
+    );
+    expect(source, contains('name: _inferName(intent)'));
+    expect(source, contains('buildKind: ProjectBuildKind.helpMeDecide'));
+    expect(source, contains('submitIntent('));
+    expect(source, contains('What Pandora understands'));
     expect(source, contains("label: 'Build it'"));
-    expect(source, contains("label: 'Change something'"));
+    expect(source, isNot(contains('Name your project')));
     expect(projects, contains('const CreateProjectExperienceScreen()'));
     expect(legacy, isNot(contains('class CreateProjectFlowScreen')));
   });
