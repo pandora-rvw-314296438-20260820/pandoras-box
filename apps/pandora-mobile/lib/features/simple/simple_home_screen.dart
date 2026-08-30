@@ -97,49 +97,49 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraSimplePage(
-        onRefresh: _load,
-        header: PandoraOwnerHeader(
-          title: 'Good morning, Mark',
-          subtitle: "Here's your business today.",
-          onNotifications: _openNeedsYou,
-          onAvatar: () => _openHome(context, const SettingsScreen()),
+    onRefresh: _load,
+    header: PandoraOwnerHeader(
+      title: 'Good morning, Mark',
+      subtitle: "Here's your business today.",
+      onNotifications: _openNeedsYou,
+      onAvatar: () => _openHome(context, const SettingsScreen()),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _StartProjectCard(
+          onTap: () =>
+              _openHome(context, const CreateProjectExperienceScreen()),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _StartProjectCard(
-              onTap: () =>
-                  _openHome(context, const CreateProjectExperienceScreen()),
-            ),
-            const SizedBox(height: 22),
-            if (_loading)
-              const PandoraSimpleCard(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 34),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: PandoraSimpleColors.red,
-                    ),
-                  ),
+        const SizedBox(height: 22),
+        if (_loading)
+          const PandoraSimpleCard(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 34),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: PandoraSimpleColors.red,
                 ),
-              )
-            else if (_error != null)
-              PandoraEmptyTruth(
-                title: 'Current state unavailable',
-                message: _error!,
-                actionLabel: 'Check again',
-                onAction: _load,
-              )
-            else
-              _CleanHome(
-                summary: _summary!,
-                onOpenProjects: _openProjects,
-                onOpenNeedsYou: _openNeedsYou,
-                onOpenDomains: () => _openHome(context, const DomainsScreen()),
               ),
-          ],
-        ),
-      );
+            ),
+          )
+        else if (_error != null)
+          PandoraEmptyTruth(
+            title: 'Current state unavailable',
+            message: _error!,
+            actionLabel: 'Check again',
+            onAction: _load,
+          )
+        else
+          _CleanHome(
+            summary: _summary!,
+            onOpenProjects: _openProjects,
+            onOpenNeedsYou: _openNeedsYou,
+            onOpenDomains: () => _openHome(context, const DomainsScreen()),
+          ),
+      ],
+    ),
+  );
 }
 
 class _StartProjectCard extends StatelessWidget {
@@ -149,47 +149,44 @@ class _StartProjectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
-        onTap: onTap,
-        padding: const EdgeInsets.all(20),
-        backgroundColor: const Color(0xFFFFF8F9),
-        borderColor: const Color(0xFFF1D9DE),
-        child: Row(
-          children: [
-            const PandoraIconBadge(
-              icon: Icons.auto_awesome_rounded,
-              size: 58,
-            ),
-            const SizedBox(width: 16),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Start a new project',
-                    style: TextStyle(
-                      color: PandoraSimpleColors.ink,
-                      fontSize: 21,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -.25,
-                    ),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    'Tell Pandora what you want to build.',
-                    style: pandoraSimpleMutedText,
-                  ),
-                ],
+    onTap: onTap,
+    padding: const EdgeInsets.all(20),
+    backgroundColor: const Color(0xFFFFF8F9),
+    borderColor: const Color(0xFFF1D9DE),
+    child: Row(
+      children: [
+        const PandoraIconBadge(icon: Icons.auto_awesome_rounded, size: 58),
+        const SizedBox(width: 16),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Start a new project',
+                style: TextStyle(
+                  color: PandoraSimpleColors.ink,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.25,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            const Icon(
-              Icons.arrow_forward_rounded,
-              color: PandoraSimpleColors.red,
-              size: 26,
-            ),
-          ],
+              SizedBox(height: 5),
+              Text(
+                'Tell Pandora what you want to build.',
+                style: pandoraSimpleMutedText,
+              ),
+            ],
+          ),
         ),
-      );
+        const SizedBox(width: 12),
+        const Icon(
+          Icons.arrow_forward_rounded,
+          color: PandoraSimpleColors.red,
+          size: 26,
+        ),
+      ],
+    ),
+  );
 }
 
 class _CleanHome extends StatelessWidget {
@@ -293,10 +290,7 @@ class _ProjectsHomeCard extends StatelessWidget {
     final live = state == 'Live';
     return PandoraSimpleCard(
       shadow: false,
-      onTap: () => _openHome(
-        context,
-        ProjectDetailScreen(project: project),
-      ),
+      onTap: () => _openHome(context, ProjectDetailScreen(project: project)),
       child: Row(
         children: [
           const PandoraIconBadge(icon: Icons.storefront_outlined, size: 50),
@@ -347,10 +341,7 @@ class _ProjectsHomeCard extends StatelessWidget {
 }
 
 class _DomainsHomeCard extends StatelessWidget {
-  const _DomainsHomeCard({
-    required this.domains,
-    required this.onOpenDomains,
-  });
+  const _DomainsHomeCard({required this.domains, required this.onOpenDomains});
 
   final List<DomainSummary> domains;
   final VoidCallback onOpenDomains;
@@ -378,8 +369,10 @@ class _DomainsHomeCard extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: 4),
-                  Text('Get or connect a domain.',
-                      style: pandoraSimpleMutedText),
+                  Text(
+                    'Get or connect a domain.',
+                    style: pandoraSimpleMutedText,
+                  ),
                 ],
               ),
             ),
@@ -560,10 +553,7 @@ class _LiveHomeCard extends StatelessWidget {
               ],
             ),
           ),
-          const PandoraStatusPill(
-            label: 'Live',
-            icon: Icons.circle,
-          ),
+          const PandoraStatusPill(label: 'Live', icon: Icons.circle),
         ],
       ),
     );

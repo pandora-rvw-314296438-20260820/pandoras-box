@@ -8,9 +8,9 @@ class DomainRegistrarApi {
     required SupabaseClient client,
     required String organizationId,
     IdempotencyKeyFactory? idempotencyKeys,
-  })  : _client = client,
-        _organizationId = organizationId,
-        _keys = idempotencyKeys ?? IdempotencyKeyFactory();
+  }) : _client = client,
+       _organizationId = organizationId,
+       _keys = idempotencyKeys ?? IdempotencyKeyFactory();
 
   final SupabaseClient _client;
   final String _organizationId;

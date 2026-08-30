@@ -51,9 +51,10 @@ void main() {
 
   // Only the effective declarations are asserted. XML comments in these files
   // legitimately name the platform defaults they exist to override.
-  String declarations(String path) => File(path)
-      .readAsStringSync()
-      .replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
+  String declarations(String path) =>
+      File(path)
+          .readAsStringSync()
+          .replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
 
   test('the splash never hardcodes platform white', () {
     for (final dir in const ['drawable', 'drawable-night']) {

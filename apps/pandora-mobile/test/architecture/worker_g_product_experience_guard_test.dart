@@ -8,9 +8,8 @@ const _iterationPath = 'lib/features/simple/project_iteration_experience.dart';
 void main() {
   test('Simple Mode primary navigation is project-first and owner-safe', () {
     final shell = File('lib/app/pandora_shell.dart').readAsStringSync();
-    final more = File(
-      'lib/features/simple/more_screen.dart',
-    ).readAsStringSync();
+    final more = File('lib/features/simple/more_screen.dart')
+        .readAsStringSync();
     for (final declaration in const [
       "_Destination('Home'",
       "_Destination('Projects'",

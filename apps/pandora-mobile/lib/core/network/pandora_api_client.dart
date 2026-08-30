@@ -35,13 +35,13 @@ class PandoraApiClient {
     this.timeout = const Duration(seconds: 20),
     this.maxResponseBytes = 1024 * 1024,
     DateTime Function()? clock,
-  })  : baseUri = _validatedBaseUri(baseUri),
-        organizationId = organizationId.trim(),
-        _sessionTokenProvider = sessionTokenProvider,
-        _httpClient = httpClient ?? http.Client(),
-        _ownsHttpClient = httpClient == null,
-        _diagnostics = diagnostics,
-        _clock = clock ?? DateTime.now {
+  }) : baseUri = _validatedBaseUri(baseUri),
+       organizationId = organizationId.trim(),
+       _sessionTokenProvider = sessionTokenProvider,
+       _httpClient = httpClient ?? http.Client(),
+       _ownsHttpClient = httpClient == null,
+       _diagnostics = diagnostics,
+       _clock = clock ?? DateTime.now {
     if (this.organizationId.isEmpty) {
       throw ArgumentError.value(
         organizationId,
@@ -77,14 +77,13 @@ class PandoraApiClient {
     required String operation,
     required String routeTemplate,
     Map<String, String>? queryParameters,
-  }) =>
-      _request(
-        method: 'GET',
-        pathSegments: pathSegments,
-        operation: operation,
-        routeTemplate: routeTemplate,
-        queryParameters: queryParameters,
-      );
+  }) => _request(
+    method: 'GET',
+    pathSegments: pathSegments,
+    operation: operation,
+    routeTemplate: routeTemplate,
+    queryParameters: queryParameters,
+  );
 
   Future<PandoraApiResponse> postJson({
     required List<String> pathSegments,
@@ -92,15 +91,14 @@ class PandoraApiClient {
     required String routeTemplate,
     required Map<String, Object?> body,
     String? idempotencyKey,
-  }) =>
-      _request(
-        method: 'POST',
-        pathSegments: pathSegments,
-        operation: operation,
-        routeTemplate: routeTemplate,
-        body: body,
-        idempotencyKey: idempotencyKey,
-      );
+  }) => _request(
+    method: 'POST',
+    pathSegments: pathSegments,
+    operation: operation,
+    routeTemplate: routeTemplate,
+    body: body,
+    idempotencyKey: idempotencyKey,
+  );
 
   Future<PandoraApiResponse> _request({
     required String method,
@@ -145,8 +143,9 @@ class PandoraApiClient {
         );
       }
 
-      final streamed =
-          await _httpClient.send(request).timeout(_remaining(stopwatch));
+      final streamed = await _httpClient
+          .send(request)
+          .timeout(_remaining(stopwatch));
       final responseStatusCode = streamed.statusCode;
       statusCode = responseStatusCode;
       requestId = _safeMetadata(streamed.headers['x-request-id']);
@@ -439,14 +438,13 @@ class PandoraApiClient {
     required String method,
     required String code,
     required String message,
-  }) =>
-      PandoraApiError(
-        kind: method == 'POST'
-            ? PandoraApiErrorKind.ambiguousMutation
-            : PandoraApiErrorKind.unavailable,
-        message: message,
-        code: code,
-      );
+  }) => PandoraApiError(
+    kind: method == 'POST'
+        ? PandoraApiErrorKind.ambiguousMutation
+        : PandoraApiErrorKind.unavailable,
+    message: message,
+    code: code,
+  );
 
   PandoraApiError _responseReadError({
     required String method,
@@ -585,7 +583,8 @@ class PandoraApiClient {
   }
 
   static Uri _validatedBaseUri(Uri value) {
-    final isLocalHttp = value.scheme == 'http' &&
+    final isLocalHttp =
+        value.scheme == 'http' &&
         const <String>{'localhost', '127.0.0.1', '::1'}.contains(value.host);
     if ((value.scheme != 'https' && !isLocalHttp) ||
         value.host.isEmpty ||
@@ -639,20 +638,21 @@ class PandoraApiClient {
         404 => PandoraApiErrorKind.notFound,
         409 => PandoraApiErrorKind.conflict,
         429 => PandoraApiErrorKind.rateLimited,
-        _ => statusCode >= 500
-            ? PandoraApiErrorKind.unavailable
-            : PandoraApiErrorKind.contract,
+        _ =>
+          statusCode >= 500
+              ? PandoraApiErrorKind.unavailable
+              : PandoraApiErrorKind.contract,
       };
 
   static String _fallbackMessage(int statusCode) => switch (statusCode) {
-        400 => 'Please check that information and try again.',
-        401 => 'Please sign in again.',
-        403 => 'You do not have permission for this yet.',
-        404 => 'Pandora could not find that item.',
-        409 => 'That item changed before Pandora could continue.',
-        429 => 'Please wait a moment before trying again.',
-        _ => 'Pandora cannot reach that service right now.',
-      };
+    400 => 'Please check that information and try again.',
+    401 => 'Please sign in again.',
+    403 => 'You do not have permission for this yet.',
+    404 => 'Pandora could not find that item.',
+    409 => 'That item changed before Pandora could continue.',
+    429 => 'Please wait a moment before trying again.',
+    _ => 'Pandora cannot reach that service right now.',
+  };
 
   static String? _requestIdFromBody(Object? decoded) {
     if (decoded is! Map) return null;
@@ -662,8 +662,8 @@ class PandoraApiClient {
   static String _safeMessage(String? value, {required String fallback}) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return fallback;
-    final sanitized =
-        const DiagnosticsSanitizer(maxStringLength: 500).sanitizeText(text);
+    final sanitized = const DiagnosticsSanitizer(maxStringLength: 500)
+        .sanitizeText(text);
     return sanitized;
   }
 

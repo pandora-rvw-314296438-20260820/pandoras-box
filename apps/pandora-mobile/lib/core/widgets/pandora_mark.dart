@@ -18,7 +18,8 @@ class PandoraMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedColor = color ??
+    final resolvedColor =
+        color ??
         IconTheme.of(context).color ??
         Theme.of(context).colorScheme.onSurface;
     final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).round();

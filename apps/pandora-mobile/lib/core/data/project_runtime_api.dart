@@ -8,8 +8,8 @@ class ProjectRuntimeApi {
   ProjectRuntimeApi({
     required PandoraApiClient client,
     IdempotencyKeyFactory? idempotencyKeys,
-  })  : _client = client,
-        _keys = idempotencyKeys ?? IdempotencyKeyFactory();
+  }) : _client = client,
+       _keys = idempotencyKeys ?? IdempotencyKeyFactory();
 
   final PandoraApiClient _client;
   final IdempotencyKeyFactory _keys;

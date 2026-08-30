@@ -25,9 +25,9 @@ enum OwnerAnalyticsEvent {
 
 class OwnerAnalytics {
   OwnerAnalytics({http.Client? client, DateTime Function()? clock})
-      : _client = client ?? http.Client(),
-        _clock = clock ?? DateTime.now,
-        _sessionId = 'pm-${(clock ?? DateTime.now)().microsecondsSinceEpoch}';
+    : _client = client ?? http.Client(),
+      _clock = clock ?? DateTime.now,
+      _sessionId = 'pm-${(clock ?? DateTime.now)().microsecondsSinceEpoch}';
 
   static final OwnerAnalytics shared = OwnerAnalytics();
 

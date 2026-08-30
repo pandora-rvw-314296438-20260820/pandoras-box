@@ -31,133 +31,129 @@ class MoreScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraPage(
-        title: 'More',
-        subtitle:
-            'Business intelligence, history, safety, and professional tools.',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const _ModeCard(),
-            const SizedBox(height: PandoraSpacing.md),
-            PandoraSurface(
-              title: 'Business & history',
-              child: Column(
-                children: [
-                  _MoreTile(
-                    icon: Icons.language_rounded,
-                    title: 'Domains',
-                    subtitle: 'Your addresses and publishing status',
-                    onTap: () => _openMore(context, const DomainsScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.query_stats_outlined,
-                    title: 'Business',
-                    subtitle: 'Signals, recommendations, and business insights',
-                    onTap: () =>
-                        _openMore(context, const OwnerIntelligenceScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.today_outlined,
-                    title: 'Daily briefing',
-                    subtitle: 'What needs you and what Pandora recommends next',
-                    onTap: () =>
-                        _openMore(context, const SimpleBriefingScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.history_rounded,
-                    title: 'Activity',
-                    subtitle: 'Verified recent work and results',
-                    onTap: () => _openMore(context, const ActivityScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.offline_pin_outlined,
-                    title: 'Saved evidence',
-                    subtitle:
-                        'Last-known proof you can review without changing anything',
-                    onTap: () =>
-                        _openMore(context, const OfflineEvidenceScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.shield_outlined,
-                    title: 'Verify & Safety',
-                    subtitle: 'Four clear protection layers, without a score',
-                    onTap: () => _openMore(context, const SimpleSafetyScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.workspaces_outline,
-                    title: 'Systems',
-                    subtitle: 'Your systems, progress, blockers, and proof',
-                    onTap: () => _openMore(context, const ProjectsScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.cable_outlined,
-                    title: 'Connections',
-                    subtitle: 'Connected services, health, and safe actions',
-                    onTap: () => _openMore(context, const ConnectionsScreen()),
-                  ),
-                ],
+    title: 'More',
+    subtitle: 'Business intelligence, history, safety, and professional tools.',
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _ModeCard(),
+        const SizedBox(height: PandoraSpacing.md),
+        PandoraSurface(
+          title: 'Business & history',
+          child: Column(
+            children: [
+              _MoreTile(
+                icon: Icons.language_rounded,
+                title: 'Domains',
+                subtitle: 'Your addresses and publishing status',
+                onTap: () => _openMore(context, const DomainsScreen()),
               ),
-            ),
-            const SizedBox(height: PandoraSpacing.md),
-            PandoraSurface(
-              title: 'Professional mode',
-              subtitle:
-                  'Technical details stay here until you intentionally open them.',
-              child: Column(
-                children: [
-                  _MoreTile(
-                    icon: Icons.terminal_rounded,
-                    title: 'Advanced requests',
-                    subtitle: 'Advanced requests with technical controls',
-                    onTap: () => _openMore(context, const CommandScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.dashboard_customize_outlined,
-                    title: 'Detailed owner view',
-                    subtitle: 'The detailed operational owner view',
-                    onTap: () => _openMore(context, const HomeScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.security_outlined,
-                    title: 'Safety details',
-                    subtitle:
-                        'Detailed safety evidence, audit history, and connection checks',
-                    onTap: () => _openMore(context, const SafetyScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.developer_mode_outlined,
-                    title: 'Developer details',
-                    subtitle: 'Bounded technical diagnostics',
-                    onTap: () =>
-                        _openMore(context, const DeveloperDiagnosticsScreen()),
-                  ),
-                ],
+              _MoreTile(
+                icon: Icons.query_stats_outlined,
+                title: 'Business',
+                subtitle: 'Signals, recommendations, and business insights',
+                onTap: () =>
+                    _openMore(context, const OwnerIntelligenceScreen()),
               ),
-            ),
-            const SizedBox(height: PandoraSpacing.md),
-            PandoraSurface(
-              title: 'Account',
-              child: Column(
-                children: [
-                  _MoreTile(
-                    icon: Icons.groups_outlined,
-                    title: 'Team',
-                    subtitle: 'Invite people and manage their access',
-                    onTap: () =>
-                        _openMore(context, TeamScreen(gateway: teamGateway)),
-                  ),
-                  _MoreTile(
-                    icon: Icons.settings_outlined,
-                    title: 'Settings',
-                    subtitle: 'Appearance, account, security, and app identity',
-                    onTap: () => _openMore(context, const SettingsScreen()),
-                  ),
-                ],
+              _MoreTile(
+                icon: Icons.today_outlined,
+                title: 'Daily briefing',
+                subtitle: 'What needs you and what Pandora recommends next',
+                onTap: () => _openMore(context, const SimpleBriefingScreen()),
               ),
-            ),
-          ],
+              _MoreTile(
+                icon: Icons.history_rounded,
+                title: 'Activity',
+                subtitle: 'Verified recent work and results',
+                onTap: () => _openMore(context, const ActivityScreen()),
+              ),
+              _MoreTile(
+                icon: Icons.offline_pin_outlined,
+                title: 'Saved evidence',
+                subtitle:
+                    'Last-known proof you can review without changing anything',
+                onTap: () => _openMore(context, const OfflineEvidenceScreen()),
+              ),
+              _MoreTile(
+                icon: Icons.shield_outlined,
+                title: 'Verify & Safety',
+                subtitle: 'Four clear protection layers, without a score',
+                onTap: () => _openMore(context, const SimpleSafetyScreen()),
+              ),
+              _MoreTile(
+                icon: Icons.workspaces_outline,
+                title: 'Systems',
+                subtitle: 'Your systems, progress, blockers, and proof',
+                onTap: () => _openMore(context, const ProjectsScreen()),
+              ),
+              _MoreTile(
+                icon: Icons.cable_outlined,
+                title: 'Connections',
+                subtitle: 'Connected services, health, and safe actions',
+                onTap: () => _openMore(context, const ConnectionsScreen()),
+              ),
+            ],
+          ),
         ),
-      );
+        const SizedBox(height: PandoraSpacing.md),
+        PandoraSurface(
+          title: 'Professional mode',
+          subtitle:
+              'Technical details stay here until you intentionally open them.',
+          child: Column(
+            children: [
+              _MoreTile(
+                icon: Icons.terminal_rounded,
+                title: 'Advanced requests',
+                subtitle: 'Advanced requests with technical controls',
+                onTap: () => _openMore(context, const CommandScreen()),
+              ),
+              _MoreTile(
+                icon: Icons.dashboard_customize_outlined,
+                title: 'Detailed owner view',
+                subtitle: 'The detailed operational owner view',
+                onTap: () => _openMore(context, const HomeScreen()),
+              ),
+              _MoreTile(
+                icon: Icons.security_outlined,
+                title: 'Safety details',
+                subtitle: 'Detailed safety evidence, audit history, and connection checks',
+                onTap: () => _openMore(context, const SafetyScreen()),
+              ),
+              _MoreTile(
+                icon: Icons.developer_mode_outlined,
+                title: 'Developer details',
+                subtitle: 'Bounded technical diagnostics',
+                onTap: () =>
+                    _openMore(context, const DeveloperDiagnosticsScreen()),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: PandoraSpacing.md),
+        PandoraSurface(
+          title: 'Account',
+          child: Column(
+            children: [
+              _MoreTile(
+                icon: Icons.groups_outlined,
+                title: 'Team',
+                subtitle: 'Invite people and manage their access',
+                onTap: () =>
+                    _openMore(context, TeamScreen(gateway: teamGateway)),
+              ),
+              _MoreTile(
+                icon: Icons.settings_outlined,
+                title: 'Settings',
+                subtitle: 'Appearance, account, security, and app identity',
+                onTap: () => _openMore(context, const SettingsScreen()),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _ModeCard extends StatelessWidget {
@@ -165,31 +161,31 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSurface(
-        child: Row(
-          children: [
-            const PandoraMark(size: 44),
-            const SizedBox(width: PandoraSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Simple Mode',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: PandoraSpacing.xxs),
-                  Text(
-                    'Business outcomes first. Technical complexity stays behind Pandora.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ],
+    child: Row(
+      children: [
+        const PandoraMark(size: 44),
+        const SizedBox(width: PandoraSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Simple Mode',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-            ),
-          ],
+              const SizedBox(height: PandoraSpacing.xxs),
+              Text(
+                'Business outcomes first. Technical complexity stays behind Pandora.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _MoreTile extends StatelessWidget {
@@ -207,11 +203,11 @@ class _MoreTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: Icon(icon),
-        title: Text(title),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right_rounded),
-        onTap: onTap,
-      );
+    contentPadding: EdgeInsets.zero,
+    leading: Icon(icon),
+    title: Text(title),
+    subtitle: Text(subtitle),
+    trailing: const Icon(Icons.chevron_right_rounded),
+    onTap: onTap,
+  );
 }

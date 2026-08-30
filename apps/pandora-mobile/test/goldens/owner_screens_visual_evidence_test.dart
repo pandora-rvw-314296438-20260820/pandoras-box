@@ -126,19 +126,19 @@ Future<void> _loadVisualFont() async {
 }
 
 Widget _withVisualFont(Widget child) => Builder(
-      builder: (context) {
-        final theme = Theme.of(context);
-        return Theme(
-          data: theme.copyWith(
-            textTheme: theme.textTheme.apply(fontFamily: _visualFontFamily),
-            primaryTextTheme: theme.primaryTextTheme.apply(
-              fontFamily: _visualFontFamily,
-            ),
-          ),
-          child: child,
-        );
-      },
+  builder: (context) {
+    final theme = Theme.of(context);
+    return Theme(
+      data: theme.copyWith(
+        textTheme: theme.textTheme.apply(fontFamily: _visualFontFamily),
+        primaryTextTheme: theme.primaryTextTheme.apply(
+          fontFamily: _visualFontFamily,
+        ),
+      ),
+      child: child,
     );
+  },
+);
 
 Future<void> _seedPandoraMarkImageCache(WidgetTester tester) async {
   if (_pandoraMarkImageSeeded) return;
@@ -156,8 +156,8 @@ Future<void> _seedPandoraMarkImageCache(WidgetTester tester) async {
         .timeout(const Duration(seconds: 5));
     try {
       final frame = await codec.getNextFrame().timeout(
-            const Duration(seconds: 5),
-          );
+        const Duration(seconds: 5),
+      );
       return ImageInfo(image: frame.image, scale: 1.0);
     } finally {
       codec.dispose();
@@ -198,8 +198,9 @@ Future<void> _waitForRenderedPandoraMark(
   const attempts = 100;
   const decodeSlice = Duration(milliseconds: 20);
   for (var attempt = 0; attempt < attempts; attempt++) {
-    final imageFinder =
-        find.descendant(of: markFinder, matching: find.byType(Image)).first;
+    final imageFinder = find
+        .descendant(of: markFinder, matching: find.byType(Image))
+        .first;
     final renderImage = tester.renderObject<RenderImage>(imageFinder);
     if (renderImage.image != null) return;
     await tester.runAsync(() => Future<void>.delayed(decodeSlice));
@@ -266,13 +267,13 @@ class _FixtureRepository implements PandoraRepository {
   }
 
   RepositorySnapshot<T> _snapshot<T>(T data) => RepositorySnapshot<T>(
-        data: data,
-        source: RepositorySource.network,
-        fetchedAt: _verifiedAt,
-        verifiedAt: _verifiedAt,
-        staleAfter: _staleAfter,
-        requestId: 'visual-evidence-fixture',
-      );
+    data: data,
+    source: RepositorySource.network,
+    fetchedAt: _verifiedAt,
+    verifiedAt: _verifiedAt,
+    staleAfter: _staleAfter,
+    requestId: 'visual-evidence-fixture',
+  );
 
   List<T> _list<T>(String name, T Function(Object?) parse) =>
       asJsonList(_read(name)).map(parse).toList(growable: false);
@@ -359,8 +360,7 @@ class _FixtureRepository implements PandoraRepository {
     required String message,
     String? projectId,
     String? idempotencyKey,
-  }) =>
-      throw UnimplementedError('Visual evidence never performs mutations.');
+  }) => throw UnimplementedError('Visual evidence never performs mutations.');
 
   @override
   Future<IntakeReceipt> runAction({
@@ -368,8 +368,7 @@ class _FixtureRepository implements PandoraRepository {
     String? projectId,
     String? message,
     String? idempotencyKey,
-  }) =>
-      throw UnimplementedError('Visual evidence never performs mutations.');
+  }) => throw UnimplementedError('Visual evidence never performs mutations.');
 
   @override
   Future<IntakeReceipt> verifyExactSource({
@@ -378,8 +377,7 @@ class _FixtureRepository implements PandoraRepository {
     required WorkerJobClass jobClass,
     int? maxRuntimeSeconds,
     String? idempotencyKey,
-  }) =>
-      throw UnimplementedError('Visual evidence never performs mutations.');
+  }) => throw UnimplementedError('Visual evidence never performs mutations.');
 
   @override
   Future<WorkerExecutionStatus> workerExecution({required String planId}) =>
@@ -390,8 +388,7 @@ class _FixtureRepository implements PandoraRepository {
     required String approvalId,
     required ApprovalDecision decision,
     String reason = '',
-  }) =>
-      throw UnimplementedError('Visual evidence never performs mutations.');
+  }) => throw UnimplementedError('Visual evidence never performs mutations.');
 
   @override
   void clearReadOnlyCache() {}

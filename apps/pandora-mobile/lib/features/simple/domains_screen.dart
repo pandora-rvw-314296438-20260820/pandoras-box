@@ -75,56 +75,55 @@ class _DomainsScreenState extends State<DomainsScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraSimplePage(
-        onRefresh: _load,
-        header: PandoraOwnerHeader(
-          title: 'Domains',
-          subtitle: 'Your business addresses in one place.',
-          showBack: true,
-          onBack: () => Navigator.of(context).maybePop(),
-          onNotifications: () =>
-              _openDomainsSurface(context, const ApprovalsScreen()),
-          onAvatar: () => _openDomainsSurface(context, const SettingsScreen()),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _DomainAcquisitionCard(onTap: () => unawaited(_openAcquisition())),
-            const SizedBox(height: 22),
-            const PandoraSectionTitle(title: 'Your domains'),
-            if (_loading)
-              const PandoraSimpleCard(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 30),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: PandoraSimpleColors.red,
-                    ),
-                  ),
+    onRefresh: _load,
+    header: PandoraOwnerHeader(
+      title: 'Domains',
+      subtitle: 'Your business addresses in one place.',
+      showBack: true,
+      onBack: () => Navigator.of(context).maybePop(),
+      onNotifications: () =>
+          _openDomainsSurface(context, const ApprovalsScreen()),
+      onAvatar: () => _openDomainsSurface(context, const SettingsScreen()),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _DomainAcquisitionCard(onTap: () => unawaited(_openAcquisition())),
+        const SizedBox(height: 22),
+        const PandoraSectionTitle(title: 'Your domains'),
+        if (_loading)
+          const PandoraSimpleCard(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 30),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: PandoraSimpleColors.red,
                 ),
-              )
-            else if (_error != null)
-              PandoraEmptyTruth(
-                title: 'Domains unavailable',
-                message: _error!,
-                actionLabel: 'Check again',
-                onAction: _load,
-              )
-            else if ((_summary?.domains ?? const <DomainSummary>[]).isEmpty)
-              PandoraEmptyTruth(
-                title: 'No domains yet',
-                message:
-                    'Your connected and published domains will appear here.',
-                actionLabel: 'Get a domain',
-                onAction: () => unawaited(_openAcquisition()),
-              )
-            else
-              for (final domain in _summary!.domains) ...[
-                _DomainCard(domain: domain),
-                const SizedBox(height: 12),
-              ],
+              ),
+            ),
+          )
+        else if (_error != null)
+          PandoraEmptyTruth(
+            title: 'Domains unavailable',
+            message: _error!,
+            actionLabel: 'Check again',
+            onAction: _load,
+          )
+        else if ((_summary?.domains ?? const <DomainSummary>[]).isEmpty)
+          PandoraEmptyTruth(
+            title: 'No domains yet',
+            message: 'Your connected and published domains will appear here.',
+            actionLabel: 'Get a domain',
+            onAction: () => unawaited(_openAcquisition()),
+          )
+        else
+          for (final domain in _summary!.domains) ...[
+            _DomainCard(domain: domain),
+            const SizedBox(height: 12),
           ],
-        ),
-      );
+      ],
+    ),
+  );
 }
 
 class _DomainAcquisitionCard extends StatelessWidget {
@@ -134,42 +133,42 @@ class _DomainAcquisitionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
-        onTap: onTap,
-        backgroundColor: const Color(0xFFFFF8F9),
-        borderColor: const Color(0xFFF2D9DE),
-        child: Row(
-          children: [
-            const PandoraIconBadge(icon: Icons.language_rounded, size: 52),
-            const SizedBox(width: 15),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Get a domain',
-                    style: TextStyle(
-                      color: PandoraSimpleColors.ink,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    'Choose the address customers will use to find you.',
-                    style: pandoraSimpleMutedText,
-                  ),
-                ],
+    onTap: onTap,
+    backgroundColor: const Color(0xFFFFF8F9),
+    borderColor: const Color(0xFFF2D9DE),
+    child: Row(
+      children: [
+        const PandoraIconBadge(icon: Icons.language_rounded, size: 52),
+        const SizedBox(width: 15),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Get a domain',
+                style: TextStyle(
+                  color: PandoraSimpleColors.ink,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: PandoraSimpleColors.red,
-              size: 18,
-            ),
-          ],
+              SizedBox(height: 5),
+              Text(
+                'Choose the address customers will use to find you.',
+                style: pandoraSimpleMutedText,
+              ),
+            ],
+          ),
         ),
-      );
+        const SizedBox(width: 12),
+        const Icon(
+          Icons.arrow_forward_ios_rounded,
+          color: PandoraSimpleColors.red,
+          size: 18,
+        ),
+      ],
+    ),
+  );
 }
 
 class _DomainCard extends StatelessWidget {
@@ -187,8 +186,9 @@ class _DomainCard extends StatelessWidget {
           PandoraIconBadge(
             icon: Icons.public_rounded,
             size: 48,
-            foreground:
-                live ? PandoraSimpleColors.green : PandoraSimpleColors.deepRed,
+            foreground: live
+                ? PandoraSimpleColors.green
+                : PandoraSimpleColors.deepRed,
             background: live
                 ? PandoraSimpleColors.greenWash
                 : PandoraSimpleColors.blush,
@@ -239,22 +239,20 @@ class _DomainStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color:
-              live ? PandoraSimpleColors.greenWash : PandoraSimpleColors.blush,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color:
-                live ? PandoraSimpleColors.green : PandoraSimpleColors.deepRed,
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+    decoration: BoxDecoration(
+      color: live ? PandoraSimpleColors.greenWash : PandoraSimpleColors.blush,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: live ? PandoraSimpleColors.green : PandoraSimpleColors.deepRed,
+        fontSize: 11.5,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 }
 
 class DomainAcquisitionScreen extends StatefulWidget {
@@ -334,8 +332,8 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
 
   Future<void> _loadProjects() async {
     try {
-      final snapshot =
-          await PandoraDependencies.of(context).repository.projects();
+      final snapshot = await PandoraDependencies.of(context).repository
+          .projects();
       if (!mounted) return;
       final projects = snapshot.data;
       setState(() {
@@ -452,8 +450,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
     }
     if (quote.hasUnsupportedAdditionalContactFields) {
       setState(
-        () => _error =
-            'This domain ending needs extra registration details that Pandora does not support yet. Choose another domain for now.',
+        () => _error = 'This domain ending needs extra registration details that Pandora does not support yet. Choose another domain for now.',
       );
       return;
     }
@@ -835,8 +832,7 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        checkout.plainMessage ??
-                            'Return to Pandora after payment to finish registration.',
+                        checkout.plainMessage ?? 'Return to Pandora after payment to finish registration.',
                         style: pandoraSimpleMutedText,
                       ),
                       if (checkout.canOpenPayment) ...[
@@ -910,12 +906,12 @@ class _ContactField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          textCapitalization: textCapitalization,
-          decoration: InputDecoration(labelText: label, hintText: hint),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 12),
+    child: TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
+      decoration: InputDecoration(labelText: label, hintText: hint),
+    ),
+  );
 }
