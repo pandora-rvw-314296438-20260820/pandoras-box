@@ -542,7 +542,8 @@ class _Composer extends StatelessWidget {
                   children: [
                     if (attachment != null)
                       InputChip(
-                        avatar: const Icon(Icons.description_outlined, size: 17),
+                        avatar:
+                            const Icon(Icons.description_outlined, size: 17),
                         label: Text(attachment!.name),
                         onDeleted:
                             submitting || disabled ? null : onRemoveAttachment,
