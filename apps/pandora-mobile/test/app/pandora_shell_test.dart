@@ -402,6 +402,43 @@ void main() {
     expect(repository.projectCalls, 1);
   });
 
+  testWidgets('Ask Pandora uses a close control that returns to Home', (
+    tester,
+  ) async {
+    await setTestSurface(tester, logicalSize: const Size(400, 800));
+    await tester.pumpWidget(
+      testApp(
+        child: PandoraDependencies(
+          auth: const _Auth(),
+          repository: _Repository(),
+          diagnostics: DiagnosticsStore(),
+          child: const PandoraShell(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ask Pandora'), findsNothing);
+    expect(find.bySemanticsLabel('Ask Pandora'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Ask Pandora'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('What can I help you build?'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Close Ask Pandora and return Home'),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.bySemanticsLabel('Close Ask Pandora and return Home'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Good morning, Mark'), findsOneWidget);
+    expect(find.bySemanticsLabel('Ask Pandora'), findsOneWidget);
+  });
+
   testWidgets('tabs load lazily and preserve their first mounted state', (
     tester,
   ) async {
