@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -255,9 +254,7 @@ class _PandoraShellState extends State<PandoraShell> {
                       child: PandoraMark(size: 44),
                     ),
                     destinations: [
-                      for (var index = 0;
-                          index < _destinations.length;
-                          index++)
+                      for (var index = 0; index < _destinations.length; index++)
                         NavigationRailDestination(
                           icon: _destinations[index].emphasized
                               ? const PandoraMark(size: 25)
@@ -352,9 +349,7 @@ class _BottomDestination extends StatelessWidget {
       return Semantics(
         selected: selected,
         button: true,
-        label: selected
-            ? 'Close Ask Pandora and return Home'
-            : 'Ask Pandora',
+        label: selected ? 'Close Ask Pandora and return Home' : 'Ask Pandora',
         child: Tooltip(
           message: selected ? 'Back to Home' : 'Ask Pandora',
           child: InkResponse(
