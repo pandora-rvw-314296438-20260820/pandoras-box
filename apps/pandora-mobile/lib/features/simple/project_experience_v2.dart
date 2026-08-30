@@ -653,7 +653,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   Future<void> _undoChange() async {
     final runtime = PandoraDependencies.of(context).projectRuntime;
     final candidate = _candidate;
-    if (runtime == null || candidate == null || !_canUndo || _undoing) return;
+    if (runtime == null || candidate == null || !_canUndo || _undoing) {
+      return;
+    }
     setState(() {
       _undoing = true;
       _error = null;
@@ -663,16 +665,20 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       final snapshot = await runtime.undo(
         projectId: widget.project.id,
         versionId: candidate.versionId,
-        idempotencyKey: 'pandora-v2-undo:${widget.project.id}:${candidate.versionId}',
+        idempotencyKey:
+            'pandora-v2-undo:${widget.project.id}:${candidate.versionId}',
       );
       if (!mounted) return;
       setState(() => _snapshot = snapshot);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Undone.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Undone.')),
+      );
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error =
-          'Pandora could not undo that change. Your current live result was not altered.');
+      setState(
+        () => _error =
+            'Pandora could not undo that change. Your current live result was not altered.',
+      );
     } finally {
       if (mounted) setState(() => _undoing = false);
     }
