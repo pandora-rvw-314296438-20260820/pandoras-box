@@ -74,7 +74,6 @@ Object? _shiftFixtureTimeline(Object? value) {
 const _visualFontFamily = 'Roboto';
 const _visualIconFontFamily = 'MaterialIcons';
 bool _visualFontLoaded = false;
-bool _pandoraMarkImageSeeded = false;
 
 Future<void> _loadVisualFont() async {
   if (_visualFontLoaded) return;
@@ -139,54 +138,6 @@ Widget _withVisualFont(Widget child) => Builder(
         );
       },
     );
-
-Future<void> _seedPandoraMarkImageCache(WidgetTester tester) async {
-  if (_pandoraMarkImageSeeded) return;
-
-  final asset = File(PandoraMark.assetPath);
-  if (!asset.existsSync()) {
-    throw StateError(
-      'The exact Pandora mark asset is missing at ${PandoraMark.assetPath}.',
-    );
-  }
-  final encoded = asset.readAsBytesSync();
-  final decoded = await tester.runAsync<ImageInfo>(() async {
-    final codec = await ui
-        .instantiateImageCodec(encoded)
-        .timeout(const Duration(seconds: 5));
-    try {
-      final frame = await codec.getNextFrame().timeout(
-            const Duration(seconds: 5),
-          );
-      return ImageInfo(image: frame.image, scale: 1.0);
-    } finally {
-      codec.dispose();
-    }
-  });
-  if (decoded == null) {
-    throw TestFailure('Flutter did not return the decoded exact Pandora mark.');
-  }
-  if (decoded.image.width != 1024 || decoded.image.height != 1024) {
-    final dimensions = '${decoded.image.width}x${decoded.image.height}';
-    decoded.image.dispose();
-    throw TestFailure(
-      'Unexpected Pandora mark dimensions: $dimensions; expected 1024x1024.',
-    );
-  }
-
-  final key = AssetBundleImageKey(
-    bundle: rootBundle,
-    name: PandoraMark.assetPath,
-    scale: 1.0,
-  );
-  final cache = PaintingBinding.instance.imageCache;
-  cache.evict(key, includeLive: true);
-  cache.putIfAbsent(
-    key,
-    () => OneFrameImageStreamCompleter(Future<ImageInfo>.value(decoded)),
-  );
-  _pandoraMarkImageSeeded = true;
-}
 
 Future<void> _waitForRenderedPandoraMark(
   WidgetTester tester,
@@ -398,9 +349,6 @@ Future<void> _captureScreen(WidgetTester tester, _VisualCase visual) async {
   if (!_visualFontLoaded) {
     await tester.runAsync(_loadVisualFont);
   }
-  if (!_pandoraMarkImageSeeded) {
-    await _seedPandoraMarkImageCache(tester);
-  }
   await setTestSurface(tester, logicalSize: visual.logicalSize);
   final repository = _FixtureRepository(
     failing: visual.failing,
@@ -425,9 +373,8 @@ Future<void> _captureScreen(WidgetTester tester, _VisualCase visual) async {
     );
 
     // Keep repository microtasks and visual state changes inside the finite
-    // widget-test clock. The exact production mark has already been decoded
-    // from the checked-in PNG and seeded under its production AssetImage key.
-    // No case can hide later CI stages behind an unbounded settle.
+    // widget-test clock. The Pandora apple is vector-painted synchronously, so
+    // no asset decode can hide later CI stages behind an unbounded settle.
     for (final frame in _renderFrames) {
       await tester.pump(frame);
     }
