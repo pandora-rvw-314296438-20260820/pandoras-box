@@ -83,16 +83,13 @@ abstract final class PandoraNativeIo {
     }
   }
 
-  static Future<PandoraImageAttachment?> pickPhoto() =>
-      _pickImage('pickPhoto');
+  static Future<PandoraImageAttachment?> pickPhoto() => _pickImage('pickPhoto');
 
-  static Future<PandoraImageAttachment?> takePhoto() =>
-      _pickImage('takePhoto');
+  static Future<PandoraImageAttachment?> takePhoto() => _pickImage('takePhoto');
 
   static Future<PandoraImageAttachment?> _pickImage(String method) async {
     try {
-      final value =
-          await _channel.invokeMapMethod<String, Object?>(method);
+      final value = await _channel.invokeMapMethod<String, Object?>(method);
       if (value == null) return null;
       final name = value['name'];
       final mimeType = value['mimeType'];
