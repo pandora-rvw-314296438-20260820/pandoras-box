@@ -105,12 +105,17 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260830160323_pandora_static_build_fallback_convergence_v4.sql',
     '20260830160904_pandora_observable_acceptance_reverification_v5a.sql',
     '20260830161010_pandora_verified_failure_recovery_v6.sql',
+    '20260830191842_vault_backed_legacy_secret_broker_convergence.sql',
+    '20260830193644_pandora_supabase_static_production_fallback_v1.sql',
+    '20260830193816_pandora_supabase_static_postcommit_verification_v2.sql',
+    '20260830194423_pandora_project_version_parent_lineage_v1.sql',
     '20260830224000_pandora_static_site_fullwire_convergence_v1.sql',
     '20260830224500_pandora_production_release_convergence_v1.sql',
     '20260830225000_pandora_static_fallback_hardening_v1.sql',
     '20260830225100_pandora_observable_acceptance_convergence_patch_v5b.sql',
     '20260830233000_pandora_self_healing_source_convergence_v1.sql',
     '20260830235000_pandora_self_healing_projection_state_patch_v2.sql',
+    '20260831040500_pandora_project_version_parent_lineage_finalize_v1.sql',
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -219,6 +224,10 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260830160323_pandora_static_build_fallback_convergence_v4.sql',
     '20260830160904_pandora_observable_acceptance_reverification_v5a.sql',
     '20260830161010_pandora_verified_failure_recovery_v6.sql',
+    '20260830191842_vault_backed_legacy_secret_broker_convergence.sql',
+    '20260830193644_pandora_supabase_static_production_fallback_v1.sql',
+    '20260830193816_pandora_supabase_static_postcommit_verification_v2.sql',
+    '20260830194423_pandora_project_version_parent_lineage_v1.sql',
     '20260830210000_pandora_worker_f_safe_first_preview.sql',
     '20260830211000_pandora_trusted_intelligence_context_v1.sql',
     '20260830220000_pandora_intelligence_reviewer_gateway_v1.sql',
@@ -228,6 +237,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260830225100_pandora_observable_acceptance_convergence_patch_v5b.sql',
     '20260830233000_pandora_self_healing_source_convergence_v1.sql',
     '20260830235000_pandora_self_healing_projection_state_patch_v2.sql',
+    '20260831040500_pandora_project_version_parent_lineage_finalize_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -288,6 +298,10 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260830160323_pandora_static_build_fallback_convergence_v4.sql',
     '20260830160904_pandora_observable_acceptance_reverification_v5a.sql',
     '20260830161010_pandora_verified_failure_recovery_v6.sql',
+    '20260830191842_vault_backed_legacy_secret_broker_convergence.sql',
+    '20260830193644_pandora_supabase_static_production_fallback_v1.sql',
+    '20260830193816_pandora_supabase_static_postcommit_verification_v2.sql',
+    '20260830194423_pandora_project_version_parent_lineage_v1.sql',
     '20260830210000_pandora_worker_f_safe_first_preview.sql',
     '20260830211000_pandora_trusted_intelligence_context_v1.sql',
     '20260830220000_pandora_intelligence_reviewer_gateway_v1.sql',
@@ -297,6 +311,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260830225100_pandora_observable_acceptance_convergence_patch_v5b.sql',
     '20260830233000_pandora_self_healing_source_convergence_v1.sql',
     '20260830235000_pandora_self_healing_projection_state_patch_v2.sql',
+    '20260831040500_pandora_project_version_parent_lineage_finalize_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
