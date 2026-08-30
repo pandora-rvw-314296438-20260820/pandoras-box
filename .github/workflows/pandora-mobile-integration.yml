@@ -279,7 +279,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
           name: pandora-mobile-visual-failures
-          path: .pandora-mobile-build/test/failures
+          path: .pandora-mobile-build/test/goldens/failures
           if-no-files-found: ignore
           include-hidden-files: true
           retention-days: 7
