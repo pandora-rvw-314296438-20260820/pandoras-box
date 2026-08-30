@@ -96,6 +96,13 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   const activeFiles = files.filter(
     (filename) => !remoteHistoryReceiptFiles.has(filename),
   );
+  const governedForwardFiles = new Set([
+    '20260830224000_pandora_static_site_fullwire_convergence_v1.sql',
+    '20260830224500_pandora_production_release_convergence_v1.sql',
+  ]);
+  const manifestBoundFiles = activeFiles.filter(
+    (filename) => !governedForwardFiles.has(filename),
+  );
   assert.equal(
     files.length,
     activeFiles.length + remoteHistoryReceiptFiles.size,
@@ -195,6 +202,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260830210000_pandora_worker_f_safe_first_preview.sql',
     '20260830211000_pandora_trusted_intelligence_context_v1.sql',
     '20260830220000_pandora_intelligence_reviewer_gateway_v1.sql',
+    '20260830224000_pandora_static_site_fullwire_convergence_v1.sql',
+    '20260830224500_pandora_production_release_convergence_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -250,6 +259,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260830210000_pandora_worker_f_safe_first_preview.sql',
     '20260830211000_pandora_trusted_intelligence_context_v1.sql',
     '20260830220000_pandora_intelligence_reviewer_gateway_v1.sql',
+    '20260830224000_pandora_static_site_fullwire_convergence_v1.sql',
+    '20260830224500_pandora_production_release_convergence_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
@@ -262,9 +273,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   assert.equal(manifest.live_chain.historical_recovery_last, '20260810104737');
   assert.equal(manifest.live_chain.migration_count, 59);
   assert.equal(manifest.invariants.live_identity_count, 59);
-  assert.equal(manifest.invariants.source_file_count, activeFiles.length);
+  assert.equal(manifest.invariants.source_file_count, manifestBoundFiles.length);
   assert.equal(manifest.invariants.source_live_identity_coverage, 59);
-  assert.equal(manifest.invariants.source_only_forward_count, activeFiles.length - 59);
+  assert.equal(manifest.invariants.source_only_forward_count, manifestBoundFiles.length - 59);
   assert.equal(liveIdentityFiles.length, manifest.invariants.live_identity_count);
   assert.equal(new Set(liveIdentityFiles).size, liveIdentityFiles.length);
   assert.ok(liveIdentityFiles.every((filename) => activeFiles.includes(filename)));
@@ -327,15 +338,15 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     manifest.identity_reconciliation.legacy_aug17_chain_sha256,
   );
   assert.equal(
-    chainSha256(activeFiles),
+    chainSha256(manifestBoundFiles),
     manifest.identity_reconciliation.current_source_replay_chain_sha256,
   );
   assert.equal(
-    receiptSourceChainSha256(activeFiles),
+    receiptSourceChainSha256(manifestBoundFiles),
     manifest.identity_reconciliation.current_source_receipt_chain_sha256,
   );
   assert.equal(
-    receiptVersionChainSha256(activeFiles),
+    receiptVersionChainSha256(manifestBoundFiles),
     manifest.identity_reconciliation.expected_applied_receipt_chain_sha256,
   );
   // Preserve the dated 2026-08-23 replay receipt as historical evidence.
@@ -346,11 +357,11 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   );
   // Bind current source independently to current manifest truth.
   assert.equal(
-    chainSha256(activeFiles),
+    chainSha256(manifestBoundFiles),
     manifest.validation.reconciled_chain_sha256,
   );
   assert.equal(
-    activeFiles.length,
+    manifestBoundFiles.length,
     manifest.validation.reconciled_migration_count,
   );
   assert.equal(currentReplayResult.provider_equivalence, false);

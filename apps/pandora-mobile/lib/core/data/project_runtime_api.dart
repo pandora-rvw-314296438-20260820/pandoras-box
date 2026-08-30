@@ -75,6 +75,8 @@ class ProjectRuntimeApi {
     String? domain,
     String? idempotencyKey,
   }) async {
+    final current = await runtime(projectId);
+    final expectedProductionVersionId = current.production?.versionId;
     final normalizedDomain = domain?.trim();
     final response = await _client.postJson(
       pathSegments: <String>['projects', projectId, 'publish'],
@@ -85,6 +87,7 @@ class ProjectRuntimeApi {
       body: <String, Object?>{
         if (versionId != null && versionId.trim().isNotEmpty)
           'versionId': versionId.trim(),
+        'expectedProductionVersionId': expectedProductionVersionId,
         if (normalizedDomain != null && normalizedDomain.isNotEmpty)
           'domain': normalizedDomain,
       },
