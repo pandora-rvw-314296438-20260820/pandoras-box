@@ -149,6 +149,7 @@ jobs:
           dart format --output=none --set-exit-if-changed lib test
           format_status=$?
           if [[ "$format_status" -ne 0 ]]; then
+            dart format lib/features/simple/project_journey_flow.dart
             diff -u /tmp/project_journey_flow.before.dart lib/features/simple/project_journey_flow.dart > /tmp/project_journey_flow.format.diff || true
           fi
           exit "$format_status"
