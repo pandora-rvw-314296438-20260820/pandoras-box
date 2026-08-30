@@ -38,8 +38,10 @@ test('compiler persists only digest-and-usage ModelRun lineage with the exact co
   assert.match(migration,/project_spec_id.*request_id.*task.*output_mode.*status/s);
   assert.match(migration,/'compile_project_spec','structured','succeeded'/);
   assert.match(migration,/request_sha256=p_model_request_sha256 and response_sha256=p_model_response_sha256/);
-  assert.match(edge,/requestDigest = await sha256\(JSON\.stringify\(providerRequest\)\)/);
+  assert.match(edge,/const attemptRequestDigest = await sha256\(JSON\.stringify\(attemptRequest\)\)/);
+  assert.match(edge,/requestDigest = attemptRequestDigest/);
   assert.match(edge,/responseDigest = await sha256\(outputText\)/);
+  assert.match(edge,/structured_output_attempts: structuredOutputAttempt/);
   assert.match(edge,/p_model_request_sha256: requestDigest/);
   assert.match(edge,/p_model_response_sha256: responseDigest/);
   assert.doesNotMatch(migration,/\b(prompt_text|response_text|raw_response)\b|(^|[^A-Za-z0-9_])api_key([^A-Za-z0-9_]|$)/i);
