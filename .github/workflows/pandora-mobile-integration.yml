@@ -142,7 +142,19 @@ jobs:
 
       - name: Format
         working-directory: .pandora-mobile-build
-        run: dart format --output=none --set-exit-if-changed lib test
+        shell: bash
+        run: |
+          set +e
+          dart format --output=none --set-exit-if-changed lib test
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            dart format lib/features/simple/ask_pandora_screen.dart
+            mkdir -p test/goldens/failures
+            cp lib/features/simple/ask_pandora_screen.dart \
+              test/goldens/failures/ask_pandora_screen.formatted.dart
+            exit "$rc"
+          fi
 
       - name: Analyze
         working-directory: .pandora-mobile-build
