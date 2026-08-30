@@ -3,6 +3,13 @@ declare
   v_def text;
   nl text:=chr(10);
 begin
+  -- The source-generation queue is introduced by a later migration. Keep this
+  -- historical migration replay-safe and let the post-queue finalizer install
+  -- the lineage patch on clean databases.
+  if to_regclass('public.pandora_source_generation_queue') is null then
+    return;
+  end if;
+
   select pg_get_functiondef(p.oid) into v_def
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='private' and p.proname='pandora_commit_generated_build_intake_20260829';
@@ -23,20 +30,22 @@ begin
     if position('project_spec_id, parent_version_id, root_artifact_version_id' in v_def)=0 then raise exception 'parent column patch failed'; end if;
     execute v_def;
   end if;
-end $$;
 
-update public.pandora_project_versions pv
-set parent_version_id=q.base_version_id
-from public.pandora_build_jobs j
-join public.pandora_source_generation_queue q
-  on q.organization_id=j.organization_id
- and q.project_id=j.project_id
- and q.project_spec_id=j.project_spec_id
- and q.idempotency_key=j.idempotency_key
-where pv.id=j.target_project_version_id
-  and pv.organization_id=j.organization_id
-  and pv.project_id=j.project_id
-  and pv.parent_version_id is null
-  and q.base_version_id is not null
-  and q.base_version_id<>pv.id
-  and exists(select 1 from public.pandora_project_versions parent where parent.id=q.base_version_id and parent.organization_id=pv.organization_id and parent.project_id=pv.project_id);
+  execute $backfill$
+    update public.pandora_project_versions pv
+    set parent_version_id=q.base_version_id
+    from public.pandora_build_jobs j
+    join public.pandora_source_generation_queue q
+      on q.organization_id=j.organization_id
+     and q.project_id=j.project_id
+     and q.project_spec_id=j.project_spec_id
+     and q.idempotency_key=j.idempotency_key
+    where pv.id=j.target_project_version_id
+      and pv.organization_id=j.organization_id
+      and pv.project_id=j.project_id
+      and pv.parent_version_id is null
+      and q.base_version_id is not null
+      and q.base_version_id<>pv.id
+      and exists(select 1 from public.pandora_project_versions parent where parent.id=q.base_version_id and parent.organization_id=pv.organization_id and parent.project_id=pv.project_id)
+  $backfill$;
+end $$;
