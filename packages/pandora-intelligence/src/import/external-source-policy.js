@@ -11,6 +11,20 @@ const EXACT_COMMIT = /^[0-9a-f]{40}$/;
 const EXACT_SHA256 = /^sha256:[0-9a-f]{64}$/;
 const SAFE_PATH = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/-]+$/;
 
+/**
+ * @typedef {{
+ *   sourceId:string,
+ *   repository:string,
+ *   upstreamRepository:string,
+ *   commit:string,
+ *   mode:string,
+ *   license:string,
+ *   licenseStatus:string,
+ *   contentImportAllowed:boolean,
+ *   referenceOnly:boolean
+ * }} ExternalSourcePolicy
+ */
+/** @type {Readonly<Record<string, Readonly<ExternalSourcePolicy>>>} */
 const EXTERNAL_SOURCE_CATALOG = Object.freeze({
   awesome_claude_skills: Object.freeze({
     sourceId: 'awesome_claude_skills',
