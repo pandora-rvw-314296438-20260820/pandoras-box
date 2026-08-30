@@ -18,6 +18,22 @@ const staticCron = fs.readFileSync(
   'supabase/migrations/20260830155544_pandora_static_build_cron_v1.sql',
   'utf8',
 );
+const providerBootstrap = fs.readFileSync(
+  'supabase/migrations/20260830160159_pandora_static_build_provider_bootstrap_v3.sql',
+  'utf8',
+);
+const fallbackConvergence = fs.readFileSync(
+  'supabase/migrations/20260830160323_pandora_static_build_fallback_convergence_v4.sql',
+  'utf8',
+);
+const acceptanceV2 = fs.readFileSync(
+  'supabase/migrations/20260830160904_pandora_observable_acceptance_reverification_v5a.sql',
+  'utf8',
+);
+const verifiedRecovery = fs.readFileSync(
+  'supabase/migrations/20260830161010_pandora_verified_failure_recovery_v6.sql',
+  'utf8',
+);
 
 test('V2 Build Theatre reuses one stable initial build identity', () => {
   assert.match(
@@ -64,4 +80,34 @@ test('static convergence tick is scheduled every minute', () => {
   assert.match(staticCron, /pandora-static-build-convergence-v1/);
   assert.match(staticCron, /'\* \* \* \* \*'/);
   assert.match(staticCron, /private\.pandora_converge_static_builds_tick_20260830\(\)/);
+});
+
+
+test('static convergence bootstraps the provider project before preview work', () => {
+  assert.match(providerBootstrap, /pandora_ensure_static_build_vercel_project_20260830/);
+  assert.match(providerBootstrap, /pandora_worker_f_vercel_api_20260829/);
+  assert.match(providerBootstrap, /vercelProjectId/);
+  assert.match(providerBootstrap, /vercelProjectName/);
+});
+
+test('static convergence uses the quota-aware v2 fallback path', () => {
+  assert.match(
+    fallbackConvergence,
+    /private\.pandora_converge_static_site_build_v2_20260830\(v_job\.id\)/,
+  );
+});
+
+test('fallback verification independently proves observable acceptance', () => {
+  assert.match(acceptanceV2, /pandora_evaluate_supabase_preview_acceptance_v2_20260830/);
+  assert.match(acceptanceV2, /criteriaPassed/);
+  assert.match(acceptanceV2, /worker-e-supabase-preview-verifier-v2/);
+  assert.match(acceptanceV2, /observable-acceptance-v2/);
+  assert.match(acceptanceV2, /private\.pandora_worker_e_verify_supabase_preview_v2_20260830/);
+});
+
+test('terminal verification failures can recover only with exact independent PASS proof', () => {
+  assert.match(verifiedRecovery, /old\.error_code='VERIFICATION_FAILED'/);
+  assert.match(verifiedRecovery, /upper\(r\.status\)='PASS'/);
+  assert.match(verifiedRecovery, /r\.builder_identity is distinct from r\.verifier_identity/);
+  assert.match(verifiedRecovery, /pandora_recover_verified_static_build_20260830/);
 });
