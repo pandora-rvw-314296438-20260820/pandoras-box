@@ -104,20 +104,6 @@ class _PandoraAppIconPainter extends CustomPainter {
       ..lineTo(w * 0.58, h * 0.44)
       ..close();
 
-    final tail = Path()
-      ..moveTo(w * 0.55, h * 0.53)
-      ..cubicTo(
-        w * 0.63,
-        h * 0.63,
-        w * 0.70,
-        h * 0.76,
-        w * 0.78,
-        h * 0.91,
-      )
-      ..lineTo(w * 0.57, h * 0.82)
-      ..lineTo(w * 0.47, h * 0.64)
-      ..close();
-
     final bounds = Offset.zero & size;
     final gradient = const LinearGradient(
       begin: Alignment.topLeft,
