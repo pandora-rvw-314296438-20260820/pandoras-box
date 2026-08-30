@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pandora_mobile/core/widgets/pandora_mark.dart';
 
 import '../helpers/foundation_catalog.dart';
 import '../helpers/test_app.dart';
@@ -32,6 +33,16 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    final markFinder = find.byType(PandoraMark);
+    if (markFinder.evaluate().isNotEmpty) {
+      await tester.runAsync(() async {
+        await precacheImage(
+          const AssetImage(PandoraMark.assetPath),
+          tester.element(markFinder.first),
+        );
+      });
+      await tester.pump();
+    }
     expect(tester.takeException(), isNull);
     await expectLater(
       find.byKey(catalogKey),

@@ -61,19 +61,20 @@ jobs:
             'cp -R ../apps/pandora-mobile/platform ./platform' \
             .github/workflows/pandora-mobile-integration.yml
 
-      - name: Verify the canonical Pandora apple identity
+      - name: Verify the canonical Pandora spiral identity
         shell: bash
         run: |
           set -euo pipefail
           mark=apps/pandora-mobile/lib/core/widgets/pandora_mark.dart
+          asset=apps/pandora-mobile/assets/brand/pandora-product-mark-ui-1024.png
           android_tool=apps/pandora-mobile/tool/configure_validation_android.py
-          grep -Fq 'class _PandoraApplePainter extends CustomPainter' "$mark"
-          grep -Fq 'PathOperation.difference' "$mark"
-          grep -Fq 'Color(0xFFB72DFF)' "$mark"
-          grep -Fq 'Color(0xFF2063FF)' "$mark"
-          grep -Fq 'pandora_launcher_icon' "$android_tool"
-          grep -Fq '#FFB72DFF' "$android_tool"
-          grep -Fq '#FF2063FF' "$android_tool"
+          test "$(sha256sum "$asset" | cut -d ' ' -f1)" = \
+            '8a35b74baec47b960a42bb74587f9c531d6cbf8d45f16061836a9e63f00efcc5'
+          grep -Fq "pandora-product-mark-ui-1024.png" "$mark"
+          grep -Fq 'BlendMode.srcIn' "$mark"
+          ! grep -Fq '_PandoraApplePainter' "$mark"
+          grep -Fq 'pandora_product_mark' "$android_tool"
+          grep -Fq 'canonical Pandora spiral apple' "$android_tool"
 
       - name: Scan the candidate for private-key literals
         shell: bash
