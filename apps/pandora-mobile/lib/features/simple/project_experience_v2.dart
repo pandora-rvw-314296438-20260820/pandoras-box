@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/project_experience_api.dart';
 import '../../core/models/project_journey_models.dart';
@@ -16,43 +14,19 @@ String? _safeHttps(String? value) {
   return uri.toString();
 }
 
-Future<List<Map<String, Object?>>> _loadExactPreviewFiles({
+Future<List<Map<String, Object?>>> _loadExactPreviewFiles(
+  BuildContext context, {
   required String projectId,
   required String versionId,
 }) async {
-  final response = await Supabase.instance.client.functions.invoke(
-    'pandora-preview-content',
-    body: <String, Object?>{'projectId': projectId, 'versionId': versionId},
+  final experience = PandoraDependencies.of(context).projectExperience;
+  if (experience == null) {
+    throw StateError('Pandora preview service is unavailable');
+  }
+  return experience.loadExactPreviewFiles(
+    projectId: projectId,
+    versionId: versionId,
   );
-  final data = response.data;
-  if (data is! Map || data['kind'] != 'pandora.mobile-preview-bundle.v1') {
-    throw StateError('Invalid preview bundle');
-  }
-  final rawFiles = data['files'];
-  if (rawFiles is! List || rawFiles.isEmpty || rawFiles.length > 1000) {
-    throw StateError('Invalid preview files');
-  }
-  final files = <Map<String, Object?>>[];
-  for (final raw in rawFiles) {
-    if (raw is! Map) throw StateError('Invalid preview file');
-    final file = raw['file'];
-    final mimeType = raw['mimeType'];
-    final dataBase64 = raw['dataBase64'];
-    if (file is! String ||
-        file.trim().isEmpty ||
-        mimeType is! String ||
-        mimeType.trim().isEmpty ||
-        dataBase64 is! String ||
-        dataBase64.isEmpty) {
-      throw StateError('Invalid preview file');
-    }
-    files.add(<String, Object?>{
-      'file': file.trim(),
-      'mimeType': mimeType.trim(),
-      'dataBase64': dataBase64,
-    });
-  }
-  return files;
 }
 
 class ProjectBuildExperienceV2Screen extends StatefulWidget {
@@ -188,6 +162,7 @@ class _ProjectBuildExperienceV2ScreenState
         } catch (_) {
           try {
             final files = await _loadExactPreviewFiles(
+              context,
               projectId: widget.project.id,
               versionId: candidate.versionId,
             );
@@ -234,6 +209,7 @@ class _ProjectBuildExperienceV2ScreenState
           ? _localPreviewFiles
           : null;
       files ??= await _loadExactPreviewFiles(
+        context,
         projectId: widget.project.id,
         versionId: candidate.versionId,
       );
@@ -513,6 +489,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     setState(() => _openingPreview = true);
     try {
       final files = await _loadExactPreviewFiles(
+        context,
         projectId: widget.project.id,
         versionId: candidate.versionId,
       );

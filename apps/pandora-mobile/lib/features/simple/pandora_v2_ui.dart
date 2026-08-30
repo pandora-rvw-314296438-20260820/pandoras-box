@@ -68,23 +68,26 @@ class PandoraV2BrandHeader extends StatelessWidget {
           Semantics(
             button: true,
             label: 'Account',
-            child: InkResponse(
-              onTap: onAvatar,
-              radius: 28,
-              child: Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: PandoraV2Colors.soft,
-                  shape: BoxShape.circle,
-                ),
-                child: const Text(
-                  'M',
-                  style: TextStyle(
-                    color: PandoraV2Colors.ink,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+            child: Tooltip(
+              message: 'Open Settings',
+              child: InkResponse(
+                onTap: onAvatar,
+                radius: 28,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: PandoraV2Colors.soft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Text(
+                    'M',
+                    style: TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),

@@ -71,12 +71,17 @@ jobs:
           files = [line.strip() for line in Path('formatted-files.txt').read_text().splitlines() if line.strip()]
           allowed = {
               'apps/pandora-mobile/lib/app/pandora_shell.dart',
+              'apps/pandora-mobile/lib/pandora_config.dart',
+              'apps/pandora-mobile/lib/core/data/project_experience_api.dart',
               'apps/pandora-mobile/lib/features/simple/pandora_v2_ui.dart',
               'apps/pandora-mobile/lib/features/simple/project_create_experience.dart',
               'apps/pandora-mobile/lib/features/simple/project_experience_v2.dart',
               'apps/pandora-mobile/lib/features/simple/projects_screen.dart',
               'apps/pandora-mobile/lib/features/simple/simple_home_screen.dart',
               'apps/pandora-mobile/test/app/pandora_shell_test.dart',
+              'apps/pandora-mobile/test/architecture/foundation_source_guard_test.dart',
+              'apps/pandora-mobile/test/architecture/simple_mode_master_plan_guard_test.dart',
+              'apps/pandora-mobile/test/architecture/worker_g_create_understand_guard_test.dart',
               'apps/pandora-mobile/test/architecture/worker_g_product_experience_guard_test.dart',
           }
           if not files or any(path not in allowed for path in files):

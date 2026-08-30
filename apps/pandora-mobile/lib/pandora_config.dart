@@ -32,7 +32,7 @@ class PandoraConfig {
 
   static const appVersion = String.fromEnvironment(
     'PANDORA_APP_VERSION',
-    defaultValue: '0.3.0-rc.3+6',
+    defaultValue: '0.4.0-rc.1+7',
   );
   static String get releaseLabel => '${appVersion.split('+').first} Owner Test';
   static const artifactClass = 'Owner Test — Android debug signed';
