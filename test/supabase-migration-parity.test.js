@@ -193,6 +193,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260830104500_pandora_intelligence_chat_v1.sql',
     '20260830210000_pandora_worker_f_safe_first_preview.sql',
     '20260830211000_pandora_trusted_intelligence_context_v1.sql',
+    '20260830220000_pandora_intelligence_reviewer_gateway_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -246,6 +247,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260830104500_pandora_intelligence_chat_v1.sql',
     '20260830210000_pandora_worker_f_safe_first_preview.sql',
     '20260830211000_pandora_trusted_intelligence_context_v1.sql',
+    '20260830220000_pandora_intelligence_reviewer_gateway_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
