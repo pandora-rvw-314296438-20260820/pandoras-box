@@ -8,6 +8,7 @@ const { join } = require("node:path");
 const root = join(__dirname, "..");
 const edge = readFileSync(join(root, "supabase", "functions", "pandora-preview-content", "index.ts"), "utf8");
 const journey = readFileSync(join(root, "apps", "pandora-mobile", "lib", "features", "simple", "project_journey_flow.dart"), "utf8");
+const experience = readFileSync(join(root, "apps", "pandora-mobile", "lib", "core", "data", "project_experience_api.dart"), "utf8");
 const nativeIo = readFileSync(join(root, "apps", "pandora-mobile", "lib", "core", "platform", "pandora_native_io.dart"), "utf8");
 const android = readFileSync(join(root, "apps", "pandora-mobile", "platform", "android", "app", "src", "main", "kotlin", "com", "banataosystems", "pandora_mobile", "MainActivity.kt"), "utf8");
 
@@ -25,7 +26,9 @@ test("mobile preview content is authenticated and bound to exact artifact lineag
 });
 
 test("mobile journey can render the exact candidate when Vercel preview creation is unavailable", () => {
-  assert.match(journey, /pandora-preview-content/);
+  assert.match(journey, /loadExactPreviewFiles/);
+  assert.doesNotMatch(journey, /Supabase\.instance/);
+  assert.match(experience, /pandora-preview-content/);
   assert.match(journey, /_activateLocalPreview\(candidate\)/);
   assert.match(journey, /_hasRenderablePreview/);
   assert.match(journey, /PandoraNativeIo\.openPreviewBundle\(files\)/);
