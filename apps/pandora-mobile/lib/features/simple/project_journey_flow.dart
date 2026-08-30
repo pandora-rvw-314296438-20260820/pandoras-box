@@ -61,6 +61,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   Timer? _refreshTimer;
   bool _started = false;
   bool _buildRequestStarted = false;
+  DateTime? _lastBuildRequestAt;
   bool _previewRequestStarted = false;
   bool _refreshing = false;
   ProjectRuntimeSnapshot? _snapshot;
@@ -176,6 +177,11 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
         snapshot.preview != null) {
       return false;
     }
+    final lastRequest = _lastBuildRequestAt;
+    if (lastRequest != null &&
+        DateTime.now().difference(lastRequest) < const Duration(seconds: 20)) {
+      return false;
+    }
     final stage = snapshot.project.stage.toLowerCase();
     return stage == 'idea' || stage == 'draft' || stage == 'understanding';
   }
@@ -186,6 +192,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     if (candidate == null) {
       if (_shouldRequestBuild(snapshot)) {
         _buildRequestStarted = true;
+        _lastBuildRequestAt = DateTime.now();
         unawaited(_requestBuild());
       }
       return;
@@ -209,7 +216,10 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
         idempotencyKey: _buildIdempotencyKey,
       );
       if (!mounted) return;
-      setState(() => _error = null);
+      setState(() {
+        _error = null;
+        _buildRequestStarted = false;
+      });
       await _refreshDurableTruth();
       _scheduleRefresh();
     } on ProjectExperienceException {
@@ -428,6 +438,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
                     icon: Icons.refresh_rounded,
                     onPressed: () {
                       _buildRequestStarted = false;
+                      _lastBuildRequestAt = null;
                       _previewRequestStarted = false;
                       unawaited(_resumeBuild(requestPreviewIfNeeded: true));
                     },
