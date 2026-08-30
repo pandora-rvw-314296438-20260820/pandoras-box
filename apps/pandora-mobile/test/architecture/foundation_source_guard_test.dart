@@ -32,17 +32,20 @@ void main() {
     },
   );
 
-  test('canonical shell has five owner destinations in order', () {
+  test('canonical shell keeps three labeled owner destinations and Ask action', () {
     final source = File('lib/app/pandora_shell.dart').readAsStringSync();
     final positions = <String>[
       "'Home'",
       "'Projects'",
       "'Ask Pandora'",
-      "'Needs You'",
       "'More'",
     ].map(source.indexOf).toList(growable: false);
     expect(positions, everyElement(greaterThanOrEqualTo(0)));
     expect(List<int>.from(positions)..sort(), positions);
+    expect(source, contains('emphasized: true'));
+    expect(source, contains("selected ? 'ask-pandora-close' : 'ask-pandora-open'"));
+    expect(source, contains('onOpenNeedsYou: _openNeedsYou'));
+    expect(source, isNot(contains("_Destination('Needs You'")));
   });
 
   test('foundation geometry and minimum target are canonical', () {
