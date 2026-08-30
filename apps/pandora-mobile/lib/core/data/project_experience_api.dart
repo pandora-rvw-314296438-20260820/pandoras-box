@@ -155,6 +155,50 @@ class ProjectExperienceApi {
     }
   }
 
+  Future<List<OwnerProjectConversationTurn>> conversationHistory({
+    required String projectId,
+  }) async {
+    try {
+      final intents = await _client
+          .from('pandora_project_intents')
+          .select('id,intent_text,intent_kind,created_at')
+          .eq('organization_id', _organizationId)
+          .eq('project_id', projectId)
+          .order('created_at');
+
+      final specs = await _client
+          .from('pandora_project_specs')
+          .select(
+            'source_intent_id,status,version,project_type,'
+            'target_user_summary,business_summary,created_at',
+          )
+          .eq('organization_id', _organizationId)
+          .eq('project_id', projectId)
+          .order('version');
+
+      final latestSpecByIntent = <String, Map<String, dynamic>>{};
+      for (final raw in specs) {
+        final spec = Map<String, dynamic>.from(raw);
+        final sourceIntentId = _text(spec['source_intent_id']);
+        if (sourceIntentId.isNotEmpty) {
+          latestSpecByIntent[sourceIntentId] = spec;
+        }
+      }
+
+      return <OwnerProjectConversationTurn>[
+        for (final raw in intents)
+          _conversationTurnFromRows(
+            Map<String, dynamic>.from(raw),
+            latestSpecByIntent[_text(raw['id'])],
+          ),
+      ];
+    } on PostgrestException {
+      throw const ProjectExperienceException(
+        'Pandora could not refresh this conversation right now.',
+      );
+    }
+  }
+
   Future<void> requestBuild({
     required String projectId,
     required String idempotencyKey,
@@ -206,6 +250,61 @@ class ProjectExperienceApi {
   void beginAuthenticatedIdentityEpoch() {
     _lastCompilationRequest.clear();
   }
+}
+
+OwnerProjectConversationTurn _conversationTurnFromRows(
+  Map<String, dynamic> intent,
+  Map<String, dynamic>? spec,
+) {
+  final status = _text(spec?['status']);
+  final assistantState = switch (status) {
+    'active' => OwnerProjectUnderstandingState.ready,
+    'rejected' => OwnerProjectUnderstandingState.rejected,
+    _ => null,
+  };
+  return OwnerProjectConversationTurn(
+    intentId: _requiredText(intent['id']),
+    intentText: _text(intent['intent_text']),
+    intentKind: _text(intent['intent_kind'], fallback: 'change'),
+    createdAt: DateTime.tryParse(_text(intent['created_at'])),
+    assistantState: assistantState,
+    assistantSummary: assistantState == OwnerProjectUnderstandingState.ready
+        ? _optionalText(spec?['business_summary'])
+        : assistantState == OwnerProjectUnderstandingState.rejected
+            ? 'I need a little more direction before I can turn that into a reliable build plan.'
+            : null,
+    projectType: _optionalText(spec?['project_type']),
+    targetUsers: _optionalText(spec?['target_user_summary']),
+    specVersion: spec == null ? null : _int(spec['version']),
+    compiledAt:
+        spec == null ? null : DateTime.tryParse(_text(spec['created_at'])),
+  );
+}
+
+class OwnerProjectConversationTurn {
+  const OwnerProjectConversationTurn({
+    required this.intentId,
+    required this.intentText,
+    required this.intentKind,
+    required this.createdAt,
+    required this.assistantState,
+    required this.assistantSummary,
+    required this.projectType,
+    required this.targetUsers,
+    required this.specVersion,
+    required this.compiledAt,
+  });
+
+  final String intentId;
+  final String intentText;
+  final String intentKind;
+  final DateTime? createdAt;
+  final OwnerProjectUnderstandingState? assistantState;
+  final String? assistantSummary;
+  final String? projectType;
+  final String? targetUsers;
+  final int? specVersion;
+  final DateTime? compiledAt;
 }
 
 class ProjectExperienceException implements Exception {
