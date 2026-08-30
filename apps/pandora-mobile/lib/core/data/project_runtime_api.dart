@@ -14,7 +14,7 @@ class ProjectRuntimeApi {
   final PandoraApiClient _client;
   final IdempotencyKeyFactory _keys;
 
-  Future<CustomerProject> createProject({
+  Future<CustomerProject> createProject({jB
     required String name,
     required ProjectBuildKind buildKind,
     required String objective,
@@ -46,7 +46,7 @@ class ProjectRuntimeApi {
     );
   }
 
-  Future<ProjectPreviewResult> createPreview({
+  Future<ProjectPreviewResult> createPreview({}
     required String projectId,
     required String versionId,
     required String artifactDigest,
@@ -75,6 +75,12 @@ class ProjectRuntimeApi {
     String? domain,
     String? idempotencyKey,
   }) async {
+    // Publish is a compare-and-set mutation. Read the current production
+    // version immediately before publishing and send it as the backend
+    // precondition. A concurrent production change will then fail closed
+    // instead of being overwritten.
+    final current = await runtime(projectId);
+    final expectedProductionVersionId = current.production?.versionId;
     final normalizedDomain = domain?.trim();
     final response = await _client.postJson(
       pathSegments: <String>['projects', projectId, 'publish'],
@@ -85,6 +91,7 @@ class ProjectRuntimeApi {
       body: <String, Object?>{
         if (versionId != null && versionId.trim().isNotEmpty)
           'versionId': versionId.trim(),
+        'expectedProductionVersionId': expectedProductionVersionId,
         if (normalizedDomain != null && normalizedDomain.isNotEmpty)
           'domain': normalizedDomain,
       },
