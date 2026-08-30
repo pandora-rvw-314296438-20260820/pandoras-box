@@ -1,7 +1,9 @@
 
 'use strict';
 
+/** @type {Readonly<Record<string, number>>} */
 const COST_RANK = Object.freeze({ low: 1, medium: 2, high: 3 });
+/** @type {Readonly<Record<string, number>>} */
 const RELIABILITY_RANK = Object.freeze({ experimental: 1, standard: 2, high: 3 });
 
 /** @param {unknown} value @param {string} field */

@@ -4,6 +4,7 @@
 const { assertNoCredentialMaterial } = require('../security/secret-boundary.js');
 const { digestValue } = require('../lineage/ai-execution-receipt.js');
 
+/** @type {Readonly<Record<string, number>>} */
 const REASONING_RANK = Object.freeze({ low: 1, standard: 2, high: 3 });
 
 /** @param {unknown} value @param {string} field */

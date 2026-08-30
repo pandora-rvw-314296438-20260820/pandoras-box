@@ -4,14 +4,14 @@
 const crypto = require('node:crypto');
 const { assertNoCredentialMaterial } = require('../security/secret-boundary.js');
 
-/** @param {unknown} value */
+/** @param {unknown} value @returns {string} */
 function stableJson(value) {
   if (value === undefined) return 'null';
   if (value === null || typeof value !== 'object') {
     const encoded = JSON.stringify(value);
     return encoded === undefined ? 'null' : encoded;
   }
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (Array.isArray(value)) return `[${value.map((item) => stableJson(item)).join(',')}]`;
   const record = /** @type {Record<string, unknown>} */ (value);
   return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`).join(',')}}`;
 }
