@@ -15,7 +15,7 @@ test('static source generation rejects placeholder-only pages before build intak
   assert.match(generator, /MIN_STATIC_INDEX_BYTES = 1024/);
   assert.match(generator, /name=\["'\]viewport/);
   assert.match(generator, /coming soon\|placeholder\).*normalizedIndex/);
-  assert.match(generator, /never replace a complete product with a loading shell/);
+  assert.match(generator, /Build a complete first working version; never return a loading shell, placeholder, or skeletal page/);
 });
 
 test('static fallback persists capability before independent verification', () => {
