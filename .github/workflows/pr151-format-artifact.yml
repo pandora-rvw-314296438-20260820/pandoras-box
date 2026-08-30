@@ -1,0 +1,43 @@
+name: PR151 exact formatter artifact
+
+on:
+  push:
+    branches:
+      - feature/project-conversation-prototype-20260830
+    paths:
+      - .github/workflows/pr151-format-artifact.yml
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.after }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Format only the PR 151 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/pandora-mobile
+          dart format             lib/core/data/project_experience_api.dart             lib/features/simple/project_create_experience.dart             lib/features/simple/project_conversation_screen.dart             lib/features/simple/project_iteration_experience.dart             test/architecture/worker_g_create_understand_guard_test.dart
+      - name: Upload normalized files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pr151-formatted-files
+          path: |
+            apps/pandora-mobile/lib/core/data/project_experience_api.dart
+            apps/pandora-mobile/lib/features/simple/project_create_experience.dart
+            apps/pandora-mobile/lib/features/simple/project_conversation_screen.dart
+            apps/pandora-mobile/lib/features/simple/project_iteration_experience.dart
+            apps/pandora-mobile/test/architecture/worker_g_create_understand_guard_test.dart
+          if-no-files-found: error
+          retention-days: 1
