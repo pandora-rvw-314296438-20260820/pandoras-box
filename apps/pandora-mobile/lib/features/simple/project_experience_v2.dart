@@ -174,7 +174,8 @@ class _ProjectBuildExperienceV2ScreenState
             _previewRequested = false;
             if (mounted) {
               setState(
-                () => _error = 'Pandora found something to resolve before your first version can open.',
+                () => _error =
+                    'Pandora found something to resolve before your first version can open.',
               );
             }
           }
@@ -250,127 +251,128 @@ class _ProjectBuildExperienceV2ScreenState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: PandoraV2Colors.canvas,
-    body: SafeArea(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: PandoraV2ObjectHeader(
-              title: widget.project.name,
-              subtitle: _ready ? 'Ready' : 'Working',
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: PandoraV2Colors.surface,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: PandoraV2Colors.line),
+        backgroundColor: PandoraV2Colors.canvas,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: PandoraV2ObjectHeader(
+                  title: widget.project.name,
+                  subtitle: _ready ? 'Ready' : 'Working',
                 ),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: Padding(
-                        padding: const EdgeInsets.all(26),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.project.name.toUpperCase(),
-                              style: const TextStyle(
-                                color: PandoraV2Colors.muted,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.8,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              _stageTitle,
-                              style: const TextStyle(
-                                color: PandoraV2Colors.ink,
-                                fontSize: 31,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -1.0,
-                                height: 1.05,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(_stageMessage, style: pandoraV2Muted),
-                            const Spacer(),
-                            if (!_ready)
-                              const LinearProgressIndicator(
-                                minHeight: 2,
-                                color: PandoraV2Colors.ink,
-                                backgroundColor: PandoraV2Colors.soft,
-                              ),
-                          ],
-                        ),
-                      ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: PandoraV2Colors.surface,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: PandoraV2Colors.line),
                     ),
-                    if (_ready)
-                      Positioned(
-                        right: 18,
-                        top: 18,
-                        child: IconButton.filled(
-                          tooltip: 'Open exact preview',
-                          onPressed: _openingPreview ? null : _openExactPreview,
-                          style: IconButton.styleFrom(
-                            backgroundColor: PandoraV2Colors.ink,
-                            foregroundColor: Colors.white,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.all(26),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.project.name.toUpperCase(),
+                                  style: const TextStyle(
+                                    color: PandoraV2Colors.muted,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.8,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  _stageTitle,
+                                  style: const TextStyle(
+                                    color: PandoraV2Colors.ink,
+                                    fontSize: 31,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -1.0,
+                                    height: 1.05,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(_stageMessage, style: pandoraV2Muted),
+                                const Spacer(),
+                                if (!_ready)
+                                  const LinearProgressIndicator(
+                                    minHeight: 2,
+                                    color: PandoraV2Colors.ink,
+                                    backgroundColor: PandoraV2Colors.soft,
+                                  ),
+                              ],
+                            ),
                           ),
-                          icon: const Icon(Icons.open_in_full_rounded),
                         ),
+                        if (_ready)
+                          Positioned(
+                            right: 18,
+                            top: 18,
+                            child: IconButton.filled(
+                              tooltip: 'Open exact preview',
+                              onPressed:
+                                  _openingPreview ? null : _openExactPreview,
+                              style: IconButton.styleFrom(
+                                backgroundColor: PandoraV2Colors.ink,
+                                foregroundColor: Colors.white,
+                              ),
+                              icon: const Icon(Icons.open_in_full_rounded),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                child: Column(
+                  children: [
+                    if (_error != null) ...[
+                      PandoraV2InlineMessage(
+                        title: 'This needs another try',
+                        message: _error!,
+                        actionLabel: 'Try again',
+                        onAction: () {
+                          setState(() {
+                            _error = null;
+                            _previewRequested = false;
+                          });
+                          unawaited(_refreshAndAdvance());
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (_ready)
+                      PandoraV2PrimaryAction(
+                        label: 'Open project',
+                        icon: Icons.arrow_forward_rounded,
+                        onPressed: () {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ProjectWorkspaceV2Screen(
+                                project: _snapshot?.project ?? widget.project,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                   ],
                 ),
               ),
-            ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
-            child: Column(
-              children: [
-                if (_error != null) ...[
-                  PandoraV2InlineMessage(
-                    title: 'This needs another try',
-                    message: _error!,
-                    actionLabel: 'Try again',
-                    onAction: () {
-                      setState(() {
-                        _error = null;
-                        _previewRequested = false;
-                      });
-                      unawaited(_refreshAndAdvance());
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                if (_ready)
-                  PandoraV2PrimaryAction(
-                    label: 'Open project',
-                    icon: Icons.arrow_forward_rounded,
-                    onPressed: () {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute<void>(
-                          builder: (_) => ProjectWorkspaceV2Screen(
-                            project: _snapshot?.project ?? widget.project,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 class ProjectWorkspaceV2Screen extends StatefulWidget {
@@ -747,7 +749,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       }
       if (project?.runtimeStatus == 'failed') {
         setState(
-          () => _error = 'Pandora found something to resolve before this version can go live.',
+          () => _error =
+              'Pandora found something to resolve before this version can go live.',
         );
         return;
       }
@@ -801,8 +804,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   @override
   Widget build(BuildContext context) {
-    final objective = (_snapshot?.project.objective ?? widget.project.objective)
-        .trim();
+    final objective =
+        (_snapshot?.project.objective ?? widget.project.objective).trim();
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
       resizeToAvoidBottomInset: true,
