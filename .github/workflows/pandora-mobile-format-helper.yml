@@ -1,0 +1,51 @@
+name: Pandora mobile format helper
+
+on:
+  pull_request:
+    paths:
+      - 'apps/pandora-mobile/**'
+      - '.github/workflows/pandora-mobile-format-helper.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - name: Format V2 sources
+        run: |
+          dart format \
+            apps/pandora-mobile/lib/app/pandora_shell.dart \
+            apps/pandora-mobile/lib/features/simple/pandora_v2_ui.dart \
+            apps/pandora-mobile/lib/features/simple/project_create_experience.dart \
+            apps/pandora-mobile/lib/features/simple/project_experience_v2.dart \
+            apps/pandora-mobile/lib/features/simple/projects_screen.dart \
+            apps/pandora-mobile/lib/features/simple/simple_home_screen.dart \
+            apps/pandora-mobile/test/architecture/worker_g_product_experience_guard_test.dart
+      - name: Stage formatted sources
+        run: |
+          mkdir -p formatted/apps/pandora-mobile/lib/app
+          mkdir -p formatted/apps/pandora-mobile/lib/features/simple
+          mkdir -p formatted/apps/pandora-mobile/test/architecture
+          cp apps/pandora-mobile/lib/app/pandora_shell.dart formatted/apps/pandora-mobile/lib/app/
+          cp apps/pandora-mobile/lib/features/simple/pandora_v2_ui.dart formatted/apps/pandora-mobile/lib/features/simple/
+          cp apps/pandora-mobile/lib/features/simple/project_create_experience.dart formatted/apps/pandora-mobile/lib/features/simple/
+          cp apps/pandora-mobile/lib/features/simple/project_experience_v2.dart formatted/apps/pandora-mobile/lib/features/simple/
+          cp apps/pandora-mobile/lib/features/simple/projects_screen.dart formatted/apps/pandora-mobile/lib/features/simple/
+          cp apps/pandora-mobile/lib/features/simple/simple_home_screen.dart formatted/apps/pandora-mobile/lib/features/simple/
+          cp apps/pandora-mobile/test/architecture/worker_g_product_experience_guard_test.dart formatted/apps/pandora-mobile/test/architecture/
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pandora-mobile-v2-formatted-${{ github.event.pull_request.head.sha }}
+          path: formatted
+          include-hidden-files: true
+          retention-days: 1
