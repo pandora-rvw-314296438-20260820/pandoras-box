@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
@@ -38,6 +39,8 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
   final IdempotencyKeyFactory _keys = IdempotencyKeyFactory();
   final List<_ChatMessage> _messages = <_ChatMessage>[];
   PandoraTextAttachment? _attachment;
+  PandoraImageAttachment? _imageAttachment;
+  String? _threadId;
   bool _submitting = false;
   bool _outcomeUnknown = false;
   String? _submissionKey;
@@ -100,13 +103,6 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
     });
   }
 
-  String _message(String objective) => [
-        'Owner request: $objective',
-        if (_attachment != null) _attachment!.promptBlock,
-        'Infer the correct Pandora workflow from the owner request.',
-        'Preserve Pandora governance, verification, approvals, and rollback controls.',
-      ].join('\n\n');
-
   Future<void> _submit() async {
     final objective = _objective.text.trim();
     if (objective.isEmpty) {
@@ -118,47 +114,86 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
       _submitting = true;
       _error = null;
     });
-    _submissionKey ??= _keys.create('simple-intake');
     try {
-      final receipt = await PandoraDependencies.of(context)
-          .repository
-          .ask(message: _message(objective), idempotencyKey: _submissionKey);
+      final dependencies = PandoraDependencies.of(context);
+      final intelligence = dependencies.intelligence;
+      if (intelligence == null) {
+        _submissionKey ??= _keys.create('simple-intake');
+        final receipt = await dependencies.repository.ask(
+          message: objective,
+          idempotencyKey: _submissionKey,
+        );
+        if (!mounted) return;
+        setState(() {
+          _messages.add(_ChatMessage.user(objective));
+          _messages.add(_ChatMessage.pandora(receipt.reply));
+          _objective.clear();
+          _attachment = null;
+          _imageAttachment = null;
+          _submissionKey = null;
+        });
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                BuildProgressScreen(receipt: receipt, request: objective),
+          ),
+        );
+        return;
+      }
+
+      final turn = await intelligence.chat(
+        message: objective,
+        threadId: _threadId,
+        textAttachment: _attachment,
+        imageAttachment: _imageAttachment,
+      );
       if (!mounted) return;
-      final reply = receipt.reply.trim().isEmpty
-          ? 'I received that. I am opening the governed build flow now.'
-          : receipt.reply.trim();
       setState(() {
+        _threadId = turn.threadId;
         _messages.add(_ChatMessage.user(objective));
-        _messages.add(_ChatMessage.pandora(reply));
+        _messages.add(_ChatMessage.pandora(turn.reply));
         _objective.clear();
         _attachment = null;
-        _submissionKey = null;
+        _imageAttachment = null;
         _outcomeUnknown = false;
       });
+
+      final handoff = turn.handoff;
+      if (handoff == null) return;
+      _submissionKey ??= _keys.create('intelligence-handoff');
+      final receipt = await dependencies.repository.ask(
+        message: handoff.request,
+        projectId: handoff.projectId,
+        idempotencyKey: _submissionKey,
+      );
+      if (!mounted) return;
+      setState(() => _submissionKey = null);
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) =>
               BuildProgressScreen(receipt: receipt, request: objective),
         ),
       );
+    } on PandoraIntelligenceException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _submissionKey = null;
+      });
     } on PandoraRepositoryException catch (error) {
       if (!mounted) return;
       setState(() {
         _outcomeUnknown = error.outcomeMayBeUnknown;
-        if (error.outcomeMayBeUnknown) {
-          _error =
-              '${error.message} Pandora will not retry this write. Check Activity before sending another request.';
-        } else {
-          _error = error.message;
-          _submissionKey = null;
-        }
+        _error = error.outcomeMayBeUnknown
+            ? '${error.message} Pandora will not retry this write. Check Activity before sending another request.'
+            : error.message;
+        if (!error.outcomeMayBeUnknown) _submissionKey = null;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _outcomeUnknown = true;
-        _error =
-            'Pandora could not confirm whether the request was received. It will not retry the write. Check Activity first.';
+        _error = 'Pandora intelligence is temporarily unavailable.';
+        _submissionKey = null;
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -179,6 +214,8 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
       _messages.clear();
       _objective.clear();
       _attachment = null;
+      _imageAttachment = null;
+      _threadId = null;
       _error = null;
       _outcomeUnknown = false;
       _submissionKey = null;
@@ -186,14 +223,25 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
     _objectiveFocus.requestFocus();
   }
 
-  void _visualAttachmentUnavailable(String source) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '$source is visible here as part of the chat attachment menu. Visual upload transport is not enabled in this validation build yet.',
+  Future<void> _pickImage({required bool camera}) async {
+    final image = camera
+        ? await PandoraNativeIo.takePhoto()
+        : await PandoraNativeIo.pickPhoto();
+    if (!mounted) return;
+    if (image == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(camera
+              ? 'No camera image was attached.'
+              : 'No supported photo was attached.'),
         ),
-      ),
-    );
+      );
+      return;
+    }
+    setState(() {
+      _imageAttachment = image;
+      _error = null;
+    });
   }
 
   @override
@@ -219,6 +267,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
                 controller: _objective,
                 focusNode: _objectiveFocus,
                 attachment: _attachment,
+                imageAttachment: _imageAttachment,
                 error: _error,
                 submitting: _submitting,
                 disabled: _outcomeUnknown,
@@ -228,12 +277,13 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
                 onHome: widget.onHome,
                 onProjects: widget.onProjects,
                 onMore: widget.onMore,
-                onCamera: () => _visualAttachmentUnavailable('Camera'),
-                onPhotos: () => _visualAttachmentUnavailable('Photos'),
+                onCamera: () => _pickImage(camera: true),
+                onPhotos: () => _pickImage(camera: false),
                 onAttach: _attach,
                 onDictate: _dictate,
                 onSubmit: _submit,
                 onRemoveAttachment: () => setState(() => _attachment = null),
+                onRemoveImage: () => setState(() => _imageAttachment = null),
               ),
             ],
           ),
