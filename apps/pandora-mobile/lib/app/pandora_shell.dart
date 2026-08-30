@@ -106,7 +106,6 @@ class _PandoraShellState extends State<PandoraShell> {
     });
   }
 
-
   void _select(int value) {
     if (value < 0 || value >= _destinations.length) return;
     if (value == _index) {
