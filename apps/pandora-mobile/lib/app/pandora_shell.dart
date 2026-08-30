@@ -1,3 +1,4 @@
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -20,6 +21,7 @@ class PandoraShell extends StatefulWidget {
 }
 
 class _PandoraShellState extends State<PandoraShell> {
+  static const _askIndex = 2;
   static const _destinations = <_Destination>[
     _Destination('Home', Icons.home_outlined, Icons.home_rounded),
     _Destination('Projects', Icons.folder_outlined, Icons.folder_rounded),
@@ -28,11 +30,6 @@ class _PandoraShellState extends State<PandoraShell> {
       Icons.auto_awesome_outlined,
       Icons.auto_awesome_rounded,
       emphasized: true,
-    ),
-    _Destination(
-      'Needs You',
-      Icons.notifications_none_rounded,
-      Icons.notifications_rounded,
     ),
     _Destination('More', Icons.menu_outlined, Icons.menu_rounded),
   ];
@@ -61,15 +58,14 @@ class _PandoraShellState extends State<PandoraShell> {
         index,
         () => switch (index) {
           0 => SimpleHomeScreen(
-              onAskPandora: (prompt) => _openAskPandora(prompt),
+              onAskPandora: _openAskPandora,
               onOpenSystems: () => _select(1),
-              onOpenNeedsYou: () => _select(3),
-              onOpenMore: () => _select(4),
+              onOpenNeedsYou: _openNeedsYou,
+              onOpenMore: () => _select(3),
             ),
           1 => const ProjectsScreen(),
           2 => const AskPandoraScreen(),
-          3 => const ApprovalsScreen(),
-          4 => const MoreScreen(),
+          3 => const MoreScreen(),
           _ => const SimpleHomeScreen(),
         },
       );
@@ -82,10 +78,17 @@ class _PandoraShellState extends State<PandoraShell> {
         ),
       );
 
+  void _openNeedsYou() {
+    final navigator = _navigatorKeys[0].currentState;
+    navigator?.push(
+      MaterialPageRoute<void>(builder: (_) => const ApprovalsScreen()),
+    );
+  }
+
   void _openAskPandora([String? prompt]) {
-    _select(2);
+    _select(_askIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final navigator = _navigatorKeys[2].currentState;
+      final navigator = _navigatorKeys[_askIndex].currentState;
       if (navigator == null || prompt == null || prompt.trim().isEmpty) return;
       navigator.push(
         MaterialPageRoute<void>(
@@ -95,8 +98,20 @@ class _PandoraShellState extends State<PandoraShell> {
     });
   }
 
+  void _closeAskPandora() {
+    final navigator = _navigatorKeys[_askIndex].currentState;
+    if (navigator != null && navigator.canPop()) {
+      navigator.popUntil((route) => route.isFirst);
+    }
+    _select(0);
+  }
+
   void _select(int value) {
     if (value < 0 || value >= _destinations.length) return;
+    if (value == _askIndex && _index == _askIndex) {
+      _closeAskPandora();
+      return;
+    }
     if (value == _index) {
       final navigator = _navigatorKeys[value].currentState;
       if (navigator != null && navigator.canPop()) {
@@ -113,8 +128,7 @@ class _PandoraShellState extends State<PandoraShell> {
       0 => 'home',
       1 => 'projects',
       2 => 'ask_pandora',
-      3 => 'needs_you',
-      4 => 'more',
+      3 => 'more',
       _ => 'home',
     };
     unawaited(
@@ -238,27 +252,22 @@ class _PandoraShellState extends State<PandoraShell> {
                     groupAlignment: -0.55,
                     leading: const Padding(
                       padding: EdgeInsets.only(top: 18, bottom: 18),
-                      child: PandoraMark(
-                        size: 44,
-                        color: PandoraSimpleColors.red,
-                      ),
+                      child: PandoraMark(size: 44),
                     ),
                     destinations: [
-                      for (final destination in _destinations)
+                      for (var index = 0;
+                          index < _destinations.length;
+                          index++)
                         NavigationRailDestination(
-                          icon: destination.emphasized
-                              ? const PandoraMark(
-                                  size: 25,
-                                  color: PandoraSimpleColors.red,
-                                )
-                              : Icon(destination.icon),
-                          selectedIcon: destination.emphasized
-                              ? const PandoraMark(
-                                  size: 27,
-                                  color: PandoraSimpleColors.deepRed,
-                                )
-                              : Icon(destination.selectedIcon),
-                          label: Text(destination.label),
+                          icon: _destinations[index].emphasized
+                              ? const PandoraMark(size: 25)
+                              : Icon(_destinations[index].icon),
+                          selectedIcon: _destinations[index].emphasized
+                              ? const Icon(Icons.close_rounded, size: 28)
+                              : Icon(_destinations[index].selectedIcon),
+                          label: _destinations[index].emphasized
+                              ? const SizedBox.shrink()
+                              : Text(_destinations[index].label),
                         ),
                     ],
                   ),
@@ -305,7 +314,7 @@ class _PandoraBottomBar extends StatelessWidget {
         child: SafeArea(
           top: false,
           child: SizedBox(
-            height: 86,
+            height: 80,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -343,44 +352,42 @@ class _BottomDestination extends StatelessWidget {
       return Semantics(
         selected: selected,
         button: true,
-        label: destination.label,
-        child: InkResponse(
-          onTap: onTap,
-          radius: 42,
-          child: Transform.translate(
-            offset: const Offset(0, -15),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 66,
-                  height: 66,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: PandoraSimpleColors.red,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 5),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x36000000),
-                        blurRadius: 16,
-                        offset: Offset(0, 7),
-                      ),
-                    ],
-                  ),
-                  child: const PandoraMark(size: 34, color: Colors.white),
+        label: selected
+            ? 'Close Ask Pandora and return Home'
+            : 'Ask Pandora',
+        child: Tooltip(
+          message: selected ? 'Back to Home' : 'Ask Pandora',
+          child: InkResponse(
+            onTap: onTap,
+            radius: 42,
+            child: Transform.translate(
+              offset: const Offset(0, -13),
+              child: Container(
+                width: 62,
+                height: 62,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? PandoraSimpleColors.ink
+                      : PandoraSimpleColors.red,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x30000000),
+                      blurRadius: 15,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  destination.label,
-                  maxLines: 1,
-                  style: const TextStyle(
-                    color: PandoraSimpleColors.deepRed,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+                child: selected
+                    ? const Icon(
+                        Icons.close_rounded,
+                        color: Colors.white,
+                        size: 30,
+                      )
+                    : const PandoraMark(size: 32, color: Colors.white),
+              ),
             ),
           ),
         ),
@@ -395,7 +402,7 @@ class _BottomDestination extends StatelessWidget {
         onTap: onTap,
         radius: 34,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 12, 2, 8),
+          padding: const EdgeInsets.fromLTRB(2, 12, 2, 7),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -404,7 +411,7 @@ class _BottomDestination extends StatelessWidget {
                 color: foreground,
                 size: 27,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 5),
               Text(
                 destination.label,
                 maxLines: 1,
@@ -415,10 +422,10 @@ class _BottomDestination extends StatelessWidget {
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                width: selected ? 34 : 0,
+                width: selected ? 32 : 0,
                 height: 3,
                 decoration: BoxDecoration(
                   color: PandoraSimpleColors.red,
