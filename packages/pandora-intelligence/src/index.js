@@ -7,6 +7,8 @@ module.exports = {
   ...require('./validation/structured-output.js'),
   ...require('./security/secret-boundary.js'),
   ...require('./prompts/templates.js'),
+  ...require('./prompts/trusted-material-registry.js'),
+  ...require('./prompts/trusted-context-bundle.js'),
   ...require('./providers/gemini.js'),
   ...require('./routing/policy.js'),
   ...require('./routing/model-router.js'),
