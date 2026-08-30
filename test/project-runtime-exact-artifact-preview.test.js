@@ -48,6 +48,8 @@ test("provider READY maps only to ready_for_verification and ambiguous create is
   assert.match(provider, /PREVIEW_RECONCILIATION_REQUIRED/);
   assert.match(preview, /ready \? "ready_for_verification"/);
   assert.match(preview, /verificationState = ready \? "ready_for_verification"/);
+  assert.match(preview, /new Set\(\["failed", "uncertain"\]\)\.has\(status\)/);
+  assert.match(preview, /\.eq\("id", existing\.id\)\.eq\("status", status\)/);
   assert.doesNotMatch(preview, /live_verified/);
 });
 
