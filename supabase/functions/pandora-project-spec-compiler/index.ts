@@ -298,7 +298,17 @@ Deno.serve(async (req) => {
       p_model_revision: modelRevision,
     });
     if (commitError || text(record(committed).state) !== "succeeded") throw new Error("COMMIT_FAILED");
-    return response({ ok: true, state: "ready" });
+    const committedSpec = record(committed);
+    const projectSpecId = text(committedSpec.projectSpecId);
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(projectSpecId)) throw new Error("COMMIT_FAILED");
+    const { data: primitiveResolution, error: primitiveResolutionError } = await admin.rpc(
+      "pandora_worker_i_resolve_project_spec_primitives_20260831",
+      { p_project_spec_id: projectSpecId, p_require_trusted: false },
+    );
+    if (primitiveResolutionError) throw new Error("PRIMITIVE_SELECTION_UNAVAILABLE");
+    const primitiveState = text(record(primitiveResolution).state);
+    if (!["READY", "BLOCKED"].includes(primitiveState)) throw new Error("PRIMITIVE_SELECTION_UNAVAILABLE");
+    return response({ ok: true, state: "ready", primitiveSelectionState: primitiveState });
   } catch (error) {
     const code = error instanceof Error ? error.message : "COMPILATION_FAILED";
     if (claimToken && intentId) await markFailed(adminClient(), intentId, claimToken, code);
