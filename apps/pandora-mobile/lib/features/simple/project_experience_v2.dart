@@ -320,7 +320,7 @@ class _ProjectBuildExperienceV2ScreenState
                                 height: 1.05,
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox( height: 12),
                             Text(_stageMessage, style: pandoraV2Muted),
                             if (widget.project.objective.trim().isNotEmpty) ...[
                               const SizedBox(height: 26),
@@ -380,7 +380,7 @@ class _ProjectBuildExperienceV2ScreenState
                       unawaited(_refreshAndAdvance());
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox( height: 12),
                 ],
                 if (_ready)
                   PandoraV2PrimaryAction(
