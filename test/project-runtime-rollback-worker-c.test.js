@@ -38,7 +38,7 @@ test('supabase static production has a governed rollback executor with Worker E 
   assert.match(migration, /pandora_worker_e_verify_supabase_production_20260831/);
   assert.match(migration, /pandora_finalize_verified_production_20260830/);
   assert.match(migration, /v_operation_key,'rollback'/);
-  assert.match(migration, /authorization_ref,v_authorization_ref/);
+  assert.match(migration, /set authorization_ref=v_authorization_ref/);
 });
 
 test('vercel rollback keeps target as production candidate until verification and rolls back the prior live version only after verification', () => {
