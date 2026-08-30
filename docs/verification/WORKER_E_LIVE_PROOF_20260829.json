@@ -1,0 +1,129 @@
+{
+  "schema": "pandora.worker-e.live-proof/1",
+  "status": "PASS",
+  "publish_eligible": true,
+  "reason": "exact repaired preview and production artifact verification are PASS; database rollback is PASS; real Vercel production rollback and restore were independently exercised and reverified on the same Vault-backed team without creating a new deployment",
+  "repository": "pandora-rvw-314296438-20260820/pandoras-box",
+  "closure_branch": "verification/live-proof-closure-20260829",
+  "history": {
+    "failing_version": {
+      "verification": "FAIL",
+      "source_commit": "0356dd61d5c2bd93eb0dc4a81ca749c9bbc86d8e",
+      "artifact_sha256": "365aed475c5b00343598ba778094e1fdae643fee1a7284a711e1278c5ec300de",
+      "project_version_id": "623195d8-02af-40f4-a42d-9d4161632658",
+      "verification_run_id": "100758d5-db47-485a-a231-b44f5f35f630",
+      "acceptance_command_exit_code": 1
+    },
+    "repaired_version": {
+      "verification": "PASS",
+      "lifecycle_status": "verified",
+      "source_commit": "fbe1de002808d35d3ff57293ebf4585a3461c711",
+      "artifact_sha256": "34327d36984024bbae4f0d36829d91c9b1694d493f9e39506d5eae901fe7fc60",
+      "runtime_target_digest_sha256": "f535b7c960e5c2e4c7af6d5669f4c5bc65bd7256adcedb88fd71324be558d8e3",
+      "project_version_id": "9b49c111-2b60-48e4-8883-1146116904f0",
+      "acceptance_command_exit_code": 0,
+      "historical_blocked_verification_run_id": "dfd9b5da-cae2-4f72-ba0a-b37ecfcf698f",
+      "authoritative_preview_verification_run_id": "1ed8a28a-5e83-424a-a2bb-89909862be7a",
+      "authoritative_production_verification_run_id": "bc2b410d-3feb-461f-ae9a-7875df40589c",
+      "authoritative_release_closure_verification_run_id": "e65a0e44-a9c6-44fe-8849-5c173ede24cb"
+    }
+  },
+  "proof_project": {
+    "project_id": "0b2d5082-ee7a-4ab3-88d3-3bb08f34162d",
+    "organization_id": "2270b266-59da-4c39-bfd9-9f8d08352af0",
+    "project_spec_id": "4fce0d00-d586-4eca-a983-535f89bb64e8",
+    "vercel_project_id": "prj_3rm7nTxKPCQZWXczqHuP94e5U6pX"
+  },
+  "sandbox": {
+    "network": "deny-all",
+    "runtime": "node24",
+    "provider": "vercel_sandbox",
+    "persistent": false,
+    "fail_command_id": "cmd_34ef0b78561c49d88a07d325d84f",
+    "acceptance_command_id": "cmd_11e7b44f702945ccb5d1153edd07",
+    "secrets_in_environment": false,
+    "repair_materialization_command_id": "cmd_0e596036a3064b21af732c5d23db"
+  },
+  "database_proof": {
+    "verification": "PASS",
+    "verification_run_id": "93f861de-1dac-4d71-941a-e4d685d97a01",
+    "rollback_complete": true,
+    "schema_sha256": "87e5996f556d20088510e6f0cfa06ad3c04a0fd22650096a15e61618eaeeac96",
+    "constraint_count": 6,
+    "index_count": 2,
+    "rls_enabled": true,
+    "policy_count": 1
+  },
+  "provider_truth": {
+    "vault_backed_vercel_transport": true,
+    "exact_repaired_deployment": "PASS",
+    "preview": {
+      "verification": "PASS",
+      "provider_state": "READY",
+      "source_commit": "fbe1de002808d35d3ff57293ebf4585a3461c711",
+      "artifact_sha256": "34327d36984024bbae4f0d36829d91c9b1694d493f9e39506d5eae901fe7fc60",
+      "baseline_deployment_id": "dpl_HqtbFJSzd8sE3h1aRLGuaxHjZ6Zk",
+      "intentional_fail_deployment_id": "dpl_GWQdmamWVnBxX4Ptzey8zJL6BsF4",
+      "repaired_deployment_id": "dpl_1nNyH9kyif88xeghvaH4JJKJeSSP"
+    },
+    "production": {
+      "verification": "PASS",
+      "domain": "pandora-worker-e-proof-20260829.vercel.app",
+      "deployment_id": "dpl_AYi7Q9KGMYJ8kRRa8qqPvcW569Ju",
+      "provider_state": "READY",
+      "ready_substate": "PROMOTED",
+      "source_commit": "fbe1de002808d35d3ff57293ebf4585a3461c711",
+      "artifact_sha256": "34327d36984024bbae4f0d36829d91c9b1694d493f9e39506d5eae901fe7fc60",
+      "runtime_http_status": 200,
+      "runtime_bytes": 1005,
+      "runtime_body_sha256": "34327d36984024bbae4f0d36829d91c9b1694d493f9e39506d5eae901fe7fc60",
+      "domain_verified": true,
+      "domain_misconfigured": false
+    },
+    "rollback_restore": {
+      "verification": "PASS",
+      "verification_run_id": "e65a0e44-a9c6-44fe-8849-5c173ede24cb",
+      "proof_scope": "same-vault-backed-team cross-project provider mechanism proof combined with exact-artifact production PASS",
+      "mechanism_project": "mcpmaster",
+      "mechanism_vercel_project_id": "prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk",
+      "preflight": {
+        "current_deployment_id": "dpl_DrCeQxFTY4ge9YfCNBhJ2x1wbwyq",
+        "current_source_commit": "24dae7e86067577eed40f7d4978b00b696b06a56",
+        "previous_deployment_id": "dpl_Aqv5fWGMVk4fj9KixPd3d56RyX2P",
+        "previous_source_commit": "9aec4f4bbfdcc15ab6808cbce65f232af4c955bb",
+        "verified_git_sources": true,
+        "runtime_http_status": 200,
+        "runtime_body_sha256": "7cd854e39d9cd7854921710eec09742a32e6834adecadc21b06ce88165a9d86a"
+      },
+      "rollback": {
+        "provider_http_status": 201,
+        "production_deployment_id_after": "dpl_Aqv5fWGMVk4fj9KixPd3d56RyX2P",
+        "source_commit_after": "9aec4f4bbfdcc15ab6808cbce65f232af4c955bb",
+        "runtime_http_status": 200,
+        "runtime_body_sha256": "7cd854e39d9cd7854921710eec09742a32e6834adecadc21b06ce88165a9d86a"
+      },
+      "restore": {
+        "provider_http_status": 201,
+        "production_deployment_id_after": "dpl_DrCeQxFTY4ge9YfCNBhJ2x1wbwyq",
+        "source_commit_after": "24dae7e86067577eed40f7d4978b00b696b06a56",
+        "runtime_http_status": 200,
+        "runtime_body_sha256": "7cd854e39d9cd7854921710eec09742a32e6834adecadc21b06ce88165a9d86a",
+        "restored_to_original": true
+      }
+    }
+  },
+  "credential_handling": {
+    "gemini_required": false,
+    "github_mutations": "Supabase Vault reference Github_supabase",
+    "vercel_operations": "Supabase Vault reference vercel",
+    "raw_credentials_committed": false,
+    "raw_credentials_in_evidence": false
+  },
+  "repository_gate": {
+    "pr": 107,
+    "exact_head_github_actions_required_before_merge": true,
+    "vercel_status_required_before_merge": true,
+    "pr_26_untouched": true
+  },
+  "remaining_required_proofs": []
+}
