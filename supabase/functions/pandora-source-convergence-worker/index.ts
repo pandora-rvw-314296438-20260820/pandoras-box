@@ -624,8 +624,8 @@ Deno.serve(async (req) => {
       project_spec_id: row.project_spec_id,
       request_id: requestId,
       task: row.reason === "acceptance_repair"
-        ? "repair_project_source"
-        : "converge_project_source",
+        ? "repair_code"
+        : "generate_project_source",
       output_mode: "structured",
       status: "succeeded",
       provider: "gemini",
