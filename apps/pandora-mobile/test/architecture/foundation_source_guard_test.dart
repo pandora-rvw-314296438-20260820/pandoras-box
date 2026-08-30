@@ -44,8 +44,8 @@ void main() {
       ].map(source.indexOf).toList(growable: false);
       expect(positions, everyElement(greaterThanOrEqualTo(0)));
       expect(List<int>.from(positions)..sort(), positions);
-      final askSource =
-          File('lib/features/simple/ask_pandora_screen.dart').readAsStringSync();
+      final askSource = File('lib/features/simple/ask_pandora_screen.dart')
+          .readAsStringSync();
       expect(source, contains('emphasized: true'));
       expect(source, contains("const ValueKey<String>('ask-pandora-open')"));
       expect(source, contains('if (_index == _askIndex)'));
