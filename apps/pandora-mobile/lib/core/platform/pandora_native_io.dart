@@ -14,6 +14,18 @@ class PandoraTextAttachment {
   String get promptBlock => 'Attached file: $name ($mimeType)\n---\n$text\n---';
 }
 
+class PandoraImageAttachment {
+  const PandoraImageAttachment({
+    required this.name,
+    required this.mimeType,
+    required this.dataBase64,
+  });
+
+  final String name;
+  final String mimeType;
+  final String dataBase64;
+}
+
 abstract final class PandoraNativeIo {
   static const MethodChannel _channel = MethodChannel('pandora/native_io');
 
@@ -63,6 +75,38 @@ abstract final class PandoraNativeIo {
             ? mimeType.trim()
             : 'text/plain',
         text: text,
+      );
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  static Future<PandoraImageAttachment?> pickPhoto() =>
+      _pickImage('pickPhoto');
+
+  static Future<PandoraImageAttachment?> takePhoto() =>
+      _pickImage('takePhoto');
+
+  static Future<PandoraImageAttachment?> _pickImage(String method) async {
+    try {
+      final value =
+          await _channel.invokeMapMethod<String, Object?>(method);
+      if (value == null) return null;
+      final name = value['name'];
+      final mimeType = value['mimeType'];
+      final dataBase64 = value['dataBase64'];
+      if (name is! String ||
+          mimeType is! String ||
+          dataBase64 is! String ||
+          dataBase64.isEmpty) {
+        return null;
+      }
+      return PandoraImageAttachment(
+        name: name.trim(),
+        mimeType: mimeType.trim(),
+        dataBase64: dataBase64,
       );
     } on MissingPluginException {
       return null;
