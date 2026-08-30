@@ -15,14 +15,10 @@ String? _safeHttps(String? value) {
 }
 
 Future<List<Map<String, Object?>>> _loadExactPreviewFiles(
-  BuildContext context, {
+  ProjectExperienceApi experience, {
   required String projectId,
   required String versionId,
 }) async {
-  final experience = PandoraDependencies.of(context).projectExperience;
-  if (experience == null) {
-    throw StateError('Pandora preview service is unavailable');
-  }
   return experience.loadExactPreviewFiles(
     projectId: projectId,
     versionId: versionId,
@@ -162,7 +158,7 @@ class _ProjectBuildExperienceV2ScreenState
         } catch (_) {
           try {
             final files = await _loadExactPreviewFiles(
-              context,
+              experience,
               projectId: widget.project.id,
               versionId: candidate.versionId,
             );
@@ -203,13 +199,15 @@ class _ProjectBuildExperienceV2ScreenState
     if (_openingPreview) return;
     final candidate = _candidate;
     if (candidate == null) return;
+    final experience = PandoraDependencies.of(context).projectExperience;
+    if (experience == null) return;
     setState(() => _openingPreview = true);
     try {
       var files = _localPreviewVersionId == candidate.versionId
           ? _localPreviewFiles
           : null;
       files ??= await _loadExactPreviewFiles(
-        context,
+        experience,
         projectId: widget.project.id,
         versionId: candidate.versionId,
       );
@@ -486,10 +484,12 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       );
       return;
     }
+    final experience = PandoraDependencies.of(context).projectExperience;
+    if (experience == null) return;
     setState(() => _openingPreview = true);
     try {
       final files = await _loadExactPreviewFiles(
-        context,
+        experience,
         projectId: widget.project.id,
         versionId: candidate.versionId,
       );
