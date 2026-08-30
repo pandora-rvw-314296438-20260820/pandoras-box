@@ -769,8 +769,8 @@
         "provider_equivalence": false,
         "reconciled_result_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/pglite-replay-result-20260823-source-alignment.json",
         "database_rollback_smoke": "pass",
-        "reconciled_chain_sha256": "43092f368a87a7cc83f27084672187bd01589dafaef46a42e42a15cd9608f4b5",
-        "reconciled_migration_count": 106
+        "reconciled_chain_sha256": "c87142c332fd83bc2d5a7d6c631d05e263992c175d9adca17b28047b7ebf75fc",
+        "reconciled_migration_count": 107
     },
     "project_ref": "jcyqixttuebxqqfkjonq",
     "artifact_type": "supabase_secret_safe_migration_parity_manifest",
