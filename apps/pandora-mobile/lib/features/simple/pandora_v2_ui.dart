@@ -62,36 +62,36 @@ class PandoraV2BrandHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-    children: [
-      const PandoraMark(size: 34),
-      const Spacer(),
-      Semantics(
-        button: true,
-        label: 'Account',
-        child: InkResponse(
-          onTap: onAvatar,
-          radius: 28,
-          child: Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: PandoraV2Colors.soft,
-              shape: BoxShape.circle,
-            ),
-            child: const Text(
-              'M',
-              style: TextStyle(
-                color: PandoraV2Colors.ink,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+        children: [
+          const PandoraMark(size: 34),
+          const Spacer(),
+          Semantics(
+            button: true,
+            label: 'Account',
+            child: InkResponse(
+              onTap: onAvatar,
+              radius: 28,
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: PandoraV2Colors.soft,
+                  shape: BoxShape.circle,
+                ),
+                child: const Text(
+                  'M',
+                  style: TextStyle(
+                    color: PandoraV2Colors.ink,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
-    ],
-  );
+        ],
+      );
 }
 
 class PandoraV2ObjectHeader extends StatelessWidget {
@@ -110,56 +110,56 @@ class PandoraV2ObjectHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 64,
-    child: Row(
-      children: [
-        IconButton(
-          tooltip: 'Back',
-          onPressed: onBack ?? () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back_rounded),
-          color: PandoraV2Colors.ink,
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: PandoraV2Colors.ink,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -.25,
-                ),
-              ),
-              if (subtitle != null && subtitle!.trim().isNotEmpty)
-                Text(
-                  subtitle!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: PandoraV2Colors.muted,
-                    fontSize: 13,
-                    height: 1.2,
+        height: 64,
+        child: Row(
+          children: [
+            IconButton(
+              tooltip: 'Back',
+              onPressed: onBack ?? () => Navigator.of(context).maybePop(),
+              icon: const Icon(Icons.arrow_back_rounded),
+              color: PandoraV2Colors.ink,
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -.25,
+                    ),
                   ),
-                ),
-            ],
-          ),
+                  if (subtitle != null && subtitle!.trim().isNotEmpty)
+                    Text(
+                      subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PandoraV2Colors.muted,
+                        fontSize: 13,
+                        height: 1.2,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (onMore != null)
+              IconButton(
+                tooltip: 'More',
+                onPressed: onMore,
+                icon: const Icon(Icons.more_vert_rounded),
+                color: PandoraV2Colors.ink,
+              ),
+          ],
         ),
-        if (onMore != null)
-          IconButton(
-            tooltip: 'More',
-            onPressed: onMore,
-            icon: const Icon(Icons.more_vert_rounded),
-            color: PandoraV2Colors.ink,
-          ),
-      ],
-    ),
-  );
+      );
 }
 
 class PandoraV2IntentSurface extends StatelessWidget {
@@ -184,73 +184,74 @@ class PandoraV2IntentSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: PandoraV2Colors.line)),
-    ),
-    child: Column(
-      children: [
-        TextField(
-          controller: controller,
-          enabled: enabled,
-          autofocus: autofocus,
-          minLines: 1,
-          maxLines: 5,
-          textCapitalization: TextCapitalization.sentences,
-          textInputAction: TextInputAction.newline,
-          style: const TextStyle(
-            color: PandoraV2Colors.ink,
-            fontSize: 18,
-            height: 1.35,
-          ),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: const TextStyle(color: Color(0xFF989793), fontSize: 18),
-            filled: false,
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            contentPadding: const EdgeInsets.fromLTRB(0, 12, 0, 10),
-          ),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: PandoraV2Colors.line)),
         ),
-        Row(
+        child: Column(
           children: [
-            if (onAttachment != null)
-              IconButton(
-                tooltip: 'Attach',
-                onPressed: enabled ? onAttachment : null,
-                icon: const Icon(Icons.attach_file_rounded),
-                color: PandoraV2Colors.muted,
+            TextField(
+              controller: controller,
+              enabled: enabled,
+              autofocus: autofocus,
+              minLines: 1,
+              maxLines: 5,
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.newline,
+              style: const TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 18,
+                height: 1.35,
               ),
-            if (onVoice != null)
-              IconButton(
-                tooltip: 'Speak',
-                onPressed: enabled ? onVoice : null,
-                icon: const Icon(Icons.mic_none_rounded),
-                color: PandoraV2Colors.muted,
+              decoration: InputDecoration(
+                hintText: hintText,
+                hintStyle:
+                    const TextStyle(color: Color(0xFF989793), fontSize: 18),
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.fromLTRB(0, 12, 0, 10),
               ),
-            const Spacer(),
-            IconButton.filled(
-              tooltip: 'Continue',
-              onPressed: enabled
-                  ? () {
-                      final value = controller.text.trim();
-                      if (value.isNotEmpty) onSubmit(value);
-                    }
-                  : null,
-              style: IconButton.styleFrom(
-                backgroundColor: PandoraV2Colors.ink,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: PandoraV2Colors.soft,
-                disabledForegroundColor: PandoraV2Colors.muted,
-              ),
-              icon: const Icon(Icons.arrow_upward_rounded),
             ),
+            Row(
+              children: [
+                if (onAttachment != null)
+                  IconButton(
+                    tooltip: 'Attach',
+                    onPressed: enabled ? onAttachment : null,
+                    icon: const Icon(Icons.attach_file_rounded),
+                    color: PandoraV2Colors.muted,
+                  ),
+                if (onVoice != null)
+                  IconButton(
+                    tooltip: 'Speak',
+                    onPressed: enabled ? onVoice : null,
+                    icon: const Icon(Icons.mic_none_rounded),
+                    color: PandoraV2Colors.muted,
+                  ),
+                const Spacer(),
+                IconButton.filled(
+                  tooltip: 'Continue',
+                  onPressed: enabled
+                      ? () {
+                          final value = controller.text.trim();
+                          if (value.isNotEmpty) onSubmit(value);
+                        }
+                      : null,
+                  style: IconButton.styleFrom(
+                    backgroundColor: PandoraV2Colors.ink,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: PandoraV2Colors.soft,
+                    disabledForegroundColor: PandoraV2Colors.muted,
+                  ),
+                  icon: const Icon(Icons.arrow_upward_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
           ],
         ),
-        const SizedBox(height: 4),
-      ],
-    ),
-  );
+      );
 }
 
 class PandoraV2PrimaryAction extends StatelessWidget {
@@ -269,42 +270,43 @@ class PandoraV2PrimaryAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: double.infinity,
-    height: 54,
-    child: FilledButton(
-      onPressed: loading ? null : onPressed,
-      style: FilledButton.styleFrom(
-        backgroundColor: PandoraV2Colors.ink,
-        foregroundColor: Colors.white,
-        disabledBackgroundColor: const Color(0xFFB8B7B2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-      child: loading
-          ? const SizedBox.square(
-              dimension: 20,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
-              ),
-            )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+        width: double.infinity,
+        height: 54,
+        child: FilledButton(
+          onPressed: loading ? null : onPressed,
+          style: FilledButton.styleFrom(
+            backgroundColor: PandoraV2Colors.ink,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: const Color(0xFFB8B7B2),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+          child: loading
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
                   ),
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (icon != null) ...[
+                      const SizedBox(width: 8),
+                      Icon(icon, size: 19),
+                    ],
+                  ],
                 ),
-                if (icon != null) ...[
-                  const SizedBox(width: 8),
-                  Icon(icon, size: 19),
-                ],
-              ],
-            ),
-    ),
-  );
+        ),
+      );
 }
 
 class PandoraV2ObjectWindow extends StatelessWidget {
@@ -327,60 +329,60 @@ class PandoraV2ObjectWindow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: PandoraV2Colors.line)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (leading != null) ...[leading!, const SizedBox(width: 14)],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: PandoraV2Colors.ink,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -.2,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: pandoraV2Muted),
-                  if (detail != null && detail!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      detail!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: pandoraV2Body,
-                    ),
-                  ],
-                ],
-              ),
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: PandoraV2Colors.line)),
             ),
-            const SizedBox(width: 12),
-            trailing ??
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  color: PandoraV2Colors.ink,
-                  size: 21,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (leading != null) ...[leading!, const SizedBox(width: 14)],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PandoraV2Colors.ink,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -.2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(subtitle, style: pandoraV2Muted),
+                      if (detail != null && detail!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          detail!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: pandoraV2Body,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-          ],
+                const SizedBox(width: 12),
+                trailing ??
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      color: PandoraV2Colors.ink,
+                      size: 21,
+                    ),
+              ],
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 class PandoraV2InlineMessage extends StatelessWidget {
@@ -401,52 +403,53 @@ class PandoraV2InlineMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 16),
-    decoration: const BoxDecoration(
-      border: Border(
-        top: BorderSide(color: PandoraV2Colors.line),
-        bottom: BorderSide(color: PandoraV2Colors.line),
-      ),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 7,
-          height: 7,
-          margin: const EdgeInsets.only(top: 7),
-          decoration: BoxDecoration(
-            color: danger ? PandoraV2Colors.danger : PandoraV2Colors.ink,
-            shape: BoxShape.circle,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: const BoxDecoration(
+          border: Border(
+            top: BorderSide(color: PandoraV2Colors.line),
+            bottom: BorderSide(color: PandoraV2Colors.line),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: PandoraV2Colors.ink,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              margin: const EdgeInsets.only(top: 7),
+              decoration: BoxDecoration(
+                color: danger ? PandoraV2Colors.danger : PandoraV2Colors.ink,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 3),
-              Text(message, style: pandoraV2Muted),
-            ],
-          ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(message, style: pandoraV2Muted),
+                ],
+              ),
+            ),
+            if (actionLabel != null)
+              TextButton(
+                onPressed: onAction,
+                style:
+                    TextButton.styleFrom(foregroundColor: PandoraV2Colors.ink),
+                child: Text(actionLabel!),
+              ),
+          ],
         ),
-        if (actionLabel != null)
-          TextButton(
-            onPressed: onAction,
-            style: TextButton.styleFrom(foregroundColor: PandoraV2Colors.ink),
-            child: Text(actionLabel!),
-          ),
-      ],
-    ),
-  );
+      );
 }
 
 class PandoraV2Skeleton extends StatelessWidget {
@@ -456,10 +459,10 @@ class PandoraV2Skeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    height: height,
-    decoration: BoxDecoration(
-      color: PandoraV2Colors.soft,
-      borderRadius: BorderRadius.circular(14),
-    ),
-  );
+        height: height,
+        decoration: BoxDecoration(
+          color: PandoraV2Colors.soft,
+          borderRadius: BorderRadius.circular(14),
+        ),
+      );
 }
