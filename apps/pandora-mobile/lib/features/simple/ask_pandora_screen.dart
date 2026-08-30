@@ -476,6 +476,7 @@ class _Composer extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.attachment,
+    required this.imageAttachment,
     required this.error,
     required this.submitting,
     required this.disabled,
@@ -489,11 +490,13 @@ class _Composer extends StatelessWidget {
     required this.onDictate,
     required this.onSubmit,
     required this.onRemoveAttachment,
+    required this.onRemoveImage,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final PandoraTextAttachment? attachment;
+  final PandoraImageAttachment? imageAttachment;
   final String? error;
   final bool submitting;
   final bool disabled;
@@ -507,6 +510,7 @@ class _Composer extends StatelessWidget {
   final VoidCallback onDictate;
   final VoidCallback onSubmit;
   final VoidCallback onRemoveAttachment;
+  final VoidCallback onRemoveImage;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -531,15 +535,26 @@ class _Composer extends StatelessWidget {
                   ),
                 ),
               ],
-              if (attachment != null) ...[
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: InputChip(
-                    avatar: const Icon(Icons.description_outlined, size: 17),
-                    label: Text(attachment!.name),
-                    onDeleted:
-                        submitting || disabled ? null : onRemoveAttachment,
-                  ),
+              if (attachment != null || imageAttachment != null) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    if (attachment != null)
+                      InputChip(
+                        avatar: const Icon(Icons.description_outlined, size: 17),
+                        label: Text(attachment!.name),
+                        onDeleted:
+                            submitting || disabled ? null : onRemoveAttachment,
+                      ),
+                    if (imageAttachment != null)
+                      InputChip(
+                        avatar: const Icon(Icons.image_outlined, size: 17),
+                        label: Text(imageAttachment!.name),
+                        onDeleted:
+                            submitting || disabled ? null : onRemoveImage,
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 6),
               ],
