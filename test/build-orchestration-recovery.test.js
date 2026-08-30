@@ -34,6 +34,10 @@ const verifiedRecovery = fs.readFileSync(
   'supabase/migrations/20260830161010_pandora_verified_failure_recovery_v6.sql',
   'utf8',
 );
+const acceptanceConvergencePatch = fs.readFileSync(
+  'supabase/migrations/20260830225100_pandora_observable_acceptance_convergence_patch_v5b.sql',
+  'utf8',
+);
 
 test('V2 Build Theatre reuses one stable initial build identity', () => {
   assert.match(
@@ -103,6 +107,20 @@ test('fallback verification independently proves observable acceptance', () => {
   assert.match(acceptanceV2, /worker-e-supabase-preview-verifier-v2/);
   assert.match(acceptanceV2, /observable-acceptance-v2/);
   assert.match(acceptanceV2, /private\.pandora_worker_e_verify_supabase_preview_v2_20260830/);
+});
+
+test('observable verifier migration is replay-safe and patched after canonical fallback', () => {
+  assert.match(acceptanceV2, /if v_def is null then\s+null;/s);
+  assert.doesNotMatch(acceptanceV2, /STATIC_CONVERGENCE_V2_PATCH_TARGET_MISSING/);
+  assert.match(acceptanceConvergencePatch, /STATIC_CONVERGENCE_V2_PATCH_TARGET_MISSING/);
+  assert.match(
+    acceptanceConvergencePatch,
+    /private\.pandora_worker_e_verify_supabase_preview_v2_20260830/,
+  );
+  assert.match(
+    acceptanceConvergencePatch,
+    /private\.pandora_worker_e_verify_supabase_preview_20260830/,
+  );
 });
 
 test('terminal verification failures can recover only with exact independent PASS proof', () => {
