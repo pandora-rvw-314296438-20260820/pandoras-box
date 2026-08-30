@@ -1,11 +1,15 @@
+
 'use strict';
 
 const { assertNoCredentialMaterial } = require('../security/secret-boundary.js');
+const { applyRoutingPolicy, routingPolicyScore } = require('./policy.js');
 
 /** @type {Readonly<Record<string, number>>} */
 const RELIABILITY_RANK = Object.freeze({ high: 3, standard: 2, experimental: 1 });
 /** @type {Readonly<Record<string, number>>} */
 const COST_RANK = Object.freeze({ low: 1, medium: 2, high: 3 });
+
+/** @typedef {{preferredProvider?:string, preferredModel?:string, minContext?:number, policy?:Readonly<Record<string, unknown>>}} RouterOptions */
 
 /** @param {unknown} value */
 function isRecord(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
@@ -30,17 +34,19 @@ class ModelRouter {
     return this;
   }
 
-  /** @param {Record<string,unknown>} request @param {{preferredProvider?:string,preferredModel?:string,minContext?:number}} options */
+  /** @param {Record<string,unknown>} request @param {RouterOptions} options */
   candidates(request, options = {}) {
     assertNoCredentialMaterial(request);
     const required = Array.isArray(request.requiredCapabilities) ? request.requiredCapabilities.map(String) : [];
     const compatible = this.registry.findCompatible({ required, outputMode: String(request.outputMode ?? 'structured'), minContext: options.minContext });
-    const filtered = compatible.filter(model => this.adapters.has(String(model.provider)));
-    filtered.sort((a, b) => score(b, options) - score(a, options));
+    const adapterAvailable = compatible.filter((model) => this.adapters.has(String(model.provider)));
+    const policy = options.policy ?? null;
+    const filtered = applyRoutingPolicy(adapterAvailable, policy);
+    filtered.sort((a, b) => (score(b, options) + routingPolicyScore(b, policy)) - (score(a, options) + routingPolicyScore(a, policy)));
     return filtered;
   }
 
-  /** @param {Record<string,unknown>} request @param {{preferredProvider?:string,preferredModel?:string,minContext?:number}} options */
+  /** @param {Record<string,unknown>} request @param {RouterOptions} options */
   async execute(request, options = {}) {
     assertNoCredentialMaterial(request);
     const candidates = this.candidates(request, options);
@@ -54,7 +60,7 @@ class ModelRouter {
       const adapter = this.adapters.get(provider);
       if (!adapter) continue;
       try {
-        const result = await adapter.execute(request, declaration);
+        const result = await adapter.execute(request, /** @type {Record<string, unknown>} */ (declaration));
         assertNoCredentialMaterial(result);
         if (!isRecord(result)) throw new Error('provider adapter returned an invalid normalized result');
         const normalized = /** @type {Record<string, unknown>} */ (result);
@@ -72,7 +78,7 @@ class ModelRouter {
   }
 }
 
-/** @param {Readonly<Record<string,unknown>>} model @param {{preferredProvider?:string,preferredModel?:string}} options */
+/** @param {Readonly<Record<string,unknown>>} model @param {RouterOptions} options */
 function score(model, options) {
   let value = 0;
   if (options.preferredProvider && model.provider === options.preferredProvider) value += 1000;
