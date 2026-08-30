@@ -204,15 +204,15 @@ begin
        and (a.expires_at is null or a.expires_at>now())
        and (a.organization_id is null or a.organization_id=p_organization_id)
        and (a.project_id is null or a.project_id=p_project_id)
-       and (cardinality(v_terms)=0 or a.selector_terms && v_terms)
   ), skill_material as (
     select s.asset_key,s.version,s.source_digest_sha256,s.risk_class,s.selector_terms,m.content_text,m.content_digest_sha256,m.verified_at,m.expires_at
       from eligible s join eligible m
         on m.asset_kind='prompt_material' and s.asset_kind='skill'
        and m.asset_key=s.asset_key and m.version=s.version and m.source_digest_sha256=s.source_digest_sha256
+     where cardinality(v_terms)=0 or s.selector_terms && v_terms
      order by s.asset_key,s.version limit v_limit
   ), knowledge as (
-    select * from eligible where asset_kind='knowledge' order by asset_key,version limit v_limit
+    select * from eligible where asset_kind='knowledge' and (cardinality(v_terms)=0 or selector_terms && v_terms) order by asset_key,version limit v_limit
   )
   select jsonb_build_object(
     'contractVersion','pandora-durable-trusted-context-v1',
