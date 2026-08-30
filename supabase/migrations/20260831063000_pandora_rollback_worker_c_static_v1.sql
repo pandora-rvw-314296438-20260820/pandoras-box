@@ -510,4 +510,35 @@ $fn$;
 revoke all on function public.pandora_execute_supabase_static_rollback_20260831(uuid,uuid,uuid,uuid,uuid,text,text) from public,anon,authenticated;
 grant execute on function public.pandora_execute_supabase_static_rollback_20260831(uuid,uuid,uuid,uuid,uuid,text,text) to service_role;
 
+create or replace function private.pandora_finalize_rollback_source_version_20260831()
+returns trigger
+language plpgsql
+security definer
+set search_path='pg_catalog','private','public'
+as $fn$
+declare
+  v_from uuid;
+begin
+  if new.environment='production'
+     and new.verification_state='live_verified'
+     and old.verification_state is distinct from 'live_verified'
+     and coalesce(new.metadata->>'rollback','false')='true'
+     and coalesce(new.metadata->>'rolledBackFromVersionId','') ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
+    v_from:=(new.metadata->>'rolledBackFromVersionId')::uuid;
+    if v_from<>new.version_id then
+      update public.pandora_project_versions
+      set lifecycle_status='rolled_back',rolled_back_at=clock_timestamp(),rollback_eligible=true
+      where id=v_from and organization_id=new.organization_id and project_id=new.project_id
+        and lifecycle_status in ('live','production_candidate','verified','preview_ready');
+    end if;
+  end if;
+  return new;
+end;
+$fn$;
+
+drop trigger if exists pandora_project_deployments_finalize_rollback_source on public.pandora_project_deployments;
+create trigger pandora_project_deployments_finalize_rollback_source
+after update of verification_state on public.pandora_project_deployments
+for each row execute function private.pandora_finalize_rollback_source_version_20260831();
+
 commit;
