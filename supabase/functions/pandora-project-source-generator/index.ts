@@ -10,6 +10,7 @@ const MAX_BODY_BYTES = 4096;
 const MAX_FILES = 120;
 const MAX_FILE_BYTES = 512 * 1024;
 const MAX_SOURCE_BYTES = 4 * 1024 * 1024;
+const MIN_STATIC_INDEX_BYTES = 1024;
 const BUCKET = "pandora-build-artifacts";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SAFE_PATH = /^(?!\.)(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9_@+.-]+(?:\/[A-Za-z0-9_@+.-]+)*$/;
@@ -60,6 +61,7 @@ function sourcePrompt(spec: JsonRecord, project: JsonRecord, adapter: string) {
       "schemaVersion must be 1. files is an array of {path,content} UTF-8 text files.",
       "Do not return markdown fences, commentary, shell commands, credentials, API keys, tokens, .env files, generated binaries, lockfiles, node_modules, build output, or remote secrets.",
       "Use relative POSIX file paths only. Implement the requested experience and acceptance criteria. Never invent measured business results.",
+      "For change requests, preserve the existing product identity, content depth, responsive behavior, and working experience; never replace a complete product with a loading shell, placeholder, or skeletal page.",
       contract,
     ].join(" ") }] },
     contents: [{ role: "user", parts: [{ text: JSON.stringify({ project: { name: text(project.name), objective: text(project.objective) }, projectSpec: { id: spec.id, projectType: spec.project_type, businessSummary: spec.business_summary, product: spec.product_scope, data: spec.data_scope, integrations: spec.integration_scope, experience: spec.experience_scope, deployment: spec.deployment_scope, acceptance: spec.acceptance_scope }, buildAdapter: adapter }) }] }],
@@ -77,17 +79,27 @@ function providerText(envelope: JsonRecord) {
 async function canonicalBundle(raw: unknown, projectSpecId: string, adapter: string) {
   const root = rec(raw);
   if (!exactKeys(root, ["schemaVersion", "files"]) || root.schemaVersion !== 1 || !Array.isArray(root.files) || root.files.length < 1 || root.files.length > MAX_FILES) throw new Error("INVALID_GENERATED_SOURCE");
-  const seen = new Set<string>(); let total = 0; const files = [] as JsonRecord[];
+  const seen = new Set<string>(); let total = 0; let staticIndexContent = ""; const files = [] as JsonRecord[];
   for (const value of root.files) {
     const row = rec(value); if (!exactKeys(row, ["path", "content"])) throw new Error("INVALID_GENERATED_SOURCE");
     const path = text(row.path); const content = typeof row.content === "string" ? row.content : "";
+    if (adapter === "static-web" && path === "index.html") staticIndexContent = content;
     if (!SAFE_PATH.test(path) || path.length > 512 || path.startsWith(".env") || path.includes("/.env") || path.includes("node_modules/") || path.startsWith("build/") || path.startsWith("dist/") || path.startsWith(".next/") || seen.has(path)) throw new Error("INVALID_GENERATED_SOURCE");
     const bytes = new TextEncoder().encode(content); if (!bytes.length || bytes.length > MAX_FILE_BYTES || SECRET.test(content)) throw new Error("INVALID_GENERATED_SOURCE");
     total += bytes.length; if (total > MAX_SOURCE_BYTES) throw new Error("INVALID_GENERATED_SOURCE"); seen.add(path);
     files.push({ file: path, data: base64(bytes), encoding: "base64", sha256: await sha256Bytes(bytes), byteSize: bytes.length });
   }
   files.sort((a, b) => String(a.file).localeCompare(String(b.file), "en"));
-  if (adapter === "static-web" && !seen.has("index.html")) throw new Error("INVALID_GENERATED_SOURCE");
+  if (adapter === "static-web") {
+    if (!seen.has("index.html")) throw new Error("INVALID_GENERATED_SOURCE");
+    const indexBytes = new TextEncoder().encode(staticIndexContent);
+    const normalizedIndex = staticIndexContent.replace(/\s+/g, " ").trim();
+    if (
+      indexBytes.byteLength < MIN_STATIC_INDEX_BYTES ||
+      !/<meta[^>]+name=["']viewport["'][^>]*>/i.test(staticIndexContent) ||
+      /<body[^>]*>\s*(?:loading(?:\.\.\.)?|coming soon|placeholder)\s*<\/body>/i.test(normalizedIndex)
+    ) throw new Error("INVALID_GENERATED_SOURCE");
+  }
   if (adapter === "node-vite-web" && (!seen.has("package.json") || !seen.has("index.html") || ![...seen].some((p) => p.startsWith("src/main.")))) throw new Error("INVALID_GENERATED_SOURCE");
   if (adapter === "flutter-web" && (!seen.has("pubspec.yaml") || !seen.has("lib/main.dart"))) throw new Error("INVALID_GENERATED_SOURCE");
   const bundle = { kind: "pandora.source-bundle.v1", schemaVersion: 1, projectSpecId, buildAdapter: adapter, files };
