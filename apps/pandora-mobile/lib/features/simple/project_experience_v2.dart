@@ -394,6 +394,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _openingPreview = false;
   bool _changing = false;
   bool _publishing = false;
+  bool _undoing = false;
 
   @override
   void didChangeDependencies() {
@@ -436,6 +437,12 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   ProjectRuntimeCandidate? get _candidate => _snapshot?.candidate;
+
+  bool get _canUndo {
+    final candidate = _candidate;
+    if (candidate == null || !candidate.canUndo) return false;
+    return _snapshot?.production?.versionId != candidate.versionId;
+  }
 
   String? get _remotePreview {
     final candidate = _candidate;
@@ -640,6 +647,34 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         _error =
             'Pandora could not understand or start that request right now.';
       });
+    }
+  }
+
+  Future<void> _undoChange() async {
+    final runtime = PandoraDependencies.of(context).projectRuntime;
+    final candidate = _candidate;
+    if (runtime == null || candidate == null || !_canUndo || _undoing) return;
+    setState(() {
+      _undoing = true;
+      _error = null;
+      _intelligenceReply = null;
+    });
+    try {
+      final snapshot = await runtime.undo(
+        projectId: widget.project.id,
+        versionId: candidate.versionId,
+        idempotencyKey: 'pandora-v2-undo:${widget.project.id}:${candidate.versionId}',
+      );
+      if (!mounted) return;
+      setState(() => _snapshot = snapshot);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Undone.')));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error =
+          'Pandora could not undo that change. Your current live result was not altered.');
+    } finally {
+      if (mounted) setState(() => _undoing = false);
     }
   }
 
@@ -936,6 +971,30 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
               ),
               child: Column(
                 children: [
+                  if (_canUndo) ...[
+                    Row(
+                      children: [
+                        const Text(
+                          'Changed',
+                          style: TextStyle(
+                            color: PandoraV2Colors.ink,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: _undoing ? null : _undoChange,
+                          style: TextButton.styleFrom(
+                            foregroundColor: PandoraV2Colors.ink,
+                          ),
+                          icon: const Icon(Icons.undo_rounded, size: 18),
+                          label: Text(_undoing ? 'Undoing…' : 'Undo'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                   if (_snapshot?.verification?.publishEligible == true &&
                       _candidate != null &&
                       _snapshot?.production?.versionId !=
