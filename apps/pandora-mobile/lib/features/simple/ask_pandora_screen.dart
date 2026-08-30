@@ -395,7 +395,8 @@ class _EmptyConversation extends StatelessWidget {
                   children: [
                     for (final suggestion in suggestions)
                       ActionChip(
-                        onPressed: disabled ? null : () => onSuggestion(suggestion),
+                        onPressed:
+                            disabled ? null : () => onSuggestion(suggestion),
                         backgroundColor: PandoraSimpleColors.surface,
                         side: const BorderSide(color: PandoraSimpleColors.line),
                         shape: RoundedRectangleBorder(
@@ -597,7 +598,8 @@ class _Composer extends StatelessWidget {
               if (error != null) ...[
                 Container(
                   margin: const EdgeInsets.fromLTRB(2, 0, 2, 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFF1F0),
                     borderRadius: BorderRadius.circular(14),
