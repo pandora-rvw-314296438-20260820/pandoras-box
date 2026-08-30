@@ -56,7 +56,8 @@ class PandoraIntelligenceApi {
         },
       );
       final payload = _map(response.data);
-      if (response.status < 200 || response.status >= 300 ||
+      if (response.status < 200 ||
+          response.status >= 300 ||
           payload['ok'] != true) {
         throw PandoraIntelligenceException(
           _text(
