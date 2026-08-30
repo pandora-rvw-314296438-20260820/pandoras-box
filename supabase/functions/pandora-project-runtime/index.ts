@@ -692,12 +692,63 @@ async function rollbackProject(context: UserContext, identifier: string, body: J
   const targetVersionId = textValue(body.targetVersionId);
   const expectedProductionVersionId = textValue(body.expectedProductionVersionId);
   const idempotencyRef = textValue(body.idempotencyKey);
-  const authorizationRef = textValue(body.authorizationRef);
-  if (!UUID_RE.test(targetVersionId) || !UUID_RE.test(expectedProductionVersionId) || targetVersionId === expectedProductionVersionId || idempotencyRef.length < 8 || authorizationRef.length < 8) throw new Error("INVALID_ROLLBACK_REQUEST");
+  if (!UUID_RE.test(targetVersionId) || !UUID_RE.test(expectedProductionVersionId) || targetVersionId === expectedProductionVersionId || idempotencyRef.length < 8 || idempotencyRef.length > 200) throw new Error("INVALID_ROLLBACK_REQUEST");
   const admin = serviceClient();
-  const { data: environmentData, error: environmentError } = await admin.from("pandora_runtime_environments").select("id, current_version_id, current_deployment_id, provider_project_id").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").maybeSingle();
+  const { data: environmentData, error: environmentError } = await admin.from("pandora_runtime_environments").select("id, current_version_id, current_deployment_id, provider, provider_project_id, verification_state, status").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").maybeSingle();
   if (environmentError) throw new Error("BACKEND_READ_FAILED");
-  if (!environmentData || textValue(environmentData.current_version_id) !== expectedProductionVersionId) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+  if (!environmentData || textValue(environmentData.current_version_id) !== expectedProductionVersionId || textValue(environmentData.verification_state) !== "live_verified" || textValue(environmentData.status) !== "ready") throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+
+  const authorizeRollback = async () => {
+    const { data, error } = await admin.rpc("pandora_authorize_production_rollback_20260831", {
+      p_organization_id: context.organizationId,
+      p_project_id: projectId,
+      p_target_version_id: targetVersionId,
+      p_expected_production_version_id: expectedProductionVersionId,
+      p_requested_by: context.userId,
+      p_idempotency_key: idempotencyRef,
+    });
+    if (error) {
+      const message = textValue(error.message);
+      if (message.includes("ROLLBACK_OWNER_REQUIRED")) throw new Error("ROLLBACK_OWNER_REQUIRED");
+      if (message.includes("ROLLBACK_TARGET_NOT_ELIGIBLE")) throw new Error("ROLLBACK_TARGET_NOT_ELIGIBLE");
+      if (message.includes("PRODUCTION_PRECONDITION_MISMATCH")) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+      if (message.includes("ROLLBACK_PROVIDER_UNSUPPORTED")) throw new Error("ROLLBACK_PROVIDER_UNSUPPORTED");
+      if (message.includes("ROLLBACK_AUTHORIZATION_COLLISION")) throw new Error("ROLLBACK_AUTHORIZATION_COLLISION");
+      throw new Error("ROLLBACK_AUTHORIZATION_FAILED");
+    }
+    const authorization = asRecord(data);
+    const actionHash = textValue(authorization.actionHash);
+    const authorizationRef = textValue(authorization.authorizationRef);
+    if (!SHA256_RE.test(actionHash) || authorizationRef !== `worker-c:${actionHash}` || textValue(authorization.decision) !== "ALLOW") {
+      throw new Error("ROLLBACK_AUTHORIZATION_FAILED");
+    }
+    return { actionHash, authorizationRef };
+  };
+
+  const provider = textValue(environmentData.provider);
+  if (provider === "supabase_static") {
+    const authorization = await authorizeRollback();
+    const { data, error } = await admin.rpc("pandora_execute_supabase_static_rollback_20260831", {
+      p_organization_id: context.organizationId,
+      p_project_id: projectId,
+      p_target_version_id: targetVersionId,
+      p_expected_production_version_id: expectedProductionVersionId,
+      p_requested_by: context.userId,
+      p_idempotency_key: idempotencyRef,
+      p_action_hash: authorization.actionHash,
+    });
+    if (error) {
+      const message = textValue(error.message);
+      if (message.includes("ROLLBACK_AUTHORIZATION_REQUIRED")) throw new Error("ROLLBACK_AUTHORIZATION_FAILED");
+      if (message.includes("ROLLBACK_TARGET_NOT_ELIGIBLE")) throw new Error("ROLLBACK_TARGET_NOT_ELIGIBLE");
+      if (message.includes("PRODUCTION_PRECONDITION_MISMATCH")) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+      if (message.includes("ROLLBACK_VERIFICATION_FAILED")) throw new Error("ROLLBACK_VERIFICATION_FAILED");
+      throw new Error("ROLLBACK_EXECUTION_FAILED");
+    }
+    return asRecord(data);
+  }
+  if (provider !== "vercel") throw new Error("ROLLBACK_PROVIDER_UNSUPPORTED");
+
   const providerProjectId = textValue(environmentData.provider_project_id);
   const { data: targetVersionData, error: targetVersionError } = await admin.from("pandora_project_versions").select("id, rollback_eligible, source_sha256, source_kind, source_ref, source_commit, artifact_digest_sha256, project_spec_id, build_job_id").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", targetVersionId).maybeSingle();
   if (targetVersionError) throw new Error("BACKEND_READ_FAILED");
@@ -705,7 +756,7 @@ async function rollbackProject(context: UserContext, identifier: string, body: J
   const targetVersion = asRecord(targetVersionData);
   const { data: targetDeploymentData, error: targetDeploymentError } = await admin.from("pandora_project_deployments")
     .select("id, provider_project_id, provider_deployment_id, url, immutable_url, artifact_digest, source_commit_sha, source_sha256, verification_state, metadata, created_at")
-    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("version_id", targetVersionId).eq("environment", "production").eq("verification_state", "live_verified").order("created_at", { ascending: false }).limit(1).maybeSingle();
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("version_id", targetVersionId).eq("environment", "production").eq("provider", "vercel").eq("verification_state", "live_verified").order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (targetDeploymentError) throw new Error("BACKEND_READ_FAILED");
   if (!targetDeploymentData) throw new Error("ROLLBACK_TARGET_NOT_VERIFIED");
   const targetDeployment = asRecord(targetDeploymentData);
@@ -719,6 +770,9 @@ async function rollbackProject(context: UserContext, identifier: string, body: J
     ? deploymentCommit === targetSource.sourceCommit && (!metadataKind || metadataKind === targetSource.sourceKind) && (!metadataRef || metadataRef === targetSource.sourceRef)
     : deploymentCommit === null && metadataKind === targetSource.sourceKind && metadataRef === targetSource.sourceRef;
   if (textValue(targetDeployment.provider_project_id) !== providerProjectId || !/^dpl_[A-Za-z0-9]+$/.test(providerDeploymentId) || textValue(targetDeployment.artifact_digest) !== textValue(targetVersion.artifact_digest_sha256) || !deploymentSourceExact) throw new Error("PROVIDER_LINEAGE_MISMATCH");
+
+  const authorization = await authorizeRollback();
+  const authorizationRef = authorization.authorizationRef;
   const operationKey = await sha256Hex(["rollback", context.organizationId, projectId, expectedProductionVersionId, targetVersionId, providerDeploymentId, authorizationRef, idempotencyRef].join("|"));
   const { data: claimed, error: claimError } = await admin.from("pandora_runtime_operations").insert({ idempotency_key: operationKey, action: "rollback", organization_id: context.organizationId, project_id: projectId, project_version_id: targetVersionId, environment: "production", provider: "vercel", authorization_ref: authorizationRef, verification_ref: `previous-live:${targetDeployment.id}`, provider_project_id: providerProjectId, provider_resource_id: providerDeploymentId, status: "claimed" }).select("id").single();
   if (claimError) {
@@ -753,11 +807,12 @@ async function rollbackProject(context: UserContext, identifier: string, body: J
       .update({ current_version_id: targetVersionId, current_deployment_id: rollbackRow.id, status: "ready", verification_state: "ready_for_verification", last_reconciled_at: now, updated_at: now })
       .eq("id", environmentData.id).eq("current_version_id", expectedProductionVersionId).select("id").maybeSingle();
     if (updateEnvironmentError || !updatedEnvironment) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
-    await admin.from("pandora_project_versions").update({ lifecycle_status: "rolled_back", rolled_back_at: now, rollback_eligible: true }).eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", targetVersionId);
+    await admin.from("pandora_project_versions").update({ lifecycle_status: "production_candidate", promoted_at: now, rollback_eligible: true }).eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", targetVersionId);
+    await admin.from("pandora_project_versions").update({ rollback_eligible: true }).eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", expectedProductionVersionId);
     const config = asRecord(project.config); const journey = asRecord(config.customerJourney); const nextConfig = { ...config, customerJourney: { ...journey, stage: "publishing", runtimeStatus: "verifying", productionCandidateUrl: rollbackRow.url, publishedVersionId: targetVersionId, productionVerificationState: "ready_for_verification", runtimeUpdatedAt: now } };
     await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
-    await admin.from("pandora_runtime_operations").update({ status: "succeeded", ambiguous: false, result_facts: { targetVersionId, providerDeploymentId, sourceKind: targetSource.sourceKind, sourceRef: targetSource.sourceRef, verificationState: "ready_for_verification" }, finished_at: now, last_reconciled_at: now, updated_at: now }).eq("id", operationId);
-    return { project: projectResponse({ ...project, config: nextConfig }), production: rollbackRow, verificationState: "ready_for_verification" };
+    await admin.from("pandora_runtime_operations").update({ status: "succeeded", ambiguous: false, result_facts: { targetVersionId, providerDeploymentId, sourceKind: targetSource.sourceKind, sourceRef: targetSource.sourceRef, authorizationRef, verificationState: "ready_for_verification" }, finished_at: now, last_reconciled_at: now, updated_at: now }).eq("id", operationId);
+    return { project: projectResponse({ ...project, config: nextConfig }), production: rollbackRow, authorizationRef, verificationState: "ready_for_verification" };
   } catch (error) {
     if (error instanceof Error && error.message === "ROLLBACK_RECONCILIATION_REQUIRED") throw error;
     await admin.from("pandora_runtime_operations").update({ status: "failed", normalized_error: { code: error instanceof Error ? error.message : "rollback_failed" }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
