@@ -373,7 +373,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pandora could not open this preview right now.')),
+          const SnackBar(
+              content: Text('Pandora could not open this preview right now.')),
         );
       }
     }
