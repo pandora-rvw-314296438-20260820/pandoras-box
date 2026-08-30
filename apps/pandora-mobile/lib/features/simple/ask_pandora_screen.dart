@@ -129,6 +129,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
         setState(() {
           _messages.add(_ChatMessage.user(objective));
           _messages.add(_ChatMessage.pandora(receipt.reply));
+          _pendingMessage = null;
           _objective.clear();
           _attachment = null;
           _imageAttachment = null;
@@ -154,6 +155,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
         _threadId = turn.threadId;
         _messages.add(_ChatMessage.user(objective));
         _messages.add(_ChatMessage.pandora(turn.reply));
+        _pendingMessage = null;
         _objective.clear();
         _attachment = null;
         _imageAttachment = null;
@@ -593,15 +595,37 @@ class _Composer extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (error != null) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                  child: Text(
-                    error!,
-                    style: const TextStyle(
-                      color: Color(0xFFB42318),
-                      fontSize: 12.5,
-                      height: 1.35,
-                    ),
+                Container(
+                  margin: const EdgeInsets.fromLTRB(2, 0, 2, 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1F0),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFF7D5D1)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 1),
+                        child: Icon(
+                          Icons.info_outline_rounded,
+                          size: 17,
+                          color: Color(0xFFB42318),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          error!,
+                          style: const TextStyle(
+                            color: Color(0xFF8F2D24),
+                            fontSize: 12.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
