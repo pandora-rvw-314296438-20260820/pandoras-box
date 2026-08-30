@@ -142,7 +142,16 @@ jobs:
 
       - name: Format
         working-directory: .pandora-mobile-build
-        run: dart format --output=none --set-exit-if-changed lib test
+        shell: bash
+        run: |
+          set +e
+          dart format --output=none --set-exit-if-changed lib test
+          format_status=$?
+          if [[ "$format_status" -ne 0 ]]; then
+            echo 'Show formatter diff when source is not canonical'
+            git diff -- lib test
+          fi
+          exit "$format_status"
 
       - name: Analyze
         working-directory: .pandora-mobile-build
