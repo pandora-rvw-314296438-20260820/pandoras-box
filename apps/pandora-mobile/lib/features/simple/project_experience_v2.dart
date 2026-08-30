@@ -131,8 +131,7 @@ class _ProjectBuildExperienceV2ScreenState
           try {
             await experience.requestBuild(
               projectId: widget.project.id,
-              idempotencyKey:
-                  'pandora-v2-build:${widget.project.id}:${widget.project.updatedAt?.millisecondsSinceEpoch ?? widget.project.projectKey}',
+              idempotencyKey: 'pandora-v2-build:${widget.project.id}',
             );
           } on ProjectExperienceException catch (error) {
             _buildRequested = false;
@@ -231,7 +230,9 @@ class _ProjectBuildExperienceV2ScreenState
   String get _stageTitle {
     if (_ready) return 'Your first version is ready';
     if (_candidate != null) return 'Preparing the exact preview';
-    if (_snapshot?.verification != null) return 'Checking your project';
+    if (_snapshot?.verification?.state == 'checking') {
+      return 'Checking your project';
+    }
     if (_buildRequested) return 'Building the first version';
     return 'Structuring your project';
   }
@@ -299,19 +300,6 @@ class _ProjectBuildExperienceV2ScreenState
                                 ),
                                 const SizedBox(height: 12),
                                 Text(_stageMessage, style: pandoraV2Muted),
-                                if (widget.project.objective
-                                    .trim()
-                                    .isNotEmpty) ...[
-                                  const SizedBox(height: 26),
-                                  const Divider(color: PandoraV2Colors.line),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    widget.project.objective,
-                                    maxLines: 4,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: pandoraV2Body,
-                                  ),
-                                ],
                                 const Spacer(),
                                 if (!_ready)
                                   const LinearProgressIndicator(
