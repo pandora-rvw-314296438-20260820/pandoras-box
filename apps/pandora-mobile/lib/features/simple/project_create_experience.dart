@@ -302,52 +302,52 @@ class _ProjectUnderstandingScreenState
               PandoraV2ObjectHeader(title: widget.project.name),
               const SizedBox(height: 30),
               const Text(
-                 'Pandora looks at your intent before it builds.',
+                'Pandora looks at your intent before it builds.',
                 style: TextStyle(
                   color: PandoraV2Colors.muted,
                   fontSize: 16,
                 ),
-             ),
+              ),
               const SizedBox(height: 8),
               Text(
-                  widget.intentText,
-                  style: const TextStyle(
-                    color: PandoraV2Colors.ink,
-                    fontSize: 27,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -.6,
-                    height: 1.12,
-                  ),
+                widget.intentText,
+                style: const TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 27,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.6,
+                  height: 1.12,
                 ),
-                const SizedBox(height: 32),
-                if (!ready)
-                  const PandoraV2Skeleton(height: 190)
-                else ...[
-                  PandoraV2InlineMessage(
-                    title: 'What Pandora understands',
-                    message: [
-                      if (u?.businessSummary != null) u.businessSummary!,
-                      if (u!>objectives.isNotEmpty) ...u.objectives,
-                      if (u!>requirements.isNotEmpty)
-                        'Key needs: ${u.requirements.take(3).join(' • ')}',
-                    ].join('\n').trim(),
-                  ),
-                  const SizedBox(height: 28),
-                  PandoraV2PrimaryAction(
-                    label: 'Build it',
-                    loading: _building,
-                    onPressed: _build,
-                    icon: Icons.arrow_forward_rounded,
-                  ),
-                ],
+              ),
+              const SizedBox(height: 32),
+              if (!ready)
+                const PandoraV2Skeleton(height: 190)
+              else ...[
+                PandoraV2InlineMessage(
+                  title: 'What Pandora understands',
+                  message: [
+                    if (u?.businessSummary != null) u.businessSummary!,
+                    if (u! > objectives.isNotEmpty) ...u.objectives,
+                    if (u! > requirements.isNotEmpty)
+                      'Key needs: ${u.requirements.take(3).join(' • ')}',
+                  ].join('\n').trim(),
+                ),
+                const SizedBox(height: 28),
+                PandoraV2PrimaryAction(
+                  label: 'Build it',
+                  loading: _building,
+                  onPressed: _build,
+                  icon: Icons.arrow_forward_rounded,
+                ),
+              ],
               if (_error != null) ...[
-                  const SizedBox(height: 18),
-                  PandoraV2InlineMessage(
-                    title: 'Pandora is still holding your request',
-                    message: _error!,
-                    actionLabel: 'Try again',
-                    onAction: _refresh,
-                  ),
+                const SizedBox(height: 18),
+                PandoraV2InlineMessage(
+                  title: 'Pandora is still holding your request',
+                  message: _error!,
+                  actionLabel: 'Try again',
+                  onAction: _refresh,
+                ),
               ],
             ],
           ),

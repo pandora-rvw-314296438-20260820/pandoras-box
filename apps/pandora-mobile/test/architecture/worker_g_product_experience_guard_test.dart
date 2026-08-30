@@ -18,8 +18,8 @@ void main() {
   });
 
   test('Home is intent-first and does not expose domain management', () {
-    final source = File('lib/features/simple/simple_home_screen.dart')
-        .readAsStringSync();
+    final source =
+        File('lib/features/simple/simple_home_screen.dart').readAsStringSync();
     expect(source, contains('What do you want'));
     expect(source, contains('to make happen?'));
     expect(source, contains("'Your work'"));
@@ -51,8 +51,8 @@ void main() {
   });
 
   test('canonical Pandora mark cannot be recolored red by callers', () {
-    final source = File('lib/core/widgets/pandora_mark.dart')
-        .readAsStringSync();
+    final source =
+        File('lib/core/widgets/pandora_mark.dart').readAsStringSync();
     expect(
       source,
       contains(

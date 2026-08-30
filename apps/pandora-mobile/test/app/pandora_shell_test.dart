@@ -402,7 +402,8 @@ void main() {
     expect(repository.projectCalls, 1);
   });
 
-  testWidgets('V2 home exposes intent without the legacy floating Ask control', (
+  testWidgets('V2 home exposes intent without the legacy floating Ask control',
+      (
     tester,
   ) async {
     await setTestSurface(tester, logicalSize: const Size(400, 800));
