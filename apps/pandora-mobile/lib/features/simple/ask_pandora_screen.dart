@@ -710,6 +710,7 @@ class _ComposerMenuItem extends StatelessWidget {
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
         ),
       );
+}
 
 class _ChatMessage {
   const _ChatMessage._(this.text, this.isUser);
