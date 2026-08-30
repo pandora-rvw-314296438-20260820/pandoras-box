@@ -68,3 +68,15 @@ test("runtime-bundle finalizer never demotes a terminal build job", () => {
   assert.match(finalizer, /status in \('claimed','running','waiting_verification'\)/);
   assert.doesNotMatch(finalizer, /status in \('claimed','running','waiting_verification','succeeded'\)/);
 });
+
+
+test("exact Edge release broker explicitly allows the source convergence worker with its custom-auth mode", () => {
+  const forwardSql = fs.readFileSync(
+    path.join(process.cwd(), "supabase/migrations/20260831052000_pandora_source_convergence_release_allowlist_v1.sql"),
+    "utf8",
+  );
+  assert.match(forwardSql, /when 'pandora-source-convergence-worker' then/);
+  assert.match(forwardSql, /supabase\/functions\/pandora-source-convergence-worker\/index\.ts/);
+  assert.match(forwardSql, /v_verify_jwt := false/);
+  assert.match(forwardSql, /Edge function slug outside Pandora release allowlist/);
+});
