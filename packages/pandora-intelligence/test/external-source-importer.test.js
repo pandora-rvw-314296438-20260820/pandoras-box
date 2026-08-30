@@ -23,7 +23,8 @@ const book = EXTERNAL_SOURCE_CATALOG.secret_knowledge;
 test('reviewed fork catalog is exact-commit pinned with explicit import modes', () => {
   assert.equal(awesome.commit, 'be2a406907dbc61b73e6827ded415c96139d13a2');
   assert.equal(awesome.mode, 'SKILL_SEED');
-  assert.equal(awesome.licenseStatus, 'UNRESOLVED');
+  assert.equal(awesome.license, 'Apache-2.0');
+  assert.equal(awesome.licenseStatus, 'PER_ENTRY_REVIEW_REQUIRED');
   assert.equal(awesome.contentImportAllowed, false);
   assert.equal(router.commit, '16b1480edf5d012f544516df514b1b28ee4ea83e');
   assert.equal(router.mode, 'BENCHMARK_REFERENCE');
@@ -52,7 +53,7 @@ test('external source policy rejects repository drift, commit drift, traversal a
   );
 });
 
-test('unknown-license skill seed is metadata-only BLOCKED and cannot be Worker-E certified', () => {
+test('per-entry-license skill seed is metadata-only BLOCKED and cannot be Worker-E certified', () => {
   const candidate = createExternalSkillCandidate({
     sourceId: 'awesome_claude_skills',
     repository: awesome.repository,
