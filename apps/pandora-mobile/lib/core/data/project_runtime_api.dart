@@ -90,6 +90,26 @@ class ProjectRuntimeApi {
     );
   }
 
+  Future<void> rollback({
+    required String projectId,
+    required String targetVersionId,
+    required String expectedProductionVersionId,
+    String? idempotencyKey,
+  }) async {
+    final key = idempotencyKey ?? _keys.create('customer-project-rollback');
+    await _client.postJson(
+      pathSegments: <String>['projects', projectId, 'rollback'],
+      operation: 'customerProject.rollback',
+      routeTemplate: '/projects/:id/rollback',
+      idempotencyKey: key,
+      body: <String, Object?>{
+        'targetVersionId': targetVersionId.trim(),
+        'expectedProductionVersionId': expectedProductionVersionId.trim(),
+        'idempotencyKey': key,
+      },
+    );
+  }
+
   Future<ProjectPublishResult> publish({
     required String projectId,
     String? versionId,
