@@ -1211,7 +1211,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
               ),
               child: PandoraV2IntentSurface(
                 controller: _change,
-                hintText: 'Describe your change or goal…',
+                hintText: 'Tell Pandora what to change…',
                 enabled: !_changing,
                 onSubmit: _requestChange,
                 onVoice: () async {
