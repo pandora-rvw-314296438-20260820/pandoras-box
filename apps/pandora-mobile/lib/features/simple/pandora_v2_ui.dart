@@ -165,6 +165,7 @@ class PandoraV2ObjectHeader extends StatelessWidget {
       );
 }
 
+
 class PandoraV2IntentSurface extends StatelessWidget {
   const PandoraV2IntentSurface({
     super.key,
@@ -185,74 +186,123 @@ class PandoraV2IntentSurface extends StatelessWidget {
   final bool autofocus;
   final bool enabled;
 
+  void _submit() {
+    final value = controller.text.trim();
+    if (enabled && value.isNotEmpty) onSubmit(value);
+  }
+
   @override
-  Widget build(BuildContext context) => Container(
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: PandoraV2Colors.line)),
-        ),
-        child: Column(
-          children: [
-            TextField(
-              controller: controller,
-              enabled: enabled,
-              autofocus: autofocus,
-              minLines: 1,
-              maxLines: 5,
-              textCapitalization: TextCapitalization.sentences,
-              textInputAction: TextInputAction.newline,
-              style: const TextStyle(
-                color: PandoraV2Colors.ink,
-                fontSize: 18,
-                height: 1.35,
+  Widget build(BuildContext context) => AnimatedOpacity(
+        duration: const Duration(milliseconds: 180),
+        opacity: enabled ? 1 : .72,
+        child: Container(
+          decoration: BoxDecoration(
+            color: PandoraV2Colors.surface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: PandoraV2Colors.line),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x12000000),
+                blurRadius: 24,
+                offset: Offset(0, 8),
               ),
-              decoration: InputDecoration(
-                hintText: hintText,
-                hintStyle:
-                    const TextStyle(color: Color(0xFF989793), fontSize: 18),
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.fromLTRB(0, 12, 0, 10),
-              ),
-            ),
-            Row(
-              children: [
-                if (onAttachment != null)
-                  IconButton(
-                    tooltip: 'Attach',
-                    onPressed: enabled ? onAttachment : null,
-                    icon: const Icon(Icons.attach_file_rounded),
-                    color: PandoraV2Colors.muted,
-                  ),
-                if (onVoice != null)
-                  IconButton(
-                    tooltip: 'Speak',
-                    onPressed: enabled ? onVoice : null,
-                    icon: const Icon(Icons.mic_none_rounded),
-                    color: PandoraV2Colors.muted,
-                  ),
-                const Spacer(),
-                IconButton.filled(
-                  tooltip: 'Continue',
-                  onPressed: enabled
-                      ? () {
-                          final value = controller.text.trim();
-                          if (value.isNotEmpty) onSubmit(value);
-                        }
-                      : null,
-                  style: IconButton.styleFrom(
-                    backgroundColor: PandoraV2Colors.ink,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: PandoraV2Colors.soft,
-                    disabledForegroundColor: PandoraV2Colors.muted,
-                  ),
-                  icon: const Icon(Icons.arrow_upward_rounded),
+            ],
+          ),
+          child: Column(
+            children: [
+              TextField(
+                controller: controller,
+                enabled: enabled,
+                autofocus: autofocus,
+                minLines: 1,
+                maxLines: 5,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.newline,
+                style: const TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 16,
+                  height: 1.35,
                 ),
-              ],
-            ),
-            const SizedBox(height: 4),
-          ],
+                decoration: InputDecoration(
+                  hintText: hintText,
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF989793),
+                    fontSize: 16,
+                  ),
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                child: Row(
+                  children: [
+                    if (onAttachment != null)
+                      _PandoraComposerIconButton(
+                        tooltip: 'Attach',
+                        icon: Icons.add_rounded,
+                        onPressed: enabled ? onAttachment : null,
+                      ),
+                    if (onVoice != null) ...[
+                      const SizedBox(width: 4),
+                      _PandoraComposerIconButton(
+                        tooltip: 'Speak',
+                        icon: Icons.mic_none_rounded,
+                        onPressed: enabled ? onVoice : null,
+                      ),
+                    ],
+                    const Spacer(),
+                    SizedBox.square(
+                      dimension: 42,
+                      child: IconButton.filled(
+                        tooltip: 'Continue',
+                        onPressed: enabled ? _submit : null,
+                        style: IconButton.styleFrom(
+                          backgroundColor: PandoraV2Colors.ink,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: PandoraV2Colors.soft,
+                          disabledForegroundColor: PandoraV2Colors.muted,
+                        ),
+                        icon: const Icon(Icons.arrow_upward_rounded, size: 21),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _PandoraComposerIconButton extends StatelessWidget {
+  const _PandoraComposerIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+        dimension: 38,
+        child: IconButton(
+          tooltip: tooltip,
+          onPressed: onPressed,
+          style: IconButton.styleFrom(
+            backgroundColor: PandoraV2Colors.soft,
+            foregroundColor: PandoraV2Colors.ink,
+            disabledBackgroundColor: PandoraV2Colors.soft,
+            disabledForegroundColor: const Color(0xFFB8B7B2),
+          ),
+          icon: Icon(icon, size: 20),
         ),
       );
 }
@@ -386,6 +436,173 @@ class PandoraV2ObjectWindow extends StatelessWidget {
           ),
         ),
       );
+}
+
+
+class PandoraV2ProjectCard extends StatelessWidget {
+  const PandoraV2ProjectCard({
+    super.key,
+    required this.title,
+    required this.status,
+    required this.signature,
+    this.detail,
+    this.onTap,
+    this.loading = false,
+  });
+
+  final String title;
+  final String status;
+  final int signature;
+  final String? detail;
+  final VoidCallback? onTap;
+  final bool loading;
+
+  Color get _statusColor {
+    final value = status.toLowerCase();
+    if (value.contains('ready') || value.contains('live')) {
+      return PandoraV2Colors.success;
+    }
+    if (value.contains('need')) return PandoraV2Colors.warning;
+    if (value.contains('build') || value.contains('work')) {
+      return const Color(0xFF4776B8);
+    }
+    return PandoraV2Colors.muted;
+  }
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: loading ? null : onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: PandoraV2Colors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: PandoraV2Colors.line),
+            ),
+            child: Row(
+              children: [
+                _PandoraProjectCover(signature: signature),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PandoraV2Colors.ink,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -.25,
+                          height: 1.12,
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      Row(
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: _statusColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              status,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: PandoraV2Colors.muted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (detail != null && detail!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          detail!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: PandoraV2Colors.muted,
+                            fontSize: 12.5,
+                            height: 1.32,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                if (loading)
+                  const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: PandoraV2Colors.ink,
+                    ),
+                  )
+                else
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: PandoraV2Colors.ink,
+                  ),
+                const SizedBox(width: 4),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+class _PandoraProjectCover extends StatelessWidget {
+  const _PandoraProjectCover({required this.signature});
+
+  final int signature;
+
+  @override
+  Widget build(BuildContext context) {
+    const palettes = <List<Color>>[
+      [Color(0xFF102A3B), Color(0xFF315C72)],
+      [Color(0xFFE8E0D3), Color(0xFFC8B9A2)],
+      [Color(0xFF242424), Color(0xFF555555)],
+    ];
+    final palette = palettes[signature.abs() % palettes.length];
+    final icon = switch (signature.abs() % 3) {
+      0 => Icons.waves_rounded,
+      1 => Icons.auto_awesome_rounded,
+      _ => Icons.layers_rounded,
+    };
+    final foreground = signature.abs() % palettes.length == 1
+        ? PandoraV2Colors.ink
+        : Colors.white;
+    return Container(
+      width: 86,
+      height: 86,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: palette,
+        ),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, color: foreground, size: 28),
+    );
+  }
 }
 
 class PandoraV2InlineMessage extends StatelessWidget {
