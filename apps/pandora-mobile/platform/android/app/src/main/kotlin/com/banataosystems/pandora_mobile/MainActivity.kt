@@ -647,10 +647,55 @@ private class PandoraExactPreviewView(
                     .replace(Regex("\\s+"), " ")
                     .trim()
                     .take(80)
+                val semanticId = payload.optString("semanticId")
+                    .replace(Regex("[^A-Za-z0-9_:.#/@-]"), "")
+                    .take(160)
+                val role = payload.optString("role")
+                    .lowercase()
+                    .replace(Regex("[^a-z0-9_-]"), "")
+                    .take(40)
+                val accessibleName = payload.optString("accessibleName")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
+                    .take(80)
+                val route = payload.optString("route")
+                    .replace(Regex("[^A-Za-z0-9_./?=&%#-]"), "")
+                    .take(200)
+                    .ifBlank { "/" }
+                var sourceFile = payload.optString("sourceFile")
+                    .replace(Regex("[^A-Za-z0-9_./-]"), "")
+                    .take(256)
+                    .ifBlank { "index.html" }
+                if (sourceFile.startsWith("/") || sourceFile.contains("..")) {
+                    sourceFile = "index.html"
+                }
+                val sourceLine = payload.optInt("sourceLine", 0).takeIf { it > 0 }
+                fun finiteNumber(key: String): Double {
+                    val value = payload.optDouble(key, 0.0)
+                    return if (value.isFinite()) value else 0.0
+                }
+                val x = finiteNumber("x")
+                val y = finiteNumber("y")
+                val width = finiteNumber("width").coerceAtLeast(0.0)
+                val height = finiteNumber("height").coerceAtLeast(0.0)
                 if (tag.isBlank() && selector.isBlank()) return@evaluateJavascript
                 selectionChannel.invokeMethod(
                     "selection",
-                    mapOf("tag" to tag, "selector" to selector, "text" to text)
+                    mapOf(
+                        "tag" to tag,
+                        "selector" to selector,
+                        "text" to text,
+                        "semanticId" to semanticId,
+                        "role" to role,
+                        "accessibleName" to accessibleName,
+                        "route" to route,
+                        "sourceFile" to sourceFile,
+                        "sourceLine" to sourceLine,
+                        "x" to x,
+                        "y" to y,
+                        "width" to width,
+                        "height" to height
+                    )
                 )
             } catch (_: Exception) {
                 clearSelectionHighlight()
