@@ -29,7 +29,7 @@ class PandoraWebPreview extends StatefulWidget {
   final Widget fallback;
   final bool selectionEnabled;
   final String? selectedSelector;
-  final ValueChanged<PandoraPreviewSelection>? onSelection;
+  final ValueChanged<PandoraPreviewSelection?> onSelection;
 
   static bool get isSupported => true;
 
@@ -62,8 +62,7 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
   @override
   void didUpdateWidget(covariant PandoraWebPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final bundleChanged =
-        oldWidget.versionId != widget.versionId ||
+    final bundleChanged = oldWidget.versionId != widget.versionId ||
         !identical(oldWidget.files, widget.files);
     if (bundleChanged) {
       _materialize();
@@ -130,7 +129,10 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
     final frame = _frame;
     final target = frame?.contentWindow;
     final versionId = widget.versionId.trim();
-    if (frame == null || target == null || _bundle == null || versionId.isEmpty) {
+    if (frame == null ||
+        target == null ||
+        _bundle == null ||
+        versionId.isEmpty) {
       return;
     }
 
@@ -139,184 +141,12 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
 
     final channel = html.MessageChannel();
     _port = channel.port1;
-    _portSubscription = channel.port1.onMessage.listen(_handlePortMessage);
-    target.postMessage(
-      <String, Object?>{
-        'type': 'pandora-preview-init',
-        'versionId': versionId,
-      },
-      '*',
-      <html.MessagePort>[channel.port2],
-    );
-  }
-
-  void _handlePortMessage(html.MessageEvent event) {
-    final raw = event.data;
-    if (raw is! String || !mounted) return;
-    Object? decoded;
-    try {
-      decoded = jsonDecode(raw);
-    } catch (_) {
-      return;
-    }
-    if (decoded is! Map) return;
-
-    String value(String key) => (decoded[key] as String? ?? '').trim();
-    if (value('versionId') != widget.versionId.trim()) return;
-    final type = value('type');
-    if (type == 'ready') {
-      _sendState();
-      return;
-    }
-    if (type != 'selection') return;
-
-    double number(String key) => (decoded[key] as num?)?.toDouble() ?? 0;
-    int? integer(String key) => (decoded[key] as num?)?.toInt();
-    final width = number('width');
-    final height = number('height');
-    final selection = PandoraPreviewSelection(
-      tag: value('tag'),
-      selector: value('selector'),
-      text: value('text'),
-      semanticId: value('semanticId'),
-      role: value('role'),
-      accessibleName: value('accessibleName'),
-      route: value('route').isEmpty ? '/' : value('route'),
-      sourceFile:
-          value('sourceFile').isEmpty ? 'index.html' : value('sourceFile'),
-      sourceLine: integer('sourceLine'),
-      bounds: width > 0 && height > 0
-          ? PandoraPreviewBounds(
-              x: number('x'),
-              y: number('y'),
-              width: width,
-              height: height,
-            )
-          : null,
-    );
-    if (selection.selector.isEmpty && selection.tag.isEmpty) return;
-    widget.onSelection?.call(selection);
-  }
-
-  void _sendState() {
-    final port = _port;
-    if (port == null) return;
-    port.postMessage(
-      jsonEncode(<String, Object?>{
-        'type': 'state',
-        'versionId': widget.versionId.trim(),
-        'selectionEnabled': widget.selectionEnabled,
-        'selectedSelector': widget.selectedSelector?.trim() ?? '',
-      }),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_bundle == null || _srcdoc == null) return widget.fallback;
-    return HtmlElementView(viewType: _viewType);
-  }
-}
-
-class _PreviewFile {
-  const _PreviewFile({
-    required this.path,
-    required this.mimeType,
-    required this.dataBase64,
-    required this.bytes,
-  });
-
-  final String path;
-  final String mimeType;
-  final String dataBase64;
-  final List<int> bytes;
-}
-
-Map<String, _PreviewFile>? _parseBundle(List<Map<String, Object?>> rawFiles) {
-  if (rawFiles.isEmpty || rawFiles.length > _maxFileCount) return null;
-  final files = <String, _PreviewFile>{};
-  var totalBytes = 0;
-  try {
-    for (final raw in rawFiles) {
-      final path = (raw['file'] as String? ?? '').trim();
-      final mimeType = (raw['mimeType'] as String? ?? '').trim();
-      final dataBase64 = (raw['dataBase64'] as String? ?? '').trim();
-      if (!_isSafePath(path) ||
-          mimeType.isEmpty ||
-          dataBase64.isEmpty ||
-          files.containsKey(path)) {
-        return null;
-      }
-      final bytes = base64Decode(dataBase64);
-      if (bytes.length > _maxFileBytes) return null;
-      totalBytes += bytes.length;
-      if (totalBytes > _maxBundleBytes) return null;
-      files[path] = _PreviewFile(
-        path: path,
-        mimeType: mimeType,
-        dataBase64: dataBase64,
-        bytes: bytes,
-      );
-    }
-  } catch (_) {
-    return null;
-  }
-  return files.containsKey('index.html') ? files : null;
-}
-
-bool _isSafePath(String path) {
-  if (path.isEmpty ||
-      path.length > 512 ||
-      path.startsWith('/') ||
-      path.endsWith('/') ||
-      path.contains(r'\') ||
-      path.contains('\u0000') ||
-      path.contains('?') ||
-      path.contains('#')) {
-    return false;
-  }
-  return path.split('/').every(
-        (part) =>
-            part.isNotEmpty && part != '.' && part != '..' && part.length <= 255,
-      );
-}
-
-String _buildSrcdoc(Map<String, _PreviewFile> files, String versionId) {
-  final index = files['index.html']!;
-  final htmlText = utf8.decode(index.bytes, allowMalformed: false);
-  final cache = <String, String>{};
-  final rewritten = _rewriteHtml(htmlText, files, cache, 'index.html');
-  final bootstrap = _bootstrapScript(versionId);
-  const csp = "default-src 'none'; "
-      "script-src 'unsafe-inline' data: blob:; "
-      "style-src 'unsafe-inline' data: blob:; "
-      "img-src data: blob:; "
-      "font-src data: blob:; "
-      "media-src data: blob:; "
-      "connect-src 'none'; "
-      "frame-src 'none'; "
-      "child-src 'none'; "
-      "worker-src 'none'; "
-      "object-src 'none'; "
-      "form-action 'none'; "
-      "base-uri 'none'; "
-      "navigate-to 'none'";
-
-  final securityHead =
-      '<meta http-equiv="Content-Security-Policy" content="${htmlEscape.convert(csp)}">'
-      '<meta name="referrer" content="no-referrer">'
-      '<script>$bootstrap</script>';
-
-  final withoutBase = rewritten.replaceAll(
-    RegExp(r'<base\b[^>]*>', caseSensitive: false),
-    '',
-  );
-  final head = RegExp(r'<head\b[^>]*>', caseSensitive: false);
+    _portSubscription = channel.portÄ¹½¹5•ÍÍ…”¹±¥ÍÑ•¸¡}¡…¹‘±•A½ÉÑ5•ÍÍ…”¤ì(€€€Ñ…É•Ğ¹Á½ÍÑ5•ÍÍ…” (€€€€€€ñMÑÉ¥¹œ°=‰©•Ğüùì(€€€€€€€€ÑåÁ”œè€Á…¹‘½É„µÁÉ•Ù¥•Üµ¥¹¥Ğœ°(€€€€€€€€Ù•ÉÍ¥½¹%œèÙ•ÉÍ¥½¹%°(€€€€€ô°(€€€€€€œ¨œ°(€€€€€€ñ¡Ñµ°¹5•ÍÍ…•A½ÉĞùm¡…¹¹•°¹Á½ÉĞÉt°(€€€€¤ì(€ô((€Ù½¥}¡…¹‘±•A½ÉÑ5•ÍÍ…”¡¡Ñµ°¹5•ÍÍ…•Ù•¹Ğ•Ù•¹Ğ¤ì(€€€™¥¹…°É…Ü€ô•Ù•¹Ğ¹‘…Ñ„ì(€€€¥˜€¡É…Ü¥Ì„MÑÉ¥¹œñğ€…µ½Õ¹Ñ•¤É•ÑÕÉ¸ì(€€€=‰©•Ğü‘•½‘•ì(€€€ÑÉäì(€€€€€‘•½‘•€ô©Í½¹•½‘”¡É…Ü¤ì(€€€ô…Ñ €¡|¤ì(€€€€€É•ÑÕÉ¸ì(€€€ô(€€€¥˜€¡‘•½‘•¥Ì„5…À¤É•ÑÕÉ¸ì((€€€MÑÉ¥¹œÙ…±Õ”¡MÑÉ¥¹œ­•ä¤€ôø€¡‘•½‘•‘m­•åt…ÌMÑÉ¥¹œü€üü€œœ¤¹ÑÉ¥´ ¤ì(€€€¥˜€¡Ù…±Õ” Ù•ÉÍ¥½¹%œ¤€„ôİ¥‘•Ğ¹Ù•ÉÍ¥½¹%¹ÑÉ¥´ ¤¤É•ÑÕÉ¸ì(€€€™¥¹…°ÑåÁ”€ôÙ…±Õ” ÑåÁ”œ¤ì(€€€¥˜€¡ÑåÁ”€ôô€É•…‘äœ¤ì(€€€€€}Í•¹‘MÑ…Ñ” ¤ì(€€€€€É•ÑÕÉ¸ì(€€€ô(€€€¥˜€¡ÑåÁ”€„ô€Í•±•Ñ¥½¸œ¤É•ÑÕÉ¸ì((€€€‘½Õ‰±”¹Õµ‰•È¡MÑÉ¥¹œ­•ä¤€ôø€¡‘•½‘•‘m­•åt…Ì¹Õ´ü¤ü¹Ñ½½Õ‰±” ¤€üü€Àì(€€€¥¹Ğü¥¹Ñ••È¡MÑÉ¥¹œ­•ä¤€ôø€¡‘•½‘•‘m­•åt…Ì¹Õ´ü¤ü¹Ñ½%¹Ğ ¤ì(€€€™¥¹…°İ¥‘Ñ €ô¹Õµ‰•È İ¥‘Ñ œ¤ì(€€€™¥¹…°¡•¥¡Ğ€ô¹Õµ‰•È ¡•¥¡Ğœ¤ì(€€€™¥¹…°Í•±•Ñ¥½¸€ôA…¹‘½É…AÉ•Ù¥•İM•±•Ñ¥½¸ (€€€€€Ñ…œèÙ…±Õ” Ñ…œœ¤°(€€€€€Í•±•Ñ½ÈèÙ…±Õ” Í•±•Ñ½Èœ¤°(€€€€€Ñ•áĞèÙ…±Õ” Ñ•áĞœ¤°(€€€€€Í•µ…¹Ñ¥%èÙ…±Õ” Í•µ…¹Ñ¥%œ¤°(€€€€€É½±”èÙ…±Õ” É½±”œ¤°(€€€€€…•ÍÍ¥‰±•9…µ”èÙ…±Õ” …•ÍÍ¥‰±•9…µ”œ¤°(€€€€€É½ÕÑ”èÙ…±Õ” É½ÕÑ”œ¤¹¥ÍµÁÑä€ü€œ¼œ€èÙ…±Õ” É½ÕÑ”œ¤°(€€€€€Í½ÕÉ•¥±”è(€€€€€€€€€Ù…±Õ” Í½ÕÉ•¥±”œ¤¹¥ÍµÁÑä€ü€¥¹‘•à¹¡Ñµ°œ€èÙ…±Õ” Í½ÕÉ•¥±”œ¤°(€€€€€Í½ÕÉ•1¥¹”è¥¹Ñ••È Í½ÕÉ•1¥¹”œ¤°(€€€€€‰½Õ¹‘Ìèİ¥‘Ñ €ø€À€˜˜¡•¥¡Ğ€ø€À(€€€€€€€€€€üA…¹‘½É…AÉ•Ù¥•İ	½Õ¹‘Ì (€€€€€€€€€€€€€àè¹Õµ‰•È àœ¤°(€€€€€€€€€€€€€äè¹Õµ‰•È äœ¤°(€€€€€€€€€€€€€İ¥‘Ñ èİ¥‘Ñ °(€€€€€€€€€€€€€¡•¥¡Ğè¡•¥¡Ğ°(€€€€€€€€€€€€¤(€€€€€€€€€€è¹Õ±°°(€€€€¤ì(€€€¥˜€¡Í•±•Ñ¥½¸¹Í•±•Ñ½È¹¥ÍµÁÑä€˜˜Í•±•Ñ¥½¸¹Ñ…œ¹¥ÍµÁÑä¤É•ÑÕÉ¸ì(€€€İ¥‘•Ğ¹½¹M•±•Ñ¥½¸ü¹…±°¡Í•±•Ñ¥½¸¤ì(€ô((€Ù½¥}Í•¹‘MÑ…Ñ” ¤ì(€€€™¥¹…°Á½ÉĞ€ô}Á½ÉĞì(€€€¥˜€¡Á½ÉĞ€ôô¹Õ±°¤É•ÑÕÉ¸ì(€€€Á½ÉĞ¹Á½ÍÑ5•ÍÍ…” (€€€€€©Í½¹¹½‘” ñMÑÉ¥¹œ°=‰©•Ğüùì(€€€€€€€€ÑåÁ”œè€ÍÑ…Ñ”œ°(€€€€€€€€Ù•ÉÍ¥½¹%œèİ¥‘•Ğ¹Ù•ÉÍ¥½¹%¹ÑÉ¥´ ¤°(€€€€€€€€Í•±•Ñ¥½¹¹…‰±•œèİ¥‘•Ğ¹Í•±•Ñ¥½¹¹…‰±•°(€€€€€€€€Í•±•Ñ•‘M•±•Ñ½Èœèİ¥‘•Ğ¹Í•±•Ñ•‘M•±•Ñ½Èü¹ÑÉ¥´ ¤€üü€œœ°(€€€€€ô¤°(€€€€¤ì(€ô((€½Ù•ÉÉ¥‘”(€]¥‘•Ğ‰Õ¥±¡	Õ¥±‘½¹Ñ•áĞ½¹Ñ•áĞ¤ì(€€€¥˜€¡}‰Õ¹‘±”€ôô¹Õ±°ñğ}ÍÉ‘½Œ€ôô¹Õ±°¤É•ÑÕÉ¸İ¥‘•Ğ¹™…±±‰…¬ì(€€€É•ÑÕÉ¸!Ñµ±±•µ•¹ÑY¥•Ü¡Ù¥•İQåÁ”è}Ù¥•İQåÁ”¤ì(€ô)ô()±…ÍÌ}AÉ•Ù¥•İ¥±”ì(€½¹ÍĞ}AÉ•Ù¥•İ¥±”¡ì(€€€É•ÅÕ¥É•Ñ¡¥Ì¹Á…Ñ °(€€€É•ÅÕ¥É•Ñ¡¥Ì¹µ¥µ•QåÁ”°(€€€É•ÅÕ¥É•Ñ¡¥Ì¹‘…Ñ…	…Í”ØĞ°(€€€É•ÅÕ¥É•Ñ¡¥Ì¹‰åÑ•Ì°(€ô¤ì((€™¥¹…°MÑÉ¥¹œÁ…Ñ ì(€™¥¹…°MÑÉ¥¹œµ¥µ•QåÁ”ì(€™¥¹…°MÑÉ¥¹œ‘…Ñ…	…Í”ØĞì(€™¥¹…°1¥ÍĞñ¥¹Ğø‰åÑ•Ìì)ô()5…ÀñMÑÉ¥¹œ°}AÉ•Ù¥•İ¥±”øü}Á…ÉÍ•	Õ¹‘±”¡1¥ÍĞñ5…ÀñMÑÉ¥¹œ°=‰©•ĞüøøÉ…İ¥±•Ì¤ì(€¥˜€¡É…İ¥±•Ì¹¥ÍµÁÑäñğÉ…İ¥±•Ì¹±•¹Ñ €ø}µ…á¥±•½Õ¹Ğ¤É•ÑÕÉ¸¹Õ±°ì(€™¥¹…°™¥±•Ì€ô€ñMÑÉ¥¹œ°}AÉ•Ù¥•İ¥±”ùíôì(€Ù…ÈÑ½Ñ…±	åÑ•Ì€ô€Àì(€ÑÉäì(€€€™½È€¡™¥¹…°É…Ü¥¸É…İ¥±•Ì¤ì(€€€€€™¥¹…°Á…Ñ €ô€¡É…İl™¥±”t…ÌMÑÉ¥¹œü€üü€œœ¤¹ÑÉ¥´ ¤ì(€€€€€™¥¹…°µ¥µ•QåÁ”€ô€¡É…İlµ¥µ•QåÁ”t…ÌMÑÉ¥¹œü€üü€œœ¤¹ÑÉ¥´ ¤ì(€€€€€™¥¹…°‘…Ñ…	…Í”ØĞ€ô€¡É…İl‘…Ñ…	…Í”ØĞt…ÌMÑÉ¥¹œü€üü€œœ¤¹ÑÉ¥´ ¤ì(€€€€€¥˜€ …}¥ÍM…™•A…Ñ ¡Á…Ñ ¤ñğ(€€€€€€€€€µ¥µ•QåÁ”¹¥ÍµÁÑäñğ(€€€€€€€€€‘…Ñ…	…Í”ØĞ¹¥ÍµÁÑäñğ(€€€€€€€€€™¥±•Ì¹½¹Ñ…¥¹Í-•ä¡Á…Ñ ¤¤ì(€€€€€€€É•ÑÕÉ¸¹Õ±°ì(€€€€€ô(€€€€€™¥¹…°‰åÑ•Ì€ô‰…Í”ØÑ•½‘”¡‘…Ñ…	…Í”ØĞ¤ì(€€€€€¥˜€¡‰åÑ•Ì¹±•¹Ñ €ø}µ…á¥±•	åÑ•Ì¤É•ÑÕÉ¸¹Õ±°ì(€€€€€Ñ½Ñ…±	åÑ•Ì€¬ô‰åÑ•Ì¹±•¹Ñ ì(€€€€€¥˜€¡Ñ½Ñ…±	åÑ•Ì€ø}µ…á	Õ¹‘±•	åÑ•Ì¤É•ÑÕÉ¸¹Õ±°ì(€€€€€™¥±•ÍmÁ…Ñ¡t€ô}AÉ•Ù¥•İ¥±” (€€€€€€€Á…Ñ èÁ…Ñ °(€€€€€€€µ¥µ•QåÁ”èµ¥µ•QåÁ”°(€€€€€€€‘…Ñ…	…Í”ØĞè‘…Ñ…	…Í”ØĞ°(€€€€€€€‰åÑ•Ìè‰åÑ•Ì°(€€€€€€¤ì(€€€ô(€ô…Ñ €¡|¤ì(€€€É•ÑÕÉ¸¹Õ±°ì(€ô(€É•ÑÕÉ¸™¥±•Ì¹½¹Ñ…¥¹Í-•ä ¥¹‘•à¹¡Ñµ°œ¤€ü™¥±•Ì€è¹Õ±°ì)ô()‰½½°}¥ÍM…™•A…Ñ ¡MÑÉ¥¹œÁ…Ñ ¤ì(€¥˜€¡Á…Ñ ¹¥ÍµÁÑäñğ(€€€€€Á…Ñ ¹±•¹Ñ €ø€ÔÄÈñğ(€€€€€Á…Ñ ¹ÍÑ…ÉÑÍ]¥Ñ  œ¼œ¤ñğ(€€€€€Á…Ñ ¹•¹‘Í]¥Ñ  œ¼œ¤ñğ(€€€€€Á…Ñ ¹½¹Ñ…¥¹Ì¡Èpœ¤ñğ(€€€€€Á…Ñ ¹½¹Ñ…¥¹Ì qÔÀÀÀÀœ¤ñğ(€€€€€Á…Ñ ¹½¹Ñ…¥¹Ì œüœ¤ñğ(€€€€€Á…Ñ ¹½¹Ñ…¥¹Ì œŒœ¤¤ì(€€€É•ÑÕÉ¸™…±Í”ì(€ô(€É•ÑÕÉ¸Á…Ñ ¹ÍÁ±¥Ğ œ¼œ¤¹•Ù•Éä (€€€€€€€€¡Á…ÉĞ¤€ôø(€€€€€€€€€€€Á…ÉĞ¹¥Í9=ÑµÁÑä€˜˜(€€€€€€€€€€€Á…ÉĞ€„ô€œ¸œ€˜˜(€€€€€€€€€€€Á…ÉĞ€„ô€œ¸¸œ€˜˜(€€€€€€€€€€€Á…ÉĞ¹±•¹Ñ €ğô€ÈÔÔ°(€€€€€€¤ì)ô()MÑÉ¥¹œ}‰Õ¥±‘MÉ‘½Œ¡5…ÀñMÑÉ¥¹œ°}AÉ•Ù¥•İ¥±”ø™¥±•Ì°MÑÉ¥¹œÙ•ÉÍ¥½¹%¤ì(€™¥¹…°¥¹‘•à€ô™¥±•Íl¥¹‘•à¹¡Ñµ°t„ì(€™¥¹…°¡Ñµ±Q•áĞ€ôÕÑ˜à¹‘•½‘”¡¥¹‘•à¹‰åÑ•Ì°…±±½İ5…±™½Éµ•è™…±Í”¤ì(€™¥¹…°…¡”€ô€ñMÑÉ¥¹œ°MÑÉ¥¹œùíôì(€™¥¹…°É•İÉ¥ÑÑ•¸€ô}É•İÉ¥Ñ•!Ñµ°¡¡Ñµ±Q•áĞ°™¥±•Ì°…¡”°€¥¹‘•à¹¡Ñµ°œ¤ì(€™¥¹…°‰½½ÑÍÑÉ…À€ô}‰½½ÑÍÑÉ…ÁMÉ¥ÁĞ¡Ù•ÉÍ¥½¹%¤ì(€½¹ÍĞÍÀ€ô€‰‘•™…Õ±ĞµÍÉŒ€¹½¹”œì€ˆ(€€€€€€‰ÍÉ¥ÁĞµÍÉŒ€Õ¹Í…™”µ¥¹±¥¹”œ‘…Ñ„è‰±½ˆèì€ˆ(€€€€€€‰ÍÑå±”µÍÉŒ€Õ¹Í…™”µ¥¹±¥¹”œ‘…Ñ„è‰±½ˆèì€ˆ(€€€€€€‰¥µœµÍÉŒ‘…Ñ„è‰±½ˆèì€ˆ(€€€€€€‰™½¹ĞµÍÉŒ‘…Ñ„è‰±½ˆèì€ˆ(€€€€€€‰µ•‘¥„µÍÉŒ‘…Ñ„è‰±½ˆèì€ˆ(€€€€€€‰½¹¹•ĞµÍÉŒ€¹½¹”œì€ˆ(€€€€€€‰™É…µ”µÍÉŒ€¹½¹”œì€ˆ(€€€€€€‰¡¥±µÍÉŒ€¹½¹”œì€ˆ(€€€€€€‰İ½É­•ÈµÍÉŒ€¹½¹”œì€ˆ(€€€€€€‰½‰©•ĞµÍÉŒ€¹½¹”œì€ˆ(€€€€€€‰™½É´µ…Ñ¥½¸€¹½¹”œì€ˆ(€€€€€€‰‰…Í”µÕÉ¤€¹½¹”œì€ˆ(€€€€€€‰¹…Ù¥…Ñ”µÑ¼€¹½¹”œˆì((€™¥¹…°Í•ÕÉ¥Ñå!•…€ô(€€€€€€œñµ•Ñ„¡ÑÑÀµ•ÅÕ¥Øô‰½¹Ñ•¹ĞµM•ÕÉ¥ÑäµA½±¥äˆ½¹Ñ•¹Ğôˆ‘í¡Ñµ±Í…Á”¹½¹Ù•ÉĞ¡ÍÀ¥ôˆøœ(€€€€€€œñµ•Ñ„¹…µ”ô‰É•™•ÉÉ•Èˆ½¹Ñ•¹Ğô‰¹¼µÉ•™•ÉÉ•Èˆøœ(€€€€€€œñÍÉ¥ÁĞø‘‰½½ÑÍÑÉ…Àğ½ÍÉ¥ÁĞøœì((€™¥¹…°İ¥Ñ¡½ÕÑ	…Í”€ôÉ•İÉ¥ÑÑ•¸¹É•Á±…•±° (€€€I•áÀ¡Èœñ‰…Í•q‰mxùt¨øœ°…Í•M•¹Í¥Ñ¥Ù”è™…±Í”¤°(€€€€œœ°(€€¤ì(€™¥¹…°¡•…€ôI•áÀ¡Èœñ¡•…‘qmb[^>]*>', caseSensitive: false);
   final match = head.firstMatch(withoutBase);
   if (match != null) {
     return withoutBase.replaceRange(match.end, match.end, securityHead);
   }
-  final htmlTag = RegExp(r'<html\b[^>]*>', caseSensitive: false);
+  final htmlTag = RegExp(r'<html[^>]*>', caseSensitive: false);
   final htmlMatch = htmlTag.firstMatch(withoutBase);
   if (htmlMatch != null) {
     return withoutBase.replaceRange(
@@ -378,15 +208,14 @@ String _materializeUri(
       var text = utf8.decode(bytes, allowMalformed: false);
       if (mime.contains('css')) {
         text = text.replaceAllMapped(
-          RegExp(r'''url\(\s*(["']?)([^)"']+)\1\s*\)''',
-              caseSensitive: false),
+          RegExp(r'''url\(\s*(["']?([^)"']+)\1\s*\)''', caseSensitive: false),
           (match) {
             final nested = _resolvePath(path, match.group(2)!, files);
             if (nested == null) return match.group(0)!;
             return 'url("${_materializeUri(nested, files, cache, visiting)}")';
           },
         );
-      } else if (mime.contains('javascript')) {
+      } else if (mime.contains(&javascript')) {
         text = _rewriteModuleSpecifiers(text, path, files, cache, visiting);
       }
       bytes = utf8.encode(text);
@@ -410,7 +239,7 @@ String _rewriteModuleSpecifiers(
   Set<String> visiting,
 ) {
   var output = source.replaceAllMapped(
-    RegExp(r'''(\bfrom\s*["'])([^"']+)(["'])'''),
+    RegExp(r'''(\bfrom\s*["'])[^"']+(["'])'''),
     (match) {
       final nested = _resolvePath(basePath, match.group(2)!, files);
       if (nested == null) return match.group(0)!;
@@ -418,7 +247,7 @@ String _rewriteModuleSpecifiers(
     },
   );
   output = output.replaceAllMapped(
-    RegExp(r'''(\bimport\s*["'])([^"']+)(["'])'''),
+    RegExp(r'''(\bimport\s*["'])[^"']+)(["'])'''),
     (match) {
       final nested = _resolvePath(basePath, match.group(2)!, files);
       if (nested == null) return match.group(0)!;
@@ -450,7 +279,7 @@ String? _resolvePath(
       ref.startsWith('mailto:') ||
       ref.startsWith('tel:') ||
       ref.startsWith('//') ||
-      RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*:').hasMatch(ref)) {
+      RegExp(r'^[a-zA-Z][a-zA-Z0-9+\.-]*:').hasMatch(ref)) {
     return null;
   }
   final clean = ref.split('#').first.split('?').first;
@@ -458,7 +287,7 @@ String? _resolvePath(
   final parts = <String>[];
   if (!clean.startsWith('/')) {
     final base = basePath.split('/');
-    if (base.isNotEmpty) base.removeLast();
+    if (base.isNOtEmpty) base.removeLast();
     parts.addAll(base);
   }
   for (final segment in clean.split('/')) {
@@ -475,165 +304,4 @@ String? _resolvePath(
 }
 
 String _rawDataUri(_PreviewFile file) =>
-    'data:${file.mimeType};base64,${file.dataBase64}';
-
-String _bootstrapScript(String versionId) {
-  final encodedVersion = jsonEncode(versionId);
-  return '''
-(() => {
-  'use strict';
-  const expectedVersionId = $encodedVersion;
-  let privilegedPort = null;
-  let selectionEnabled = false;
-  let selectedSelector = '';
-
-  const escapeSelector = value =>
-    (window.CSS && CSS.escape)
-      ? CSS.escape(value)
-      : String(value).replace(/[^a-zA-Z0-9_-]/g, ch => '\\\\' + ch);
-
-  const clearSelection = () => {
-    document.querySelectorAll('[data-pandora-preview-selected="true"]')
-      .forEach(node => node.removeAttribute('data-pandora-preview-selected'));
-  };
-
-  const ensureSelectionStyle = () => {
-    if (document.getElementById('pandora-preview-selection-style')) return;
-    const style = document.createElement('style');
-    style.id = 'pandora-preview-selection-style';
-    style.textContent =
-      '[data-pandora-preview-selected="true"]{outline:2px solid rgba(25,25,25,.72)!important;outline-offset:2px!important}';
-    document.head.appendChild(style);
-  };
-
-  const applySelectedSelector = () => {
-    clearSelection();
-    if (!selectedSelector) return;
-    try {
-      const node = document.querySelector(selectedSelector);
-      if (node) {
-        ensureSelectionStyle();
-        node.setAttribute('data-pandora-preview-selected', 'true');
-      }
-    } catch (_) {}
-  };
-
-  const selectorFor = node => {
-    const semanticId = node.getAttribute('data-pandora-id');
-    if (semanticId) return '[data-pandora-id="' + escapeSelector(semanticId) + '"]';
-    if (node.id) return '#' + escapeSelector(node.id);
-    const parts = [];
-    let current = node;
-    while (current && current.nodeType === 1 && current !== document.documentElement) {
-      let part = current.tagName.toLowerCase();
-      const owner = current.parentElement;
-      if (owner) {
-        const peers = Array.from(owner.children)
-          .filter(child => child.tagName === current.tagName);
-        if (peers.length > 1) {
-          part += ':nth-of-type(' + (peers.indexOf(current) + 1) + ')';
-        }
-      }
-      parts.unshift(part);
-      current = owner;
-      if (parts.length >= 8) break;
-    }
-    return parts.join(' > ');
-  };
-
-  window.addEventListener('message', (event) => {
-    if (!event.isTrusted || event.ports.length !== 1) return;
-    const message = event.data;
-    if (!message ||
-        message.type !== 'pandora-preview-init' ||
-        message.versionId !== expectedVersionId ||
-        privilegedPort !== null) {
-      return;
-    }
-    event.stopImmediatePropagation();
-    const port = event.ports[0];
-    privilegedPort = port;
-    port.onmessage = portEvent => {
-      if (typeof portEvent.data !== 'string') return;
-      let command;
-      try { command = JSON.parse(portEvent.data); } catch (_) { return; }
-      if (!command || command.versionId !== expectedVersionId || command.type !== 'state') return;
-      selectionEnabled = command.selectionEnabled === true;
-      selectedSelector = typeof command.selectedSelector === 'string'
-        ? command.selectedSelector
-        : '';
-      applySelectedSelector();
-    };
-    port.postMessage(JSON.stringify({
-      type: 'ready',
-      versionId: expectedVersionId
-    }));
-  }, true);
-
-  document.addEventListener('click', (event) => {
-    const anchor = event.target && event.target.closest
-      ? event.target.closest('a[href]')
-      : null;
-    if (anchor) {
-      const href = String(anchor.getAttribute('href') || '').trim();
-      if (/^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\\/\\/)/.test(href) &&
-          !href.startsWith('data:') &&
-          !href.startsWith('blob:')) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return;
-      }
-    }
-
-    if (!selectionEnabled || !privilegedPort) return;
-    const element = document.elementFromPoint(event.clientX, event.clientY);
-    if (!element || element === document.documentElement || element === document.body) return;
-
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    clearSelection();
-    ensureSelectionStyle();
-    element.setAttribute('data-pandora-preview-selected', 'true');
-    selectedSelector = selectorFor(element);
-
-    const rect = element.getBoundingClientRect();
-    const lineRaw = element.getAttribute('data-pandora-source-line');
-    const sourceLine = lineRaw && /^\\d+\$/.test(lineRaw) ? Number(lineRaw) : null;
-    const hashRoute = location.hash && location.hash.startsWith('#/')
-      ? location.hash.substring(1)
-      : '';
-
-    privilegedPort.postMessage(JSON.stringify({
-      type: 'selection',
-      versionId: expectedVersionId,
-      tag: element.tagName ? element.tagName.toLowerCase() : '',
-      selector: selectedSelector,
-      text: String(element.textContent || '').trim().slice(0, 500),
-      semanticId: String(element.getAttribute('data-pandora-id') || ''),
-      role: String(element.getAttribute('role') || ''),
-      accessibleName: String(
-        element.getAttribute('aria-label') ||
-        element.getAttribute('title') ||
-        ''
-      ),
-      route: hashRoute || '/',
-      sourceFile: String(
-        element.getAttribute('data-pandora-source-file') || 'index.html'
-      ),
-      sourceLine,
-      x: rect.x,
-      y: rect.y,
-      width: rect.width,
-      height: rect.height
-    }));
-  }, true);
-})();
-''';
-}
-
-const String _unavailableDocument =
-    '<!doctype html><html><head>'
-    '<meta http-equiv="Content-Security-Policy" '
-    'content="default-src &#39;none&#39;; connect-src &#39;none&#39;; '
-    'frame-src &#39;none&#39;; form-action &#39;none&#39;">'
-    '</head><body></body></html>';
+    'data:$zvf–ÆRæÖ–ÖUG—WÓ¶&6ScBÂG¶f–ÆRæFF&6ScGÒs° ¥7G&–ærö&ö÷G7G&67&—B…7G&–ærfW'6–öä–B’°¢f–æÂVæ6öFVEfW'6–öâÒ§6öäVæ6öFR‡fW'6–öä–B“°¢&WGW&ârrp¢‚‚’Óâ°¢wW6R7G&–7Bs°¢6öç7BW‡V7FVEfW'6–öä–BÒFVæ6öFVEfW'6–öã°¢ÆWB&—f–ÆVvVE÷'BÒçVÆÃ°¢ÆWB6VÆV7F–öäVæ&ÆVBÒfÇ6S°¢ÆWB6VÆV7FVE6VÆV7F÷"Òrs° ¢6öç7BW66U6VÆV7F÷"ÒfÇVRÓà¢‡v–æF÷rä552bb552æW66R¢ò552æW66R‡fÇVR¢¢7G&–ær‡fÇVR’ç&WÆ6R‚õµæ×¤Õ£Ó•òÕÒörÂ6‚ÓâuÅÅÅÂr²6‚“° ¢6öç7B6ÆV%6VÆV7F–öâÒ‚’Óâ°¢Fö7VÖVçBçVW'•6VÆV7F÷$ÆÂ‚u¶FF×æF÷&×&Wf–Wr×6VÆV7FVCÒ'G'VR%Òr¢æf÷$V6‚†æöFRÓâæöFRç&VÖ÷fTGG&–'WFR‚vFF×æF÷&×&Wf–Wr×6VÆV7FVBr’“°¢Ó° ¢6öç7BVç7W&U6VÆV7F–öå7G–ÆRÒ‚’Óâ°¢–b†Fö7VÖVçBævWDVÆVÖVçD'”–B‚wæF÷&×&Wf–Wr×6VÆV7F–öâ×7G–ÆRr’’&WGW&ã°¢6öç7B7G–ÆRÒFö7VÖVçBæ7&VFTVÆVÖVçB‚w7G–ÆRr“°¢7G–ÆRæ–BÒwæF÷&×&Wf–Wr×6VÆV7F–öâ×7G–ÆRs°¢7G–ÆRçFW‡D6öçFVçBĞ¢u¶FF×æF÷&×&Wf–Wr×6VÆV7FVCÒ'G'VR%×¶÷WFÆ–æS£'‚6öÆ–B&v&ƒ#RÃ#RÃ#RÂãs"’×÷'FçC¶÷WFÆ–æRÖöfg6WC£'‚–×÷'FçGÒs°¢Fö7VÖVçBæ†VBæVæD6†–ÆB‡7G–ÆR“°¢Ó° ¢6öç7BÇ•6VÆV7FVE6VÆV7F÷"Ò‚’Óâ°¢6ÆV%6VÆV7F–öâ‚“°¢–b‚6VÆV7FVE6VÆV7F÷"’&WGW&ã°¢G'’°¢6öç7BæöFRÒFö7VÖVçBçVW'•6VÆV7F÷"‡6VÆV7FVE6VÆV7F÷"“°¢–b†æöFR’°¢Vç7W&U6VÆV7F–öå7G–ÆR‚“°¢æöFRç6WDGG&–'WFR‚vFF×æF÷&×&Wf–Wr×6VÆV7FVBrÂwG'VRr“°¢Ğ¢Ò6F6‚…ò’·Ğ¢Ó° ¢6öç7B6VÆV7F÷$f÷"ÒæöFRÓâ°¢6öç7B6VÖçF–4–BÒæöFRævWDGG&–'WFR‚vFF×æF÷&Ö–Br“°¢–b‡6VÖçF–4–B’&WGW&âu¶FF×æF÷&Ö–CÒ"r²W66U6VÆV7F÷"‡6VÖçF–4–B’²r%Òs°¢–b†æöFRæ–B’&WGW&âr2r²W66U6VÆV7F÷"†æöFRæ–B“°¢6öç7B'G2ÒµÓ°¢ÆWB7W'&VçBÒæöFS°¢v†–ÆR†7W'&VçBbb7W'&VçBææöFUG—RÓÓÒbb7W'&VçBÓÒFö7VÖVçBæFö7VÖVçDVÆVÖVçB’°¢ÆWB'BÒ7W'&VçBçFtæÖRçFôÆ÷vW$66R‚“°¢6öç7B÷væW"Ò7W'&VçBç&VçDVÆVÖVçC°¢–b†÷væW"’°¢6öç7BVW'2Ò'&’æg&öÒ†÷væW"æ6†–ÆG&Vâ¢æf–ÇFW"†6†–ÆBÓâ6†–ÆBçFtæÖRÓÓÒ7W'&VçBçFtæÖR“°¢–b‡VW'2æÆVæwF‚â’°¢'B³Òs¦çF‚Ööb×G—R‚r²‡VW'2æ–æFW„öb†7W'&VçB’²’²r’s°¢Ğ¢Ğ¢'G2çVç6†–gB‡'B“°¢7W'&VçBÒ÷væW#°¢–b‡'G2æÆVæwF‚ãÒ‚’'&V³°¢Ğ¢&WGW&â'G2æ¦ö–â‚râr“°¢Ó° ¢v–æF÷ræFDWfVçDÆ—7FVæW"‚vÖW76vRrÂ†WfVçB’Óâ°¢–b‚WfVçBæ—5G'W7FVBÇÂWfVçBç÷'G2æÆVæwF‚ÓÒ’&WGW&ã°¢6öç7BÖW76vRÒWfVçBæFF°¢–b‚ÖW76vRÇÀ¢ÖW76vRçG—RÓÒwæF÷&×&Wf–WrÖ–æ—BrÇÀ¢ÖW76vRçfW'6–öä–BÓÒW‡V7FVEfW'6–öä–BÇÀ¢&—f–ÆVvVE÷'BÓÒçVÆÂ’°¢&WGW&ã°¢Ğ¢WfVçBç7F÷–ÖÖVF–FU&÷vF–öâ‚“°¢6öç7B÷'BÒWfVçBç÷'G5³Ó°¢&—f–ÆVvVE÷'BÒ÷'C°¢÷'BæöæÖW76vRÒ÷'DWfVçBÓâ°¢–b‡G—Vöb÷'DWfVçBæFFÓÒw7G&–ærr’&WGW&ã°¢ÆWB6öÖÖæC°¢G'’²6öÖÖæBÒ¥4ôâç'6R‡÷'DWfVçBæFF“²Ò6F6‚…ò’²&WGW&ã²Ğ¢–b‚6öÖÖæBÇÂ6öÖÖæBçfW'6–öä–BÓÒW‡V7FVEfW'6–öä–BÇÂ6öÖÖæBçG—RÓÒw7FFRr’&WGW&ã°¢6VÆV7F–öäVæ&ÆVBÒ6öÖÖæBç6VÆV7F–öäVæ&ÆVBÓÓÒG'VS°¢6VÆV7FVE6VÆV7F÷"ÒG—Vöb6öÖÖæBç6VÆV7FVE6VÆV7F÷"ÓÓÒw7G&–ærp¢ò6öÖÖæBç6VÆV7FVE6VÆV7F÷ ¢¢rs°¢Ç•6VÆV7FVE6VÆV7F÷"‚“°¢Ó°¢÷'Bç÷7DÖW76vR„¥4ôâç7G&–æv–g’‡°¢G—S¢w&VG’rÀ¢fW'6–öä–C¢W‡V7FVEfW'6–öä–@¢Ò’“°¢ÒÂG'VR“° ¢Fö7VÖVçBæFDWfVçDÆ—7FVæW"‚v6Æ–6²rÂ†WfVçB’Óâ°¢6öç7Bæ6†÷"ÒWfVçBçF&vWBbbWfVçBçF&vWBæ6Æ÷6W7@¢òWfVçBçF&vWBæ6Æ÷6W7B‚v¶‡&VeÒr¢¢çVÆÃ°¢–b†æ6†÷"’°¢6öç7B‡&VbÒ7G&–ær†æ6†÷"ævWDGG&–'WFR‚v‡&Vbr’ÇÂrr’çG&–Ò‚“°¢–b‚õâƒó¥¶×¤Õ¥Õ¶×¤Õ£Ó’²âÕÒ£§ÅÅÂõÅÂò’òçFW7B†‡&Vb’b`¢‡&Vbç7F'G5v—F‚‚vFF¢r’b`¢‡&Vbç7F'G5v—F‚‚v&Æö#¢r’’°¢WfVçBç&WfVçDFVfVÇB‚“°¢WfVçBç7F÷–ÖÖVF–FU&÷vF–öâ‚“°¢&WGW&ã°¢Ğ¢Ğ ¢–b‚6VÆV7F–öäVæ&ÆVBÇÂ&—f–ÆVvVE÷'B’&WGW&ã°¢6öç7BVÆVÖVçBÒFö7VÖVçBæVÆVÖVçDg&öÕö–çB†WfVçBæ6Æ–VçE‚ÂWfVçBæ6Æ–VçE’“°¢–b‚VÆVÖVçBÇÂVÆVÖVçBÓÓÒFö7VÖVçBæFö7VÖVçDVÆVÖVçBÇÂVÆVÖVçBÓÓÒFö7VÖVçBæ&öG’’&WGW&ã° ¢WfVçBç&WfVçDFVfVÇB‚“°¢WfVçBç7F÷–ÖÖVF–FU&÷vF–öâ‚“°¢6ÆV%6VÆV7F–öâ‚“°¢Vç7W&U6VÆV7F–öå7G–ÆR‚“°¢VÆVÖVçBç6WDGG&–'WFR‚vFF×æF÷&×&Wf–Wr×6VÆV7FVBrÂwG'VRr“°¢6VÆV7FVE6VÆV7F÷"Ò6VÆV7F÷$f÷"†VÆVÖVçB“° ¢6öç7B&V7BÒVÆVÖVçBævWD&÷VæF–æt6Æ–VçE&V7B‚“°¢6öç7BÆ–æU&rÒVÆVÖVçBævWDGG&–'WFR‚vFF×æF÷&×6÷W&6RÖÆ–æRr“°¢6öç7B6÷W&6TÆ–æRÒÆ–æU&rbbõåÅÆBµÂBòçFW7B†Æ–æU&r’òçVÖ&W"†Æ–æU&r’¢çVÆÃ°¢6öç7B†6…&÷WFRÒÆö6F–öâæ†6‚bbÆö6F–öâæ†6‚ç7F'G5v—F‚‚r2òr¢òÆö6F–öâæ†6‚ç7V'7G&–ærƒ¢¢rs° ¢&—f–ÆVvVE÷'Bç÷7DÖW76vR„¥4ôâç7G&–æv–g’‡°¢G—S¢w6VÆV7F–öârÀ¢fW'6–öä–C¢W‡V7FVEfW'6–öä–BÀ¢Fs¢VÆVÖVçBçFtæÖRòVÆVÖVçBçFtæÖRçFôÆ÷vW$66R‚’¢rrÀ¢6VÆV7F÷#¢6VÆV7FVE6VÆV7F÷"À¢FW‡C¢7G&–ær†VÆVÖVçBçFW‡D6öçFVçBÇÂrr’çG&–Ò‚’ç6Æ–6RƒÂS’À¢6VÖçF–4–C¢7G&–ær†VÆVÖVçBævWDGG&–'WFR‚vFF×æF÷&Ö–Br’ÇÂrr’À¢&öÆS¢7G&–ær†VÆVÖVçBævWDGG&–'WFR‚w&öÆRr’ÇÂrr’À¢66W76–&ÆTæÖS¢7G&–ær€¢VÆVÖVçBævWDGG&–'WFR‚v&–ÖÆ&VÂr’ÇÀ¢VÆVÖVçBævWDGG&–'WFR‚wF—FÆRr’ÇÀ¢rp¢’À¢&÷WFS¢†6…&÷WFRÇÂròrÀ¢6÷W&6Tf–ÆS¢7G&–ær€¢VÆVÖVçBævWDGG&–'WFR‚vFF×æF÷&×6÷W&6RÖf–ÆRr’ÇÂv–æFW‚æ‡FÖÂp¢’À¢6÷W&6TÆ–æRÀ¢ƒ¢&V7Bç‚À¢“¢&V7Bç’À¢v–GFƒ¢&V7Bçv–GF‚À¢†V–v‡C¢&V7Bæ†V–v‡@¢Ò’“°¢ÒÂG'VR“°§Ò’‚“°¢rrs°§Ğ ¦6öç7B7G&–ær÷Væf–Æ&ÆTFö7VÖVçBÒsÂFö7G—R‡FÖÃãÆ‡FÖÃãÆ†VCâp¢sÆÖWF‡GGÖWV—cÒ$6öçFVçBÕ6V7W&—G’ÕöÆ–7’"p¢v6öçFVçCÒ&FVfVÇB×7&2b33“¶æöæRb33“³²6öææV7B×7&2b33“¶æöæRb33“³²p¢vg&ÖR×7&2b33“¶æöæRb33“³²f÷&ÒÖ7F–öâb33“¶æöæRb33“²#âp¢sÂö†VCãÆ&öG“ãÂö&öG“ãÂö‡FÖÃâs° 

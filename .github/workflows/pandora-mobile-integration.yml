@@ -142,24 +142,7 @@ jobs:
 
       - name: Format
         working-directory: .pandora-mobile-build
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! dart format --output=none --set-exit-if-changed lib test; then
-            echo '--- BEGIN DART FORMAT OUTPUT ---'
-            dart format --output=show lib/core/platform/pandora_web_preview_web.dart
-            echo '--- END DART FORMAT OUTPUT ---'
-            exit 1
-          fi
-
-      - name: Upload formatter repair candidate
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
-        with:
-          name: pandora-mobile-web-formatter-repair
-          path: .pandora-mobile-build/lib/core/platform/pandora_web_preview_web.dart
-          if-no-files-found: error
-          retention-days: 1
+        run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Analyze
         working-directory: .pandora-mobile-build
