@@ -1133,12 +1133,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: _loading
-                              ? const Center(
-                                  child: CircularProgressIndicator(
-                                    color: PandoraV2Colors.ink,
-                                    strokeWidth: 2,
-                                  ),
-                                )
+                              ? _ExactPreviewLoadingSurface(projectName: name)
                               : hasExactPreview
                                   ? PandoraEmbeddedPreview(
                                       key: ValueKey<String>(versionId),
@@ -1332,6 +1327,84 @@ class _LiveProjectHeader extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      );
+}
+
+class _ExactPreviewLoadingSurface extends StatelessWidget {
+  const _ExactPreviewLoadingSurface({required this.projectName});
+
+  final String projectName;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: PandoraV2Colors.soft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: PandoraV2Colors.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    projectName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Container(
+              height: 18,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: PandoraV2Colors.soft,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(height: 10),
+            FractionallySizedBox(
+              widthFactor: .72,
+              child: Container(
+                height: 14,
+                decoration: BoxDecoration(
+                  color: PandoraV2Colors.soft,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              height: 132,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: PandoraV2Colors.soft,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            const Spacer(),
+          ],
         ),
       );
 }
