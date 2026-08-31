@@ -58,12 +58,15 @@ test('source generation preserves the exact verified product baseline', () => {
   assert.match(generator, /exact previously verified source snapshot/i);
 });
 
-test('workspace questions go through Pandora intelligence instead of becoming mutations', () => {
-  assert.match(mobile, /final intelligence = dependencies\.intelligence;/);
-  assert.match(mobile, /final turn = await intelligence\.chat\(/);
-  assert.match(mobile, /if \(turn\.intent != 'change_project' \|\| handoff == null\)/);
+test('workspace questions use Pandora intelligence while explicit changes survive routing outages', () => {
+  assert.match(mobile, /_tryIntelligenceTurn\(request\)/);
+  assert.match(mobile, /PandoraDependencies\.of\(context\)\.intelligence/);
+  assert.match(mobile, /\.chat\(message: request, projectId: widget\.project\.id\)/);
+  assert.match(mobile, /if \(turn\.intent == 'chat'\)/);
   assert.match(mobile, /_intelligenceReply = turn\.reply;/);
+  assert.match(mobile, /var actionRequest = request;/);
   assert.match(mobile, /intentText: actionRequest/);
+  assert.match(mobile, /intentKind: 'change'/);
   assert.doesNotMatch(mobile, /intentText: text\.trim\(\),\s*intentKind: 'change'/);
 });
 
