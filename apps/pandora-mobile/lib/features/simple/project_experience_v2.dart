@@ -590,7 +590,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       final encoded = file['dataBase64'];
       if (encoded is! String || encoded.isEmpty) continue;
       try {
-        html = utf8.decode(base64Decode(encoded), allowMalformed: false).toLowerCase();
+        html = utf8
+            .decode(base64Decode(encoded), allowMalformed: false)
+            .toLowerCase();
       } catch (_) {
         continue;
       }
