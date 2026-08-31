@@ -53,7 +53,7 @@ test("understanding screen does not render the raw long intent", () => {
 
 test("owner can rename the display project later without provider churn", () => {
   assert.match(api, /Future<String> renameProject/);
-  assert.match(api, /\.update\(<String, Object\?>\>\{[\s\S]*'name': nextName/);
+  assert.match(api, /\.update\(<String, Object\?>\{[\s\S]*'name': nextName/);
   assert.match(workspace, /title: const Text\('Rename project'\)/);
   assert.match(workspace, /api\.renameProject\(projectId: widget\.project\.id, name: nextName\)/);
   assert.doesNotMatch(api, /renameProject[\s\S]{0,1200}(github|vercel)/i);
