@@ -23,13 +23,13 @@ mbanatao/* is historical evidence only. `banataosystems/Pandoras-box` is a recov
 | --- | --- |
 | Project name | `mcpmaster` |
 | Project ID | `prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk` |
-| Team ID | `team_IcdJUnzLi5wUN1GD8ALHyjF7` |
+| Team ID | `team_3yw1CN59ce4pj5SwyQGCAqN3` |
 | Production origin | `https://mcpmaster.vercel.app` |
 | Memory origin | `https://pandorasbox-memory.vercel.app` |
 
-Keep this recorded project ID and production alias as the intended production identity. Fresh provider readback on 2026-09-01 from the currently connected Vercel scope could not resolve this project ID, so deployment/source parity is not currently verified. Do not create a replacement production identity unless a separately reviewed migration is approved; restore provider visibility first and then re-prove exact source binding.
+Vault-backed provider readback on 2026-09-01 confirms this project exists under transferred team `team_3yw1CN59ce4pj5SwyQGCAqN3` and is Git-linked to `pandora-rvw-314296438-20260820/pandoras-box` on `main`. Production is already from the recovery-owner lineage, but the promoted production SHA is not the current GitHub `main`; exact production/source parity therefore remains unverified until a governed release binds the production deployment to an exact current source receipt.
 
-Legacy Vercel team or deployment URL slugs containing `mbanatao` are not Git source authority. Current deployment metadata must bind `githubOrg=pandora-rvw-314296438-20260820` and `githubRepo=pandoras-box` before it can contribute release evidence.
+Vercel team/account slugs are provider identity, not Git source authority. Current deployment metadata must bind `githubOrg=pandora-rvw-314296438-20260820` and `githubRepo=pandoras-box` before it can contribute release evidence.
 
 ## Canonical Supabase identity
 
