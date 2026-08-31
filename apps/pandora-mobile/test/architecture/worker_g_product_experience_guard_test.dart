@@ -56,7 +56,7 @@ void main() {
     expect(source, contains('projection.productionVersionId == versionId'));
     expect(source, contains('ProjectWorkspaceV2View('));
     expect(source, isNot(contains('PandoraV2IntentSurface(')));
-    expect(view, contains('PandoraEmbeddedPreview'));
+    expect(view, contains('PandoraPreviewHost'));
     expect(view, contains("'Designing'"));
     expect(view, contains("'Building'"));
     expect(view, contains("'Checking'"));
@@ -75,6 +75,21 @@ void main() {
     expect(source, isNot(contains('Watch your project take shape')));
     expect(view, contains('class ProjectWorkspaceV2View'));
     expect(view, contains('ProjectChangePhase'));
+  });
+
+  test('Simple experience depends only on platform-neutral preview host', () {
+    final source = File('lib/features/simple/project_experience_v2.dart')
+        .readAsStringSync();
+    final view = File('lib/features/simple/project_workspace_v2_view.dart')
+        .readAsStringSync();
+    final combined = '$source\n$view';
+    expect(source, contains('pandora_preview_host.dart'));
+    expect(view, contains('pandora_preview_host.dart'));
+    expect(view, contains('PandoraPreviewHost('));
+    expect(combined, isNot(contains('pandora_embedded_preview.dart')));
+    expect(combined, isNot(contains('pandora_android_preview.dart')));
+    expect(combined, isNot(contains('AndroidView(')));
+    expect(combined, isNot(contains('MethodChannel(')));
   });
 
   test('workspace uses a native snapping Pandora composer sheet', () {
