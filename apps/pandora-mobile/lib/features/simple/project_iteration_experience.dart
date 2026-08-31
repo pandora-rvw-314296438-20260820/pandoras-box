@@ -66,7 +66,7 @@ class _ProjectIterationExperienceScreenState
       });
       return;
     }
-    final experience = PandoraDependencies.of(context).projectExperience;
+    final experience = PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) {
       setState(() {
         _error = 'Pandora cannot save that change right now.';
@@ -80,10 +80,9 @@ class _ProjectIterationExperienceScreenState
     });
     try {
       _idempotencyKey ??= _keys.create('project-change-intent');
-      final intentId = await experience.submitIntent(
+      final intentId = await experience.submitChange(
         projectId: widget.project.id,
-        intentText: text,
-        intentKind: 'change',
+        changeText: text,
         idempotencyKey: _idempotencyKey,
       );
       if (!mounted) return;
@@ -115,7 +114,7 @@ class _ProjectIterationExperienceScreenState
     if (_refreshing || sourceIntentId == null || _understanding.isReady) {
       return;
     }
-    final experience = PandoraDependencies.of(context).projectExperience;
+    final experience = PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) return;
 
     _refreshing = true;
