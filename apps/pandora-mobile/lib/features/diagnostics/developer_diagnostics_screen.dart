@@ -21,6 +21,7 @@ class DeveloperDiagnosticsScreen extends StatefulWidget {
 class _DeveloperDiagnosticsScreenState extends State<DeveloperDiagnosticsScreen>
     with WidgetsBindingObserver {
   static const _authorizationTtl = Duration(seconds: 30);
+  static const _authorizationRequestTimeout = Duration(seconds: 8);
 
   Future<bool>? _authorization;
   Timer? _authorizationTimer;
@@ -46,7 +47,7 @@ class _DeveloperDiagnosticsScreenState extends State<DeveloperDiagnosticsScreen>
     final dependencies = PandoraDependencies.of(context);
     if (dependencies.auth.currentSession == null) return false;
     try {
-      await dependencies.repository.home();
+      await dependencies.repository.home().timeout(_authorizationRequestTimeout);
       return true;
     } catch (_) {
       return false;
@@ -105,7 +106,23 @@ class _DeveloperDiagnosticsScreenState extends State<DeveloperDiagnosticsScreen>
         if (snapshot.connectionState != ConnectionState.done) {
           return const PandoraPage(
             title: 'Developer diagnostics',
-            child: Center(child: CircularProgressIndicator()),
+            child: PandoraSurface(
+              title: 'Checking owner access',
+              child: Row(
+                children: [
+                  SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: PandoraSpacing.md),
+                  Expanded(
+                    child: Text(
+                      'Verifying this session before diagnostic metadata is shown.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
         }
         if (snapshot.data != true) {
