@@ -90,7 +90,6 @@ void main() {
     expect(view, contains('PandoraV2IntentSurface('));
   });
 
-
   test('canonical Pandora mark cannot be recolored red by callers', () {
     final source =
         File('lib/core/widgets/pandora_mark.dart').readAsStringSync();
