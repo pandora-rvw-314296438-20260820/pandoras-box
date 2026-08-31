@@ -66,8 +66,11 @@ class _CreateProjectExperienceScreenState
       '',
     );
     candidate = candidate.split(RegExp(r'[,.;]')).first.trim();
-    final words =
-        candidate.split(' ').where((word) => word.isNotEmpty).take(5).toList();
+    final words = candidate
+        .split(' ')
+        .where((word) => word.isNotEmpty)
+        .take(5)
+        .toList();
     return words.isEmpty ? 'New project' : words.join(' ');
   }
 
@@ -81,8 +84,8 @@ class _CreateProjectExperienceScreenState
       }
       return;
     }
-    final experience =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final experience = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (experience == null) {
       setState(() => _error = 'Pandora cannot start a new project right now.');
       return;
@@ -130,80 +133,80 @@ class _CreateProjectExperienceScreenState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: PandoraV2Colors.canvas,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                PandoraV2ObjectHeader(
-                  title: 'Create',
-                  subtitle: 'Start with the outcome',
-                ),
-                const SizedBox(height: 44),
-                const Text(
-                  'What do you want\nto make happen?',
-                  style: TextStyle(
-                    color: PandoraV2Colors.ink,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -1.35,
-                    height: 1.02,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Describe the result in your own words. Pandora will choose the technical shape.',
-                  style: pandoraV2Muted,
-                ),
-                const SizedBox(height: 24),
-                PandoraV2IntentSurface(
-                  controller: _intent,
-                  hintText: 'Describe anything…',
-                  autofocus: widget.initialIntent == null,
-                  enabled: !_submitting,
-                  onSubmit: _submit,
-                  onVoice: () async {
-                    final value = await PandoraNativeIo.dictate();
-                    if (value != null && mounted) _intent.text = value;
-                  },
-                  onAttachment: () async {
-                    final file = await PandoraNativeIo.pickTextAttachment();
-                    if (file != null && mounted) {
-                      _intent.text =
-                          '${_intent.text.trim()}\n${file.promptBlock}'.trim();
-                    }
-                  },
-                ),
-                if (_submitting) ...[
-                  const SizedBox(height: 18),
-                  const LinearProgressIndicator(
-                    minHeight: 2,
-                    color: PandoraV2Colors.ink,
-                    backgroundColor: PandoraV2Colors.soft,
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Creating the project around your intent…',
-                    style: pandoraV2Muted,
-                  ),
-                ],
-                if (_error != null) ...[
-                  const SizedBox(height: 18),
-                  PandoraV2InlineMessage(
-                    title: 'Nothing has been published',
-                    message: _error!,
-                    actionLabel: 'Dismiss',
-                    onAction: () => setState(() => _error = null),
-                    danger: true,
-                  ),
-                ],
-              ],
+    backgroundColor: PandoraV2Colors.canvas,
+    body: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            PandoraV2ObjectHeader(
+              title: 'Create',
+              subtitle: 'Start with the outcome',
             ),
-          ),
+            const SizedBox(height: 44),
+            const Text(
+              'What do you want\nto make happen?',
+              style: TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 36,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -1.35,
+                height: 1.02,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Describe the result in your own words. Pandora will choose the technical shape.',
+              style: pandoraV2Muted,
+            ),
+            const SizedBox(height: 24),
+            PandoraV2IntentSurface(
+              controller: _intent,
+              hintText: 'Describe anything…',
+              autofocus: widget.initialIntent == null,
+              enabled: !_submitting,
+              onSubmit: _submit,
+              onVoice: () async {
+                final value = await PandoraNativeIo.dictate();
+                if (value != null && mounted) _intent.text = value;
+              },
+              onAttachment: () async {
+                final file = await PandoraNativeIo.pickTextAttachment();
+                if (file != null && mounted) {
+                  _intent.text = '${_intent.text.trim()}\n${file.promptBlock}'
+                      .trim();
+                }
+              },
+            ),
+            if (_submitting) ...[
+              const SizedBox(height: 18),
+              const LinearProgressIndicator(
+                minHeight: 2,
+                color: PandoraV2Colors.ink,
+                backgroundColor: PandoraV2Colors.soft,
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Creating the project around your intent…',
+                style: pandoraV2Muted,
+              ),
+            ],
+            if (_error != null) ...[
+              const SizedBox(height: 18),
+              PandoraV2InlineMessage(
+                title: 'Nothing has been published',
+                message: _error!,
+                actionLabel: 'Dismiss',
+                onAction: () => setState(() => _error = null),
+                danger: true,
+              ),
+            ],
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class ProjectUnderstandingScreen extends StatefulWidget {
@@ -314,20 +317,14 @@ class _ProjectUnderstandingScreenState
               if (!ready) ...[
                 const Text(
                   'Turning your request into a clear build plan…',
-                  style: TextStyle(
-                    color: PandoraV2Colors.muted,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: PandoraV2Colors.muted, fontSize: 16),
                 ),
                 const SizedBox(height: 18),
                 const PandoraV2Skeleton(height: 156),
               ] else ...[
                 const Text(
                   'Here’s what Pandora will build.',
-                  style: TextStyle(
-                    color: PandoraV2Colors.muted,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: PandoraV2Colors.muted, fontSize: 16),
                 ),
                 const SizedBox(height: 10),
                 if (intentSummary != null)
