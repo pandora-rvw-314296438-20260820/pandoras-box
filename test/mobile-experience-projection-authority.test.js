@@ -27,7 +27,7 @@ function section(start, end) {
 
 test('mobile workspace treats Experience Projection as lifecycle authority', () => {
   assert.ok(
-    experienceSource.includes('PandoraDependencies.of(context).projectExperienceProjection'),
+    experienceSource.includes('PandoraDependencies.of(context).projectExperienceRepository'),
     'workspace must consume the canonical Experience Projection',
   );
   assert.ok(experienceSource.includes('_projection?.canFocus != true'));
@@ -46,7 +46,7 @@ test('change and publish completion are projection driven, not runtime polled', 
     'Future<void> _watchExactChange(String? baseVersion) async {',
     'Future<void> _undoChange() async {',
   );
-  assert.ok(changeWatch.includes('.watch(widget.project.id)'));
+  assert.ok(changeWatch.includes('.watchExperience(widget.project.id)'));
   assert.equal(changeWatch.includes('projectRuntime'), false);
   assert.equal(changeWatch.includes('runtime.runtime('), false);
   assert.equal(changeWatch.includes('attempt < 90'), false);
@@ -55,7 +55,7 @@ test('change and publish completion are projection driven, not runtime polled', 
     'Future<void> _watchPublishCompletion(String versionId) async {',
     'Future<void> _publish(String domain, String versionId) async {',
   );
-  assert.ok(publishWatch.includes('.watch(widget.project.id)'));
+  assert.ok(publishWatch.includes('.watchExperience(widget.project.id)'));
   assert.equal(publishWatch.includes('_refresh()'), false);
   assert.equal(publishWatch.includes('runtime.runtime('), false);
   assert.equal(publishWatch.includes('attempt < 45'), false);
