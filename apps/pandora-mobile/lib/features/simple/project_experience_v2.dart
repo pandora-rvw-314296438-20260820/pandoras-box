@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/data/project_experience_api.dart';
 import '../../core/models/project_journey_models.dart';
 import '../../core/platform/pandora_embedded_preview.dart';
@@ -57,6 +58,9 @@ class _ProjectBuildExperienceV2ScreenState
   bool _previewRequested = false;
   bool _refreshing = false;
   bool _openingPreview = false;
+  DateTime? _flowStartedAt;
+
+  static const _flowTimeout = Duration(minutes: 2);
 
   @override
   void didChangeDependencies() {
@@ -64,6 +68,7 @@ class _ProjectBuildExperienceV2ScreenState
     if (_started) return;
     _started = true;
     _buildRequested = widget.buildAlreadyRequested;
+    _flowStartedAt = DateTime.now();
     unawaited(_refreshAndAdvance());
   }
 
@@ -107,7 +112,22 @@ class _ProjectBuildExperienceV2ScreenState
             _localPreviewFiles != null);
   }
 
+  bool get _flowExpired {
+    final startedAt = _flowStartedAt;
+    return startedAt != null && DateTime.now().difference(startedAt) >= _flowTimeout;
+  }
+
   Future<void> _refreshAndAdvance() async {
+    if (_flowExpired) {
+      _timer?.cancel();
+      if (mounted) {
+        setState(
+          () => _error =
+              'This is taking longer than expected. Your request is saved; try again to resume from the current project state.',
+        );
+      }
+      return;
+    }
     if (_refreshing) return;
     final runtime = PandoraDependencies.of(context).projectRuntime;
     final experience = PandoraDependencies.of(context).projectExperience;
@@ -189,7 +209,7 @@ class _ProjectBuildExperienceV2ScreenState
       }
     } finally {
       _refreshing = false;
-      if (mounted && !_ready) {
+      if (mounted && !_ready && !_flowExpired) {
         _timer?.cancel();
         _timer = Timer(const Duration(seconds: 2), _refreshAndAdvance);
       }
