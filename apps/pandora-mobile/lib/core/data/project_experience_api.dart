@@ -122,9 +122,11 @@ class ProjectExperienceApi {
         );
       }
       final rawConfig = projectState['config'];
-      final config = rawConfig is Map ? rawConfig : const <String, Object?>{};
+      final config =
+          rawConfig is Map ? rawConfig : const <String, Object?>{};
       final rawJourney = config['customerJourney'];
-      final journey = rawJourney is Map ? rawJourney : const <String, Object?>{};
+      final journey =
+          rawJourney is Map ? rawJourney : const <String, Object?>{};
       final distilledSummary = _optionalText(journey['intentSummary']);
 
       final objectives = await _client
@@ -179,7 +181,9 @@ class ProjectExperienceApi {
     required String name,
   }) async {
     final nextName = name.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (nextName.length < 2 || nextName.length > 80 || nextName.contains('\n')) {
+    if (nextName.length < 2 ||
+        nextName.length > 80 ||
+        nextName.contains('\n')) {
       throw const ProjectExperienceException(
         'Use a short project name between 2 and 80 characters.',
       );
