@@ -10,7 +10,7 @@ const publish = source.slice(publishStart, finalizeStart);
 const finalize = source.slice(finalizeStart, serveStart);
 
 test("Vercel scope is resolved from runtime provider config, never a source fallback", () => {
-  assert.doesNotMatch(source, /team_IcdJUnzLi5wUN1GD8ALHyjF7/);
+  assert.doesNotMatch(source, /team_3yw1CN59ce4pj5SwyQGCAqN3/);
   assert.doesNotMatch(source, /PANDORA_VERCEL_TEAM_ID/);
   assert.match(source, /pandora_runtime_provider_configs/);
   assert.match(source, /pandora_worker_f_vercel_request_20260829/);
