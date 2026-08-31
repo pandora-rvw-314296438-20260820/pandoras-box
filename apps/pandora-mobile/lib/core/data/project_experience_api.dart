@@ -178,8 +178,8 @@ class ProjectExperienceApi {
     required String projectId,
     required String name,
   }) async {
-    final nextName = name.replaceAll(RegExp(r'\\s+'), ' ').trim();
-    if (nextName.length < 2 || nextName.length > 80 || nextName.contains('\\n')) {
+    final nextName = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (nextName.length < 2 || nextName.length > 80 || nextName.contains('\n')) {
       throw const ProjectExperienceException(
         'Use a short project name between 2 and 80 characters.',
       );
