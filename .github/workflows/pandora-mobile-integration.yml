@@ -310,3 +310,102 @@ jobs:
           if-no-files-found: ignore
           include-hidden-files: true
           retention-days: 7
+
+
+  verify-ios:
+    name: Exact source / Flutter / iOS
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      FLUTTER_VERSION: '3.47.0'
+      EXPECTED_APP_VERSION: '0.4.0-rc.1+7'
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+
+      - name: Verify exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+      - name: Verify cross-platform preview governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test test/mobile-preview-platform-hosts.test.js
+          bash apps/pandora-mobile/tool/check_private_key_literals.sh \
+            apps/pandora-mobile \
+            .github/workflows/pandora-mobile-integration.yml
+          python3 -m unittest discover \
+            -s apps/pandora-mobile/tool \
+            -p 'test_*.py'
+
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Materialize disposable iOS platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .pandora-mobile-ios-build
+          mkdir .pandora-mobile-ios-build
+          cd .pandora-mobile-ios-build
+          flutter create \
+            --platforms=ios \
+            --org com.banataosystems \
+            --project-name pandora_mobile \
+            .
+          cp -R ../apps/pandora-mobile/platform/ios/. ./ios/
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R ../apps/pandora-mobile/lib ./lib
+          cp -R ../apps/pandora-mobile/test ./test
+          cp -R ../apps/pandora-mobile/assets ./assets
+          cp -R ../apps/pandora-mobile/platform ./platform
+          cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
+          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+          python3 ../apps/pandora-mobile/tool/configure_validation_ios.py \
+            ios/Runner.xcodeproj/project.pbxproj
+
+      - name: Resolve the exact lockfile
+        working-directory: .pandora-mobile-ios-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+
+      - name: Format
+        working-directory: .pandora-mobile-ios-build
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        working-directory: .pandora-mobile-ios-build
+        run: flutter analyze
+
+      - name: Test
+        working-directory: .pandora-mobile-ios-build
+        run: flutter test --reporter expanded
+
+      - name: Build non-production iOS simulator candidate
+        working-directory: .pandora-mobile-ios-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = \
+            "$EXPECTED_APP_VERSION"
+          xcodebuild -version
+          flutter build ios --simulator --debug \
+            --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
+            --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
+          test -d build/ios/iphonesimulator/Runner.app
