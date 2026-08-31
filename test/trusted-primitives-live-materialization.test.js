@@ -15,7 +15,7 @@ test('live source worker re-reads exact Worker E trusted primitive source before
   assert.match(source, /trustState !== "TRUSTED"/);
   assert.match(source, /workerEEvidenceRef/);
   assert.match(source, /raw\.githubusercontent\.com\/pandora-rvw-314296438-20260820\/pandoras-box\/\$\{commit\}/);
-  assert.match(source, /sha256\(path\\0file_sha256\\n sorted by path\)/);
+  assert.ok(source.includes('text(manifest.algorithm) !== "sha256(path\\\\0file_sha256\\\\n sorted by path)"'));
   assert.match(source, /computedBundleDigest !== sourceDigest/);
   assert.match(source, /actualSha !== expectedSha/);
 });
