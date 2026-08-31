@@ -582,7 +582,52 @@ private class PandoraExactPreviewView(
                 node.classList.remove('__pandora_owner_selected');
               });
               el.classList.add('__pandora_owner_selected');
-              return JSON.stringify({tag:String(el.tagName || '').toLowerCase(), selector:selector, text:text});
+              function inheritedAttr(node, names) {
+                var current = node;
+                var depth = 0;
+                while (current && current.nodeType === 1 && depth < 7) {
+                  for (var i = 0; i < names.length; i += 1) {
+                    var value = current.getAttribute(names[i]);
+                    if (value) return String(value);
+                  }
+                  current = current.parentElement;
+                  depth += 1;
+                }
+                return '';
+              }
+              var accessibleName = String(el.getAttribute('aria-label') || el.getAttribute('alt') || el.getAttribute('title') || text || '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 80);
+              var role = String(el.getAttribute('role') || ({BUTTON:'button',A:'link',INPUT:'textbox',TEXTAREA:'textbox',SELECT:'combobox',IMG:'img'}[String(el.tagName || '').toUpperCase()] || ''))
+                .toLowerCase()
+                .slice(0, 40);
+              var semanticId = inheritedAttr(el, ['data-pandora-id','data-semantic-id','data-testid']) ||
+                el.id || el.getAttribute('name') || accessibleName || selector;
+              semanticId = String(semanticId || '').replace(/[^A-Za-z0-9_:.#\/@-]/g, '').slice(0, 160);
+              var sourceFile = inheritedAttr(el, ['data-pandora-source-file','data-source-file','data-file']) || 'index.html';
+              sourceFile = String(sourceFile || 'index.html').replace(/[^A-Za-z0-9_./-]/g, '').slice(0, 256) || 'index.html';
+              if (sourceFile.indexOf('..') >= 0 || sourceFile.charAt(0) === '/') sourceFile = 'index.html';
+              var rawSourceLine = inheritedAttr(el, ['data-pandora-source-line','data-source-line']);
+              var sourceLine = parseInt(rawSourceLine || '0', 10);
+              if (!Number.isFinite(sourceLine) || sourceLine < 1) sourceLine = 0;
+              var rect = el.getBoundingClientRect();
+              var route = String(window.location.pathname || '/').slice(0, 200);
+              return JSON.stringify({
+                tag:String(el.tagName || '').toLowerCase(),
+                selector:selector,
+                text:text,
+                semanticId:semanticId,
+                role:role,
+                accessibleName:accessibleName,
+                route:route,
+                sourceFile:sourceFile,
+                sourceLine:sourceLine,
+                x:Number(rect.x || rect.left || 0),
+                y:Number(rect.y || rect.top || 0),
+                width:Number(rect.width || 0),
+                height:Number(rect.height || 0)
+              });
             })();
         """.trimIndent()
         webView.evaluateJavascript(script) { raw ->
