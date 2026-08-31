@@ -1,12 +1,12 @@
 {
   "schema_version": "1.2.0",
-  "effective_date": "2026-08-28",
+  "effective_date": "2026-09-01",
   "project_key": "mcpmaster-pandoras-box",
   "mode": "fail_closed",
   "canonical": {
     "operating_source_of_truth": "Pandora Memory hard-canon state",
     "source_repository": "pandora-rvw-314296438-20260820/pandoras-box",
-    "memory_repository": "banataosystems/pandoras-box-memory",
+    "memory_repository": "pandora-rvw-314296438-20260820/pandoras-box-memory",
     "vercel_project_name": "mcpmaster",
     "vercel_project_id": "prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk",
     "vercel_team_id": "team_IcdJUnzLi5wUN1GD8ALHyjF7",
@@ -17,68 +17,29 @@
     "live_status": "GET /api/operator/status"
   },
   "deprecated_operational_sources": [
-    {
-      "type": "github_owner",
-      "value": "mbanatao",
-      "wildcard": "mbanatao/*",
-      "match": "case_insensitive_owner",
-      "status": "historical_only"
-    }
+    {"type":"github_owner","value":"mbanatao","wildcard":"mbanatao/*","match":"case_insensitive_owner","status":"historical_only"}
   ],
   "recovery_era_siblings": [
-    {
-      "type": "github_repository",
-      "value": "banataosystems/Pandoras-box",
-      "status": "recovery_era_name_not_operational_remote",
-      "authority": "evidence_only"
-    }
+    {"type":"github_repository","value":"banataosystems/Pandoras-box","status":"recovery_era_name_not_operational_remote","authority":"evidence_only"},
+    {"type":"github_repository","value":"banataosystems/pandoras-box-memory","status":"recovery_era_name_not_operational_remote","authority":"evidence_only"}
   ],
   "legacy_identity_markers": [
-    {
-      "type": "vercel_git_metadata",
-      "match": {
-        "githubOrg": "mbanatao",
-        "githubRepo": "*"
-      },
-      "authority": "evidence_only"
-    },
-    {
-      "type": "hostname",
-      "value": "mcpmaster-mbanatao-dc676069.vercel.app",
-      "authority": "network_alias_only"
-    },
-    {
-      "type": "hostname",
-      "value": "mcpmaster-mbanatao-mbanatao-dc676069.vercel.app",
-      "authority": "network_alias_only"
-    }
+    {"type":"vercel_git_metadata","match":{"githubOrg":"mbanatao","githubRepo":"*"},"authority":"evidence_only"},
+    {"type":"hostname","value":"mcpmaster-mbanatao-dc676069.vercel.app","authority":"network_alias_only"},
+    {"type":"hostname","value":"mcpmaster-mbanatao-mbanatao-dc676069.vercel.app","authority":"network_alias_only"}
   ],
   "forbidden_uses": [
-    "determine_current_project_state",
-    "be_selected_as_canonical_source",
-    "be_selected_as_default_git_remote",
-    "open_new_work_against_deprecated_repository",
-    "trigger_or_authorize_new_production_release_from_deprecated_repository",
-    "treat_deprecated_repository_metadata_as_proof_of_current_source_parity",
-    "overwrite_newer_banataosystems_or_Pandora_evidence",
-    "cite_integrity_bound_historical_status_surfaces_as_current_state",
-    "recreate_canonical_vercel_project_or_production_alias"
+    "determine_current_project_state","be_selected_as_canonical_source","be_selected_as_default_git_remote","open_new_work_against_deprecated_repository","trigger_or_authorize_new_production_release_from_deprecated_repository","treat_deprecated_repository_metadata_as_proof_of_current_source_parity","overwrite_newer_banataosystems_or_Pandora_evidence","cite_integrity_bound_historical_status_surfaces_as_current_state","recreate_canonical_vercel_project_or_production_alias"
   ],
-  "permitted_historical_uses": [
-    "forensic_read",
-    "content_hash_comparison",
-    "source_recovery",
-    "parent_lineage_preservation",
-    "rollback_evidence",
-    "deployment_provenance"
-  ],
+  "permitted_historical_uses": ["forensic_read","content_hash_comparison","source_recovery","parent_lineage_preservation","rollback_evidence","deployment_provenance"],
   "resolution_order": [
     "newer_verified_evidence_corrected_into_Pandora",
     "Pandora_hard_canon_current_state",
     "pandora-rvw-314296438-20260820/pandoras-box_exact_committed_source_and_manifests",
+    "pandora-rvw-314296438-20260820/pandoras-box-memory_exact_committed_source_and_manifests",
     "exact_verified_Vercel_or_Supabase_runtime_evidence",
     "any_mbanatao_owner_source_as_historical_evidence_only"
   ],
   "preservation_rule": "Do not delete or rewrite historical evidence. Quarantine it from operational authority instead.",
-  "owner_directive": "Every repository owned by mbanatao is operationally blacklisted. Preserve it only as historical evidence and never select it for new work, routing, build, release, or current-state authority. Preserve Vercel project prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk and production alias https://mcpmaster.vercel.app. Do not rewrite hashed historical status surfaces as current truth."
+  "owner_directive": "Every repository owned by mbanatao is operationally blacklisted. Preserve it only as historical evidence and never select it for new work, routing, build, release, or current-state authority. The recovery repositories pandora-rvw-314296438-20260820/pandoras-box and pandora-rvw-314296438-20260820/pandoras-box-memory are the canonical Git sources. Preserve recorded Vercel production identities as intended runtime identities, but require fresh provider readback before treating them as current deployment truth. Do not rewrite hashed historical status surfaces as current truth."
 }
