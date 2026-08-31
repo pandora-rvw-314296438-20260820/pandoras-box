@@ -12,6 +12,7 @@ const workerAdapters = require('./worker-adapters');
 const reports = require('./reports');
 const changeSummary = require('./change-summary');
 const versionHistory = require('./version-history');
+const restoreSemantics = require('./restore-semantics');
 const primitiveTrust = require('./primitive-trust');
 
 function createVerificationService(options = {}) {
@@ -51,6 +52,7 @@ module.exports = Object.freeze({
   ...reports,
   ...changeSummary,
   ...versionHistory,
+  ...restoreSemantics,
   ...primitiveTrust,
   createVerificationService,
 });
