@@ -214,7 +214,8 @@ class ProjectExperienceApi {
     }
   }
 
-  Future<void> requestBuild({
+
+  Future<ProjectBuildStart> requestBuild({
     required String projectId,
     required String idempotencyKey,
   }) async {
@@ -232,16 +233,48 @@ class ProjectExperienceApi {
         },
       );
       final data = result.data;
-      if (data is Map && data['ok'] == false && data['state'] == 'blocked') {
+      if (data is! Map) {
+        throw const ProjectExperienceException(
+          'Pandora returned an unreadable build response.',
+        );
+      }
+      if (data['ok'] == false && data['state'] == 'blocked') {
         throw const ProjectExperienceException(
           'Pandora found something to resolve before this build can start.',
         );
       }
+      final streamId = _requiredText(data['streamId']);
+      return ProjectBuildStart(
+        streamId: streamId,
+        state: _text(data['state'], fallback: 'working'),
+        buildJobId: _optionalText(data['buildJobId']),
+        projectVersionId: _optionalText(data['projectVersionId']),
+      );
+    } on ProjectExperienceException {
+      rethrow;
     } on FunctionException {
       throw const ProjectExperienceException(
         'Pandora could not start this build right now.',
       );
     }
+  }
+
+  Stream<List<ProjectBuildStreamEvent>> watchBuildStream({
+    required String projectId,
+    required String streamId,
+  }) {
+    return _client
+        .from('pandora_build_stream_events')
+        .stream(primaryKey: const <String>['id'])
+        .eq('organization_id', _organizationId)
+        .eq('project_id', projectId)
+        .eq('stream_id', streamId)
+        .order('id')
+        .map(
+          (rows) => List<ProjectBuildStreamEvent>.unmodifiable(
+            rows.map(ProjectBuildStreamEvent.fromJson),
+          ),
+        );
   }
 
   Future<List<Map<String, Object?>>> loadExactPreviewFiles({
@@ -364,6 +397,67 @@ class ProjectExperienceApi {
   void beginAuthenticatedIdentityEpoch() {
     _lastCompilationRequest.clear();
   }
+}
+
+
+class ProjectBuildStart {
+  const ProjectBuildStart({
+    required this.streamId,
+    required this.state,
+    this.buildJobId,
+    this.projectVersionId,
+  });
+
+  final String streamId;
+  final String state;
+  final String? buildJobId;
+  final String? projectVersionId;
+}
+
+class ProjectBuildStreamEvent {
+  const ProjectBuildStreamEvent({
+    required this.id,
+    required this.eventType,
+    required this.safePayload,
+    required this.createdAt,
+    this.filePath,
+    this.contentChunk,
+    this.buildJobId,
+  });
+
+  factory ProjectBuildStreamEvent.fromJson(Map<String, dynamic> json) {
+    final rawPayload = json['safe_payload'];
+    final payload = rawPayload is Map
+        ? Map<String, Object?>.unmodifiable(
+            rawPayload.map((key, value) => MapEntry(key.toString(), value)),
+          )
+        : const <String, Object?>{};
+    final rawId = json['id'];
+    final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    final createdAt = DateTime.tryParse(_text(json['created_at']));
+    if (id == null || createdAt == null) {
+      throw const FormatException('Invalid build stream event.');
+    }
+    return ProjectBuildStreamEvent(
+      id: id,
+      eventType: _requiredText(json['event_type']),
+      safePayload: payload,
+      createdAt: createdAt.toUtc(),
+      filePath: _optionalText(json['file_path']),
+      contentChunk: json['content_chunk'] is String
+          ? json['content_chunk'] as String
+          : null,
+      buildJobId: _optionalText(json['build_job_id']),
+    );
+  }
+
+  final int id;
+  final String eventType;
+  final String? filePath;
+  final String? contentChunk;
+  final String? buildJobId;
+  final Map<String, Object?> safePayload;
+  final DateTime createdAt;
 }
 
 class ProjectExperienceException implements Exception {
