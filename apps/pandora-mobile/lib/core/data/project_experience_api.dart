@@ -255,6 +255,11 @@ class ProjectExperienceApi {
           'file': file.trim(),
           'mimeType': mimeType.trim(),
           'dataBase64': dataBase64,
+          'byteSize': byteSize,
+          'sha256': fileDigest,
+          'artifactDigest': artifactDigest,
+          'previewProjectId': responseProjectId,
+          'previewVersionId': responseVersionId,
         });
       }
       return files;
