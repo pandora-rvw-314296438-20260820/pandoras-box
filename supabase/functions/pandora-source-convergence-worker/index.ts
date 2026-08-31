@@ -69,6 +69,211 @@ function exactKeys(value: JsonRecord, expected: string[]) {
     actual.every((key, index) => key === wanted[index]);
 }
 
+type TrustedPrimitiveFile = {
+  path: string;
+  content: string;
+  sha256: string;
+  primitive: string;
+  version: string;
+  sourceDigest: string;
+};
+type TrustedPrimitiveMaterialization = {
+  selections: JsonRecord[];
+  files: TrustedPrimitiveFile[];
+  planDigest: string;
+};
+
+async function frozenGithubText(commit: string, path: string, maxBytes: number) {
+  if (!/^[0-9a-f]{40}$/.test(commit) || !SAFE_PATH.test(path)) {
+    throw new Error("PRIMITIVE_SOURCE_IDENTITY_INVALID");
+  }
+  const url = `https://raw.githubusercontent.com/pandora-rvw-314296438-20260820/pandoras-box/${commit}/${path}`;
+  const result = await fetch(url, {
+    method: "GET",
+    redirect: "error",
+    headers: {
+      accept: "text/plain",
+      "user-agent": "Pandora-Worker-I-Materializer/1.0",
+    },
+  });
+  if (!result.ok) throw new Error("PRIMITIVE_SOURCE_READ_FAILED");
+  const bytes = new Uint8Array(await result.arrayBuffer());
+  if (!bytes.length || bytes.length > maxBytes) throw new Error("PRIMITIVE_SOURCE_INVALID");
+  let content = "";
+  try {
+    content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new Error("PRIMITIVE_SOURCE_INVALID");
+  }
+  if (SECRET.test(content)) throw new Error("PRIMITIVE_SOURCE_UNSAFE");
+  return { content, bytes };
+}
+
+async function loadTrustedPrimitiveMaterialization(resolution: JsonRecord): Promise<TrustedPrimitiveMaterialization> {
+  const selections = Array.isArray(resolution.selections)
+    ? resolution.selections.map(rec)
+    : [];
+  const primitiveCount = Number(resolution.primitiveCount ?? selections.length);
+  if (!Number.isInteger(primitiveCount) || primitiveCount < 0 || primitiveCount !== selections.length) {
+    throw new Error("PRIMITIVE_SELECTION_INVALID");
+  }
+  const files: TrustedPrimitiveFile[] = [];
+  const materializedPaths = new Set<string>();
+  for (const selection of selections) {
+    const name = text(selection.name);
+    const version = text(selection.version);
+    const trustState = text(selection.trustState);
+    const sourceCommit = text(selection.sourceCommit).toLowerCase();
+    const sourceDigest = text(selection.sourceDigest).toLowerCase();
+    const sourceManifestPath = text(selection.sourceManifestPath);
+    const evidenceRef = text(selection.workerEEvidenceRef);
+    if (
+      !/^pandora-[a-z0-9-]+$/.test(name) ||
+      !/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$/.test(version) ||
+      trustState !== "TRUSTED" ||
+      !/^[0-9a-f]{40}$/.test(sourceCommit) ||
+      !/^sha256:[0-9a-f]{64}$/.test(sourceDigest) ||
+      !/^packages\/primitives\/[a-z0-9-]+\/SOURCE_MANIFEST\.json$/.test(sourceManifestPath) ||
+      !UUID.test(evidenceRef)
+    ) throw new Error("PRIMITIVE_SELECTION_INVALID");
+
+    const manifestSource = await frozenGithubText(sourceCommit, sourceManifestPath, 128 * 1024);
+    let manifestValue: unknown;
+    try {
+      manifestValue = JSON.parse(manifestSource.content);
+    } catch {
+      throw new Error("PRIMITIVE_MANIFEST_INVALID");
+    }
+    const manifest = rec(manifestValue);
+    if (
+      text(manifest.schemaVersion) !== "1.0" ||
+      text(manifest.primitive) !== `${name}@${version}` ||
+      text(manifest.algorithm) !== "sha256(path\\0file_sha256\\n sorted by path)" ||
+      text(manifest.bundleDigest).toLowerCase() !== sourceDigest ||
+      !Array.isArray(manifest.files) || manifest.files.length < 1 || manifest.files.length > 100
+    ) throw new Error("PRIMITIVE_MANIFEST_INVALID");
+
+    const rows = manifest.files.map(rec).sort((a, b) => text(a.path).localeCompare(text(b.path), "en"));
+    const primitivePaths = new Set<string>();
+    let bundleBasis = "";
+    for (const row of rows) {
+      const path = text(row.path);
+      const expectedSha = text(row.sha256).toLowerCase();
+      if (!SAFE_PATH.test(path) || !/^[0-9a-f]{64}$/.test(expectedSha) || primitivePaths.has(path)) {
+        throw new Error("PRIMITIVE_MANIFEST_INVALID");
+      }
+      primitivePaths.add(path);
+      bundleBasis += `${path}\0${expectedSha}\n`;
+      const exact = await frozenGithubText(sourceCommit, `packages/primitives/${path}`, MAX_FILE_BYTES);
+      const actualSha = await sha256Bytes(exact.bytes);
+      if (actualSha !== expectedSha) throw new Error("PRIMITIVE_SOURCE_MISMATCH");
+      const materializedPath = `pandora-primitives/${name}/${path}`;
+      if (materializedPaths.has(materializedPath)) throw new Error("PRIMITIVE_SOURCE_COLLISION");
+      materializedPaths.add(materializedPath);
+      files.push({
+        path: materializedPath,
+        content: exact.content,
+        sha256: actualSha,
+        primitive: name,
+        version,
+        sourceDigest,
+      });
+    }
+    const computedBundleDigest = `sha256:${await sha256Text(bundleBasis)}`;
+    if (computedBundleDigest !== sourceDigest) throw new Error("PRIMITIVE_SOURCE_MISMATCH");
+  }
+  files.sort((a, b) => a.path.localeCompare(b.path, "en"));
+  const planBasis = files.map((file) => `${file.path}\0${file.sha256}\0${file.primitive}@${file.version}\n`).join("");
+  return {
+    selections,
+    files,
+    planDigest: `sha256:${await sha256Text(planBasis)}`,
+  };
+}
+
+async function persistTrustedPrimitiveComposition(
+  admin: ReturnType<typeof adminClient>,
+  queueRow: JsonRecord,
+  result: JsonRecord,
+  resolution: JsonRecord,
+  materialization: TrustedPrimitiveMaterialization,
+) {
+  if (!materialization.selections.length) return;
+  const projectVersionId = text(result.projectVersionId);
+  const selectionDigest = text(resolution.selectionDigest).toLowerCase();
+  if (!UUID.test(projectVersionId) || !/^sha256:[0-9a-f]{64}$/.test(selectionDigest) || !/^sha256:[0-9a-f]{64}$/.test(materialization.planDigest)) {
+    throw new Error("PRIMITIVE_COMPOSITION_IDENTITY_INVALID");
+  }
+  const existingComposition = await admin.from("pandora_project_version_compositions")
+    .select("id,manifest_digest,materialization_plan_digest,primitive_count")
+    .eq("project_version_id", projectVersionId)
+    .maybeSingle();
+  if (existingComposition.error) throw new Error("PRIMITIVE_COMPOSITION_WRITE_FAILED");
+  let compositionId = text(existingComposition.data?.id);
+  if (existingComposition.data) {
+    if (
+      text(existingComposition.data.manifest_digest) !== selectionDigest ||
+      text(existingComposition.data.materialization_plan_digest) !== materialization.planDigest ||
+      Number(existingComposition.data.primitive_count) !== materialization.selections.length
+    ) throw new Error("PRIMITIVE_COMPOSITION_CONFLICT");
+  } else {
+    const inserted = await admin.from("pandora_project_version_compositions").insert({
+      organization_id: queueRow.organization_id,
+      project_id: queueRow.project_id,
+      project_version_id: projectVersionId,
+      manifest_digest: selectionDigest,
+      materialization_plan_digest: materialization.planDigest,
+      primitive_count: materialization.selections.length,
+    }).select("id").single();
+    if (inserted.error || !inserted.data) throw new Error("PRIMITIVE_COMPOSITION_WRITE_FAILED");
+    compositionId = text(inserted.data.id);
+  }
+  if (!UUID.test(compositionId)) throw new Error("PRIMITIVE_COMPOSITION_WRITE_FAILED");
+  const emptyDigest = `sha256:${await sha256Text("{}")}`;
+  for (const selection of materialization.selections) {
+    const name = text(selection.name);
+    const version = text(selection.version);
+    const sourceDigest = text(selection.sourceDigest).toLowerCase();
+    const definitionIdentity = {
+      name,
+      version,
+      sourceCommit: text(selection.sourceCommit).toLowerCase(),
+      sourceManifestPath: text(selection.sourceManifestPath),
+      sourceDigest,
+    };
+    const record = {
+      composition_id: compositionId,
+      organization_id: queueRow.organization_id,
+      project_id: queueRow.project_id,
+      project_version_id: projectVersionId,
+      primitive_name: name,
+      primitive_version: version,
+      trust_state: "TRUSTED",
+      definition_digest: `sha256:${await sha256Text(JSON.stringify(definitionIdentity))}`,
+      source_digest: sourceDigest,
+      configuration_digest: emptyDigest,
+      customization_digest: emptyDigest,
+      verification_evidence_id: null,
+    };
+    const existing = await admin.from("pandora_project_version_primitives")
+      .select("id,primitive_version,trust_state,definition_digest,source_digest,configuration_digest,customization_digest")
+      .eq("project_version_id", projectVersionId)
+      .eq("primitive_name", name)
+      .maybeSingle();
+    if (existing.error) throw new Error("PRIMITIVE_COMPOSITION_WRITE_FAILED");
+    if (existing.data) {
+      for (const key of ["primitive_version", "trust_state", "definition_digest", "source_digest", "configuration_digest", "customization_digest"] as const) {
+        if (String(existing.data[key] ?? "") !== String((record as JsonRecord)[key] ?? "")) {
+          throw new Error("PRIMITIVE_COMPOSITION_CONFLICT");
+        }
+      }
+    } else {
+      const inserted = await admin.from("pandora_project_version_primitives").insert(record);
+      if (inserted.error) throw new Error("PRIMITIVE_COMPOSITION_WRITE_FAILED");
+    }
+  }
+}
+
 function chooseAdapter(spec: JsonRecord) {
   const type = text(spec.project_type);
   const experience = rec(spec.experience_scope);
@@ -92,6 +297,7 @@ function sourcePrompt(
   adapter: string,
   priorSource: JsonRecord | null,
   repairFeedback: JsonRecord[],
+  trustedPrimitives: JsonRecord[],
 ) {
   const contract = adapter === "static-web"
     ? "Create a self-contained production-quality website. index.html is mandatory; keep JavaScript and CSS inline unless additional local files materially improve quality."
@@ -118,6 +324,7 @@ function sourcePrompt(
           "Use relative POSIX file paths only. Implement the requested experience and every acceptance criterion. Never invent measured business results.",
           repairInstruction,
           sourceInstruction,
+          "Trusted primitive-core source is materialized separately from exact Worker E evidence. Do not create, modify, duplicate, or reference files under pandora-primitives/. Implement only customer-owned application code or bounded adapter glue; never regenerate primitive-core responsibilities.",
           contract,
         ].join(" "),
       }],
@@ -143,6 +350,11 @@ function sourcePrompt(
           },
           existingVerifiedSource: priorSource,
           independentVerificationFailures: repairFeedback,
+          trustedPrimitives: trustedPrimitives.map((value) => ({
+            name: text(value.name),
+            version: text(value.version),
+            sourceDigest: text(value.sourceDigest),
+          })),
           buildAdapter: adapter,
         }),
       }],
@@ -179,12 +391,13 @@ async function canonicalBundle(
   raw: unknown,
   projectSpecId: string,
   adapter: string,
+  primitiveFiles: TrustedPrimitiveFile[] = [],
 ) {
   const root = rec(raw);
   if (
     !exactKeys(root, ["schemaVersion", "files"]) || root.schemaVersion !== 1 ||
     !Array.isArray(root.files) || root.files.length < 1 ||
-    root.files.length > MAX_FILES
+    root.files.length + primitiveFiles.length > MAX_FILES
   ) {
     throw new Error("INVALID_GENERATED_SOURCE");
   }
@@ -201,6 +414,7 @@ async function canonicalBundle(
     }
     const path = text(row.path);
     const content = typeof row.content === "string" ? row.content : "";
+    if (path.startsWith("pandora-primitives/")) throw new Error("INVALID_GENERATED_SOURCE");
     if (adapter === "static-web" && path === "index.html") {
       staticIndexContent = content;
     }
@@ -229,6 +443,26 @@ async function canonicalBundle(
       sha256: await sha256Bytes(bytes),
       byteSize: bytes.length,
     });
+  }
+
+  for (const value of primitiveFiles) {
+    const path = text(value.path);
+    const content = value.content;
+    const expectedSha = text(value.sha256).toLowerCase();
+    if (
+      !path.startsWith("pandora-primitives/") || !SAFE_PATH.test(path) ||
+      seen.has(path) || !/^[0-9a-f]{64}$/.test(expectedSha)
+    ) throw new Error("PRIMITIVE_SOURCE_INVALID");
+    const bytes = new TextEncoder().encode(content);
+    if (!bytes.length || bytes.length > MAX_FILE_BYTES || SECRET.test(content)) {
+      throw new Error("PRIMITIVE_SOURCE_UNSAFE");
+    }
+    const actualSha = await sha256Bytes(bytes);
+    if (actualSha !== expectedSha) throw new Error("PRIMITIVE_SOURCE_MISMATCH");
+    total += bytes.length;
+    if (total > MAX_SOURCE_BYTES) throw new Error("INVALID_GENERATED_SOURCE");
+    seen.add(path);
+    files.push({ file: path, data: base64(bytes), encoding: "base64", sha256: actualSha, byteSize: bytes.length });
   }
 
   files.sort((a, b) =>
@@ -511,6 +745,7 @@ Deno.serve(async (req) => {
       }, 409);
     }
     if (primitiveState !== "READY") throw new Error("PRIMITIVE_SELECTION_UNAVAILABLE");
+    const primitiveMaterialization = await loadTrustedPrimitiveMaterialization(primitiveResolution);
 
     const projectResult = await admin.from("projectos_projects")
       .select("id,organization_id,name,objective,status")
@@ -536,20 +771,32 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (existing.error) throw new Error("BUILD_READ_FAILED");
       if (existing.data) {
-        await admin.from("pandora_source_generation_queue").update({
-          status: "succeeded",
-          build_job_id: existing.data.id,
-          project_version_id: existing.data.target_project_version_id,
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }).eq("id", queueId);
-        return response({
-          ok: true,
-          state: "succeeded",
-          buildJobId: existing.data.id,
-          projectVersionId: existing.data.target_project_version_id,
-          replayed: true,
-        });
+        const requiredPrimitiveCount = primitiveMaterialization.selections.length;
+        let hasPrimitiveComposition = requiredPrimitiveCount === 0;
+        if (requiredPrimitiveCount > 0 && UUID.test(text(existing.data.target_project_version_id))) {
+          const composition = await admin.from("pandora_project_version_compositions")
+            .select("primitive_count")
+            .eq("project_version_id", existing.data.target_project_version_id)
+            .maybeSingle();
+          if (composition.error) throw new Error("PRIMITIVE_COMPOSITION_READ_FAILED");
+          hasPrimitiveComposition = Number(composition.data?.primitive_count ?? -1) === requiredPrimitiveCount;
+        }
+        if (hasPrimitiveComposition) {
+          await admin.from("pandora_source_generation_queue").update({
+            status: "succeeded",
+            build_job_id: existing.data.id,
+            project_version_id: existing.data.target_project_version_id,
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq("id", queueId);
+          return response({
+            ok: true,
+            state: "succeeded",
+            buildJobId: existing.data.id,
+            projectVersionId: existing.data.target_project_version_id,
+            replayed: true,
+          });
+        }
       }
     }
 
@@ -618,6 +865,7 @@ Deno.serve(async (req) => {
       adapter,
       priorSource,
       repairFeedback,
+      primitiveMaterialization.selections,
     );
     const requestSha = await sha256Text(JSON.stringify(providerRequest));
     const modelResult = await admin.rpc("pandora_worker_b_gemini_request_20260829", {
@@ -639,6 +887,7 @@ Deno.serve(async (req) => {
       parsed,
       String(spec.id),
       adapter,
+      primitiveMaterialization.files,
     );
 
     const providerBody = rec(modelEnvelope.body);
@@ -703,6 +952,13 @@ Deno.serve(async (req) => {
     );
     if (intake.error) throw new Error("BUILD_INTAKE_FAILED");
     const result = rec(intake.data);
+    await persistTrustedPrimitiveComposition(
+      admin,
+      rec(row),
+      result,
+      primitiveResolution,
+      primitiveMaterialization,
+    );
 
     await admin.from("pandora_source_generation_queue").update({
       status: "succeeded",
