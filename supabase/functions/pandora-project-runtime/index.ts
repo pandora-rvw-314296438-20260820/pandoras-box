@@ -718,11 +718,19 @@ async function rollbackProject(context: UserContext, identifier: string, body: J
     }
     const authorization = asRecord(data);
     const actionHash = textValue(authorization.actionHash);
+    const decision = textValue(authorization.decision);
+    const approvalId = textValue(authorization.approvalId);
+    if (!SHA256_RE.test(actionHash)) throw new Error("ROLLBACK_AUTHORIZATION_FAILED");
+    if (decision === "REQUIRE_APPROVAL") {
+      if (!UUID_RE.test(approvalId)) throw new Error("ROLLBACK_AUTHORIZATION_FAILED");
+      throw new Error("ROLLBACK_APPROVAL_REQUIRED");
+    }
+    if (decision === "DENY") throw new Error("ROLLBACK_DENIED");
     const authorizationRef = textValue(authorization.authorizationRef);
-    if (!SHA256_RE.test(actionHash) || authorizationRef !== `worker-c:${actionHash}` || textValue(authorization.decision) !== "ALLOW") {
+    if (authorizationRef !== `worker-c:${actionHash}` || decision !== "ALLOW" || !UUID_RE.test(approvalId)) {
       throw new Error("ROLLBACK_AUTHORIZATION_FAILED");
     }
-    return { actionHash, authorizationRef };
+    return { actionHash, authorizationRef, approvalId };
   };
 
   const provider = textValue(environmentData.provider);
@@ -1497,6 +1505,8 @@ Deno.serve(async (req: Request) => {
     if (code === "DOMAIN_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming the domain with Vercel. Do not attach it again yet.", requestId }, 409, requestId, origin);
     if (code === "UNDO_REQUIRES_ROLLBACK") return jsonResponse({ code, plainMessage: "That version is already live. Use the governed rollback action instead of Undo.", requestId }, 409, requestId, origin);
     if (["UNDO_NOT_AVAILABLE", "UNDO_PRECONDITION_MISMATCH", "UNDO_PARENT_NOT_VERIFIED", "UNDO_PARENT_PREVIEW_UNAVAILABLE"].includes(code)) return jsonResponse({ code, plainMessage: "That change cannot be undone from the current project state.", requestId }, 409, requestId, origin);
+    if (code === "ROLLBACK_APPROVAL_REQUIRED") return jsonResponse({ code, plainMessage: "This production rollback needs your approval in Needs You before Pandora can continue.", requestId }, 409, requestId, origin);
+    if (code === "ROLLBACK_DENIED") return jsonResponse({ code, plainMessage: "This production rollback was not approved.", requestId }, 409, requestId, origin);
     if (code === "ROLLBACK_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already rolling back this project.", requestId }, 409, requestId, origin);
     if (code === "ROLLBACK_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming the production rollback. Do not roll back again yet.", requestId }, 409, requestId, origin);
     if (code === "ROLLBACK_AUTHORIZATION_COLLISION") return jsonResponse({ code, plainMessage: "That rollback request conflicts with an earlier authorization. Create a new rollback request.", requestId }, 409, requestId, origin);
