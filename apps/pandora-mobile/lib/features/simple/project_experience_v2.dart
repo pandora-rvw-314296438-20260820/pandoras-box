@@ -10,6 +10,7 @@ import '../../core/models/project_candidate_safety.dart';
 import '../../core/models/project_experience_projection.dart';
 import '../../core/models/project_focus_token.dart';
 import '../../core/models/project_journey_models.dart';
+import '../../core/models/simple_publish_eligibility.dart';
 import '../../core/platform/pandora_embedded_preview.dart';
 import '../../core/platform/pandora_native_io.dart';
 import 'pandora_v2_ui.dart';
@@ -622,10 +623,17 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool get _canUndo =>
       _projection?.canUndo == true && _projection?.candidateVersionId != null;
 
-  bool get _canPublish =>
-      _projection?.canPublish == true &&
-      _candidateSafety?.candidateVerified == true &&
-      _projection?.candidateVersionId != null;
+  String? get _publishVersionId => simplePublishEligibleVersion(
+        projectedCandidateVersionId: _projection?.candidateVersionId,
+        projectionCanPublish: _projection?.canPublish == true,
+        candidateVerified: _candidateSafety?.candidateVerified == true,
+        candidateIsVisible: _versionRoles?.candidateIsVisible == true,
+        runtimeCandidateVersionId: _snapshot?.candidate?.versionId,
+        verificationVersionId: _snapshot?.verification?.versionId,
+        runtimePublishEligible: _snapshot?.verification?.publishEligible == true,
+      );
+
+  bool get _canPublish => _publishVersionId != null;
 
   bool get _currentVersionVerified {
     final projection = _projection;
@@ -1190,7 +1198,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   Future<void> _showPublish() async {
     final snapshot = _snapshot;
-    final candidateVersionId = _projection?.candidateVersionId;
+    final candidateVersionId = _publishVersionId;
     if (candidateVersionId == null || !_canPublish) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1199,6 +1207,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       );
       return;
     }
+    final publishVersionId = candidateVersionId;
     final domainController = TextEditingController(
       text: snapshot?.domain?.domain ?? snapshot?.project.requestedDomain ?? '',
     );
@@ -1268,7 +1277,15 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       ),
     );
     if (approved == true && mounted) {
-      await _publish(domainController.text.trim(), candidateVersionId);
+      if (_publishVersionId != publishVersionId) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pandora is checking this version again.'),
+          ),
+        );
+      } else {
+        await _publish(domainController.text.trim(), publishVersionId);
+      }
     }
     domainController.dispose();
   }
