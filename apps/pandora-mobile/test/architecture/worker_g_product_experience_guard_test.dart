@@ -51,6 +51,11 @@ void main() {
     expect(source, contains("'Building'"));
     expect(source, contains("'Checking'"));
     expect(source, contains("'Verified change'"));
+    expect(source, contains('_tryIntelligenceTurn'));
+    expect(source, contains('_flowTimeout'));
+    expect(source, contains('_previewRetryLimit'));
+    expect(source, contains('_ExactPreviewLoadingSurface'));
+    expect(source, contains('Your request is saved'));
     expect(source, isNot(contains('CURRENT OBJECT')));
     expect(source, isNot(contains('Your first version is ready')));
     expect(source, isNot(contains('AnimationController(')));
@@ -88,3 +93,22 @@ void main() {
     }
   });
 }
+
+
+  test('project change compilation retries instead of silently stalling', () {
+    final source =
+        File('lib/core/data/project_experience_api.dart').readAsStringSync();
+    expect(source, contains("'pandora-project-spec-compiler'"));
+    expect(source, contains('Duration(seconds: 8)'));
+    expect(source, contains('Duration(seconds: 12)'));
+    expect(source, contains('_lastCompilationRequest.remove(sourceIntentId)'));
+  });
+
+  test('developer diagnostics authorization has a bounded loading state', () {
+    final source = File(
+      'lib/features/diagnostics/developer_diagnostics_screen.dart',
+    ).readAsStringSync();
+    expect(source, contains('_authorizationRequestTimeout'));
+    expect(source, contains("'Checking owner access'"));
+    expect(source, contains('.timeout(_authorizationRequestTimeout)'));
+  });
