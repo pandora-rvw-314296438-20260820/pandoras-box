@@ -96,7 +96,7 @@ class ProjectExperienceApi {
 
       if (spec == null ||
           _text(spec['source_intent_id']) != expectedSourceIntentId) {
-        unawaited(_ensureCompilation(expectedSourceIntentId));
+        await _ensureCompilation(expectedSourceIntentId);
         return const OwnerProjectUnderstanding.waiting();
       }
 
@@ -105,7 +105,7 @@ class ProjectExperienceApi {
         return const OwnerProjectUnderstanding.rejected();
       }
       if (status != 'active') {
-        unawaited(_ensureCompilation(expectedSourceIntentId));
+        await _ensureCompilation(expectedSourceIntentId);
         return const OwnerProjectUnderstanding.waiting();
       }
 
@@ -253,19 +253,29 @@ class ProjectExperienceApi {
   Future<void> _ensureCompilation(String sourceIntentId) async {
     final now = DateTime.now();
     final last = _lastCompilationRequest[sourceIntentId];
-    if (last != null && now.difference(last) < const Duration(seconds: 20)) {
+    if (last != null && now.difference(last) < const Duration(seconds: 8)) {
       return;
     }
     _lastCompilationRequest[sourceIntentId] = now;
-    try {
-      await _client.functions.invoke(
-        'pandora-project-spec-compiler',
-        body: <String, Object?>{'intentId': sourceIntentId},
-      );
-    } catch (_) {
-      // Compilation is authoritative server work. A transient trigger failure
-      // leaves the durable intent intact and the UI truthfully waiting.
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        await _client.functions.invoke(
+          'pandora-project-spec-compiler',
+          body: <String, Object?>{'intentId': sourceIntentId},
+        ).timeout(const Duration(seconds: 12));
+        return;
+      } catch (_) {
+        if (attempt == 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 750));
+        }
+      }
     }
+
+    // Do not hold the cooldown after a failed trigger. The durable intent is
+    // still authoritative, and the next owner poll should be allowed to
+    // retrigger compilation immediately instead of appearing stuck.
+    _lastCompilationRequest.remove(sourceIntentId);
   }
 
   void beginAuthenticatedIdentityEpoch() {
