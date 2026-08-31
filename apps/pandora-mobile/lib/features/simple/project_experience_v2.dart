@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/project_experience_api.dart';
 import '../../core/models/project_journey_models.dart';
-import '../../core/platform/pandora_native_io.dart';
 import '../../core/platform/pandora_embedded_preview.dart';
+import '../../core/platform/pandora_native_io.dart';
 import 'pandora_v2_ui.dart';
 
 String? _safeHttps(String? value) {
@@ -240,7 +240,9 @@ class _ProjectBuildExperienceV2ScreenState
 
   String get _stageMessage {
     if (_ready) return 'Your exact project is ready to experience.';
-    if (_candidate != null) return 'Preparing the exact version you just built.';
+    if (_candidate != null) {
+      return 'Preparing the exact version you just built.';
+    }
     return 'Pandora is working while your project stays safe.';
   }
 
@@ -369,7 +371,6 @@ class _ProjectBuildExperienceV2ScreenState
         ),
       );
 }
-
 
 enum _ProjectChangePhase { idle, designing, building, checking }
 
@@ -535,9 +536,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     if (experience == null) return;
     setState(() => _openingPreview = true);
     try {
-      var files = _previewVersionId == candidate.versionId
-          ? _previewFiles
-          : null;
+      var files =
+          _previewVersionId == candidate.versionId ? _previewFiles : null;
       files ??= await _loadExactPreviewFiles(
         experience,
         projectId: widget.project.id,
@@ -914,7 +914,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                 if (domain.contains('@')) {
                   ScaffoldMessenger.of(sheetContext).showSnackBar(
                     const SnackBar(
-                      content: Text('Enter a domain name, not an email address.'),
+                      content:
+                          Text('Enter a domain name, not an email address.'),
                     ),
                   );
                   return;
@@ -1046,7 +1047,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                                 )
                               : hasExactPreview
                                   ? PandoraEmbeddedPreview(
-                                      key: ValueKey<String>(versionId!),
+                                      key: ValueKey<String>(versionId),
                                       files: files,
                                       versionId: versionId,
                                       fallback: _ExactPreviewFallback(
@@ -1068,8 +1069,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                         child: _PreviewIconButton(
                           tooltip: 'Open full screen',
                           icon: Icons.open_in_full_rounded,
-                          onPressed:
-                              _openingPreview ? null : _openExactPreview,
+                          onPressed: _openingPreview ? null : _openExactPreview,
                         ),
                       ),
                     if (_phase != _ProjectChangePhase.idle)
@@ -1384,8 +1384,7 @@ class _ProjectProgressCapsule extends StatelessWidget {
                     ? PandoraV2Colors.ink
                     : PandoraV2Colors.muted,
                 fontSize: 12,
-                fontWeight:
-                    index == active ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: index == active ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ],

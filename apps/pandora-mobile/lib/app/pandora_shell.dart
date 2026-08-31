@@ -187,7 +187,6 @@ class _PandoraShellState extends State<PandoraShell> {
       );
 }
 
-
 class _PandoraV2BottomBar extends StatelessWidget {
   const _PandoraV2BottomBar({
     required this.destinations,

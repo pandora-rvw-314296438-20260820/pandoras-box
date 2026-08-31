@@ -165,7 +165,6 @@ class PandoraV2ObjectHeader extends StatelessWidget {
       );
 }
 
-
 class PandoraV2IntentSurface extends StatelessWidget {
   const PandoraV2IntentSurface({
     super.key,
@@ -437,7 +436,6 @@ class PandoraV2ObjectWindow extends StatelessWidget {
         ),
       );
 }
-
 
 class PandoraV2ProjectCard extends StatelessWidget {
   const PandoraV2ProjectCard({
