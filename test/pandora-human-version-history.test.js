@@ -83,12 +83,17 @@ test("history composes exact versions, summaries, receipts, and bounded actions"
   assert.equal(history.versions[0].actions.restore.enabled, false);
   assert.equal(history.versions[2].actions.restore.enabled, true);
   assert.deepEqual(history.versions[2].actions.restore.intent, {
-    kind: "RESTORE_VERSION",
+    kind: "RESTORE_APPLICATION_VERSION",
     project_id: U(11),
     expected_visible_current_version_id: v2.id,
     target_version_id: v1.id,
     expected_artifact_digest_sha256: v1.artifact_digest_sha256,
+    application_effect: "RESTORE_VERSION_STATE",
+    production_effect: "NONE",
+    persistent_data_effect: "UNCHANGED",
+    database_recovery_included: false,
     requires_confirmation: true,
+    authority: "PROJECT_VERSION_RESTORE",
   });
 
   const serialized = JSON.stringify(history);
