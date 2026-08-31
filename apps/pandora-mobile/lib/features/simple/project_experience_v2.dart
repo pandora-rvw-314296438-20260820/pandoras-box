@@ -597,6 +597,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           _previewVersionId = candidate.versionId;
         }
       });
+      if (candidate != null) {
+        _schedulePreviewRetry(candidate.versionId);
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
