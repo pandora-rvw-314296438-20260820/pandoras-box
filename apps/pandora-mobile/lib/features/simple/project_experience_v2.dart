@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/data/project_experience_api.dart';
+import '../../core/models/project_experience_projection.dart';
 import '../../core/models/project_journey_models.dart';
 import '../../core/platform/pandora_embedded_preview.dart';
 import '../../core/platform/pandora_native_io.dart';
@@ -58,6 +59,7 @@ class _ProjectBuildExperienceV2ScreenState
   bool _previewRequested = false;
   bool _refreshing = false;
   bool _openingPreview = false;
+  bool _transitionedToWorkspace = false;
   DateTime? _flowStartedAt;
 
   static const _flowTimeout = Duration(minutes: 2);
@@ -110,6 +112,21 @@ class _ProjectBuildExperienceV2ScreenState
     return _previewUrl != null ||
         (_localPreviewVersionId == candidate.versionId &&
             _localPreviewFiles != null);
+  }
+
+  void _enterWorkspaceIfReady() {
+    if (!_ready || _transitionedToWorkspace || !mounted) return;
+    _transitionedToWorkspace = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => ProjectWorkspaceV2Screen(
+            project: _snapshot?.project ?? widget.project,
+          ),
+        ),
+      );
+    });
   }
 
   bool get _flowExpired {
@@ -224,6 +241,9 @@ class _ProjectBuildExperienceV2ScreenState
       }
     } finally {
       _refreshing = false;
+      if (mounted && _ready) {
+        _enterWorkspaceIfReady();
+      }
       if (mounted && !_ready && !_flowExpired) {
         _timer?.cancel();
         _timer = Timer(const Duration(seconds: 2), _refreshAndAdvance);
@@ -413,20 +433,6 @@ class _ProjectBuildExperienceV2ScreenState
                       ),
                       const SizedBox(height: 12),
                     ],
-                    if (_ready)
-                      PandoraV2PrimaryAction(
-                        label: 'Open project',
-                        icon: Icons.arrow_forward_rounded,
-                        onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute<void>(
-                              builder: (_) => ProjectWorkspaceV2Screen(
-                                project: _snapshot?.project ?? widget.project,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
                   ],
                 ),
               ),
@@ -451,6 +457,8 @@ class ProjectWorkspaceV2Screen extends StatefulWidget {
 class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   final _change = TextEditingController();
   ProjectRuntimeSnapshot? _snapshot;
+  ProjectExperienceProjection? _projection;
+  StreamSubscription<ProjectExperienceProjection>? _projectionSubscription;
   List<Map<String, Object?>>? _previewFiles;
   String? _previewVersionId;
   String? _error;
@@ -464,7 +472,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _recentlyUpdated = false;
   bool _selectionMode = false;
   PandoraPreviewSelection? _selectedPreviewTarget;
-  _ProjectChangePhase _phase = _ProjectChangePhase.idle;
   Timer? _previewRetryTimer;
   String? _previewRetryVersionId;
   int _previewRetryCount = 0;
@@ -476,80 +483,126 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
+    unawaited(_startProjection());
     unawaited(_refresh());
   }
 
   @override
   void dispose() {
     _previewRetryTimer?.cancel();
+    final projectionSubscription = _projectionSubscription;
+    if (projectionSubscription != null) {
+      unawaited(projectionSubscription.cancel());
+    }
     _change.dispose();
     super.dispose();
   }
 
   ProjectRuntimeCandidate? get _candidate => _snapshot?.candidate;
 
-  bool get _canUndo {
-    final candidate = _candidate;
-    if (candidate == null || !candidate.canUndo) return false;
-    return _snapshot?.production?.versionId != candidate.versionId;
+  Future<void> _startProjection() async {
+    final repository =
+        PandoraDependencies.of(context).projectExperienceProjection;
+    if (repository == null) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Pandora cannot determine this project state right now.';
+      });
+      return;
+    }
+
+    try {
+      final initial = await repository.load(widget.project.id);
+      if (!mounted) return;
+      _acceptProjection(initial);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error ??= 'Pandora cannot determine this project state right now.';
+      });
+    }
+
+    if (!mounted || _projectionSubscription != null) return;
+    _projectionSubscription = repository.watch(widget.project.id).listen(
+      _acceptProjection,
+      onError: (_) {
+        if (!mounted) return;
+        setState(() {
+          _error ??= 'Pandora cannot refresh this project state right now.';
+        });
+      },
+    );
   }
+
+  void _acceptProjection(ProjectExperienceProjection next) {
+    if (!mounted) return;
+    final current = _projection;
+    if (current != null && !next.isNewerThan(current)) return;
+    final targetVersion = next.candidateVersionId ?? next.currentVersionId;
+    final shouldHydrate =
+        targetVersion != null && targetVersion != _previewVersionId;
+    setState(() {
+      _projection = next;
+      _loading = false;
+      if (next.hasSafeFailure && _error == null) {
+        _error = next.safeFailureMessage ??
+            'Pandora found something to resolve. Your current project remains available.';
+      }
+    });
+    if (shouldHydrate) unawaited(_refresh());
+  }
+
+  _ProjectChangePhase? get _projectionProgressPhase {
+    final projection = _projection;
+    if (projection == null) {
+      return _changing ? _ProjectChangePhase.designing : null;
+    }
+    if (projection.isUpdating) {
+      return projection.buildPhase?.toLowerCase() == 'checking'
+          ? _ProjectChangePhase.checking
+          : _ProjectChangePhase.building;
+    }
+    switch (projection.state) {
+      case ProjectExperienceState.understand:
+      case ProjectExperienceState.change:
+        return _ProjectChangePhase.designing;
+      case ProjectExperienceState.build:
+      case ProjectExperienceState.rebuild:
+        return projection.buildPhase?.toLowerCase() == 'checking'
+            ? _ProjectChangePhase.checking
+            : _ProjectChangePhase.building;
+      case ProjectExperienceState.review:
+        return _ProjectChangePhase.checking;
+      default:
+        return null;
+    }
+  }
+
+  bool get _canUndo => _projection?.canUndo == true && _candidate != null;
 
   bool get _canPublish {
-    final snapshot = _snapshot;
-    final candidate = snapshot?.candidate;
+    final candidate = _candidate;
+    final projection = _projection;
     return candidate != null &&
-        snapshot?.verification?.versionId == candidate.versionId &&
-        snapshot?.verification?.publishEligible == true &&
-        snapshot?.production?.versionId != candidate.versionId;
+        projection?.canPublish == true &&
+        projection?.candidateVersionId == candidate.versionId;
   }
 
-  bool get _currentVersionVerified {
-    final snapshot = _snapshot;
-    final candidate = snapshot?.candidate;
-    final verification = snapshot?.verification;
-    return candidate != null &&
-        verification?.versionId == candidate.versionId &&
-        verification?.publishEligible == true;
-  }
-
-  bool get _currentCandidateIsLive {
-    final snapshot = _snapshot;
-    final candidate = snapshot?.candidate;
-    final production = snapshot?.production;
-    return candidate != null &&
-        production?.versionId == candidate.versionId &&
-        snapshot?.project.isLive == true;
-  }
-
-  bool get _currentCandidateIsPublishing {
-    final snapshot = _snapshot;
-    final candidate = snapshot?.candidate;
-    if (candidate == null || snapshot?.project.isLive == true) return false;
-    return snapshot?.production?.versionId == candidate.versionId;
-  }
+  bool get _currentVersionVerified =>
+      _projection?.currentVerified == true || _projection?.canPublish == true;
 
   String get _statusLabel {
-    switch (_phase) {
-      case _ProjectChangePhase.designing:
-        return 'Designing';
-      case _ProjectChangePhase.building:
-        return 'Building';
-      case _ProjectChangePhase.checking:
-        return 'Checking';
-      case _ProjectChangePhase.idle:
-        break;
-    }
     if (_recentlyUpdated && _currentVersionVerified) return 'Updated';
-    if (_currentCandidateIsLive) return 'Live';
-    if (_currentCandidateIsPublishing) return 'Publishing · verifying';
-    if (_currentVersionVerified) return 'Ready';
-    if (_candidate != null) return 'Preview';
-    return 'Working';
+    return _projection?.statusLabel ?? 'Working';
   }
 
   Color get _statusColor {
-    final label = _statusLabel;
-    if (label == 'Updated' || label == 'Live' || label == 'Ready') {
+    final state = _projection?.state;
+    if ((_recentlyUpdated && _currentVersionVerified) ||
+        state == ProjectExperienceState.live ||
+        state == ProjectExperienceState.review) {
       return PandoraV2Colors.success;
     }
     return PandoraV2Colors.muted;
