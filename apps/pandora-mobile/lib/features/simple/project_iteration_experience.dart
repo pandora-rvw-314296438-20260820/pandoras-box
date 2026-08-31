@@ -11,10 +11,7 @@ import '../settings/settings_screen.dart';
 import 'pandora_simple_ui.dart';
 
 class ProjectIterationExperienceScreen extends StatefulWidget {
-  const ProjectIterationExperienceScreen({
-    super.key,
-    required this.project,
-  });
+  const ProjectIterationExperienceScreen({super.key, required this.project});
 
   final CustomerProject project;
 
@@ -66,7 +63,8 @@ class _ProjectIterationExperienceScreenState
       });
       return;
     }
-    final experience = PandoraDependencies.of(context).projectExperience;
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) {
       setState(() {
         _error = 'Pandora cannot save that change right now.';
@@ -80,10 +78,9 @@ class _ProjectIterationExperienceScreenState
     });
     try {
       _idempotencyKey ??= _keys.create('project-change-intent');
-      final intentId = await experience.submitIntent(
+      final intentId = await experience.submitChange(
         projectId: widget.project.id,
-        intentText: text,
-        intentKind: 'change',
+        changeText: text,
         idempotencyKey: _idempotencyKey,
       );
       if (!mounted) return;
@@ -115,7 +112,8 @@ class _ProjectIterationExperienceScreenState
     if (_refreshing || sourceIntentId == null || _understanding.isReady) {
       return;
     }
-    final experience = PandoraDependencies.of(context).projectExperience;
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) return;
 
     _refreshing = true;
@@ -165,9 +163,9 @@ class _ProjectIterationExperienceScreenState
         onNotifications: () => Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const ApprovalsScreen()),
         ),
-        onAvatar: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
-        ),
+        onAvatar: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

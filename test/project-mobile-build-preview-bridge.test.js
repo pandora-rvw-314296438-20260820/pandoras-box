@@ -39,7 +39,7 @@ test('Preview requires the exact built version and artifact digest', () => {
 test('Build Theatre advances Build to candidate to exact Preview', () => {
   const buildAt = journey.indexOf('experience.requestBuild(');
   const candidateAt = journey.indexOf('final candidate = snapshot.candidate;');
-  const previewAt = journey.indexOf('runtime.createPreview(');
+  const previewAt = journey.indexOf('experience.createPreview(');
   assert.ok(buildAt > 0);
   assert.ok(candidateAt > 0);
   assert.ok(previewAt > candidateAt);

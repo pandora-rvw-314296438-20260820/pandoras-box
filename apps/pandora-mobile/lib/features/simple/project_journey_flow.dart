@@ -131,8 +131,9 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     bool showBlockingError = false,
   }) async {
     if (_refreshing) return _snapshot;
-    final runtime = PandoraDependencies.of(context).projectRuntime;
-    if (runtime == null) {
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
+    if (experience == null) {
       if (mounted && (showBlockingError || _snapshot == null)) {
         setState(
           () => _error = 'Pandora cannot refresh this project right now.',
@@ -143,7 +144,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
 
     _refreshing = true;
     try {
-      final snapshot = await runtime.runtime(widget.project.id);
+      final snapshot = await experience.runtime(widget.project.id);
       if (!mounted) return snapshot;
       setState(() {
         _snapshot = snapshot;
@@ -205,7 +206,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   }
 
   Future<void> _requestBuild() async {
-    final experience = PandoraDependencies.of(context).projectExperience;
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) {
       if (mounted) {
         setState(() => _error = 'Pandora cannot start this build right now.');
@@ -239,8 +241,9 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   }
 
   Future<void> _requestPreview(ProjectRuntimeCandidate candidate) async {
-    final runtime = PandoraDependencies.of(context).projectRuntime;
-    if (runtime == null) {
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
+    if (experience == null) {
       if (mounted) {
         setState(() => _error = 'Pandora cannot build this preview right now.');
       }
@@ -248,7 +251,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     }
 
     try {
-      final result = await runtime.createPreview(
+      final result = await experience.createPreview(
         projectId: widget.project.id,
         versionId: candidate.versionId,
         artifactDigest: candidate.artifactDigest,
@@ -284,7 +287,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   }
 
   Future<List<Map<String, Object?>>> _loadPreviewFiles(String versionId) async {
-    final experience = PandoraDependencies.of(context).projectExperience;
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) {
       throw const ProjectExperienceException(
         'Pandora cannot open this preview right now.',
@@ -347,7 +351,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Pandora could not open this preview right now.')),
+            content: Text('Pandora could not open this preview right now.'),
+          ),
         );
       }
     }
@@ -371,9 +376,11 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     _refreshTimer?.cancel();
     if (_hasRenderablePreview) return;
     _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      unawaited(_refreshDurableTruth().then((snapshot) {
-        if (snapshot != null && mounted) _advanceBuild(snapshot);
-      }));
+      unawaited(
+        _refreshDurableTruth().then((snapshot) {
+          if (snapshot != null && mounted) _advanceBuild(snapshot);
+        }),
+      );
     });
   }
 
@@ -785,8 +792,9 @@ class _ProjectJourneyWorkspaceScreenState
   }
 
   Future<void> _load() async {
-    final runtime = PandoraDependencies.of(context).projectRuntime;
-    if (runtime == null) {
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
+    if (experience == null) {
       setState(() {
         _loading = false;
         _error = 'Project runtime is not available in this build.';
@@ -798,7 +806,7 @@ class _ProjectJourneyWorkspaceScreenState
       _error = null;
     });
     try {
-      final snapshot = await runtime.runtime(widget.projectIdentifier);
+      final snapshot = await experience.runtime(widget.projectIdentifier);
       if (!mounted) return;
       setState(() {
         _snapshot = snapshot;
@@ -905,14 +913,15 @@ class _ProjectJourneyWorkspaceScreenState
     );
     controller.dispose();
     if (domain == null || !mounted) return;
-    final runtime = PandoraDependencies.of(context).projectRuntime;
-    if (runtime == null) return;
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
+    if (experience == null) return;
     setState(() {
       _publishing = true;
       _error = null;
     });
     try {
-      await runtime.publish(
+      await experience.publish(
         projectId: project.id,
         versionId: _snapshot?.preview?.versionId,
         domain: domain.isEmpty ? null : domain,

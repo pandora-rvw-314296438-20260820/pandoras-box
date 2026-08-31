@@ -65,8 +65,8 @@ test('workspace questions use Pandora intelligence while explicit changes surviv
   assert.match(mobile, /if \(turn\.intent == 'chat'\)/);
   assert.match(mobile, /_intelligenceReply = turn\.reply;/);
   assert.match(mobile, /var actionRequest = request;/);
-  assert.match(mobile, /intentText: actionRequest/);
-  assert.match(mobile, /intentKind: 'change'/);
+  assert.match(mobile, /submitChange\(/);
+  assert.match(mobile, /changeText: actionRequest/);
   assert.doesNotMatch(mobile, /intentText: text\.trim\(\),\s*intentKind: 'change'/);
 });
 

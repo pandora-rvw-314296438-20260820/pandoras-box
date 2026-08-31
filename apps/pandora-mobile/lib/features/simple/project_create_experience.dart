@@ -81,10 +81,9 @@ class _CreateProjectExperienceScreenState
       }
       return;
     }
-    final dependencies = PandoraDependencies.of(context);
-    final runtime = dependencies.projectRuntime;
-    final experience = dependencies.projectExperience;
-    if (runtime == null || experience == null) {
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
+    if (experience == null) {
       setState(() => _error = 'Pandora cannot start a new project right now.');
       return;
     }
@@ -93,7 +92,7 @@ class _CreateProjectExperienceScreenState
       _error = null;
     });
     try {
-      final project = await runtime.createProject(
+      final project = await experience.createProject(
         name: _inferName(intent),
         buildKind: ProjectBuildKind.helpMeDecide,
         objective: intent,
@@ -246,7 +245,7 @@ class _ProjectUnderstandingScreenState
   }
 
   Future<void> _refresh() async {
-    final api = PandoraDependencies.of(context).projectExperience;
+    final api = PandoraDependencies.of(context).projectExperienceRepository;
     if (api == null) return;
     try {
       final value = await api.understanding(
@@ -265,7 +264,7 @@ class _ProjectUnderstandingScreenState
 
   Future<void> _build() async {
     if (_building) return;
-    final api = PandoraDependencies.of(context).projectExperience;
+    final api = PandoraDependencies.of(context).projectExperienceRepository;
     if (api == null) return;
     setState(() {
       _building = true;

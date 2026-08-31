@@ -1485,6 +1485,8 @@ Deno.serve(async (req: Request) => {
     if (req.method === "POST" && previewMatch) return jsonResponse(await createPreview(context, decodeURIComponent(previewMatch[1]), await bodyJson(req)), 201, requestId, origin);
     const undoMatch = route.match(/^\/projects\/([^/]+)\/undo$/);
     if (req.method === "POST" && undoMatch) return jsonResponse(await undoProject(context, decodeURIComponent(undoMatch[1]), await bodyJson(req)), 200, requestId, origin);
+    const rollbackMatch = route.match(/^\/projects\/([^/]+)\/rollback$/);
+    if (req.method === "POST" && rollbackMatch) return jsonResponse(await rollbackProject(context, decodeURIComponent(rollbackMatch[1]), await bodyJson(req)), 200, requestId, origin);
     const publishMatch = route.match(/^\/projects\/([^/]+)\/publish$/);
     if (req.method === "POST" && publishMatch) return jsonResponse(await publishProject(context, decodeURIComponent(publishMatch[1]), await bodyJson(req)), 201, requestId, origin);
     const productionVerificationMatch = route.match(/^\/projects\/([^/]+)\/production-verification$/);

@@ -5,6 +5,7 @@ import '../core/data/pandora_intelligence_api.dart';
 import '../core/data/pandora_repository.dart';
 import '../core/data/project_experience_api.dart';
 import '../core/data/project_experience_projection_repository.dart';
+import '../core/data/project_experience_repository.dart';
 import '../core/data/project_runtime_api.dart';
 import '../core/design/pandora_theme.dart';
 import '../core/design/pandora_tokens.dart';
@@ -23,6 +24,7 @@ class PandoraApp extends StatefulWidget {
     this.projectRuntime,
     this.projectExperience,
     this.projectExperienceProjection,
+    this.projectExperienceRepository,
     this.domainRegistrar,
   });
 
@@ -32,6 +34,7 @@ class PandoraApp extends StatefulWidget {
   final ProjectRuntimeApi? projectRuntime;
   final ProjectExperienceApi? projectExperience;
   final ProjectExperienceProjectionRepository? projectExperienceProjection;
+  final ProjectExperienceRepository? projectExperienceRepository;
   final DomainRegistrarApi? domainRegistrar;
   final DiagnosticsStore diagnostics;
 
@@ -55,6 +58,7 @@ class _PandoraAppState extends State<PandoraApp> {
         projectRuntime: widget.projectRuntime,
         projectExperience: widget.projectExperience,
         projectExperienceProjection: widget.projectExperienceProjection,
+        projectExperienceRepository: widget.projectExperienceRepository,
         domainRegistrar: widget.domainRegistrar,
         diagnostics: widget.diagnostics,
         child: MaterialApp(
