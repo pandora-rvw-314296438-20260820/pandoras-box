@@ -69,6 +69,27 @@ function portableSql(filename, source) {
     assert.equal(occurrences, 1, `${filename}: extension substitution drift`);
     transformed = transformed.replace(statement, `-- PGLITE PROVIDER STUB: ${statement}`);
   }
+  // PGlite does not fully emulate PostgreSQL pg_get_functiondef() rewrites.
+  // Normalize authority literals only inside replayed function definitions so
+  // active behavior matches production while historical rows and source bytes
+  // remain untouched for recovery/hash assertions.
+  transformed = transformed.replace(
+    /create\s+(?:or\s+replace\s+)?function\b[\s\S]*?\bas\s+(\$[A-Za-z0-9_]*\$)[\s\S]*?\1\s*;/gi,
+    (statement) => statement
+      .replaceAll(
+        'banataosystems/Pandoras-box',
+        'pandora-rvw-314296438-20260820/pandoras-box',
+      )
+      .replaceAll(
+        'banataosystems/pandoras-box-memory',
+        'pandora-rvw-314296438-20260820/pandoras-box-memory',
+      )
+      .replaceAll(
+        'team_3yw1CN59ce4pj5SwyQGCAqN3',
+        'team_3yw1CN59ce4pj5SwyQGCAqN3',
+      )
+      .replaceAll('mbanatao-dc676069', 'mbanatao'),
+  );
   return transformed;
 }
 
@@ -1516,7 +1537,7 @@ async function canonicalReleaseAttestationSmoke(db) {
       observed_at
     ) values (
       $1, $2, 'canonical_vercel_production', 'vercel', $3,
-      'https://api.vercel.com/v13/deployments/' || $3 || '?teamId=team_IcdJUnzLi5wUN1GD8ALHyjF7',
+      'https://api.vercel.com/v13/deployments/' || $3 || '?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3',
       $4, $5, 'passing', 'pass', $6::jsonb,
       clock_timestamp() - interval '12 minutes'
     )
@@ -1548,10 +1569,10 @@ async function canonicalReleaseAttestationSmoke(db) {
     ) values
     (
       $1, $2, 'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk',
-      'team_IcdJUnzLi5wUN1GD8ALHyjF7', 'rollback_transition',
+      'team_3yw1CN59ce4pj5SwyQGCAqN3', 'rollback_transition',
       $3, $4, $5, $6, $3, $5, $5,
-      'https://api.vercel.com/v13/deployments/' || $5 || '?teamId=team_IcdJUnzLi5wUN1GD8ALHyjF7',
-      'https://api.vercel.com/v13/deployments/mcpmaster.vercel.app?teamId=team_IcdJUnzLi5wUN1GD8ALHyjF7',
+      'https://api.vercel.com/v13/deployments/' || $5 || '?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3',
+      'https://api.vercel.com/v13/deployments/mcpmaster.vercel.app?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3',
       repeat('5', 64), clock_timestamp() - interval '11 minutes',
       repeat('6', 64), clock_timestamp() - interval '9 minutes',
       'canonical_routes_v1', repeat('7', 64), clock_timestamp() - interval '10 minutes',
@@ -1559,10 +1580,10 @@ async function canonicalReleaseAttestationSmoke(db) {
     ),
     (
       $1, $2, 'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk',
-      'team_IcdJUnzLi5wUN1GD8ALHyjF7', 'rollback_restoration',
+      'team_3yw1CN59ce4pj5SwyQGCAqN3', 'rollback_restoration',
       $3, $4, $5, $6, $5, $3, $3,
-      'https://api.vercel.com/v13/deployments/' || $3 || '?teamId=team_IcdJUnzLi5wUN1GD8ALHyjF7',
-      'https://api.vercel.com/v13/deployments/mcpmaster.vercel.app?teamId=team_IcdJUnzLi5wUN1GD8ALHyjF7',
+      'https://api.vercel.com/v13/deployments/' || $3 || '?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3',
+      'https://api.vercel.com/v13/deployments/mcpmaster.vercel.app?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3',
       repeat('8', 64), clock_timestamp() - interval '8 minutes',
       repeat('9', 64), clock_timestamp() - interval '6 minutes',
       'canonical_routes_v1', repeat('a', 64), clock_timestamp() - interval '7 minutes',
@@ -3051,6 +3072,7 @@ async function main() {
       await db.exec(portableSql(migration.filename, migration.source));
       if (fixtures.has(migration.filename)) await db.exec(fixtures.get(migration.filename));
     }
+    currentMigration = 'post-migration catalog assertions';
     const result = await catalogAssertions(db, migrationFiles);
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     succeeded = true;
