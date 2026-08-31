@@ -91,7 +91,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         ),
                         const SizedBox(height: PandoraSpacing.xs),
                         Text(
-                          'Your private owner control surface.',
+                          'Build, change, and publish with Pandora.',
                           textAlign: TextAlign.center,
                           style:
                               Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -155,7 +155,7 @@ class _SignInScreenState extends State<SignInScreen> {
                                   child:
                                       CircularProgressIndicator(strokeWidth: 2),
                                 )
-                              : const Text('Sign in securely'),
+                              : const Text('Sign in'),
                         ),
                         TextButton(
                           onPressed: _busy ? null : _resetPassword,
@@ -163,8 +163,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         ),
                         const SizedBox(height: PandoraSpacing.sm),
                         Text(
-                          'If your session expires, Pandora asks you to sign in again. '
-                          'Protected actions still require server authorization.',
+                          'Sign in to continue to your private projects.',
                           textAlign: TextAlign.center,
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
