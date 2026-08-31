@@ -77,6 +77,19 @@ void main() {
     expect(view, contains('ProjectChangePhase'));
   });
 
+  test('workspace uses a native snapping Pandora composer sheet', () {
+    final view = File('lib/features/simple/project_workspace_v2_view.dart')
+        .readAsStringSync();
+    expect(view, contains('DraggableScrollableSheet('));
+    expect(view, contains('initialChildSize: .18'));
+    expect(view, contains('minChildSize: .18'));
+    expect(view, contains('maxChildSize: .64'));
+    expect(view, contains('snapSizes: const [.38]'));
+    expect(view, contains('class _PandoraComposerSheet'));
+    expect(view, contains('controller: scrollController'));
+    expect(view, contains('PandoraV2IntentSurface('));
+  });
+
   test('canonical Pandora mark cannot be recolored red by callers', () {
     final source =
         File('lib/core/widgets/pandora_mark.dart').readAsStringSync();
