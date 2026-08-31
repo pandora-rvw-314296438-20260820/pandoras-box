@@ -236,12 +236,17 @@ class ProjectExperienceApi {
         final file = raw['file'];
         final mimeType = raw['mimeType'];
         final dataBase64 = raw['dataBase64'];
+        final byteSize = raw['byteSize'];
+        final fileDigest = _text(raw['sha256']).toLowerCase();
         if (file is! String ||
             file.trim().isEmpty ||
             mimeType is! String ||
             mimeType.trim().isEmpty ||
             dataBase64 is! String ||
-            dataBase64.isEmpty) {
+            dataBase64.isEmpty ||
+            byteSize is! int ||
+            byteSize < 1 ||
+            !RegExp(r'^[0-9a-f]{64}$').hasMatch(fileDigest)) {
           throw const ProjectExperienceException(
             'Pandora returned an unreadable preview.',
           );
