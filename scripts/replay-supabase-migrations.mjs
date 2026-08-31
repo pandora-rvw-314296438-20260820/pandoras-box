@@ -85,7 +85,7 @@ function portableSql(filename, source) {
         'pandora-rvw-314296438-20260820/pandoras-box-memory',
       )
       .replaceAll(
-        'team_3yw1CN59ce4pj5SwyQGCAqN3',
+        'team_IcdJUnzLi5wUN1GD8ALHyjF7',
         'team_3yw1CN59ce4pj5SwyQGCAqN3',
       )
       .replaceAll('mbanatao-dc676069', 'mbanatao'),
