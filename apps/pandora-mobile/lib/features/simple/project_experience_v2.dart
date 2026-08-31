@@ -584,7 +584,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       _projection?.canUndo == true && _projection?.candidateVersionId != null;
 
   bool get _canPublish =>
-      _projection?.canPublish == true && _projection?.candidateVersionId != null;
+      _projection?.canPublish == true &&
+      _projection?.candidateVersionId != null;
 
   bool get _currentVersionVerified =>
       _projection?.currentVerified == true || _projection?.canPublish == true;
@@ -742,9 +743,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   Future<void> _requestChange(String text) async {
     final request = text.trim();
-    if (request.length < 4 ||
-        _changing ||
-        _projection?.canChange != true) return;
+    if (request.length < 4 || _changing || _projection?.canChange != true)
+      return;
     final experience = PandoraDependencies.of(context).projectExperience;
     if (experience == null) {
       setState(() => _error = 'Pandora cannot save that change right now.');
@@ -1317,11 +1317,11 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                                   _changing || _projection?.canFocus != true
                                       ? null
                                       : () => setState(() {
-                                        _selectionMode = !_selectionMode;
-                                        if (_selectionMode) {
-                                          _selectedPreviewTarget = null;
-                                        }
-                                      }),
+                                            _selectionMode = !_selectionMode;
+                                            if (_selectionMode) {
+                                              _selectedPreviewTarget = null;
+                                            }
+                                          }),
                             ),
                             const SizedBox(width: 6),
                             _PreviewIconButton(
