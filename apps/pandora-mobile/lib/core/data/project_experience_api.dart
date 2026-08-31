@@ -208,6 +208,18 @@ class ProjectExperienceApi {
           'Pandora returned an unreadable preview.',
         );
       }
+      final responseProjectId = _text(data['projectId']).toLowerCase();
+      final responseVersionId = _text(data['versionId']).toLowerCase();
+      final artifactDigest = _text(data['artifactDigest']).toLowerCase();
+      final requestedProjectId = projectId.trim().toLowerCase();
+      final requestedVersionId = versionId.trim().toLowerCase();
+      if (responseProjectId != requestedProjectId ||
+          responseVersionId != requestedVersionId ||
+          !RegExp(r'^[0-9a-f]{64}$').hasMatch(artifactDigest)) {
+        throw const ProjectExperienceException(
+          'Pandora returned an unreadable preview.',
+        );
+      }
       final rawFiles = data['files'];
       if (rawFiles is! List || rawFiles.isEmpty || rawFiles.length > 1000) {
         throw const ProjectExperienceException(
@@ -224,12 +236,17 @@ class ProjectExperienceApi {
         final file = raw['file'];
         final mimeType = raw['mimeType'];
         final dataBase64 = raw['dataBase64'];
+        final byteSize = raw['byteSize'];
+        final fileDigest = _text(raw['sha256']).toLowerCase();
         if (file is! String ||
             file.trim().isEmpty ||
             mimeType is! String ||
             mimeType.trim().isEmpty ||
             dataBase64 is! String ||
-            dataBase64.isEmpty) {
+            dataBase64.isEmpty ||
+            byteSize is! int ||
+            byteSize < 1 ||
+            !RegExp(r'^[0-9a-f]{64}$').hasMatch(fileDigest)) {
           throw const ProjectExperienceException(
             'Pandora returned an unreadable preview.',
           );
@@ -238,6 +255,11 @@ class ProjectExperienceApi {
           'file': file.trim(),
           'mimeType': mimeType.trim(),
           'dataBase64': dataBase64,
+          'byteSize': byteSize,
+          'sha256': fileDigest,
+          'artifactDigest': artifactDigest,
+          'previewProjectId': responseProjectId,
+          'previewVersionId': responseVersionId,
         });
       }
       return files;

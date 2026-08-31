@@ -3,35 +3,55 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 @immutable
+class PandoraPreviewBounds {
+  const PandoraPreviewBounds({
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+  });
+
+  final double x;
+  final double y;
+  final double width;
+  final double height;
+}
+
+@immutable
 class PandoraPreviewSelection {
   const PandoraPreviewSelection({
     required this.tag,
     required this.selector,
     required this.text,
+    this.semanticId = '',
+    this.role = '',
+    this.accessibleName = '',
+    this.route = '/',
+    this.sourceFile = 'index.html',
+    this.sourceLine,
+    this.bounds,
   });
 
   final String tag;
   final String selector;
   final String text;
+  final String semanticId;
+  final String role;
+  final String accessibleName;
+  final String route;
+  final String sourceFile;
+  final int? sourceLine;
+  final PandoraPreviewBounds? bounds;
 
   String get label {
+    final accessible = accessibleName.trim();
+    if (accessible.isNotEmpty) return accessible;
     final visible = text.trim();
     if (visible.isNotEmpty) return visible;
     final target = selector.trim();
     if (target.isNotEmpty) return target;
     final element = tag.trim().toLowerCase();
     return element.isEmpty ? 'Selected element' : element;
-  }
-
-  String get intentContext {
-    final target = selector.trim();
-    final element = tag.trim().toLowerCase();
-    final parts = <String>[
-      'Selected project element:',
-      if (target.isNotEmpty) 'selector=$target',
-      if (element.isNotEmpty) 'tag=$element',
-    ];
-    return '${parts.join(' ')}. Apply the owner change specifically to this selected element.';
   }
 }
 
@@ -102,10 +122,29 @@ class _PandoraEmbeddedPreviewState extends State<PandoraEmbeddedPreview> {
     final raw = call.arguments;
     if (raw is! Map) return;
     String value(String key) => (raw[key] as String? ?? '').trim();
+    double number(String key) => (raw[key] as num?)?.toDouble() ?? 0;
+    int? integer(String key) => (raw[key] as num?)?.toInt();
+    final width = number('width');
+    final height = number('height');
     final selection = PandoraPreviewSelection(
       tag: value('tag'),
       selector: value('selector'),
       text: value('text'),
+      semanticId: value('semanticId'),
+      role: value('role'),
+      accessibleName: value('accessibleName'),
+      route: value('route').isEmpty ? '/' : value('route'),
+      sourceFile:
+          value('sourceFile').isEmpty ? 'index.html' : value('sourceFile'),
+      sourceLine: integer('sourceLine'),
+      bounds: width > 0 && height > 0
+          ? PandoraPreviewBounds(
+              x: number('x'),
+              y: number('y'),
+              width: width,
+              height: height,
+            )
+          : null,
     );
     if (selection.selector.isEmpty && selection.tag.isEmpty) return;
     widget.onSelection?.call(selection);
