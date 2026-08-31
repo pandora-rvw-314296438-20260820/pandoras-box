@@ -123,7 +123,8 @@ class _ProjectBuildExperienceV2ScreenState
       _timer?.cancel();
       if (mounted) {
         setState(
-          () => _error = 'This is taking longer than expected. Your request is saved; try again to resume from the current project state.',
+          () => _error =
+              'This is taking longer than expected. Your request is saved; try again to resume from the current project state.',
         );
       }
       return;
@@ -208,7 +209,8 @@ class _ProjectBuildExperienceV2ScreenState
             _previewRequested = false;
             if (mounted) {
               setState(
-                () => _error = 'Pandora found something to resolve before your first version can open.',
+                () => _error =
+                    'Pandora found something to resolve before your first version can open.',
               );
             }
           }
@@ -280,53 +282,53 @@ class _ProjectBuildExperienceV2ScreenState
   }
 
   Widget _buildStageSurface() => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(28),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 360),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _stageTitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: PandoraV2Colors.ink,
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -.7,
-                height: 1.08,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _stageMessage,
-              textAlign: TextAlign.center,
-              style: pandoraV2Muted,
-            ),
-            if (!_ready) ...[
-              const SizedBox(height: 24),
-              const SizedBox(
-                width: 144,
-                child: LinearProgressIndicator(
-                  minHeight: 2,
-                  color: PandoraV2Colors.ink,
-                  backgroundColor: PandoraV2Colors.soft,
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _stageTitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: PandoraV2Colors.ink,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.7,
+                    height: 1.08,
+                  ),
                 ),
-              ),
-            ],
-          ],
+                const SizedBox(height: 10),
+                Text(
+                  _stageMessage,
+                  textAlign: TextAlign.center,
+                  style: pandoraV2Muted,
+                ),
+                if (!_ready) ...[
+                  const SizedBox(height: 24),
+                  const SizedBox(
+                    width: 144,
+                    child: LinearProgressIndicator(
+                      minHeight: 2,
+                      color: PandoraV2Colors.ink,
+                      backgroundColor: PandoraV2Colors.soft,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
   Widget _buildReadySurface() {
     final candidate = _candidate;
     final files =
         candidate != null && _localPreviewVersionId == candidate.versionId
-        ? _localPreviewFiles
-        : null;
+            ? _localPreviewFiles
+            : null;
     if (candidate == null || files == null || files.isEmpty) {
       return _buildStageSurface();
     }
@@ -342,95 +344,96 @@ class _ProjectBuildExperienceV2ScreenState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: PandoraV2Colors.canvas,
-    body: SafeArea(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: PandoraV2ObjectHeader(
-              title: widget.project.name,
-              subtitle: _ready ? 'Ready' : 'Working',
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: PandoraV2Colors.surface,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: PandoraV2Colors.line),
+        backgroundColor: PandoraV2Colors.canvas,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: PandoraV2ObjectHeader(
+                  title: widget.project.name,
+                  subtitle: _ready ? 'Ready' : 'Working',
                 ),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: _ready
-                          ? _buildReadySurface()
-                          : _buildStageSurface(),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: PandoraV2Colors.surface,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: PandoraV2Colors.line),
                     ),
-                    if (_ready)
-                      Positioned(
-                        right: 18,
-                        top: 18,
-                        child: IconButton.filled(
-                          tooltip: 'Open exact preview',
-                          onPressed: _openingPreview ? null : _openExactPreview,
-                          style: IconButton.styleFrom(
-                            backgroundColor: PandoraV2Colors.ink,
-                            foregroundColor: Colors.white,
-                          ),
-                          icon: const Icon(Icons.open_in_full_rounded),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: _ready
+                              ? _buildReadySurface()
+                              : _buildStageSurface(),
                         ),
+                        if (_ready)
+                          Positioned(
+                            right: 18,
+                            top: 18,
+                            child: IconButton.filled(
+                              tooltip: 'Open exact preview',
+                              onPressed:
+                                  _openingPreview ? null : _openExactPreview,
+                              style: IconButton.styleFrom(
+                                backgroundColor: PandoraV2Colors.ink,
+                                foregroundColor: Colors.white,
+                              ),
+                              icon: const Icon(Icons.open_in_full_rounded),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                child: Column(
+                  children: [
+                    if (_error != null) ...[
+                      PandoraV2InlineMessage(
+                        title: 'This needs another try',
+                        message: _error!,
+                        actionLabel: 'Try again',
+                        onAction: () {
+                          setState(() {
+                            _error = null;
+                            _previewRequested = false;
+                            _flowStartedAt = DateTime.now();
+                            if (_candidate == null) _buildRequested = false;
+                          });
+                          unawaited(_refreshAndAdvance());
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (_ready)
+                      PandoraV2PrimaryAction(
+                        label: 'Open project',
+                        icon: Icons.arrow_forward_rounded,
+                        onPressed: () {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ProjectWorkspaceV2Screen(
+                                project: _snapshot?.project ?? widget.project,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                   ],
                 ),
               ),
-            ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
-            child: Column(
-              children: [
-                if (_error != null) ...[
-                  PandoraV2InlineMessage(
-                    title: 'This needs another try',
-                    message: _error!,
-                    actionLabel: 'Try again',
-                    onAction: () {
-                      setState(() {
-                        _error = null;
-                        _previewRequested = false;
-                        _flowStartedAt = DateTime.now();
-                        if (_candidate == null) _buildRequested = false;
-                      });
-                      unawaited(_refreshAndAdvance());
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                if (_ready)
-                  PandoraV2PrimaryAction(
-                    label: 'Open project',
-                    icon: Icons.arrow_forward_rounded,
-                    onPressed: () {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute<void>(
-                          builder: (_) => ProjectWorkspaceV2Screen(
-                            project: _snapshot?.project ?? widget.project,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 enum _ProjectChangePhase { idle, designing, building, checking }
@@ -664,9 +667,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     if (experience == null) return;
     setState(() => _openingPreview = true);
     try {
-      var files = _previewVersionId == candidate.versionId
-          ? _previewFiles
-          : null;
+      var files =
+          _previewVersionId == candidate.versionId ? _previewFiles : null;
       files ??= await _loadExactPreviewFiles(
         experience,
         projectId: widget.project.id,
@@ -837,8 +839,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (!mounted) return;
       final snapshot = await runtime.runtime(widget.project.id);
       final candidate = snapshot.candidate;
-      final isNewCandidate =
-          candidate != null &&
+      final isNewCandidate = candidate != null &&
           (baseVersion == null || candidate.versionId != baseVersion);
 
       if (isNewCandidate) {
@@ -861,8 +862,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         });
 
         final verification = snapshot.verification;
-        final verified =
-            verification?.versionId == candidate.versionId &&
+        final verified = verification?.versionId == candidate.versionId &&
             verification?.publishEligible == true;
         if (verified && _previewVersionId == candidate.versionId) {
           _change.clear();
@@ -930,7 +930,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     } catch (_) {
       if (!mounted) return;
       setState(
-        () => _error = 'Pandora could not undo that change. Your current live result was not altered.',
+        () => _error =
+            'Pandora could not undo that change. Your current live result was not altered.',
       );
     } finally {
       if (mounted) setState(() => _undoing = false);
@@ -1087,7 +1088,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       }
       if (project?.runtimeStatus == 'failed') {
         setState(
-          () => _error = 'Pandora found something to resolve before this version can go live.',
+          () => _error =
+              'Pandora found something to resolve before this version can go live.',
         );
         return;
       }
@@ -1144,8 +1146,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     final name = _snapshot?.project.name ?? widget.project.name;
     final files = _previewFiles;
     final versionId = _previewVersionId;
-    final hasExactPreview =
-        files != null &&
+    final hasExactPreview = files != null &&
         files.isNotEmpty &&
         versionId != null &&
         versionId.isNotEmpty;
@@ -1183,29 +1184,29 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                           child: _loading
                               ? _ExactPreviewLoadingSurface(projectName: name)
                               : hasExactPreview
-                              ? PandoraEmbeddedPreview(
-                                  key: ValueKey<String>(versionId),
-                                  files: files,
-                                  versionId: versionId,
-                                  selectionEnabled: _selectionMode,
-                                  selectedSelector:
-                                      _selectedPreviewTarget?.selector,
-                                  onSelection: (selection) {
-                                    if (!mounted) return;
-                                    setState(() {
-                                      _selectionMode = false;
-                                      _selectedPreviewTarget = selection;
-                                    });
-                                  },
-                                  fallback: _ExactPreviewFallback(
-                                    projectName: name,
-                                    onOpen: _openExactPreview,
-                                  ),
-                                )
-                              : _ExactPreviewFallback(
-                                  projectName: name,
-                                  onOpen: _openExactPreview,
-                                ),
+                                  ? PandoraEmbeddedPreview(
+                                      key: ValueKey<String>(versionId),
+                                      files: files,
+                                      versionId: versionId,
+                                      selectionEnabled: _selectionMode,
+                                      selectedSelector:
+                                          _selectedPreviewTarget?.selector,
+                                      onSelection: (selection) {
+                                        if (!mounted) return;
+                                        setState(() {
+                                          _selectionMode = false;
+                                          _selectedPreviewTarget = selection;
+                                        });
+                                      },
+                                      fallback: _ExactPreviewFallback(
+                                        projectName: name,
+                                        onOpen: _openExactPreview,
+                                      ),
+                                    )
+                                  : _ExactPreviewFallback(
+                                      projectName: name,
+                                      onOpen: _openExactPreview,
+                                    ),
                         ),
                       ),
                     ),
@@ -1226,19 +1227,18 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                               onPressed: _changing
                                   ? null
                                   : () => setState(() {
-                                      _selectionMode = !_selectionMode;
-                                      if (_selectionMode) {
-                                        _selectedPreviewTarget = null;
-                                      }
-                                    }),
+                                        _selectionMode = !_selectionMode;
+                                        if (_selectionMode) {
+                                          _selectedPreviewTarget = null;
+                                        }
+                                      }),
                             ),
                             const SizedBox(width: 6),
                             _PreviewIconButton(
                               tooltip: 'Open full screen',
                               icon: Icons.open_in_full_rounded,
-                              onPressed: _openingPreview
-                                  ? null
-                                  : _openExactPreview,
+                              onPressed:
+                                  _openingPreview ? null : _openExactPreview,
                             ),
                           ],
                         ),
@@ -1411,78 +1411,78 @@ class _LiveProjectHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 58,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Row(
-        children: [
-          IconButton(
-            tooltip: 'Back',
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_rounded),
-            color: PandoraV2Colors.ink,
-          ),
-          const SizedBox(width: 2),
-          Expanded(
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: PandoraV2Colors.ink,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -.25,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Flexible(
-                  child: Text(
-                    status,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: PandoraV2Colors.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (canUndo)
-            TextButton(
-              onPressed: undoing ? null : onUndo,
-              style: TextButton.styleFrom(
-                foregroundColor: PandoraV2Colors.ink,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: 58,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'Back',
+                onPressed: onBack,
+                icon: const Icon(Icons.arrow_back_rounded),
+                color: PandoraV2Colors.ink,
               ),
-              child: Text(undoing ? 'Undoing…' : 'Undo'),
-            ),
-          IconButton(
-            tooltip: 'More',
-            onPressed: onMore,
-            icon: const Icon(Icons.more_horiz_rounded),
-            color: PandoraV2Colors.ink,
+              const SizedBox(width: 2),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PandoraV2Colors.ink,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -.25,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        status,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PandoraV2Colors.muted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (canUndo)
+                TextButton(
+                  onPressed: undoing ? null : onUndo,
+                  style: TextButton.styleFrom(
+                    foregroundColor: PandoraV2Colors.ink,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  child: Text(undoing ? 'Undoing…' : 'Undo'),
+                ),
+              IconButton(
+                tooltip: 'More',
+                onPressed: onMore,
+                icon: const Icon(Icons.more_horiz_rounded),
+                color: PandoraV2Colors.ink,
+              ),
+            ],
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 class _ExactPreviewLoadingSurface extends StatelessWidget {
@@ -1492,75 +1492,75 @@ class _ExactPreviewLoadingSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(24),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: PandoraV2Colors.soft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: PandoraV2Colors.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    projectName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
             Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
+              height: 18,
+              width: double.infinity,
+              decoration: BoxDecoration(
                 color: PandoraV2Colors.soft,
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: const Padding(
-                padding: EdgeInsets.all(10),
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: PandoraV2Colors.ink,
+            ),
+            const SizedBox(height: 10),
+            FractionallySizedBox(
+              widthFactor: .72,
+              child: Container(
+                height: 14,
+                decoration: BoxDecoration(
+                  color: PandoraV2Colors.soft,
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                projectName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: PandoraV2Colors.ink,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
+            const SizedBox(height: 20),
+            Container(
+              height: 132,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: PandoraV2Colors.soft,
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
+            const Spacer(),
           ],
         ),
-        const Spacer(),
-        Container(
-          height: 18,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: PandoraV2Colors.soft,
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        const SizedBox(height: 10),
-        FractionallySizedBox(
-          widthFactor: .72,
-          child: Container(
-            height: 14,
-            decoration: BoxDecoration(
-              color: PandoraV2Colors.soft,
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          height: 132,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: PandoraV2Colors.soft,
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        const Spacer(),
-      ],
-    ),
-  );
+      );
 }
 
 class _ExactPreviewFallback extends StatelessWidget {
@@ -1574,50 +1574,50 @@ class _ExactPreviewFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: PandoraV2Colors.surface,
-    child: InkWell(
-      onTap: onOpen,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: const BoxDecoration(
-                  color: PandoraV2Colors.soft,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.language_rounded,
-                  color: PandoraV2Colors.ink,
-                ),
+        color: PandoraV2Colors.surface,
+        child: InkWell(
+          onTap: onOpen,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: const BoxDecoration(
+                      color: PandoraV2Colors.soft,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.language_rounded,
+                      color: PandoraV2Colors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    projectName,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -.4,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Open the exact project preview',
+                    textAlign: TextAlign.center,
+                    style: pandoraV2Muted,
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                projectName,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: PandoraV2Colors.ink,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -.4,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Open the exact project preview',
-                textAlign: TextAlign.center,
-                style: pandoraV2Muted,
-              ),
-            ],
+            ),
           ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 class _PreviewIconButton extends StatelessWidget {
@@ -1633,17 +1633,17 @@ class _PreviewIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: PandoraV2Colors.surface.withValues(alpha: .94),
-    elevation: 2,
-    shadowColor: Colors.black12,
-    shape: const CircleBorder(),
-    child: IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: Icon(icon, size: 19),
-      color: PandoraV2Colors.ink,
-    ),
-  );
+        color: PandoraV2Colors.surface.withValues(alpha: .94),
+        elevation: 2,
+        shadowColor: Colors.black12,
+        shape: const CircleBorder(),
+        child: IconButton(
+          tooltip: tooltip,
+          onPressed: onPressed,
+          icon: Icon(icon, size: 19),
+          color: PandoraV2Colors.ink,
+        ),
+      );
 }
 
 class _ProjectProgressCapsule extends StatelessWidget {
@@ -1652,11 +1652,11 @@ class _ProjectProgressCapsule extends StatelessWidget {
   final _ProjectChangePhase phase;
 
   int get _activeIndex => switch (phase) {
-    _ProjectChangePhase.designing => 0,
-    _ProjectChangePhase.building => 1,
-    _ProjectChangePhase.checking => 2,
-    _ProjectChangePhase.idle => 2,
-  };
+        _ProjectChangePhase.designing => 0,
+        _ProjectChangePhase.building => 1,
+        _ProjectChangePhase.checking => 2,
+        _ProjectChangePhase.idle => 2,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -1728,52 +1728,53 @@ class _VerifiedChangeCapsule extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-    decoration: BoxDecoration(
-      color: PandoraV2Colors.surface.withValues(alpha: .96),
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: PandoraV2Colors.line),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x14000000),
-          blurRadius: 18,
-          offset: Offset(0, 6),
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: const BoxDecoration(
-            color: Color(0xFFE9F5EF),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.check_rounded,
-            size: 16,
-            color: PandoraV2Colors.success,
-          ),
-        ),
-        const SizedBox(width: 9),
-        const Expanded(
-          child: Text(
-            'Verified change',
-            style: TextStyle(
-              color: PandoraV2Colors.ink,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        decoration: BoxDecoration(
+          color: PandoraV2Colors.surface.withValues(alpha: .96),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: PandoraV2Colors.line),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 18,
+              offset: Offset(0, 6),
             ),
-          ),
+          ],
         ),
-        if (canUndo)
-          TextButton(
-            onPressed: undoing ? null : onUndo,
-            style: TextButton.styleFrom(foregroundColor: PandoraV2Colors.ink),
-            child: Text(undoing ? 'Undoing…' : 'Undo'),
-          ),
-      ],
-    ),
-  );
+        child: Row(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE9F5EF),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                size: 16,
+                color: PandoraV2Colors.success,
+              ),
+            ),
+            const SizedBox(width: 9),
+            const Expanded(
+              child: Text(
+                'Verified change',
+                style: TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (canUndo)
+              TextButton(
+                onPressed: undoing ? null : onUndo,
+                style:
+                    TextButton.styleFrom(foregroundColor: PandoraV2Colors.ink),
+                child: Text(undoing ? 'Undoing…' : 'Undo'),
+              ),
+          ],
+        ),
+      );
 }
