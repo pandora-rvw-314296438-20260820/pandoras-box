@@ -232,7 +232,10 @@ async function ensureVercelProject(context: UserContext, project: JsonRecord) {
   const journey = asRecord(config.customerJourney);
   const existingId = textValue(journey.vercelProjectId);
   const existingName = textValue(journey.vercelProjectName);
-  if (existingId && existingName) return { id: existingId, name: existingName, config };
+  if (existingId && existingName) {
+    const defaultDomain = textValue(journey.vercelDefaultDomain, `${existingName}.vercel.app`);
+    return { id: existingId, name: existingName, defaultDomain, config };
+  }
 
   const projectId = textValue(project.id);
   const desiredName = `pandora-${slugify(textValue(project.name))}-${projectId.slice(0, 8)}`;
@@ -249,16 +252,25 @@ async function ensureVercelProject(context: UserContext, project: JsonRecord) {
   const providerId = textValue(provider.id);
   const providerName = textValue(provider.name, desiredName);
   if (!providerId) throw new Error("VERCEL_PROJECT_INVALID");
+  const defaultDomain = `${providerName}.vercel.app`;
 
   const nextConfig = {
     ...config,
-    customerJourney: { ...journey, vercelProjectId: providerId, vercelProjectName: providerName, runtimeStatus: "ready", runtimeUpdatedAt: new Date().toISOString() },
+    customerJourney: {
+      ...journey,
+      vercelProjectId: providerId,
+      vercelProjectName: providerName,
+      vercelDefaultDomain: defaultDomain,
+      vercelDefaultDomainStatus: "reserved",
+      runtimeStatus: "ready",
+      runtimeUpdatedAt: new Date().toISOString(),
+    },
   };
   const { error: updateError } = await serviceClient().from("projectos_projects")
     .update({ config: nextConfig, updated_at: new Date().toISOString() })
     .eq("organization_id", context.organizationId).eq("id", projectId);
   if (updateError) throw new Error("BACKEND_WRITE_FAILED");
-  return { id: providerId, name: providerName, config: nextConfig };
+  return { id: providerId, name: providerName, defaultDomain, config: nextConfig };
 }
 
 async function projectByIdentifier(context: UserContext, identifier: string) {
@@ -288,6 +300,8 @@ function projectResponse(project: JsonRecord) {
     runtimeStatus: textValue(journey.runtimeStatus, "not_configured"),
     vercelProjectId: textValue(journey.vercelProjectId) || null,
     vercelProjectName: textValue(journey.vercelProjectName) || null,
+    vercelDefaultDomain: textValue(journey.vercelDefaultDomain) || (textValue(journey.vercelProjectName) ? `${textValue(journey.vercelProjectName)}.vercel.app` : null),
+    vercelDefaultDomainStatus: textValue(journey.vercelDefaultDomainStatus) || (textValue(journey.vercelProjectName) ? "reserved" : null),
     previewUrl: textValue(journey.previewUrl) || null,
     liveUrl: textValue(journey.liveUrl) || null,
     requestedDomain: textValue(journey.requestedDomain) || null,
@@ -537,7 +551,9 @@ async function createProject(context: UserContext, body: JsonRecord) {
     .insert({ organization_id: context.organizationId, project_key: projectKey, name, workspace_path: `projectos/projects/${projectKey}`, status: "active", objective, roadmap_version: "2.0.0", config, created_by: context.userId })
     .select("id, project_key, name, objective, status, config, created_at, updated_at").single();
   if (error || !data) throw new Error("BACKEND_WRITE_FAILED");
-  return projectResponse(asRecord(data));
+  const createdProject = asRecord(data);
+  const provider = await ensureVercelProject(context, createdProject);
+  return projectResponse({ ...createdProject, config: provider.config });
 }
 
 
@@ -1402,14 +1418,15 @@ async function finalizeProductionVerification(context: UserContext, identifier: 
   if (!productionRowId) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
 
   const { data: deploymentData, error: deploymentError } = await admin.from("pandora_project_deployments")
-    .select("id, version_id, provider_deployment_id, url, verification_state, created_at, metadata")
+    .select("id, version_id, provider_project_id, provider_deployment_id, url, verification_state, created_at, metadata")
     .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").eq("id", productionRowId).eq("version_id", requestedVersion).maybeSingle();
   if (deploymentError) throw new Error("BACKEND_READ_FAILED");
   if (!deploymentData) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
   const deployment = asRecord(deploymentData);
   if (textValue(deployment.verification_state) !== "ready_for_verification") throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+  const providerProjectId = textValue(deployment.provider_project_id);
   const providerDeploymentId = textValue(deployment.provider_deployment_id);
-  if (!providerDeploymentId) throw new Error("PROVIDER_LINEAGE_MISMATCH");
+  if (!providerProjectId || !providerDeploymentId) throw new Error("PROVIDER_LINEAGE_MISMATCH");
 
   const { data: versionData, error: versionError } = await admin.from("pandora_project_versions")
     .select("id, project_spec_id, build_job_id, source_kind, source_ref, source_commit, source_sha256, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, created_at")
@@ -1457,11 +1474,25 @@ async function finalizeProductionVerification(context: UserContext, identifier: 
   if (domainError) throw new Error("BACKEND_READ_FAILED");
   const domain = asRecord(domainData);
   const domainReady = domain.ownership_verified === true && domain.dns_configured === true && domain.tls_ready === true && domain.routing_ready === true && domain.runtime_healthy === true;
-  const deploymentUrl = textValue(deployment.url) || null;
-  const liveUrl = domainReady && textValue(domain.domain) ? `https://${textValue(domain.domain)}` : deploymentUrl;
   const config = asRecord(project.config);
   const journey = asRecord(config.customerJourney);
-  const nextConfig = { ...config, customerJourney: { ...journey, stage: "live", runtimeStatus: "ready", liveUrl, productionCandidateUrl: null, productionVerificationState: "live_verified", productionVerificationRunId: verificationRunId, runtimeUpdatedAt: now } };
+  const deploymentUrl = textValue(deployment.url) || null;
+  const defaultDomain = textValue(journey.vercelDefaultDomain, textValue(journey.vercelProjectName) ? `${textValue(journey.vercelProjectName)}.vercel.app` : "");
+  let defaultDomainStatus = textValue(journey.vercelDefaultDomainStatus, defaultDomain ? "reserved" : "");
+  let liveUrl = domainReady && textValue(domain.domain) ? `https://${textValue(domain.domain)}` : deploymentUrl;
+  if (!domainReady && defaultDomain) {
+    try {
+      const providerProject = await vercelRequest(`/v9/projects/${encodeURIComponent(providerProjectId)}`, { method: "GET" }, [200]);
+      const productionTarget = asRecord(asRecord(providerProject.targets).production);
+      if (textValue(productionTarget.id) === providerDeploymentId) {
+        liveUrl = `https://${defaultDomain}`;
+        defaultDomainStatus = "live_verified";
+      }
+    } catch {
+      // Keep the exact verified deployment URL if Vercel project-alias readback is unavailable.
+    }
+  }
+  const nextConfig = { ...config, customerJourney: { ...journey, vercelDefaultDomain: defaultDomain || null, vercelDefaultDomainStatus: defaultDomainStatus || null, stage: "live", runtimeStatus: "ready", liveUrl, productionCandidateUrl: null, productionVerificationState: "live_verified", productionVerificationRunId: verificationRunId, runtimeUpdatedAt: now } };
   const { error: projectError } = await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
   if (projectError) throw new Error("BACKEND_WRITE_FAILED");
   return { project: projectResponse({ ...project, config: nextConfig }), production: { ...deploymentData, verification_state: "live_verified" }, liveUrl, verificationRunId };
