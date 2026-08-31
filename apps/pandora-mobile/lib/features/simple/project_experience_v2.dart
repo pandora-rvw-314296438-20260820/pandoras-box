@@ -818,10 +818,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           'Pandora needs a clearer change before it can continue.',
         );
       }
-      final intentId = await experience.submitIntent(
+      final intentId = await experience.submitChange(
         projectId: widget.project.id,
-        intentText: actionRequest,
-        intentKind: 'change',
+        changeText: actionRequest,
         idempotencyKey:
             'pandora-v2-change:${widget.project.id}:${DateTime.now().microsecondsSinceEpoch}',
       );
