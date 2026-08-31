@@ -215,5 +215,3 @@ revoke all on function private.pandora_github_create_customer_repo_20260901(text
 revoke all on function private.pandora_project_auto_repository_20260901() from public, anon, authenticated;
 grant execute on function private.pandora_customer_repo_name_20260901(text,uuid) to service_role;
 grant execute on function private.pandora_github_create_customer_repo_20260901(text,text) to service_role;
-$fn$
-$fn$;
