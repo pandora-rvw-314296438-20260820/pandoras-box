@@ -490,10 +490,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   @override
   void dispose() {
     _previewRetryTimer?.cancel();
-    final projectionSubscription = _projectionSubscription;
-    if (projectionSubscription != null) {
-      unawaited(projectionSubscription.cancel());
-    }
+    _projectionSubscription?.cancel();
     _change.dispose();
     super.dispose();
   }
@@ -743,8 +740,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   Future<void> _requestChange(String text) async {
     final request = text.trim();
-    if (request.length < 4 || _changing || _projection?.canChange != true)
+    if (request.length < 4 || _changing || _projection?.canChange != true) {
       return;
+    }
     final experience = PandoraDependencies.of(context).projectExperience;
     if (experience == null) {
       setState(() => _error = 'Pandora cannot save that change right now.');
