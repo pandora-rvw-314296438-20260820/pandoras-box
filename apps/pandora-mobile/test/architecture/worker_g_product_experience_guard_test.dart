@@ -40,13 +40,16 @@ void main() {
   test('object-first build experience uses durable runtime truth', () {
     final source = File('lib/features/simple/project_experience_v2.dart')
         .readAsStringSync();
-    expect(source, contains('runtime.runtime(widget.project.id)'));
+    expect(source, contains('experience.runtime(widget.project.id)'));
     expect(source, contains('requestBuild('));
     expect(source, contains('createPreview('));
     expect(source, contains('openPreviewBundle'));
-    expect(source, contains("intentKind: 'change'"));
-    expect(source, contains('projectExperienceProjection'));
+    expect(source, contains('submitChange('));
+    expect(source, contains('projectExperienceRepository'));
     expect(source, contains('_projection?.canPublish == true'));
+    expect(source, isNot(contains('.projectRuntime;')));
+    expect(source, isNot(contains('.projectExperience;')));
+    expect(source, isNot(contains('.projectExperienceProjection;')));
     expect(source, contains('_projection?.candidateVersionId != null'));
     expect(source, contains('projection.productionVersionId == versionId'));
     expect(source, contains('PandoraEmbeddedPreview'));
