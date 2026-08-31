@@ -48,6 +48,11 @@ test("Android exact preview renderer stays in-memory and exposes no JavaScript b
   assert.match(android, /MIXED_CONTENT_NEVER_ALLOW/);
   assert.match(android, /shouldInterceptRequest/);
   assert.match(android, /https:\/\/pandora\.local\/index\.html/);
+  assert.match(android, /pandora\/exact_preview_selection_/);
+  assert.match(android, /elementFromPoint/);
+  assert.match(android, /evaluateJavascript/);
+  assert.match(embeddedPreview, /PandoraPreviewSelection/);
+  assert.match(embeddedPreview, /setSelectionMode/);
   assert.doesNotMatch(android, /addJavascriptInterface/);
   assert.doesNotMatch(android, /file:\/\//);
 });
