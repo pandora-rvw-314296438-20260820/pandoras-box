@@ -171,9 +171,23 @@ class _ProjectBuildExperienceV2ScreenState
             idempotencyKey:
                 'pandora-v2-preview:${widget.project.id}:${candidate.versionId}',
           );
+          List<Map<String, Object?>>? exactFiles;
+          try {
+            exactFiles = await _loadExactPreviewFiles(
+              experience,
+              projectId: widget.project.id,
+              versionId: candidate.versionId,
+            );
+          } catch (_) {
+            // The verified remote preview remains available if local hydration lags.
+          }
           if (mounted) {
             setState(() {
               _previewResult = result;
+              if (exactFiles != null && exactFiles.isNotEmpty) {
+                _localPreviewFiles = exactFiles;
+                _localPreviewVersionId = candidate.versionId;
+              }
               _error = null;
             });
           }
@@ -267,6 +281,67 @@ class _ProjectBuildExperienceV2ScreenState
     return 'Pandora is working while your project stays safe.';
   }
 
+  Widget _buildStageSurface() => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _stageTitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: PandoraV2Colors.ink,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.7,
+                    height: 1.08,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _stageMessage,
+                  textAlign: TextAlign.center,
+                  style: pandoraV2Muted,
+                ),
+                if (!_ready) ...[
+                  const SizedBox(height: 24),
+                  const SizedBox(
+                    width: 144,
+                    child: LinearProgressIndicator(
+                      minHeight: 2,
+                      color: PandoraV2Colors.ink,
+                      backgroundColor: PandoraV2Colors.soft,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _buildReadySurface() {
+    final candidate = _candidate;
+    final files =
+        candidate != null && _localPreviewVersionId == candidate.versionId
+            ? _localPreviewFiles
+            : null;
+    if (candidate == null || files == null || files.isEmpty) {
+      return _buildStageSurface();
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(21),
+      child: PandoraEmbeddedPreview(
+        files: files,
+        versionId: candidate.versionId,
+        fallback: _buildStageSurface(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: PandoraV2Colors.canvas,
@@ -293,43 +368,9 @@ class _ProjectBuildExperienceV2ScreenState
                     child: Stack(
                       children: [
                         Positioned.fill(
-                          child: Padding(
-                            padding: const EdgeInsets.all(26),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.project.name.toUpperCase(),
-                                  style: const TextStyle(
-                                    color: PandoraV2Colors.muted,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 1.8,
-                                  ),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  _stageTitle,
-                                  style: const TextStyle(
-                                    color: PandoraV2Colors.ink,
-                                    fontSize: 31,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -1.0,
-                                    height: 1.05,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(_stageMessage, style: pandoraV2Muted),
-                                const Spacer(),
-                                if (!_ready)
-                                  const LinearProgressIndicator(
-                                    minHeight: 2,
-                                    color: PandoraV2Colors.ink,
-                                    backgroundColor: PandoraV2Colors.soft,
-                                  ),
-                              ],
-                            ),
-                          ),
+                          child: _ready
+                              ? _buildReadySurface()
+                              : _buildStageSurface(),
                         ),
                         if (_ready)
                           Positioned(
@@ -421,6 +462,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _publishing = false;
   bool _undoing = false;
   bool _recentlyUpdated = false;
+  bool _selectionMode = false;
+  PandoraPreviewSelection? _selectedPreviewTarget;
   _ProjectChangePhase _phase = _ProjectChangePhase.idle;
   Timer? _previewRetryTimer;
   String? _previewRetryVersionId;
@@ -716,6 +759,12 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         }
       }
 
+      final selectedTarget = _selectedPreviewTarget;
+      if (selectedTarget != null) {
+        actionRequest =
+            '${selectedTarget.intentContext}\nOwner change: $actionRequest';
+      }
+
       if (actionRequest.length < 4) {
         throw const ProjectExperienceException(
           'Pandora needs a clearer change before it can continue.',
@@ -821,6 +870,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
             _changing = false;
             _phase = _ProjectChangePhase.idle;
             _recentlyUpdated = true;
+            _selectionMode = false;
+            _selectedPreviewTarget = null;
             _error = null;
           });
           return;
@@ -1137,6 +1188,16 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                                       key: ValueKey<String>(versionId),
                                       files: files,
                                       versionId: versionId,
+                                      selectionEnabled: _selectionMode,
+                                      selectedSelector:
+                                          _selectedPreviewTarget?.selector,
+                                      onSelection: (selection) {
+                                        if (!mounted) return;
+                                        setState(() {
+                                          _selectionMode = false;
+                                          _selectedPreviewTarget = selection;
+                                        });
+                                      },
                                       fallback: _ExactPreviewFallback(
                                         projectName: name,
                                         onOpen: _openExactPreview,
@@ -1153,10 +1214,33 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                       Positioned(
                         top: 10,
                         right: 10,
-                        child: _PreviewIconButton(
-                          tooltip: 'Open full screen',
-                          icon: Icons.open_in_full_rounded,
-                          onPressed: _openingPreview ? null : _openExactPreview,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _PreviewIconButton(
+                              tooltip: _selectionMode
+                                  ? 'Cancel selection'
+                                  : 'Select something to change',
+                              icon: _selectionMode
+                                  ? Icons.close_rounded
+                                  : Icons.touch_app_outlined,
+                              onPressed: _changing
+                                  ? null
+                                  : () => setState(() {
+                                        _selectionMode = !_selectionMode;
+                                        if (_selectionMode) {
+                                          _selectedPreviewTarget = null;
+                                        }
+                                      }),
+                            ),
+                            const SizedBox(width: 6),
+                            _PreviewIconButton(
+                              tooltip: 'Open full screen',
+                              icon: Icons.open_in_full_rounded,
+                              onPressed:
+                                  _openingPreview ? null : _openExactPreview,
+                            ),
+                          ],
                         ),
                       ),
                     if (_phase != _ProjectChangePhase.idle)
@@ -1181,6 +1265,18 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                 ),
               ),
             ),
+            if (_selectionMode || _selectedPreviewTarget != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                child: _SelectionContextCapsule(
+                  selecting: _selectionMode,
+                  selection: _selectedPreviewTarget,
+                  onClear: () => setState(() {
+                    _selectionMode = false;
+                    _selectedPreviewTarget = null;
+                  }),
+                ),
+              ),
             if (_intelligenceReply != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
@@ -1211,7 +1307,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
               ),
               child: PandoraV2IntentSurface(
                 controller: _change,
-                hintText: 'Describe your change or goal…',
+                hintText: _selectedPreviewTarget == null
+                    ? 'Tell Pandora what to change…'
+                    : 'Change ${_selectedPreviewTarget!.label}…',
                 enabled: !_changing,
                 onSubmit: _requestChange,
                 onVoice: () async {
@@ -1227,6 +1325,64 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SelectionContextCapsule extends StatelessWidget {
+  const _SelectionContextCapsule({
+    required this.selecting,
+    required this.selection,
+    required this.onClear,
+  });
+
+  final bool selecting;
+  final PandoraPreviewSelection? selection;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = selecting
+        ? 'Tap something in the project'
+        : 'Selected · ${selection?.label ?? 'element'}';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: PandoraV2Colors.soft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: PandoraV2Colors.line),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            selecting ? Icons.touch_app_outlined : Icons.adjust_rounded,
+            size: 18,
+            color: PandoraV2Colors.ink,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onClear,
+            style: TextButton.styleFrom(
+              foregroundColor: PandoraV2Colors.muted,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 9),
+            ),
+            child: Text(selecting ? 'Cancel' : 'Clear'),
+          ),
+        ],
       ),
     );
   }

@@ -40,7 +40,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         flutterEngine.platformViewsController.registry.registerViewFactory(
             "pandora/exact_preview",
-            PandoraExactPreviewFactory()
+            PandoraExactPreviewFactory(flutterEngine.dartExecutor.binaryMessenger)
         )
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler(::handleCall)
@@ -368,24 +368,29 @@ class MainActivity : FlutterActivity() {
 
 private data class EmbeddedPreviewFile(val bytes: ByteArray, val mimeType: String)
 
-private class PandoraExactPreviewFactory :
-    io.flutter.plugin.platform.PlatformViewFactory(io.flutter.plugin.common.StandardMessageCodec.INSTANCE) {
+private class PandoraExactPreviewFactory(
+    private val messenger: io.flutter.plugin.common.BinaryMessenger
+) : io.flutter.plugin.platform.PlatformViewFactory(io.flutter.plugin.common.StandardMessageCodec.INSTANCE) {
     override fun create(
         context: android.content.Context,
         viewId: Int,
         args: Any?
     ): io.flutter.plugin.platform.PlatformView {
         val params = args as? Map<*, *> ?: emptyMap<Any?, Any?>()
-        return PandoraExactPreviewView(context, params)
+        return PandoraExactPreviewView(context, params, messenger, viewId)
     }
 }
 
 private class PandoraExactPreviewView(
     context: android.content.Context,
-    params: Map<*, *>
+    params: Map<*, *>,
+    messenger: io.flutter.plugin.common.BinaryMessenger,
+    viewId: Int
 ) : io.flutter.plugin.platform.PlatformView {
     private val webView = WebView(context)
     private val files = LinkedHashMap<String, EmbeddedPreviewFile>()
+    private val selectionChannel = MethodChannel(messenger, "pandora/exact_preview_selection_$viewId")
+    private var selectionMode = false
 
     init {
         val rawFiles = params["files"] as? List<*>
@@ -419,6 +424,33 @@ private class PandoraExactPreviewView(
         }
         if (!files.containsKey("index.html")) {
             throw IllegalArgumentException("Exact preview entrypoint missing")
+        }
+
+        selectionChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "setSelectionMode" -> {
+                    selectionMode = call.argument<Boolean>("enabled") == true
+                    if (selectionMode) clearSelectionHighlight()
+                    result.success(true)
+                }
+                "clearSelection" -> {
+                    selectionMode = false
+                    clearSelectionHighlight()
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        webView.setOnTouchListener { _, event ->
+            if (!selectionMode) {
+                false
+            } else {
+                if (event.actionMasked == android.view.MotionEvent.ACTION_UP) {
+                    selectionMode = false
+                    selectPreviewElementAt(event.x, event.y)
+                }
+                true
+            }
         }
 
         webView.setBackgroundColor(Color.WHITE)
@@ -484,9 +516,108 @@ private class PandoraExactPreviewView(
         webView.loadUrl("https://pandora.local/index.html")
     }
 
+    private fun clearSelectionHighlight() {
+        webView.post {
+            webView.evaluateJavascript(
+                "document.querySelectorAll('.__pandora_owner_selected').forEach(function(el){el.classList.remove('__pandora_owner_selected');});",
+                null
+            )
+        }
+    }
+
+    private fun selectPreviewElementAt(viewX: Float, viewY: Float) {
+        val x = viewX.toDouble()
+        val y = viewY.toDouble()
+        val script = """
+            (function() {
+              var ratio = window.devicePixelRatio || 1;
+              var el = document.elementFromPoint($x / ratio, $y / ratio);
+              if (!el || el.nodeType !== 1) return null;
+              function token(value) {
+                return String(value || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+              }
+              function selectorFor(node) {
+                var parts = [];
+                while (node && node.nodeType === 1 && node !== document.body && parts.length < 5) {
+                  var part = String(node.tagName || 'div').toLowerCase();
+                  var id = token(node.id);
+                  if (id) {
+                    part += '#' + id;
+                    parts.unshift(part);
+                    break;
+                  }
+                  var classes = Array.prototype.slice.call(node.classList || [])
+                    .map(token)
+                    .filter(Boolean)
+                    .filter(function(value) { return value !== '__pandora_owner_selected'; })
+                    .slice(0, 2);
+                  if (classes.length) {
+                    part += '.' + classes.join('.');
+                  } else {
+                    var index = 1;
+                    var sibling = node;
+                    while ((sibling = sibling.previousElementSibling) != null) {
+                      if (sibling.tagName === node.tagName) index += 1;
+                    }
+                    if (index > 1) part += ':nth-of-type(' + index + ')';
+                  }
+                  parts.unshift(part);
+                  node = node.parentElement;
+                }
+                return parts.join(' > ').slice(0, 200);
+              }
+              var selector = selectorFor(el);
+              var text = String(el.innerText || el.getAttribute('aria-label') || el.getAttribute('title') || '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 80);
+              var style = document.getElementById('__pandora_owner_selection_style');
+              if (!style) {
+                style = document.createElement('style');
+                style.id = '__pandora_owner_selection_style';
+                style.textContent = '.__pandora_owner_selected{outline:2px solid #171717!important;outline-offset:2px!important;}';
+                document.head.appendChild(style);
+              }
+              document.querySelectorAll('.__pandora_owner_selected').forEach(function(node) {
+                node.classList.remove('__pandora_owner_selected');
+              });
+              el.classList.add('__pandora_owner_selected');
+              return JSON.stringify({tag:String(el.tagName || '').toLowerCase(), selector:selector, text:text});
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(script) { raw ->
+            try {
+                val decoded = org.json.JSONTokener(raw).nextValue()
+                val json = decoded as? String ?: return@evaluateJavascript
+                val payload = org.json.JSONObject(json)
+                val tag = payload.optString("tag")
+                    .lowercase()
+                    .replace(Regex("[^a-z0-9-]"), "")
+                    .take(32)
+                val selector = payload.optString("selector")
+                    .replace(Regex("[^A-Za-z0-9_#.:() >~\\-]"), "")
+                    .trim()
+                    .take(200)
+                val text = payload.optString("text")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
+                    .take(80)
+                if (tag.isBlank() && selector.isBlank()) return@evaluateJavascript
+                selectionChannel.invokeMethod(
+                    "selection",
+                    mapOf("tag" to tag, "selector" to selector, "text" to text)
+                )
+            } catch (_: Exception) {
+                clearSelectionHighlight()
+            }
+        }
+    }
+
     override fun getView(): android.view.View = webView
 
     override fun dispose() {
+        selectionChannel.setMethodCallHandler(null)
+        webView.setOnTouchListener(null)
         webView.stopLoading()
         webView.destroy()
         files.clear()

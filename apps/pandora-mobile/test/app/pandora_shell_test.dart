@@ -486,7 +486,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Settings'), findsNothing);
-    expect(find.text('Sign in securely'), findsOneWidget);
+    expect(find.text("Pandora's Box"), findsOneWidget);
   });
 
   testWidgets('switching users destroys the prior user route tree', (
@@ -760,7 +760,7 @@ void main() {
           expect(reject.onPressed, isNull);
           expect(find.text('Queue refresh failed.'), findsOneWidget);
         } else {
-          expect(find.text('Nothing needs your decision'), findsOneWidget);
+          expect(find.text('Nothing needs you right now'), findsOneWidget);
         }
       },
     );

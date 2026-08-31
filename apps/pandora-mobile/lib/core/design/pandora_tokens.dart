@@ -31,7 +31,7 @@ abstract final class PandoraRadius {
 abstract final class PandoraSize {
   static const double minimumTouchTarget = 48;
   static const double compactMark = 44;
-  static const double signInMark = 168;
+  static const double signInMark = 112;
   static const double contentMaxWidth = 720;
   static const double wideBreakpoint = 840;
 }

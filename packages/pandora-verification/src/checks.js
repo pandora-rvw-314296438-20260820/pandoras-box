@@ -74,10 +74,27 @@ function compareReproducibleBuilds(firstDigest, secondDigest, normalizedDifferen
   return { status: "FAIL", deterministic: false, normalizedDifferences: [] };
 }
 
-function classifyVisualDiff({ changedPixelRatio = 0, brokenLayout = false, approvedChange = false, threshold = 0.005 }) {
+function classifyVisualDiff({
+  changedPixelRatio = 0,
+  brokenLayout = false,
+  approvedChange = false,
+  expectedChange = false,
+  minimumExpectedChangeRatio = 0.01,
+  threshold = 0.005,
+}) {
+  const rawRatio = Number(changedPixelRatio);
+  const ratio = Number.isFinite(rawRatio) ? Math.max(0, rawRatio) : 0;
+  const rawMinimum = Number(minimumExpectedChangeRatio);
+  const minimum = Number.isFinite(rawMinimum)
+    ? Math.max(threshold, rawMinimum)
+    : Math.max(threshold * 2, 0.01);
   if (brokenLayout) return "BROKEN LAYOUT";
-  if (approvedChange || changedPixelRatio <= threshold) return "EXPECTED CHANGE";
-  if (changedPixelRatio <= Math.max(threshold * 4, 0.02)) return "REVIEW REQUIRED";
+  if (expectedChange) {
+    if (ratio < minimum) return "MISSING EXPECTED CHANGE";
+    return "EXPECTED CHANGE";
+  }
+  if (approvedChange || ratio <= threshold) return "EXPECTED CHANGE";
+  if (ratio <= Math.max(threshold * 4, 0.02)) return "REVIEW REQUIRED";
   return "UNEXPECTED CHANGE";
 }
 
