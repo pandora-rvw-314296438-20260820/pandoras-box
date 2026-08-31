@@ -108,6 +108,6 @@ void main() {
     ).readAsStringSync();
     expect(source, contains('_authorizationRequestTimeout'));
     expect(source, contains("'Checking owner access'"));
-    expect(source, contains('.timeout(_authorizationRequestTimeout)'));
+    expect(source, contains('repository.home().timeout('));
   });
 }
