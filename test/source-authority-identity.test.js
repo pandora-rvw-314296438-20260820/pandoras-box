@@ -20,7 +20,7 @@ test('canonical source, Vercel identity, and live status are the recovery operat
 
   assert.equal(policy.mode, 'fail_closed');
   assert.equal(policy.canonical.source_repository, 'pandora-rvw-314296438-20260820/pandoras-box');
-  assert.equal(policy.canonical.memory_repository, 'banataosystems/pandoras-box-memory');
+  assert.equal(policy.canonical.memory_repository, 'pandora-rvw-314296438-20260820/pandoras-box-memory');
   assert.equal(policy.canonical.vercel_project_id, 'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk');
   assert.equal(policy.canonical.vercel_project_name, 'mcpmaster');
   assert.equal(policy.canonical.production_origin, 'https://mcpmaster.vercel.app');
