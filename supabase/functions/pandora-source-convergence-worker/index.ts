@@ -92,6 +92,7 @@ function sourcePrompt(
   adapter: string,
   priorSource: JsonRecord | null,
   repairFeedback: JsonRecord[],
+  primitiveMaterialization: JsonRecord,
 ) {
   const contract = adapter === "static-web"
     ? "Create a self-contained production-quality website. index.html is mandatory; keep JavaScript and CSS inline unless additional local files materially improve quality."
@@ -107,6 +108,21 @@ function sourcePrompt(
     ? "An exact previously verified source snapshot is supplied. Treat it as the product baseline. Modify the minimum necessary surface to satisfy the new ProjectSpec; preserve its identity, content, behavior, responsiveness, accessibility, and working interactions."
     : "No previous verified source is available; build the complete first working version.";
 
+  const primitiveFiles = Array.isArray(primitiveMaterialization.files)
+    ? primitiveMaterialization.files.map((value) => {
+      const row = rec(value);
+      return {
+        path: text(row.path),
+        sha256: text(row.sha256),
+        primitiveName: text(row.primitiveName),
+        primitiveVersion: text(row.primitiveVersion),
+      };
+    }).filter((row) => row.path && row.sha256)
+    : [];
+  const primitiveInstruction = primitiveFiles.length
+    ? "Pandora will overlay independently verified primitive source after generation under pandora-primitives/. Never emit, replace, rewrite, or shadow pandora-primitives/ or PANDORA_PRIMITIVE_COMPOSITION.json. Do not duplicate primitive-owned security logic. Integration code may reference the listed immutable files when the build adapter can consume them."
+    : "No trusted primitive source is required for this ProjectSpec.";
+
   return {
     systemInstruction: {
       parts: [{
@@ -118,6 +134,7 @@ function sourcePrompt(
           "Use relative POSIX file paths only. Implement the requested experience and every acceptance criterion. Never invent measured business results.",
           repairInstruction,
           sourceInstruction,
+          primitiveInstruction,
           contract,
         ].join(" "),
       }],
@@ -144,6 +161,16 @@ function sourcePrompt(
           existingVerifiedSource: priorSource,
           independentVerificationFailures: repairFeedback,
           buildAdapter: adapter,
+          trustedPrimitiveComposition: {
+            selectionDigest: text(primitiveMaterialization.selectionDigest) || null,
+            manifestDigest: text(primitiveMaterialization.manifestDigest) || null,
+            materializationPlanDigest:
+              text(primitiveMaterialization.materializationPlanDigest) || null,
+            selections: Array.isArray(primitiveMaterialization.selections)
+              ? primitiveMaterialization.selections
+              : [],
+            files: primitiveFiles,
+          },
         }),
       }],
     }],
@@ -153,6 +180,104 @@ function sourcePrompt(
       maxOutputTokens: 32768,
     },
   };
+}
+
+async function applyPrimitiveMaterialization(
+  raw: unknown,
+  primitiveMaterialization: JsonRecord,
+) {
+  const root = rec(raw);
+  const generatedFiles = Array.isArray(root.files) ? root.files : [];
+  const primitiveFiles = Array.isArray(primitiveMaterialization.files)
+    ? primitiveMaterialization.files
+    : [];
+  if (!primitiveFiles.length) return raw;
+
+  for (const value of generatedFiles) {
+    const path = text(rec(value).path);
+    if (
+      path === "PANDORA_PRIMITIVE_COMPOSITION.json" ||
+      path.startsWith("pandora-primitives/")
+    ) {
+      throw new Error("PRIMITIVE_SOURCE_OWNERSHIP_VIOLATION");
+    }
+  }
+
+  const overlays: JsonRecord[] = [];
+  const seen = new Set<string>();
+  for (const value of primitiveFiles) {
+    const row = rec(value);
+    const path = text(row.path);
+    const expectedSha = text(row.sha256).toLowerCase();
+    const content = typeof row.content === "string" ? row.content : "";
+    if (
+      !path.startsWith("pandora-primitives/") || !SAFE_PATH.test(path) ||
+      !/^[0-9a-f]{64}$/.test(expectedSha) || !content || seen.has(path)
+    ) {
+      throw new Error("PRIMITIVE_MATERIALIZATION_INVALID");
+    }
+    const bytes = new TextEncoder().encode(content);
+    if (
+      bytes.byteLength > MAX_FILE_BYTES ||
+      await sha256Bytes(bytes) !== expectedSha
+    ) {
+      throw new Error("PRIMITIVE_MATERIALIZATION_HASH_MISMATCH");
+    }
+    seen.add(path);
+    overlays.push({ path, content });
+  }
+
+  const composition = JSON.stringify({
+    schemaVersion: 1,
+    selectionDigest: text(primitiveMaterialization.selectionDigest),
+    manifestDigest: text(primitiveMaterialization.manifestDigest),
+    materializationPlanDigest:
+      text(primitiveMaterialization.materializationPlanDigest),
+    selections: Array.isArray(primitiveMaterialization.selections)
+      ? primitiveMaterialization.selections
+      : [],
+  }, null, 2);
+
+  return {
+    schemaVersion: root.schemaVersion,
+    files: [
+      ...generatedFiles,
+      ...overlays,
+      { path: "PANDORA_PRIMITIVE_COMPOSITION.json", content: composition },
+    ],
+  };
+}
+
+async function recordPrimitiveComposition(
+  admin: ReturnType<typeof adminClient>,
+  projectVersionId: string,
+  projectSpecId: string,
+  primitiveMaterialization: JsonRecord,
+) {
+  const primitiveCount = Number(primitiveMaterialization.primitiveCount || 0);
+  if (!primitiveCount) return;
+  if (!UUID.test(projectVersionId) || !UUID.test(projectSpecId)) {
+    throw new Error("PRIMITIVE_COMPOSITION_IDENTITY_INVALID");
+  }
+  const recorded = await admin.rpc(
+    "pandora_worker_i_record_project_version_composition_20260831",
+    {
+      p_project_version_id: projectVersionId,
+      p_project_spec_id: projectSpecId,
+    },
+  );
+  if (recorded.error) throw new Error("PRIMITIVE_COMPOSITION_WRITE_FAILED");
+  const receipt = rec(recorded.data);
+  if (
+    text(receipt.state) !== "RECORDED" ||
+    text(receipt.projectVersionId) !== projectVersionId ||
+    Number(receipt.primitiveCount || 0) !== primitiveCount ||
+    text(receipt.manifestDigest) !== text(primitiveMaterialization.manifestDigest) ||
+    text(receipt.materializationPlanDigest) !==
+      text(primitiveMaterialization.materializationPlanDigest)
+  ) {
+    throw new Error("PRIMITIVE_COMPOSITION_RECEIPT_INVALID");
+  }
 }
 
 function providerText(envelope: JsonRecord) {
@@ -512,6 +637,25 @@ Deno.serve(async (req) => {
     }
     if (primitiveState !== "READY") throw new Error("PRIMITIVE_SELECTION_UNAVAILABLE");
 
+    const primitiveMaterializationResult = await admin.rpc(
+      "pandora_worker_i_materialize_project_spec_primitives_20260831",
+      { p_project_spec_id: text(spec.id) },
+    );
+    if (primitiveMaterializationResult.error) {
+      throw new Error("PRIMITIVE_MATERIALIZATION_UNAVAILABLE");
+    }
+    const primitiveMaterialization = rec(primitiveMaterializationResult.data);
+    if (
+      text(primitiveMaterialization.state) !== "READY" ||
+      text(primitiveMaterialization.projectSpecId) !== text(spec.id) ||
+      Number(primitiveMaterialization.primitiveCount || 0) !==
+        Number(primitiveResolution.primitiveCount || 0) ||
+      text(primitiveMaterialization.selectionDigest) !==
+        text(primitiveResolution.selectionDigest)
+    ) {
+      throw new Error("PRIMITIVE_MATERIALIZATION_IDENTITY_MISMATCH");
+    }
+
     const projectResult = await admin.from("projectos_projects")
       .select("id,organization_id,name,objective,status")
       .eq("id", row.project_id)
@@ -536,6 +680,15 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (existing.error) throw new Error("BUILD_READ_FAILED");
       if (existing.data) {
+        const existingVersionId = text(existing.data.target_project_version_id);
+        if (existingVersionId) {
+          await recordPrimitiveComposition(
+            admin,
+            existingVersionId,
+            text(spec.id),
+            primitiveMaterialization,
+          );
+        }
         await admin.from("pandora_source_generation_queue").update({
           status: "succeeded",
           build_job_id: existing.data.id,
@@ -618,6 +771,7 @@ Deno.serve(async (req) => {
       adapter,
       priorSource,
       repairFeedback,
+      primitiveMaterialization,
     );
     const requestSha = await sha256Text(JSON.stringify(providerRequest));
     const modelResult = await admin.rpc("pandora_worker_b_gemini_request_20260829", {
@@ -635,8 +789,12 @@ Deno.serve(async (req) => {
     } catch {
       throw new Error("INVALID_GENERATED_SOURCE");
     }
-    const canonical = await canonicalBundle(
+    const materializedSource = await applyPrimitiveMaterialization(
       parsed,
+      primitiveMaterialization,
+    );
+    const canonical = await canonicalBundle(
+      materializedSource,
       String(spec.id),
       adapter,
     );
@@ -703,6 +861,15 @@ Deno.serve(async (req) => {
     );
     if (intake.error) throw new Error("BUILD_INTAKE_FAILED");
     const result = rec(intake.data);
+    const projectVersionId = text(result.projectVersionId);
+    if (projectVersionId) {
+      await recordPrimitiveComposition(
+        admin,
+        projectVersionId,
+        text(spec.id),
+        primitiveMaterialization,
+      );
+    }
 
     await admin.from("pandora_source_generation_queue").update({
       status: "succeeded",
