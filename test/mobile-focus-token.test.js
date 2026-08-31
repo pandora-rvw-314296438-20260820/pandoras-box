@@ -14,9 +14,13 @@ const android = readFileSync(join(root, "apps", "pandora-mobile", "platform", "a
 
 test("FocusToken binds selection to exact project version and verified artifact digest", () => {
   assert.match(focus, /class ProjectFocusToken/);
-  assert.match(focus, /static const int schemaVersion = 1/);
+  assert.match(focus, /static const int schemaVersion = 2/);
   assert.match(focus, /artifactDigest/);
   assert.match(focus, /semanticId/);
+  assert.match(focus, /componentId/);
+  assert.match(focus, /issuedAt/);
+  assert.match(focus, /expiresAt/);
+  assert.match(focus, /defaultLifetime/);
   assert.match(focus, /sourceFile/);
   assert.match(focus, /matchesVisible/);
   assert.match(api, /artifactDigest/);

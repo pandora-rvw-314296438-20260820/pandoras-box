@@ -28,6 +28,7 @@ class ProjectFocusToken {
     required this.versionId,
     required this.artifactDigest,
     required this.semanticId,
+    required this.componentId,
     required this.selector,
     required this.role,
     required this.accessibleName,
@@ -35,15 +36,19 @@ class ProjectFocusToken {
     required this.sourceFile,
     required this.sourceLine,
     required this.bounds,
+    required this.issuedAt,
+    required this.expiresAt,
   });
 
-  static const int schemaVersion = 1;
+  static const int schemaVersion = 2;
+  static const Duration defaultLifetime = Duration(minutes: 10);
 
   factory ProjectFocusToken.create({
     required String projectId,
     required String versionId,
     required String artifactDigest,
     required String semanticId,
+    String componentId = '',
     required String selector,
     required String role,
     required String accessibleName,
@@ -51,18 +56,26 @@ class ProjectFocusToken {
     required String sourceFile,
     int? sourceLine,
     ProjectFocusBounds? bounds,
+    DateTime? issuedAt,
+    DateTime? expiresAt,
   }) {
     final normalizedProject = projectId.trim().toLowerCase();
     final normalizedVersion = versionId.trim().toLowerCase();
     final normalizedDigest = artifactDigest.trim().toLowerCase();
     final normalizedSemantic =
         semanticId.trim().isNotEmpty ? semanticId.trim() : selector.trim();
+    final normalizedComponent =
+        componentId.trim().isNotEmpty ? componentId.trim() : normalizedSemantic;
     final normalizedSource =
         sourceFile.trim().isEmpty ? 'index.html' : sourceFile.trim();
+    final issued = (issuedAt ?? DateTime.now()).toUtc();
+    final expires = (expiresAt ?? issued.add(defaultLifetime)).toUtc();
     if (normalizedProject.isEmpty ||
         normalizedVersion.isEmpty ||
         !RegExp(r'^[0-9a-f]{64}$').hasMatch(normalizedDigest) ||
         normalizedSemantic.isEmpty ||
+        normalizedComponent.isEmpty ||
+        !expires.isAfter(issued) ||
         normalizedSource.startsWith('/') ||
         normalizedSource.contains('..') ||
         normalizedSource.contains('\\')) {
@@ -73,6 +86,7 @@ class ProjectFocusToken {
       versionId: normalizedVersion,
       artifactDigest: normalizedDigest,
       semanticId: normalizedSemantic,
+      componentId: normalizedComponent,
       selector: selector.trim(),
       role: role.trim(),
       accessibleName: accessibleName.trim(),
@@ -80,6 +94,8 @@ class ProjectFocusToken {
       sourceFile: normalizedSource,
       sourceLine: sourceLine != null && sourceLine > 0 ? sourceLine : null,
       bounds: bounds,
+      issuedAt: issued,
+      expiresAt: expires,
     );
   }
 
@@ -87,6 +103,7 @@ class ProjectFocusToken {
   final String versionId;
   final String artifactDigest;
   final String semanticId;
+  final String componentId;
   final String selector;
   final String role;
   final String accessibleName;
@@ -94,15 +111,21 @@ class ProjectFocusToken {
   final String sourceFile;
   final int? sourceLine;
   final ProjectFocusBounds? bounds;
+  final DateTime issuedAt;
+  final DateTime expiresAt;
 
   bool matchesVisible({
     required String projectId,
     required String versionId,
     required String artifactDigest,
-  }) =>
-      this.projectId == projectId.trim().toLowerCase() &&
-      this.versionId == versionId.trim().toLowerCase() &&
-      this.artifactDigest == artifactDigest.trim().toLowerCase();
+    DateTime? now,
+  }) {
+    final instant = (now ?? DateTime.now()).toUtc();
+    return instant.isBefore(expiresAt) &&
+        this.projectId == projectId.trim().toLowerCase() &&
+        this.versionId == versionId.trim().toLowerCase() &&
+        this.artifactDigest == artifactDigest.trim().toLowerCase();
+  }
 
   String get intentContext {
     final parts = <String>[
@@ -111,6 +134,9 @@ class ProjectFocusToken {
       'version=$versionId',
       'artifact_sha256=$artifactDigest',
       'semantic_id=$semanticId',
+      'component_id=$componentId',
+      'issued_at=${issuedAt.toIso8601String()}',
+      'expires_at=${expiresAt.toIso8601String()}',
       'source=$sourceFile${sourceLine == null ? '' : ':$sourceLine'}',
       'route=$route',
       if (role.isNotEmpty) 'role=$role',
@@ -127,6 +153,7 @@ class ProjectFocusToken {
         'versionId': versionId,
         'artifactDigest': artifactDigest,
         'semanticId': semanticId,
+        'componentId': componentId,
         'selector': selector,
         'role': role,
         'accessibleName': accessibleName,
@@ -134,5 +161,7 @@ class ProjectFocusToken {
         'sourceFile': sourceFile,
         'sourceLine': sourceLine,
         'bounds': bounds?.toJson(),
+        'issuedAt': issuedAt.toIso8601String(),
+        'expiresAt': expiresAt.toIso8601String(),
       };
 }
