@@ -1,0 +1,58 @@
+name: PR186 exact Dart format once
+
+on:
+  push:
+    branches:
+      - codex/polish-pass-2-20260831
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact branch commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - name: Resolve exact lockfile before formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/pandora-mobile
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+
+      - name: Format exact failed files in gate-equivalent context
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/pandora-mobile
+          dart format lib/features/approvals/approvals_screen.dart lib/features/simple/project_experience_v2.dart
+
+      - name: Commit exact formatted files through Vault broker
+        shell: bash
+        env:
+          EDGE_URL: https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/pandora-pr186-format-convergence-20260831
+          OIDC_AUDIENCE: pandora-pr186-format-20260831
+        run: |
+          set -euo pipefail
+          cd apps/pandora-mobile
+          A_B64="$(base64 -w0 lib/features/approvals/approvals_screen.dart)"
+          E_B64="$(base64 -w0 lib/features/simple/project_experience_v2.dart)"
+          OIDC_JSON="$(curl -fsSL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          OIDC_TOKEN="$(jq -r .value <<<"$OIDC_JSON")"
+          jq -n --arg expectedHead "$GITHUB_SHA" --arg a "$A_B64" --arg e "$E_B64" '{expectedHead:$expectedHead,files:[{path:"apps/pandora-mobile/lib/features/approvals/approvals_screen.dart",contentBase64:$a},{path:"apps/pandora-mobile/lib/features/simple/project_experience_v2.dart",contentBase64:$e}]}' > /tmp/payload.json
+          curl -fsS -X POST "$EDGE_URL" -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data-binary @/tmp/payload.json
