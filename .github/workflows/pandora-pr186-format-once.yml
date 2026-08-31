@@ -11,10 +11,9 @@ permissions:
 
 jobs:
   format:
-    if: startsWith(github.event.head_commit.message, 'chore(ci): bootstrap exact PR186 formatter')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
-      - name: Check out exact bootstrap commit
+      - name: Check out exact branch commit
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           ref: ${{ github.sha }}
@@ -32,44 +31,19 @@ jobs:
         run: |
           set -euo pipefail
           cd apps/pandora-mobile
-          dart format \
-            lib/features/approvals/approvals_screen.dart \
-            lib/features/simple/project_experience_v2.dart
-          if git diff --exit-code --quiet -- \
-            lib/features/approvals/approvals_screen.dart \
-            lib/features/simple/project_experience_v2.dart; then
-            echo 'Files were already formatted; nothing to commit.'
-            exit 0
-          fi
+          dart format lib/features/approvals/approvals_screen.dart lib/features/simple/project_experience_v2.dart
 
-      - name: Commit formatted files through Vault broker
+      - name: Commit exact formatted files through Vault broker
         shell: bash
         env:
           EDGE_URL: https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/pandora-pr186-format-convergence-20260831
           OIDC_AUDIENCE: pandora-pr186-format-20260831
         run: |
           set -euo pipefail
-          OIDC_JSON="$(curl -fsSL \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
-          OIDC_TOKEN="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<<"$OIDC_JSON")"
-          python3 - <<'PY' > /tmp/pr186-format-payload.json
-          import base64, json, os, pathlib
-          root = pathlib.Path('apps/pandora-mobile')
-          paths = [
-              'lib/features/approvals/approvals_screen.dart',
-              'lib/features/simple/project_experience_v2.dart',
-          ]
-          files = []
-          for rel in paths:
-              data = (root / rel).read_bytes()
-              files.append({
-                  'path': 'apps/pandora-mobile/' + rel,
-                  'contentBase64': base64.b64encode(data).decode('ascii'),
-              })
-          print(json.dumps({'expectedHead': os.environ['GITHUB_SHA'], 'files': files}))
-          PY
-          curl -fsS -X POST "$EDGE_URL" \
-            -H "Authorization: Bearer $OIDC_TOKEN" \
-            -H 'Content-Type: application/json' \
-            --data-binary @/tmp/pr186-format-payload.json
+          cd apps/pandora-mobile
+          A_B64="$(base64 -w0 lib/features/approvals/approvals_screen.dart)"
+          E_B64="$(base64 -w0 lib/features/simple/project_experience_v2.dart)"
+          OIDC_JSON="$(curl -fsSL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          OIDC_TOKEN="$(jq -r .value <<<"$OIDC_JSON")"
+          jq -n --arg expectedHead "$GITHUB_SHA" --arg a "$A_B64" --arg e "$E_B64" '{expectedHead:$expectedHead,files:[{path:"apps/pandora-mobile/lib/features/approvals/approvals_screen.dart",contentBase64:$a},{path:"apps/pandora-mobile/lib/features/simple/project_experience_v2.dart",contentBase64:$e}]}' > /tmp/payload.json
+          curl -fsS -X POST "$EDGE_URL" -H "Authorization: Bearer $OIDC_TOKEN" -H 'Content-Type: application/json' --data-binary @/tmp/payload.json
