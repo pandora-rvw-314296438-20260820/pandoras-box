@@ -22,6 +22,7 @@ Future<void> main() async {
       intelligence: runtime.intelligence,
       projectRuntime: runtime.projectRuntime,
       projectExperience: runtime.projectExperience,
+      projectExperienceProjection: runtime.projectExperienceProjection,
       domainRegistrar: runtime.domainRegistrar,
       diagnostics: runtime.diagnostics,
     ),
