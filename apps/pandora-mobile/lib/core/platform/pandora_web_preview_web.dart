@@ -598,7 +598,7 @@ String _bootstrapScript(String versionId) {
 
     const rect = element.getBoundingClientRect();
     const lineRaw = element.getAttribute('data-pandora-source-line');
-    const sourceLine = lineRaw && /^\\d+$/.test(lineRaw) ? Number(lineRaw) : null;
+    const sourceLine = lineRaw && /^\\d+\$/.test(lineRaw) ? Number(lineRaw) : null;
     const hashRoute = location.hash && location.hash.startsWith('#/')
       ? location.hash.substring(1)
       : '';
