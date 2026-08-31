@@ -27,11 +27,14 @@ class PandoraPreviewSelection {
     final target = selector.trim();
     final element = tag.trim().toLowerCase();
     final description = text.trim();
+    final boundedDescription = description.length > 80
+        ? description.substring(0, 80)
+        : description;
     final parts = <String>[
       'Selected project element:',
       if (target.isNotEmpty) 'selector=$target',
       if (element.isNotEmpty) 'tag=$element',
-      if (description.isNotEmpty) 'visible_text=${description.substring(0, description.length.clamp(0, 80))}',
+      if (boundedDescription.isNotEmpty) 'visible_text=$boundedDescription',
     ];
     return '${parts.join(' ')}. Apply the owner change specifically to this selected element.';
   }
