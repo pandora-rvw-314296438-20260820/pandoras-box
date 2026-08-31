@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -391,6 +392,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   String? _previewVersionId;
   String? _error;
   String? _intelligenceReply;
+  String? _focusTarget;
   bool _started = false;
   bool _loading = true;
   bool _openingPreview = false;
@@ -577,6 +579,95 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
   }
 
+  List<String> get _focusTargets {
+    final targets = <String>['Whole page'];
+    final files = _previewFiles;
+    if (files == null || files.isEmpty) return targets;
+    var html = '';
+    for (final file in files) {
+      final path = (file['file'] as String? ?? '').toLowerCase();
+      if (!path.endsWith('.html')) continue;
+      final encoded = file['dataBase64'];
+      if (encoded is! String || encoded.isEmpty) continue;
+      try {
+        html = utf8.decode(base64Decode(encoded), allowMalformed: false).toLowerCase();
+      } catch (_) {
+        continue;
+      }
+      if (path == 'index.html' || path.endsWith('/index.html')) break;
+    }
+    if (html.contains('<header') || html.contains('<nav')) {
+      targets.add('Header & navigation');
+    }
+    if (html.contains('<main')) targets.add('Main content');
+    if (html.contains('<section')) targets.add('Section');
+    if (html.contains('<footer')) targets.add('Footer');
+    return targets;
+  }
+
+  String _focusBoundRequest(String request) {
+    final focus = _focusTarget;
+    if (focus == null || focus.isEmpty) return request;
+    return 'Focus target: $focus\nRequested change: $request';
+  }
+
+  Future<void> _pickFocus() async {
+    final targets = _focusTargets;
+    final selected = _focusTarget ?? 'Whole page';
+    final target = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: PandoraV2Colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(12, 10, 12, 6),
+                child: Text(
+                  'Focus your change',
+                  style: TextStyle(
+                    color: PandoraV2Colors.ink,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.5,
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Text(
+                  'Choose the part of this exact project you want Pandora to change.',
+                  style: pandoraV2Muted,
+                ),
+              ),
+              for (final option in targets)
+                ListTile(
+                  leading: Icon(
+                    option == selected
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                  ),
+                  title: Text(option),
+                  onTap: () => Navigator.of(sheetContext).pop(option),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (target == null || !mounted) return;
+    setState(() {
+      _focusTarget = target == 'Whole page' ? null : target;
+    });
+  }
+
   Future<void> _requestChange(String text) async {
     final request = text.trim();
     if (request.length < 4 || _changing) return;
@@ -599,7 +690,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     });
     try {
       final turn = await intelligence.chat(
-        message: request,
+        message: _focusBoundRequest(request),
         projectId: widget.project.id,
       );
       if (!mounted) return;
@@ -654,7 +745,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       }
       final intentId = await experience.submitIntent(
         projectId: widget.project.id,
-        intentText: actionRequest,
+        intentText: _focusBoundRequest(actionRequest),
         intentKind: 'change',
         idempotencyKey:
             'pandora-v2-change:${widget.project.id}:${DateTime.now().microsecondsSinceEpoch}',
@@ -1084,6 +1175,28 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                         ),
                       ),
                     ),
+                    if (hasExactPreview)
+                      Positioned(
+                        top: 10,
+                        left: 10,
+                        child: FilledButton.tonalIcon(
+                          onPressed: _changing ? null : _pickFocus,
+                          icon: const Icon(
+                            Icons.center_focus_strong_rounded,
+                            size: 18,
+                          ),
+                          label: Text(_focusTarget ?? 'Focus'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: PandoraV2Colors.surface,
+                            foregroundColor: PandoraV2Colors.ink,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ),
                     if (hasExactPreview)
                       Positioned(
                         top: 10,
