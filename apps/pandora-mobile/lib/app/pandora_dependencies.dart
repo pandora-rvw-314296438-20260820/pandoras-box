@@ -4,6 +4,7 @@ import '../core/data/domain_registrar_api.dart';
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/data/pandora_repository.dart';
 import '../core/data/project_experience_api.dart';
+import '../core/data/project_experience_projection_repository.dart';
 import '../core/data/project_runtime_api.dart';
 import '../core/diagnostics/diagnostics_store.dart';
 import '../core/security/pandora_auth.dart';
@@ -17,6 +18,7 @@ class PandoraDependencies extends InheritedWidget {
     this.intelligence,
     this.projectRuntime,
     this.projectExperience,
+    this.projectExperienceProjection,
     this.domainRegistrar,
     required super.child,
   });
@@ -26,6 +28,7 @@ class PandoraDependencies extends InheritedWidget {
   final PandoraIntelligenceApi? intelligence;
   final ProjectRuntimeApi? projectRuntime;
   final ProjectExperienceApi? projectExperience;
+  final ProjectExperienceProjectionRepository? projectExperienceProjection;
   final DomainRegistrarApi? domainRegistrar;
   final DiagnosticsStore diagnostics;
 
@@ -43,6 +46,7 @@ class PandoraDependencies extends InheritedWidget {
       intelligence != oldWidget.intelligence ||
       projectRuntime != oldWidget.projectRuntime ||
       projectExperience != oldWidget.projectExperience ||
+      projectExperienceProjection != oldWidget.projectExperienceProjection ||
       domainRegistrar != oldWidget.domainRegistrar ||
       diagnostics != oldWidget.diagnostics;
 }
