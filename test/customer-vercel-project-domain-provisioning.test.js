@@ -29,7 +29,7 @@ test('Vercel provisioning is deterministic and idempotently reconciles conflict'
 test('stable Vercel domain can become client liveUrl only after exact production proof', () => {
   assert.match(migration, /before update of config on public\.projectos_projects/i);
   assert.match(migration, /productionVerificationState.*live_verified/is);
-  assert.match(migration, /d\.verification_state <> 'live_verified'/);
+  assert.match(migration, /v_deployment\.verification_state <> 'live_verified'/);
   assert.match(migration, /targets.*production.*id/is);
   assert.match(migration, /provider_deployment_id/is);
   assert.match(migration, /vercelDefaultDomainStatus','live_verified'/);
