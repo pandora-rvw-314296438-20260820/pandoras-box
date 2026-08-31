@@ -10,6 +10,7 @@ const edge = readFileSync(join(root, "supabase", "functions", "pandora-preview-c
 const journey = readFileSync(join(root, "apps", "pandora-mobile", "lib", "features", "simple", "project_journey_flow.dart"), "utf8");
 const experience = readFileSync(join(root, "apps", "pandora-mobile", "lib", "core", "data", "project_experience_api.dart"), "utf8");
 const nativeIo = readFileSync(join(root, "apps", "pandora-mobile", "lib", "core", "platform", "pandora_native_io.dart"), "utf8");
+const embeddedPreview = readFileSync(join(root, "apps", "pandora-mobile", "lib", "core", "platform", "pandora_embedded_preview.dart"), "utf8");
 const android = readFileSync(join(root, "apps", "pandora-mobile", "platform", "android", "app", "src", "main", "kotlin", "com", "banataosystems", "pandora_mobile", "MainActivity.kt"), "utf8");
 
 test("mobile preview content is authenticated and bound to exact artifact lineage", () => {
@@ -37,7 +38,11 @@ test("mobile journey can render the exact candidate when Vercel preview creation
 
 test("Android exact preview renderer stays in-memory and exposes no JavaScript bridge", () => {
   assert.match(nativeIo, /openPreviewBundle/);
+  assert.match(embeddedPreview, /pandora\/exact_preview/);
+  assert.match(embeddedPreview, /AndroidView\(/);
   assert.match(android, /"openPreviewBundle" -> openPreviewBundle\(call, result\)/);
+  assert.match(android, /registerViewFactory/);
+  assert.match(android, /PandoraExactPreviewView/);
   assert.match(android, /allowFileAccess = false/);
   assert.match(android, /allowContentAccess = false/);
   assert.match(android, /MIXED_CONTENT_NEVER_ALLOW/);
