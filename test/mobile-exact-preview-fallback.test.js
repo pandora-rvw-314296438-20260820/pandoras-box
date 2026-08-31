@@ -10,7 +10,7 @@ const edge = readFileSync(join(root, "supabase", "functions", "pandora-preview-c
 const journey = readFileSync(join(root, "apps", "pandora-mobile", "lib", "features", "simple", "project_journey_flow.dart"), "utf8");
 const experience = readFileSync(join(root, "apps", "pandora-mobile", "lib", "core", "data", "project_experience_api.dart"), "utf8");
 const nativeIo = readFileSync(join(root, "apps", "pandora-mobile", "lib", "core", "platform", "pandora_native_io.dart"), "utf8");
-const embeddedPreview = readFileSync(join(root, "apps", "pandora-mobile", "lib", "core", "platform", "pandora_embedded_preview.dart"), "utf8");
+const androidPreview = readFileSync(join(root, "apps", "pandora-mobile", "lib", "core", "platform", "pandora_android_preview.dart"), "utf8");
 const android = readFileSync(join(root, "apps", "pandora-mobile", "platform", "android", "app", "src", "main", "kotlin", "com", "banataosystems", "pandora_mobile", "MainActivity.kt"), "utf8");
 
 test("mobile preview content is authenticated and bound to exact artifact lineage", () => {
@@ -38,8 +38,8 @@ test("mobile journey can render the exact candidate when Vercel preview creation
 
 test("Android exact preview renderer stays in-memory and exposes no JavaScript bridge", () => {
   assert.match(nativeIo, /openPreviewBundle/);
-  assert.match(embeddedPreview, /pandora\/exact_preview/);
-  assert.match(embeddedPreview, /AndroidView\(/);
+  assert.match(androidPreview, /pandora\/exact_preview/);
+  assert.match(androidPreview, /AndroidView\(/);
   assert.match(android, /"openPreviewBundle" -> openPreviewBundle\(call, result\)/);
   assert.match(android, /registerViewFactory/);
   assert.match(android, /PandoraExactPreviewView/);
@@ -51,8 +51,8 @@ test("Android exact preview renderer stays in-memory and exposes no JavaScript b
   assert.match(android, /pandora\/exact_preview_selection_/);
   assert.match(android, /elementFromPoint/);
   assert.match(android, /evaluateJavascript/);
-  assert.match(embeddedPreview, /PandoraPreviewSelection/);
-  assert.match(embeddedPreview, /setSelectionMode/);
+  assert.match(androidPreview, /PandoraPreviewSelection/);
+  assert.match(androidPreview, /setSelectionMode/);
   assert.doesNotMatch(android, /addJavascriptInterface/);
   assert.doesNotMatch(android, /file:\/\//);
 });

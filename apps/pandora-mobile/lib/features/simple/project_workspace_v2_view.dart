@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/platform/pandora_embedded_preview.dart';
+import '../../core/platform/pandora_preview_host.dart';
 import 'pandora_v2_ui.dart';
 
 enum ProjectChangePhase { idle, designing, building, checking }
@@ -115,7 +115,7 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                           child: loading
                               ? _ExactPreviewLoadingSurface(projectName: title)
                               : hasExactPreview
-                                  ? PandoraEmbeddedPreview(
+                                  ? PandoraPreviewHost(
                                       key: ValueKey<String>(versionId),
                                       files: files,
                                       versionId: versionId,
