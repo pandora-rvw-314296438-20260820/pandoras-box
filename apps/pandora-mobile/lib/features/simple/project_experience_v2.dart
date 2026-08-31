@@ -561,7 +561,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       return;
     }
     _previewRetryCount += 1;
-    final delaySeconds = (_previewRetryCount * 2).clamp(2, 8);
+    final delaySeconds = (_previewRetryCount * 2).clamp(2, 8).toInt();
     _previewRetryTimer = Timer(Duration(seconds: delaySeconds), () {
       if (mounted && _previewVersionId != versionId) {
         unawaited(_refresh());
