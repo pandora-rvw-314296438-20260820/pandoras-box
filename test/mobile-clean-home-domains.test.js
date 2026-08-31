@@ -27,11 +27,11 @@ const registrar = fs.readFileSync(
   "utf8",
 );
 
-test("Simple Home makes customer intent and current work the interface", () => {
+test("Simple Home makes customer intent and current projects the interface", () => {
   assert.equal(home.includes("What do you want\\nto make happen?"), true);
   assert.equal(home.includes("PandoraV2IntentSurface"), true);
   assert.equal(home.includes("CreateProjectExperienceScreen"), true);
-  assert.equal(home.includes("'Your work'"), true);
+  assert.equal(home.includes("'Your projects'"), true);
   assert.equal(home.includes("'Needs you'"), true);
   assert.equal(home.includes("DomainsScreen"), false);
   assert.equal(home.includes("What do you want Pandora to do?"), false);

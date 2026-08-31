@@ -38,6 +38,10 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        flutterEngine.platformViewsController.registry.registerViewFactory(
+            "pandora/exact_preview",
+            PandoraExactPreviewFactory()
+        )
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler(::handleCall)
     }
@@ -109,10 +113,34 @@ class MainActivity : FlutterActivity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.WHITE)
         }
-        val close = Button(this).apply {
-            text = "Close preview"
+        val density = resources.displayMetrics.density
+        val chrome = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding((8 * density).toInt(), 0, (12 * density).toInt(), 0)
+            setBackgroundColor(Color.rgb(246, 245, 242))
+        }
+        val close = android.widget.ImageButton(this).apply {
+            contentDescription = "Close preview"
+            setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+            setColorFilter(Color.rgb(23, 23, 23))
+            background = null
             setOnClickListener { dialog.dismiss() }
         }
+        val title = android.widget.TextView(this).apply {
+            text = "Project preview"
+            textSize = 15f
+            setTextColor(Color.rgb(23, 23, 23))
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }
+        chrome.addView(
+            close,
+            LinearLayout.LayoutParams((48 * density).toInt(), (48 * density).toInt())
+        )
+        chrome.addView(
+            title,
+            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        )
         val webView = WebView(this)
         webView.settings.apply {
             javaScriptEnabled = true
@@ -148,8 +176,11 @@ class MainActivity : FlutterActivity() {
             }
         }
         root.addView(
-            close,
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            chrome,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (56 * density).toInt()
+            )
         )
         root.addView(
             webView,
@@ -331,5 +362,150 @@ class MainActivity : FlutterActivity() {
             if (index >= 0) return cursor.getString(index)
         }
         return null
+    }
+}
+
+
+private data class EmbeddedPreviewFile(val bytes: ByteArray, val mimeType: String)
+
+private class PandoraExactPreviewFactory :
+    io.flutter.plugin.platform.PlatformViewFactory(io.flutter.plugin.common.StandardMessageCodec.INSTANCE) {
+    override fun create(
+        context: android.content.Context,
+        viewId: Int,
+        args: Any?
+    ): io.flutter.plugin.platform.PlatformView {
+        val params = args as? Map<*, *> ?: emptyMap<Any?, Any?>()
+        return PandoraExactPreviewView(context, params)
+    }
+}
+
+private class PandoraExactPreviewView(
+    context: android.content.Context,
+    params: Map<*, *>
+) : io.flutter.plugin.platform.PlatformView {
+    private val webView = WebView(context)
+    private val files = LinkedHashMap<String, EmbeddedPreviewFile>()
+
+    init {
+        val rawFiles = params["files"] as? List<*>
+            ?: throw IllegalArgumentException("Exact preview files are required")
+        if (rawFiles.isEmpty() || rawFiles.size > 1000) {
+            throw IllegalArgumentException("Invalid exact preview bundle")
+        }
+        var totalBytes = 0
+        for (raw in rawFiles) {
+            val entry = raw as? Map<*, *>
+                ?: throw IllegalArgumentException("Invalid exact preview file")
+            val path = (entry["file"] as? String)?.trim().orEmpty()
+            val mimeType = (entry["mimeType"] as? String)?.trim().orEmpty()
+            val dataBase64 = (entry["dataBase64"] as? String)?.trim().orEmpty()
+            if (!isSafeEmbeddedPreviewPath(path) ||
+                mimeType.isEmpty() ||
+                dataBase64.isEmpty() ||
+                files.containsKey(path)
+            ) {
+                throw IllegalArgumentException("Invalid exact preview file")
+            }
+            val bytes = Base64.decode(dataBase64, Base64.DEFAULT)
+            if (bytes.size > 10 * 1024 * 1024) {
+                throw IllegalArgumentException("Exact preview file too large")
+            }
+            totalBytes += bytes.size
+            if (totalBytes > 12 * 1024 * 1024) {
+                throw IllegalArgumentException("Exact preview bundle too large")
+            }
+            files[path] = EmbeddedPreviewFile(bytes, mimeType)
+        }
+        if (!files.containsKey("index.html")) {
+            throw IllegalArgumentException("Exact preview entrypoint missing")
+        }
+
+        webView.setBackgroundColor(Color.WHITE)
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = false
+            allowContentAccess = false
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            mediaPlaybackRequiresUserGesture = true
+            setSupportMultipleWindows(false)
+        }
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): WebResourceResponse? {
+                val uri = request?.url ?: return null
+                if (uri.scheme != "https" || uri.host != "pandora.local") return null
+                val requested = uri.path
+                    ?.removePrefix("/")
+                    ?.ifBlank { "index.html" }
+                    ?: "index.html"
+                val resolved = files[requested]
+                    ?: if (!requested.substringAfterLast('/').contains('.')) {
+                        files["index.html"]
+                    } else {
+                        null
+                    }
+                if (resolved == null) {
+                    return WebResourceResponse(
+                        "text/plain",
+                        "UTF-8",
+                        ByteArrayInputStream("Not found".toByteArray())
+                    )
+                }
+                val encoding = if (
+                    resolved.mimeType.startsWith("text/") ||
+                    resolved.mimeType.contains("javascript") ||
+                    resolved.mimeType.contains("json") ||
+                    resolved.mimeType.contains("xml") ||
+                    resolved.mimeType.contains("svg")
+                ) {
+                    "UTF-8"
+                } else {
+                    null
+                }
+                return WebResourceResponse(
+                    resolved.mimeType,
+                    encoding,
+                    ByteArrayInputStream(resolved.bytes)
+                )
+            }
+
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): Boolean {
+                val uri = request?.url ?: return true
+                return uri.scheme != "https" || uri.host != "pandora.local"
+            }
+        }
+        webView.loadUrl("https://pandora.local/index.html")
+    }
+
+    override fun getView(): android.view.View = webView
+
+    override fun dispose() {
+        webView.stopLoading()
+        webView.destroy()
+        files.clear()
+    }
+}
+
+private fun isSafeEmbeddedPreviewPath(path: String): Boolean {
+    if (path.isBlank() ||
+        path.length > 512 ||
+        path.startsWith("/") ||
+        path.endsWith("/") ||
+        path.contains('\\') ||
+        path.contains('\u0000') ||
+        path.contains("?") ||
+        path.contains("#")
+    ) {
+        return false
+    }
+    return path.split("/").none {
+        it.isBlank() || it == "." || it == ".." || it.length > 255
     }
 }

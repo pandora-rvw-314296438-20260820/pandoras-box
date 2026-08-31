@@ -199,15 +199,25 @@ class _PandoraV2BottomBar extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-        decoration: const BoxDecoration(
-          color: PandoraV2Colors.surface,
-          border: Border(top: BorderSide(color: PandoraV2Colors.line)),
-        ),
+  Widget build(BuildContext context) => ColoredBox(
+        color: PandoraV2Colors.canvas,
         child: SafeArea(
           top: false,
-          child: SizedBox(
+          minimum: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+          child: Container(
             height: 66,
+            decoration: BoxDecoration(
+              color: PandoraV2Colors.surface,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: PandoraV2Colors.line),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x12000000),
+                  blurRadius: 24,
+                  offset: Offset(0, 8),
+                ),
+              ],
+            ),
             child: Row(
               children: [
                 for (var index = 0; index < destinations.length; index++)
@@ -229,7 +239,7 @@ class _PandoraV2BottomBar extends StatelessWidget {
                               color: index == selectedIndex
                                   ? PandoraV2Colors.ink
                                   : PandoraV2Colors.muted,
-                              size: 23,
+                              size: 22,
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -238,7 +248,7 @@ class _PandoraV2BottomBar extends StatelessWidget {
                                 color: index == selectedIndex
                                     ? PandoraV2Colors.ink
                                     : PandoraV2Colors.muted,
-                                fontSize: 11,
+                                fontSize: 10.5,
                                 fontWeight: index == selectedIndex
                                     ? FontWeight.w700
                                     : FontWeight.w500,

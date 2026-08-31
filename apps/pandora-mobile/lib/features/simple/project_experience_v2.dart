@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/project_experience_api.dart';
 import '../../core/models/project_journey_models.dart';
+import '../../core/platform/pandora_embedded_preview.dart';
 import '../../core/platform/pandora_native_io.dart';
 import 'pandora_v2_ui.dart';
 
@@ -229,23 +230,20 @@ class _ProjectBuildExperienceV2ScreenState
   }
 
   String get _stageTitle {
-    if (_ready) return 'Your first version is ready';
-    if (_candidate != null) return 'Preparing the exact preview';
-    if (_snapshot?.verification?.state == 'checking') {
-      return 'Checking your project';
-    }
-    if (_buildRequested) return 'Building the first version';
-    return 'Structuring your project';
+    final updating = widget.baseVersionId?.trim().isNotEmpty == true;
+    if (_ready) return updating ? 'Updated' : 'Ready';
+    if (_candidate != null) return 'Preparing your preview';
+    if (_snapshot?.verification?.state == 'checking') return 'Checking';
+    if (_buildRequested) return updating ? 'Building your change' : 'Building';
+    return 'Preparing';
   }
 
   String get _stageMessage {
-    if (_ready) {
-      return 'Open it, experience it, then tell Pandora what should change.';
-    }
+    if (_ready) return 'Your exact project is ready to experience.';
     if (_candidate != null) {
-      return 'Pandora is turning the verified build into something you can experience.';
+      return 'Preparing the exact version you just built.';
     }
-    return 'Your project stays here while Pandora handles the technical work underneath.';
+    return 'Pandora is working while your project stays safe.';
   }
 
   @override
@@ -374,6 +372,8 @@ class _ProjectBuildExperienceV2ScreenState
       );
 }
 
+enum _ProjectChangePhase { idle, designing, building, checking }
+
 class ProjectWorkspaceV2Screen extends StatefulWidget {
   const ProjectWorkspaceV2Screen({super.key, required this.project});
 
@@ -387,6 +387,8 @@ class ProjectWorkspaceV2Screen extends StatefulWidget {
 class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   final _change = TextEditingController();
   ProjectRuntimeSnapshot? _snapshot;
+  List<Map<String, Object?>>? _previewFiles;
+  String? _previewVersionId;
   String? _error;
   String? _intelligenceReply;
   bool _started = false;
@@ -395,6 +397,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _changing = false;
   bool _publishing = false;
   bool _undoing = false;
+  bool _recentlyUpdated = false;
+  _ProjectChangePhase _phase = _ProjectChangePhase.idle;
 
   @override
   void didChangeDependencies() {
@@ -410,9 +414,96 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     super.dispose();
   }
 
+  ProjectRuntimeCandidate? get _candidate => _snapshot?.candidate;
+
+  bool get _canUndo {
+    final candidate = _candidate;
+    if (candidate == null || !candidate.canUndo) return false;
+    return _snapshot?.production?.versionId != candidate.versionId;
+  }
+
+  bool get _canPublish {
+    final snapshot = _snapshot;
+    final candidate = snapshot?.candidate;
+    return candidate != null &&
+        snapshot?.verification?.versionId == candidate.versionId &&
+        snapshot?.verification?.publishEligible == true &&
+        snapshot?.production?.versionId != candidate.versionId;
+  }
+
+  bool get _currentVersionVerified {
+    final snapshot = _snapshot;
+    final candidate = snapshot?.candidate;
+    final verification = snapshot?.verification;
+    return candidate != null &&
+        verification?.versionId == candidate.versionId &&
+        verification?.publishEligible == true;
+  }
+
+  bool get _currentCandidateIsLive {
+    final snapshot = _snapshot;
+    final candidate = snapshot?.candidate;
+    final production = snapshot?.production;
+    return candidate != null &&
+        production?.versionId == candidate.versionId &&
+        snapshot?.project.isLive == true;
+  }
+
+  bool get _currentCandidateIsPublishing {
+    final snapshot = _snapshot;
+    final candidate = snapshot?.candidate;
+    if (candidate == null || snapshot?.project.isLive == true) return false;
+    return snapshot?.production?.versionId == candidate.versionId;
+  }
+
+  String get _statusLabel {
+    switch (_phase) {
+      case _ProjectChangePhase.designing:
+        return 'Designing';
+      case _ProjectChangePhase.building:
+        return 'Building';
+      case _ProjectChangePhase.checking:
+        return 'Checking';
+      case _ProjectChangePhase.idle:
+        break;
+    }
+    if (_recentlyUpdated && _currentVersionVerified) return 'Updated';
+    if (_currentCandidateIsLive) return 'Live';
+    if (_currentCandidateIsPublishing) return 'Publishing · verifying';
+    if (_currentVersionVerified) return 'Ready';
+    if (_candidate != null) return 'Preview';
+    return 'Working';
+  }
+
+  Color get _statusColor {
+    final label = _statusLabel;
+    if (label == 'Updated' || label == 'Live' || label == 'Ready') {
+      return PandoraV2Colors.success;
+    }
+    return PandoraV2Colors.muted;
+  }
+
+  Future<List<Map<String, Object?>>?> _readExactPreview(
+    ProjectRuntimeSnapshot snapshot,
+  ) async {
+    final candidate = snapshot.candidate;
+    final experience = PandoraDependencies.of(context).projectExperience;
+    if (candidate == null || experience == null) return null;
+    try {
+      return await _loadExactPreviewFiles(
+        experience,
+        projectId: widget.project.id,
+        versionId: candidate.versionId,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _refresh() async {
     final runtime = PandoraDependencies.of(context).projectRuntime;
     if (runtime == null) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = 'Pandora cannot open this project right now.';
@@ -422,10 +513,20 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     try {
       final snapshot = await runtime.runtime(widget.project.id);
       if (!mounted) return;
+      List<Map<String, Object?>>? files;
+      final candidate = snapshot.candidate;
+      if (candidate != null && _previewVersionId != candidate.versionId) {
+        files = await _readExactPreview(snapshot);
+      }
+      if (!mounted) return;
       setState(() {
         _snapshot = snapshot;
         _loading = false;
         _error = null;
+        if (files != null && files.isNotEmpty && candidate != null) {
+          _previewFiles = files;
+          _previewVersionId = candidate.versionId;
+        }
       });
     } catch (_) {
       if (!mounted) return;
@@ -436,47 +537,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
   }
 
-  ProjectRuntimeCandidate? get _candidate => _snapshot?.candidate;
-
-  bool get _canUndo {
-    final candidate = _candidate;
-    if (candidate == null || !candidate.canUndo) return false;
-    return _snapshot?.production?.versionId != candidate.versionId;
-  }
-
-  String? get _remotePreview {
-    final candidate = _candidate;
-    if (candidate == null) return _safeHttps(_snapshot?.project.previewUrl);
-    final preview = _snapshot?.preview;
-    if (preview != null && preview.versionId == candidate.versionId) {
-      return _safeHttps(preview.url);
-    }
-    return _safeHttps(_snapshot?.project.previewUrl);
-  }
-
-  String get _subtitle {
-    final snapshot = _snapshot;
-    final candidate = _candidate;
-    final production = snapshot?.production;
-    if (candidate != null && production?.versionId == candidate.versionId) {
-      if (snapshot?.project.isLive == true) {
-        final live = _safeHttps(snapshot?.project.liveUrl ?? production?.url);
-        return live == null ? 'Live' : 'Live · ${Uri.parse(live).host}';
-      }
-      return 'Publishing · verifying';
-    }
-    if (snapshot?.verification?.publishEligible == true) {
-      return 'Ready to publish';
-    }
-    if (candidate != null) return 'Preview ready';
-    if (snapshot?.project.isLive == true) {
-      final live = _safeHttps(snapshot?.project.liveUrl);
-      return live == null ? 'Live' : 'Live · ${Uri.parse(live).host}';
-    }
-    return 'Working';
-  }
-
-  Future<void> _openPreview() async {
+  Future<void> _openExactPreview() async {
     if (_openingPreview) return;
     final candidate = _candidate;
     if (candidate == null) {
@@ -492,25 +553,27 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     if (experience == null) return;
     setState(() => _openingPreview = true);
     try {
-      final files = await _loadExactPreviewFiles(
+      var files =
+          _previewVersionId == candidate.versionId ? _previewFiles : null;
+      files ??= await _loadExactPreviewFiles(
         experience,
         projectId: widget.project.id,
         versionId: candidate.versionId,
       );
+      if (!mounted) return;
+      setState(() {
+        _previewFiles = files;
+        _previewVersionId = candidate.versionId;
+      });
       if (await PandoraNativeIo.openPreviewBundle(files)) return;
     } catch (_) {
-      // Fall back to a verified https preview below.
+      if (mounted) {
+        setState(
+          () => _error = 'Pandora could not open this exact version right now.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _openingPreview = false);
-    }
-    final url = _remotePreview;
-    if (url != null && await PandoraNativeIo.openExternalUrl(url)) return;
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('That project preview is not available yet.'),
-        ),
-      );
     }
   }
 
@@ -529,6 +592,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     final baseVersion = _candidate?.versionId;
     setState(() {
       _changing = true;
+      _phase = _ProjectChangePhase.designing;
+      _recentlyUpdated = false;
       _error = null;
       _intelligenceReply = null;
     });
@@ -543,6 +608,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         _change.clear();
         setState(() {
           _changing = false;
+          _phase = _ProjectChangePhase.idle;
           _intelligenceReply = turn.clarifyingQuestion ?? turn.reply;
         });
         return;
@@ -552,15 +618,17 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         _change.clear();
         setState(() {
           _changing = false;
+          _phase = _ProjectChangePhase.idle;
           _intelligenceReply = turn.reply;
         });
-        await _openPreview();
+        await _openExactPreview();
         return;
       }
       if (turn.intent == 'publish') {
         _change.clear();
         setState(() {
           _changing = false;
+          _phase = _ProjectChangePhase.idle;
           _intelligenceReply = turn.reply;
         });
         await _showPublish();
@@ -572,6 +640,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         _change.clear();
         setState(() {
           _changing = false;
+          _phase = _ProjectChangePhase.idle;
           _intelligenceReply = turn.reply;
         });
         return;
@@ -590,6 +659,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         idempotencyKey:
             'pandora-v2-change:${widget.project.id}:${DateTime.now().microsecondsSinceEpoch}',
       );
+
       OwnerProjectUnderstanding understanding =
           const OwnerProjectUnderstanding.waiting();
       for (var attempt = 0; attempt < 45; attempt++) {
@@ -608,46 +678,103 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       }
       if (!understanding.isReady) {
         throw const ProjectExperienceException(
-          'Pandora is still preparing that change. It will continue in the background.',
+          'Pandora is still preparing that change. Your current project is unchanged.',
         );
       }
 
-      // The durable source-convergence worker will also pick up this exact active
-      // ProjectSpec if the app closes before this immediate request completes.
+      if (!mounted) return;
+      setState(() => _phase = _ProjectChangePhase.building);
       await experience.requestBuild(
         projectId: widget.project.id,
         idempotencyKey:
             'pandora-v2-change-build:${widget.project.id}:$intentId',
       );
       if (!mounted) return;
-      _change.clear();
-      setState(() {
-        _changing = false;
-        _intelligenceReply = null;
-      });
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => ProjectBuildExperienceV2Screen(
-            project: _snapshot?.project ?? widget.project,
-            baseVersionId: baseVersion,
-            buildAlreadyRequested: true,
-          ),
-        ),
-      );
+      await _watchExactChange(baseVersion);
     } on ProjectExperienceException catch (error) {
       if (!mounted) return;
       setState(() {
         _changing = false;
+        _phase = _ProjectChangePhase.idle;
         _error = error.message;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _changing = false;
-        _error =
-            'Pandora could not understand or start that request right now.';
+        _phase = _ProjectChangePhase.idle;
+        _error = 'Pandora could not complete that request right now.';
       });
     }
+  }
+
+  Future<void> _watchExactChange(String? baseVersion) async {
+    final runtime = PandoraDependencies.of(context).projectRuntime;
+    if (runtime == null) {
+      throw const ProjectExperienceException(
+        'Pandora cannot check that change right now.',
+      );
+    }
+
+    String? nextVersion;
+    for (var attempt = 0; attempt < 90; attempt++) {
+      if (!mounted) return;
+      final snapshot = await runtime.runtime(widget.project.id);
+      final candidate = snapshot.candidate;
+      final isNewCandidate = candidate != null &&
+          (baseVersion == null || candidate.versionId != baseVersion);
+
+      if (isNewCandidate) {
+        nextVersion ??= candidate.versionId;
+        if (mounted && _phase != _ProjectChangePhase.checking) {
+          setState(() => _phase = _ProjectChangePhase.checking);
+        }
+
+        List<Map<String, Object?>>? files;
+        if (_previewVersionId != candidate.versionId) {
+          files = await _readExactPreview(snapshot);
+        }
+        if (!mounted) return;
+        setState(() {
+          _snapshot = snapshot;
+          if (files != null && files.isNotEmpty) {
+            _previewFiles = files;
+            _previewVersionId = candidate.versionId;
+          }
+        });
+
+        final verification = snapshot.verification;
+        final verified = verification?.versionId == candidate.versionId &&
+            verification?.publishEligible == true;
+        if (verified && _previewVersionId == candidate.versionId) {
+          _change.clear();
+          setState(() {
+            _changing = false;
+            _phase = _ProjectChangePhase.idle;
+            _recentlyUpdated = true;
+            _error = null;
+          });
+          return;
+        }
+
+        final runtimeStatus = snapshot.project.runtimeStatus.toLowerCase();
+        if (runtimeStatus == 'failed' || runtimeStatus == 'blocked') {
+          throw const ProjectExperienceException(
+            'Pandora found something to resolve. Your previous project remains available.',
+          );
+        }
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+
+    if (nextVersion == null) {
+      throw const ProjectExperienceException(
+        'Pandora is still building that change. Your current project remains available.',
+      );
+    }
+    throw const ProjectExperienceException(
+      'Pandora is still checking the new version. It has not been marked ready.',
+    );
   }
 
   Future<void> _undoChange() async {
@@ -668,8 +795,16 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         idempotencyKey:
             'pandora-v2-undo:${widget.project.id}:${candidate.versionId}',
       );
+      final files = await _readExactPreview(snapshot);
       if (!mounted) return;
-      setState(() => _snapshot = snapshot);
+      setState(() {
+        _snapshot = snapshot;
+        _recentlyUpdated = false;
+        if (files != null && files.isNotEmpty && snapshot.candidate != null) {
+          _previewFiles = files;
+          _previewVersionId = snapshot.candidate!.versionId;
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Undone.')),
       );
@@ -684,12 +819,57 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
   }
 
+  Future<void> _showProjectActions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: PandoraV2Colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  color: PandoraV2Colors.line,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.open_in_full_rounded),
+                title: const Text('Open full screen'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_openExactPreview());
+                },
+              ),
+              if (_canPublish)
+                ListTile(
+                  leading: const Icon(Icons.public_rounded),
+                  title: const Text('Publish'),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    unawaited(_showPublish());
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _showPublish() async {
     final snapshot = _snapshot;
     final candidate = snapshot?.candidate;
-    if (candidate == null ||
-        snapshot?.verification?.publishEligible != true ||
-        snapshot?.production?.versionId == candidate.versionId) {
+    if (candidate == null || !_canPublish) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Pandora is still checking this version.'),
@@ -740,13 +920,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
               keyboardType: TextInputType.url,
               decoration: const InputDecoration(
                 labelText: 'Domain (optional)',
-                hintText: 'plpboracay.com',
+                hintText: 'yourdomain.com',
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'If you enter an address, use a domain name rather than an email address.',
-              style: pandoraV2Muted,
             ),
             const SizedBox(height: 22),
             PandoraV2PrimaryAction(
@@ -755,10 +930,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                 final domain = domainController.text.trim();
                 if (domain.contains('@')) {
                   ScaffoldMessenger.of(sheetContext).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'That looks like an email address. Try ${domain.split('@').first}.com instead.',
-                      ),
+                    const SnackBar(
+                      content:
+                          Text('Enter a domain name, not an email address.'),
                     ),
                   );
                   return;
@@ -770,8 +944,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         ),
       ),
     );
-    if (approved != true || !mounted) return;
-    await _publish(domainController.text.trim());
+    if (approved == true && mounted) {
+      await _publish(domainController.text.trim());
+    }
     domainController.dispose();
   }
 
@@ -781,8 +956,12 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (!mounted) return;
       await _refresh();
       if (!mounted) return;
-      final project = _snapshot?.project;
-      if (project?.isLive == true) {
+      final snapshot = _snapshot;
+      final candidate = snapshot?.candidate;
+      final project = snapshot?.project;
+      if (candidate != null &&
+          snapshot?.production?.versionId == candidate.versionId &&
+          snapshot?.project.isLive == true) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Live.')));
         return;
@@ -816,15 +995,14 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (!mounted) return;
       await _refresh();
       if (!mounted) return;
-      if (_snapshot?.project.isLive == true) {
+      if (_currentCandidateIsLive) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Live.')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Publishing. Pandora is verifying this exact version.',
-            ),
+            content:
+                Text('Publishing. Pandora is verifying this exact version.'),
           ),
         );
         unawaited(_watchPublishCompletion());
@@ -844,112 +1022,103 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   @override
   Widget build(BuildContext context) {
-    final objective =
-        (_snapshot?.project.objective ?? widget.project.objective).trim();
+    final name = _snapshot?.project.name ?? widget.project.name;
+    final files = _previewFiles;
+    final versionId = _previewVersionId;
+    final hasExactPreview = files != null &&
+        files.isNotEmpty &&
+        versionId != null &&
+        versionId.isNotEmpty;
+
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: PandoraV2ObjectHeader(
-                title: _snapshot?.project.name ?? widget.project.name,
-                subtitle: _subtitle,
-              ),
+            _LiveProjectHeader(
+              title: name,
+              status: _statusLabel,
+              statusColor: _statusColor,
+              canUndo: _canUndo,
+              undoing: _undoing,
+              onBack: () => Navigator.of(context).maybePop(),
+              onUndo: _undoChange,
+              onMore: _showProjectActions,
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-                child: Material(
-                  color: PandoraV2Colors.surface,
-                  borderRadius: BorderRadius.circular(22),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: _loading || _openingPreview ? null : _openPreview,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: PandoraV2Colors.line),
-                        borderRadius: BorderRadius.circular(22),
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: PandoraV2Colors.surface,
+                            border: Border.all(color: PandoraV2Colors.line),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: _loading
+                              ? const Center(
+                                  child: CircularProgressIndicator(
+                                    color: PandoraV2Colors.ink,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : hasExactPreview
+                                  ? PandoraEmbeddedPreview(
+                                      key: ValueKey<String>(versionId),
+                                      files: files,
+                                      versionId: versionId,
+                                      fallback: _ExactPreviewFallback(
+                                        projectName: name,
+                                        onOpen: _openExactPreview,
+                                      ),
+                                    )
+                                  : _ExactPreviewFallback(
+                                      projectName: name,
+                                      onOpen: _openExactPreview,
+                                    ),
+                        ),
                       ),
-                      child: _loading
-                          ? const Center(
-                              child: CircularProgressIndicator(
-                                color: PandoraV2Colors.ink,
-                              ),
-                            )
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Text(
-                                      'CURRENT OBJECT',
-                                      style: TextStyle(
-                                        color: PandoraV2Colors.muted,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 1.5,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    if (_candidate != null)
-                                      const Icon(
-                                        Icons.open_in_full_rounded,
-                                        size: 20,
-                                        color: PandoraV2Colors.ink,
-                                      ),
-                                  ],
-                                ),
-                                const Spacer(),
-                                Text(
-                                  _snapshot?.project.name ??
-                                      widget.project.name,
-                                  style: const TextStyle(
-                                    color: PandoraV2Colors.ink,
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -1.1,
-                                    height: 1.04,
-                                  ),
-                                ),
-                                if (objective.isNotEmpty) ...[
-                                  const SizedBox(height: 14),
-                                  Text(
-                                    objective,
-                                    maxLines: 5,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: PandoraV2Colors.muted,
-                                      fontSize: 16,
-                                      height: 1.42,
-                                    ),
-                                  ),
-                                ],
-                                const Spacer(),
-                                Text(
-                                  _candidate == null
-                                      ? 'Tap to build the first version'
-                                      : 'Tap anywhere to experience the exact project',
-                                  style: const TextStyle(
-                                    color: PandoraV2Colors.ink,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
                     ),
-                  ),
+                    if (hasExactPreview)
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: _PreviewIconButton(
+                          tooltip: 'Open full screen',
+                          icon: Icons.open_in_full_rounded,
+                          onPressed: _openingPreview ? null : _openExactPreview,
+                        ),
+                      ),
+                    if (_phase != _ProjectChangePhase.idle)
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        bottom: 12,
+                        child: _ProjectProgressCapsule(phase: _phase),
+                      )
+                    else if (_recentlyUpdated && _currentVersionVerified)
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        bottom: 12,
+                        child: _VerifiedChangeCapsule(
+                          canUndo: _canUndo,
+                          undoing: _undoing,
+                          onUndo: _undoChange,
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
             if (_intelligenceReply != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
                 child: PandoraV2InlineMessage(
                   title: 'Pandora',
                   message: _intelligenceReply!,
@@ -959,7 +1128,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
               ),
             if (_error != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
                 child: PandoraV2InlineMessage(
                   title: 'Project unchanged',
                   message: _error!,
@@ -970,90 +1139,25 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
               ),
             Padding(
               padding: EdgeInsets.fromLTRB(
-                20,
-                6,
-                20,
-                14 + MediaQuery.paddingOf(context).bottom,
+                12,
+                4,
+                12,
+                10 + MediaQuery.paddingOf(context).bottom,
               ),
-              child: Column(
-                children: [
-                  if (_canUndo) ...[
-                    Row(
-                      children: [
-                        const Text(
-                          'Changed',
-                          style: TextStyle(
-                            color: PandoraV2Colors.ink,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton.icon(
-                          onPressed: _undoing ? null : _undoChange,
-                          style: TextButton.styleFrom(
-                            foregroundColor: PandoraV2Colors.ink,
-                          ),
-                          icon: const Icon(Icons.undo_rounded, size: 18),
-                          label: Text(_undoing ? 'Undoing…' : 'Undo'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-                  if (_snapshot?.verification?.publishEligible == true &&
-                      _candidate != null &&
-                      _snapshot?.production?.versionId !=
-                          _candidate?.versionId) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _subtitle,
-                            style: const TextStyle(
-                              color: PandoraV2Colors.ink,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: _publishing ? null : _showPublish,
-                          style: TextButton.styleFrom(
-                            foregroundColor: PandoraV2Colors.ink,
-                          ),
-                          child: Text(_publishing ? 'Publishing…' : 'Publish'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-                  PandoraV2IntentSurface(
-                    controller: _change,
-                    hintText: 'Tell Pandora what should change…',
-                    enabled: !_changing,
-                    onSubmit: _requestChange,
-                    onVoice: () async {
-                      final value = await PandoraNativeIo.dictate();
-                      if (value != null && mounted) {
-                        _change.text = value;
-                        _change.selection = TextSelection.collapsed(
-                          offset: value.length,
-                        );
-                      }
-                    },
-                  ),
-                  if (_changing) ...[
-                    const SizedBox(height: 8),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Preparing your change…',
-                        style: pandoraV2Muted,
-                      ),
-                    ),
-                  ],
-                ],
+              child: PandoraV2IntentSurface(
+                controller: _change,
+                hintText: 'Describe your change or goal…',
+                enabled: !_changing,
+                onSubmit: _requestChange,
+                onVoice: () async {
+                  final value = await PandoraNativeIo.dictate();
+                  if (value != null && mounted) {
+                    _change.text = value;
+                    _change.selection = TextSelection.collapsed(
+                      offset: value.length,
+                    );
+                  }
+                },
               ),
             ),
           ],
@@ -1061,4 +1165,318 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       ),
     );
   }
+}
+
+class _LiveProjectHeader extends StatelessWidget {
+  const _LiveProjectHeader({
+    required this.title,
+    required this.status,
+    required this.statusColor,
+    required this.canUndo,
+    required this.undoing,
+    required this.onBack,
+    required this.onUndo,
+    required this.onMore,
+  });
+
+  final String title;
+  final String status;
+  final Color statusColor;
+  final bool canUndo;
+  final bool undoing;
+  final VoidCallback onBack;
+  final VoidCallback onUndo;
+  final VoidCallback onMore;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 58,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'Back',
+                onPressed: onBack,
+                icon: const Icon(Icons.arrow_back_rounded),
+                color: PandoraV2Colors.ink,
+              ),
+              const SizedBox(width: 2),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PandoraV2Colors.ink,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -.25,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        status,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PandoraV2Colors.muted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (canUndo)
+                TextButton(
+                  onPressed: undoing ? null : onUndo,
+                  style: TextButton.styleFrom(
+                    foregroundColor: PandoraV2Colors.ink,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  child: Text(undoing ? 'Undoing…' : 'Undo'),
+                ),
+              IconButton(
+                tooltip: 'More',
+                onPressed: onMore,
+                icon: const Icon(Icons.more_horiz_rounded),
+                color: PandoraV2Colors.ink,
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _ExactPreviewFallback extends StatelessWidget {
+  const _ExactPreviewFallback({
+    required this.projectName,
+    required this.onOpen,
+  });
+
+  final String projectName;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: PandoraV2Colors.surface,
+        child: InkWell(
+          onTap: onOpen,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: const BoxDecoration(
+                      color: PandoraV2Colors.soft,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.language_rounded,
+                      color: PandoraV2Colors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    projectName,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -.4,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Open the exact project preview',
+                    textAlign: TextAlign.center,
+                    style: pandoraV2Muted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+class _PreviewIconButton extends StatelessWidget {
+  const _PreviewIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: PandoraV2Colors.surface.withValues(alpha: .94),
+        elevation: 2,
+        shadowColor: Colors.black12,
+        shape: const CircleBorder(),
+        child: IconButton(
+          tooltip: tooltip,
+          onPressed: onPressed,
+          icon: Icon(icon, size: 19),
+          color: PandoraV2Colors.ink,
+        ),
+      );
+}
+
+class _ProjectProgressCapsule extends StatelessWidget {
+  const _ProjectProgressCapsule({required this.phase});
+
+  final _ProjectChangePhase phase;
+
+  int get _activeIndex => switch (phase) {
+        _ProjectChangePhase.designing => 0,
+        _ProjectChangePhase.building => 1,
+        _ProjectChangePhase.checking => 2,
+        _ProjectChangePhase.idle => 2,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = ['Designing', 'Building', 'Checking'];
+    final active = _activeIndex;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: PandoraV2Colors.surface.withValues(alpha: .96),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: PandoraV2Colors.line),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          for (var index = 0; index < labels.length; index++) ...[
+            if (index > 0)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 7),
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 14,
+                  color: PandoraV2Colors.muted,
+                ),
+              ),
+            if (index == active)
+              Container(
+                width: 7,
+                height: 7,
+                margin: const EdgeInsets.only(right: 6),
+                decoration: const BoxDecoration(
+                  color: PandoraV2Colors.ink,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            Text(
+              labels[index],
+              style: TextStyle(
+                color: index <= active
+                    ? PandoraV2Colors.ink
+                    : PandoraV2Colors.muted,
+                fontSize: 12,
+                fontWeight: index == active ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VerifiedChangeCapsule extends StatelessWidget {
+  const _VerifiedChangeCapsule({
+    required this.canUndo,
+    required this.undoing,
+    required this.onUndo,
+  });
+
+  final bool canUndo;
+  final bool undoing;
+  final VoidCallback onUndo;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        decoration: BoxDecoration(
+          color: PandoraV2Colors.surface.withValues(alpha: .96),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: PandoraV2Colors.line),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 18,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE9F5EF),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                size: 16,
+                color: PandoraV2Colors.success,
+              ),
+            ),
+            const SizedBox(width: 9),
+            const Expanded(
+              child: Text(
+                'Verified change',
+                style: TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (canUndo)
+              TextButton(
+                onPressed: undoing ? null : onUndo,
+                style: TextButton.styleFrom(
+                  foregroundColor: PandoraV2Colors.ink,
+                ),
+                child: Text(undoing ? 'Undoing…' : 'Undo'),
+              ),
+          ],
+        ),
+      );
 }
