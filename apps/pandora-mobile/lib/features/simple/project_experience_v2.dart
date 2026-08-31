@@ -281,6 +281,66 @@ class _ProjectBuildExperienceV2ScreenState
     return 'Pandora is working while your project stays safe.';
   }
 
+  Widget _buildStageSurface() => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _stageTitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: PandoraV2Colors.ink,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.7,
+                    height: 1.08,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _stageMessage,
+                  textAlign: TextAlign.center,
+                  style: pandoraV2Muted,
+                ),
+                if (!_ready) ...[
+                  const SizedBox(height: 24),
+                  const SizedBox(
+                    width: 144,
+                    child: LinearProgressIndicator(
+                      minHeight: 2,
+                      color: PandoraV2Colors.ink,
+                      backgroundColor: PandoraV2Colors.soft,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _buildReadySurface() {
+    final candidate = _candidate;
+    final files = candidate != null && _localPreviewVersionId == candidate.versionId
+        ? _localPreviewFiles
+        : null;
+    if (candidate == null || files == null || files.isEmpty) {
+      return _buildStageSurface();
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(21),
+      child: PandoraEmbeddedPreview(
+        files: files,
+        versionId: candidate.versionId,
+        fallback: _buildStageSurface(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: PandoraV2Colors.canvas,
@@ -307,43 +367,9 @@ class _ProjectBuildExperienceV2ScreenState
                     child: Stack(
                       children: [
                         Positioned.fill(
-                          child: Padding(
-                            padding: const EdgeInsets.all(26),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.project.name.toUpperCase(),
-                                  style: const TextStyle(
-                                    color: PandoraV2Colors.muted,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 1.8,
-                                  ),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  _stageTitle,
-                                  style: const TextStyle(
-                                    color: PandoraV2Colors.ink,
-                                    fontSize: 31,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: -1.0,
-                                    height: 1.05,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(_stageMessage, style: pandoraV2Muted),
-                                const Spacer(),
-                                if (!_ready)
-                                  const LinearProgressIndicator(
-                                    minHeight: 2,
-                                    color: PandoraV2Colors.ink,
-                                    backgroundColor: PandoraV2Colors.soft,
-                                  ),
-                              ],
-                            ),
-                          ),
+                          child: _ready
+                              ? _buildReadySurface()
+                              : _buildStageSurface(),
                         ),
                         if (_ready)
                           Positioned(
