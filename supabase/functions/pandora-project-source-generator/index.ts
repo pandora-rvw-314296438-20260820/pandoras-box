@@ -77,14 +77,6 @@ function sourcePrompt(spec: JsonRecord, project: JsonRecord, adapter: string, pr
   };
 }
 
-function providerText(envelope: JsonRecord) {
-  const status = Number(envelope.status || 0); if (status < 200 || status >= 300) throw new Error(status === 429 || status >= 500 ? "PROVIDER_UNAVAILABLE" : "PROVIDER_REJECTED");
-  const candidates = Array.isArray(rec(envelope.body).candidates) ? rec(envelope.body).candidates as unknown[] : [];
-  const parts = Array.isArray(rec(rec(candidates[0]).content).parts) ? rec(rec(candidates[0]).content).parts as unknown[] : [];
-  const out = parts.map((part) => text(rec(part).text)).filter(Boolean).join(""); if (!out) throw new Error("INVALID_GENERATED_SOURCE"); return out;
-}
-
-
 type StreamAssembler = {
   streamId: string;
   organizationId: string;
@@ -479,14 +471,18 @@ async function runGenerationInBackground(input: {
     }
   } catch (error) {
     const code = error instanceof Error ? error.message : "BUILD_REQUEST_FAILED";
-    await admin.from("pandora_build_stream_sessions").update({ status: "failed", public_error_code: code, updated_at: new Date().toISOString() }).eq("id", input.streamId).catch(() => {});
-    await admin.from("pandora_build_stream_events").insert({
-      stream_id: input.streamId,
-      organization_id: organizationId,
-      project_id: projectId,
-      event_type: "stream_error",
-      safe_payload: { code },
-    }).catch(() => {});
+    try {
+      await admin.from("pandora_build_stream_sessions").update({ status: "failed", public_error_code: code, updated_at: new Date().toISOString() }).eq("id", input.streamId);
+    } catch { /* best-effort terminal state */ }
+    try {
+      await admin.from("pandora_build_stream_events").insert({
+        stream_id: input.streamId,
+        organization_id: organizationId,
+        project_id: projectId,
+        event_type: "stream_error",
+        safe_payload: { code },
+      });
+    } catch { /* best-effort event */ }
   }
 }
 
@@ -516,8 +512,42 @@ Deno.serve(async (req) => {
       }, session.status === "failed" ? 409 : session.status === "completed" ? 200 : 202);
     }
 
-    const { data: spec, error: specError } = await admin.from("pandora_project_specs").select("id,organization_id,project_id,source_intent_id,project_type,business_summary,product_scope,data_scope,integration_scope,experience_scope,deployment_scope,acceptance_scope,content_sha256").eq("organization_id", project.organization_id).eq("project_id", projectId).eq("status", "active").order("version", { ascending: false }).limit(1).maybeSingle();
-    if (specError || !spec) throw new Error("PROJECT_SPEC_NOT_READY");
+    let { data: spec, error: specError } = await admin.from("pandora_project_specs").select("id,organization_id,project_id,source_intent_id,project_type,business_summary,product_scope,data_scope,integration_scope,experience_scope,deployment_scope,acceptance_scope,content_sha256").eq("organization_id", project.organization_id).eq("project_id", projectId).eq("status", "active").order("version", { ascending: false }).limit(1).maybeSingle();
+    if (specError) throw new Error("PROJECT_SPEC_NOT_READY");
+    if (!spec) {
+      const { data: latestIntent, error: latestIntentError } = await admin.from("pandora_project_intents").select("id").eq("organization_id", project.organization_id).eq("project_id", projectId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (latestIntentError || !latestIntent) throw new Error("PROJECT_SPEC_NOT_READY");
+      let compilerResponse: Response;
+      try {
+        compilerResponse = await fetch(`${SUPABASE_URL}/functions/v1/pandora-project-spec-compiler`, {
+          method: "POST",
+          headers: { authorization, apikey: SUPABASE_ANON_KEY, "content-type": "application/json" },
+          body: JSON.stringify({ intentId: latestIntent.id }),
+          signal: AbortSignal.timeout(20000),
+        });
+      } catch {
+        throw new Error("PROVIDER_UNAVAILABLE");
+      }
+      if (compilerResponse.status >= 500) throw new Error("PROVIDER_UNAVAILABLE");
+      if (compilerResponse.status === 202 || compilerResponse.status === 422) {
+        return response({ ok: true, state: "working", stage: "understanding", streamId: null }, 202);
+      }
+      if (compilerResponse.status === 409) {
+        const { data: compilation } = await admin.from("pandora_project_spec_compilations").select("status,attempt_count,retry_after_at").eq("source_intent_id", latestIntent.id).maybeSingle();
+        if (!compilation || Number(compilation.attempt_count || 0) < 20) {
+          return response({ ok: true, state: "working", stage: "understanding", streamId: null }, 202);
+        }
+        throw new Error("PROJECT_SPEC_NOT_READY");
+      }
+      if (compilerResponse.status !== 200) throw new Error("PROJECT_SPEC_NOT_READY");
+      const retry = await admin.from("pandora_project_specs").select("id,organization_id,project_id,source_intent_id,project_type,business_summary,product_scope,data_scope,integration_scope,experience_scope,deployment_scope,acceptance_scope,content_sha256").eq("organization_id", project.organization_id).eq("project_id", projectId).eq("status", "active").order("version", { ascending: false }).limit(1).maybeSingle();
+      if (retry.error || !retry.data) return response({ ok: true, state: "working", stage: "understanding", streamId: null }, 202);
+      spec = retry.data;
+    }
+
+    const runtime = (globalThis as unknown as { EdgeRuntime?: { waitUntil(promise: Promise<unknown>): void } }).EdgeRuntime;
+    if (!runtime?.waitUntil) throw new Error("BACKGROUND_STREAMING_UNAVAILABLE");
+    await admin.from("pandora_build_stream_events").delete().lt("expires_at", new Date().toISOString());
 
     const created = await admin.from("pandora_build_stream_sessions").insert({
       organization_id: project.organization_id,
@@ -528,8 +558,6 @@ Deno.serve(async (req) => {
     }).select("id").single();
     if (created.error || !created.data) throw new Error("BUILD_REQUEST_FAILED");
     const streamId = text(created.data.id);
-    const runtime = (globalThis as unknown as { EdgeRuntime?: { waitUntil(promise: Promise<unknown>): void } }).EdgeRuntime;
-    if (!runtime?.waitUntil) throw new Error("BACKGROUND_STREAMING_UNAVAILABLE");
     runtime.waitUntil(runGenerationInBackground({
       authorization,
       project: rec(project),
