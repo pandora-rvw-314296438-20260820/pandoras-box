@@ -47,7 +47,9 @@ class _DeveloperDiagnosticsScreenState extends State<DeveloperDiagnosticsScreen>
     final dependencies = PandoraDependencies.of(context);
     if (dependencies.auth.currentSession == null) return false;
     try {
-      await dependencies.repository.home().timeout(_authorizationRequestTimeout);
+      await dependencies.repository.home().timeout(
+        _authorizationRequestTimeout,
+      );
       return true;
     } catch (_) {
       return false;
@@ -160,8 +162,7 @@ class _DeveloperDiagnosticsScreenState extends State<DeveloperDiagnosticsScreen>
     final events = diagnostics.events;
     return PandoraPage(
       title: 'Developer diagnostics',
-      subtitle:
-          'Temporary support metadata. Credentials, request bodies, and raw responses are never stored here.',
+      subtitle: 'Temporary support metadata. Credentials, request bodies, and raw responses are never stored here.',
       actions: [
         IconButton(
           tooltip: 'Reverify and refresh diagnostics',
