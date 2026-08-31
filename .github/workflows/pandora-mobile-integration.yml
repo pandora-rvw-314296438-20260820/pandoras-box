@@ -142,7 +142,15 @@ jobs:
 
       - name: Format
         working-directory: .pandora-mobile-build
-        run: dart format --output=none --set-exit-if-changed lib test
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! dart format --output=none --set-exit-if-changed lib test; then
+            echo '--- BEGIN DART FORMAT OUTPUT ---'
+            dart format --output=show lib/core/platform/pandora_web_preview_web.dart
+            echo '--- END DART FORMAT OUTPUT ---'
+            exit 1
+          fi
 
       - name: Analyze
         working-directory: .pandora-mobile-build
