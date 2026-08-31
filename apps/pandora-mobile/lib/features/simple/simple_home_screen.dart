@@ -116,9 +116,22 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
     if (status.contains('ready') ||
         status.contains('review') ||
         status.contains('approval')) {
-      return 'Ready for review';
+      return 'Ready';
+    }
+    if (status.contains('build') ||
+        status.contains('progress') ||
+        status.contains('working') ||
+        status.contains('active')) {
+      return 'Building';
     }
     return 'Working';
+  }
+
+  String? _displayPurpose(ProjectSummary project) {
+    final value = project.purpose.trim();
+    if (value.isEmpty) return null;
+    final cleaned = value.replaceFirst(RegExp(r'^\s*[>\-–—]\s*'), '').trim();
+    return cleaned.isEmpty ? null : cleaned;
   }
 
   @override
@@ -136,7 +149,7 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
                 MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
               ),
             ),
-            const SizedBox(height: 38),
+            const SizedBox(height: 30),
             const Text(
               'Good afternoon, Mark',
               style: TextStyle(color: PandoraV2Colors.muted, fontSize: 16),
@@ -175,7 +188,7 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
             Row(
               children: [
                 const Text(
-                  'Your work',
+                  'Your projects',
                   style: TextStyle(
                     color: PandoraV2Colors.ink,
                     fontSize: 20,
@@ -190,7 +203,7 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
                     style: TextButton.styleFrom(
                       foregroundColor: PandoraV2Colors.ink,
                     ),
-                    child: const Text('All work'),
+                    child: const Text('All projects'),
                   ),
               ],
             ),
@@ -213,23 +226,17 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
                     'Describe what you want above and Pandora will create the first working version.',
               )
             else
-              for (final project in summary.topProjects)
-                PandoraV2ObjectWindow(
+              for (final project in summary.topProjects) ...[
+                PandoraV2ProjectCard(
                   title: project.name,
-                  subtitle: _state(project),
-                  detail:
-                      project.purpose.trim().isEmpty ? null : project.purpose,
+                  status: _state(project),
+                  detail: _displayPurpose(project),
+                  signature: project.id.hashCode,
+                  loading: _openingId == project.id,
                   onTap: _openingId == project.id ? null : () => _open(project),
-                  trailing: _openingId == project.id
-                      ? const SizedBox.square(
-                          dimension: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: PandoraV2Colors.ink,
-                          ),
-                        )
-                      : null,
                 ),
+                const SizedBox(height: 12),
+              ],
             if (_error != null && summary != null) ...[
               const SizedBox(height: 16),
               PandoraV2InlineMessage(
@@ -242,7 +249,7 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
             if (summary != null &&
                 summary.countersVerified &&
                 summary.approvalCount > 0) ...[
-              const SizedBox(height: 38),
+              const SizedBox(height: 30),
               const Text(
                 'Needs you',
                 style: TextStyle(
