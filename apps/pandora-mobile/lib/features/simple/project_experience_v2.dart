@@ -1186,6 +1186,16 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                                       key: ValueKey<String>(versionId),
                                       files: files,
                                       versionId: versionId,
+                                      selectionEnabled: _selectionMode,
+                                      selectedSelector:
+                                          _selectedPreviewTarget?.selector,
+                                      onSelection: (selection) {
+                                        if (!mounted) return;
+                                        setState(() {
+                                          _selectionMode = false;
+                                          _selectedPreviewTarget = selection;
+                                        });
+                                      },
                                       fallback: _ExactPreviewFallback(
                                         projectName: name,
                                         onOpen: _openExactPreview,
