@@ -461,6 +461,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _publishing = false;
   bool _undoing = false;
   bool _recentlyUpdated = false;
+  bool _selectionMode = false;
+  PandoraPreviewSelection? _selectedPreviewTarget;
   _ProjectChangePhase _phase = _ProjectChangePhase.idle;
   Timer? _previewRetryTimer;
   String? _previewRetryVersionId;
@@ -756,6 +758,11 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         }
       }
 
+      final selectedTarget = _selectedPreviewTarget;
+      if (selectedTarget != null) {
+        actionRequest = '${selectedTarget.intentContext}\nOwner change: $actionRequest';
+      }
+
       if (actionRequest.length < 4) {
         throw const ProjectExperienceException(
           'Pandora needs a clearer change before it can continue.',
@@ -861,6 +868,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
             _changing = false;
             _phase = _ProjectChangePhase.idle;
             _recentlyUpdated = true;
+            _selectionMode = false;
+            _selectedPreviewTarget = null;
             _error = null;
           });
           return;
