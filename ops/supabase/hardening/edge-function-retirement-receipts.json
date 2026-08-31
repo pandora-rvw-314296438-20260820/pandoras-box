@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-09-01T02:04:00+08:00",
+  "observedAt": "2026-09-01T02:12:00+08:00",
   "retirements": [
     {
       "plane": "primary",
@@ -111,6 +111,50 @@
       "deletedAt": "2026-09-01T02:04:00+08:00",
       "reason": "Frozen 2026-08-12 FlutterFlow single-project diagnostic/leaf validator; zero DB/cron refs, zero canonical-repo refs, zero 24h Edge traffic; controlled brokers preserved.",
       "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "fxpass-source-export-v02-temp",
+      "priorVersion": 4,
+      "priorVerifyJwt": true,
+      "priorSourceSha256": "3881373ebfa363ea4fec19c8b0116d700681a39bb55e54c33b157466dfca2cba",
+      "deletedAt": "2026-09-01T02:12:00+08:00",
+      "reason": "Already-retired HTTP 410 FXPass source/recovery export; zero DB/cron refs, zero canonical-repo refs and zero 24h Edge traffic.",
+      "rollback": "Redeploy exact captured provider source/version only if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "fxpass-source-export-v03-temp",
+      "priorVersion": 4,
+      "priorVerifyJwt": true,
+      "priorSourceSha256": "13b8cf22d62e152f98b40216b8d626f19b0e28353df4ec3d1a6a819ba1e47125",
+      "deletedAt": "2026-09-01T02:12:00+08:00",
+      "reason": "Already-retired HTTP 410 FXPass source/recovery export; zero DB/cron refs, zero canonical-repo refs and zero 24h Edge traffic.",
+      "rollback": "Redeploy exact captured provider source/version only if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "fxpass-source-export-v04-temp",
+      "priorVersion": 24,
+      "priorVerifyJwt": true,
+      "priorSourceSha256": "bdc2f74148d4fe41f2f436d6875aafcda62d7dd835881703d34dddcdc32b7201",
+      "deletedAt": "2026-09-01T02:12:00+08:00",
+      "reason": "Already-retired HTTP 410 FXPass source/recovery export; zero DB/cron refs, zero canonical-repo refs and zero 24h Edge traffic.",
+      "rollback": "Redeploy exact captured provider source/version only if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "fxpass-source-export-a4d3b5f1",
+      "priorVersion": 6,
+      "priorVerifyJwt": true,
+      "priorSourceSha256": "8cf973aea021e60f3fc44ad56708d2ef919c0c4d3d52ec8ac77ded078d302ed8",
+      "deletedAt": "2026-09-01T02:12:00+08:00",
+      "reason": "Already-retired HTTP 410 FXPass source/recovery export; zero DB/cron refs, zero canonical-repo refs and zero 24h Edge traffic.",
+      "rollback": "Redeploy exact captured provider source/version only if an unexpected caller is discovered."
     }
   ]
 }
