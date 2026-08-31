@@ -36,15 +36,21 @@ test('Worker D lineage is persisted against the exact resulting project version 
   assert.match(source, /manifest_digest:\s*selectionDigest/);
   assert.match(source, /materialization_plan_digest:\s*materialization\.planDigest/);
   assert.match(source, /source_digest:\s*sourceDigest/);
+  assert.match(source, /primitive_verification_run_id:\s*verificationRunId/);
+  assert.match(source, /primitive_verification_run_id\"\]/);
   const intake = source.indexOf('const result = rec(intake.data);');
   const persist = source.indexOf('await persistTrustedPrimitiveComposition(', intake);
   const succeeded = source.indexOf('status: "succeeded"', persist);
   assert.ok(intake >= 0 && persist > intake && succeeded > persist, 'composition must persist after exact build intake and before source queue success');
 });
 
-test('legacy build replay cannot bypass missing primitive composition', () => {
-  assert.match(source, /requiredPrimitiveCount = primitiveMaterialization\.selections\.length/);
-  assert.match(source, /hasPrimitiveComposition = requiredPrimitiveCount === 0/);
-  assert.match(source, /pandora_project_version_compositions/);
+test('legacy build replay requires exact primitive and Worker E verification lineage', () => {
+  assert.match(source, /requiredSelections = primitiveMaterialization\.selections/);
+  assert.ok(source.includes('.select("manifest_digest,materialization_plan_digest,primitive_count")'));
+  assert.ok(source.includes('.select("primitive_name,primitive_version,trust_state,source_digest,primitive_verification_run_id")'));
+  assert.match(source, /primitiveResolution\.selectionDigest/);
+  assert.match(source, /primitiveMaterialization\.planDigest/);
+  assert.match(source, /workerEEvidenceRef/);
+  assert.match(source, /actual\?\.primitive_verification_run_id/);
   assert.match(source, /if \(hasPrimitiveComposition\)/);
 });

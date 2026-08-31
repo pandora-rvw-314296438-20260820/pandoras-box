@@ -234,6 +234,8 @@ async function persistTrustedPrimitiveComposition(
     const name = text(selection.name);
     const version = text(selection.version);
     const sourceDigest = text(selection.sourceDigest).toLowerCase();
+    const verificationRunId = text(selection.workerEEvidenceRef);
+    if (!UUID.test(verificationRunId)) throw new Error("PRIMITIVE_COMPOSITION_IDENTITY_INVALID");
     const definitionIdentity = {
       name,
       version,
@@ -253,16 +255,17 @@ async function persistTrustedPrimitiveComposition(
       source_digest: sourceDigest,
       configuration_digest: emptyDigest,
       customization_digest: emptyDigest,
+      primitive_verification_run_id: verificationRunId,
       verification_evidence_id: null,
     };
     const existing = await admin.from("pandora_project_version_primitives")
-      .select("id,primitive_version,trust_state,definition_digest,source_digest,configuration_digest,customization_digest")
+      .select("id,primitive_version,trust_state,definition_digest,source_digest,configuration_digest,customization_digest,primitive_verification_run_id")
       .eq("project_version_id", projectVersionId)
       .eq("primitive_name", name)
       .maybeSingle();
     if (existing.error) throw new Error("PRIMITIVE_COMPOSITION_WRITE_FAILED");
     if (existing.data) {
-      for (const key of ["primitive_version", "trust_state", "definition_digest", "source_digest", "configuration_digest", "customization_digest"] as const) {
+      for (const key of ["primitive_version", "trust_state", "definition_digest", "source_digest", "configuration_digest", "customization_digest", "primitive_verification_run_id"] as const) {
         if (String(existing.data[key] ?? "") !== String((record as JsonRecord)[key] ?? "")) {
           throw new Error("PRIMITIVE_COMPOSITION_CONFLICT");
         }
@@ -771,15 +774,42 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (existing.error) throw new Error("BUILD_READ_FAILED");
       if (existing.data) {
-        const requiredPrimitiveCount = primitiveMaterialization.selections.length;
-        let hasPrimitiveComposition = requiredPrimitiveCount === 0;
-        if (requiredPrimitiveCount > 0 && UUID.test(text(existing.data.target_project_version_id))) {
+        const requiredSelections = primitiveMaterialization.selections;
+        let hasPrimitiveComposition = requiredSelections.length === 0;
+        const projectVersionId = text(existing.data.target_project_version_id);
+        if (requiredSelections.length > 0 && UUID.test(projectVersionId)) {
           const composition = await admin.from("pandora_project_version_compositions")
-            .select("primitive_count")
-            .eq("project_version_id", existing.data.target_project_version_id)
+            .select("manifest_digest,materialization_plan_digest,primitive_count")
+            .eq("project_version_id", projectVersionId)
             .maybeSingle();
           if (composition.error) throw new Error("PRIMITIVE_COMPOSITION_READ_FAILED");
-          hasPrimitiveComposition = Number(composition.data?.primitive_count ?? -1) === requiredPrimitiveCount;
+          const exactComposition =
+            Number(composition.data?.primitive_count ?? -1) === requiredSelections.length &&
+            text(composition.data?.manifest_digest).toLowerCase() === text(primitiveResolution.selectionDigest).toLowerCase() &&
+            text(composition.data?.materialization_plan_digest).toLowerCase() === primitiveMaterialization.planDigest;
+          if (exactComposition) {
+            const persisted = await admin.from("pandora_project_version_primitives")
+              .select("primitive_name,primitive_version,trust_state,source_digest,primitive_verification_run_id")
+              .eq("project_version_id", projectVersionId);
+            if (persisted.error) throw new Error("PRIMITIVE_COMPOSITION_READ_FAILED");
+            const primitiveRows = Array.isArray(persisted.data) ? persisted.data.map(rec) : [];
+            const byName = new Map<string, JsonRecord>(
+              primitiveRows.map((value) => [text(value.primitive_name), value]),
+            );
+            hasPrimitiveComposition =
+              primitiveRows.length === requiredSelections.length &&
+              requiredSelections.every((selection) => {
+                const name = text(selection.name);
+                const actual = byName.get(name);
+                const verificationRunId = text(selection.workerEEvidenceRef);
+                return Boolean(actual) &&
+                  UUID.test(verificationRunId) &&
+                  text(actual?.primitive_version) === text(selection.version) &&
+                  text(actual?.trust_state) === "TRUSTED" &&
+                  text(actual?.source_digest).toLowerCase() === text(selection.sourceDigest).toLowerCase() &&
+                  text(actual?.primitive_verification_run_id) === verificationRunId;
+              });
+          }
         }
         if (hasPrimitiveComposition) {
           await admin.from("pandora_source_generation_queue").update({
