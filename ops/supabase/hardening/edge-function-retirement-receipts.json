@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-09-01T01:56:00+08:00",
+  "observedAt": "2026-09-01T02:04:00+08:00",
   "retirements": [
     {
       "plane": "primary",
@@ -56,6 +56,61 @@
       "deletedAt": "2026-09-01T01:56:00+08:00",
       "reason": "Ephemeral Chat C retirement/registry refresh helper; self-retired after durable evidence write.",
       "rollback": "Redeploy exact captured provider source/version only if evidence repair is required."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "flutterflow-api-action-diagnostic",
+      "priorVersion": 3,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "03025d8a68306eaebc2af31c61e9bdae93a61abaed22b763d11163065ceeb4fe",
+      "deletedAt": "2026-09-01T02:04:00+08:00",
+      "reason": "Frozen 2026-08-12 FlutterFlow single-project diagnostic/leaf validator; zero DB/cron refs, zero canonical-repo refs, zero 24h Edge traffic; controlled brokers preserved.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "flutterflow-api-definition-diagnostic",
+      "priorVersion": 3,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "624fd49fdcd953d2814b9bd7c177194b3d3e04fd8b10d0f9e3350641b7257ab0",
+      "deletedAt": "2026-09-01T02:04:00+08:00",
+      "reason": "Frozen 2026-08-12 FlutterFlow single-project diagnostic/leaf validator; zero DB/cron refs, zero canonical-repo refs, zero 24h Edge traffic; controlled brokers preserved.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "flutterflow-context-variable-diagnostic",
+      "priorVersion": 3,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "5d79459c4dee5b9ca8a9023a1b33e571d4615ee405675d141c591fb4f7e9a0c4",
+      "deletedAt": "2026-09-01T02:04:00+08:00",
+      "reason": "Frozen 2026-08-12 FlutterFlow single-project diagnostic/leaf validator; zero DB/cron refs, zero canonical-repo refs, zero 24h Edge traffic; controlled brokers preserved.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "flutterflow-api-action-leaf-validator",
+      "priorVersion": 3,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "f1a9af20f31bfdbce6a48c073bf5c4f261daa19fe914939ce24799c921fad3b9",
+      "deletedAt": "2026-09-01T02:04:00+08:00",
+      "reason": "Frozen 2026-08-12 FlutterFlow single-project diagnostic/leaf validator; zero DB/cron refs, zero canonical-repo refs, zero 24h Edge traffic; controlled brokers preserved.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "flutterflow-api-action-leaf-validator-remaining",
+      "priorVersion": 3,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "26ff1c36a683f97dbedd49e252ee0082c5523fb27640b7e3cb2dc1ecd3b91241",
+      "deletedAt": "2026-09-01T02:04:00+08:00",
+      "reason": "Frozen 2026-08-12 FlutterFlow single-project diagnostic/leaf validator; zero DB/cron refs, zero canonical-repo refs, zero 24h Edge traffic; controlled brokers preserved.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
     }
   ]
 }
