@@ -55,6 +55,9 @@ void main() {
     expect(source, contains('_flowTimeout'));
     expect(source, contains('_previewRetryLimit'));
     expect(source, contains('_ExactPreviewLoadingSurface'));
+    expect(source, contains('selectionEnabled: _selectionMode'));
+    expect(source, contains('_SelectionContextCapsule'));
+    expect(source, contains('Tell Pandora what to change…'));
     expect(source, contains('Your request is saved'));
     expect(source, isNot(contains('CURRENT OBJECT')));
     expect(source, isNot(contains('Your first version is ready')));
