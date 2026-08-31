@@ -1178,12 +1178,14 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
               maxLength: 80,
               textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(labelText: 'Project name'),
-              onSubmitted: (value) => Navigator.of(sheetContext).pop(value.trim()),
+              onSubmitted: (value) =>
+                  Navigator.of(sheetContext).pop(value.trim()),
             ),
             const SizedBox(height: 12),
             PandoraV2PrimaryAction(
               label: 'Save name',
-              onPressed: () => Navigator.of(sheetContext).pop(controller.text.trim()),
+              onPressed: () =>
+                  Navigator.of(sheetContext).pop(controller.text.trim()),
             ),
           ],
         ),
@@ -1194,7 +1196,10 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     final api = PandoraDependencies.of(context).projectExperienceRepository;
     if (api == null) return;
     try {
-      await api.renameProject(projectId: widget.project.id, name: nextName);
+      await api.renameProject(
+        projectId: widget.project.id,
+        name: nextName,
+      );
       await _refresh();
       if (!mounted) return;
       ScaffoldMessenger.of(context)
