@@ -662,7 +662,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   Future<void> _refresh() async {
     final experience =
         PandoraDependencies.of(context).projectExperienceRepository;
-    if (runtime == null) {
+    if (experience == null) {
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -965,7 +965,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     final experience =
         PandoraDependencies.of(context).projectExperienceRepository;
     final versionId = _projection?.candidateVersionId;
-    if (runtime == null || versionId == null || !_canUndo || _undoing) {
+    if (experience == null || versionId == null || !_canUndo || _undoing) {
       return;
     }
     setState(() {
@@ -1180,7 +1180,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   Future<void> _publish(String domain, String versionId) async {
     final experience =
         PandoraDependencies.of(context).projectExperienceRepository;
-    if (runtime == null || versionId.isEmpty || _publishing) return;
+    if (experience == null || versionId.isEmpty || _publishing) return;
     setState(() {
       _publishing = true;
       _error = null;
