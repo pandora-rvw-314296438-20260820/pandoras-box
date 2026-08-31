@@ -110,6 +110,23 @@ class ProjectExperienceApi {
       }
 
       final specId = _requiredText(spec['id']);
+      final projectState = await _client
+          .from('projectos_projects')
+          .select('name,config')
+          .eq('organization_id', _organizationId)
+          .eq('id', projectId)
+          .maybeSingle();
+      if (projectState == null) {
+        throw const ProjectExperienceException(
+          'Pandora could not find that project right now.',
+        );
+      }
+      final rawConfig = projectState['config'];
+      final config = rawConfig is Map ? rawConfig : const <String, Object?>{};
+      final rawJourney = config['customerJourney'];
+      final journey = rawJourney is Map ? rawJourney : const <String, Object?>{};
+      final distilledSummary = _optionalText(journey['intentSummary']);
+
       final objectives = await _client
           .from('pandora_project_business_objectives')
           .select('objective,desired_outcome')
@@ -130,6 +147,8 @@ class ProjectExperienceApi {
       return OwnerProjectUnderstanding.ready(
         specId: specId,
         version: _int(spec['version']),
+        projectName: _text(projectState['name'], fallback: 'Project'),
+        intentSummary: distilledSummary,
         projectType: _text(spec['project_type'], fallback: 'Project'),
         targetUsers: _optionalText(spec['target_user_summary']),
         businessSummary: _optionalText(spec['business_summary']),
@@ -151,6 +170,42 @@ class ProjectExperienceApi {
     } on PostgrestException {
       throw const ProjectExperienceException(
         'Pandora could not refresh its understanding right now.',
+      );
+    }
+  }
+
+  Future<String> renameProject({
+    required String projectId,
+    required String name,
+  }) async {
+    final nextName = name.replaceAll(RegExp(r'\\s+'), ' ').trim();
+    if (nextName.length < 2 || nextName.length > 80 || nextName.contains('\\n')) {
+      throw const ProjectExperienceException(
+        'Use a short project name between 2 and 80 characters.',
+      );
+    }
+    try {
+      final updated = await _client
+          .from('projectos_projects')
+          .update(<String, Object?>{
+            'name': nextName,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('organization_id', _organizationId)
+          .eq('id', projectId)
+          .select('name')
+          .maybeSingle();
+      if (updated == null) {
+        throw const ProjectExperienceException(
+          'Pandora could not rename that project right now.',
+        );
+      }
+      return _requiredText(updated['name']);
+    } on ProjectExperienceException {
+      rethrow;
+    } on PostgrestException {
+      throw const ProjectExperienceException(
+        'Pandora could not rename that project right now.',
       );
     }
   }
@@ -320,6 +375,8 @@ class OwnerProjectUnderstanding {
     required this.state,
     this.specId,
     this.version,
+    this.projectName,
+    this.intentSummary,
     this.projectType,
     this.targetUsers,
     this.businessSummary,
@@ -337,6 +394,8 @@ class OwnerProjectUnderstanding {
   factory OwnerProjectUnderstanding.ready({
     required String specId,
     required int version,
+    required String projectName,
+    required String? intentSummary,
     required String projectType,
     required String? targetUsers,
     required String? businessSummary,
@@ -348,6 +407,8 @@ class OwnerProjectUnderstanding {
         state: OwnerProjectUnderstandingState.ready,
         specId: specId,
         version: version,
+        projectName: projectName,
+        intentSummary: intentSummary,
         projectType: projectType,
         targetUsers: targetUsers,
         businessSummary: businessSummary,
@@ -359,6 +420,8 @@ class OwnerProjectUnderstanding {
   final OwnerProjectUnderstandingState state;
   final String? specId;
   final int? version;
+  final String? projectName;
+  final String? intentSummary;
   final String? projectType;
   final String? targetUsers;
   final String? businessSummary;
