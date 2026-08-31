@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'pandora_android_preview.dart';
+import 'pandora_preview_contract.dart';
 
 export 'pandora_preview_contract.dart';
 
