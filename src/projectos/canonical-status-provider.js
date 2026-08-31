@@ -167,7 +167,7 @@ function evaluateSupabaseReceiptBinding({
   const providerDatabaseReceipt = receipt?.providerDatabaseReceipt;
   const sourceArtifactDatabaseReceipt = receipt?.sourceArtifactDatabaseReceipt;
   const artifactExternalId = String(sourceArtifactDatabaseReceipt?.externalId || "");
-  const exactArtifactUrl = `https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/${artifactExternalId}`;
+  const exactArtifactUrl = `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/${artifactExternalId}`;
   const sourceArtifactDatabaseReceiptPresent = sourceArtifactDatabaseReceipt?.databaseCaptured === true
     && receipt?.projectRef === projectRef
     && /^[0-9a-f]{40}$/i.test(String(sourceSha || ""))
@@ -268,7 +268,7 @@ async function readSourceArtifactProviderReadback({
   const databaseReceipt = releaseEvidence?.supabase?.providerDatabaseReceipt;
   const artifactId = String(receipt?.externalId || "");
   const artifactSha256 = String(receipt?.artifactSha256 || "");
-  const artifactUrl = `https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/${artifactId}`;
+  const artifactUrl = `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/${artifactId}`;
   const receiptCapturedAt = Date.parse(databaseReceipt?.capturedAt || "");
   if (receipt?.databaseCaptured !== true
     || databaseReceipt?.databaseReadback !== true
@@ -317,7 +317,7 @@ async function readSourceArtifactProviderReadback({
     }
 
     const run = await boundedJson(
-      `${origin}/repos/banataosystems/Pandoras-box/actions/runs/${workflowRunId}`,
+      `${origin}/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/runs/${workflowRunId}`,
       { headers },
       fetchFn,
       3_000,
@@ -350,7 +350,7 @@ async function readSourceArtifactProviderReadback({
     }
 
     const jobs = await boundedJson(
-      `${origin}/repos/banataosystems/Pandoras-box/actions/runs/${workflowRunId}`
+      `${origin}/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/runs/${workflowRunId}`
         + `/attempts/${runAttempt}/jobs?per_page=100`,
       { headers },
       fetchFn,
@@ -360,7 +360,7 @@ async function readSourceArtifactProviderReadback({
       ? jobs.jobs.filter((job) => job?.name === "canonical-release-source-contract")
       : [];
     const job = canonicalJobs[0];
-    const expectedCheckUrl = `https://api.github.com/repos/banataosystems/Pandoras-box/check-runs/${canonicalCheck.id}`;
+    const expectedCheckUrl = `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/check-runs/${canonicalCheck.id}`;
     if (jobs?.total_count !== 1
       || canonicalJobs.length !== 1
       || !Number.isSafeInteger(job?.id)
@@ -429,7 +429,7 @@ async function readMobileArtifactProviderReadback({
   const artifactSha256 = String(receipt?.artifactSha256 || "");
   const apkSha256 = String(receipt?.apkSha256 || "");
   const artifactName = `pandora-mobile-android-validation-${mainSha}`;
-  const artifactUrl = `https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/${artifactId}`;
+  const artifactUrl = `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/${artifactId}`;
   const receiptCapturedAt = Date.parse(receipt?.capturedAt || "");
   if (receipt?.databaseCaptured !== true
     || !/^[1-9][0-9]{0,19}$/.test(artifactId)
@@ -480,7 +480,7 @@ async function readMobileArtifactProviderReadback({
     }
 
     const run = await boundedJson(
-      `${origin}/repos/banataosystems/Pandoras-box/actions/runs/${workflowRunId}`,
+      `${origin}/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/runs/${workflowRunId}`,
       { headers },
       fetchFn,
       3_000,
@@ -513,7 +513,7 @@ async function readMobileArtifactProviderReadback({
     }
 
     const jobs = await boundedJson(
-      `${origin}/repos/banataosystems/Pandoras-box/actions/runs/${workflowRunId}`
+      `${origin}/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/runs/${workflowRunId}`
         + `/attempts/${runAttempt}/jobs?per_page=100`,
       { headers },
       fetchFn,
@@ -523,7 +523,7 @@ async function readMobileArtifactProviderReadback({
       ? jobs.jobs.filter((job) => job?.name === "Exact source / Flutter / Android")
       : [];
     const job = mobileJobs[0];
-    const expectedCheckUrl = `https://api.github.com/repos/banataosystems/Pandoras-box/check-runs/${mobileCheck.id}`;
+    const expectedCheckUrl = `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/check-runs/${mobileCheck.id}`;
     if (jobs?.total_count !== 1
       || mobileJobs.length !== 1
       || !Number.isSafeInteger(job?.id)
