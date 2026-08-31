@@ -67,8 +67,9 @@ test('successful initial build flows directly into the product workspace', () =>
     false,
     'manual Open project boundary must not return',
   );
-  assert.ok(
-    experienceSource.includes('ProjectWorkspaceV2Screen(project: widget.project)'),
+  assert.match(
+    experienceSource,
+    /ProjectWorkspaceV2Screen\(\s*project: _snapshot\?\.project \?\? widget\.project,\s*\)/,
     'successful build must enter the product workspace',
   );
 });
