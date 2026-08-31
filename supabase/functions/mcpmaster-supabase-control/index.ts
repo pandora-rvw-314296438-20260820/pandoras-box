@@ -430,7 +430,7 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     const repository = requiredString(input, "repository");
     const sourceSha = requiredString(input, "sourceSha");
     if (
-      repository !== "banataosystems/Pandoras-box"
+      repository !== "pandora-rvw-314296438-20260820/pandoras-box"
       || !sourceSha
       || !/^[0-9a-f]{40}$/.test(sourceSha)
     ) return undefined;
