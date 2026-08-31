@@ -1046,7 +1046,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                                 )
                               : hasExactPreview
                                   ? PandoraEmbeddedPreview(
-                                      key: ValueKey<String>(versionId),
+                                      key: ValueKey<String>(versionId!),
                                       files: files,
                                       versionId: versionId,
                                       fallback: _ExactPreviewFallback(
