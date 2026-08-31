@@ -1,6 +1,6 @@
 # Current operating identity
 
-Observed: 2026-08-28  
+Observed: 2026-09-01  
 Classification: **current operational identity** (not a historical status surface)
 
 `RECOVERY_STATUS.md` and `DEPLOYMENT_TARGET.md` remain integrity-bound historical snapshots. They must not be cited as current project state. Live status is authenticated `GET /api/operator/status`.
@@ -12,7 +12,7 @@ Classification: **current operational identity** (not a historical status surfac
 | GitHub repository | `pandora-rvw-314296438-20260820/pandoras-box` |
 | Branch | `main` |
 | Proven green SHA at capture | `cc0421f4461219bd6a9e864295d70743e8cd32dc` |
-| Memory repository | `banataosystems/pandoras-box-memory` |
+| Memory repository | `pandora-rvw-314296438-20260820/pandoras-box-memory` |
 | Operating source of truth | Pandora Memory hard-canon + exact committed source on this repository |
 
 mbanatao/* is historical evidence only. `banataosystems/Pandoras-box` is a recovery-era sibling name, not the operational Git remote.
@@ -27,7 +27,7 @@ mbanatao/* is historical evidence only. `banataosystems/Pandoras-box` is a recov
 | Production origin | `https://mcpmaster.vercel.app` |
 | Memory origin | `https://pandorasbox-memory.vercel.app` |
 
-Keep this project ID and production alias. Live Vercel provider readback on 2026-08-28 confirms the existing `mcpmaster` project is linked to `pandora-rvw-314296438-20260820/pandoras-box`; production deployment metadata binds `main` to this repository. Do not create a replacement production identity unless a separately reviewed migration is approved.
+Keep this recorded project ID and production alias as the intended production identity. Fresh provider readback on 2026-09-01 from the currently connected Vercel scope could not resolve this project ID, so deployment/source parity is not currently verified. Do not create a replacement production identity unless a separately reviewed migration is approved; restore provider visibility first and then re-prove exact source binding.
 
 Legacy Vercel team or deployment URL slugs containing `mbanatao` are not Git source authority. Current deployment metadata must bind `githubOrg=pandora-rvw-314296438-20260820` and `githubRepo=pandoras-box` before it can contribute release evidence.
 
