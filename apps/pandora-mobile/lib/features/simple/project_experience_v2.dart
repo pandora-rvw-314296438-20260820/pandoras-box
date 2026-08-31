@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/data/project_experience_api.dart';
+import '../../core/data/project_experience_repository.dart';
 import '../../core/models/project_experience_projection.dart';
 import '../../core/models/project_journey_models.dart';
 import '../../core/platform/pandora_embedded_preview.dart';
@@ -19,7 +20,7 @@ String? _safeHttps(String? value) {
 }
 
 Future<List<Map<String, Object?>>> _loadExactPreviewFiles(
-  ProjectExperienceApi experience, {
+  ProjectExperienceRepository experience, {
   required String projectId,
   required String versionId,
 }) async {
@@ -148,7 +149,7 @@ class _ProjectBuildExperienceV2ScreenState
     }
     if (_refreshing) return;
     final runtime = PandoraDependencies.of(context).projectRuntime;
-    final experience = PandoraDependencies.of(context).projectExperience;
+    final experience = PandoraDependencies.of(context).projectExperienceRepository;
     if (runtime == null || experience == null) {
       setState(
         () => _error = 'Pandora cannot continue this project right now.',
@@ -255,7 +256,7 @@ class _ProjectBuildExperienceV2ScreenState
     if (_openingPreview) return;
     final candidate = _candidate;
     if (candidate == null) return;
-    final experience = PandoraDependencies.of(context).projectExperience;
+    final experience = PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) return;
     setState(() => _openingPreview = true);
     try {
@@ -499,7 +500,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   Future<void> _startProjection() async {
     final repository =
-        PandoraDependencies.of(context).projectExperienceProjection;
+        PandoraDependencies.of(context).projectExperienceRepository;
     if (repository == null) {
       if (!mounted) return;
       setState(() {
@@ -606,7 +607,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     ProjectRuntimeSnapshot snapshot,
   ) async {
     final candidate = snapshot.candidate;
-    final experience = PandoraDependencies.of(context).projectExperience;
+    final experience = PandoraDependencies.of(context).projectExperienceRepository;
     if (candidate == null || experience == null) return null;
     try {
       return await _loadExactPreviewFiles(
@@ -710,7 +711,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       );
       return;
     }
-    final experience = PandoraDependencies.of(context).projectExperience;
+    final experience = PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) return;
     setState(() => _openingPreview = true);
     try {
@@ -743,7 +744,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     if (request.length < 4 || _changing || _projection?.canChange != true) {
       return;
     }
-    final experience = PandoraDependencies.of(context).projectExperience;
+    final experience = PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) {
       setState(() => _error = 'Pandora cannot save that change right now.');
       return;
@@ -871,8 +872,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   Future<void> _watchExactChange(String? baseVersion) async {
     final repository =
-        PandoraDependencies.of(context).projectExperienceProjection;
-    final experience = PandoraDependencies.of(context).projectExperience;
+        PandoraDependencies.of(context).projectExperienceRepository;
+    final experience = PandoraDependencies.of(context).projectExperienceRepository;
     if (repository == null || experience == null) {
       throw const ProjectExperienceException(
         'Pandora cannot check that change right now.',
@@ -1134,7 +1135,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   Future<void> _watchPublishCompletion(String versionId) async {
     final repository =
-        PandoraDependencies.of(context).projectExperienceProjection;
+        PandoraDependencies.of(context).projectExperienceRepository;
     if (repository == null) {
       throw const ProjectExperienceException(
         'Pandora cannot confirm this publish right now.',
