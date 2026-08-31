@@ -9,6 +9,7 @@ import '../../core/models/project_journey_models.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import 'pandora_v2_ui.dart';
+import 'project_build_conversation.dart';
 import 'project_experience_v2.dart';
 
 class CreateProjectExperienceScreen extends StatefulWidget {
@@ -113,6 +114,7 @@ class _CreateProjectExperienceScreenState
           builder: (_) => ProjectUnderstandingScreen(
             project: project,
             sourceIntentId: intentId,
+            originalIntent: intent,
           ),
         ),
       );
@@ -214,10 +216,12 @@ class ProjectUnderstandingScreen extends StatefulWidget {
     super.key,
     required this.project,
     required this.sourceIntentId,
+    required this.originalIntent,
   });
 
   final CustomerProject project;
   final String sourceIntentId;
+  final String originalIntent;
 
   @override
   State<ProjectUnderstandingScreen> createState() =>
@@ -264,6 +268,8 @@ class _ProjectUnderstandingScreenState
 
   Future<void> _build() async {
     if (_building) return;
+    final understanding = _understanding;
+    if (understanding == null || !understanding.isReady) return;
     final api = PandoraDependencies.of(context).projectExperienceRepository;
     if (api == null) return;
     setState(() {
@@ -271,17 +277,21 @@ class _ProjectUnderstandingScreenState
       _error = null;
     });
     try {
-      await api.requestBuild(
+      final start = await api.requestBuild(
         projectId: widget.project.id,
         idempotencyKey: 'pandora-v2-build:${widget.project.id}',
       );
       if (!mounted) return;
+      final project = widget.project.copyWith(
+        name: understanding.projectName ?? widget.project.name,
+      );
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) => ProjectWorkspaceV2Screen(
-            project: widget.project.copyWith(
-              name: _understanding?.projectName ?? widget.project.name,
-            ),
+          builder: (_) => ProjectBuildConversationScreen(
+            project: project,
+            originalIntent: widget.originalIntent,
+            understanding: understanding,
+            buildStart: start,
           ),
         ),
       );
