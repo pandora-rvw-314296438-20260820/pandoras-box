@@ -1,6 +1,7 @@
 -- Align the active Vercel connector account identity after project/team transfer.
 -- Configuration was already rebound; this removes the stale external account id
--- while preserving the installation row and audit lineage.
+-- while preserving the installation row and audit lineage. Replay/recovery databases
+-- may legitimately have no active Vercel installation, so absence remains a no-op.
 
 do $align$
 declare
@@ -16,8 +17,8 @@ begin
      and configuration->>'team_slug' = 'mbanatao';
 
   get diagnostics changed = row_count;
-  if changed <> 1 then
-    raise exception 'expected exactly one transferred active Vercel connector, changed %', changed
+  if changed > 1 then
+    raise exception 'multiple transferred active Vercel connectors changed: %', changed
       using errcode = '55000';
   end if;
 
