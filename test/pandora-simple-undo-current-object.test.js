@@ -44,7 +44,9 @@ test('Simple Mode exposes Changed · Undo through the governed runtime API', () 
   assert.match(models, /final String\? parentVersionId/);
   assert.match(models, /bool get canUndo/);
   assert.match(workspace, /Future<void> _undoChange\(\)/);
-  assert.match(workspace, /'Changed'/);
+  assert.match(workspace, /'Verified change'/);
   assert.match(workspace, /'Undo'/);
+  assert.doesNotMatch(workspace, /CURRENT OBJECT/);
+  assert.doesNotMatch(workspace, /Your first version is ready/);
   assert.match(workspace, /_snapshot\?\.production\?\.versionId != candidate\.versionId/);
 });
