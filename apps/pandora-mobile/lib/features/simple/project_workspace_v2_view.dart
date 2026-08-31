@@ -166,76 +166,154 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                       Positioned(
                         left: 12,
                         right: 12,
-                        bottom: 12,
+                        top: 58,
                         child: _ProjectProgressCapsule(phase: progressPhase!),
                       )
                     else if (recentlyUpdated && currentVersionVerified)
                       Positioned(
                         left: 12,
                         right: 12,
-                        bottom: 12,
+                        top: 58,
                         child: _VerifiedChangeCapsule(
                           canUndo: canUndo,
                           undoing: undoing,
                           onUndo: onUndo,
                         ),
                       ),
+                    Positioned.fill(
+                      child: DraggableScrollableSheet(
+                        initialChildSize: .18,
+                        minChildSize: .18,
+                        maxChildSize: .64,
+                        snap: true,
+                        snapSizes: const [.38],
+                        builder: (context, scrollController) =>
+                            _PandoraComposerSheet(
+                          scrollController: scrollController,
+                          selectionMode: selectionMode,
+                          selectedPreviewTarget: selectedPreviewTarget,
+                          intelligenceReply: intelligenceReply,
+                          error: error,
+                          onClearSelection: onClearSelection,
+                          onDismissIntelligence: onDismissIntelligence,
+                          onDismissError: onDismissError,
+                          changeController: changeController,
+                          changeEnabled: changeEnabled,
+                          onSubmit: onSubmit,
+                          onVoice: onVoice,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-            if (selectionMode || selectedPreviewTarget != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                child: _SelectionContextCapsule(
-                  selecting: selectionMode,
-                  selection: selectedPreviewTarget,
-                  onClear: onClearSelection,
-                ),
-              ),
-            if (intelligenceReply != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                child: PandoraV2InlineMessage(
-                  title: 'Pandora',
-                  message: intelligenceReply!,
-                  actionLabel: 'Dismiss',
-                  onAction: onDismissIntelligence,
-                ),
-              ),
-            if (error != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                child: PandoraV2InlineMessage(
-                  title: 'Project unchanged',
-                  message: error!,
-                  actionLabel: 'Dismiss',
-                  onAction: onDismissError,
-                  danger: true,
-                ),
-              ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                12,
-                4,
-                12,
-                10 + MediaQuery.paddingOf(context).bottom,
-              ),
-              child: PandoraV2IntentSurface(
-                controller: changeController,
-                hintText: selectedPreviewTarget == null
-                    ? 'Tell Pandora what to change…'
-                    : 'Change ${selectedPreviewTarget!.label}…',
-                enabled: changeEnabled,
-                onSubmit: onSubmit,
-                onVoice: onVoice,
-              ),
-            ),
-          ],
+            ),          ],
         ),
       ),
     );
   }
+}
+
+
+class _PandoraComposerSheet extends StatelessWidget {
+  const _PandoraComposerSheet({
+    required this.scrollController,
+    required this.selectionMode,
+    required this.selectedPreviewTarget,
+    required this.intelligenceReply,
+    required this.error,
+    required this.onClearSelection,
+    required this.onDismissIntelligence,
+    required this.onDismissError,
+    required this.changeController,
+    required this.changeEnabled,
+    required this.onSubmit,
+    required this.onVoice,
+  });
+
+  final ScrollController scrollController;
+  final bool selectionMode;
+  final PandoraPreviewSelection? selectedPreviewTarget;
+  final String? intelligenceReply;
+  final String? error;
+  final VoidCallback onClearSelection;
+  final VoidCallback onDismissIntelligence;
+  final VoidCallback onDismissError;
+  final TextEditingController changeController;
+  final bool changeEnabled;
+  final ValueChanged<String> onSubmit;
+  final Future<void> Function() onVoice;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        elevation: 12,
+        shadowColor: Colors.black12,
+        color: PandoraV2Colors.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: const RoundedRectangleBorder(
+          side: BorderSide(color: PandoraV2Colors.line),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        child: ListView(
+          controller: scrollController,
+          padding: EdgeInsets.fromLTRB(
+            12,
+            8,
+            12,
+            10 + MediaQuery.paddingOf(context).bottom,
+          ),
+          children: [
+            Center(
+              child: Container(
+                width: 34,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: PandoraV2Colors.line,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            PandoraV2IntentSurface(
+              controller: changeController,
+              hintText: selectedPreviewTarget == null
+                  ? 'Tell Pandora what to change…'
+                  : 'Change ${selectedPreviewTarget!.label}…',
+              enabled: changeEnabled,
+              onSubmit: onSubmit,
+              onVoice: onVoice,
+            ),
+            if (selectionMode || selectedPreviewTarget != null) ...[
+              const SizedBox(height: 8),
+              _SelectionContextCapsule(
+                selecting: selectionMode,
+                selection: selectedPreviewTarget,
+                onClear: onClearSelection,
+              ),
+            ],
+            if (intelligenceReply != null) ...[
+              const SizedBox(height: 8),
+              PandoraV2InlineMessage(
+                title: 'Pandora',
+                message: intelligenceReply!,
+                actionLabel: 'Dismiss',
+                onAction: onDismissIntelligence,
+              ),
+            ],
+            if (error != null) ...[
+              const SizedBox(height: 8),
+              PandoraV2InlineMessage(
+                title: 'Project unchanged',
+                message: error!,
+                actionLabel: 'Dismiss',
+                onAction: onDismissError,
+                danger: true,
+              ),
+            ],
+            const SizedBox(height: 4),
+          ],
+        ),
+      );
 }
 
 class _SelectionContextCapsule extends StatelessWidget {
