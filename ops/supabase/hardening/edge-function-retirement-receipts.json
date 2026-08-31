@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-01T02:12:00+08:00",
+  "retirements": [
+    {
+      "plane": "primary",
+      "projectRef": "jcyqixttuebxqqfkjonq",
+      "slug": "pandora-team-github-secret-bridge",
+      "priorVersion": 3,
+      "priorVerifyJwt": true,
+      "priorSourceSha256": "fdbf20be2b99908fb9a08acf68f3a55660170f0e3cf8add8dcd1f223cb66e58e",
+      "deletedAt": "2026-09-01T01:56:00+08:00",
+      "reason": "Already-tombstoned 410 recovery transport with no DB/cron/repo caller references and no sampled 24h traffic.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "primary",
+      "projectRef": "jcyqixttuebxqqfkjonq",
+      "slug": "pandora-pr188-green-merge-20260831",
+      "priorVersion": 1,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "46e181e4e5587377c8f7947873f4af4b14d7936f367ca4e1584ef5fe7576c1c7",
+      "deletedAt": "2026-09-01T01:56:00+08:00",
+      "reason": "Single-purpose PR #188 merger bound to completed PR/head/main/run identities; no DB/cron/repo caller references and no sampled 24h traffic.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "primary",
+      "projectRef": "jcyqixttuebxqqfkjonq",
+      "slug": "pandora-evo-chat-c-checkpoint-20260901",
+      "priorVersion": 1,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "2fef4e8367a7e1a19cdd921ea9512a5972652fcfa0dfa2da6cd3c079d8ddacf7",
+      "deletedAt": "2026-09-01T01:56:00+08:00",
+      "reason": "Ephemeral Chat C transport helper used only to create/refresh hardening evidence.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "primary",
+      "projectRef": "jcyqixttuebxqqfkjonq",
+      "slug": "pandora-evo-chat-c-invoke-20260901",
+      "priorVersion": 1,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "6605067a4a03183e66700709b793f9b8375b2b27b133bec3b656c999a1b11d51",
+      "deletedAt": "2026-09-01T01:56:00+08:00",
+      "reason": "Ephemeral Chat C transport helper used only to create/refresh hardening evidence.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "primary",
+      "projectRef": "jcyqixttuebxqqfkjonq",
+      "slug": "pandora-evo-chat-c-retire-refresh-20260901",
+      "priorVersion": 1,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "78a2e26ef355706f8af5a8afac8e455063102ffd208f7cac746443ac8da3bbe4",
+      "deletedAt": "2026-09-01T01:56:00+08:00",
+      "reason": "Ephemeral Chat C retirement/registry refresh helper; self-retired after durable evidence write.",
+      "rollback": "Redeploy exact captured provider source/version only if evidence repair is required."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "flutterflow-api-action-diagnostic",
+      "priorVersion": 3,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "03025d8a68306eaebc2af31c61e9bdae93a61abaed22b763d11163065ceeb4fe",
+      "deletedAt": "2026-09-01T02:04:00+08:00",
+      "reason": "Frozen 2026-08-12 FlutterFlow single-project diagnostic/leaf validator; zero DB/cron refs, zero canonical-repo refs, zero 24h Edge traffic; controlled brokers preserved.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "flutterflow-api-definition-diagnostic",
+      "priorVersion": 3,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "624fd49fdcd953d2814b9bd7c177194b3d3e04fd8b10d0f9e3350641b7257ab0",
+      "deletedAt": "2026-09-01T02:04:00+08:00",
+      "reason": "Frozen 2026-08-12 FlutterFlow single-project diagnostic/leaf validator; zero DB/cron refs, zero canonical-repo refs, zero 24h Edge traffic; controlled brokers preserved.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "flutterflow-context-variable-diagnostic",
+      "priorVersion": 3,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "5d79459c4dee5b9ca8a9023a1b33e571d4615ee405675d141c591fb4f7e9a0c4",
+      "deletedAt": "2026-09-01T02:04:00+08:00",
+      "reason": "Frozen 2026-08-12 FlutterFlow single-project diagnostic/leaf validator; zero DB/cron refs, zero canonical-repo refs, zero 24h Edge traffic; controlled brokers preserved.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "flutterflow-api-action-leaf-validator",
+      "priorVersion": 3,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "f1a9af20f31bfdbce6a48c073bf5c4f261daa19fe914939ce24799c921fad3b9",
+      "deletedAt": "2026-09-01T02:04:00+08:00",
+      "reason": "Frozen 2026-08-12 FlutterFlow single-project diagnostic/leaf validator; zero DB/cron refs, zero canonical-repo refs, zero 24h Edge traffic; controlled brokers preserved.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "flutterflow-api-action-leaf-validator-remaining",
+      "priorVersion": 3,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "26ff1c36a683f97dbedd49e252ee0082c5523fb27640b7e3cb2dc1ecd3b91241",
+      "deletedAt": "2026-09-01T02:04:00+08:00",
+      "reason": "Frozen 2026-08-12 FlutterFlow single-project diagnostic/leaf validator; zero DB/cron refs, zero canonical-repo refs, zero 24h Edge traffic; controlled brokers preserved.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "fxpass-source-export-v02-temp",
+      "priorVersion": 4,
+      "priorVerifyJwt": true,
+      "priorSourceSha256": "3881373ebfa363ea4fec19c8b0116d700681a39bb55e54c33b157466dfca2cba",
+      "deletedAt": "2026-09-01T02:12:00+08:00",
+      "reason": "Already-retired HTTP 410 FXPass source/recovery export; zero DB/cron refs, zero canonical-repo refs and zero 24h Edge traffic.",
+      "rollback": "Redeploy exact captured provider source/version only if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "fxpass-source-export-v03-temp",
+      "priorVersion": 4,
+      "priorVerifyJwt": true,
+      "priorSourceSha256": "13b8cf22d62e152f98b40216b8d626f19b0e28353df4ec3d1a6a819ba1e47125",
+      "deletedAt": "2026-09-01T02:12:00+08:00",
+      "reason": "Already-retired HTTP 410 FXPass source/recovery export; zero DB/cron refs, zero canonical-repo refs and zero 24h Edge traffic.",
+      "rollback": "Redeploy exact captured provider source/version only if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "fxpass-source-export-v04-temp",
+      "priorVersion": 24,
+      "priorVerifyJwt": true,
+      "priorSourceSha256": "bdc2f74148d4fe41f2f436d6875aafcda62d7dd835881703d34dddcdc32b7201",
+      "deletedAt": "2026-09-01T02:12:00+08:00",
+      "reason": "Already-retired HTTP 410 FXPass source/recovery export; zero DB/cron refs, zero canonical-repo refs and zero 24h Edge traffic.",
+      "rollback": "Redeploy exact captured provider source/version only if an unexpected caller is discovered."
+    },
+    {
+      "plane": "secondary",
+      "projectRef": "ivmvufhcsezyhczzondn",
+      "slug": "fxpass-source-export-a4d3b5f1",
+      "priorVersion": 6,
+      "priorVerifyJwt": true,
+      "priorSourceSha256": "8cf973aea021e60f3fc44ad56708d2ef919c0c4d3d52ec8ac77ded078d302ed8",
+      "deletedAt": "2026-09-01T02:12:00+08:00",
+      "reason": "Already-retired HTTP 410 FXPass source/recovery export; zero DB/cron refs, zero canonical-repo refs and zero 24h Edge traffic.",
+      "rollback": "Redeploy exact captured provider source/version only if an unexpected caller is discovered."
+    }
+  ]
+}

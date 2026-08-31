@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-01T01:48:00+08:00",
+  "simpleMode": {
+    "directSupabaseProjectRefs": [
+      "jcyqixttuebxqqfkjonq"
+    ],
+    "forbiddenDirectProjectRefs": [
+      "ivmvufhcsezyhczzondn"
+    ],
+    "secondaryAccess": "server-side controlled context/governance broker only"
+  },
+  "assertions": [
+    "apps/pandora-mobile must not contain secondary project ref",
+    "apps/pandora-mobile must not contain secondary Supabase host",
+    "secondary functions are never a Simple Mode lifecycle authority"
+  ]
+}
