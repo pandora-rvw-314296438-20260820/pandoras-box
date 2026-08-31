@@ -4,6 +4,7 @@ import '../core/data/domain_registrar_api.dart';
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/data/pandora_repository.dart';
 import '../core/data/project_experience_api.dart';
+import '../core/data/project_experience_projection_repository.dart';
 import '../core/data/project_runtime_api.dart';
 import '../core/data/remote_pandora_repository.dart';
 import '../core/diagnostics/diagnostic_event.dart';
@@ -21,6 +22,7 @@ class PandoraRuntimeBootstrap {
     required this.intelligence,
     required this.projectRuntime,
     required this.projectExperience,
+    required this.projectExperienceProjection,
     required this.domainRegistrar,
     required this.diagnostics,
   });
@@ -30,6 +32,7 @@ class PandoraRuntimeBootstrap {
   final PandoraIntelligenceApi intelligence;
   final ProjectRuntimeApi projectRuntime;
   final ProjectExperienceApi projectExperience;
+  final ProjectExperienceProjectionRepository projectExperienceProjection;
   final DomainRegistrarApi domainRegistrar;
   final DiagnosticsStore diagnostics;
 
@@ -73,6 +76,11 @@ class PandoraRuntimeBootstrap {
       ),
       projectRuntime: ProjectRuntimeApi(client: runtimeClient),
       projectExperience: ProjectExperienceApi(
+        client: supabase,
+        organizationId: PandoraConfig.organizationId,
+      ),
+      projectExperienceProjection:
+          SupabaseProjectExperienceProjectionRepository(
         client: supabase,
         organizationId: PandoraConfig.organizationId,
       ),

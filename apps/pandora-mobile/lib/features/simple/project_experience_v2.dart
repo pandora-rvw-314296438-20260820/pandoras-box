@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/data/project_experience_api.dart';
+import '../../core/models/project_experience_projection.dart';
 import '../../core/models/project_journey_models.dart';
 import '../../core/platform/pandora_embedded_preview.dart';
 import '../../core/platform/pandora_native_io.dart';
@@ -58,6 +59,7 @@ class _ProjectBuildExperienceV2ScreenState
   bool _previewRequested = false;
   bool _refreshing = false;
   bool _openingPreview = false;
+  bool _transitionedToWorkspace = false;
   DateTime? _flowStartedAt;
 
   static const _flowTimeout = Duration(minutes: 2);
@@ -110,6 +112,21 @@ class _ProjectBuildExperienceV2ScreenState
     return _previewUrl != null ||
         (_localPreviewVersionId == candidate.versionId &&
             _localPreviewFiles != null);
+  }
+
+  void _enterWorkspaceIfReady() {
+    if (!_ready || _transitionedToWorkspace || !mounted) return;
+    _transitionedToWorkspace = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => ProjectWorkspaceV2Screen(
+            project: _snapshot?.project ?? widget.project,
+          ),
+        ),
+      );
+    });
   }
 
   bool get _flowExpired {
@@ -224,6 +241,9 @@ class _ProjectBuildExperienceV2ScreenState
       }
     } finally {
       _refreshing = false;
+      if (mounted && _ready) {
+        _enterWorkspaceIfReady();
+      }
       if (mounted && !_ready && !_flowExpired) {
         _timer?.cancel();
         _timer = Timer(const Duration(seconds: 2), _refreshAndAdvance);
@@ -413,20 +433,6 @@ class _ProjectBuildExperienceV2ScreenState
                       ),
                       const SizedBox(height: 12),
                     ],
-                    if (_ready)
-                      PandoraV2PrimaryAction(
-                        label: 'Open project',
-                        icon: Icons.arrow_forward_rounded,
-                        onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute<void>(
-                              builder: (_) => ProjectWorkspaceV2Screen(
-                                project: _snapshot?.project ?? widget.project,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
                   ],
                 ),
               ),
@@ -451,6 +457,8 @@ class ProjectWorkspaceV2Screen extends StatefulWidget {
 class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   final _change = TextEditingController();
   ProjectRuntimeSnapshot? _snapshot;
+  ProjectExperienceProjection? _projection;
+  StreamSubscription<ProjectExperienceProjection>? _projectionSubscription;
   List<Map<String, Object?>>? _previewFiles;
   String? _previewVersionId;
   String? _error;
@@ -464,7 +472,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _recentlyUpdated = false;
   bool _selectionMode = false;
   PandoraPreviewSelection? _selectedPreviewTarget;
-  _ProjectChangePhase _phase = _ProjectChangePhase.idle;
   Timer? _previewRetryTimer;
   String? _previewRetryVersionId;
   int _previewRetryCount = 0;
@@ -476,80 +483,120 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
+    unawaited(_startProjection());
     unawaited(_refresh());
   }
 
   @override
   void dispose() {
     _previewRetryTimer?.cancel();
+    _projectionSubscription?.cancel();
     _change.dispose();
     super.dispose();
   }
 
   ProjectRuntimeCandidate? get _candidate => _snapshot?.candidate;
 
-  bool get _canUndo {
-    final candidate = _candidate;
-    if (candidate == null || !candidate.canUndo) return false;
-    return _snapshot?.production?.versionId != candidate.versionId;
+  Future<void> _startProjection() async {
+    final repository =
+        PandoraDependencies.of(context).projectExperienceProjection;
+    if (repository == null) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Pandora cannot determine this project state right now.';
+      });
+      return;
+    }
+
+    try {
+      final initial = await repository.load(widget.project.id);
+      if (!mounted) return;
+      _acceptProjection(initial);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error ??= 'Pandora cannot determine this project state right now.';
+      });
+    }
+
+    if (!mounted || _projectionSubscription != null) return;
+    _projectionSubscription = repository.watch(widget.project.id).listen(
+      _acceptProjection,
+      onError: (_) {
+        if (!mounted) return;
+        setState(() {
+          _error ??= 'Pandora cannot refresh this project state right now.';
+        });
+      },
+    );
   }
 
-  bool get _canPublish {
-    final snapshot = _snapshot;
-    final candidate = snapshot?.candidate;
-    return candidate != null &&
-        snapshot?.verification?.versionId == candidate.versionId &&
-        snapshot?.verification?.publishEligible == true &&
-        snapshot?.production?.versionId != candidate.versionId;
+  void _acceptProjection(ProjectExperienceProjection next) {
+    if (!mounted) return;
+    final current = _projection;
+    if (current != null && !next.isNewerThan(current)) return;
+    final targetVersion = next.candidateVersionId ?? next.currentVersionId;
+    final shouldHydrate =
+        targetVersion != null && targetVersion != _previewVersionId;
+    setState(() {
+      _projection = next;
+      _loading = false;
+      if (next.hasSafeFailure && _error == null) {
+        _error = next.safeFailureMessage ??
+            'Pandora found something to resolve. Your current project remains available.';
+      }
+    });
+    if (shouldHydrate) unawaited(_refresh());
   }
 
-  bool get _currentVersionVerified {
-    final snapshot = _snapshot;
-    final candidate = snapshot?.candidate;
-    final verification = snapshot?.verification;
-    return candidate != null &&
-        verification?.versionId == candidate.versionId &&
-        verification?.publishEligible == true;
+  _ProjectChangePhase? get _projectionProgressPhase {
+    final projection = _projection;
+    if (projection == null) {
+      return _changing ? _ProjectChangePhase.designing : null;
+    }
+    if (projection.isUpdating) {
+      return projection.buildPhase?.toLowerCase() == 'checking'
+          ? _ProjectChangePhase.checking
+          : _ProjectChangePhase.building;
+    }
+    switch (projection.state) {
+      case ProjectExperienceState.understand:
+      case ProjectExperienceState.change:
+        return _ProjectChangePhase.designing;
+      case ProjectExperienceState.build:
+      case ProjectExperienceState.rebuild:
+        return projection.buildPhase?.toLowerCase() == 'checking'
+            ? _ProjectChangePhase.checking
+            : _ProjectChangePhase.building;
+      case ProjectExperienceState.review:
+        return _ProjectChangePhase.checking;
+      default:
+        return null;
+    }
   }
 
-  bool get _currentCandidateIsLive {
-    final snapshot = _snapshot;
-    final candidate = snapshot?.candidate;
-    final production = snapshot?.production;
-    return candidate != null &&
-        production?.versionId == candidate.versionId &&
-        snapshot?.project.isLive == true;
-  }
+  bool get _canUndo =>
+      _projection?.canUndo == true && _projection?.candidateVersionId != null;
 
-  bool get _currentCandidateIsPublishing {
-    final snapshot = _snapshot;
-    final candidate = snapshot?.candidate;
-    if (candidate == null || snapshot?.project.isLive == true) return false;
-    return snapshot?.production?.versionId == candidate.versionId;
-  }
+  bool get _canPublish =>
+      _projection?.canPublish == true &&
+      _projection?.candidateVersionId != null;
+
+  bool get _currentVersionVerified =>
+      _projection?.currentVerified == true || _projection?.canPublish == true;
 
   String get _statusLabel {
-    switch (_phase) {
-      case _ProjectChangePhase.designing:
-        return 'Designing';
-      case _ProjectChangePhase.building:
-        return 'Building';
-      case _ProjectChangePhase.checking:
-        return 'Checking';
-      case _ProjectChangePhase.idle:
-        break;
-    }
     if (_recentlyUpdated && _currentVersionVerified) return 'Updated';
-    if (_currentCandidateIsLive) return 'Live';
-    if (_currentCandidateIsPublishing) return 'Publishing · verifying';
-    if (_currentVersionVerified) return 'Ready';
-    if (_candidate != null) return 'Preview';
-    return 'Working';
+    return _projection?.statusLabel ?? 'Working';
   }
 
   Color get _statusColor {
-    final label = _statusLabel;
-    if (label == 'Updated' || label == 'Live' || label == 'Ready') {
+    final state = _projection?.state;
+    if ((_recentlyUpdated && _currentVersionVerified) ||
+        state == ProjectExperienceState.live ||
+        state == ProjectExperienceState.review) {
       return PandoraV2Colors.success;
     }
     return PandoraV2Colors.muted;
@@ -693,16 +740,19 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   Future<void> _requestChange(String text) async {
     final request = text.trim();
-    if (request.length < 4 || _changing) return;
+    if (request.length < 4 || _changing || _projection?.canChange != true) {
+      return;
+    }
     final experience = PandoraDependencies.of(context).projectExperience;
     if (experience == null) {
       setState(() => _error = 'Pandora cannot save that change right now.');
       return;
     }
-    final baseVersion = _candidate?.versionId;
+    final baseVersion = _projection?.candidateVersionId ??
+        _projection?.currentVersionId ??
+        _candidate?.versionId;
     setState(() {
       _changing = true;
-      _phase = _ProjectChangePhase.designing;
       _recentlyUpdated = false;
       _error = null;
       _intelligenceReply = null;
@@ -717,7 +767,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           _change.clear();
           setState(() {
             _changing = false;
-            _phase = _ProjectChangePhase.idle;
             _intelligenceReply = turn.clarifyingQuestion ?? turn.reply;
           });
           return;
@@ -727,7 +776,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           _change.clear();
           setState(() {
             _changing = false;
-            _phase = _ProjectChangePhase.idle;
             _intelligenceReply = turn.reply;
           });
           await _openExactPreview();
@@ -737,7 +785,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           _change.clear();
           setState(() {
             _changing = false;
-            _phase = _ProjectChangePhase.idle;
             _intelligenceReply = turn.reply;
           });
           await _showPublish();
@@ -752,7 +799,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           _change.clear();
           setState(() {
             _changing = false;
-            _phase = _ProjectChangePhase.idle;
             _intelligenceReply = turn.reply;
           });
           return;
@@ -801,7 +847,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       }
 
       if (!mounted) return;
-      setState(() => _phase = _ProjectChangePhase.building);
       await experience.requestBuild(
         projectId: widget.project.id,
         idempotencyKey:
@@ -813,94 +858,112 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (!mounted) return;
       setState(() {
         _changing = false;
-        _phase = _ProjectChangePhase.idle;
         _error = error.message;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _changing = false;
-        _phase = _ProjectChangePhase.idle;
         _error = 'Pandora could not complete that request right now.';
       });
     }
   }
 
   Future<void> _watchExactChange(String? baseVersion) async {
-    final runtime = PandoraDependencies.of(context).projectRuntime;
-    if (runtime == null) {
+    final repository =
+        PandoraDependencies.of(context).projectExperienceProjection;
+    final experience = PandoraDependencies.of(context).projectExperience;
+    if (repository == null || experience == null) {
       throw const ProjectExperienceException(
         'Pandora cannot check that change right now.',
       );
     }
 
-    String? nextVersion;
-    for (var attempt = 0; attempt < 90; attempt++) {
-      if (!mounted) return;
-      final snapshot = await runtime.runtime(widget.project.id);
-      final candidate = snapshot.candidate;
-      final isNewCandidate = candidate != null &&
-          (baseVersion == null || candidate.versionId != baseVersion);
-
-      if (isNewCandidate) {
-        nextVersion ??= candidate.versionId;
-        if (mounted && _phase != _ProjectChangePhase.checking) {
-          setState(() => _phase = _ProjectChangePhase.checking);
-        }
-
-        List<Map<String, Object?>>? files;
-        if (_previewVersionId != candidate.versionId) {
-          files = await _readExactPreview(snapshot);
-        }
-        if (!mounted) return;
-        setState(() {
-          _snapshot = snapshot;
-          if (files != null && files.isNotEmpty) {
-            _previewFiles = files;
-            _previewVersionId = candidate.versionId;
-          }
-        });
-
-        final verification = snapshot.verification;
-        final verified = verification?.versionId == candidate.versionId &&
-            verification?.publishEligible == true;
-        if (verified && _previewVersionId == candidate.versionId) {
-          _change.clear();
-          setState(() {
-            _changing = false;
-            _phase = _ProjectChangePhase.idle;
-            _recentlyUpdated = true;
-            _selectionMode = false;
-            _selectedPreviewTarget = null;
-            _error = null;
-          });
-          return;
-        }
-
-        final runtimeStatus = snapshot.project.runtimeStatus.toLowerCase();
-        if (runtimeStatus == 'failed' || runtimeStatus == 'blocked') {
-          throw const ProjectExperienceException(
-            'Pandora found something to resolve. Your previous project remains available.',
-          );
-        }
+    bool resolved(ProjectExperienceProjection projection) {
+      if (projection.hasSafeFailure) return true;
+      final candidateVersion = projection.candidateVersionId;
+      if (candidateVersion == null ||
+          (baseVersion != null && candidateVersion == baseVersion)) {
+        return false;
       }
-      await Future<void>.delayed(const Duration(seconds: 2));
+      return projection.canPublish ||
+          projection.candidateVerificationState.toUpperCase() == 'PASS' ||
+          projection.state == ProjectExperienceState.review;
     }
 
-    if (nextVersion == null) {
-      throw const ProjectExperienceException(
-        'Pandora is still building that change. Your current project remains available.',
+    ProjectExperienceProjection? transition = _projection;
+    if (transition == null || !resolved(transition)) {
+      try {
+        transition = await repository
+            .watch(widget.project.id)
+            .firstWhere(resolved)
+            .timeout(const Duration(minutes: 3));
+      } on TimeoutException {
+        throw const ProjectExperienceException(
+          'Pandora is still building that change. Your current project remains available.',
+        );
+      } catch (_) {
+        throw const ProjectExperienceException(
+          'Pandora cannot check that change right now.',
+        );
+      }
+    }
+
+    if (!mounted) return;
+    if (transition.hasSafeFailure) {
+      throw ProjectExperienceException(
+        transition.safeFailureMessage ??
+            'Pandora found something to resolve. Your previous project remains available.',
       );
     }
-    throw const ProjectExperienceException(
-      'Pandora is still checking the new version. It has not been marked ready.',
-    );
+    final versionId = transition.candidateVersionId;
+    if (versionId == null || versionId.isEmpty) {
+      throw const ProjectExperienceException(
+        'Pandora is still preparing the new version.',
+      );
+    }
+
+    List<Map<String, Object?>>? files;
+    for (var attempt = 0; attempt < _previewRetryLimit; attempt++) {
+      try {
+        files = await _loadExactPreviewFiles(
+          experience,
+          projectId: widget.project.id,
+          versionId: versionId,
+        ).timeout(const Duration(seconds: 12));
+      } catch (_) {
+        files = null;
+      }
+      if (files != null && files.isNotEmpty) break;
+      if (attempt + 1 < _previewRetryLimit) {
+        final delaySeconds = ((attempt + 1) * 2).clamp(2, 8).toInt();
+        await Future<void>.delayed(Duration(seconds: delaySeconds));
+      }
+    }
+
+    if (!mounted) return;
+    if (files == null || files.isEmpty) {
+      throw const ProjectExperienceException(
+        'Pandora verified the new version, but its exact preview is still preparing.',
+      );
+    }
+
+    _change.clear();
+    setState(() {
+      _previewFiles = files;
+      _previewVersionId = versionId;
+      _changing = false;
+      _recentlyUpdated = true;
+      _selectionMode = false;
+      _selectedPreviewTarget = null;
+      _error = null;
+    });
   }
 
   Future<void> _undoChange() async {
     final runtime = PandoraDependencies.of(context).projectRuntime;
-    final candidate = _candidate;
-    if (runtime == null || candidate == null || !_canUndo || _undoing) {
+    final versionId = _projection?.candidateVersionId;
+    if (runtime == null || versionId == null || !_canUndo || _undoing) {
       return;
     }
     setState(() {
@@ -911,9 +974,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     try {
       final snapshot = await runtime.undo(
         projectId: widget.project.id,
-        versionId: candidate.versionId,
-        idempotencyKey:
-            'pandora-v2-undo:${widget.project.id}:${candidate.versionId}',
+        versionId: versionId,
+        idempotencyKey: 'pandora-v2-undo:${widget.project.id}:$versionId',
       );
       final files = await _readExactPreview(snapshot);
       if (!mounted) return;
@@ -987,8 +1049,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   Future<void> _showPublish() async {
     final snapshot = _snapshot;
-    final candidate = snapshot?.candidate;
-    if (candidate == null || !_canPublish) {
+    final candidateVersionId = _projection?.candidateVersionId;
+    if (candidateVersionId == null || !_canPublish) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Pandora is still checking this version.'),
@@ -1065,41 +1127,57 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       ),
     );
     if (approved == true && mounted) {
-      await _publish(domainController.text.trim());
+      await _publish(domainController.text.trim(), candidateVersionId);
     }
     domainController.dispose();
   }
 
-  Future<void> _watchPublishCompletion() async {
-    for (var attempt = 0; attempt < 45; attempt++) {
-      await Future<void>.delayed(const Duration(seconds: 2));
-      if (!mounted) return;
-      await _refresh();
-      if (!mounted) return;
-      final snapshot = _snapshot;
-      final candidate = snapshot?.candidate;
-      final project = snapshot?.project;
-      if (candidate != null &&
-          snapshot?.production?.versionId == candidate.versionId &&
-          snapshot?.project.isLive == true) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Live.')));
-        return;
-      }
-      if (project?.runtimeStatus == 'failed') {
-        setState(
-          () => _error =
-              'Pandora found something to resolve before this version can go live.',
+  Future<void> _watchPublishCompletion(String versionId) async {
+    final repository =
+        PandoraDependencies.of(context).projectExperienceProjection;
+    if (repository == null) {
+      throw const ProjectExperienceException(
+        'Pandora cannot confirm this publish right now.',
+      );
+    }
+
+    bool resolved(ProjectExperienceProjection projection) =>
+        projection.hasSafeFailure ||
+        (projection.state == ProjectExperienceState.live &&
+            projection.productionVersionId == versionId);
+
+    ProjectExperienceProjection? transition = _projection;
+    if (transition == null || !resolved(transition)) {
+      try {
+        transition = await repository
+            .watch(widget.project.id)
+            .firstWhere(resolved)
+            .timeout(const Duration(minutes: 2));
+      } on TimeoutException {
+        throw const ProjectExperienceException(
+          'Publishing is still in progress. Pandora has not marked this version live yet.',
         );
-        return;
+      } catch (_) {
+        throw const ProjectExperienceException(
+          'Pandora cannot confirm this publish right now.',
+        );
       }
     }
+
+    if (!mounted) return;
+    if (transition.hasSafeFailure) {
+      throw ProjectExperienceException(
+        transition.safeFailureMessage ??
+            'Pandora found something to resolve before this version can go live.',
+      );
+    }
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Live.')));
   }
 
-  Future<void> _publish(String domain) async {
+  Future<void> _publish(String domain, String versionId) async {
     final runtime = PandoraDependencies.of(context).projectRuntime;
-    final candidate = _candidate;
-    if (runtime == null || candidate == null || _publishing) return;
+    if (runtime == null || versionId.isEmpty || _publishing) return;
     setState(() {
       _publishing = true;
       _error = null;
@@ -1107,15 +1185,15 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     try {
       await runtime.publish(
         projectId: widget.project.id,
-        versionId: candidate.versionId,
+        versionId: versionId,
         domain: domain.isEmpty ? null : domain,
         idempotencyKey:
-            'pandora-v2-publish:${widget.project.id}:${candidate.versionId}:${domain.isEmpty ? 'default' : domain}',
+            'pandora-v2-publish:${widget.project.id}:$versionId:${domain.isEmpty ? 'default' : domain}',
       );
       if (!mounted) return;
-      await _refresh();
-      if (!mounted) return;
-      if (_currentCandidateIsLive) {
+      final projection = _projection;
+      if (projection?.state == ProjectExperienceState.live &&
+          projection?.productionVersionId == versionId) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Live.')));
       } else {
@@ -1126,11 +1204,19 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
             ),
           ),
         );
-        unawaited(_watchPublishCompletion());
+        await _watchPublishCompletion(versionId);
       }
+    } on ProjectExperienceException catch (error) {
+      if (!mounted) return;
+      final protected = _projection?.productionVersionId != null;
+      setState(
+        () => _error = protected
+            ? '${error.message} Your current live version was not replaced.'
+            : error.message,
+      );
     } catch (_) {
       if (!mounted) return;
-      final protected = _snapshot?.production != null;
+      final protected = _projection?.productionVersionId != null;
       setState(
         () => _error = protected
             ? 'Publishing did not complete. Your current live version was not replaced.'
@@ -1150,6 +1236,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         files.isNotEmpty &&
         versionId != null &&
         versionId.isNotEmpty;
+    final progressPhase = _projectionProgressPhase;
 
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
@@ -1224,14 +1311,15 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                               icon: _selectionMode
                                   ? Icons.close_rounded
                                   : Icons.touch_app_outlined,
-                              onPressed: _changing
-                                  ? null
-                                  : () => setState(() {
-                                        _selectionMode = !_selectionMode;
-                                        if (_selectionMode) {
-                                          _selectedPreviewTarget = null;
-                                        }
-                                      }),
+                              onPressed:
+                                  _changing || _projection?.canFocus != true
+                                      ? null
+                                      : () => setState(() {
+                                            _selectionMode = !_selectionMode;
+                                            if (_selectionMode) {
+                                              _selectedPreviewTarget = null;
+                                            }
+                                          }),
                             ),
                             const SizedBox(width: 6),
                             _PreviewIconButton(
@@ -1243,12 +1331,12 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                           ],
                         ),
                       ),
-                    if (_phase != _ProjectChangePhase.idle)
+                    if (progressPhase != null)
                       Positioned(
                         left: 12,
                         right: 12,
                         bottom: 12,
-                        child: _ProjectProgressCapsule(phase: _phase),
+                        child: _ProjectProgressCapsule(phase: progressPhase),
                       )
                     else if (_recentlyUpdated && _currentVersionVerified)
                       Positioned(
@@ -1310,7 +1398,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                 hintText: _selectedPreviewTarget == null
                     ? 'Tell Pandora what to change…'
                     : 'Change ${_selectedPreviewTarget!.label}…',
-                enabled: !_changing,
+                enabled: !_changing && _projection?.canChange == true,
                 onSubmit: _requestChange,
                 onVoice: () async {
                   final value = await PandoraNativeIo.dictate();

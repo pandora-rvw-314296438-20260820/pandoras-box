@@ -48,5 +48,10 @@ test('Simple Mode exposes Changed · Undo through the governed runtime API', () 
   assert.match(workspace, /'Undo'/);
   assert.doesNotMatch(workspace, /CURRENT OBJECT/);
   assert.doesNotMatch(workspace, /Your first version is ready/);
-  assert.match(workspace, /_snapshot\?\.production\?\.versionId != candidate\.versionId/);
+  assert.match(
+    workspace,
+    /bool get _canUndo =>[\s\S]*_projection\?\.canUndo == true && _projection\?\.candidateVersionId != null;/,
+  );
+  assert.match(workspace, /final versionId = _projection\?\.candidateVersionId;/);
+  assert.match(workspace, /runtime\.undo\([\s\S]*versionId: versionId/);
 });

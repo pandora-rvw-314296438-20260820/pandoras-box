@@ -45,7 +45,10 @@ void main() {
     expect(source, contains('createPreview('));
     expect(source, contains('openPreviewBundle'));
     expect(source, contains("intentKind: 'change'"));
-    expect(source, contains('publishEligible'));
+    expect(source, contains('projectExperienceProjection'));
+    expect(source, contains('_projection?.canPublish == true'));
+    expect(source, contains('_projection?.candidateVersionId != null'));
+    expect(source, contains('projection.productionVersionId == versionId'));
     expect(source, contains('PandoraEmbeddedPreview'));
     expect(source, contains("'Designing'"));
     expect(source, contains("'Building'"));
