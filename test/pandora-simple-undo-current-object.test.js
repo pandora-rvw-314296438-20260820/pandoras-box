@@ -20,6 +20,10 @@ const workspace = readFileSync(
   join(root, 'apps/pandora-mobile/lib/features/simple/project_experience_v2.dart'),
   'utf8',
 );
+const workspaceView = readFileSync(
+  join(root, 'apps/pandora-mobile/lib/features/simple/project_workspace_v2_view.dart'),
+  'utf8',
+);
 
 test('runtime binds the visible current object to the exact candidate version', () => {
   assert.match(runtime, /select\("id, parent_version_id, artifact_digest_sha256, lifecycle_status, created_at"\)/);
@@ -44,8 +48,8 @@ test('Simple Mode exposes Changed · Undo through the unified experience reposit
   assert.match(models, /final String\? parentVersionId/);
   assert.match(models, /bool get canUndo/);
   assert.match(workspace, /Future<void> _undoChange\(\)/);
-  assert.match(workspace, /'Verified change'/);
-  assert.match(workspace, /'Undo'/);
+  assert.match(workspaceView, /'Verified change'/);
+  assert.match(workspaceView, /'Undo'/);
   assert.doesNotMatch(workspace, /CURRENT OBJECT/);
   assert.doesNotMatch(workspace, /Your first version is ready/);
   assert.match(
