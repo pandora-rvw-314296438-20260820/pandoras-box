@@ -208,6 +208,18 @@ class ProjectExperienceApi {
           'Pandora returned an unreadable preview.',
         );
       }
+      final responseProjectId = _text(data['projectId']).toLowerCase();
+      final responseVersionId = _text(data['versionId']).toLowerCase();
+      final artifactDigest = _text(data['artifactDigest']).toLowerCase();
+      final requestedProjectId = projectId.trim().toLowerCase();
+      final requestedVersionId = versionId.trim().toLowerCase();
+      if (responseProjectId != requestedProjectId ||
+          responseVersionId != requestedVersionId ||
+          !RegExp(r'^[0-9a-f]{64}$').hasMatch(artifactDigest)) {
+        throw const ProjectExperienceException(
+          'Pandora returned an unreadable preview.',
+        );
+      }
       final rawFiles = data['files'];
       if (rawFiles is! List || rawFiles.isEmpty || rawFiles.length > 1000) {
         throw const ProjectExperienceException(
