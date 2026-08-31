@@ -649,12 +649,10 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   Future<void> _requestChange(String text) async {
     final request = text.trim();
     if (request.length < 4 || _changing) return;
-    final dependencies = PandoraDependencies.of(context);
-    final experience = dependencies.projectExperience;
-    final intelligence = dependencies.intelligence;
-    if (experience == null || intelligence == null) {
+    final experience = PandoraDependencies.of(context).projectExperience;
+    if (experience == null) {
       setState(
-        () => _error = 'Pandora cannot understand that request right now.',
+        () => _error = 'Pandora cannot save that change right now.',
       );
       return;
     }
@@ -667,55 +665,57 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       _intelligenceReply = null;
     });
     try {
-      final turn = await intelligence.chat(
-        message: request,
-        projectId: widget.project.id,
-      );
+      var actionRequest = request;
+      final turn = await _tryIntelligenceTurn(request);
       if (!mounted) return;
 
-      if (turn.needsClarification) {
-        _change.clear();
-        setState(() {
-          _changing = false;
-          _phase = _ProjectChangePhase.idle;
-          _intelligenceReply = turn.clarifyingQuestion ?? turn.reply;
-        });
-        return;
+      if (turn != null) {
+        if (turn.needsClarification) {
+          _change.clear();
+          setState(() {
+            _changing = false;
+            _phase = _ProjectChangePhase.idle;
+            _intelligenceReply = turn.clarifyingQuestion ?? turn.reply;
+          });
+          return;
+        }
+
+        if (turn.intent == 'preview') {
+          _change.clear();
+          setState(() {
+            _changing = false;
+            _phase = _ProjectChangePhase.idle;
+            _intelligenceReply = turn.reply;
+          });
+          await _openExactPreview();
+          return;
+        }
+        if (turn.intent == 'publish') {
+          _change.clear();
+          setState(() {
+            _changing = false;
+            _phase = _ProjectChangePhase.idle;
+            _intelligenceReply = turn.reply;
+          });
+          await _showPublish();
+          return;
+        }
+
+        final handoff = turn.handoff;
+        if (turn.intent == 'change_project' && handoff != null) {
+          final routed = handoff.request.trim();
+          if (routed.length >= 4) actionRequest = routed;
+        } else if (turn.intent == 'chat') {
+          _change.clear();
+          setState(() {
+            _changing = false;
+            _phase = _ProjectChangePhase.idle;
+            _intelligenceReply = turn.reply;
+          });
+          return;
+        }
       }
 
-      if (turn.intent == 'preview') {
-        _change.clear();
-        setState(() {
-          _changing = false;
-          _phase = _ProjectChangePhase.idle;
-          _intelligenceReply = turn.reply;
-        });
-        await _openExactPreview();
-        return;
-      }
-      if (turn.intent == 'publish') {
-        _change.clear();
-        setState(() {
-          _changing = false;
-          _phase = _ProjectChangePhase.idle;
-          _intelligenceReply = turn.reply;
-        });
-        await _showPublish();
-        return;
-      }
-
-      final handoff = turn.handoff;
-      if (turn.intent != 'change_project' || handoff == null) {
-        _change.clear();
-        setState(() {
-          _changing = false;
-          _phase = _ProjectChangePhase.idle;
-          _intelligenceReply = turn.reply;
-        });
-        return;
-      }
-
-      final actionRequest = handoff.request.trim();
       if (actionRequest.length < 4) {
         throw const ProjectExperienceException(
           'Pandora needs a clearer change before it can continue.',
