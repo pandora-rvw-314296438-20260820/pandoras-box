@@ -746,16 +746,19 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   Future<void> _requestChange(String text) async {
     final request = text.trim();
-    if (request.length < 4 || _changing) return;
+    if (request.length < 4 ||
+        _changing ||
+        _projection?.canChange != true) return;
     final experience = PandoraDependencies.of(context).projectExperience;
     if (experience == null) {
       setState(() => _error = 'Pandora cannot save that change right now.');
       return;
     }
-    final baseVersion = _candidate?.versionId;
+    final baseVersion = _projection?.candidateVersionId ??
+        _projection?.currentVersionId ??
+        _candidate?.versionId;
     setState(() {
       _changing = true;
-      _phase = _ProjectChangePhase.designing;
       _recentlyUpdated = false;
       _error = null;
       _intelligenceReply = null;
@@ -770,7 +773,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           _change.clear();
           setState(() {
             _changing = false;
-            _phase = _ProjectChangePhase.idle;
             _intelligenceReply = turn.clarifyingQuestion ?? turn.reply;
           });
           return;
@@ -780,7 +782,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           _change.clear();
           setState(() {
             _changing = false;
-            _phase = _ProjectChangePhase.idle;
             _intelligenceReply = turn.reply;
           });
           await _openExactPreview();
@@ -790,7 +791,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           _change.clear();
           setState(() {
             _changing = false;
-            _phase = _ProjectChangePhase.idle;
             _intelligenceReply = turn.reply;
           });
           await _showPublish();
@@ -805,7 +805,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           _change.clear();
           setState(() {
             _changing = false;
-            _phase = _ProjectChangePhase.idle;
             _intelligenceReply = turn.reply;
           });
           return;
@@ -854,7 +853,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       }
 
       if (!mounted) return;
-      setState(() => _phase = _ProjectChangePhase.building);
       await experience.requestBuild(
         projectId: widget.project.id,
         idempotencyKey:
@@ -866,14 +864,12 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (!mounted) return;
       setState(() {
         _changing = false;
-        _phase = _ProjectChangePhase.idle;
         _error = error.message;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _changing = false;
-        _phase = _ProjectChangePhase.idle;
         _error = 'Pandora could not complete that request right now.';
       });
     }
@@ -897,10 +893,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
       if (isNewCandidate) {
         nextVersion ??= candidate.versionId;
-        if (mounted && _phase != _ProjectChangePhase.checking) {
-          setState(() => _phase = _ProjectChangePhase.checking);
-        }
-
         List<Map<String, Object?>>? files;
         if (_previewVersionId != candidate.versionId) {
           files = await _readExactPreview(snapshot);
@@ -921,7 +913,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           _change.clear();
           setState(() {
             _changing = false;
-            _phase = _ProjectChangePhase.idle;
             _recentlyUpdated = true;
             _selectionMode = false;
             _selectedPreviewTarget = null;
@@ -1168,7 +1159,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (!mounted) return;
       await _refresh();
       if (!mounted) return;
-      if (_currentCandidateIsLive) {
+      if (_projection?.state == ProjectExperienceState.live &&
+          _projection?.productionVersionId == candidate.versionId) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Live.')));
       } else {
@@ -1203,6 +1195,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         files.isNotEmpty &&
         versionId != null &&
         versionId.isNotEmpty;
+    final progressPhase = _projectionProgressPhase;
 
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
@@ -1277,9 +1270,10 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                               icon: _selectionMode
                                   ? Icons.close_rounded
                                   : Icons.touch_app_outlined,
-                              onPressed: _changing
-                                  ? null
-                                  : () => setState(() {
+                              onPressed:
+                                  _changing || _projection?.canFocus != true
+                                      ? null
+                                      : () => setState(() {
                                         _selectionMode = !_selectionMode;
                                         if (_selectionMode) {
                                           _selectedPreviewTarget = null;
@@ -1296,12 +1290,12 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                           ],
                         ),
                       ),
-                    if (_phase != _ProjectChangePhase.idle)
+                    if (progressPhase != null)
                       Positioned(
                         left: 12,
                         right: 12,
                         bottom: 12,
-                        child: _ProjectProgressCapsule(phase: _phase),
+                        child: _ProjectProgressCapsule(phase: progressPhase),
                       )
                     else if (_recentlyUpdated && _currentVersionVerified)
                       Positioned(
@@ -1363,7 +1357,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                 hintText: _selectedPreviewTarget == null
                     ? 'Tell Pandora what to change…'
                     : 'Change ${_selectedPreviewTarget!.label}…',
-                enabled: !_changing,
+                enabled: !_changing && _projection?.canChange == true,
                 onSubmit: _requestChange,
                 onVoice: () async {
                   final value = await PandoraNativeIo.dictate();
