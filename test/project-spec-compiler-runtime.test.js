@@ -54,10 +54,12 @@ test('compiler surface is authenticated and provider-blind to the customer',()=>
   assert.doesNotMatch(edge,/return response\([^\n]*(?:gemini|provider)/i);
 });
 
-test('mobile waiting state requests compilation with cooldown and keeps durable truth',()=>{
+test('mobile waiting state retries bounded compilation and keeps durable truth',()=>{
   assert.match(mobile,/pandora-project-spec-compiler/);
-  assert.match(mobile,/Duration\(seconds: 20\)/);
-  assert.match(mobile,/unawaited\(_ensureCompilation\(expectedSourceIntentId\)\)/);
+  assert.match(mobile,/Duration\(seconds: 8\)/);
+  assert.match(mobile,/Duration\(seconds: 12\)/);
+  assert.match(mobile,/await _ensureCompilation\(expectedSourceIntentId\)/);
+  assert.match(mobile,/_lastCompilationRequest\.remove\(sourceIntentId\)/);
   assert.match(mobile,/return const OwnerProjectUnderstanding\.waiting\(\)/);
   assert.doesNotMatch(mobile,/Gemini|Vercel|GitHub|GPT/);
 });
