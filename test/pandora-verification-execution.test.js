@@ -59,6 +59,24 @@ test("visual policy distinguishes approved/review/broken changes", () => {
   assert.equal(verification.verifyVisualReport({ captures: [{ brokenLayout: true }] }).status, "FAIL");
 });
 
+test("requested redesign fails when the rendered result is effectively unchanged", () => {
+  const unchanged = verification.verifyVisualReport({
+    change_request: "I want a big change on the design totally different style",
+    captures: [{ changedPixelRatio: 0.001, baseline_digest: D("a"), screenshot_digest: D("b") }],
+  });
+  assert.equal(unchanged.status, "FAIL");
+  assert.equal(unchanged.captures[0].expected_change, true);
+  assert.equal(unchanged.captures[0].classification, "MISSING EXPECTED CHANGE");
+  assert.match(unchanged.summary, /requested visual change is not present/i);
+
+  const changed = verification.verifyVisualReport({
+    change_request: "Completely redesign this with a different style",
+    captures: [{ changedPixelRatio: 0.25, baseline_digest: D("a"), screenshot_digest: D("c") }],
+  });
+  assert.equal(changed.status, "PASS");
+  assert.equal(changed.captures[0].classification, "EXPECTED CHANGE");
+});
+
 test("migration safety proves preflight and postflight separately", () => {
   const safe = verification.verifyMigrationPreflight({ sql: "alter table bookings add column note text;", rollback_plan_ref: "rollback-1", order_valid: true, backward_compatible: true, rls_policy_valid: true });
   const destructive = verification.verifyMigrationPreflight({ sql: "drop table bookings;", recovery_required: true });
