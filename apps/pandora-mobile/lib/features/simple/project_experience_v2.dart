@@ -1212,10 +1212,33 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                       Positioned(
                         top: 10,
                         right: 10,
-                        child: _PreviewIconButton(
-                          tooltip: 'Open full screen',
-                          icon: Icons.open_in_full_rounded,
-                          onPressed: _openingPreview ? null : _openExactPreview,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _PreviewIconButton(
+                              tooltip: _selectionMode
+                                  ? 'Cancel selection'
+                                  : 'Select something to change',
+                              icon: _selectionMode
+                                  ? Icons.close_rounded
+                                  : Icons.touch_app_outlined,
+                              onPressed: _changing
+                                  ? null
+                                  : () => setState(() {
+                                        _selectionMode = !_selectionMode;
+                                        if (_selectionMode) {
+                                          _selectedPreviewTarget = null;
+                                        }
+                                      }),
+                            ),
+                            const SizedBox(width: 6),
+                            _PreviewIconButton(
+                              tooltip: 'Open full screen',
+                              icon: Icons.open_in_full_rounded,
+                              onPressed:
+                                  _openingPreview ? null : _openExactPreview,
+                            ),
+                          ],
                         ),
                       ),
                     if (_phase != _ProjectChangePhase.idle)
@@ -1240,6 +1263,18 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                 ),
               ),
             ),
+            if (_selectionMode || _selectedPreviewTarget != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                child: _SelectionContextCapsule(
+                  selecting: _selectionMode,
+                  selection: _selectedPreviewTarget,
+                  onClear: () => setState(() {
+                    _selectionMode = false;
+                    _selectedPreviewTarget = null;
+                  }),
+                ),
+              ),
             if (_intelligenceReply != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
@@ -1270,7 +1305,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
               ),
               child: PandoraV2IntentSurface(
                 controller: _change,
-                hintText: 'Tell Pandora what to change…',
+                hintText: _selectedPreviewTarget == null
+                    ? 'Tell Pandora what to change…'
+                    : 'Change ${_selectedPreviewTarget!.label}…',
                 enabled: !_changing,
                 onSubmit: _requestChange,
                 onVoice: () async {
