@@ -9,10 +9,17 @@ abstract interface class ProjectExperienceRepository {
 
   Stream<ProjectExperienceProjection> watchExperience(String projectId);
 
+  Future<CustomerProject> createProject({
+    required String name,
+    required ProjectBuildKind buildKind,
+    required String objective,
+    String? idempotencyKey,
+  });
+
   Future<String> submitIntent({
     required String projectId,
     required String intentText,
-    String intentKind,
+    String intentKind = 'build',
     String? idempotencyKey,
   });
 
@@ -90,6 +97,20 @@ class CompositeProjectExperienceRepository
   @override
   Stream<ProjectExperienceProjection> watchExperience(String projectId) =>
       _projection.watch(projectId);
+
+  @override
+  Future<CustomerProject> createProject({
+    required String name,
+    required ProjectBuildKind buildKind,
+    required String objective,
+    String? idempotencyKey,
+  }) =>
+      _runtime.createProject(
+        name: name,
+        buildKind: buildKind,
+        objective: objective,
+        idempotencyKey: idempotencyKey,
+      );
 
   @override
   Future<String> submitIntent({
