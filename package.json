@@ -33,7 +33,7 @@
         "check:mirrors": "node scripts/verify-frontend-mirrors.mjs",
         "test:coverage": "npm run build && NODE_V8_COVERAGE=coverage node --test test/*.test.js apps/meta-business-mcp/test/*.test.js packages/shared-security/test/*.test.js packages/pandora-tools/test/*.test.js",
         "aws-deploy-win": "powershell -ExecutionPolicy Bypass -File aws/deploy.ps1",
-        "check:supabase": "node scripts/check-supabase-syntax.mjs",
+        "check:supabase": "node scripts/check-supabase-syntax.mjs && node scripts/verify-supabase-hardening.mjs",
         "dev:meta-remote": "npm run build:runtime --silent && node apps/meta-business-mcp/src/remote-server.js",
         "test:integration": "node --test packages/pandora-integration/test/*.test.mjs",
         "start:meta-remote": "node apps/meta-business-mcp/dist/remote-server.js",
