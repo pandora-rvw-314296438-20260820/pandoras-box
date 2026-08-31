@@ -284,7 +284,7 @@ async function authorizationSmoke(db) {
 async function governedWorkerSmoke(db) {
   const organizationId = '2270b266-59da-4c39-bfd9-9f8d08352af0';
   const requesterId = '11111111-1111-4111-8111-111111111111';
-  const repository = 'banataosystems/Pandoras-box';
+  const repository = 'pandora-rvw-314296438-20260820/pandoras-box';
   const exactSha = 'c'.repeat(40);
   const workerId = 'worker-01-replay';
   const publicKeyB64 = `${'A'.repeat(43)}=`;
@@ -1434,7 +1434,7 @@ async function governedWorkerSmoke(db) {
 
 async function canonicalReleaseAttestationSmoke(db) {
   const organizationId = '2270b266-59da-4c39-bfd9-9f8d08352af0';
-  const repository = 'banataosystems/Pandoras-box';
+  const repository = 'pandora-rvw-314296438-20260820/pandoras-box';
   // Reuse the exact source/tree already proven by governedWorkerSmoke so the
   // physical journey can bind a real owner plan, Worker-01 result, and review.
   const sourceSha = 'c'.repeat(40);
@@ -1452,7 +1452,7 @@ async function canonicalReleaseAttestationSmoke(db) {
   const ownerRequestId = 'owner-release-auth-0001';
   const reviewNonce = 'canonical-release-review-nonce-0001';
   const reviewExternalId = 'independent-release-review-0001';
-  const reviewSourceUrl = 'https://github.com/banataosystems/Pandoras-box/issues/1';
+  const reviewSourceUrl = 'https://github.com/pandora-rvw-314296438-20260820/pandoras-box/issues/1';
   const reviewDigest = sha256('independent canonical release review');
   const reviewSignatureB64 = Buffer.alloc(64, 3).toString('base64');
   const reviewSignatureSha256 = sha256(Buffer.from(reviewSignatureB64, 'base64'));
@@ -1586,7 +1586,7 @@ async function canonicalReleaseAttestationSmoke(db) {
     ) values (
       $1, $2, 'jcyqixttuebxqqfkjonq', $3, $4, $5, $6,
       '123456789',
-      'https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/123456789',
+      'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/123456789',
       $7, array['20260823160000']::text[], $7
     )
   `, [
@@ -1601,7 +1601,7 @@ async function canonicalReleaseAttestationSmoke(db) {
 
   const ciArtifact = {
     externalId: '987654321',
-    sourceUrl: 'https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/987654321',
+    sourceUrl: 'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/987654321',
     name: `pandora-mobile-android-validation-${sourceSha}`,
     digestSha256: mobileArtifactDigest,
     apkSha256,
