@@ -1001,7 +1001,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Publishing. Pandora is verifying this exact version.'),
+            content:
+                Text('Publishing. Pandora is verifying this exact version.'),
           ),
         );
         unawaited(_watchPublishCompletion());
