@@ -363,6 +363,8 @@ class _ProjectBuildExperienceV2ScreenState
                           setState(() {
                             _error = null;
                             _previewRequested = false;
+                            _flowStartedAt = DateTime.now();
+                            if (_candidate == null) _buildRequested = false;
                           });
                           unawaited(_refreshAndAdvance());
                         },
