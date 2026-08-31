@@ -877,14 +877,14 @@ Deno.serve(async (req) => {
     const output = providerText(modelEnvelope);
     const responseSha = await sha256Text(output);
 
-    let parsed: unknown;
+    let generatedSource: unknown;
     try {
-      parsed = JSON.parse(output);
+      generatedSource = JSON.parse(output);
     } catch {
       throw new Error("INVALID_GENERATED_SOURCE");
     }
     const canonical = await canonicalBundle(
-      parsed,
+      generatedSource,
       String(spec.id),
       adapter,
       primitiveMaterialization.files,
