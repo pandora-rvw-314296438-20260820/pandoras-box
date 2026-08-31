@@ -710,7 +710,7 @@ void main() {
     expect(approve.onPressed, isNull);
     expect(reject.onPressed, isNull);
     expect(
-      find.text('Decision disabled â expiry not verified'),
+      find.text('Decision disabled — expiry not verified'),
       findsOneWidget,
     );
   });
@@ -810,7 +810,7 @@ void main() {
       expect(reject.onPressed, isNull);
       expect(
         find.text(
-          'Decision disabled â this owner cannot decide this approval.',
+          'Decision disabled — this owner cannot decide this approval.',
         ),
         findsOneWidget,
       );
@@ -840,7 +840,7 @@ void main() {
     expect(find.text('Nothing requires your decision'), findsNothing);
     // Every unverified counter reads as an em dash rather than a number, and
     // never as zero.
-    expect(find.text('â'), findsNWidgets(3));
+    expect(find.text('—'), findsNWidgets(3));
     expect(find.text('0'), findsNothing);
     // The dash alone means nothing to a screen reader. The counter cells
     // announce as one merged node, so assert that node names every counter as
