@@ -63,8 +63,8 @@ class _ProjectIterationExperienceScreenState
       });
       return;
     }
-    final experience = PandoraDependencies.of(context)
-        .projectExperienceRepository;
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) {
       setState(() {
         _error = 'Pandora cannot save that change right now.';
@@ -112,8 +112,8 @@ class _ProjectIterationExperienceScreenState
     if (_refreshing || sourceIntentId == null || _understanding.isReady) {
       return;
     }
-    final experience = PandoraDependencies.of(context)
-        .projectExperienceRepository;
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) return;
 
     _refreshing = true;
@@ -200,7 +200,8 @@ class _ProjectIterationExperienceScreenState
               autofocus: true,
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
-                hintText: 'Make the booking flow shorter and put the direct booking button above the fold.',
+                hintText:
+                    'Make the booking flow shorter and put the direct booking button above the fold.',
                 alignLabelWithHint: true,
               ),
             ),
