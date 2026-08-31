@@ -31,7 +31,7 @@ test('rollback authorization is derived server-side and never trusted from the r
   assert.match(source, /authorizationRef !== `worker-c:\$\{actionHash\}`/);
   assert.match(approvalMigration, /role::text='owner'/);
   assert.match(approvalMigration, /'HIGH','REQUIRE_APPROVAL','PRODUCTION_MUTATION'/);
-  assert.match(approvalMigration, /approval_required,true/);
+  assert.match(approvalMigration, /approval_required,approval_id,status/);
   assert.match(approvalMigration, /'authorizationRef','worker-c:'\|\|v_action_hash/);
 });
 
