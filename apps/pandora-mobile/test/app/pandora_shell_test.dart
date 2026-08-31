@@ -486,7 +486,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Settings'), findsNothing);
-    expect(find.text('Sign in securely'), findsOneWidget);
+    expect(find.text("Pandora's Box"), findsOneWidget);
   });
 
   testWidgets('switching users destroys the prior user route tree', (
@@ -710,7 +710,7 @@ void main() {
     expect(approve.onPressed, isNull);
     expect(reject.onPressed, isNull);
     expect(
-      find.text('Decision disabled — expiry not verified'),
+      find.text('Decision disabled â expiry not verified'),
       findsOneWidget,
     );
   });
@@ -760,7 +760,7 @@ void main() {
           expect(reject.onPressed, isNull);
           expect(find.text('Queue refresh failed.'), findsOneWidget);
         } else {
-          expect(find.text('Nothing needs your decision'), findsOneWidget);
+          expect(find.text('Nothing needs you right now'), findsOneWidget);
         }
       },
     );
@@ -810,7 +810,7 @@ void main() {
       expect(reject.onPressed, isNull);
       expect(
         find.text(
-          'Decision disabled — this owner cannot decide this approval.',
+          'Decision disabled â this owner cannot decide this approval.',
         ),
         findsOneWidget,
       );
@@ -840,7 +840,7 @@ void main() {
     expect(find.text('Nothing requires your decision'), findsNothing);
     // Every unverified counter reads as an em dash rather than a number, and
     // never as zero.
-    expect(find.text('—'), findsNWidgets(3));
+    expect(find.text('â'), findsNWidgets(3));
     expect(find.text('0'), findsNothing);
     // The dash alone means nothing to a screen reader. The counter cells
     // announce as one merged node, so assert that node names every counter as
