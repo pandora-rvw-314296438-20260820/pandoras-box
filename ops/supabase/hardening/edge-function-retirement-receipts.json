@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-01T01:56:00+08:00",
+  "retirements": [
+    {
+      "plane": "primary",
+      "projectRef": "jcyqixttuebxqqfkjonq",
+      "slug": "pandora-team-github-secret-bridge",
+      "priorVersion": 3,
+      "priorVerifyJwt": true,
+      "priorSourceSha256": "fdbf20be2b99908fb9a08acf68f3a55660170f0e3cf8add8dcd1f223cb66e58e",
+      "deletedAt": "2026-09-01T01:56:00+08:00",
+      "reason": "Already-tombstoned 410 recovery transport with no DB/cron/repo caller references and no sampled 24h traffic.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "primary",
+      "projectRef": "jcyqixttuebxqqfkjonq",
+      "slug": "pandora-pr188-green-merge-20260831",
+      "priorVersion": 1,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "46e181e4e5587377c8f7947873f4af4b14d7936f367ca4e1584ef5fe7576c1c7",
+      "deletedAt": "2026-09-01T01:56:00+08:00",
+      "reason": "Single-purpose PR #188 merger bound to completed PR/head/main/run identities; no DB/cron/repo caller references and no sampled 24h traffic.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "primary",
+      "projectRef": "jcyqixttuebxqqfkjonq",
+      "slug": "pandora-evo-chat-c-checkpoint-20260901",
+      "priorVersion": 1,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "2fef4e8367a7e1a19cdd921ea9512a5972652fcfa0dfa2da6cd3c079d8ddacf7",
+      "deletedAt": "2026-09-01T01:56:00+08:00",
+      "reason": "Ephemeral Chat C transport helper used only to create/refresh hardening evidence.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "primary",
+      "projectRef": "jcyqixttuebxqqfkjonq",
+      "slug": "pandora-evo-chat-c-invoke-20260901",
+      "priorVersion": 1,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "6605067a4a03183e66700709b793f9b8375b2b27b133bec3b656c999a1b11d51",
+      "deletedAt": "2026-09-01T01:56:00+08:00",
+      "reason": "Ephemeral Chat C transport helper used only to create/refresh hardening evidence.",
+      "rollback": "Redeploy exact captured provider source/version if an unexpected caller is discovered."
+    },
+    {
+      "plane": "primary",
+      "projectRef": "jcyqixttuebxqqfkjonq",
+      "slug": "pandora-evo-chat-c-retire-refresh-20260901",
+      "priorVersion": 1,
+      "priorVerifyJwt": false,
+      "priorSourceSha256": "78a2e26ef355706f8af5a8afac8e455063102ffd208f7cac746443ac8da3bbe4",
+      "deletedAt": "2026-09-01T01:56:00+08:00",
+      "reason": "Ephemeral Chat C retirement/registry refresh helper; self-retired after durable evidence write.",
+      "rollback": "Redeploy exact captured provider source/version only if evidence repair is required."
+    }
+  ]
+}
