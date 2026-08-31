@@ -209,11 +209,19 @@ test("requirement coverage traces checks to ProjectSpec requirement IDs", () => 
   assert.deepEqual(coverage.map((item) => item.status), ["PASS", "FAIL", "NOT TESTABLE"]);
 });
 
-test("visual differences are classified instead of blindly failed", () => {
+test("visual differences are classified against the requested outcome", () => {
   assert.equal(verification.classifyVisualDiff({ changedPixelRatio: 0.001 }), "EXPECTED CHANGE");
   assert.equal(verification.classifyVisualDiff({ changedPixelRatio: 0.01 }), "REVIEW REQUIRED");
   assert.equal(verification.classifyVisualDiff({ changedPixelRatio: 0.25 }), "UNEXPECTED CHANGE");
   assert.equal(verification.classifyVisualDiff({ brokenLayout: true }), "BROKEN LAYOUT");
+  assert.equal(
+    verification.classifyVisualDiff({ changedPixelRatio: 0.001, expectedChange: true }),
+    "MISSING EXPECTED CHANGE",
+  );
+  assert.equal(
+    verification.classifyVisualDiff({ changedPixelRatio: 0.25, expectedChange: true }),
+    "EXPECTED CHANGE",
+  );
 });
 
 test("production drift detection is explicit", () => {
