@@ -116,8 +116,8 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                               ? _ExactPreviewLoadingSurface(projectName: title)
                               : hasExactPreview
                                   ? PandoraEmbeddedPreview(
-                                      key: ValueKey<String>(versionId!),
-                                      files: files!,
+                                      key: ValueKey<String>(versionId),
+                                      files: files,
                                       versionId: versionId,
                                       selectionEnabled: selectionMode,
                                       selectedSelector:
