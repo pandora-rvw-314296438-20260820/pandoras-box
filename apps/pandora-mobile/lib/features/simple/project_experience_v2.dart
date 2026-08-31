@@ -148,9 +148,9 @@ class _ProjectBuildExperienceV2ScreenState
       return;
     }
     if (_refreshing) return;
-    final runtime = PandoraDependencies.of(context).projectRuntime;
-    final experience = PandoraDependencies.of(context).projectExperienceRepository;
-    if (runtime == null || experience == null) {
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
+    if (experience == null) {
       setState(
         () => _error = 'Pandora cannot continue this project right now.',
       );
@@ -158,7 +158,7 @@ class _ProjectBuildExperienceV2ScreenState
     }
     _refreshing = true;
     try {
-      final snapshot = await runtime.runtime(widget.project.id);
+      final snapshot = await experience.runtime(widget.project.id);
       if (!mounted) return;
       setState(() {
         _snapshot = snapshot;
@@ -182,7 +182,7 @@ class _ProjectBuildExperienceV2ScreenState
       } else if (!_ready && !_previewRequested) {
         _previewRequested = true;
         try {
-          final result = await runtime.createPreview(
+          final result = await experience.createPreview(
             projectId: widget.project.id,
             versionId: candidate.versionId,
             artifactDigest: candidate.artifactDigest,
@@ -511,7 +511,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
 
     try {
-      final initial = await repository.load(widget.project.id);
+      final initial = await repository.loadExperience(widget.project.id);
       if (!mounted) return;
       _acceptProjection(initial);
     } catch (_) {
@@ -523,7 +523,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
 
     if (!mounted || _projectionSubscription != null) return;
-    _projectionSubscription = repository.watch(widget.project.id).listen(
+    _projectionSubscription = repository.watchExperience(widget.project.id).listen(
       _acceptProjection,
       onError: (_) {
         if (!mounted) return;
@@ -660,7 +660,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   Future<void> _refresh() async {
-    final runtime = PandoraDependencies.of(context).projectRuntime;
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
     if (runtime == null) {
       if (!mounted) return;
       setState(() {
@@ -670,7 +671,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       return;
     }
     try {
-      final snapshot = await runtime.runtime(widget.project.id);
+      final snapshot = await experience.runtime(widget.project.id);
       if (!mounted) return;
       List<Map<String, Object?>>? files;
       final candidate = snapshot.candidate;
@@ -896,7 +897,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     if (transition == null || !resolved(transition)) {
       try {
         transition = await repository
-            .watch(widget.project.id)
+            .watchExperience(widget.project.id)
             .firstWhere(resolved)
             .timeout(const Duration(minutes: 3));
       } on TimeoutException {
@@ -962,7 +963,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   Future<void> _undoChange() async {
-    final runtime = PandoraDependencies.of(context).projectRuntime;
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
     final versionId = _projection?.candidateVersionId;
     if (runtime == null || versionId == null || !_canUndo || _undoing) {
       return;
@@ -973,7 +975,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       _intelligenceReply = null;
     });
     try {
-      final snapshot = await runtime.undo(
+      final snapshot = await experience.undo(
         projectId: widget.project.id,
         versionId: versionId,
         idempotencyKey: 'pandora-v2-undo:${widget.project.id}:$versionId',
@@ -1151,7 +1153,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     if (transition == null || !resolved(transition)) {
       try {
         transition = await repository
-            .watch(widget.project.id)
+            .watchExperience(widget.project.id)
             .firstWhere(resolved)
             .timeout(const Duration(minutes: 2));
       } on TimeoutException {
@@ -1177,14 +1179,15 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   Future<void> _publish(String domain, String versionId) async {
-    final runtime = PandoraDependencies.of(context).projectRuntime;
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
     if (runtime == null || versionId.isEmpty || _publishing) return;
     setState(() {
       _publishing = true;
       _error = null;
     });
     try {
-      await runtime.publish(
+      await experience.publish(
         projectId: widget.project.id,
         versionId: versionId,
         domain: domain.isEmpty ? null : domain,
