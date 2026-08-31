@@ -40,6 +40,8 @@ void main() {
   test('object-first build experience uses durable runtime truth', () {
     final source = File('lib/features/simple/project_experience_v2.dart')
         .readAsStringSync();
+    final view = File('lib/features/simple/project_workspace_v2_view.dart')
+        .readAsStringSync();
     expect(source, contains('experience.runtime(widget.project.id)'));
     expect(source, contains('requestBuild('));
     expect(source, contains('createPreview('));
@@ -52,23 +54,27 @@ void main() {
     expect(source, isNot(contains('.projectExperienceProjection;')));
     expect(source, contains('_projection?.candidateVersionId != null'));
     expect(source, contains('projection.productionVersionId == versionId'));
-    expect(source, contains('PandoraEmbeddedPreview'));
-    expect(source, contains("'Designing'"));
-    expect(source, contains("'Building'"));
-    expect(source, contains("'Checking'"));
-    expect(source, contains("'Verified change'"));
+    expect(source, contains('ProjectWorkspaceV2View('));
+    expect(source, isNot(contains('PandoraV2IntentSurface(')));
+    expect(view, contains('PandoraEmbeddedPreview'));
+    expect(view, contains("'Designing'"));
+    expect(view, contains("'Building'"));
+    expect(view, contains("'Checking'"));
+    expect(view, contains("'Verified change'"));
     expect(source, contains('_tryIntelligenceTurn'));
     expect(source, contains('_flowTimeout'));
     expect(source, contains('_previewRetryLimit'));
-    expect(source, contains('_ExactPreviewLoadingSurface'));
-    expect(source, contains('selectionEnabled: _selectionMode'));
-    expect(source, contains('_SelectionContextCapsule'));
-    expect(source, contains('Tell Pandora what to change…'));
+    expect(view, contains('_ExactPreviewLoadingSurface'));
+    expect(view, contains('selectionEnabled: selectionMode'));
+    expect(view, contains('_SelectionContextCapsule'));
+    expect(view, contains('Tell Pandora what to change…'));
     expect(source, contains('Your request is saved'));
     expect(source, isNot(contains('CURRENT OBJECT')));
     expect(source, isNot(contains('Your first version is ready')));
     expect(source, isNot(contains('AnimationController(')));
     expect(source, isNot(contains('Watch your project take shape')));
+    expect(view, contains('class ProjectWorkspaceV2View'));
+    expect(view, contains('ProjectChangePhase'));
   });
 
   test('canonical Pandora mark cannot be recolored red by callers', () {
