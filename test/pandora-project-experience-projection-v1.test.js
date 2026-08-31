@@ -89,3 +89,9 @@ test('all canonical lifecycle inputs refresh the projection', () => {
     assert.match(source, new RegExp(`on public\\.${table.replaceAll('_', '\\_')}`, 'i'));
   }
 });
+
+
+test('realtime publication update is portable when publication is absent', () => {
+  assert.match(source, /from pg_publication\s+where pubname = 'supabase_realtime'/);
+  assert.match(source, /and not exists \([\s\S]*from pg_publication_tables/);
+});
