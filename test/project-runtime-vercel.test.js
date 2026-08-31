@@ -96,7 +96,7 @@ test("Worker F preserves governed scope history and rebinds live Vercel scope fo
  const fs=require("node:fs");
  const historical=fs.readFileSync("supabase/migrations/20260829104000_pandora_worker_f_runtime_state.sql","utf8");
  const rebind=fs.readFileSync("supabase/migrations/20260829111500_pandora_worker_f_vercel_scope_rebind.sql","utf8");
- assert.equal(historical.includes("team_3yw1CN59ce4pj5SwyQGCAqN3"),true);
+ assert.equal(historical.includes("team_IcdJUnzLi5wUN1GD8ALHyjF7"),true);
  assert.equal(historical.includes("team_3yw1CN59ce4pj5SwyQGCAqN3"),false);
  assert.equal(rebind.includes("team_3yw1CN59ce4pj5SwyQGCAqN3"),true);
  assert.equal(/Bearer\s+|gh[porsu]_|sb_(?:secret|publishable)_|PANDORA_VERCEL_TOKEN/.test(rebind),false);
