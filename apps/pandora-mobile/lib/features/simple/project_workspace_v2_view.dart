@@ -149,15 +149,15 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                               icon: selectionMode
                                   ? Icons.close_rounded
                                   : Icons.touch_app_outlined,
-                              onPressed:
-                                  changing || !canFocus ? null : onToggleSelection,
+                              onPressed: changing || !canFocus
+                                  ? null
+                                  : onToggleSelection,
                             ),
                             const SizedBox(width: 6),
                             _PreviewIconButton(
                               tooltip: 'Open full screen',
                               icon: Icons.open_in_full_rounded,
-                              onPressed:
-                                  openingPreview ? null : onOpenPreview,
+                              onPressed: openingPreview ? null : onOpenPreview,
                             ),
                           ],
                         ),
