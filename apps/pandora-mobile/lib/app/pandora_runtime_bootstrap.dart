@@ -5,6 +5,7 @@ import '../core/data/pandora_intelligence_api.dart';
 import '../core/data/pandora_repository.dart';
 import '../core/data/project_experience_api.dart';
 import '../core/data/project_experience_projection_repository.dart';
+import '../core/data/project_experience_repository.dart';
 import '../core/data/project_runtime_api.dart';
 import '../core/data/remote_pandora_repository.dart';
 import '../core/diagnostics/diagnostic_event.dart';
@@ -23,6 +24,7 @@ class PandoraRuntimeBootstrap {
     required this.projectRuntime,
     required this.projectExperience,
     required this.projectExperienceProjection,
+    required this.projectExperienceRepository,
     required this.domainRegistrar,
     required this.diagnostics,
   });
@@ -33,6 +35,7 @@ class PandoraRuntimeBootstrap {
   final ProjectRuntimeApi projectRuntime;
   final ProjectExperienceApi projectExperience;
   final ProjectExperienceProjectionRepository projectExperienceProjection;
+  final ProjectExperienceRepository projectExperienceRepository;
   final DomainRegistrarApi domainRegistrar;
   final DiagnosticsStore diagnostics;
 
@@ -67,6 +70,22 @@ class PandoraRuntimeBootstrap {
       timeout: const Duration(seconds: 60),
     );
 
+    final projectRuntime = ProjectRuntimeApi(client: runtimeClient);
+    final projectExperience = ProjectExperienceApi(
+      client: supabase,
+      organizationId: PandoraConfig.organizationId,
+    );
+    final projectExperienceProjection =
+        SupabaseProjectExperienceProjectionRepository(
+      client: supabase,
+      organizationId: PandoraConfig.organizationId,
+    );
+    final projectExperienceRepository = CompositeProjectExperienceRepository(
+      projection: projectExperienceProjection,
+      mutations: projectExperience,
+      runtime: projectRuntime,
+    );
+
     return PandoraRuntimeBootstrap._(
       auth: SupabasePandoraAuth(supabase),
       repository: RemotePandoraRepository(client: ownerClient),
@@ -74,16 +93,10 @@ class PandoraRuntimeBootstrap {
         client: supabase,
         organizationId: PandoraConfig.organizationId,
       ),
-      projectRuntime: ProjectRuntimeApi(client: runtimeClient),
-      projectExperience: ProjectExperienceApi(
-        client: supabase,
-        organizationId: PandoraConfig.organizationId,
-      ),
-      projectExperienceProjection:
-          SupabaseProjectExperienceProjectionRepository(
-        client: supabase,
-        organizationId: PandoraConfig.organizationId,
-      ),
+      projectRuntime: projectRuntime,
+      projectExperience: projectExperience,
+      projectExperienceProjection: projectExperienceProjection,
+      projectExperienceRepository: projectExperienceRepository,
       domainRegistrar: DomainRegistrarApi(
         client: supabase,
         organizationId: PandoraConfig.organizationId,
