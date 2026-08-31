@@ -40,7 +40,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         flutterEngine.platformViewsController.registry.registerViewFactory(
             "pandora/exact_preview",
-            PandoraExactPreviewFactory()
+            PandoraExactPreviewFactory(flutterEngine.dartExecutor.binaryMessenger)
         )
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler(::handleCall)
@@ -368,24 +368,29 @@ class MainActivity : FlutterActivity() {
 
 private data class EmbeddedPreviewFile(val bytes: ByteArray, val mimeType: String)
 
-private class PandoraExactPreviewFactory :
-    io.flutter.plugin.platform.PlatformViewFactory(io.flutter.plugin.common.StandardMessageCodec.INSTANCE) {
+private class PandoraExactPreviewFactory(
+    private val messenger: io.flutter.plugin.common.BinaryMessenger
+) : io.flutter.plugin.platform.PlatformViewFactory(io.flutter.plugin.common.StandardMessageCodec.INSTANCE) {
     override fun create(
         context: android.content.Context,
         viewId: Int,
         args: Any?
     ): io.flutter.plugin.platform.PlatformView {
         val params = args as? Map<*, *> ?: emptyMap<Any?, Any?>()
-        return PandoraExactPreviewView(context, params)
+        return PandoraExactPreviewView(context, params, messenger, viewId)
     }
 }
 
 private class PandoraExactPreviewView(
     context: android.content.Context,
-    params: Map<*, *>
+    params: Map<*, *>,
+    messenger: io.flutter.plugin.common.BinaryMessenger,
+    viewId: Int
 ) : io.flutter.plugin.platform.PlatformView {
     private val webView = WebView(context)
     private val files = LinkedHashMap<String, EmbeddedPreviewFile>()
+    private val selectionChannel = MethodChannel(messenger, "pandora/exact_preview_selection_$viewId")
+    private var selectionMode = false
 
     init {
         val rawFiles = params["files"] as? List<*>
@@ -419,6 +424,33 @@ private class PandoraExactPreviewView(
         }
         if (!files.containsKey("index.html")) {
             throw IllegalArgumentException("Exact preview entrypoint missing")
+        }
+
+        selectionChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "setSelectionMode" -> {
+                    selectionMode = call.argument<Boolean>("enabled") == true
+                    if (selectionMode) clearSelectionHighlight()
+                    result.success(true)
+                }
+                "clearSelection" -> {
+                    selectionMode = false
+                    clearSelectionHighlight()
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        webView.setOnTouchListener { _, event ->
+            if (!selectionMode) {
+                false
+            } else {
+                if (event.actionMasked == android.view.MotionEvent.ACTION_UP) {
+                    selectionMode = false
+                    selectPreviewElementAt(event.x, event.y)
+                }
+                true
+            }
         }
 
         webView.setBackgroundColor(Color.WHITE)
