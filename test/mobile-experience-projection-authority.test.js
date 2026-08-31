@@ -30,12 +30,13 @@ test('mobile workspace treats Experience Projection as lifecycle authority', () 
     experienceSource.includes('PandoraDependencies.of(context).projectExperienceRepository'),
     'workspace must consume the canonical Experience Projection',
   );
-  assert.ok(experienceSource.includes('_projection?.canFocus != true'));
+  assert.ok(experienceSource.includes('ProjectWorkspaceV2View('));
+  assert.ok(experienceSource.includes('canFocus: _projection?.canFocus == true'));
   assert.ok(experienceSource.includes('_projection?.canChange == true'));
   assert.ok(experienceSource.includes('_projection?.canUndo == true'));
   assert.ok(experienceSource.includes('_projection?.canPublish == true'));
   assert.equal(
-    /\b_ProjectChangePhase\s+_phase\b/.test(experienceSource),
+    /\bProjectChangePhase\s+_phase\b/.test(experienceSource),
     false,
     'mutable local lifecycle phase must not return',
   );
