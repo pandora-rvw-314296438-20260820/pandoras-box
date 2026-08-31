@@ -3,9 +3,9 @@ const EXPECTED_ENVIRONMENT = "production";
 
 const TRUSTED_PRODUCTION_IDENTITIES = Object.freeze([
   Object.freeze({
-    ownerId: "team_IcdJUnzLi5wUN1GD8ALHyjF7",
+    ownerId: "team_3yw1CN59ce4pj5SwyQGCAqN3",
     projectId: "prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk",
-    owner: "mbanatao-dc676069",
+    owner: "mbanatao",
   }),
 ]);
 

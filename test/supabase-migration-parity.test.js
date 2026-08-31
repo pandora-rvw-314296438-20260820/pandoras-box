@@ -127,6 +127,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260831085000_pandora_project_experience_projection_v1.sql',
     '20260831090000_pandora_project_experience_projection_privilege_hardening_v2.sql',
     '20260831143000_pandora_project_experience_drift_telemetry_v1.sql',
+    '20260901035000_align_recovery_authority_and_vercel_scope.sql',
+    '20260901040000_align_recovery_authority_constraints.sql',
+    '20260901042000_align_vercel_connector_account_identity.sql',
     '20260901054500_pandora_customer_repo_provisioning_v1.sql',
     '20260901060000_pandora_customer_vercel_project_domain_v1.sql'
   ]);
@@ -262,6 +265,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260831085000_pandora_project_experience_projection_v1.sql',
     '20260831090000_pandora_project_experience_projection_privilege_hardening_v2.sql',
     '20260831143000_pandora_project_experience_drift_telemetry_v1.sql',
+    '20260901035000_align_recovery_authority_and_vercel_scope.sql',
+    '20260901040000_align_recovery_authority_constraints.sql',
+    '20260901042000_align_vercel_connector_account_identity.sql',
     '20260901054500_pandora_customer_repo_provisioning_v1.sql',
     '20260901060000_pandora_customer_vercel_project_domain_v1.sql'
   ]);
@@ -349,6 +355,9 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260831085000_pandora_project_experience_projection_v1.sql',
     '20260831090000_pandora_project_experience_projection_privilege_hardening_v2.sql',
     '20260831143000_pandora_project_experience_drift_telemetry_v1.sql',
+    '20260901035000_align_recovery_authority_and_vercel_scope.sql',
+    '20260901040000_align_recovery_authority_constraints.sql',
+    '20260901042000_align_vercel_connector_account_identity.sql',
     '20260901054500_pandora_customer_repo_provisioning_v1.sql',
     '20260901060000_pandora_customer_vercel_project_domain_v1.sql'
   ]);

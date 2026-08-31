@@ -1,6 +1,6 @@
 # Deprecated Source Denylist
 
-**Effective:** 2026-08-28  
+**Effective:** 2026-09-01  
 **Project:** `mcpmaster-pandoras-box`  
 **Mode:** fail closed
 
@@ -10,7 +10,7 @@ This file is the current denylist. It is not a historical status surface. `RECOV
 
 - Operating source of truth: Pandora Memory hard-canon state.
 - Canonical source repository: `pandora-rvw-314296438-20260820/pandoras-box`.
-- Canonical Memory source repository: `banataosystems/pandoras-box-memory`.
+- Canonical Memory source repository: `pandora-rvw-314296438-20260820/pandoras-box-memory`.
 - Canonical Vercel project: `mcpmaster` / `prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk`.
 - Canonical production origin: `https://mcpmaster.vercel.app`.
 - Live status: authenticated `GET /api/operator/status`.

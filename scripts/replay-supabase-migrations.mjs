@@ -69,6 +69,27 @@ function portableSql(filename, source) {
     assert.equal(occurrences, 1, `${filename}: extension substitution drift`);
     transformed = transformed.replace(statement, `-- PGLITE PROVIDER STUB: ${statement}`);
   }
+  // PGlite does not fully emulate PostgreSQL pg_get_functiondef() rewrites.
+  // Normalize authority literals only inside replayed function definitions so
+  // active behavior matches production while historical rows and source bytes
+  // remain untouched for recovery/hash assertions.
+  transformed = transformed.replace(
+    /create\s+(?:or\s+replace\s+)?function\b[\s\S]*?\bas\s+(\$[A-Za-z0-9_]*\$)[\s\S]*?\1\s*;/gi,
+    (statement) => statement
+      .replaceAll(
+        'banataosystems/Pandoras-box',
+        'pandora-rvw-314296438-20260820/pandoras-box',
+      )
+      .replaceAll(
+        'banataosystems/pandoras-box-memory',
+        'pandora-rvw-314296438-20260820/pandoras-box-memory',
+      )
+      .replaceAll(
+        'team_IcdJUnzLi5wUN1GD8ALHyjF7',
+        'team_3yw1CN59ce4pj5SwyQGCAqN3',
+      )
+      .replaceAll('mbanatao-dc676069', 'mbanatao'),
+  );
   return transformed;
 }
 
@@ -284,7 +305,7 @@ async function authorizationSmoke(db) {
 async function governedWorkerSmoke(db) {
   const organizationId = '2270b266-59da-4c39-bfd9-9f8d08352af0';
   const requesterId = '11111111-1111-4111-8111-111111111111';
-  const repository = 'banataosystems/Pandoras-box';
+  const repository = 'pandora-rvw-314296438-20260820/pandoras-box';
   const exactSha = 'c'.repeat(40);
   const workerId = 'worker-01-replay';
   const publicKeyB64 = `${'A'.repeat(43)}=`;
@@ -1434,7 +1455,7 @@ async function governedWorkerSmoke(db) {
 
 async function canonicalReleaseAttestationSmoke(db) {
   const organizationId = '2270b266-59da-4c39-bfd9-9f8d08352af0';
-  const repository = 'banataosystems/Pandoras-box';
+  const repository = 'pandora-rvw-314296438-20260820/pandoras-box';
   // Reuse the exact source/tree already proven by governedWorkerSmoke so the
   // physical journey can bind a real owner plan, Worker-01 result, and review.
   const sourceSha = 'c'.repeat(40);
@@ -1452,7 +1473,7 @@ async function canonicalReleaseAttestationSmoke(db) {
   const ownerRequestId = 'owner-release-auth-0001';
   const reviewNonce = 'canonical-release-review-nonce-0001';
   const reviewExternalId = 'independent-release-review-0001';
-  const reviewSourceUrl = 'https://github.com/banataosystems/Pandoras-box/issues/1';
+  const reviewSourceUrl = 'https://github.com/pandora-rvw-314296438-20260820/pandoras-box/issues/1';
   const reviewDigest = sha256('independent canonical release review');
   const reviewSignatureB64 = Buffer.alloc(64, 3).toString('base64');
   const reviewSignatureSha256 = sha256(Buffer.from(reviewSignatureB64, 'base64'));
@@ -1516,7 +1537,7 @@ async function canonicalReleaseAttestationSmoke(db) {
       observed_at
     ) values (
       $1, $2, 'canonical_vercel_production', 'vercel', $3,
-      'https://api.vercel.com/v13/deployments/' || $3 || '?teamId=team_IcdJUnzLi5wUN1GD8ALHyjF7',
+      'https://api.vercel.com/v13/deployments/' || $3 || '?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3',
       $4, $5, 'passing', 'pass', $6::jsonb,
       clock_timestamp() - interval '12 minutes'
     )
@@ -1548,10 +1569,10 @@ async function canonicalReleaseAttestationSmoke(db) {
     ) values
     (
       $1, $2, 'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk',
-      'team_IcdJUnzLi5wUN1GD8ALHyjF7', 'rollback_transition',
+      'team_3yw1CN59ce4pj5SwyQGCAqN3', 'rollback_transition',
       $3, $4, $5, $6, $3, $5, $5,
-      'https://api.vercel.com/v13/deployments/' || $5 || '?teamId=team_IcdJUnzLi5wUN1GD8ALHyjF7',
-      'https://api.vercel.com/v13/deployments/mcpmaster.vercel.app?teamId=team_IcdJUnzLi5wUN1GD8ALHyjF7',
+      'https://api.vercel.com/v13/deployments/' || $5 || '?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3',
+      'https://api.vercel.com/v13/deployments/mcpmaster.vercel.app?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3',
       repeat('5', 64), clock_timestamp() - interval '11 minutes',
       repeat('6', 64), clock_timestamp() - interval '9 minutes',
       'canonical_routes_v1', repeat('7', 64), clock_timestamp() - interval '10 minutes',
@@ -1559,10 +1580,10 @@ async function canonicalReleaseAttestationSmoke(db) {
     ),
     (
       $1, $2, 'prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk',
-      'team_IcdJUnzLi5wUN1GD8ALHyjF7', 'rollback_restoration',
+      'team_3yw1CN59ce4pj5SwyQGCAqN3', 'rollback_restoration',
       $3, $4, $5, $6, $5, $3, $3,
-      'https://api.vercel.com/v13/deployments/' || $3 || '?teamId=team_IcdJUnzLi5wUN1GD8ALHyjF7',
-      'https://api.vercel.com/v13/deployments/mcpmaster.vercel.app?teamId=team_IcdJUnzLi5wUN1GD8ALHyjF7',
+      'https://api.vercel.com/v13/deployments/' || $3 || '?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3',
+      'https://api.vercel.com/v13/deployments/mcpmaster.vercel.app?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3',
       repeat('8', 64), clock_timestamp() - interval '8 minutes',
       repeat('9', 64), clock_timestamp() - interval '6 minutes',
       'canonical_routes_v1', repeat('a', 64), clock_timestamp() - interval '7 minutes',
@@ -1586,7 +1607,7 @@ async function canonicalReleaseAttestationSmoke(db) {
     ) values (
       $1, $2, 'jcyqixttuebxqqfkjonq', $3, $4, $5, $6,
       '123456789',
-      'https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/123456789',
+      'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/123456789',
       $7, array['20260823160000']::text[], $7
     )
   `, [
@@ -1601,7 +1622,7 @@ async function canonicalReleaseAttestationSmoke(db) {
 
   const ciArtifact = {
     externalId: '987654321',
-    sourceUrl: 'https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/987654321',
+    sourceUrl: 'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/987654321',
     name: `pandora-mobile-android-validation-${sourceSha}`,
     digestSha256: mobileArtifactDigest,
     apkSha256,
@@ -3051,6 +3072,7 @@ async function main() {
       await db.exec(portableSql(migration.filename, migration.source));
       if (fixtures.has(migration.filename)) await db.exec(fixtures.get(migration.filename));
     }
+    currentMigration = 'post-migration catalog assertions';
     const result = await catalogAssertions(db, migrationFiles);
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     succeeded = true;
