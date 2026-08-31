@@ -214,7 +214,6 @@ class ProjectExperienceApi {
     }
   }
 
-
   Future<ProjectBuildStart> requestBuild({
     required String projectId,
     required String idempotencyKey,
@@ -398,7 +397,6 @@ class ProjectExperienceApi {
     _lastCompilationRequest.clear();
   }
 }
-
 
 class ProjectBuildStart {
   const ProjectBuildStart({
