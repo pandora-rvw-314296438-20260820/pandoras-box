@@ -38,7 +38,7 @@ test('Undo is exact-version, parent-bound, and refuses implicit live rollback', 
   assert.match(runtime, /\/projects\\\/\(\[\^\/\]\+\)\\\/undo/);
 });
 
-test('Simple Mode exposes Changed · Undo through the governed runtime API', () => {
+test('Simple Mode exposes Changed · Undo through the unified experience repository', () => {
   assert.match(api, /operation: 'customerProject\.undo'/);
   assert.match(api, /routeTemplate: '\/projects\/:id\/undo'/);
   assert.match(models, /final String\? parentVersionId/);
@@ -53,5 +53,5 @@ test('Simple Mode exposes Changed · Undo through the governed runtime API', () 
     /bool get _canUndo =>[\s\S]*_projection\?\.canUndo == true && _projection\?\.candidateVersionId != null;/,
   );
   assert.match(workspace, /final versionId = _projection\?\.candidateVersionId;/);
-  assert.match(workspace, /runtime\.undo\([\s\S]*versionId: versionId/);
+  assert.match(workspace, /experience\.undo\([\s\S]*versionId: versionId/);
 });
