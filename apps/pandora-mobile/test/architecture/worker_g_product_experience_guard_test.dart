@@ -92,8 +92,6 @@ void main() {
       expect(sources, isNot(contains(forbidden)));
     }
   });
-}
-
 
   test('project change compilation retries instead of silently stalling', () {
     final source =
@@ -112,3 +110,4 @@ void main() {
     expect(source, contains("'Checking owner access'"));
     expect(source, contains('.timeout(_authorizationRequestTimeout)'));
   });
+}
