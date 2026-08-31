@@ -140,13 +140,46 @@ function verifyAccessibilityReport(report) {
   return { status: failed ? "FAIL" : "PASS", failure_class: failed ? "accessibility" : null, severity: failed ? "HIGH" : null, summary: failed ? "Accessibility requirements are not satisfied." : "Accessibility verification passed.", violations, checks: { text_scaling_ok: !brokenScaling, touch_targets_ok: !badTouchTargets, keyboard_navigation_ok: !keyboardFailure, semantic_structure_ok: !semanticsFailure, contrast_ok: !contrastFailure, reduced_motion_ok: !reducedMotionFailure } };
 }
 
+const VISUAL_CHANGE_REQUEST = /\b(?:redesign|restyle|visual(?:\s+direction)?|different\s+(?:style|design|look)|new\s+(?:style|design|look)|big\s+change|major\s+change|totally\s+different|completely\s+different|colou?r\s+theme|layout|theme)\b/i;
+
+function visualChangeRequested(report) {
+  if (report.expected_change === true || report.expectedChange === true) return true;
+  const request = String(report.change_request ?? report.intent_text ?? report.request_text ?? "").trim();
+  return request.length > 0 && VISUAL_CHANGE_REQUEST.test(request);
+}
+
 function verifyVisualReport(report) {
   assertPlainObject("visual report", report);
   if (report.infrastructure_error) return { status: "BLOCKED", failure_class: "verification_infrastructure", summary: "Visual verifier unavailable." };
-  const captures = (report.captures ?? []).slice(0, DEFAULT_LIMITS.maxScreenshots).map((capture) => { const classification = classifyVisualDiff(capture); return Object.freeze({ viewport: capture.viewport ?? null, baseline_digest: capture.baseline_digest ?? null, screenshot_digest: capture.screenshot_digest ?? null, changed_pixel_ratio: Number(capture.changedPixelRatio ?? 0), classification, baseline_approval_id: capture.baseline_approval_id ?? null }); });
-  const broken = captures.some((item) => ["BROKEN LAYOUT", "UNEXPECTED CHANGE"].includes(item.classification));
+  const reportExpectedChange = visualChangeRequested(report);
+  const captures = (report.captures ?? []).slice(0, DEFAULT_LIMITS.maxScreenshots).map((capture) => {
+    const expectedChange = capture.expected_change === true || capture.expectedChange === true || reportExpectedChange;
+    const classification = classifyVisualDiff({ ...capture, expectedChange });
+    return Object.freeze({
+      viewport: capture.viewport ?? null,
+      baseline_digest: capture.baseline_digest ?? null,
+      screenshot_digest: capture.screenshot_digest ?? null,
+      changed_pixel_ratio: Number(capture.changedPixelRatio ?? 0),
+      expected_change: expectedChange,
+      classification,
+      baseline_approval_id: capture.baseline_approval_id ?? null,
+    });
+  });
+  const missingExpected = captures.some((item) => item.classification === "MISSING EXPECTED CHANGE");
+  const broken = captures.some((item) => ["BROKEN LAYOUT", "UNEXPECTED CHANGE", "MISSING EXPECTED CHANGE"].includes(item.classification));
   const review = captures.some((item) => item.classification === "REVIEW REQUIRED");
-  return { status: broken ? "FAIL" : review ? "INCONCLUSIVE" : "PASS", failure_class: broken || review ? "visual" : null, summary: broken ? "Visual verification found an unexpected or broken layout." : review ? "Visual verification requires reviewed baseline approval." : "Visual verification passed.", captures };
+  return {
+    status: broken ? "FAIL" : review ? "INCONCLUSIVE" : "PASS",
+    failure_class: broken || review ? "visual" : null,
+    summary: missingExpected
+      ? "The requested visual change is not present in the rendered result."
+      : broken
+        ? "Visual verification found an unexpected or broken layout."
+        : review
+          ? "Visual verification requires reviewed baseline approval."
+          : "Visual verification passed.",
+    captures,
+  };
 }
 
 function verifyMigrationPreflight(plan) {
