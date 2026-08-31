@@ -207,13 +207,13 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                   ],
                 ),
               ),
-            ),          ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
-
 
 class _PandoraComposerSheet extends StatelessWidget {
   const _PandoraComposerSheet({
