@@ -60,7 +60,6 @@ class SupabaseProjectExperienceProjectionRepository
         .stream(
           primaryKey: const <String>['organization_id', 'project_id'],
         )
-        .eq('organization_id', _organizationId)
         .eq('project_id', id)
         .map((rows) {
           if (rows.isEmpty) {
@@ -73,7 +72,14 @@ class SupabaseProjectExperienceProjectionRepository
               'Pandora returned an ambiguous project state.',
             );
           }
-          return _decode(rows.single);
+          final projection = _decode(rows.single);
+          if (projection.organizationId != _organizationId ||
+              projection.projectId != id) {
+            throw const ProjectExperienceProjectionException(
+              'Pandora returned a project state outside the requested scope.',
+            );
+          }
+          return projection;
         })
         .distinct(
           (previous, next) =>
