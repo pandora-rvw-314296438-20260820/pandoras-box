@@ -4,7 +4,7 @@ Canonical recovery repository for MCPMaster / Pandora's-box.
 
 ## Source authority
 
-Pandora Memory hard-canon records are the contextual authority consumed by the live status pack; they are not a standalone current-status surface. The canonical source repository for MCPMaster / Pandora's-box is `pandora-rvw-314296438-20260820/pandoras-box`; the canonical Memory source repository is `banataosystems/pandoras-box-memory`.
+Pandora Memory hard-canon records are the contextual authority consumed by the live status pack; they are not a standalone current-status surface. The canonical source repository for MCPMaster / Pandora's-box is `pandora-rvw-314296438-20260820/pandoras-box`; the canonical Memory source repository is `pandora-rvw-314296438-20260820/pandoras-box-memory`.
 
 Every repository under the legacy `mbanatao/*` owner namespace is **operationally blacklisted**. Those repositories may be read only for historical provenance, source recovery, hash comparison, parent lineage, deployment evidence, and rollback evidence. They must not determine current state, become a default Git remote, receive normal new work, or authorize a new release.
 
