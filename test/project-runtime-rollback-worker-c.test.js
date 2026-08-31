@@ -12,6 +12,10 @@ const migration = readFileSync(
   join(root, 'supabase', 'migrations', '20260831063000_pandora_rollback_worker_c_static_v1.sql'),
   'utf8',
 );
+const approvalMigration = readFileSync(
+  join(root, 'supabase', 'migrations', '20260831070000_pandora_rollback_explicit_approval_v2.sql'),
+  'utf8',
+);
 
 function rollbackSource() {
   const start = runtime.indexOf('async function rollbackProject');
@@ -25,9 +29,27 @@ test('rollback authorization is derived server-side and never trusted from the r
   assert.doesNotMatch(source, /body\.authorizationRef/);
   assert.match(source, /pandora_authorize_production_rollback_20260831/);
   assert.match(source, /authorizationRef !== `worker-c:\$\{actionHash\}`/);
-  assert.match(migration, /role::text='owner'/);
-  assert.match(migration, /'HIGH','ALLOW','PRODUCTION_MUTATION'/);
-  assert.match(migration, /'authorizationRef','worker-c:'\|\|v_action_hash/);
+  assert.match(approvalMigration, /role::text='owner'/);
+  assert.match(approvalMigration, /'HIGH','REQUIRE_APPROVAL','PRODUCTION_MUTATION'/);
+  assert.match(approvalMigration, /approval_required,approval_id,status/);
+  assert.match(approvalMigration, /'authorizationRef','worker-c:'\|\|v_action_hash/);
+});
+
+test('production rollback requires an explicit durable Needs You approval before ALLOW', () => {
+  const source = rollbackSource();
+  assert.match(source, /decision === "REQUIRE_APPROVAL"/);
+  assert.match(source, /ROLLBACK_APPROVAL_REQUIRED/);
+  assert.match(source, /decision === "DENY"/);
+  assert.match(approvalMigration, /'pandora-production-rollback'/);
+  assert.match(approvalMigration, /'waiting_approval'/);
+  assert.match(approvalMigration, /'R2'/);
+  assert.match(approvalMigration, /insert into public\.approvals/);
+  assert.match(approvalMigration, /decision='pending'/);
+  assert.match(approvalMigration, /v_approval\.decision='pending'/);
+  assert.match(approvalMigration, /v_approval\.decision<>'approved'/);
+  assert.match(approvalMigration, /v_approval\.decision_by is null/);
+  assert.match(approvalMigration, /set decision='ALLOW',status='authorized',approval_required=true/);
+  assert.doesNotMatch(approvalMigration, /'HIGH','ALLOW','PRODUCTION_MUTATION'[\s\S]{0,120}approval_required,false/);
 });
 
 test('supabase static production has a governed rollback executor with Worker E verification', () => {
