@@ -10,6 +10,7 @@ const controlPlane = require('./control-plane');
 const freshness = require('./freshness');
 const workerAdapters = require('./worker-adapters');
 const reports = require('./reports');
+const changeSummary = require('./change-summary');
 const primitiveTrust = require('./primitive-trust');
 
 function createVerificationService(options = {}) {
@@ -47,6 +48,7 @@ module.exports = Object.freeze({
   ...freshness,
   ...workerAdapters,
   ...reports,
+  ...changeSummary,
   ...primitiveTrust,
   createVerificationService,
 });
