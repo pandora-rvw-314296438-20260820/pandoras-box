@@ -152,8 +152,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
   @override
   Widget build(BuildContext context) => PandoraPage(
         title: 'Approvals',
-        subtitle:
-            'Decide with target, risk, cost, proof, and recovery in view.',
+        subtitle: 'Review only what needs your decision.',
         actions: [
           IconButton(
             tooltip: 'Refresh Approvals',
@@ -167,7 +166,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
           builder: (context, _) {
             final controller = _controller!;
             if (controller.isLoading && controller.data == null) {
-              return const ContentSkeleton(lines: 6);
+              return const ContentSkeleton(lines: 3);
             }
             if (controller.error != null && controller.data == null) {
               return ErrorContent(
@@ -178,14 +177,11 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
             }
             final approvals = controller.data ?? const <ApprovalSummary>[];
             if (approvals.isEmpty) {
-              return const OwnerBriefingHero(
-                eyebrow: 'Approval queue',
-                title: 'Nothing needs your decision',
+              return const EmptyContent(
+                title: 'Nothing needs you right now',
                 message:
-                    'Pandora has no current owner approvals waiting. Protected work still remains governed.',
-                icon: Icons.verified_user_outlined,
-                tone: PandoraStatusTone.verified,
-                statusLabel: 'Queue clear',
+                    'Pandora will bring work here only when your judgment is required.',
+                icon: Icons.check_circle_outline_rounded,
               );
             }
             final highRisk = approvals
@@ -207,10 +203,10 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                   title:
                       '${approvals.length} decision${approvals.length == 1 ? '' : 's'} waiting',
                   message:
-                      'Approval records your decision. Execution remains a separate governed step.',
+                      'Review what will change, then choose Approve or Reject.',
                   icon: Icons.approval_outlined,
                   tone: PandoraStatusTone.attention,
-                  statusLabel: 'Approval never means execution',
+                  statusLabel: 'Your decision only',
                 ),
                 const SizedBox(height: PandoraSpacing.md),
                 OwnerMetricGrid(
@@ -251,7 +247,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                 const OwnerSectionHeading(
                   title: 'Decision queue',
                   subtitle:
-                      'Review the consequence and recovery before acting.',
+                      'See what changes and whether it can be undone.',
                 ),
                 const SizedBox(height: PandoraSpacing.sm),
                 for (var index = 0; index < approvals.length; index++) ...[
