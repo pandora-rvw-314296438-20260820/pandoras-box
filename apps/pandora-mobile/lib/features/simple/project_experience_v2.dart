@@ -171,9 +171,23 @@ class _ProjectBuildExperienceV2ScreenState
             idempotencyKey:
                 'pandora-v2-preview:${widget.project.id}:${candidate.versionId}',
           );
+          List<Map<String, Object?>>? exactFiles;
+          try {
+            exactFiles = await _loadExactPreviewFiles(
+              experience,
+              projectId: widget.project.id,
+              versionId: candidate.versionId,
+            );
+          } catch (_) {
+            // The verified remote preview remains available if local hydration lags.
+          }
           if (mounted) {
             setState(() {
               _previewResult = result;
+              if (exactFiles != null && exactFiles.isNotEmpty) {
+                _localPreviewFiles = exactFiles;
+                _localPreviewVersionId = candidate.versionId;
+              }
               _error = null;
             });
           }
