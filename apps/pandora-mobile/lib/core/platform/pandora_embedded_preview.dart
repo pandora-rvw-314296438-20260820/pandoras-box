@@ -122,10 +122,29 @@ class _PandoraEmbeddedPreviewState extends State<PandoraEmbeddedPreview> {
     final raw = call.arguments;
     if (raw is! Map) return;
     String value(String key) => (raw[key] as String? ?? '').trim();
+    double number(String key) => (raw[key] as num?)?.toDouble() ?? 0;
+    int? integer(String key) => (raw[key] as num?)?.toInt();
+    final width = number('width');
+    final height = number('height');
     final selection = PandoraPreviewSelection(
       tag: value('tag'),
       selector: value('selector'),
       text: value('text'),
+      semanticId: value('semanticId'),
+      role: value('role'),
+      accessibleName: value('accessibleName'),
+      route: value('route').isEmpty ? '/' : value('route'),
+      sourceFile:
+          value('sourceFile').isEmpty ? 'index.html' : value('sourceFile'),
+      sourceLine: integer('sourceLine'),
+      bounds: width > 0 && height > 0
+          ? PandoraPreviewBounds(
+              x: number('x'),
+              y: number('y'),
+              width: width,
+              height: height,
+            )
+          : null,
     );
     if (selection.selector.isEmpty && selection.tag.isEmpty) return;
     widget.onSelection?.call(selection);
