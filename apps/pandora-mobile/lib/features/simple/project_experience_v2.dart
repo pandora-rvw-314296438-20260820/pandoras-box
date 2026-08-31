@@ -1328,6 +1328,64 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 }
 
+class _SelectionContextCapsule extends StatelessWidget {
+  const _SelectionContextCapsule({
+    required this.selecting,
+    required this.selection,
+    required this.onClear,
+  });
+
+  final bool selecting;
+  final PandoraPreviewSelection? selection;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = selecting
+        ? 'Tap something in the project'
+        : 'Selected · ${selection?.label ?? 'element'}';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: PandoraV2Colors.soft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: PandoraV2Colors.line),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            selecting ? Icons.touch_app_outlined : Icons.adjust_rounded,
+            size: 18,
+            color: PandoraV2Colors.ink,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onClear,
+            style: TextButton.styleFrom(
+              foregroundColor: PandoraV2Colors.muted,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 9),
+            ),
+            child: Text(selecting ? 'Cancel' : 'Clear'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _LiveProjectHeader extends StatelessWidget {
   const _LiveProjectHeader({
     required this.title,
