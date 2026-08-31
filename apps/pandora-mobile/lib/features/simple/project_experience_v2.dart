@@ -440,6 +440,22 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         verification?.publishEligible == true;
   }
 
+  bool get _currentCandidateIsLive {
+    final snapshot = _snapshot;
+    final candidate = snapshot?.candidate;
+    final production = snapshot?.production;
+    return candidate != null &&
+        production?.versionId == candidate.versionId &&
+        snapshot?.project.isLive == true;
+  }
+
+  bool get _currentCandidateIsPublishing {
+    final snapshot = _snapshot;
+    final candidate = snapshot?.candidate;
+    if (candidate == null || snapshot?.project.isLive == true) return false;
+    return snapshot?.production?.versionId == candidate.versionId;
+  }
+
   String get _statusLabel {
     switch (_phase) {
       case _ProjectChangePhase.designing:
@@ -452,7 +468,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         break;
     }
     if (_recentlyUpdated && _currentVersionVerified) return 'Updated';
-    if (_snapshot?.project.isLive == true) return 'Live';
+    if (_currentCandidateIsLive) return 'Live';
+    if (_currentCandidateIsPublishing) return 'Publishing · verifying';
     if (_currentVersionVerified) return 'Ready';
     if (_candidate != null) return 'Preview';
     return 'Working';
@@ -939,8 +956,12 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (!mounted) return;
       await _refresh();
       if (!mounted) return;
-      final project = _snapshot?.project;
-      if (project?.isLive == true) {
+      final snapshot = _snapshot;
+      final candidate = snapshot?.candidate;
+      final project = snapshot?.project;
+      if (candidate != null &&
+          snapshot?.production?.versionId == candidate.versionId &&
+          snapshot?.project.isLive == true) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Live.')));
         return;
@@ -974,13 +995,13 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (!mounted) return;
       await _refresh();
       if (!mounted) return;
-      if (_snapshot?.project.isLive == true) {
+      if (_currentCandidateIsLive) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Live.')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Publishing. Pandora is checking the live result.'),
+            content: Text('Publishing. Pandora is verifying this exact version.'),
           ),
         );
         unawaited(_watchPublishCompletion());
