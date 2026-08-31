@@ -86,6 +86,24 @@ class CustomerProject {
   bool get isLive => stage == 'live' && liveUrl != null;
   bool get hasPreview => previewUrl != null;
 
+  CustomerProject copyWith({String? name}) => CustomerProject(
+        id: id,
+        projectKey: projectKey,
+        name: name ?? this.name,
+        objective: objective,
+        buildKind: buildKind,
+        stage: stage,
+        runtimeStatus: runtimeStatus,
+        vercelProjectId: vercelProjectId,
+        vercelProjectName: vercelProjectName,
+        previewUrl: previewUrl,
+        liveUrl: liveUrl,
+        requestedDomain: requestedDomain,
+        domainStatus: domainStatus,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      );
+
   factory CustomerProject.fromJson(Object? value) {
     final json = asJsonMap(value);
     return CustomerProject(
