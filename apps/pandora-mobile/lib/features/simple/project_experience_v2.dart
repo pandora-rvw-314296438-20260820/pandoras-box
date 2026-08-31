@@ -8,6 +8,7 @@ import '../../core/data/project_experience_api.dart';
 import '../../core/data/project_experience_repository.dart';
 import '../../core/models/project_candidate_safety.dart';
 import '../../core/models/project_experience_projection.dart';
+import '../../core/models/project_focus_token.dart';
 import '../../core/models/project_journey_models.dart';
 import '../../core/platform/pandora_embedded_preview.dart';
 import '../../core/platform/pandora_native_io.dart';
@@ -30,6 +31,28 @@ Future<List<Map<String, Object?>>> _loadExactPreviewFiles(
     projectId: projectId,
     versionId: versionId,
   );
+}
+
+String? _previewArtifactDigest(
+  List<Map<String, Object?>>? files, {
+  required String projectId,
+  required String versionId,
+}) {
+  if (files == null || files.isEmpty) return null;
+  String normalized(Object? value) =>
+      (value as String? ?? '').trim().toLowerCase();
+  final expectedProject = projectId.trim().toLowerCase();
+  final expectedVersion = versionId.trim().toLowerCase();
+  final digest = normalized(files.first['artifactDigest']);
+  if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(digest)) return null;
+  for (final file in files) {
+    if (normalized(file['artifactDigest']) != digest ||
+        normalized(file['previewProjectId']) != expectedProject ||
+        normalized(file['previewVersionId']) != expectedVersion) {
+      return null;
+    }
+  }
+  return digest;
 }
 
 class ProjectBuildExperienceV2Screen extends StatefulWidget {
@@ -474,6 +497,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _recentlyUpdated = false;
   bool _selectionMode = false;
   PandoraPreviewSelection? _selectedPreviewTarget;
+  ProjectFocusToken? _focusToken;
   Timer? _previewRetryTimer;
   String? _previewRetryVersionId;
   int _previewRetryCount = 0;
@@ -728,12 +752,16 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         _loading = false;
 
         if (commitVisible) {
+          final versionChanged = _previewVersionId != targetVersionId;
           _previewFiles = files;
           _previewVersionId = targetVersionId;
-          if (targetVersionId == safety.roles.candidateVersionId) {
-            _recentlyUpdated = true;
+          if (versionChanged) {
             _selectionMode = false;
             _selectedPreviewTarget = null;
+            _focusToken = null;
+          }
+          if (targetVersionId == safety.roles.candidateVersionId) {
+            _recentlyUpdated = true;
           }
         }
 
@@ -878,9 +906,35 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       }
 
       final selectedTarget = _selectedPreviewTarget;
+      final focusToken = _focusToken;
       if (selectedTarget != null) {
+        final visibleVersion = _previewVersionId;
+        final artifactDigest = visibleVersion == null
+            ? null
+            : _previewArtifactDigest(
+                _previewFiles,
+                projectId: widget.project.id,
+                versionId: visibleVersion,
+              );
+        if (focusToken == null ||
+            visibleVersion == null ||
+            artifactDigest == null ||
+            !focusToken.matchesVisible(
+              projectId: widget.project.id,
+              versionId: visibleVersion,
+              artifactDigest: artifactDigest,
+            )) {
+          setState(() {
+            _selectionMode = false;
+            _selectedPreviewTarget = null;
+            _focusToken = null;
+          });
+          throw const ProjectExperienceException(
+            'That selection belongs to an older preview. Select the object again before changing it.',
+          );
+        }
         actionRequest =
-            '${selectedTarget.intentContext}\nOwner change: $actionRequest';
+            '${focusToken.intentContext}\nOwner change: $actionRequest';
       }
 
       if (actionRequest.length < 4) {
@@ -1044,6 +1098,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       _recentlyUpdated = true;
       _selectionMode = false;
       _selectedPreviewTarget = null;
+      _focusToken = null;
       _error = null;
     });
   }
@@ -1323,16 +1378,70 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   void _acceptPreviewSelection(PandoraPreviewSelection selection) {
     if (!mounted) return;
-    setState(() {
-      _selectionMode = false;
-      _selectedPreviewTarget = selection;
-    });
+    final versionId = _previewVersionId;
+    final artifactDigest = versionId == null
+        ? null
+        : _previewArtifactDigest(
+            _previewFiles,
+            projectId: widget.project.id,
+            versionId: versionId,
+          );
+    if (versionId == null || artifactDigest == null) {
+      setState(() {
+        _selectionMode = false;
+        _selectedPreviewTarget = null;
+        _focusToken = null;
+        _error =
+            'Pandora cannot bind that selection to the exact preview. Select it again after the preview refreshes.';
+      });
+      return;
+    }
+    try {
+      final bounds = selection.bounds;
+      final token = ProjectFocusToken.create(
+        projectId: widget.project.id,
+        versionId: versionId,
+        artifactDigest: artifactDigest,
+        semanticId: selection.semanticId,
+        selector: selection.selector,
+        role: selection.role,
+        accessibleName: selection.accessibleName,
+        route: selection.route,
+        sourceFile: selection.sourceFile,
+        sourceLine: selection.sourceLine,
+        bounds: bounds == null
+            ? null
+            : ProjectFocusBounds(
+                x: bounds.x,
+                y: bounds.y,
+                width: bounds.width,
+                height: bounds.height,
+              ),
+      );
+      setState(() {
+        _selectionMode = false;
+        _selectedPreviewTarget = selection;
+        _focusToken = token;
+        _error = null;
+      });
+    } on FormatException {
+      setState(() {
+        _selectionMode = false;
+        _selectedPreviewTarget = null;
+        _focusToken = null;
+        _error =
+            'Pandora could not identify that object safely. Select it again.';
+      });
+    }
   }
 
   void _togglePreviewSelection() {
     setState(() {
       _selectionMode = !_selectionMode;
-      if (_selectionMode) _selectedPreviewTarget = null;
+      if (_selectionMode) {
+        _selectedPreviewTarget = null;
+        _focusToken = null;
+      }
     });
   }
 
@@ -1340,6 +1449,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     setState(() {
       _selectionMode = false;
       _selectedPreviewTarget = null;
+      _focusToken = null;
     });
   }
 
