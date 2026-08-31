@@ -210,6 +210,10 @@ function actionsFor(version, roles, changeSummary) {
           project_id: version.project_id,
           version_id: version.id,
           artifact_digest_sha256: version.artifact_digest_sha256,
+          application_effect: "NONE",
+          production_effect: "NONE",
+          persistent_data_effect: "NONE",
+          requires_confirmation: false,
         })
         : null,
     }),
@@ -228,12 +232,17 @@ function actionsFor(version, roles, changeSummary) {
       enabled: restoreEnabled,
       intent: restoreEnabled
         ? Object.freeze({
-          kind: "RESTORE_VERSION",
+          kind: "RESTORE_APPLICATION_VERSION",
           project_id: version.project_id,
           expected_visible_current_version_id: roles.visible_current_version_id,
           target_version_id: version.id,
           expected_artifact_digest_sha256: version.artifact_digest_sha256,
+          application_effect: "RESTORE_VERSION_STATE",
+          production_effect: "NONE",
+          persistent_data_effect: "UNCHANGED",
+          database_recovery_included: false,
           requires_confirmation: true,
+          authority: "PROJECT_VERSION_RESTORE",
         })
         : null,
     }),
