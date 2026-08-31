@@ -134,6 +134,13 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
     return cleaned.isEmpty ? null : cleaned;
   }
 
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
   Widget build(BuildContext context) {
     final summary = _summary;
@@ -150,9 +157,13 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
               ),
             ),
             const SizedBox(height: 30),
-            const Text(
-              'Good afternoon, Mark',
-              style: TextStyle(color: PandoraV2Colors.muted, fontSize: 16),
+            Text(
+              _greeting,
+              style: const TextStyle(
+                color: PandoraV2Colors.muted,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -184,7 +195,7 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
                 }
               },
             ),
-            const SizedBox(height: 42),
+            const SizedBox(height: 32),
             Row(
               children: [
                 const Text(
@@ -268,7 +279,7 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
                 onAction: widget.onOpenNeedsYou,
               ),
             ],
-            const SizedBox(height: 60),
+            const SizedBox(height: 40),
           ],
         ),
       ),
