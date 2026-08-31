@@ -6,57 +6,57 @@ alter table private.canonical_physical_android_receipts
   drop constraint if exists canonical_physical_android_receipts_check2,
   add constraint canonical_physical_android_receipts_check2 check (
     ci_artifact_url = 'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/' || ci_artifact_external_id
-  ),
+  ) not valid,
   drop constraint if exists canonical_physical_android_receipts_repository_check,
   add constraint canonical_physical_android_receipts_repository_check check (
     repository = 'pandora-rvw-314296438-20260820/pandoras-box'
-  );
+  ) not valid;
 
 alter table private.canonical_release_owner_authorizations
   drop constraint if exists canonical_release_owner_authorizations_repository_check,
   add constraint canonical_release_owner_authorizations_repository_check check (
     repository = 'pandora-rvw-314296438-20260820/pandoras-box'
-  );
+  ) not valid;
 
 alter table private.canonical_release_review_receipts
   drop constraint if exists canonical_release_review_receipts_repository_check,
   add constraint canonical_release_review_receipts_repository_check check (
     repository = 'pandora-rvw-314296438-20260820/pandoras-box'
-  );
+  ) not valid;
 
 alter table private.canonical_supabase_release_receipts
   drop constraint if exists canonical_supabase_release_receipts_check,
   add constraint canonical_supabase_release_receipts_check check (
     source_artifact_url = 'https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/' || source_artifact_external_id
-  ),
+  ) not valid,
   drop constraint if exists canonical_supabase_release_receipts_repository_check,
   add constraint canonical_supabase_release_receipts_repository_check check (
     repository = 'pandora-rvw-314296438-20260820/pandoras-box'
-  );
+  ) not valid;
 
 alter table private.canonical_vercel_rehearsal_receipts
   drop constraint if exists canonical_vercel_rehearsal_receipts_alias_api_source_url_check,
   add constraint canonical_vercel_rehearsal_receipts_alias_api_source_url_check check (
     alias_api_source_url = 'https://api.vercel.com/v13/deployments/mcpmaster.vercel.app?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3'
-  ),
+  ) not valid,
   drop constraint if exists canonical_vercel_rehearsal_receipts_check3,
   add constraint canonical_vercel_rehearsal_receipts_check3 check (
     vercel_api_source_url = 'https://api.vercel.com/v13/deployments/' || external_id || '?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3'
-  ),
+  ) not valid,
   drop constraint if exists canonical_vercel_rehearsal_receipts_repository_check,
   add constraint canonical_vercel_rehearsal_receipts_repository_check check (
     repository = 'pandora-rvw-314296438-20260820/pandoras-box'
-  ),
+  ) not valid,
   drop constraint if exists canonical_vercel_rehearsal_receipts_team_id_check,
   add constraint canonical_vercel_rehearsal_receipts_team_id_check check (
     team_id = 'team_3yw1CN59ce4pj5SwyQGCAqN3'
-  );
+  ) not valid;
 
 alter table private.physical_android_observer_identities
   drop constraint if exists physical_android_observer_identities_allowed_repositories_check,
   add constraint physical_android_observer_identities_allowed_repositories_check check (
     allowed_repositories = array['pandora-rvw-314296438-20260820/pandoras-box']::text[]
-  );
+  ) not valid;
 
 do $constraint_guard$
 declare
