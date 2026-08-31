@@ -11,6 +11,7 @@ const freshness = require('./freshness');
 const workerAdapters = require('./worker-adapters');
 const reports = require('./reports');
 const changeSummary = require('./change-summary');
+const versionHistory = require('./version-history');
 const primitiveTrust = require('./primitive-trust');
 
 function createVerificationService(options = {}) {
@@ -49,6 +50,7 @@ module.exports = Object.freeze({
   ...workerAdapters,
   ...reports,
   ...changeSummary,
+  ...versionHistory,
   ...primitiveTrust,
   createVerificationService,
 });
