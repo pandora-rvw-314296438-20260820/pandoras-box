@@ -22,7 +22,7 @@ void main() {
         File('lib/features/simple/simple_home_screen.dart').readAsStringSync();
     expect(source, contains('What do you want'));
     expect(source, contains('to make happen?'));
-    expect(source, contains("'Your work'"));
+    expect(source, contains("'Your projects'"));
     expect(source, contains("'Needs you'"));
     expect(source, isNot(contains("title: 'Domains'")));
     expect(source, isNot(contains('DomainsScreen')));
@@ -46,6 +46,13 @@ void main() {
     expect(source, contains('openPreviewBundle'));
     expect(source, contains("intentKind: 'change'"));
     expect(source, contains('publishEligible'));
+    expect(source, contains('PandoraEmbeddedPreview'));
+    expect(source, contains("'Designing'"));
+    expect(source, contains("'Building'"));
+    expect(source, contains("'Checking'"));
+    expect(source, contains("'Verified change'"));
+    expect(source, isNot(contains('CURRENT OBJECT')));
+    expect(source, isNot(contains('Your first version is ready')));
     expect(source, isNot(contains('AnimationController(')));
     expect(source, isNot(contains('Watch your project take shape')));
   });
