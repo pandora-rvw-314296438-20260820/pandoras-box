@@ -421,6 +421,11 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _undoing = false;
   bool _recentlyUpdated = false;
   _ProjectChangePhase _phase = _ProjectChangePhase.idle;
+  Timer? _previewRetryTimer;
+  String? _previewRetryVersionId;
+  int _previewRetryCount = 0;
+
+  static const _previewRetryLimit = 6;
 
   @override
   void didChangeDependencies() {
@@ -432,6 +437,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   @override
   void dispose() {
+    _previewRetryTimer?.cancel();
     _change.dispose();
     super.dispose();
   }
@@ -516,10 +522,51 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         experience,
         projectId: widget.project.id,
         versionId: candidate.versionId,
-      );
+      ).timeout(const Duration(seconds: 12));
     } catch (_) {
       return null;
     }
+  }
+
+  Future<PandoraIntelligenceTurn?> _tryIntelligenceTurn(
+    String request,
+  ) async {
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null) return null;
+    try {
+      return await intelligence
+          .chat(message: request, projectId: widget.project.id)
+          .timeout(const Duration(seconds: 12));
+    } catch (_) {
+      // The owner already gave an explicit instruction inside a project.
+      // Intelligence improves routing, but a transient intelligence outage
+      // must not discard a durable change request.
+      return null;
+    }
+  }
+
+  void _schedulePreviewRetry(String versionId) {
+    if (_previewVersionId == versionId) {
+      _previewRetryTimer?.cancel();
+      _previewRetryVersionId = null;
+      _previewRetryCount = 0;
+      return;
+    }
+    if (_previewRetryVersionId != versionId) {
+      _previewRetryVersionId = versionId;
+      _previewRetryCount = 0;
+    }
+    if (_previewRetryCount >= _previewRetryLimit ||
+        _previewRetryTimer?.isActive == true) {
+      return;
+    }
+    _previewRetryCount += 1;
+    final delaySeconds = (_previewRetryCount * 2).clamp(2, 8);
+    _previewRetryTimer = Timer(Duration(seconds: delaySeconds), () {
+      if (mounted && _previewVersionId != versionId) {
+        unawaited(_refresh());
+      }
+    });
   }
 
   Future<void> _refresh() async {
