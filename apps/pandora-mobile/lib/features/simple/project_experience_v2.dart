@@ -497,7 +497,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     super.dispose();
   }
 
-  ProjectRuntimeCandidate? get _candidate => _snapshot?.candidate;
 
   Future<void> _startProjection() async {
     final repository =
