@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "observedAt": "2026-09-01T02:04:00+08:00",
+  "schemaVersion": 2,
+  "observedAt": "2026-09-01T02:12:00+08:00",
   "projects": {
     "primary": "jcyqixttuebxqqfkjonq",
     "secondary": "ivmvufhcsezyhczzondn"
@@ -14,12 +14,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "WEBHOOK",
-      "decision": "KEEP",
+      "decision": "KEEP_INGRESS",
+      "intentionalActive": true,
+      "purpose": "Controlled external event/product telemetry ingress",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Provider/event ingress surface; preserve until webhook/source configuration is independently reconciled.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Named provider ingress; retirement requires external webhook/source reconciliation.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -28,13 +30,15 @@
       "version": 1,
       "status": "ACTIVE",
       "verifyJwt": false,
-      "class": "CORE",
-      "decision": "KEEP",
+      "class": "BROKER",
+      "decision": "KEEP_PROJECTOS_BOUNDARY",
+      "intentionalActive": true,
+      "purpose": "ProjectOS controlled materialization/context/control boundary",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Canonical tracked runtime/release/control surface.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Controlled ProjectOS server boundary; not a Simple Mode direct datastore path.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -44,12 +48,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "ADMIN",
-      "decision": "KEEP",
+      "decision": "KEEP_CONTROL_PLANE",
+      "intentionalActive": true,
+      "purpose": "Authenticated provider/owner administration",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Canonical tracked runtime/release/control surface.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical control surface; provider/source tracked; retained as platform authority.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -59,12 +65,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_SOURCE_MIRROR",
+      "intentionalActive": true,
+      "purpose": "Canonical source mirror/write-path broker",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Platform broker/control surface; retained pending explicit successor evidence.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Part of current Bitbucket mirror topology; retirement requires topology successor proof.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -74,12 +82,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_SOURCE_MIRROR",
+      "intentionalActive": true,
+      "purpose": "Canonical source mirror/write-path broker",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Platform broker/control surface; retained pending explicit successor evidence.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Part of current Bitbucket mirror topology; retirement requires topology successor proof.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -88,13 +98,15 @@
       "version": 1,
       "status": "ACTIVE",
       "verifyJwt": false,
-      "class": "BROKER",
-      "decision": "KEEP",
+      "class": "TEMPORARY",
+      "decision": "KEEP_UNTIL_BITBUCKET_STABILITY_REVIEW",
+      "intentionalActive": true,
+      "purpose": "Bitbucket auth/connectivity diagnostic",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Platform broker/control surface; retained pending explicit successor evidence.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Not used by Simple Mode directly; retained during active mirror migration while write-path health is still being proven.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -104,12 +116,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_SOURCE_MIRROR",
+      "intentionalActive": true,
+      "purpose": "Canonical source mirror/write-path broker",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Observed active Edge traffic in the 24h provider log sample.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Observed active 24h provider traffic; do not retire during source-mirror convergence.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -119,12 +133,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_SOURCE_MIRROR",
+      "intentionalActive": true,
+      "purpose": "Canonical source mirror/write-path broker",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Platform broker/control surface; retained pending explicit successor evidence.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Part of current Bitbucket mirror topology; retirement requires topology successor proof.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -133,13 +149,15 @@
       "version": 2,
       "status": "ACTIVE",
       "verifyJwt": false,
-      "class": "BROKER",
-      "decision": "KEEP",
+      "class": "TEMPORARY",
+      "decision": "KEEP_UNTIL_BITBUCKET_STABILITY_REVIEW",
+      "intentionalActive": true,
+      "purpose": "Bitbucket auth/connectivity diagnostic",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Platform broker/control surface; retained pending explicit successor evidence.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Not used by Simple Mode directly; retained during active mirror migration while write-path health is still being proven.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -149,12 +167,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_SOURCE_MIRROR",
+      "intentionalActive": true,
+      "purpose": "Canonical source mirror/write-path broker",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Platform broker/control surface; retained pending explicit successor evidence.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Part of current Bitbucket mirror topology; retirement requires topology successor proof.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -164,12 +184,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_SOURCE_MIRROR",
+      "intentionalActive": true,
+      "purpose": "Canonical source mirror/write-path broker",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Platform broker/control surface; retained pending explicit successor evidence.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Part of current Bitbucket mirror topology; retirement requires topology successor proof.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -179,12 +201,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_SOURCE_MIRROR",
+      "intentionalActive": true,
+      "purpose": "Canonical source mirror/write-path broker",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Observed active Edge traffic in the 24h provider log sample.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Observed active 24h provider traffic; do not retire during source-mirror convergence.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -194,12 +218,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -208,13 +234,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": false,
-      "class": "LEGACY",
-      "decision": "KEEP_REVIEWED",
+      "class": "TEMPORARY",
+      "decision": "KEEP_PARALLEL_EVO_OWNER",
+      "intentionalActive": true,
+      "purpose": "Parallel Evo implementation helper owned outside Chat C",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
-      "owner": "Pandora platform/control plane",
-      "callerEvidence": "Live provider inventory; no deletion permitted without exact dependency/caller proof.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "owner": "Parallel Evo lane",
+      "callerEvidence": "Created by concurrent Evo lane; cross-chat retirement prohibited without owning-lane completion evidence.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -224,12 +252,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PARALLEL_EVO_OWNER",
+      "intentionalActive": true,
+      "purpose": "Parallel Evo implementation helper owned outside Chat C",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
-      "owner": "Pandora platform/control plane",
-      "callerEvidence": "Parallel Evo maintenance helper; bounded to execution lane and must be retired by its owning chat after use.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "owner": "Parallel Evo lane",
+      "callerEvidence": "Created by concurrent Evo lane; cross-chat retirement prohibited without owning-lane completion evidence.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -239,12 +269,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -254,12 +286,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -269,12 +303,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -284,12 +320,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -299,12 +337,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -314,12 +354,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -329,12 +371,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -344,12 +388,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -359,12 +405,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -374,12 +422,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -389,12 +439,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -404,12 +456,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -419,12 +473,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -433,13 +489,15 @@
       "version": 7,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -448,13 +506,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -464,12 +524,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Observed active Edge traffic in the 24h provider log sample.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical tracked Pandora runtime/release surface.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -479,12 +541,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Canonical tracked runtime/release/control surface.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical tracked Pandora runtime/release surface.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -494,12 +558,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -509,12 +575,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -524,12 +592,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -538,13 +608,15 @@
       "version": 44,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "KEEP_REVIEWED",
+      "class": "ADMIN",
+      "decision": "KEEP_CONTROL_PLANE",
+      "intentionalActive": true,
+      "purpose": "Authenticated provider/owner administration",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Live provider inventory; no deletion permitted without exact dependency/caller proof.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical control surface; provider/source tracked; retained as platform authority.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -554,12 +626,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Canonical tracked runtime/release/control surface.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical tracked Pandora runtime/release surface.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -569,12 +643,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -584,12 +660,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -599,12 +677,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -614,12 +694,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -629,12 +711,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -644,12 +728,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -659,12 +745,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -674,12 +762,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Observed active Edge traffic in the 24h provider log sample.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Observed active 24h provider traffic and/or canonical mobile/runtime dependency.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -689,12 +779,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Observed active Edge traffic in the 24h provider log sample.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Observed active 24h provider traffic and/or canonical mobile/runtime dependency.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -704,12 +796,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Observed active Edge traffic in the 24h provider log sample.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Observed active 24h provider traffic and/or canonical mobile/runtime dependency.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -719,12 +813,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Canonical tracked runtime/release/control surface.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical tracked Pandora runtime/release surface.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -734,12 +830,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Observed active Edge traffic in the 24h provider log sample.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Observed active 24h provider traffic and/or canonical mobile/runtime dependency.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -749,12 +847,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -763,13 +863,15 @@
       "version": 6,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -779,12 +881,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Canonical tracked runtime/release/control surface.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical tracked Pandora runtime/release surface.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -794,12 +898,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Canonical tracked runtime/release/control surface.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical tracked Pandora runtime/release surface.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -809,12 +915,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Canonical tracked runtime/release/control surface.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical tracked Pandora runtime/release surface.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -824,12 +932,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Observed active Edge traffic in the 24h provider log sample.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Observed active 24h provider traffic and/or canonical mobile/runtime dependency.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -838,13 +948,15 @@
       "version": 10,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -853,13 +965,15 @@
       "version": 37,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "KEEP_REVIEWED",
+      "class": "ADMIN",
+      "decision": "KEEP_CONTROL_PLANE",
+      "intentionalActive": true,
+      "purpose": "Authenticated provider/owner administration",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Live provider inventory; no deletion permitted without exact dependency/caller proof.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical control surface; provider/source tracked; retained as platform authority.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -869,12 +983,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Canonical tracked runtime/release/control surface.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical tracked Pandora runtime/release surface.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -884,12 +1000,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Canonical tracked runtime/release/control surface.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical tracked Pandora runtime/release surface.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -899,12 +1017,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "WEBHOOK",
-      "decision": "KEEP",
+      "decision": "KEEP_INGRESS",
+      "intentionalActive": true,
+      "purpose": "Controlled external event/product telemetry ingress",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Provider/event ingress surface; preserve until webhook/source configuration is independently reconciled.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Named provider ingress; retirement requires external webhook/source reconciliation.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -914,12 +1034,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "CORE",
-      "decision": "KEEP",
+      "decision": "KEEP_RUNTIME",
+      "intentionalActive": true,
+      "purpose": "Canonical runtime, preview, build, verification or value path",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Canonical tracked runtime/release/control surface.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Canonical tracked Pandora runtime/release surface.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -929,12 +1051,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_PENDING_CALLER_PROOF",
+      "intentionalActive": true,
+      "purpose": "One-off repair, merge, convergence or rollback helper",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Explicitly classified as non-core; preserved only until dependency/caller and rollback proof permits safe retirement. No expansion of authority permitted.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -944,12 +1068,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "WEBHOOK",
-      "decision": "KEEP",
+      "decision": "KEEP_INGRESS",
+      "intentionalActive": true,
+      "purpose": "Controlled external event/product telemetry ingress",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Provider/event ingress surface; preserve until webhook/source configuration is independently reconciled.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Named provider ingress; retirement requires external webhook/source reconciliation.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -959,12 +1085,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_PROJECTOS_BOUNDARY",
+      "intentionalActive": true,
+      "purpose": "ProjectOS controlled materialization/context/control boundary",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Platform broker/control surface; retained pending explicit successor evidence.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Controlled ProjectOS server boundary; not a Simple Mode direct datastore path.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -974,12 +1102,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_PROJECTOS_BOUNDARY",
+      "intentionalActive": true,
+      "purpose": "ProjectOS controlled materialization/context/control boundary",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Platform broker/control surface; retained pending explicit successor evidence.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Controlled ProjectOS server boundary; not a Simple Mode direct datastore path.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -989,12 +1119,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_PROJECTOS_BOUNDARY",
+      "intentionalActive": true,
+      "purpose": "ProjectOS controlled materialization/context/control boundary",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Platform broker/control surface; retained pending explicit successor evidence.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Controlled ProjectOS server boundary; not a Simple Mode direct datastore path.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -1004,12 +1136,14 @@
       "status": "ACTIVE",
       "verifyJwt": true,
       "class": "TEMPORARY",
-      "decision": "RETIRE_PENDING",
+      "decision": "KEEP_UNTIL_MATERIALIZER_REVIEW",
+      "intentionalActive": true,
+      "purpose": "ProjectOS controlled materialization/context/control boundary",
       "authModel": "supabase-jwt",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Dated/single-purpose maintenance surface; no sampled 24h traffic observed. Exact source/caller proof required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "One-shot materializer retained only as rollback aid pending exact caller proof.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "primary",
@@ -1019,12 +1153,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_PROJECTOS_BOUNDARY",
+      "intentionalActive": true,
+      "purpose": "ProjectOS controlled materialization/context/control boundary",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Platform broker/control surface; retained pending explicit successor evidence.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Controlled ProjectOS server boundary; not a Simple Mode direct datastore path.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1033,13 +1169,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1048,13 +1186,15 @@
       "version": 6,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1063,13 +1203,15 @@
       "version": 5,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1078,13 +1220,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1093,13 +1237,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1108,13 +1254,15 @@
       "version": 6,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1123,13 +1271,15 @@
       "version": 14,
       "status": "ACTIVE",
       "verifyJwt": false,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1138,13 +1288,15 @@
       "version": 33,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1153,13 +1305,15 @@
       "version": 5,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1169,12 +1323,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_PROVIDER_AUTH_BROKER",
+      "intentionalActive": true,
+      "purpose": "FlutterFlow/GitHub provider auth boundary",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "Server-side secondary-plane broker; no Simple Mode direct-client authority.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Custom-auth provider broker retained for provider recovery; not exposed to Simple Mode direct data access.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1183,13 +1339,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1198,13 +1356,15 @@
       "version": 4,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1214,12 +1374,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_PROVIDER_DEPLOY_GUARD",
+      "intentionalActive": true,
+      "purpose": "FlutterFlow deployment/live-site verification guard",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "Server-side secondary-plane broker; no Simple Mode direct-client authority.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Provider deployment safety check retained as bounded server tool; no Simple Mode secondary-project reference exists.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1228,13 +1390,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1243,13 +1407,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1258,13 +1424,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1273,13 +1441,15 @@
       "version": 4,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1288,13 +1458,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1303,13 +1475,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1318,13 +1492,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1334,12 +1510,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_PROVIDER_DEPLOY_GUARD",
+      "intentionalActive": true,
+      "purpose": "FlutterFlow deployment/live-site verification guard",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "Server-side secondary-plane broker; no Simple Mode direct-client authority.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Provider deployment safety check retained as bounded server tool; no Simple Mode secondary-project reference exists.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1348,13 +1526,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1363,73 +1543,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_BOUNDED_PROVIDER_RECOVERY",
+      "intentionalActive": true,
+      "purpose": "Manual FlutterFlow recovery/inspection toolkit",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
-    },
-    {
-      "plane": "secondary",
-      "projectRef": "ivmvufhcsezyhczzondn",
-      "slug": "fxpass-source-export-a4d3b5f1",
-      "version": 6,
-      "status": "ACTIVE",
-      "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
-      "authModel": "supabase-jwt",
-      "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
-    },
-    {
-      "plane": "secondary",
-      "projectRef": "ivmvufhcsezyhczzondn",
-      "slug": "fxpass-source-export-v02-temp",
-      "version": 4,
-      "status": "ACTIVE",
-      "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
-      "authModel": "supabase-jwt",
-      "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
-    },
-    {
-      "plane": "secondary",
-      "projectRef": "ivmvufhcsezyhczzondn",
-      "slug": "fxpass-source-export-v03-temp",
-      "version": 4,
-      "status": "ACTIVE",
-      "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
-      "authModel": "supabase-jwt",
-      "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
-    },
-    {
-      "plane": "secondary",
-      "projectRef": "ivmvufhcsezyhczzondn",
-      "slug": "fxpass-source-export-v04-temp",
-      "version": 24,
-      "status": "ACTIVE",
-      "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
-      "authModel": "supabase-jwt",
-      "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "No 24h traffic and no canonical mobile/repo direct caller; retained intentionally as JWT/custom-gated recovery tooling while FlutterFlow decommission path remains reversible.",
+      "reviewBy": "2026-09-15",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1439,12 +1561,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_SECONDARY_BROKER",
+      "intentionalActive": true,
+      "purpose": "Memory/governance/context server boundary",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "Server-side secondary-plane broker; no Simple Mode direct-client authority.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Secondary plane is server/broker-only; canonical mobile repo contains no secondary project ref. Bridge traffic is rejected fail-closed when unauthorized.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1454,12 +1578,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_SECONDARY_BROKER",
+      "intentionalActive": true,
+      "purpose": "Memory/governance/context server boundary",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "Server-side secondary-plane broker; no Simple Mode direct-client authority.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Secondary plane is server/broker-only; canonical mobile repo contains no secondary project ref. Bridge traffic is rejected fail-closed when unauthorized.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1469,12 +1595,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_SECONDARY_BROKER",
+      "intentionalActive": true,
+      "purpose": "Memory/governance/context server boundary",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "24h provider sample showed only rejected 403 requests; retained as controlled server boundary pending caller recovery.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Secondary plane is server/broker-only; canonical mobile repo contains no secondary project ref. Bridge traffic is rejected fail-closed when unauthorized.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1484,12 +1612,14 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "BROKER",
-      "decision": "KEEP",
+      "decision": "KEEP_SECONDARY_BROKER",
+      "intentionalActive": true,
+      "purpose": "Memory/governance/context server boundary",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth must be preserved)",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "Server-side secondary-plane broker; no Simple Mode direct-client authority.",
-      "expiry": null,
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "Secondary plane is server/broker-only; canonical mobile repo contains no secondary project ref. Bridge traffic is rejected fail-closed when unauthorized.",
+      "reviewBy": null,
+      "observedAt": "2026-09-01T02:12:00+08:00"
     },
     {
       "plane": "secondary",
@@ -1498,13 +1628,15 @@
       "version": 3,
       "status": "ACTIVE",
       "verifyJwt": true,
-      "class": "LEGACY",
-      "decision": "RETIRE_PENDING",
+      "class": "RECOVERY",
+      "decision": "KEEP_PROVIDER_RECOVERY_PROBE",
+      "intentionalActive": true,
+      "purpose": "Provider recovery probe",
       "authModel": "supabase-jwt",
       "owner": "Pandora memory/governance plane",
-      "callerEvidence": "No invocation observed in sampled 24h Edge logs and no secondary project ref is present in canonical repository; DB/source caller scan required before deletion.",
-      "expiry": "2026-09-02",
-      "observedAt": "2026-09-01T02:04:00+08:00"
+      "callerEvidence": "JWT-gated recovery-only helper; no Simple Mode route; retained for bounded rollback verification.",
+      "reviewBy": "2026-09-02",
+      "observedAt": "2026-09-01T02:12:00+08:00"
     }
   ]
 }
