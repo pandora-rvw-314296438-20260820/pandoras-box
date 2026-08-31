@@ -2,7 +2,7 @@
 
 const { createHash } = require("node:crypto");
 
-const CANONICAL_REPOSITORY = "banataosystems/Pandoras-box";
+const CANONICAL_REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box";
 const TRUSTED_EXTERNAL_REVIEW_APP_ID = 4658204;
 const TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT = "external-review";
 const PROOF_STAGES = Object.freeze([
@@ -133,11 +133,11 @@ function validUuid(value) {
 
 function exactVercelDeploymentSourceUrl(deploymentId) {
   return `https://api.vercel.com/v13/deployments/${deploymentId}`
-    + "?teamId=team_IcdJUnzLi5wUN1GD8ALHyjF7";
+    + "?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3";
 }
 
 const VERCEL_ALIAS_SOURCE_URL = "https://api.vercel.com/v13/deployments/mcpmaster.vercel.app"
-  + "?teamId=team_IcdJUnzLi5wUN1GD8ALHyjF7";
+  + "?teamId=team_3yw1CN59ce4pj5SwyQGCAqN3";
 
 function providerUnavailable(name, observedAt) {
   return {
@@ -255,7 +255,7 @@ function buildCanonicalStatusPack(input) {
     && supabase.sourceArtifactSourceTreeSha === github.mainTreeSha
     && sourceArtifact.artifactName === `canonical-release-source-${github.mainSha}`
     && sourceArtifact.artifactUrl
-      === `https://api.github.com/repos/banataosystems/Pandoras-box/actions/artifacts/${sourceArtifact.artifactId}`
+      === `https://api.github.com/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/artifacts/${sourceArtifact.artifactId}`
     && sourceArtifact.event === "push"
     && sourceArtifact.workflowPath === ".github/workflows/canonical-release-evidence.yml"
     && Number.isSafeInteger(sourceArtifact.runId)
