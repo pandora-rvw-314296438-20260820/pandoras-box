@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -73,7 +72,9 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
       if (streamId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Live build detail has expired. Durable history remains.'),
+            content: Text(
+              'Live build detail has expired. Durable history remains.',
+            ),
           ),
         );
         return;
@@ -88,9 +89,8 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
       );
     } on ProjectExperienceException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
     }
   }
 
@@ -181,9 +181,12 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
-    final exactIntent = item.isUserIntent ? item.payloadText('intentText') : null;
+    final exactIntent = item.isUserIntent
+        ? item.payloadText('intentText')
+        : null;
     final detail = exactIntent ?? item.summary;
-    final canExpand = item.expandable || detail.length > 260 || item.evidenceAvailable;
+    final canExpand =
+        item.expandable || detail.length > 260 || item.evidenceAvailable;
     final actor = item.actorType == 'customer' ? 'You' : 'Pandora';
     final status = item.status?.trim();
     return Container(
@@ -296,8 +299,7 @@ class _ProjectHistoryBuildEvidenceScreenState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _stream ??= PandoraDependencies.of(context)
-        .projectExperienceRepository
+    _stream ??= PandoraDependencies.of(context).projectExperienceRepository
         ?.watchResilientBuildStream(
           projectId: widget.project.id,
           streamId: widget.streamId,
@@ -306,63 +308,61 @@ class _ProjectHistoryBuildEvidenceScreenState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: PandoraV2Colors.canvas,
-        appBar: AppBar(
-          backgroundColor: PandoraV2Colors.canvas,
-          foregroundColor: PandoraV2Colors.ink,
-          surfaceTintColor: Colors.transparent,
-          title: const Text('Build activity'),
-        ),
-        body: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: _stream == null
-                ? const PandoraV2InlineMessage(
-                    title: 'Build activity unavailable',
-                    message: 'Durable project history remains authoritative.',
-                  )
-                : StreamBuilder<ProjectBuildStreamSnapshot>(
-                    stream: _stream,
-                    initialData: const ProjectBuildStreamSnapshot.empty(),
-                    builder: (context, snapshot) {
-                      final value = snapshot.data ??
-                          const ProjectBuildStreamSnapshot.empty();
-                      if (value.requiresReplay) {
-                        return const PandoraV2InlineMessage(
-                          title: 'Refreshing build evidence',
-                          message: 'Pandora is reconciling the durable stream.',
-                        );
-                      }
-                      if (value.events.isEmpty) {
-                        return const PandoraV2InlineMessage(
-                          title: 'Detailed activity expired',
-                          message:
-                              'Pandora does not recreate expired events. The durable history item remains available.',
-                        );
-                      }
-                      try {
-                        final theatre =
-                            ProjectBuildStreamTheatreProjection.fromSnapshot(
+    backgroundColor: PandoraV2Colors.canvas,
+    appBar: AppBar(
+      backgroundColor: PandoraV2Colors.canvas,
+      foregroundColor: PandoraV2Colors.ink,
+      surfaceTintColor: Colors.transparent,
+      title: const Text('Build activity'),
+    ),
+    body: SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: _stream == null
+            ? const PandoraV2InlineMessage(
+                title: 'Build activity unavailable',
+                message: 'Durable project history remains authoritative.',
+              )
+            : StreamBuilder<ProjectBuildStreamSnapshot>(
+                stream: _stream,
+                initialData: const ProjectBuildStreamSnapshot.empty(),
+                builder: (context, snapshot) {
+                  final value =
+                      snapshot.data ?? const ProjectBuildStreamSnapshot.empty();
+                  if (value.requiresReplay) {
+                    return const PandoraV2InlineMessage(
+                      title: 'Refreshing build evidence',
+                      message: 'Pandora is reconciling the durable stream.',
+                    );
+                  }
+                  if (value.events.isEmpty) {
+                    return const PandoraV2InlineMessage(
+                      title: 'Detailed activity expired',
+                      message: 'Pandora does not recreate expired events. The durable history item remains available.',
+                    );
+                  }
+                  try {
+                    final theatre =
+                        ProjectBuildStreamTheatreProjection.fromSnapshot(
                           streamId: widget.streamId,
                           snapshot: value,
                         );
-                        return SingleChildScrollView(
-                          child: LiveBuildTheatre(state: theatre),
-                        );
-                      } on FormatException {
-                        return const PandoraV2InlineMessage(
-                          title: 'Build evidence rejected',
-                          message:
-                              'Pandora rejected mismatched build evidence instead of displaying it.',
-                          danger: true,
-                        );
-                      }
-                    },
-                  ),
-          ),
-        ),
-      );
+                    return SingleChildScrollView(
+                      child: LiveBuildTheatre(state: theatre),
+                    );
+                  } on FormatException {
+                    return const PandoraV2InlineMessage(
+                      title: 'Build evidence rejected',
+                      message: 'Pandora rejected mismatched build evidence instead of displaying it.',
+                      danger: true,
+                    );
+                  }
+                },
+              ),
+      ),
+    ),
+  );
 }
 
 String _historyTime(DateTime time) {

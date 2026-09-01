@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -21,7 +20,8 @@ class ProjectSourceFilesScreen extends StatefulWidget {
   final String versionId;
 
   @override
-  State<ProjectSourceFilesScreen> createState() => _ProjectSourceFilesScreenState();
+  State<ProjectSourceFilesScreen> createState() =>
+      _ProjectSourceFilesScreenState();
 }
 
 class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
@@ -128,8 +128,7 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
                       padding: EdgeInsets.only(bottom: 10),
                       child: PandoraV2InlineMessage(
                         title: 'Secret value withheld',
-                        message:
-                            'Pandora removed a high-risk secret value from this view.',
+                        message: 'Pandora removed a high-risk secret value from this view.',
                       ),
                     ),
                   Expanded(
@@ -162,9 +161,8 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
       );
     } on ProjectExperienceException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
     }
   }
 
@@ -205,7 +203,8 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
           .replaceAll(RegExp(r'-+'), '-')
           .replaceAll(RegExp(r'^-+|-+$'), '');
       final saved = await PandoraNativeIo.saveBinaryDocument(
-        name: '${safeProject.isEmpty ? 'pandora-project' : safeProject}-${widget.versionId}.zip',
+        name:
+            '${safeProject.isEmpty ? 'pandora-project' : safeProject}-${widget.versionId}.zip',
         mimeType: 'application/zip',
         bytes: bytes,
       );
@@ -219,9 +218,8 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
       );
     } on ProjectExperienceException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -270,17 +268,15 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                'Exact source · ${widget.versionId}',
-                style: pandoraV2Muted,
-              ),
+              Text('Exact source · ${widget.versionId}', style: pandoraV2Muted),
               const SizedBox(height: 20),
               if (_loading)
                 const Center(child: CircularProgressIndicator())
               else if (tree == null)
                 PandoraV2InlineMessage(
                   title: 'Source access',
-                  message: _error ??
+                  message:
+                      _error ??
                       'Source files are available with source access.',
                   actionLabel: 'Try again',
                   onAction: () {

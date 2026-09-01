@@ -1,4 +1,3 @@
-
 class ProjectSourceEntry {
   const ProjectSourceEntry({
     required this.path,
