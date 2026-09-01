@@ -32,9 +32,11 @@ class MainActivity : FlutterActivity() {
     private val documentRequest = 3102
     private val photoRequest = 3103
     private val cameraRequest = 3104
+    private val saveDocumentRequest = 3105
     private val maxDocumentBytes = 32 * 1024
     private val maxImageBytes = 600 * 1024
     private var pendingResult: MethodChannel.Result? = null
+    private var pendingSaveBytes: ByteArray? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -58,6 +60,7 @@ class MainActivity : FlutterActivity() {
             "takePhoto" -> startCamera(result)
             "openExternalUrl" -> openExternalUrl(call, result)
             "openPreviewBundle" -> openPreviewBundle(call, result)
+            "saveBinaryDocument" -> saveBinaryDocument(call, result)
             else -> result.notImplemented()
         }
     }
@@ -201,6 +204,28 @@ class MainActivity : FlutterActivity() {
         return path.split("/").none { it.isBlank() || it == "." || it == ".." || it.length > 255 }
     }
 
+    private fun saveBinaryDocument(call: MethodCall, result: MethodChannel.Result) {
+        val name = call.argument<String>("name")?.trim().orEmpty()
+        val mimeType = call.argument<String>("mimeType")?.trim().orEmpty()
+        val bytes = call.argument<ByteArray>("data")
+        if (name.isBlank() || name.length > 180 || mimeType.isBlank() || bytes == null || bytes.isEmpty() || bytes.size > 16 * 1024 * 1024) {
+            result.error("INVALID_SAVE_DOCUMENT", "Pandora could not prepare that file for saving.", null)
+            return
+        }
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = mimeType
+            putExtra(Intent.EXTRA_TITLE, name)
+        }
+        if (intent.resolveActivity(packageManager) == null) {
+            result.error("DOCUMENT_SAVE_UNAVAILABLE", "No document save location is available.", null)
+            return
+        }
+        pendingResult = result
+        pendingSaveBytes = bytes
+        startActivityForResult(intent, saveDocumentRequest)
+    }
+
     private fun startSpeech(result: MethodChannel.Result) {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -252,7 +277,28 @@ class MainActivity : FlutterActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         val result = pendingResult ?: return
-        if (requestCode !in setOf(speechRequest, documentRequest, photoRequest, cameraRequest)) return
+        if (requestCode !in setOf(speechRequest, documentRequest, photoRequest, cameraRequest, saveDocumentRequest)) return
+        if (requestCode == saveDocumentRequest) {
+            pendingResult = null
+            val bytes = pendingSaveBytes
+            pendingSaveBytes = null
+            val uri = data?.data
+            if (resultCode != Activity.RESULT_OK || uri == null || bytes == null) {
+                result.success(false)
+                return
+            }
+            try {
+                contentResolver.openOutputStream(uri, "w").use { output ->
+                    if (output == null) throw IllegalStateException("The selected save location cannot be opened.")
+                    output.write(bytes)
+                    output.flush()
+                }
+                result.success(true)
+            } catch (_: Exception) {
+                result.error("DOCUMENT_SAVE_FAILED", "Pandora could not save that file.", null)
+            }
+            return
+        }
         pendingResult = null
         if (resultCode != Activity.RESULT_OK || data == null) {
             result.success(null)

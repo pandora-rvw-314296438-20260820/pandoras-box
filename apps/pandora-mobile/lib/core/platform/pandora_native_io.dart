@@ -1,4 +1,4 @@
-import 'package:flutter/services.dart';
+import 'dart:typed_data';\n\nimport 'package:flutter/services.dart';
 
 class PandoraTextAttachment {
   const PandoraTextAttachment({
@@ -65,6 +65,31 @@ abstract final class PandoraNativeIo {
       return await _channel.invokeMethod<bool>(
             'openPreviewBundle',
             <String, Object?>{'files': files},
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  static Future<bool> saveBinaryDocument({
+    required String name,
+    required String mimeType,
+    required Uint8List bytes,
+  }) async {
+    final safeName = name.trim();
+    final safeMime = mimeType.trim();
+    if (safeName.isEmpty || safeMime.isEmpty || bytes.isEmpty) return false;
+    try {
+      return await _channel.invokeMethod<bool>(
+            'saveBinaryDocument',
+            <String, Object?>{
+              'name': safeName,
+              'mimeType': safeMime,
+              'data': bytes,
+            },
           ) ??
           false;
     } on MissingPluginException {

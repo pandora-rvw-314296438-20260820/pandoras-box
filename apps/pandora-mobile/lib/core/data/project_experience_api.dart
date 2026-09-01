@@ -1,8 +1,8 @@
-import 'dart:async';
+import 'dart:async';\nimport 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/project_conversation_history.dart';
+import '../models/project_conversation_history.dart';\nimport '../models/project_source_models.dart';
 import '../network/idempotency_key.dart';
 import 'project_build_stream_cursor_store.dart';
 
@@ -568,6 +568,153 @@ class ProjectExperienceApi {
       }
     };
     return controller.stream;
+  }
+
+  Future<ProjectSourceTree> loadSourceTree({
+    required String projectId,
+    required String versionId,
+  }) async {
+    final data = await _invokeSourceFiles(
+      projectId: projectId,
+      versionId: versionId,
+      operation: 'tree',
+    );
+    try {
+      return ProjectSourceTree.fromJson(data);
+    } on FormatException {
+      throw const ProjectExperienceException(
+        'Pandora returned an unreadable source tree.',
+      );
+    }
+  }
+
+  Future<ProjectSourceFile> loadSourceFile({
+    required String projectId,
+    required String versionId,
+    required String path,
+  }) async {
+    final data = await _invokeSourceFiles(
+      projectId: projectId,
+      versionId: versionId,
+      operation: 'read',
+      path: path,
+    );
+    try {
+      return ProjectSourceFile.fromJson(data);
+    } on FormatException {
+      throw const ProjectExperienceException(
+        'Pandora returned an unreadable source file.',
+      );
+    }
+  }
+
+  Future<ProjectSourceSearchResult> searchSourceFiles({
+    required String projectId,
+    required String versionId,
+    required String query,
+  }) async {
+    final data = await _invokeSourceFiles(
+      projectId: projectId,
+      versionId: versionId,
+      operation: 'search',
+      query: query,
+    );
+    try {
+      return ProjectSourceSearchResult.fromJson(data);
+    } on FormatException {
+      throw const ProjectExperienceException(
+        'Pandora returned unreadable source search results.',
+      );
+    }
+  }
+
+  Future<Uint8List> exportSourceZip({
+    required String projectId,
+    required String versionId,
+  }) async {
+    if (_client.auth.currentUser == null) {
+      throw const ProjectExperienceException(
+        'Please sign in again before exporting source.',
+      );
+    }
+    try {
+      final response = await _client.functions.invoke(
+        'pandora-source-files',
+        body: <String, Object?>{
+          'projectId': projectId,
+          'versionId': versionId,
+          'operation': 'export',
+        },
+      );
+      final data = response.data;
+      if (data is Uint8List && data.isNotEmpty) return data;
+      if (data is List<int> && data.isNotEmpty) {
+        return Uint8List.fromList(data);
+      }
+      throw const ProjectExperienceException(
+        'Pandora returned an unreadable source export.',
+      );
+    } on ProjectExperienceException {
+      rethrow;
+    } on FunctionException catch (error) {
+      throw ProjectExperienceException(
+        _sourceFunctionMessage(error),
+      );
+    }
+  }
+
+  Future<Map<String, Object?>> _invokeSourceFiles({
+    required String projectId,
+    required String versionId,
+    required String operation,
+    String? path,
+    String? query,
+  }) async {
+    if (_client.auth.currentUser == null) {
+      throw const ProjectExperienceException(
+        'Please sign in again before opening source.',
+      );
+    }
+    try {
+      final response = await _client.functions.invoke(
+        'pandora-source-files',
+        body: <String, Object?>{
+          'projectId': projectId,
+          'versionId': versionId,
+          'operation': operation,
+          if (path != null) 'path': path,
+          if (query != null) 'query': query,
+        },
+      );
+      final data = _map(response.data);
+      if (data == null ||
+          _text(data['projectId']).toLowerCase() != projectId.toLowerCase() ||
+          _text(data['versionId']).toLowerCase() != versionId.toLowerCase()) {
+        throw const ProjectExperienceException(
+          'Pandora rejected mismatched source evidence.',
+        );
+      }
+      return Map<String, Object?>.from(data);
+    } on ProjectExperienceException {
+      rethrow;
+    } on FunctionException catch (error) {
+      throw ProjectExperienceException(
+        _sourceFunctionMessage(error),
+      );
+    }
+  }
+
+  String _sourceFunctionMessage(FunctionException error) {
+    final details = error.details;
+    if (details is Map) {
+      final code = _text(details['code']);
+      final plainMessage = _optionalText(details['plainMessage']);
+      if (code == 'SOURCE_ENTITLEMENT_REQUIRED') {
+        return 'Source files are available with source access.';
+      }
+      if (plainMessage != null) return plainMessage;
+    }
+    return 'Pandora could not open source files right now.';
   }
 
   Future<List<ProjectConversationHistoryItem>> loadProjectConversation({
