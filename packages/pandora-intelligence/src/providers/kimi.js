@@ -237,7 +237,11 @@ function normalizeKimiHttpResponse(response) {
   if (status === 401 || status === 403) throw providerFailure('authentication_failed', false, 'Kimi provider authentication or authorization failed', type || 'auth_failure');
   if (status === 429) throw providerFailure('rate_limited', true, 'Kimi provider rate limit or quota was reached', type || 'rate_limit', retryAfterMs);
   if (status === 408 || status === 504) throw providerFailure('timeout', true, 'Kimi provider request timed out', type || 'timeout');
-  if (status === 404 && /(model|resource).*not.*found|resource_not_found|model_not_found/.test(combined)) throw providerFailure('unsupported_capability', false, 'Kimi model is unavailable for this account or endpoint', type || 'model_unavailable');
+  const modelOrResourceNotFound =
+    combined.includes('resource_not_found') ||
+    combined.includes('model_not_found') ||
+    ((combined.includes('model') || combined.includes('resource')) && combined.includes('not found'));
+  if (status === 404 && modelOrResourceNotFound) throw providerFailure('unsupported_capability', false, 'Kimi model is unavailable for this account or endpoint', type || 'model_unavailable');
   if (status === 400 && /(input token length too long|exceeded model token limit|context|token limit)/.test(combined)) throw providerFailure('context_too_large', false, 'Kimi request exceeds the model context limit', type || 'context_too_large');
   if (status === 400) throw providerFailure('invalid_request', false, 'Kimi rejected the provider request', type || 'invalid_request');
   if (!status || status >= 500 || status === 499) throw providerFailure('provider_unavailable', true, 'Kimi provider is temporarily unavailable', type || 'provider_unavailable');
