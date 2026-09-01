@@ -1,0 +1,35 @@
+name: Kimi Evaluation and Verification
+on:
+  pull_request:
+    paths:
+      - 'packages/pandora-intelligence/**'
+      - 'packages/pandora-verification/**'
+      - 'test/pandora-model-provider-verification.test.js'
+      - '.github/workflows/kimi-evaluation-verification.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/pandora-intelligence/**'
+      - 'packages/pandora-verification/**'
+      - 'test/pandora-model-provider-verification.test.js'
+      - '.github/workflows/kimi-evaluation-verification.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deterministic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Typecheck provider-neutral intelligence contracts
+        run: ./node_modules/.bin/tsc -p packages/pandora-intelligence/tsconfig.json
+      - name: Evaluation and shadow safety regressions
+        run: node --test packages/pandora-intelligence/test/kimi-evaluation.test.js packages/pandora-intelligence/test/model-router.test.js
+      - name: Independent provider verification regressions
+        run: node --test test/pandora-model-provider-verification.test.js test/pandora-verification-engine.test.js
