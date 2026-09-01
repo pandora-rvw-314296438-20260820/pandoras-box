@@ -383,12 +383,15 @@ async function runGenerationInBackground(input: {
   requestedBy: string;
   idempotencyKey: string;
   streamId: string;
+  buildJobId: string;
+  sourceQueueId: string;
 }) {
   const admin = adminClient();
   const organizationId = text(input.project.organization_id);
   const projectId = text(input.project.id);
   const state: StreamAssembler = {
     streamId: input.streamId,
+    buildJobId: input.buildJobId,
     organizationId,
     projectId,
     currentPath: null,
@@ -400,7 +403,20 @@ async function runGenerationInBackground(input: {
     rollingSecretWindow: "",
   };
   try {
-    await admin.from("pandora_build_stream_sessions").update({ status: "streaming", updated_at: new Date().toISOString() }).eq("id", input.streamId);
+    const claimed = await admin.from("pandora_source_generation_queue")
+      .select("id,status,build_job_id,project_spec_id,dispatch_count")
+      .eq("id", input.sourceQueueId)
+      .maybeSingle();
+    if (claimed.error || !claimed.data || claimed.data.status !== "dispatching" ||
+        text(claimed.data.build_job_id) !== input.buildJobId ||
+        text(claimed.data.project_spec_id) !== text(input.spec.id)) {
+      throw new Error("SOURCE_FASTPATH_LEASE_LOST");
+    }
+
+    await admin.from("pandora_build_stream_sessions")
+      .update({ status: "streaming", updated_at: new Date().toISOString() })
+      .eq("id", input.streamId)
+      .eq("build_job_id", input.buildJobId);
     queueStreamEvent(state, "stream_started", null, null, { model: MODEL });
     await flushStreamEvents(admin, state, true);
 
@@ -418,6 +434,7 @@ async function runGenerationInBackground(input: {
       organization_id: organizationId,
       project_id: projectId,
       project_spec_id: input.spec.id,
+      build_job_id: input.buildJobId,
       request_id: requestId,
       task: "generate_project_source",
       output_mode: "structured",
@@ -436,7 +453,19 @@ async function runGenerationInBackground(input: {
     }).select("id").single();
     if (modelRunError || !modelRun) throw new Error("MODEL_RUN_WRITE_FAILED");
 
-    await admin.from("pandora_build_stream_sessions").update({ status: "assembling", updated_at: new Date().toISOString() }).eq("id", input.streamId);
+    const leaseCheck = await admin.from("pandora_source_generation_queue")
+      .select("status,build_job_id")
+      .eq("id", input.sourceQueueId)
+      .maybeSingle();
+    if (leaseCheck.error || !leaseCheck.data || leaseCheck.data.status !== "dispatching" ||
+        text(leaseCheck.data.build_job_id) !== input.buildJobId) {
+      throw new Error("SOURCE_FASTPATH_LEASE_LOST");
+    }
+
+    await admin.from("pandora_build_stream_sessions")
+      .update({ status: "assembling", updated_at: new Date().toISOString() })
+      .eq("id", input.streamId)
+      .eq("build_job_id", input.buildJobId);
     const storagePath = `${organizationId}/${projectId}/${input.spec.id}/${canonical.sha256}.json`;
     const uploaded = await admin.storage.from(BUCKET).upload(storagePath, canonical.bytes, { contentType: "application/json", upsert: false });
     if (uploaded.error && !/already exists|duplicate/i.test(uploaded.error.message || "")) throw new Error("SOURCE_STORAGE_FAILED");
@@ -457,47 +486,85 @@ async function runGenerationInBackground(input: {
     const result = rec(intake);
     const buildJobId = text(result.buildJobId);
     const projectVersionId = text(result.projectVersionId);
-    if (!UUID.test(buildJobId)) throw new Error("BUILD_INTAKE_FAILED");
+    if (buildJobId !== input.buildJobId || !UUID.test(projectVersionId)) throw new Error("BUILD_INTAKE_FAILED");
+
+    const completed = await admin.from("pandora_source_generation_queue").update({
+      status: "succeeded",
+      build_job_id: buildJobId,
+      project_version_id: projectVersionId,
+      last_error_code: null,
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq("id", input.sourceQueueId)
+      .eq("build_job_id", input.buildJobId)
+      .eq("status", "dispatching")
+      .select("id")
+      .maybeSingle();
+    if (completed.error || !completed.data) throw new Error("SOURCE_FASTPATH_LEASE_LOST");
+
     await admin.from("pandora_build_stream_sessions").update({
       status: "building",
       build_job_id: buildJobId,
-      project_version_id: UUID.test(projectVersionId) ? projectVersionId : null,
+      project_version_id: projectVersionId,
       updated_at: new Date().toISOString(),
-    }).eq("id", input.streamId);
+    }).eq("id", input.streamId).eq("build_job_id", input.buildJobId);
     await admin.from("pandora_build_stream_events").insert({
       stream_id: input.streamId,
       organization_id: organizationId,
       project_id: projectId,
       build_job_id: buildJobId,
-      event_type: "build_job_created",
-      safe_payload: { buildJobId, projectVersionId: UUID.test(projectVersionId) ? projectVersionId : null },
+      event_type: "job_state",
+      safe_payload: { stage: "source_ready", buildJobId, projectVersionId },
     });
-
-    const currentSteps = await admin.from("pandora_build_job_steps").select("step_key,step_kind,status,public_error_summary").eq("build_job_id", buildJobId).order("sequence");
-    if (!currentSteps.error && currentSteps.data?.length) {
-      await admin.from("pandora_build_stream_events").insert(currentSteps.data.map((step) => ({
-        stream_id: input.streamId,
-        organization_id: organizationId,
-        project_id: projectId,
-        build_job_id: buildJobId,
-        event_type: "build_step",
-        safe_payload: { stepKey: step.step_key, stepKind: step.step_kind, status: step.status, error: step.public_error_summary },
-      })));
-    }
   } catch (error) {
     const code = error instanceof Error ? error.message : "BUILD_REQUEST_FAILED";
-    try {
-      await admin.from("pandora_build_stream_sessions").update({ status: "failed", public_error_code: code, updated_at: new Date().toISOString() }).eq("id", input.streamId);
-    } catch { /* best-effort terminal state */ }
-    try {
-      await admin.from("pandora_build_stream_events").insert({
-        stream_id: input.streamId,
-        organization_id: organizationId,
-        project_id: projectId,
-        event_type: "stream_error",
-        safe_payload: { code },
-      });
-    } catch { /* best-effort event */ }
+    if (code === "SOURCE_FASTPATH_LEASE_LOST") return;
+
+    const queue = await admin.from("pandora_source_generation_queue")
+      .select("status,dispatch_count")
+      .eq("id", input.sourceQueueId)
+      .eq("build_job_id", input.buildJobId)
+      .maybeSingle();
+    const dispatchCount = Number(queue.data?.dispatch_count || 0);
+    const terminal = ["BUILD_TYPE_NOT_SUPPORTED", "PROJECT_SPEC_NOT_READY", "PROJECT_NOT_AVAILABLE"].includes(code) || dispatchCount >= 5;
+
+    if (!queue.error && queue.data?.status === "dispatching") {
+      await admin.from("pandora_source_generation_queue").update({
+        status: terminal ? "failed" : "queued",
+        last_error_code: code.slice(0, 120),
+        dispatched_at: null,
+        completed_at: terminal ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", input.sourceQueueId).eq("build_job_id", input.buildJobId).eq("status", "dispatching");
+    }
+
+    if (terminal) {
+      await admin.from("pandora_build_jobs").update({
+        status: "failed", current_stage: "failed", completed_at: new Date().toISOString(),
+        error_code: code.slice(0, 120), public_error_summary: "Pandora couldn't finish this build. Your current version is unchanged.",
+        updated_at: new Date().toISOString(),
+      }).eq("id", input.buildJobId).eq("status", "queued").is("target_project_version_id", null);
+      await admin.from("pandora_build_stream_sessions").update({
+        status: "failed", public_error_code: code, updated_at: new Date().toISOString(),
+      }).eq("id", input.streamId).eq("build_job_id", input.buildJobId);
+      try {
+        await admin.from("pandora_build_stream_events").insert({
+          stream_id: input.streamId, organization_id: organizationId, project_id: projectId,
+          build_job_id: input.buildJobId, event_type: "stream_error", safe_payload: { code },
+        });
+      } catch { /* best-effort event */ }
+    } else {
+      await admin.from("pandora_build_stream_sessions").update({
+        status: "queued", public_error_code: null, updated_at: new Date().toISOString(),
+      }).eq("id", input.streamId).eq("build_job_id", input.buildJobId);
+      try {
+        await admin.from("pandora_build_stream_events").insert({
+          stream_id: input.streamId, organization_id: organizationId, project_id: projectId,
+          build_job_id: input.buildJobId, event_type: "job_state",
+          safe_payload: { stage: "source_generation", state: "retrying", code },
+        });
+      } catch { /* best-effort event */ }
+    }
   }
 }
 
@@ -510,11 +577,15 @@ Deno.serve(async (req) => {
     const user = userClient(authorization);
     const { data: auth, error: authError } = await user.auth.getUser();
     if (authError || !auth.user) throw new Error("SIGN_IN_REQUIRED");
-    const { data: project, error: projectError } = await user.from("projectos_projects").select("id,organization_id,name,objective").eq("id", projectId).maybeSingle();
+    const { data: project, error: projectError } = await user.from("projectos_projects")
+      .select("id,organization_id,name,objective").eq("id", projectId).maybeSingle();
     if (projectError || !project) throw new Error("PROJECT_NOT_AVAILABLE");
     const admin = adminClient();
 
-    const existingSession = await admin.from("pandora_build_stream_sessions").select("id,status,build_job_id,project_version_id,public_error_code").eq("organization_id", project.organization_id).eq("project_id", projectId).eq("idempotency_key", idempotencyKey).maybeSingle();
+    const existingSession = await admin.from("pandora_build_stream_sessions")
+      .select("id,status,build_job_id,project_version_id,public_error_code")
+      .eq("organization_id", project.organization_id).eq("project_id", projectId)
+      .eq("idempotency_key", idempotencyKey).maybeSingle();
     if (existingSession.error) throw new Error("BUILD_REQUEST_FAILED");
     if (existingSession.data) {
       const session = existingSession.data;
@@ -527,10 +598,15 @@ Deno.serve(async (req) => {
       }, session.status === "failed" ? 409 : session.status === "completed" ? 200 : 202);
     }
 
-    let { data: spec, error: specError } = await admin.from("pandora_project_specs").select("id,organization_id,project_id,source_intent_id,project_type,business_summary,product_scope,data_scope,integration_scope,experience_scope,deployment_scope,acceptance_scope,content_sha256").eq("organization_id", project.organization_id).eq("project_id", projectId).eq("status", "active").order("version", { ascending: false }).limit(1).maybeSingle();
+    let { data: spec, error: specError } = await admin.from("pandora_project_specs")
+      .select("id,organization_id,project_id,source_intent_id,project_type,business_summary,product_scope,data_scope,integration_scope,experience_scope,deployment_scope,acceptance_scope,content_sha256")
+      .eq("organization_id", project.organization_id).eq("project_id", projectId).eq("status", "active")
+      .order("version", { ascending: false }).limit(1).maybeSingle();
     if (specError) throw new Error("PROJECT_SPEC_NOT_READY");
     if (!spec) {
-      const { data: latestIntent, error: latestIntentError } = await admin.from("pandora_project_intents").select("id").eq("organization_id", project.organization_id).eq("project_id", projectId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const { data: latestIntent, error: latestIntentError } = await admin.from("pandora_project_intents")
+        .select("id").eq("organization_id", project.organization_id).eq("project_id", projectId)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (latestIntentError || !latestIntent) throw new Error("PROJECT_SPEC_NOT_READY");
       let compilerResponse: Response;
       try {
@@ -540,51 +616,93 @@ Deno.serve(async (req) => {
           body: JSON.stringify({ intentId: latestIntent.id }),
           signal: AbortSignal.timeout(20000),
         });
-      } catch {
-        throw new Error("PROVIDER_UNAVAILABLE");
-      }
+      } catch { throw new Error("PROVIDER_UNAVAILABLE"); }
       if (compilerResponse.status >= 500) throw new Error("PROVIDER_UNAVAILABLE");
       if (compilerResponse.status === 202 || compilerResponse.status === 422) {
         return response({ ok: true, state: "working", stage: "understanding", streamId: null }, 202);
       }
       if (compilerResponse.status === 409) {
-        const { data: compilation } = await admin.from("pandora_project_spec_compilations").select("status,attempt_count,retry_after_at").eq("source_intent_id", latestIntent.id).maybeSingle();
+        const { data: compilation } = await admin.from("pandora_project_spec_compilations")
+          .select("status,attempt_count,retry_after_at").eq("source_intent_id", latestIntent.id).maybeSingle();
         if (!compilation || Number(compilation.attempt_count || 0) < 20) {
           return response({ ok: true, state: "working", stage: "understanding", streamId: null }, 202);
         }
         throw new Error("PROJECT_SPEC_NOT_READY");
       }
       if (compilerResponse.status !== 200) throw new Error("PROJECT_SPEC_NOT_READY");
-      const retry = await admin.from("pandora_project_specs").select("id,organization_id,project_id,source_intent_id,project_type,business_summary,product_scope,data_scope,integration_scope,experience_scope,deployment_scope,acceptance_scope,content_sha256").eq("organization_id", project.organization_id).eq("project_id", projectId).eq("status", "active").order("version", { ascending: false }).limit(1).maybeSingle();
+      const retry = await admin.from("pandora_project_specs")
+        .select("id,organization_id,project_id,source_intent_id,project_type,business_summary,product_scope,data_scope,integration_scope,experience_scope,deployment_scope,acceptance_scope,content_sha256")
+        .eq("organization_id", project.organization_id).eq("project_id", projectId).eq("status", "active")
+        .order("version", { ascending: false }).limit(1).maybeSingle();
       if (retry.error || !retry.data) return response({ ok: true, state: "working", stage: "understanding", streamId: null }, 202);
       spec = retry.data;
     }
 
-    const runtime = (globalThis as unknown as { EdgeRuntime?: { waitUntil(promise: Promise<unknown>): void } }).EdgeRuntime;
-    if (!runtime?.waitUntil) throw new Error("BACKGROUND_STREAMING_UNAVAILABLE");
-    await admin.from("pandora_build_stream_events").delete().lt("expires_at", new Date().toISOString());
+    const authorized = await user.rpc("pandora_authorize_project_build_v1", {
+      p_project_id: projectId,
+      p_project_spec_id: spec.id,
+      p_idempotency_key: idempotencyKey,
+    });
+    if (authorized.error || !authorized.data) throw new Error("BUILD_AUTHORIZATION_FAILED");
+    const authorizationResult = rec(authorized.data);
+    const authorizationId = text(authorizationResult.authorizationId);
+    if (!UUID.test(authorizationId)) throw new Error("BUILD_AUTHORIZATION_FAILED");
 
-    const created = await admin.from("pandora_build_stream_sessions").insert({
-      organization_id: project.organization_id,
-      project_id: projectId,
-      requested_by: auth.user.id,
-      idempotency_key: idempotencyKey,
-      status: "queued",
-    }).select("id").single();
-    if (created.error || !created.data) throw new Error("BUILD_REQUEST_FAILED");
-    const streamId = text(created.data.id);
-    runtime.waitUntil(runGenerationInBackground({
-      authorization,
-      project: rec(project),
-      spec: rec(spec),
-      requestedBy: auth.user.id,
-      idempotencyKey,
+    const admitted = await admin.rpc("pandora_admit_authorized_build_service_v1", {
+      p_authorization_id: authorizationId,
+      p_stream_idempotency_key: idempotencyKey,
+    });
+    if (admitted.error || !admitted.data) throw new Error("BUILD_ADMISSION_FAILED");
+    const admission = rec(admitted.data);
+    const buildJobId = text(admission.buildJobId);
+    const streamId = text(admission.streamId);
+    const sourceQueueId = text(admission.sourceQueueId);
+    const sourceIdempotencyKey = text(admission.sourceIdempotencyKey);
+    if (![buildJobId, streamId, sourceQueueId].every((value) => UUID.test(value)) || sourceIdempotencyKey.length < 8) {
+      throw new Error("BUILD_ADMISSION_FAILED");
+    }
+
+    let fastPathStarted = false;
+    const runtime = (globalThis as unknown as { EdgeRuntime?: { waitUntil(promise: Promise<unknown>): void } }).EdgeRuntime;
+    if (runtime?.waitUntil && !admission.projectVersionId) {
+      const fastClaim = await admin.rpc("pandora_claim_source_fastpath_service_v1", {
+        p_queue_id: sourceQueueId,
+        p_build_job_id: buildJobId,
+      });
+      if (!fastClaim.error && fastClaim.data === true) {
+        fastPathStarted = true;
+        runtime.waitUntil(runGenerationInBackground({
+          authorization,
+          project: rec(project),
+          spec: rec(spec),
+          requestedBy: auth.user.id,
+          idempotencyKey: sourceIdempotencyKey,
+          streamId,
+          buildJobId,
+          sourceQueueId,
+        }));
+      }
+    }
+
+    return response({
+      ok: true,
+      state: admission.state || "working",
+      stage: admission.projectVersionId ? "building" : fastPathStarted ? "generating_source" : "queued",
+      authorizationId,
+      buildJobId,
       streamId,
-    }));
-    return response({ ok: true, state: "working", stage: "generating_source", streamId }, 202);
+      sourceQueueId,
+      projectSpecId: spec.id,
+      projectVersionId: admission.projectVersionId || null,
+      admittedAt: admission.admittedAt || null,
+    }, admission.state === "ready" ? 200 : 202);
   } catch (error) {
     const code = error instanceof Error ? error.message : "BUILD_REQUEST_FAILED";
-    const status = code === "SIGN_IN_REQUIRED" ? 401 : code === "INVALID_REQUEST" ? 400 : code === "PROJECT_NOT_AVAILABLE" ? 404 : code === "PROJECT_SPEC_NOT_READY" ? 409 : code === "PROVIDER_REJECTED" || code === "INVALID_GENERATED_SOURCE_STREAM" || code === "BUILD_TYPE_NOT_SUPPORTED" ? 422 : 503;
+    const status = code === "SIGN_IN_REQUIRED" ? 401
+      : code === "INVALID_REQUEST" ? 400
+      : code === "PROJECT_NOT_AVAILABLE" ? 404
+      : code === "PROJECT_SPEC_NOT_READY" || code === "BUILD_AUTHORIZATION_FAILED" ? 409
+      : 503;
     return response({ ok: false, state: status === 503 ? "waiting" : "blocked", error: { code } }, status);
   }
 });
