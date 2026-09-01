@@ -316,6 +316,7 @@ private final class PandoraExactPreviewView: NSObject, FlutterPlatformView, WKNa
             tag: element.tagName ? element.tagName.toLowerCase() : '',
             selector: selectorFor(element),
             text: String(element.textContent || '').trim().slice(0, 500),
+            componentId: String(element.getAttribute('data-pandora-component-id') || element.getAttribute('data-component-id') || element.getAttribute('data-pandora-id') || element.id || selectorFor(element)).trim().slice(0, 200),
             semanticId: String(element.getAttribute('data-pandora-id') || ''),
             role: String(element.getAttribute('role') || ''),
             accessibleName: String(element.getAttribute('aria-label') || element.getAttribute('title') || ''),
