@@ -6,6 +6,7 @@ import { validateBuildExecutionRequest } from '../contracts/build-execution.mjs'
 import { diagnosticSetFingerprint, parseCompileDiagnostics } from '../diagnostics/compile-diagnostics.mjs';
 import { buildStageEvent } from '../events/stage-events.mjs';
 import { createVisibleExecutionEvent, emitVisibleExecutionEvent } from '../events/visible-execution-events.mjs';
+import { selectVerificationDefinitions, validateImpactPlan } from '../impact/change-impact.mjs';
 import { createBuildManifest } from '../manifest/build-manifest.mjs';
 import { createMaterializationPlan, sourceDigest } from '../source/source-materializer.mjs';
 import { validateToolchainInventory } from '../toolchains/toolchain-policy.mjs';
@@ -92,6 +93,14 @@ async function executeBuildPipeline({
   });
 
   const adapter = resolveBuildAdapter({ metadata: projectMetadata, filenames, packageJson });
+  const impactPlan = validateImpactPlan(request.arguments?.change_impact);
+  await record('impact_classified', {
+    authoritative: impactPlan.authoritative,
+    impactTier: impactPlan.impactTier,
+    impactClass: impactPlan.impactClass,
+    buildScope: impactPlan.buildScope,
+    verificationScope: impactPlan.verificationScope,
+  });
   const toolchains = validateToolchainInventory(adapter, toolchainInventory);
   validateSafeGeneratedConfig({ packageJson, npmrc, dockerfile });
 
@@ -129,7 +138,7 @@ async function executeBuildPipeline({
   }
   const build = await buildProject({
     sandbox,
-    adapter,
+    adapter: { ...adapter, tests: testDefinitions },
     workspaceRoot: workspace.root,
     env: environment,
     limits: request.resourceLimits,
@@ -190,7 +199,7 @@ async function executeBuildPipeline({
   }
 
   await record('testing', { adapter: adapter.id });
-  const testDefinitions = adapter.tests ?? [];
+  const testDefinitions = selectVerificationDefinitions(adapter.tests ?? [], impactPlan);
   if (testDefinitions.length) {
     await emitVisible(eventSink, request, 'test_started', 'tests', {
       suite_count: testDefinitions.length,
@@ -199,7 +208,7 @@ async function executeBuildPipeline({
   }
   const tests = await runAdapterTests({
     sandbox,
-    adapter,
+    adapter: { ...adapter, tests: testDefinitions },
     workspaceRoot: workspace.root,
     env: environment,
     limits: request.resourceLimits,
@@ -267,7 +276,7 @@ async function executeBuildPipeline({
     environmentProfile: request.environment,
     artifacts: collected.artifacts,
     tests,
-    commands: [...commandReceipt(dependency), ...(adapter.build ? [adapter.build] : []), ...adapter.tests],
+    commands: [...commandReceipt(dependency), ...(adapter.build ? [adapter.build] : []), ...testDefinitions],
     attempt: request.attempt,
     startedAt,
     finishedAt,
@@ -287,6 +296,7 @@ async function executeBuildPipeline({
     tests,
     artifacts: collected,
     manifest,
+    impactPlan,
     events: Object.freeze(events),
   });
 }
