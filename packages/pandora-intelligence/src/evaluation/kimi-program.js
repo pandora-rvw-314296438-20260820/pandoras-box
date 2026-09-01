@@ -114,7 +114,7 @@ function scoreReliability(input = {}) {
 
 /** @param {Record<string, any>} [input] */
 function scoreLatency(input = {}) {
-  const totalMs = finiteNonNegative(input.totalMs, 'totalMs', 0);
+  const totalMs = finiteNonNegative(input.totalMs, 'totalMs', 0) ?? 0;
   const budgetMs = finiteNonNegative(input.budgetMs, 'budgetMs', null);
   const ttftMs = finiteNonNegative(input.ttftMs, 'ttftMs', null);
   const firstUsableMs = finiteNonNegative(input.firstUsableMs, 'firstUsableMs', null);
@@ -163,7 +163,7 @@ class ShadowEvaluationRunner {
       maxCases: Math.max(1, Number(limits.maxCases ?? 20)),
       maxProviderCalls: Math.max(1, Number(limits.maxProviderCalls ?? 20)),
       maxTokens: Math.max(1, Number(limits.maxTokens ?? 200000)),
-      maxEstimatedCostUsd: finiteNonNegative(limits.maxEstimatedCostUsd, 'maxEstimatedCostUsd', 5),
+      maxEstimatedCostUsd: finiteNonNegative(limits.maxEstimatedCostUsd, 'maxEstimatedCostUsd', 5) ?? 5,
     });
   }
 
