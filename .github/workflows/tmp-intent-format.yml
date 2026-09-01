@@ -24,7 +24,7 @@ jobs:
           flutter-version: '3.47.0'
           cache: true
 
-      - name: Format all changed mobile sources
+      - name: Format changed mobile sources
         shell: bash
         run: |
           set -euo pipefail
@@ -33,15 +33,15 @@ jobs:
             apps/pandora-mobile/lib/core/data/project_experience_api.dart \
             apps/pandora-mobile/lib/core/data/project_experience_repository.dart \
             apps/pandora-mobile/lib/core/models/project_journey_models.dart \
-            apps/pandora-mobile/lib/features/simple/project_build_conversation.dart \
             apps/pandora-mobile/lib/features/simple/project_create_experience.dart \
+            apps/pandora-mobile/lib/features/simple/project_build_conversation.dart \
             apps/pandora-mobile/lib/features/simple/project_experience_v2.dart
           git add \
             apps/pandora-mobile/lib/core/data/project_experience_api.dart \
             apps/pandora-mobile/lib/core/data/project_experience_repository.dart \
             apps/pandora-mobile/lib/core/models/project_journey_models.dart \
-            apps/pandora-mobile/lib/features/simple/project_build_conversation.dart \
             apps/pandora-mobile/lib/features/simple/project_create_experience.dart \
+            apps/pandora-mobile/lib/features/simple/project_build_conversation.dart \
             apps/pandora-mobile/lib/features/simple/project_experience_v2.dart
           if git diff --cached --quiet; then
             echo 'Exact formatter produced no changes.'
@@ -51,36 +51,3 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'style: apply exact Flutter 3.47.0 formatter'
           git push origin HEAD:feature/pandora-intent-distillation-20260901
-
-  diagnose-check:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out feature branch
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          ref: feature/pandora-intent-distillation-20260901
-      - name: Use repository Node runtime
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install locked dependencies
-        run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Root TypeScript
-        run: npx tsc -p tsconfig.json --noEmit
-      - name: Shared security TypeScript
-        run: npx tsc -p packages/shared-security/tsconfig.json --noEmit
-      - name: Meta TypeScript
-        run: npx tsc -p apps/meta-business-mcp/tsconfig.json --noEmit
-      - name: Vercel TypeScript
-        run: npx tsc -p tsconfig.vercel.json
-      - name: Browser syntax
-        run: npm run check:browser
-      - name: Frontend mirrors
-        run: npm run check:mirrors
-      - name: Supabase syntax and hardening
-        run: npm run check:supabase
-      - name: Supabase Edge types
-        run: npm run check:supabase:types
-      - name: Supabase migration replay
-        run: npm run check:supabase:replay
