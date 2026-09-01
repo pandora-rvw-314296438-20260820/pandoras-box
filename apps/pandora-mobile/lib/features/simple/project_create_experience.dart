@@ -216,7 +216,7 @@ class ProjectUnderstandingScreen extends StatefulWidget {
     super.key,
     required this.project,
     required this.sourceIntentId,
-    required this.originalIntent,
+    this.originalIntent = '',
   });
 
   final CustomerProject project;
