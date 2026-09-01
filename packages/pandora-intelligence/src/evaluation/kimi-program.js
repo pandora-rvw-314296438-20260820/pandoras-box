@@ -13,19 +13,24 @@ const FAILURE_CLASSES = Object.freeze([
   'infrastructure', 'authentication', 'authorization',
 ]);
 
-/** @param {unknown} value @returns {value is Record<string, any>} */\nfunction isRecord(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
-/** @param {unknown} value @param {string} field @returns {string} */\nfunction requiredText(value, field) {
+/** @param {unknown} value @returns {value is Record<string, any>} */
+function isRecord(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
+/** @param {unknown} value @param {string} field @returns {string} */
+function requiredText(value, field) {
   if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${field} is required`);
   return value.trim();
 }
-/** @param {unknown} value @param {string} field @param {number | null} [fallback] @returns {number | null} */\nfunction finiteNonNegative(value, field, fallback = null) {
+/** @param {unknown} value @param {string} field @param {number | null} [fallback] @returns {number | null} */
+function finiteNonNegative(value, field, fallback = null) {
   if (value == null) return fallback;
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) throw new TypeError(`${field} must be non-negative`);
   return value;
 }
-/** @param {unknown} value @returns {number} */\nfunction clamp01(value) { return Math.max(0, Math.min(1, Number(value))); }
+/** @param {unknown} value @returns {number} */
+function clamp01(value) { return Math.max(0, Math.min(1, Number(value))); }
 
-/** @param {Record<string, any>} input */\nfunction createBenchmarkCase(input) {
+/** @param {Record<string, any>} input */
+function createBenchmarkCase(input) {
   if (!isRecord(input)) throw new TypeError('benchmark case must be an object');
   assertNoCredentialMaterial(input);
   const taskClass = requiredText(input.taskClass, 'taskClass');
@@ -57,7 +62,8 @@ const FAILURE_CLASSES = Object.freeze([
   });
 }
 
-/** @param {Array<Record<string, any>>} cases @param {{knownValidators?: string[], version?: string}} [options] */\nfunction validateCorpus(cases, options = {}) {
+/** @param {Array<Record<string, any>>} cases @param {{knownValidators?: string[], version?: string}} [options] */
+function validateCorpus(cases, options = {}) {
   if (!Array.isArray(cases) || cases.length === 0) throw new Error('benchmark corpus must contain cases');
   const knownValidators = new Set(options.knownValidators ?? []);
   const requireKnownValidators = knownValidators.size > 0;
@@ -76,7 +82,8 @@ const FAILURE_CLASSES = Object.freeze([
   return Object.freeze(normalized);
 }
 
-/** @param {Record<string, any>} [input] */\nfunction scoreQuality(input = {}) {
+/** @param {Record<string, any>} [input] */
+function scoreQuality(input = {}) {
   const deterministic = isRecord(input.deterministic) ? input.deterministic : {};
   const review = isRecord(input.review) ? input.review : {};
   const hardFailures = Array.isArray(input.hardFailures) ? input.hardFailures.map(String) : [];
@@ -92,7 +99,8 @@ const FAILURE_CLASSES = Object.freeze([
   return Object.freeze({ version: SCORING_VERSION, score, hardFailure: false, components });
 }
 
-/** @param {Record<string, any>} [input] */\nfunction scoreReliability(input = {}) {
+/** @param {Record<string, any>} [input] */
+function scoreReliability(input = {}) {
   const attempts = Math.max(1, Number(input.attempts ?? 1));
   const validOutput = input.validOutput !== false;
   const apiCompleted = input.apiCompleted !== false;
@@ -104,7 +112,8 @@ const FAILURE_CLASSES = Object.freeze([
   return Object.freeze({ version: SCORING_VERSION, score: clamp01(base - retryPenalty), components });
 }
 
-/** @param {Record<string, any>} [input] */\nfunction scoreLatency(input = {}) {
+/** @param {Record<string, any>} [input] */
+function scoreLatency(input = {}) {
   const totalMs = finiteNonNegative(input.totalMs, 'totalMs', 0);
   const budgetMs = finiteNonNegative(input.budgetMs, 'budgetMs', null);
   const ttftMs = finiteNonNegative(input.ttftMs, 'ttftMs', null);
@@ -113,7 +122,8 @@ const FAILURE_CLASSES = Object.freeze([
   return Object.freeze({ version: SCORING_VERSION, score, components: Object.freeze({ ttftMs, firstUsableMs, totalMs, budgetMs }) });
 }
 
-/** @param {Record<string, any>} [input] */\nasync function scoreCost(input = {}) {
+/** @param {Record<string, any>} [input] */
+async function scoreCost(input = {}) {
   if (typeof input.estimator !== 'function') throw new TypeError('Chat D cost estimator interface is required');
   const estimate = await input.estimator(Object.freeze({
     provider: input.provider,
@@ -134,7 +144,8 @@ const FAILURE_CLASSES = Object.freeze([
   });
 }
 
-/** @param {unknown} sampleCount */\nfunction sampleConfidence(sampleCount) {
+/** @param {unknown} sampleCount */
+function sampleConfidence(sampleCount) {
   const count = Math.max(0, Number(sampleCount ?? 0));
   if (count < 5) return 'insufficient';
   if (count < 30) return 'low';
@@ -143,7 +154,8 @@ const FAILURE_CLASSES = Object.freeze([
 }
 
 class ShadowEvaluationRunner {
-  /** @param {{executeCandidate: (request: Record<string, any>) => Promise<Record<string, any>>, limits?: Record<string, any>, enabled?: boolean}} input */\n  constructor({ executeCandidate, limits = {}, enabled = false }) {
+  /** @param {{executeCandidate: (request: Record<string, any>) => Promise<Record<string, any>>, limits?: Record<string, any>, enabled?: boolean}} input */
+  constructor({ executeCandidate, limits = {}, enabled = false }) {
     if (typeof executeCandidate !== 'function') throw new TypeError('executeCandidate is required');
     this.executeCandidate = executeCandidate;
     this.enabled = enabled === true;
@@ -155,7 +167,8 @@ class ShadowEvaluationRunner {
     });
   }
 
-  /** @param {Array<Record<string, any>>} cases @param {{dryRun?: boolean, corpusVersion?: string, knownValidators?: string[]}} [options] */\n  async run(cases, options = {}) {
+  /** @param {Array<Record<string, any>>} cases @param {{dryRun?: boolean, corpusVersion?: string, knownValidators?: string[]}} [options] */
+  async run(cases, options = {}) {
     if (!this.enabled && options.dryRun !== true) return Object.freeze({ status: 'HOLD', reason: 'shadow_disabled', results: Object.freeze([]), usage: Object.freeze({ calls: 0, tokens: 0, estimatedCostUsd: 0 }) });
     const corpus = validateCorpus(cases, { version: options.corpusVersion ?? CORPUS_VERSION, knownValidators: options.knownValidators ?? [] });
     const selected = corpus.slice(0, this.limits.maxCases);
@@ -188,7 +201,8 @@ class ShadowEvaluationRunner {
   }
 }
 
-/** @param {Array<Record<string, any>>} results @param {Record<string, any>} [metadata] */\nfunction buildComparisonMatrix(results, metadata = {}) {
+/** @param {Array<Record<string, any>>} results @param {Record<string, any>} [metadata] */
+function buildComparisonMatrix(results, metadata = {}) {
   if (!Array.isArray(results)) throw new TypeError('results must be an array');
   const groups = new Map();
   for (const result of results) {
@@ -216,7 +230,8 @@ class ShadowEvaluationRunner {
   return Object.freeze({ corpusVersion: metadata.corpusVersion ?? CORPUS_VERSION, harnessVersion: HARNESS_VERSION, scoringVersion: SCORING_VERSION, sourceSha: metadata.sourceSha ?? null, generatedAt: metadata.generatedAt ?? new Date().toISOString(), rows: Object.freeze(rows) });
 }
 
-/** @param {Record<string, any>} metrics @param {Record<string, any>} thresholds */\nfunction evaluatePromotionGate(metrics, thresholds) {
+/** @param {Record<string, any>} metrics @param {Record<string, any>} thresholds */
+function evaluatePromotionGate(metrics, thresholds) {
   if (!isRecord(metrics) || !isRecord(thresholds)) throw new TypeError('metrics and thresholds are required');
   const reasons = [];
   let status = 'PASS';
@@ -251,7 +266,8 @@ class ShadowEvaluationRunner {
   return Object.freeze({ version: PROMOTION_GATE_VERSION, status, reasons: Object.freeze(reasons) });
 }
 
-/** @param {number[]} values */\nfunction average(values) { return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null; }
+/** @param {number[]} values */
+function average(values) { return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null; }
 
 module.exports = {
   CORPUS_VERSION, HARNESS_VERSION, SCORING_VERSION, PROMOTION_GATE_VERSION, FAILURE_CLASSES,
