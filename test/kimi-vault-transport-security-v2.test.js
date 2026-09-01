@@ -10,7 +10,7 @@ const hardeningPath = path.join(
   '..',
   'supabase',
   'migrations',
-  '20260902035000_pandora_kimi_transport_security_hardening_v2.sql',
+  '20260901194558_pandora_kimi_transport_security_hardening_v2.sql',
 );
 const hardening = fs.readFileSync(hardeningPath, 'utf8');
 const {
