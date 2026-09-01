@@ -27,10 +27,10 @@ class ProjectExactSourceDiffFile {
   }
 
   String get statusLabel => switch (status) {
-    ProjectExactSourceDiffStatus.added => 'Added',
-    ProjectExactSourceDiffStatus.modified => 'Modified',
-    ProjectExactSourceDiffStatus.removed => 'Removed',
-  };
+        ProjectExactSourceDiffStatus.added => 'Added',
+        ProjectExactSourceDiffStatus.modified => 'Modified',
+        ProjectExactSourceDiffStatus.removed => 'Removed',
+      };
 
   String get detailLabel {
     final delta = textLineDelta;
@@ -91,14 +91,10 @@ class ProjectExactSourceDiff {
     required List<Map<String, Object?>> candidateFiles,
   }) {
     final normalizedProjectId = _requiredIdentity(projectId, 'project');
-    final normalizedBaselineVersion = _requiredIdentity(
-      baselineVersionId,
-      'baseline version',
-    );
-    final normalizedCandidateVersion = _requiredIdentity(
-      candidateVersionId,
-      'candidate version',
-    );
+    final normalizedBaselineVersion =
+        _requiredIdentity(baselineVersionId, 'baseline version');
+    final normalizedCandidateVersion =
+        _requiredIdentity(candidateVersionId, 'candidate version');
     if (normalizedBaselineVersion == normalizedCandidateVersion) {
       throw const FormatException(
         'Baseline and candidate versions must be different.',
@@ -121,7 +117,8 @@ class ProjectExactSourceDiff {
     final paths = <String>{
       ...baseline.byPath.keys,
       ...candidate.byPath.keys,
-    }.toList()..sort();
+    }.toList()
+      ..sort();
 
     final changes = <ProjectExactSourceDiffFile>[];
     for (final path in paths) {
@@ -139,8 +136,8 @@ class ProjectExactSourceDiff {
       final status = before == null
           ? ProjectExactSourceDiffStatus.added
           : after == null
-          ? ProjectExactSourceDiffStatus.removed
-          : ProjectExactSourceDiffStatus.modified;
+              ? ProjectExactSourceDiffStatus.removed
+              : ProjectExactSourceDiffStatus.modified;
       final currentLineCount = before == null
           ? (after?.lineCount == null ? null : 0)
           : before.lineCount;
@@ -172,7 +169,10 @@ class ProjectExactSourceDiff {
 }
 
 class _ExactBundle {
-  const _ExactBundle({required this.artifactDigest, required this.byPath});
+  const _ExactBundle({
+    required this.artifactDigest,
+    required this.byPath,
+  });
 
   final String artifactDigest;
   final Map<String, _ExactBundleFile> byPath;
@@ -194,14 +194,10 @@ class _ExactBundle {
       if (byPath.containsKey(path)) {
         throw FormatException('Duplicate $label exact preview file path.');
       }
-      final previewProjectId = _requiredIdentity(
-        raw['previewProjectId'],
-        '$label project',
-      );
-      final previewVersionId = _requiredIdentity(
-        raw['previewVersionId'],
-        '$label version',
-      );
+      final previewProjectId =
+          _requiredIdentity(raw['previewProjectId'], '$label project');
+      final previewVersionId =
+          _requiredIdentity(raw['previewVersionId'], '$label version');
       if (previewProjectId != projectId || previewVersionId != versionId) {
         throw FormatException('$label exact preview identity mismatch.');
       }
@@ -284,10 +280,8 @@ String _safePath(Object? value, String label) {
       path.contains('\u0000') ||
       path.contains('?') ||
       path.contains('#') ||
-      segments.any(
-        (part) =>
-            part.isEmpty || part == '.' || part == '..' || part.length > 255,
-      )) {
+      segments.any((part) =>
+          part.isEmpty || part == '.' || part == '..' || part.length > 255)) {
     throw FormatException('$label path is invalid.');
   }
   return path;
