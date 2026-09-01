@@ -14,8 +14,10 @@ test('live build theatre renders only real generated source chunks', () => {
   assert.match(generator, /"file_end"/);
   assert.match(generator, /"done"/);
   assert.match(generator, /Never emit fake code/);
-  assert.match(generator, /event_type: "code_chunk"/);
-  assert.match(generator, /content_chunk: contentChunk/);\n  assert.match(generator, /\\"x-goog-api-key\\": credential\\.data\\.trim\\(\\)/);\n  assert.doesNotMatch(generator, /[?&]key=\\$\\{/);
+  assert.match(generator, /queueStreamEvent\(state, "code_chunk", path, content/);
+  assert.match(generator, /content_chunk: contentChunk/);
+  assert.match(generator, /"x-goog-api-key": credential\.data\.trim\(\)/);
+  assert.doesNotMatch(generator, /[?&]key=\$\{/);
   assert.match(api, /watchBuildStream/);
   assert.match(api, /pandora_build_stream_events/);
   assert.match(conversation, /event\.contentChunk/);
@@ -31,6 +33,8 @@ test('live source visibility is ephemeral and read-only to authenticated members
   assert.match(migration, /grant select on public\.pandora_build_stream_events to authenticated/);
   assert.match(migration, /coalesce\(auth\.role\(\), ''\) <> 'service_role'/);
   assert.match(migration, /revoke all on function public\.pandora_gemini_stream_credential_service_20260901\(\) from public, anon, authenticated/);
+  assert.match(migration, /if tg_op = 'INSERT' then/);
+  assert.doesNotMatch(migration, /if tg_op = 'INSERT'\s+or/);
   assert.doesNotMatch(conversation, /SelectableText/);
   assert.doesNotMatch(conversation, /Download source|Open files|Copy source/);
 });
