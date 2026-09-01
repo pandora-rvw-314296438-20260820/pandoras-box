@@ -21,8 +21,8 @@ void main() {
     expect(source, contains('name: _inferName(intent)'));
     expect(source, contains('buildKind: ProjectBuildKind.helpMeDecide'));
     expect(source, contains('submitIntent('));
-    expect(source, contains('Here’s what Pandora will build.'));
-    expect(source, contains("title: 'Build plan'"));
+    expect(\n      source,\n      contains(\n        'Pandora has turned your intent into a build-ready product proposal.',\n      ),\n    );
+    expect(\n      source,\n      contains('PandoraProfessionalBuildPlan(understanding: u!)'),\n    );
     expect(source, contains("label: 'Build it'"));
     expect(source, contains('ProjectBuildConversationScreen('));
     expect(source, isNot(contains('What Pandora understands')));
