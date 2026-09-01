@@ -5,8 +5,8 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..');
 const edge=fs.readFileSync(path.join(root,'supabase/functions/pandora-intelligence-chat/index.ts'),'utf8');
-const config=fs.readFileSync(path.join(root,'supabase/migrations/20260902040000_chat_c_kimi_runtime_provider_config_v1.sql'),'utf8');
-const routing=fs.readFileSync(path.join(root,'supabase/migrations/20260902043000_chat_c_edge_runtime_convergence_v1.sql'),'utf8');
+const config=fs.readFileSync(path.join(root,'supabase/migrations/20260901202428_chat_c_kimi_runtime_provider_config_v1.sql'),'utf8');
+const routing=fs.readFileSync(path.join(root,'supabase/migrations/20260901202441_chat_c_edge_runtime_convergence_v1.sql'),'utf8');
 const must=(text,needle)=>assert.ok(text.includes(needle),`missing contract marker: ${needle}`);
 const mustNot=(text,needle)=>assert.equal(text.includes(needle),false,`forbidden contract marker: ${needle}`);
 
