@@ -21,3 +21,14 @@ test("Gemini compiler prompt exactly matches the validator nested ProjectSpec co
   assert.match(source, /Do not substitute alternate field names/);
   assert.match(source, /do not put objects inside fields defined as string arrays/i);
 });
+
+test("proposal quality validation is deterministic and fail closed", () => {
+  assert.match(source, /function validateProposalQuality/);
+  assert.match(source, /new Set\(normalizedNarrative\)\.size !== normalizedNarrative\.length/);
+  assert.match(source, /generic solution/);
+  assert.match(source, /cutting-edge/);
+  assert.match(source, /microservices/);
+  assert.match(source, /100% guaranteed/);
+  assert.match(source, /requireDistinctProposalList/);
+  assert.match(source, /validateProposalQuality\(product, acceptance\)/);
+});
