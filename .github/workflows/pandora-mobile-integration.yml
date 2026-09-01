@@ -147,15 +147,7 @@ jobs:
       - name: Materialize canonical web formatter repair
         if: ${{ failure() }}
         working-directory: .pandora-mobile-build
-        run: |
-          dart format lib/core/platform/pandora_web_preview_web.dart
-          dart format lib/core/models/project_focus_token.dart test/project_focus_token_test.dart
-          echo PANDORA_FOCUS_MODEL_FORMAT_BEGIN
-          cat lib/core/models/project_focus_token.dart
-          echo PANDORA_FOCUS_MODEL_FORMAT_END
-          echo PANDORA_FOCUS_TEST_FORMAT_BEGIN
-          cat test/project_focus_token_test.dart
-          echo PANDORA_FOCUS_TEST_FORMAT_END
+        run: dart format lib/core/platform/pandora_web_preview_web.dart
 
       - name: Upload canonical web formatter repair
         if: ${{ failure() }}
