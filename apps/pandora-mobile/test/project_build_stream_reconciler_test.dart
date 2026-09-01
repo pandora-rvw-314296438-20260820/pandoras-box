@@ -1,4 +1,3 @@
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/core/data/project_experience_api.dart';
 
@@ -51,7 +50,8 @@ void main() {
     expect(snapshot.events.map((event) => event.sequence), <int>[3]);
   });
 
-  test('live sequence gap refuses out-of-order rendering and requires replay', () {
+  test('live sequence gap refuses out-of-order rendering and requires replay',
+      () {
     final reconciler = ProjectBuildStreamReconciler();
     reconciler.seedCursor(3);
 
@@ -64,7 +64,9 @@ void main() {
     expect(snapshot.events, isEmpty);
   });
 
-  test('retention gap accepts surviving authoritative replay without fake source', () {
+  test(
+      'retention gap accepts surviving authoritative replay without fake source',
+      () {
     final reconciler = ProjectBuildStreamReconciler();
     reconciler.seedCursor(3);
 
