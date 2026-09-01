@@ -161,9 +161,10 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
     } catch (_) {
       return;
     }
-    if (decoded is! Map) return;
+    final message = decoded;
+    if (message is! Map) return;
 
-    String value(String key) => (decoded[key] as String? ?? '').trim();
+    String value(String key) => (message[key] as String? ?? '').trim();
     if (value('versionId') != widget.versionId.trim()) return;
     final type = value('type');
     if (type == 'ready') {
@@ -172,8 +173,8 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
     }
     if (type != 'selection') return;
 
-    double number(String key) => (decoded[key] as num?)?.toDouble() ?? 0;
-    int? integer(String key) => (decoded[key] as num?)?.toInt();
+    double number(String key) => (message[key] as num?)?.toDouble() ?? 0;
+    int? integer(String key) => (message[key] as num?)?.toInt();
     final width = number('width');
     final height = number('height');
     final selection = PandoraPreviewSelection(
