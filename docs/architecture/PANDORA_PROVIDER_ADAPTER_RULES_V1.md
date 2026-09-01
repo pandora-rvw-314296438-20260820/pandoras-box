@@ -55,9 +55,11 @@ The adapter must not:
 
 The transport owns the secret-bearing network boundary. For Kimi, Chat A consumes only:
 
-`createChatCompletion({ model, requestId, body }) -> Promise<{ status, body, retryAfterMs? }>`
+`createChatCompletion({ model, requestId, body }) -> Promise<{ status, ok, body?, attempts?, error? }>`
 
-An optional future streaming method may expose sanitized provider stream events to the adapter. The transport implementation owns Vault retrieval, fixed-host enforcement, authentication headers, HTTP timeout enforcement, bounded same-provider retry/backoff and response-size controls. It must never expose raw credentials to the adapter.
+The deployed primary-Supabase boundary is `public.pandora_kimi_chat_request_v1(p_model, p_body)`, backed by `private.pandora_kimi_chat_api_v1`. The adapter-side wrapper passes `model` separately and sends a body that deliberately omits `model`; the trusted transport injects the model itself. Its current safety envelope defaults `max_completion_tokens` to 8,192, caps it at 16,384, bounds messages to 256 and tools to 128, enforces 1 MiB request / 2 MiB response limits, and performs at most two bounded same-provider attempts. These are Pandora transport limits, not claims about the larger K3 provider limits.
+
+Kimi's upstream API supports streaming, but the current trusted Supabase transport rejects `stream=true`. Accordingly, the Kimi model metadata distinguishes upstream provider support from current Pandora transport support and reports streaming unavailable for routing today. `normalizeKimiStreamEvent()` remains a tested future seam only. The transport implementation owns Vault retrieval, fixed-host enforcement, authentication headers, HTTP timeout enforcement, bounded same-provider retry/backoff and response-size controls. It must never expose raw credentials to the adapter.
 
 ### Router and routing policy
 
@@ -100,7 +102,7 @@ Provider provenance:
 - `https://www.kimi.ai/help/kimi-api/api-troubleshooting`
 - `https://github.com/MoonshotAI/Kimi-K3`
 
-The code centralizes K3 model/config/capability data in `providers/kimi.js`; callers must not scatter `kimi-k3` strings across product code.
+The code centralizes K3 model/config/capability data in `providers/kimi.js`; callers must not scatter `kimi-k3` strings across product code. It records both the upstream K3 completion defaults/capabilities and the stricter currently deployed Pandora transport envelope so routing code cannot confuse provider capability with production-safe availability.
 
 ## Reasoning mapping
 
@@ -132,7 +134,7 @@ The Kimi adapter accepts the provider-neutral message content forms currently ne
 
 ## Streaming
 
-`normalizeKimiStreamEvent()` provides the provider-level normalization seam for content deltas, tool-call deltas, completion reasons and usage. Raw reasoning text is not emitted through the ordinary normalized stream payload. Full production streaming transport/continuation assembly must preserve the session boundary before enablement.
+The upstream Kimi Chat Completions API supports streaming, but Pandora's currently deployed trusted Supabase transport intentionally disables it. `normalizeKimiStreamEvent()` provides only the provider-level future normalization seam for content deltas, tool-call deltas, completion reasons and usage. Raw reasoning text is not emitted through the ordinary normalized stream payload. Routing must treat streaming as unavailable until the trusted transport and session-continuation path are explicitly upgraded and verified.
 
 ## Error normalization
 
