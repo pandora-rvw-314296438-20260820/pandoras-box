@@ -55,7 +55,9 @@ async function fingerprintTree(root) {
  */
 async function applyFileEdits(workspaceRoot, artifact, allowedPaths = []) {
   if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) throw new Error('coding benchmark artifact must be an object');
-  const files = Array.isArray(artifact.files) ? artifact.files : [];
+  /** @type {Record<string, any>} */
+  const artifactRecord = artifact;
+  const files = Array.isArray(artifactRecord.files) ? artifactRecord.files : [];
   if (!files.length || files.length > MAX_EDIT_FILES) throw new Error('coding benchmark artifact has invalid file count');
   const allow = new Set(allowedPaths.map(String));
   let totalBytes = 0;
