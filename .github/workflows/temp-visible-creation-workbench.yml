@@ -1,0 +1,73 @@
+name: Temporary visible creation workbench
+
+on:
+  push:
+    branches:
+      - visible-creation/final-convergence-20260902
+
+permissions:
+  contents: write
+
+jobs:
+  format-all-mobile:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: visible-creation/final-convergence-20260902
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Format canonical mobile source
+        run: dart format apps/pandora-mobile/lib apps/pandora-mobile/test
+      - name: Commit exact formatter result
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- apps/pandora-mobile/lib apps/pandora-mobile/test; then
+            echo 'Canonical mobile source already formatted.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/pandora-mobile/lib apps/pandora-mobile/test
+          git commit -m 'style: canonicalize visible creation mobile source'
+          git push origin HEAD:visible-creation/final-convergence-20260902
+
+  diagnose-node-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: tsc-root
+        continue-on-error: true
+        run: npx tsc -p tsconfig.json --noEmit
+      - name: tsc-shared-security
+        continue-on-error: true
+        run: npx tsc -p packages/shared-security/tsconfig.json --noEmit
+      - name: tsc-meta
+        continue-on-error: true
+        run: npx tsc -p apps/meta-business-mcp/tsconfig.json --noEmit
+      - name: tsc-vercel
+        continue-on-error: true
+        run: npx tsc -p tsconfig.vercel.json
+      - name: check-browser
+        continue-on-error: true
+        run: npm run check:browser
+      - name: check-mirrors
+        continue-on-error: true
+        run: npm run check:mirrors
+      - name: check-supabase
+        continue-on-error: true
+        run: npm run check:supabase
+      - name: check-supabase-types
+        continue-on-error: true
+        run: npm run check:supabase:types
+      - name: check-supabase-replay
+        continue-on-error: true
+        run: npm run check:supabase:replay
