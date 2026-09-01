@@ -361,8 +361,8 @@ class ProjectExperienceApi {
       }
 
       final build = _map(data['build']);
-      final durableSummary = _map(data['durableSummary']) ??
-          const <String, dynamic>{};
+      final durableSummary =
+          _map(data['durableSummary']) ?? const <String, dynamic>{};
       return ProjectBuildStreamReplay(
         events: List<ProjectBuildStreamEvent>.unmodifiable(events),
         watermarkSequence: _int(data['watermarkSequence']),
@@ -708,9 +708,9 @@ class ProjectBuildStreamEvent {
     return ProjectBuildStreamEvent(
       id: id,
       sequence: sequence,
-      eventSchemaVersion:
-          _optionalInt(json['event_schema_version'] ?? json['eventSchemaVersion']) ??
-              1,
+      eventSchemaVersion: _optionalInt(
+              json['event_schema_version'] ?? json['eventSchemaVersion']) ??
+          1,
       eventType: _requiredText(json['event_type'] ?? json['eventType']),
       retentionClass:
           _optionalText(json['retention_class'] ?? json['retentionClass']),
@@ -867,8 +867,7 @@ class ProjectBuildStreamReconciler {
         replay.watermarkSequence > 0 &&
         (replay.oldestRetainedSequence == null ||
             replay.oldestRetainedSequence! > 1);
-    final retentionGap =
-        replay.historyGapDueToRetention || initialRetentionGap;
+    final retentionGap = replay.historyGapDueToRetention || initialRetentionGap;
     final ordered = List<ProjectBuildStreamEvent>.of(replay.events)
       ..sort((left, right) => left.sequence.compareTo(right.sequence));
     var expected = _latestSequence + 1;
@@ -890,8 +889,7 @@ class ProjectBuildStreamReconciler {
       throw const FormatException('Build replay watermark regressed.');
     }
 
-    _historyGapDueToRetention =
-        _historyGapDueToRetention || retentionGap;
+    _historyGapDueToRetention = _historyGapDueToRetention || retentionGap;
     _streamStatus = replay.streamStatus;
     _buildStatus = replay.buildStatus;
     _buildStage = replay.buildStage;
