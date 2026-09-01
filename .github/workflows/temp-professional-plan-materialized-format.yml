@@ -1,4 +1,4 @@
-name: Exact materialized professional plan formatter
+name: Exact full mobile materialized formatter
 
 on:
   push:
@@ -20,35 +20,28 @@ jobs:
         with:
           flutter-version: '3.47.0'
           cache: true
-      - name: Format in the APK gate package layout
+      - name: Format the exact full mobile gate scope
         shell: bash
         run: |
           set -euo pipefail
           rm -rf .pandora-mobile-build
-          mkdir -p .pandora-mobile-build/lib/features/simple
+          mkdir -p .pandora-mobile-build
+          cp -R apps/pandora-mobile/lib .pandora-mobile-build/lib
+          cp -R apps/pandora-mobile/test .pandora-mobile-build/test
           cp apps/pandora-mobile/pubspec.yaml .pandora-mobile-build/pubspec.yaml
           cp apps/pandora-mobile/analysis_options.yaml .pandora-mobile-build/analysis_options.yaml
-          cp apps/pandora-mobile/lib/features/simple/professional_build_plan.dart .pandora-mobile-build/lib/features/simple/
-          cp apps/pandora-mobile/lib/features/simple/project_create_experience.dart .pandora-mobile-build/lib/features/simple/
-          cp apps/pandora-mobile/lib/features/simple/project_build_conversation.dart .pandora-mobile-build/lib/features/simple/
           cd .pandora-mobile-build
-          dart format \
-            lib/features/simple/professional_build_plan.dart \
-            lib/features/simple/project_create_experience.dart \
-            lib/features/simple/project_build_conversation.dart
+          dart format lib test
           cd ..
-          cp .pandora-mobile-build/lib/features/simple/professional_build_plan.dart apps/pandora-mobile/lib/features/simple/
-          cp .pandora-mobile-build/lib/features/simple/project_create_experience.dart apps/pandora-mobile/lib/features/simple/
-          cp .pandora-mobile-build/lib/features/simple/project_build_conversation.dart apps/pandora-mobile/lib/features/simple/
-          if git diff --quiet --exit-code; then
-            echo 'No materialized formatter changes required.'
+          rm -rf apps/pandora-mobile/lib apps/pandora-mobile/test
+          cp -R .pandora-mobile-build/lib apps/pandora-mobile/lib
+          cp -R .pandora-mobile-build/test apps/pandora-mobile/test
+          if git diff --quiet --exit-code -- apps/pandora-mobile/lib apps/pandora-mobile/test; then
+            echo 'No full-scope formatter changes required.'
             exit 0
           fi
           git config user.name 'pandora-rvw-314296438-20260820'
           git config user.email 'plpboracay@gmail.com'
-          git add \
-            apps/pandora-mobile/lib/features/simple/professional_build_plan.dart \
-            apps/pandora-mobile/lib/features/simple/project_create_experience.dart \
-            apps/pandora-mobile/lib/features/simple/project_build_conversation.dart
-          git commit -m 'style(mobile): match materialized APK formatter output'
+          git add apps/pandora-mobile/lib apps/pandora-mobile/test
+          git commit -m 'style(mobile): normalize exact mobile gate format scope'
           git push origin HEAD:feature/professional-build-plan-20260901
