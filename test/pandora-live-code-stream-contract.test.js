@@ -15,7 +15,7 @@ test('live build theatre renders only real generated source chunks', () => {
   assert.match(generator, /"done"/);
   assert.match(generator, /Never emit fake code/);
   assert.match(generator, /event_type: "code_chunk"/);
-  assert.match(generator, /content_chunk: contentChunk/);
+  assert.match(generator, /content_chunk: contentChunk/);\n  assert.match(generator, /\\"x-goog-api-key\\": credential\\.data\\.trim\\(\\)/);\n  assert.doesNotMatch(generator, /[?&]key=\\$\\{/);
   assert.match(api, /watchBuildStream/);
   assert.match(api, /pandora_build_stream_events/);
   assert.match(conversation, /event\.contentChunk/);
