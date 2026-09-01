@@ -13,6 +13,7 @@ import '../../core/models/project_journey_models.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/platform/pandora_preview_host.dart';
 import 'pandora_v2_ui.dart';
+import 'project_exact_source_diff.dart';
 import 'project_workspace_v2_view.dart';
 
 String? _safeHttps(String? value) {
@@ -495,6 +496,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _publishing = false;
   bool _undoing = false;
   bool _recentlyUpdated = false;
+  ProjectExactSourceDiff? _lastChangeDiff;
   bool _selectionMode = false;
   PandoraPreviewSelection? _selectedPreviewTarget;
   ProjectFocusToken? _focusToken;
@@ -616,6 +618,40 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   ProjectVersionRoles? get _versionRoles => _candidateSafety?.roles;
+
+  ProjectExactSourceDiff? _exactDiffForCandidate({
+    required ProjectExperienceProjection projection,
+    required String candidateVersionId,
+    required List<Map<String, Object?>> candidateFiles,
+  }) {
+    final baselineVersionId = _previewVersionId;
+    final baselineFiles = _previewFiles;
+    if (baselineVersionId == null ||
+        baselineFiles == null ||
+        baselineFiles.isEmpty ||
+        candidateVersionId == baselineVersionId) {
+      return null;
+    }
+    if (!projection.currentVerified ||
+        projection.currentVersionId != baselineVersionId ||
+        projection.candidateVersionId != candidateVersionId ||
+        projection.candidateVerificationState.trim().toLowerCase() !=
+            'passed') {
+      return null;
+    }
+
+    try {
+      return ProjectExactSourceDiff.fromExactPreviewBundles(
+        projectId: widget.project.id,
+        baselineVersionId: baselineVersionId,
+        baselineFiles: baselineFiles,
+        candidateVersionId: candidateVersionId,
+        candidateFiles: candidateFiles,
+      );
+    } on FormatException {
+      return null;
+    }
+  }
 
   bool get _canUndo =>
       _projection?.canUndo == true && _projection?.candidateVersionId != null;
@@ -740,6 +776,15 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
             versionId: targetVersionId,
             exactPreviewReady: exactPreviewReady,
           );
+      final exactDiff = commitVisible &&
+              targetVersionId == safety.roles.candidateVersionId &&
+              files != null
+          ? _exactDiffForCandidate(
+              projection: projection,
+              candidateVersionId: targetVersionId,
+              candidateFiles: files,
+            )
+          : null;
       final currentProjection = _projection;
       final acceptProjection = currentProjection == null ||
           projection.isNewerThan(currentProjection);
@@ -754,6 +799,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           _previewFiles = files;
           _previewVersionId = targetVersionId;
           if (versionChanged) {
+            if (targetVersionId == safety.roles.candidateVersionId) {
+              _lastChangeDiff = exactDiff;
+            }
             _selectionMode = false;
             _selectedPreviewTarget = null;
             _focusToken = null;
@@ -852,6 +900,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     setState(() {
       _changing = true;
       _recentlyUpdated = false;
+      _lastChangeDiff = null;
       _error = null;
       _intelligenceReply = null;
     });
@@ -1088,12 +1137,19 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       );
     }
 
+    final exactDiff = _exactDiffForCandidate(
+      projection: transition,
+      candidateVersionId: versionId,
+      candidateFiles: files,
+    );
+
     _change.clear();
     setState(() {
       _previewFiles = files;
       _previewVersionId = versionId;
       _changing = false;
       _recentlyUpdated = true;
+      _lastChangeDiff = exactDiff;
       _selectionMode = false;
       _selectedPreviewTarget = null;
       _focusToken = null;
@@ -1123,6 +1179,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       setState(() {
         _snapshot = snapshot;
         _recentlyUpdated = false;
+        _lastChangeDiff = null;
       });
       await _refresh();
       if (!mounted) return;
@@ -1558,6 +1615,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       progressPhase: _projectionProgressPhase,
       recentlyUpdated: _recentlyUpdated,
       currentVersionVerified: _currentVersionVerified,
+      changeDiff: _lastChangeDiff,
       intelligenceReply: _intelligenceReply,
       error: _error,
       onClearSelection: _clearPreviewSelection,
