@@ -7,6 +7,7 @@ import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/data/project_experience_api.dart';
 import '../../core/data/project_experience_repository.dart';
 import '../../core/models/project_candidate_safety.dart';
+import '../../core/models/project_conversation_history.dart';
 import '../../core/models/project_experience_projection.dart';
 import '../../core/models/project_focus_token.dart';
 import '../../core/models/project_journey_models.dart';
@@ -775,6 +776,16 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     try {
       final snapshot = await experience.runtime(widget.project.id);
       final projection = await experience.loadExperience(widget.project.id);
+      List<ProjectConversationHistoryItem> conversationHistory =
+          const <ProjectConversationHistoryItem>[];
+      try {
+        conversationHistory = await experience.loadProjectConversation(
+          projectId: widget.project.id,
+          limit: 50,
+        );
+      } catch (_) {
+        // History is supplemental to the authoritative product canvas.
+      }
       Map<String, Object?>? publishReceipt;
       try {
         publishReceipt = await experience.loadLatestPublishReceipt(
@@ -825,6 +836,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         _snapshot = snapshot;
         if (acceptProjection) _projection = projection;
         _publishReceipt = publishReceipt;
+        _conversationHistory = conversationHistory;
         _loading = false;
 
         if (commitVisible) {
@@ -1706,6 +1718,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       activeBuildSnapshot: _activeBuildSnapshot,
       intelligenceReply: _intelligenceReply,
       publishReceipt: _publishReceipt,
+      conversationHistory: _conversationHistory,
       error: _error,
       onClearSelection: _clearPreviewSelection,
       onDismissIntelligence: _dismissIntelligenceReply,
