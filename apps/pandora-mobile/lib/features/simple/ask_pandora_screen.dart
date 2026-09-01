@@ -80,9 +80,8 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
     }
     final spacer = _objective.text.trim().isEmpty ? '' : ' ';
     _objective.text = '${_objective.text}$spacer$text';
-    _objective.selection = TextSelection.collapsed(
-      offset: _objective.text.length,
-    );
+    _objective.selection =
+        TextSelection.collapsed(offset: _objective.text.length);
     setState(() => _error = null);
   }
 
@@ -242,11 +241,9 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
     if (image == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            camera
-                ? 'No camera image was attached.'
-                : 'No supported photo was attached.',
-          ),
+          content: Text(camera
+              ? 'No camera image was attached.'
+              : 'No supported photo was attached.'),
         ),
       );
       return;
@@ -538,7 +535,10 @@ class _PandoraThinkingBubble extends StatelessWidget {
           SizedBox(width: 9),
           Text(
             'Thinking…',
-            style: TextStyle(color: PandoraSimpleColors.muted, fontSize: 14),
+            style: TextStyle(
+              color: PandoraSimpleColors.muted,
+              fontSize: 14,
+            ),
           ),
         ],
       );
@@ -832,8 +832,10 @@ class _Composer extends StatelessWidget {
               const Text(
                 'Pandora can make mistakes. Review important changes before publishing.',
                 textAlign: TextAlign.center,
-                style:
-                    TextStyle(color: PandoraSimpleColors.muted, fontSize: 10.5),
+                style: TextStyle(
+                  color: PandoraSimpleColors.muted,
+                  fontSize: 10.5,
+                ),
               ),
             ],
           ),
@@ -861,8 +863,9 @@ class _ComposerMenuItem extends StatelessWidget {
           padding: const WidgetStatePropertyAll(
             EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           ),
-          foregroundColor:
-              const WidgetStatePropertyAll(PandoraSimpleColors.ink),
+          foregroundColor: const WidgetStatePropertyAll(
+            PandoraSimpleColors.ink,
+          ),
         ),
         child: Text(
           label,
