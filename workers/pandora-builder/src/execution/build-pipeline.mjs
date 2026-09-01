@@ -138,7 +138,7 @@ async function executeBuildPipeline({
   }
   const build = await buildProject({
     sandbox,
-    adapter: { ...adapter, tests: testDefinitions },
+    adapter,
     workspaceRoot: workspace.root,
     env: environment,
     limits: request.resourceLimits,
