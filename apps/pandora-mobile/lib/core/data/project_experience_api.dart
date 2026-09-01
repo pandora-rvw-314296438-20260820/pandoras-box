@@ -586,7 +586,8 @@ class ProjectExperienceApi {
           continue;
         }
         if (latestAt != null && !occurredAt.isAfter(latestAt)) continue;
-        final payload = _map(row['display_payload']) ?? const <String, dynamic>{};
+        final payload =
+            _map(row['display_payload']) ?? const <String, dynamic>{};
         final rawVersion = payload['version'];
         final versionNumber = rawVersion is num
             ? rawVersion.toInt()
@@ -604,8 +605,8 @@ class ProjectExperienceApi {
           'verificationRunId': verificationRunId,
           'deploymentId': deploymentId,
           'occurredAt': occurredAt.toIso8601String(),
-          'publishedAt': _optionalText(payload['publishedAt']) ??
-              occurredAt.toIso8601String(),
+          'publishedAt':
+              _optionalText(payload['publishedAt']) ?? occurredAt.toIso8601String(),
           'versionNumber': versionNumber,
         };
       }
