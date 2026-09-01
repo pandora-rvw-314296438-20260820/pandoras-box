@@ -110,7 +110,9 @@ void main() {
     expect(source, contains('Prototype preview'));
     expect(
       source,
-      contains('This is a prototype. It is not live or production verified.'),
+      contains(
+        'This is a prototype. It is not live or production verified.',
+      ),
     );
     expect(
       source,
