@@ -8,6 +8,8 @@ const FORBIDDEN_SECRET_KEYS = Object.freeze([
   'service_role_key',
   'vercel_token',
   'gemini_api_key',
+  'moonshot_api_key',
+  'kimi_api_key',
   'openai_api_key',
   'anthropic_api_key',
   'database_password',
@@ -50,7 +52,10 @@ function scan(value, path, findings, seen) {
   }
 
   for (const [key, nested] of Object.entries(value)) {
-    const normalized = key.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const normalized = key
+      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_');
     if (
       FORBIDDEN_SECRET_KEYS.includes(normalized) ||
       normalized.endsWith('_secret') ||
