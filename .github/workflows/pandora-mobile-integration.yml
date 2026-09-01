@@ -407,9 +407,21 @@ jobs:
         working-directory: .pandora-mobile-ios-build
         run: flutter analyze
 
-      - name: Test
+      - name: Test non-golden suite
         working-directory: .pandora-mobile-ios-build
-        run: flutter test --reporter expanded
+        shell: bash
+        run: |
+          set -euo pipefail
+          tests=()
+          while IFS= read -r -d '' file; do
+            tests+=("$file")
+          done < <(
+            find test -type f -name '*_test.dart' \
+              ! -path 'test/goldens/*' \
+              -print0
+          )
+          test "${#tests[@]}" -gt 0
+          flutter test --reporter expanded "${tests[@]}"
 
       - name: Build non-production iOS simulator candidate
         working-directory: .pandora-mobile-ios-build

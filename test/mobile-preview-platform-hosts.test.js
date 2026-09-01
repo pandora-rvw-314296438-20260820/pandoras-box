@@ -13,6 +13,7 @@ const webFacade = readFileSync(join(platform, 'pandora_web_preview.dart'), 'utf8
 const web = readFileSync(join(platform, 'pandora_web_preview_web.dart'), 'utf8');
 const swift = readFileSync(join(mobile, 'platform', 'ios', 'Runner', 'PandoraExactPreviewView.swift'), 'utf8');
 const appDelegate = readFileSync(join(mobile, 'platform', 'ios', 'Runner', 'AppDelegate.swift'), 'utf8');
+const workflow = readFileSync(join(root, '.github', 'workflows', 'pandora-mobile-integration.yml'), 'utf8');
 
 const forbiddenBridge = /WKScriptMessageHandler|addJavascriptInterface|javaScriptChannel|allow-same-origin/;
 
@@ -64,4 +65,12 @@ test('desktop stays fail-closed instead of substituting an unrelated URL', () =>
   assert.match(desktop, /static bool get isSupported => false/);
   assert.match(desktop, /Widget build\(BuildContext context\) => fallback/);
   assert.doesNotMatch(desktop, /url_launcher|http:|https:|WebView/);
+});
+
+
+test('iOS CI keeps platform-sensitive goldens on the Linux visual lane', () => {
+  assert.match(workflow, /Test non-golden suite/);
+  assert.match(workflow, /! -path 'test\/goldens\/\*'/);
+  assert.match(workflow, /flutter test --reporter expanded "\$\{tests\[@\]\}"/);
+  assert.match(workflow, /flutter build ios --simulator --debug/);
 });
