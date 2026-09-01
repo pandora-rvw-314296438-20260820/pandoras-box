@@ -21,6 +21,7 @@ class PandoraPreviewSelection {
     required this.tag,
     required this.selector,
     required this.text,
+    this.componentId = '',
     this.semanticId = '',
     this.role = '',
     this.accessibleName = '',
@@ -33,6 +34,7 @@ class PandoraPreviewSelection {
   final String tag;
   final String selector;
   final String text;
+  final String componentId;
   final String semanticId;
   final String role;
   final String accessibleName;

@@ -605,6 +605,8 @@ private class PandoraExactPreviewView(
               var semanticId = inheritedAttr(el, ['data-pandora-id','data-semantic-id','data-testid']) ||
                 el.id || el.getAttribute('name') || accessibleName || selector;
               semanticId = String(semanticId || '').replace(/[^A-Za-z0-9_:.#\/@-]/g, '').slice(0, 160);
+              var componentId = inheritedAttr(el, ['data-pandora-component-id','data-component-id']) || semanticId;
+              componentId = String(componentId || '').replace(/[^A-Za-z0-9_:.#\/@-]/g, '').slice(0, 200);
               var sourceFile = inheritedAttr(el, ['data-pandora-source-file','data-source-file','data-file']) || 'index.html';
               sourceFile = String(sourceFile || 'index.html').replace(/[^A-Za-z0-9_./-]/g, '').slice(0, 256) || 'index.html';
               if (sourceFile.indexOf('..') >= 0 || sourceFile.charAt(0) === '/') sourceFile = 'index.html';
@@ -617,6 +619,7 @@ private class PandoraExactPreviewView(
                 tag:String(el.tagName || '').toLowerCase(),
                 selector:selector,
                 text:text,
+                componentId:componentId,
                 semanticId:semanticId,
                 role:role,
                 accessibleName:accessibleName,
@@ -647,6 +650,9 @@ private class PandoraExactPreviewView(
                     .replace(Regex("\\s+"), " ")
                     .trim()
                     .take(80)
+                val componentId = payload.optString("componentId")
+                    .replace(Regex("[^A-Za-z0-9_:.#/@-]"), "")
+                    .take(200)
                 val semanticId = payload.optString("semanticId")
                     .replace(Regex("[^A-Za-z0-9_:.#/@-]"), "")
                     .take(160)
@@ -685,6 +691,7 @@ private class PandoraExactPreviewView(
                         "tag" to tag,
                         "selector" to selector,
                         "text" to text,
+                        "componentId" to componentId,
                         "semanticId" to semanticId,
                         "role" to role,
                         "accessibleName" to accessibleName,

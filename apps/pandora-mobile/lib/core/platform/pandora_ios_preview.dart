@@ -78,6 +78,7 @@ class _PandoraIosPreviewState extends State<PandoraIosPreview> {
       tag: value('tag'),
       selector: value('selector'),
       text: value('text'),
+      componentId: value('componentId'),
       semanticId: value('semanticId'),
       role: value('role'),
       accessibleName: value('accessibleName'),
