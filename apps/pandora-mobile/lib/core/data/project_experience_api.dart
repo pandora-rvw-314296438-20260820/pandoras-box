@@ -1021,6 +1021,19 @@ String? _optionalText(Object? value) {
   return valueText.isEmpty ? null : valueText;
 }
 
+int? _optionalInt(Object? value) {
+  if (value is int) return value;
+  if (value == null) return null;
+  return int.tryParse(value.toString());
+}
+
+Map<String, dynamic>? _map(Object? value) {
+  if (value is! Map) return null;
+  return value.map(
+    (key, item) => MapEntry(key.toString(), item),
+  );
+}
+
 String _requiredText(Object? value) {
   final valueText = _text(value);
   if (valueText.isEmpty) {
