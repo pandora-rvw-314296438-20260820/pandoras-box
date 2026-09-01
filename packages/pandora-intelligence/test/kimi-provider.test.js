@@ -75,7 +75,8 @@ test('Kimi serializer supports structured output, tools and multimodal content w
   assert.equal(body.tools[0].function.strict, true);
   assert.equal(body.messages[0].content[0].type, 'image_url');
   assert.equal(body.messages[0].content[1].type, 'video_url');
-  assert.throws(() => kimi.buildKimiBody(request({ context: { messages: [{ role: 'user', content: 'x' }], toolChoice: 'required' } })), /toolChoice/);
+  assert.equal(kimi.buildKimiBody(request({ context: { messages: [{ role: 'user', content: 'x' }], toolChoice: 'required' } })).tool_choice, 'required');
+  assert.throws(() => kimi.buildKimiBody(request({ context: { messages: [{ role: 'user', content: 'x' }], toolChoice: 'specific' } })), /toolChoice/);
   assert.throws(() => kimi.buildKimiBody(request({ context: { messages: [{ role: 'developer', content: 'x' }] } })), /message role/);
 });
 
