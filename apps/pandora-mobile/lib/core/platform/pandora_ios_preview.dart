@@ -101,17 +101,19 @@ class _PandoraIosPreviewState extends State<PandoraIosPreview> {
   void _syncSelectionMode() {
     final channel = _selectionChannel;
     if (channel == null) return;
-    channel.invokeMethod<void>('setSelectionMode', <String, Object?>{
-      'enabled': widget.selectionEnabled,
-    }).catchError((_) {});
+    channel.invokeMethod<void>(
+      'setSelectionMode',
+      <String, Object?>{'enabled': widget.selectionEnabled},
+    ).catchError((_) {});
   }
 
   void _syncSelectedSelector() {
     final channel = _selectionChannel;
     if (channel == null) return;
-    channel.invokeMethod<void>('setSelectedSelector', <String, Object?>{
-      'selector': widget.selectedSelector?.trim() ?? '',
-    }).catchError((_) {});
+    channel.invokeMethod<void>(
+      'setSelectedSelector',
+      <String, Object?>{'selector': widget.selectedSelector?.trim() ?? ''},
+    ).catchError((_) {});
   }
 
   @override
