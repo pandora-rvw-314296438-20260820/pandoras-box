@@ -408,17 +408,32 @@ class _BuildConversationView {
     required this.failed,
   });
 
-  factory _BuildConversationView.from(List<ProjectBuildStreamEvent> events) {
+  factory _BuildConversationView.from(ProjectBuildStreamSnapshot snapshot) {
+    final events = List<ProjectBuildStreamEvent>.of(snapshot.events)
+      ..sort((left, right) => left.sequence.compareTo(right.sequence));
     String? currentFile;
     var code = '';
     var completedFiles = 0;
     var previewReady = false;
-    var failed = false;
+    var failed = snapshot.streamStatus == 'failed' ||
+        snapshot.streamStatus == 'cancelled' ||
+        snapshot.buildStatus == 'failed' ||
+        snapshot.buildStatus == 'cancelled';
     final activity = <String>[];
 
     void record(String value) {
       if (value.isEmpty) return;
       if (activity.isEmpty || activity.last != value) activity.add(value);
+    }
+
+    if (snapshot.historyGapDueToRetention) {
+      record('Build continued while you were away');
+    }
+    if (snapshot.reconnecting) {
+      record('Reconnecting to the live build');
+    }
+    if (snapshot.buildStage != null && snapshot.buildStage!.isNotEmpty) {
+      record(_friendlyStage(snapshot.buildStage!));
     }
 
     for (final event in events) {
@@ -447,6 +462,44 @@ class _BuildConversationView {
         case 'build_job_created':
           record('Source handed to the builder');
           break;
+        case 'command_started':
+          final commandClass =
+              event.safePayload['command_class']?.toString() ?? 'build command';
+          record('Running ${commandClass.replaceAll('_', ' ')}');
+          break;
+        case 'command_completed':
+          final status = event.safePayload['status']?.toString();
+          if (status == 'completed' || status == 'succeeded') {
+            record('✓ Build command completed');
+          }
+          break;
+        case 'compile_started':
+          record('Compiling application');
+          break;
+        case 'compile_diagnostic':
+          if (event.filePath != null) {
+            record('Compiler found an issue in ${event.filePath}');
+          }
+          break;
+        case 'compile_completed':
+          final status = event.safePayload['status']?.toString();
+          record(status == 'completed' || status == 'succeeded'
+              ? '✓ Application compiled'
+              : 'Compile attempt needs repair');
+          break;
+        case 'test_started':
+          record('Running checks');
+          break;
+        case 'test_completed':
+          final failedCount = event.safePayload['failed'];
+          record(failedCount == 0 ? '✓ Checks completed' : 'Checks need repair');
+          break;
+        case 'repair_started':
+          record('Repairing build issues');
+          break;
+        case 'repair_completed':
+          record('✓ Repair source rebuilt');
+          break;
         case 'build_step':
           final kind = event.safePayload['stepKind']?.toString() ?? 'build';
           final status = event.safePayload['status']?.toString() ?? '';
@@ -454,7 +507,6 @@ class _BuildConversationView {
           if (status == 'succeeded' || status == 'completed') {
             record('✓ ${_friendlyStep(key, kind)}');
           } else if (status == 'failed') {
-            failed = true;
             record('Build step failed · ${_friendlyStep(key, kind)}');
           } else {
             record(_friendlyStep(key, kind));
@@ -481,6 +533,10 @@ class _BuildConversationView {
           if (stage != null && stage.isNotEmpty) record(_friendlyStage(stage));
           break;
       }
+    }
+
+    if (failed && snapshot.publicErrorCode != null) {
+      record('Build stopped · ${snapshot.publicErrorCode}');
     }
 
     final lines = code.split('\n');
