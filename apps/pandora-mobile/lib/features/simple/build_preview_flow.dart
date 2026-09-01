@@ -59,7 +59,10 @@ class BuildProgressScreen extends StatelessWidget {
                 label: 'Understand',
                 state: PandoraFlowStepState.complete,
               ),
-              PandoraFlowStep(label: 'Build', state: buildState),
+              PandoraFlowStep(
+                label: 'Build',
+                state: buildState,
+              ),
               PandoraFlowStep(label: 'Review', state: reviewState),
             ],
           ),
