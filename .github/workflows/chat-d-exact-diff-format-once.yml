@@ -1,0 +1,58 @@
+name: Chat D exact diff format once
+
+on:
+  push:
+    branches:
+      - chat-d/diff-workbench-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  format-target:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out target branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: chat-d/exact-source-diff-proof-20260901
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+
+      - name: Format exact Chat D files
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format \
+            apps/pandora-mobile/lib/features/simple/project_exact_source_diff.dart \
+            apps/pandora-mobile/test/architecture/exact_source_diff_guard_test.dart \
+            apps/pandora-mobile/test/features/simple/project_exact_source_diff_test.dart
+          git diff --check
+          git status --short
+
+      - name: Commit formatter-only repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- \
+            apps/pandora-mobile/lib/features/simple/project_exact_source_diff.dart \
+            apps/pandora-mobile/test/architecture/exact_source_diff_guard_test.dart \
+            apps/pandora-mobile/test/features/simple/project_exact_source_diff_test.dart; then
+            echo 'No formatter changes required.'
+            exit 0
+          fi
+          test -z "$(git status --porcelain | grep -v -E '^( M|M |MM|A |\?\?) (apps/pandora-mobile/lib/features/simple/project_exact_source_diff.dart|apps/pandora-mobile/test/architecture/exact_source_diff_guard_test.dart|apps/pandora-mobile/test/features/simple/project_exact_source_diff_test.dart)$' || true)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            apps/pandora-mobile/lib/features/simple/project_exact_source_diff.dart \
+            apps/pandora-mobile/test/architecture/exact_source_diff_guard_test.dart \
+            apps/pandora-mobile/test/features/simple/project_exact_source_diff_test.dart
+          git commit -m 'style(mobile): format exact source diff proof'
+          git push origin HEAD:chat-d/exact-source-diff-proof-20260901
