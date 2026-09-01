@@ -5,6 +5,9 @@ const test = require("node:test");
 
 const { executeMemoryTool } = require("../dist/tools/memory.js");
 const {
+  createCanonicalMemoryHealthProbe,
+} = require("../dist/projectos-container-server.js");
+const {
   PandoraPlanMemoryContextProvider,
 } = require("../dist/runtime/plan-memory-context.js");
 
@@ -136,4 +139,38 @@ test("durable plan hydration forwards explicit project scope", async () => {
   });
   assert.equal(result.envelope.status, "empty");
   assert.equal(requestBody.project_key, PROJECT_KEY);
+});
+
+
+
+test("canonical Memory health probe forwards the exact project key", async () => {
+  let searchBody = null;
+  const probe = createCanonicalMemoryHealthProbe(
+    { VERCEL_OIDC_TOKEN: "o".repeat(64) },
+    async (url, init = {}) => {
+      const pathname = new URL(url).pathname;
+      if (pathname === "/api/projectos/health") {
+        return jsonResponse({
+          ok: true,
+          project: "pandora-memory-engine",
+          status: "projectos-connected",
+          context_pack_hydration: "active",
+          daily_context_pack: "scheduled_15m",
+          post_task_learning: "review_gated",
+        });
+      }
+      if (pathname === "/api/projectos/memory/search") {
+        searchBody = JSON.parse(init.body);
+        return jsonResponse(memoryPayload());
+      }
+      throw new Error(`Unexpected Memory probe path: ${pathname}`);
+    },
+    () => Date.parse("2026-09-01T05:30:00.000Z"),
+  );
+
+  const snapshot = await probe();
+  assert.equal(snapshot.status, "healthy");
+  assert.equal(snapshot.searchVerified, true);
+  assert.equal(searchBody.project_key, PROJECT_KEY);
+  assert.equal(searchBody.projectKey, undefined);
 });
