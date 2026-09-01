@@ -5,7 +5,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const MODEL = Deno.env.get("PANDORA_PROJECT_SPEC_MODEL") || "gemini-3.5-flash-lite";
-const COMPILER_VERSION = "project-spec-compiler-v3";
+const COMPILER_VERSION = "project-spec-compiler-v4";
 const MAX_BODY_BYTES = 2048;
 const MAX_MODEL_TEXT_BYTES = 262144;
 
@@ -124,6 +124,12 @@ function validateCandidate(value: unknown) {
   if (platforms.some((item) => !["web", "ios", "android", "desktop", "server"].includes(item))) throw new Error("INVALID_STRUCTURED_OUTPUT");
   if (design.responsive != null && typeof design.responsive !== "boolean") throw new Error("INVALID_STRUCTURED_OUTPUT");
 
+  const metadata = record(root.metadata);
+  const projectName = text(metadata.projectName);
+  const intentSummary = text(metadata.intentSummary);
+  if (!projectName || projectName.length > 80 || projectName.split(/\s+/).length > 8) throw new Error("INVALID_STRUCTURED_OUTPUT");
+  if (!intentSummary || intentSummary.length > 280) throw new Error("INVALID_STRUCTURED_OUTPUT");
+
   const acceptance = record(root.acceptance);
   stringArray(acceptance.functional, "acceptance.functional", true);
   stringArray(acceptance.business, "acceptance.business");
@@ -146,10 +152,12 @@ function modelRequest(intent: JsonRecord, project: JsonRecord) {
     "Compile the customer request into one ProjectSpec JSON object.",
     "Return JSON only. Do not add markdown or commentary.",
     "Use version 1.0 and exactly these top-level sections: version, business, product, data, integrations, design, deployment, acceptance, metadata.",
-    "Use exactly these nested shapes: business={objective:string,expectedOutcome?:string,successMetric?:string,baseline?:string,target?:string,constraints?:string[]}; product={projectType:string,users?:string[],roles?:string[],workflows?:string[],features?:string[],screens?:string[],userStories?:string[]}; data={entities?:{name:string}[],relationships?:{name:string,from:string,to:string}[]}; integrations={payment?:string[],messaging?:string[],analytics?:string[],externalApis?:string[],providerRequirements?:string[]}; design={brandRequirements?:string[],accessibility?:string[],platforms?:string[],responsive?:boolean}; deployment={} or an owner-readable JSON object; acceptance={functional:string[],business?:string[]}; metadata={} or a bounded JSON object.",
+    "Use exactly these nested shapes: business={objective:string,expectedOutcome?:string,successMetric?:string,baseline?:string,target?:string,constraints?:string[]}; product={projectType:string,users?:string[],roles?:string[],workflows?:string[],features?:string[],screens?:string[],userStories?:string[]}; data={entities?:{name:string}[],relationships?:{name:string,from:string,to:string}[]}; integrations={payment?:string[],messaging?:string[],analytics?:string[],externalApis?:string[],providerRequirements?:string[]}; design={brandRequirements?:string[],accessibility?:string[],platforms?:string[],responsive?:boolean}; deployment={} or an owner-readable JSON object; acceptance={functional:string[],business?:string[]}; metadata={projectName:string,intentSummary:string}.",
     "For design.platforms use only web, ios, android, desktop, or server. Do not substitute alternate field names and do not put objects inside fields defined as string arrays.",
     "product.projectType must be website, web_application, mobile_application, system, api, automation, or other.",
     "acceptance.functional must contain at least one observable criterion.",
+    "metadata.projectName must be a concise owner-facing name, ideally 2-6 words and no more than 60 characters. Name the thing being built; do not repeat the raw request or start with verbs such as Build, Create, Make, Design, or Develop.",
+    "metadata.intentSummary must be one concise owner-readable sentence, no more than 240 characters, stating what Pandora will build without implementation jargon.",
     "Do not invent measured business results, credentials, provider secrets, or deployed URLs.",
     "Prefer owner-readable requirements and infer technical details only when needed to satisfy the stated result."
   ].join(" ");
@@ -280,7 +288,7 @@ Deno.serve(async (req) => {
     }
     if (!candidate) throw new Error("INVALID_STRUCTURED_OUTPUT");
     const digest = await sha256(JSON.stringify(candidate));
-    const { data: committed, error: commitError } = await admin.rpc("pandora_commit_compiled_project_spec_20260829", {
+    const { data: committed, error: commitError } = await admin.rpc("pandora_commit_compiled_project_spec_v2_20260901", {
       p_source_intent_id: intentId,
       p_claim_token: claimToken,
       p_candidate: candidate,

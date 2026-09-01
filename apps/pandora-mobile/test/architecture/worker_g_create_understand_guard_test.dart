@@ -21,8 +21,11 @@ void main() {
     expect(source, contains('name: _inferName(intent)'));
     expect(source, contains('buildKind: ProjectBuildKind.helpMeDecide'));
     expect(source, contains('submitIntent('));
-    expect(source, contains('What Pandora understands'));
+    expect(source, contains('Here’s what Pandora will build.'));
+    expect(source, contains("title: 'Build plan'"));
     expect(source, contains("label: 'Build it'"));
+    expect(source, contains('ProjectBuildConversationScreen('));
+    expect(source, isNot(contains('What Pandora understands')));
     expect(source, isNot(contains('Name your project')));
     expect(projects, contains('const CreateProjectExperienceScreen()'));
     expect(legacy, isNot(contains('class CreateProjectFlowScreen')));
