@@ -14,6 +14,7 @@ const changeSummary = require('./change-summary');
 const versionHistory = require('./version-history');
 const restoreSemantics = require('./restore-semantics');
 const primitiveTrust = require('./primitive-trust');
+const modelProviderVerification = require('./model-provider-verification');
 
 function createVerificationService(options = {}) {
   const verifier = new engine.VerificationEngine(options);
@@ -54,5 +55,6 @@ module.exports = Object.freeze({
   ...versionHistory,
   ...restoreSemantics,
   ...primitiveTrust,
+  ...modelProviderVerification,
   createVerificationService,
 });
