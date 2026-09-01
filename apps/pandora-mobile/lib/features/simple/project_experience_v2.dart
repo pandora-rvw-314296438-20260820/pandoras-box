@@ -1559,6 +1559,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         projectId: widget.project.id,
         versionId: versionId,
         artifactDigest: artifactDigest,
+        componentId: selection.componentId,
         semanticId: selection.semanticId,
         selector: selection.selector,
         role: selection.role,

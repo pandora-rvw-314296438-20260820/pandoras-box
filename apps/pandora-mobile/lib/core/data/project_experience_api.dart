@@ -92,7 +92,8 @@ class ProjectExperienceApi {
           .from('pandora_project_specs')
           .select(
             'id,version,status,source_intent_id,project_type,'
-            'target_user_summary,business_summary,created_at',
+            'target_user_summary,business_summary,product_scope,'
+            'integration_scope,acceptance_scope,created_at',
           )
           .eq('organization_id', _organizationId)
           .eq('project_id', projectId)
@@ -133,6 +134,19 @@ class ProjectExperienceApi {
       final journey =
           rawJourney is Map ? rawJourney : const <String, Object?>{};
       final distilledSummary = _optionalText(journey['intentSummary']);
+      final productScope =
+          _map(spec['product_scope']) ?? const <String, dynamic>{};
+      final integrationScope =
+          _map(spec['integration_scope']) ?? const <String, dynamic>{};
+      final acceptanceScope =
+          _map(spec['acceptance_scope']) ?? const <String, dynamic>{};
+      final proposalIntegrations = <String>[
+        ..._stringList(integrationScope['payment']),
+        ..._stringList(integrationScope['messaging']),
+        ..._stringList(integrationScope['analytics']),
+        ..._stringList(integrationScope['externalApis']),
+        ..._stringList(integrationScope['providerRequirements']),
+      ];
 
       final objectives = await _client
           .from('pandora_project_business_objectives')
@@ -159,6 +173,17 @@ class ProjectExperienceApi {
         projectType: _text(spec['project_type'], fallback: 'Project'),
         targetUsers: _optionalText(spec['target_user_summary']),
         businessSummary: _optionalText(spec['business_summary']),
+        productPromise: _optionalText(productScope['productPromise']),
+        audiences: _stringList(productScope['audiences']),
+        customerValue: _optionalText(productScope['customerValue']),
+        ownerValue: _optionalText(productScope['ownerValue']),
+        coreExperiences: _stringList(productScope['coreExperiences']),
+        firstVersionCapabilities:
+            _stringList(productScope['firstVersionCapabilities']),
+        primaryWorkflows: _stringList(productScope['primaryWorkflows']),
+        integrations: List<String>.unmodifiable(proposalIntegrations),
+        successCriteria: _stringList(acceptanceScope['successCriteria']),
+        reviewAssurance: _optionalText(acceptanceScope['reviewAssurance']),
         objectives: <String>[
           for (final row in objectives)
             if (_text(row['desired_outcome']).isNotEmpty)
@@ -1143,6 +1168,16 @@ class OwnerProjectUnderstanding {
     this.projectType,
     this.targetUsers,
     this.businessSummary,
+    this.productPromise,
+    this.audiences = const <String>[],
+    this.customerValue,
+    this.ownerValue,
+    this.coreExperiences = const <String>[],
+    this.firstVersionCapabilities = const <String>[],
+    this.primaryWorkflows = const <String>[],
+    this.integrations = const <String>[],
+    this.successCriteria = const <String>[],
+    this.reviewAssurance,
     this.objectives = const <String>[],
     this.requirements = const <String>[],
     this.compiledAt,
@@ -1162,6 +1197,16 @@ class OwnerProjectUnderstanding {
     required String projectType,
     required String? targetUsers,
     required String? businessSummary,
+    required String? productPromise,
+    required List<String> audiences,
+    required String? customerValue,
+    required String? ownerValue,
+    required List<String> coreExperiences,
+    required List<String> firstVersionCapabilities,
+    required List<String> primaryWorkflows,
+    required List<String> integrations,
+    required List<String> successCriteria,
+    required String? reviewAssurance,
     required List<String> objectives,
     required List<String> requirements,
     required DateTime? compiledAt,
@@ -1175,6 +1220,17 @@ class OwnerProjectUnderstanding {
         projectType: projectType,
         targetUsers: targetUsers,
         businessSummary: businessSummary,
+        productPromise: productPromise,
+        audiences: List<String>.unmodifiable(audiences),
+        customerValue: customerValue,
+        ownerValue: ownerValue,
+        coreExperiences: List<String>.unmodifiable(coreExperiences),
+        firstVersionCapabilities:
+            List<String>.unmodifiable(firstVersionCapabilities),
+        primaryWorkflows: List<String>.unmodifiable(primaryWorkflows),
+        integrations: List<String>.unmodifiable(integrations),
+        successCriteria: List<String>.unmodifiable(successCriteria),
+        reviewAssurance: reviewAssurance,
         objectives: List<String>.unmodifiable(objectives),
         requirements: List<String>.unmodifiable(requirements),
         compiledAt: compiledAt,
@@ -1188,6 +1244,16 @@ class OwnerProjectUnderstanding {
   final String? projectType;
   final String? targetUsers;
   final String? businessSummary;
+  final String? productPromise;
+  final List<String> audiences;
+  final String? customerValue;
+  final String? ownerValue;
+  final List<String> coreExperiences;
+  final List<String> firstVersionCapabilities;
+  final List<String> primaryWorkflows;
+  final List<String> integrations;
+  final List<String> successCriteria;
+  final String? reviewAssurance;
   final List<String> objectives;
   final List<String> requirements;
   final DateTime? compiledAt;
@@ -1203,6 +1269,13 @@ String _text(Object? value, {String fallback = ''}) {
 String? _optionalText(Object? value) {
   final valueText = _text(value);
   return valueText.isEmpty ? null : valueText;
+}
+
+List<String> _stringList(Object? value) {
+  if (value is! List) return const <String>[];
+  return List<String>.unmodifiable(
+    value.map(_text).where((item) => item.isNotEmpty),
+  );
 }
 
 int? _optionalInt(Object? value) {

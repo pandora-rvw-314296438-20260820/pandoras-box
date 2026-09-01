@@ -14,6 +14,7 @@ class PandoraProfessionalBuildPlan extends StatelessWidget {
   final bool showDeliveryPromise;
 
   String get _summary =>
+      understanding.productPromise ??
       understanding.intentSummary ??
       understanding.businessSummary ??
       'Pandora has turned your request into a working product plan.';
@@ -27,6 +28,9 @@ class PandoraProfessionalBuildPlan extends StatelessWidget {
   }
 
   String? get _audience {
+    if (understanding.audiences.isNotEmpty) {
+      return understanding.audiences.take(3).join(' · ');
+    }
     final value = understanding.targetUsers?.trim();
     return value == null || value.isEmpty ? null : value;
   }
@@ -55,8 +59,24 @@ class PandoraProfessionalBuildPlan extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final requirements = understanding.requirements.take(7).toList();
-    final objectives = understanding.objectives.take(3).toList();
+    final requirements = <String>[];
+    if (understanding.firstVersionCapabilities.isNotEmpty) {
+      requirements.addAll(understanding.firstVersionCapabilities.take(7));
+    } else {
+      requirements.addAll(understanding.requirements.take(7));
+    }
+    final objectives = <String>[];
+    if (understanding.successCriteria.isNotEmpty) {
+      objectives.addAll(understanding.successCriteria.take(4));
+    } else {
+      objectives.addAll(understanding.objectives.take(4));
+    }
+    final workflows = understanding.primaryWorkflows.take(5).toList();
+    final experiences = understanding.coreExperiences.take(5).toList();
+    final integrations = understanding.integrations.take(5).toList();
+    final customerValue = understanding.customerValue?.trim();
+    final ownerValue = understanding.ownerValue?.trim();
+    final reviewAssurance = understanding.reviewAssurance?.trim();
     final whyItMatters = _whyItMatters;
     final audience = _audience;
     final productShape = _productShape;
@@ -100,7 +120,32 @@ class PandoraProfessionalBuildPlan extends StatelessWidget {
               _PlanFact(label: 'Designed for', value: audience),
             ],
           ],
-          if (whyItMatters != null) ...[
+          if (customerValue != null && customerValue.isNotEmpty) ...[
+            const SizedBox(height: 22),
+            const _PlanSectionTitle('For your customers'),
+            const SizedBox(height: 8),
+            Text(
+              customerValue,
+              style: const TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 15.5,
+                height: 1.42,
+              ),
+            ),
+          ],
+          if (ownerValue != null && ownerValue.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            const _PlanSectionTitle('For you'),
+            const SizedBox(height: 8),
+            Text(
+              ownerValue,
+              style: const TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 15.5,
+                height: 1.42,
+              ),
+            ),
+          ] else if (whyItMatters != null) ...[
             const SizedBox(height: 22),
             const _PlanSectionTitle('Why this is worth building'),
             const SizedBox(height: 8),
@@ -120,12 +165,44 @@ class PandoraProfessionalBuildPlan extends StatelessWidget {
             for (final requirement in requirements)
               _PlanBullet(text: requirement),
           ],
+          if (experiences.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const _PlanSectionTitle('Core experience'),
+            const SizedBox(height: 10),
+            for (final experience in experiences) _PlanBullet(text: experience),
+          ],
+          if (workflows.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const _PlanSectionTitle('Main workflows'),
+            const SizedBox(height: 10),
+            for (final workflow in workflows) _PlanBullet(text: workflow),
+          ],
+          if (integrations.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const _PlanSectionTitle('Connections'),
+            const SizedBox(height: 10),
+            for (final integration in integrations)
+              _PlanBullet(text: integration),
+          ],
           if (objectives.isNotEmpty) ...[
             const SizedBox(height: 20),
             const _PlanSectionTitle('Success looks like'),
             const SizedBox(height: 10),
             for (final objective in objectives)
               _PlanBullet(text: objective, check: true),
+          ],
+          if (reviewAssurance != null && reviewAssurance.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const _PlanSectionTitle('Before anything goes live'),
+            const SizedBox(height: 8),
+            Text(
+              reviewAssurance,
+              style: const TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 15,
+                height: 1.4,
+              ),
+            ),
           ],
           if (showDeliveryPromise) ...[
             const SizedBox(height: 20),

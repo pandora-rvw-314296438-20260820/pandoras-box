@@ -5,7 +5,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const MODEL = Deno.env.get("PANDORA_PROJECT_SPEC_MODEL") || "gemini-3.5-flash-lite";
-const COMPILER_VERSION = "project-spec-compiler-v4";
+const COMPILER_VERSION = "project-spec-compiler-v5";
 const MAX_BODY_BYTES = 2048;
 const MAX_MODEL_TEXT_BYTES = 262144;
 
@@ -94,6 +94,46 @@ function namedArray(value: unknown, relationship = false) {
   }
 }
 
+function allowedKeys(value: JsonRecord, allowed: string[]) {
+  const permitted = new Set(allowed);
+  if (Object.keys(value).some((key) => !permitted.has(key))) {
+    throw new Error("INVALID_STRUCTURED_OUTPUT");
+  }
+}
+
+function requiredProposalText(value: unknown, max: number) {
+  const normalized = text(value);
+  if (!normalized || normalized.length > max) throw new Error("INVALID_STRUCTURED_OUTPUT");
+  return normalized;
+}
+
+function normalizedProposalLine(value: unknown) {
+  return text(value).toLowerCase().replace(/[^a-z0-9%]+/g, " ").trim().replace(/\s+/g, " ");
+}
+
+function requireDistinctProposalList(value: unknown) {
+  const items = stringArray(value, "proposal.quality", true);
+  const normalized = items.map(normalizedProposalLine);
+  if (new Set(normalized).size !== normalized.length) throw new Error("INVALID_STRUCTURED_OUTPUT");
+}
+
+function validateProposalQuality(product: JsonRecord, acceptance: JsonRecord) {
+  const narrative = [product.productPromise, product.customerValue, product.ownerValue, acceptance.reviewAssurance]
+    .map((value) => requiredProposalText(value, 1200));
+  const normalizedNarrative = narrative.map(normalizedProposalLine);
+  if (new Set(normalizedNarrative).size !== normalizedNarrative.length) throw new Error("INVALID_STRUCTURED_OUTPUT");
+  for (const value of narrative) {
+    if (normalizedProposalLine(value).split(" ").filter(Boolean).length < 4) throw new Error("INVALID_STRUCTURED_OUTPUT");
+    if (/\b(?:tbd|to be determined|generic solution|various features|etcetera)\b/i.test(value)) throw new Error("INVALID_STRUCTURED_OUTPUT");
+    if (/\b(?:seamless|robust|cutting-edge|world-class|best-in-class)\s+(?:solution|platform|experience)\b/i.test(value)) throw new Error("INVALID_STRUCTURED_OUTPUT");
+    if (/\b(?:microservices?|repositories?|database schema|api endpoints?|ci\/cd|containers?|frameworks?|rpc|sdk)\b/i.test(value)) throw new Error("INVALID_STRUCTURED_OUTPUT");
+    if (/\b(?:guaranteed|guarantees|100% guaranteed|double(?:s|d)? revenue|increase revenue by \d+%|reduce costs by \d+%)\b/i.test(value)) throw new Error("INVALID_STRUCTURED_OUTPUT");
+  }
+  for (const value of [product.audiences, product.coreExperiences, product.firstVersionCapabilities, product.primaryWorkflows, acceptance.successCriteria]) {
+    requireDistinctProposalList(value);
+  }
+}
+
 function validateCandidate(value: unknown) {
   const root = record(value);
   const allowed = new Set(["version", "business", "product", "data", "integrations", "design", "deployment", "acceptance", "metadata"]);
@@ -108,10 +148,22 @@ function validateCandidate(value: unknown) {
   stringArray(business.constraints, "business.constraints");
 
   const product = record(root.product);
+  allowedKeys(product, [
+    "projectType", "users", "roles", "workflows", "features", "screens", "userStories",
+    "productPromise", "audiences", "customerValue", "ownerValue", "coreExperiences",
+    "firstVersionCapabilities", "primaryWorkflows",
+  ]);
   if (!["website", "web_application", "mobile_application", "system", "api", "automation", "other"].includes(text(product.projectType))) {
     throw new Error("INVALID_STRUCTURED_OUTPUT");
   }
   for (const key of ["users", "roles", "workflows", "features", "screens", "userStories"]) stringArray(product[key], `product.${key}`);
+  requiredProposalText(product.productPromise, 1200);
+  requiredProposalText(product.customerValue, 1200);
+  requiredProposalText(product.ownerValue, 1200);
+  stringArray(product.audiences, "product.audiences", true);
+  stringArray(product.coreExperiences, "product.coreExperiences", true);
+  stringArray(product.firstVersionCapabilities, "product.firstVersionCapabilities", true);
+  stringArray(product.primaryWorkflows, "product.primaryWorkflows", true);
 
   const data = record(root.data);
   namedArray(data.entities);
@@ -131,8 +183,12 @@ function validateCandidate(value: unknown) {
   if (!intentSummary || intentSummary.length > 280) throw new Error("INVALID_STRUCTURED_OUTPUT");
 
   const acceptance = record(root.acceptance);
+  allowedKeys(acceptance, ["functional", "business", "successCriteria", "reviewAssurance"]);
   stringArray(acceptance.functional, "acceptance.functional", true);
   stringArray(acceptance.business, "acceptance.business");
+  stringArray(acceptance.successCriteria, "acceptance.successCriteria", true);
+  requiredProposalText(acceptance.reviewAssurance, 1200);
+  validateProposalQuality(product, acceptance);
 
   const serialized = JSON.stringify(root);
   if (new TextEncoder().encode(serialized).byteLength > MAX_MODEL_TEXT_BYTES || /AIza[0-9A-Za-z_-]{20,}|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/i.test(serialized)) {
@@ -152,15 +208,17 @@ function modelRequest(intent: JsonRecord, project: JsonRecord) {
     "Compile the customer request into one ProjectSpec JSON object.",
     "Return JSON only. Do not add markdown or commentary.",
     "Use version 1.0 and exactly these top-level sections: version, business, product, data, integrations, design, deployment, acceptance, metadata.",
-    "Use exactly these nested shapes: business={objective:string,expectedOutcome?:string,successMetric?:string,baseline?:string,target?:string,constraints?:string[]}; product={projectType:string,users?:string[],roles?:string[],workflows?:string[],features?:string[],screens?:string[],userStories?:string[]}; data={entities?:{name:string}[],relationships?:{name:string,from:string,to:string}[]}; integrations={payment?:string[],messaging?:string[],analytics?:string[],externalApis?:string[],providerRequirements?:string[]}; design={brandRequirements?:string[],accessibility?:string[],platforms?:string[],responsive?:boolean}; deployment={} or an owner-readable JSON object; acceptance={functional:string[],business?:string[]}; metadata={projectName:string,intentSummary:string}.",
+    "Use exactly these nested shapes: business={objective:string,expectedOutcome?:string,successMetric?:string,baseline?:string,target?:string,constraints?:string[]}; product={projectType:string,users?:string[],roles?:string[],workflows?:string[],features?:string[],screens?:string[],userStories?:string[],productPromise:string,audiences:string[],customerValue:string,ownerValue:string,coreExperiences:string[],firstVersionCapabilities:string[],primaryWorkflows:string[]}; data={entities?:{name:string}[],relationships?:{name:string,from:string,to:string}[]}; integrations={payment?:string[],messaging?:string[],analytics?:string[],externalApis?:string[],providerRequirements?:string[]}; design={brandRequirements?:string[],accessibility?:string[],platforms?:string[],responsive?:boolean}; deployment={} or an owner-readable JSON object; acceptance={functional:string[],business?:string[],successCriteria:string[],reviewAssurance:string}; metadata={projectName:string,intentSummary:string}.",
     "For design.platforms use only web, ios, android, desktop, or server. Do not substitute alternate field names and do not put objects inside fields defined as string arrays.",
     "product.projectType must be website, web_application, mobile_application, system, api, automation, or other.",
-    "acceptance.functional must contain at least one observable criterion.",
+    "acceptance.functional and acceptance.successCriteria must each contain at least one observable criterion.",
+    "product.productPromise, product.audiences, product.customerValue, product.ownerValue, product.coreExperiences, product.firstVersionCapabilities, product.primaryWorkflows, acceptance.successCriteria, and acceptance.reviewAssurance are required owner-facing proposal fields. Keep them concise, specific, non-duplicative, and grounded only in the customer request.",
     "metadata.projectName must be a concise owner-facing name, ideally 2-6 words and no more than 60 characters. Name the thing being built; do not repeat the raw request or start with verbs such as Build, Create, Make, Design, or Develop.",
     "metadata.intentSummary must be one concise owner-readable sentence, no more than 240 characters, stating what Pandora will build without implementation jargon.",
     "Do not invent measured business results, credentials, provider secrets, deployed URLs, guaranteed outcomes, or unsupported claims.",
     "Write the ProjectSpec so its owner-facing fields can double as a polished product proposal. Be concrete, commercially aware, and specific to this customer's domain without sounding like generic AI copy.",
     "business.objective should express the core product outcome in plain language. business.expectedOutcome, when used, should explain why the product is worth having without inventing metrics.",
+    "product.customerValue and product.ownerValue must describe plausible benefits, not fabricated performance claims. product.productPromise must state what the product will reliably enable without guarantees Pandora cannot verify.",
     "product.features, product.workflows, product.screens, and product.userStories should describe tangible capabilities and customer-visible experiences rather than implementation tasks. Prefer 4-8 strong, non-duplicative items when the intent supports them.",
     "acceptance.business should state believable owner-visible success conditions. acceptance.functional should state observable working-product behavior.",
     "Make the proposal feel considered and desirable: emphasize control, convenience, clarity, speed, reduced friction, direct customer experience, or other benefits only when they genuinely follow from the request.",
