@@ -140,10 +140,10 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901075624_pandora_build_approval_receipts_v1.sql',
     '20260901075716_pandora_project_conversation_projection_v1.sql',
     '20260901080049_pandora_publish_receipts_v1.sql',
+    '20260901080546_pandora_server_owned_build_admission_v1.sql',
     '20260901093000_pandora_publish_receipts_v1.sql',
     '20260901134500_pandora_build_approval_receipts_v1.sql',
     '20260901134600_pandora_project_conversation_projection_v1.sql',
-    '20260901080546_pandora_server_owned_build_admission_v1.sql',
     '20260901150000_pandora_server_owned_build_admission_v1.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
@@ -291,10 +291,10 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901075624_pandora_build_approval_receipts_v1.sql',
     '20260901075716_pandora_project_conversation_projection_v1.sql',
     '20260901080049_pandora_publish_receipts_v1.sql',
+    '20260901080546_pandora_server_owned_build_admission_v1.sql',
     '20260901093000_pandora_publish_receipts_v1.sql',
     '20260901134500_pandora_build_approval_receipts_v1.sql',
     '20260901134600_pandora_project_conversation_projection_v1.sql',
-    '20260901080546_pandora_server_owned_build_admission_v1.sql',
     '20260901150000_pandora_server_owned_build_admission_v1.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
@@ -394,10 +394,10 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901075624_pandora_build_approval_receipts_v1.sql',
     '20260901075716_pandora_project_conversation_projection_v1.sql',
     '20260901080049_pandora_publish_receipts_v1.sql',
+    '20260901080546_pandora_server_owned_build_admission_v1.sql',
     '20260901093000_pandora_publish_receipts_v1.sql',
     '20260901134500_pandora_build_approval_receipts_v1.sql',
     '20260901134600_pandora_project_conversation_projection_v1.sql',
-    '20260901080546_pandora_server_owned_build_admission_v1.sql',
     '20260901150000_pandora_server_owned_build_admission_v1.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
