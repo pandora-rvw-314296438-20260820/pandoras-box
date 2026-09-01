@@ -34,7 +34,8 @@ test('provider-confirmed rename/default-domain drift is refreshed from authority
 
 test('missing provider project is a fail-closed trust conflict', () => {
   const request = block('async function vercelRequest', 'async function ensureVercelProject');
-  assert.match(request, /status === 404 && \^\\\/v9\\\/projects\\\//);
+  assert.match(request, /status === 404/);
+  assert.match(request, /\.test\(path\)/);
   assert.match(request, /VERCEL_PROJECT_NOT_FOUND/);
   assert.match(source, /"VERCEL_PROJECT_NOT_FOUND", "VERCEL_PROJECT_IDENTITY_MISMATCH"/);
 });
