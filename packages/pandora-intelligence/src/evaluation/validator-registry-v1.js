@@ -39,8 +39,9 @@ function validateRequiredSchema(value, schema) {
   if (!object) return { status: 'FAIL', reason: 'not_object' };
   const required = Array.isArray(schema?.required) ? schema.required.map(String) : [];
   for (const key of required) if (!Object.hasOwn(object, key)) return { status: 'FAIL', reason: `missing_required:${key}` };
-  if (schema?.additionalProperties === false && isRecord(schema.properties)) {
-    const allowed = new Set(Object.keys(schema.properties));
+  if (schema?.additionalProperties === false) {
+    const allowedKeys = isRecord(schema.properties) ? Object.keys(schema.properties) : required;
+    const allowed = new Set(allowedKeys);
     for (const key of Object.keys(object)) if (!allowed.has(key)) return { status: 'FAIL', reason: `unexpected_field:${key}` };
   }
   return { status: 'PASS', reason: null };
