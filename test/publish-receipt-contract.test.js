@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const migration = readFileSync(
-  resolve(root, "supabase/migrations/20260901093000_pandora_publish_receipts_v1.sql"),
+  resolve(root, "supabase/migrations/20260901080049_pandora_publish_receipts_v1.sql"),
   "utf8",
 );
 
