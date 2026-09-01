@@ -64,9 +64,8 @@ class ProjectFocusToken {
     final normalizedDigest = artifactDigest.trim().toLowerCase();
     final normalizedSemantic =
         semanticId.trim().isNotEmpty ? semanticId.trim() : selector.trim();
-    final normalizedComponent = componentId.trim().isNotEmpty
-        ? componentId.trim()
-        : normalizedSemantic;
+    final normalizedComponent =
+        componentId.trim().isNotEmpty ? componentId.trim() : normalizedSemantic;
     final normalizedSource =
         sourceFile.trim().isEmpty ? 'index.html' : sourceFile.trim();
     final issued = (issuedAt ?? DateTime.now()).toUtc();
