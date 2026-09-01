@@ -135,7 +135,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901071500_pandora_intent_distillation_naming_v1.sql',
     '20260901074500_pandora_live_code_stream_v1.sql',
     '20260901093000_pandora_publish_receipts_v1.sql',
-    '20260901134500_pandora_build_approval_receipts_v1.sql',\n    '20260901134600_pandora_project_conversation_projection_v1.sql',\n    '20260901140500_pandora_live_build_protocol_v2.sql'
+    '20260901134500_pandora_build_approval_receipts_v1.sql',\n    '20260901134600_pandora_project_conversation_projection_v1.sql',\n    '20260901140500_pandora_live_build_protocol_v2.sql',\n    '20260901150000_pandora_server_owned_build_admission_v1.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -277,7 +277,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901071500_pandora_intent_distillation_naming_v1.sql',
     '20260901074500_pandora_live_code_stream_v1.sql',
     '20260901093000_pandora_publish_receipts_v1.sql',
-    '20260901134500_pandora_build_approval_receipts_v1.sql',\n    '20260901134600_pandora_project_conversation_projection_v1.sql',\n    '20260901140500_pandora_live_build_protocol_v2.sql'
+    '20260901134500_pandora_build_approval_receipts_v1.sql',\n    '20260901134600_pandora_project_conversation_projection_v1.sql',\n    '20260901140500_pandora_live_build_protocol_v2.sql',\n    '20260901150000_pandora_server_owned_build_admission_v1.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -371,7 +371,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901071500_pandora_intent_distillation_naming_v1.sql',
     '20260901074500_pandora_live_code_stream_v1.sql',
     '20260901093000_pandora_publish_receipts_v1.sql',
-    '20260901134500_pandora_build_approval_receipts_v1.sql',\n    '20260901134600_pandora_project_conversation_projection_v1.sql',\n    '20260901140500_pandora_live_build_protocol_v2.sql'
+    '20260901134500_pandora_build_approval_receipts_v1.sql',\n    '20260901134600_pandora_project_conversation_projection_v1.sql',\n    '20260901140500_pandora_live_build_protocol_v2.sql',\n    '20260901150000_pandora_server_owned_build_admission_v1.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
