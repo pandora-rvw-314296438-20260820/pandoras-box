@@ -142,19 +142,7 @@ jobs:
 
       - name: Format
         working-directory: .pandora-mobile-build
-        shell: bash
-        run: |
-          set -euo pipefail
-          cp lib/core/data/project_experience_api.dart /tmp/project_experience_api.before.dart
-          cp lib/features/simple/project_workspace_v2_view.dart /tmp/project_workspace_v2_view.before.dart
-          dart format lib/core/data/project_experience_api.dart lib/features/simple/project_workspace_v2_view.dart >/dev/null
-          echo PANDORA_FORMAT_DIFF_BEGIN_project_experience_api
-          diff -u /tmp/project_experience_api.before.dart lib/core/data/project_experience_api.dart || true
-          echo PANDORA_FORMAT_DIFF_END_project_experience_api
-          echo PANDORA_FORMAT_DIFF_BEGIN_project_workspace_v2_view
-          diff -u /tmp/project_workspace_v2_view.before.dart lib/features/simple/project_workspace_v2_view.dart || true
-          echo PANDORA_FORMAT_DIFF_END_project_workspace_v2_view
-          exit 1
+        run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Materialize canonical web formatter repair
         if: ${{ failure() }}

@@ -573,7 +573,8 @@ class ProjectExperienceApi {
         if (row == null || _text(row['kind']) != 'PUBLISH_RECEIPT') {
           continue;
         }
-        final occurredAt = DateTime.tryParse(_text(row['occurred_at']))?.toUtc();
+        final occurredAt =
+            DateTime.tryParse(_text(row['occurred_at']))?.toUtc();
         final versionId = _optionalText(row['project_version_id']);
         final verificationRunId = _optionalText(row['verification_run_id']);
         final deploymentId = _optionalText(row['deployment_id']);
@@ -605,8 +606,8 @@ class ProjectExperienceApi {
           'verificationRunId': verificationRunId,
           'deploymentId': deploymentId,
           'occurredAt': occurredAt.toIso8601String(),
-          'publishedAt':
-              _optionalText(payload['publishedAt']) ?? occurredAt.toIso8601String(),
+          'publishedAt': _optionalText(payload['publishedAt']) ??
+              occurredAt.toIso8601String(),
           'versionNumber': versionNumber,
         };
       }

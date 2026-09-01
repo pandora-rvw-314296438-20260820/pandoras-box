@@ -341,9 +341,8 @@ class _PublishReceiptCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final versionNumber = receipt['versionNumber'];
-    final versionLabel = versionNumber == null
-        ? 'Verified version'
-        : 'Version $versionNumber';
+    final versionLabel =
+        versionNumber == null ? 'Verified version' : 'Version $versionNumber';
     final verification = _short('verificationRunId');
     final deployment = _short('deploymentId');
     final publishedAt = _text('publishedAt');
