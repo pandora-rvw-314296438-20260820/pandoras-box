@@ -85,7 +85,9 @@ class ProjectRuntimeApi {
         'idempotencyKey': key,
       },
     );
-    return ProjectRuntimeSnapshot.fromJson(_map(response.data, 'project undo'));
+    return ProjectRuntimeSnapshot.fromJson(
+      _map(response.data, 'project undo'),
+    );
   }
 
   Future<void> rollback({
