@@ -1,4 +1,6 @@
-import 'dart:typed_data';\n\nimport 'package:flutter/services.dart';
+import 'dart:typed_data';
+
+import 'package:flutter/services.dart';
 
 class PandoraTextAttachment {
   const PandoraTextAttachment({
