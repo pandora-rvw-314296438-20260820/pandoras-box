@@ -4,6 +4,7 @@ import '../../app/pandora_dependencies.dart';
 import '../../core/data/project_experience_api.dart';
 import '../../core/models/project_journey_models.dart';
 import 'pandora_v2_ui.dart';
+import 'professional_build_plan.dart';
 import 'project_experience_v2.dart';
 
 class ProjectBuildConversationScreen extends StatefulWidget {
@@ -52,14 +53,6 @@ class _ProjectBuildConversationScreenState
   @override
   Widget build(BuildContext context) {
     final stream = _stream;
-    final summary = widget.understanding.intentSummary ??
-        widget.understanding.businessSummary ??
-        'Pandora has a build plan for this project.';
-    final plan = <String>[
-      if (widget.understanding.objectives.isNotEmpty)
-        widget.understanding.objectives.first,
-      ...widget.understanding.requirements.take(4),
-    ];
 
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
@@ -85,10 +78,9 @@ class _ProjectBuildConversationScreenState
                     const SizedBox(height: 24),
                     const _ConversationLabel(label: 'Pandora'),
                     const SizedBox(height: 8),
-                    _PandoraProposal(
-                      name: widget.project.name,
-                      summary: summary,
-                      plan: plan,
+                    PandoraProfessionalBuildPlan(
+                      understanding: widget.understanding,
+                      showDeliveryPromise: false,
                     ),
                     const SizedBox(height: 20),
                     if (stream == null)
@@ -214,80 +206,6 @@ class _CollapsibleIntent extends StatelessWidget {
       ),
     );
   }
-}
-
-class _PandoraProposal extends StatelessWidget {
-  const _PandoraProposal({
-    required this.name,
-    required this.summary,
-    required this.plan,
-  });
-
-  final String name;
-  final String summary;
-  final List<String> plan;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: PandoraV2Colors.surface,
-          border: Border.all(color: PandoraV2Colors.line),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              name,
-              style: const TextStyle(
-                color: PandoraV2Colors.ink,
-                fontSize: 23,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -.4,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(summary, style: pandoraV2Muted),
-            if (plan.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              for (final item in plan)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 7),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 7),
-                        child: SizedBox(
-                          width: 5,
-                          height: 5,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: PandoraV2Colors.ink,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          item,
-                          style: const TextStyle(
-                            color: PandoraV2Colors.ink,
-                            fontSize: 15,
-                            height: 1.35,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ],
-        ),
-      );
 }
 
 class _LiveBuildMessage extends StatelessWidget {
