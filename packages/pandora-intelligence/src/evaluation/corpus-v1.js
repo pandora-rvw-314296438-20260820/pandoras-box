@@ -1,12 +1,8 @@
 'use strict';
 const { CORPUS_VERSION } = require('./kimi-program.js');
 
-const V = Object.freeze([
-  'unit_tests','forbidden_change_scan','typecheck','api_surface_check','contract_tests',
-  'citation_reference_check','constraint_coverage_check','hallucinated_path_check','decision_continuity_check',
-  'json_parse','json_schema','tool_allowlist','no_invented_fields','visual_fixture_claim_check',
-  'security_fixture_check','migration_preflight',
-]);
+const { VALIDATOR_REGISTRY } = require('./validator-registry-v1.js');
+const V = Object.freeze(Object.keys(VALIDATOR_REGISTRY));
 
 function c(caseId, taskClass, validators, capabilities, options = {}) {
   return Object.freeze({
