@@ -144,17 +144,28 @@ jobs:
         working-directory: .pandora-mobile-build
         run: dart format --output=none --set-exit-if-changed lib test
 
-      - name: Materialize canonical web formatter repair
+      - name: Materialize canonical mobile formatter repair
         if: ${{ failure() }}
         working-directory: .pandora-mobile-build
-        run: dart format lib/core/platform/pandora_web_preview_web.dart
+        run: |
+          dart format \
+            lib/core/data/project_build_stream_cursor_store.dart \
+            lib/core/data/project_experience_api.dart \
+            lib/features/simple/project_build_conversation.dart \
+            test/architecture/build_stream_resilience_guard_test.dart \
+            test/project_build_stream_reconciler_test.dart
 
-      - name: Upload canonical web formatter repair
+      - name: Upload canonical mobile formatter repair
         if: ${{ failure() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
-          name: pandora-mobile-web-formatter-canonical
-          path: .pandora-mobile-build/lib/core/platform/pandora_web_preview_web.dart
+          name: pandora-mobile-formatter-canonical
+          path: |
+            .pandora-mobile-build/lib/core/data/project_build_stream_cursor_store.dart
+            .pandora-mobile-build/lib/core/data/project_experience_api.dart
+            .pandora-mobile-build/lib/features/simple/project_build_conversation.dart
+            .pandora-mobile-build/test/architecture/build_stream_resilience_guard_test.dart
+            .pandora-mobile-build/test/project_build_stream_reconciler_test.dart
           if-no-files-found: error
           retention-days: 1
 
