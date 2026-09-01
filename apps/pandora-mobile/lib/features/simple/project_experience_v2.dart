@@ -498,6 +498,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   ProjectRuntimeSnapshot? _snapshot;
   ProjectExperienceProjection? _projection;
   StreamSubscription<ProjectExperienceProjection>? _projectionSubscription;
+  StreamSubscription<ProjectBuildStreamSnapshot>? _activeBuildSubscription;
+  ProjectBuildStreamSnapshot? _activeBuildSnapshot;
+  String? _activeBuildStreamId;
   List<Map<String, Object?>>? _previewFiles;
   String? _previewVersionId;
   String? _error;
@@ -533,6 +536,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   void dispose() {
     _previewRetryTimer?.cancel();
     _projectionSubscription?.cancel();
+    _activeBuildSubscription?.cancel();
     _change.dispose();
     super.dispose();
   }
@@ -914,6 +918,33 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
   }
 
+  void _startActiveBuildTheatre(
+    ProjectExperienceRepository experience,
+    ProjectBuildStart start,
+  ) {
+    unawaited(_activeBuildSubscription?.cancel());
+    setState(() {
+      _activeBuildStreamId = start.streamId;
+      _activeBuildSnapshot = const ProjectBuildStreamSnapshot.empty();
+    });
+    _activeBuildSubscription = experience
+        .watchResilientBuildStream(
+          projectId: widget.project.id,
+          streamId: start.streamId,
+        )
+        .listen(
+      (snapshot) {
+        if (!mounted || _activeBuildStreamId != start.streamId) return;
+        setState(() => _activeBuildSnapshot = snapshot);
+      },
+      onError: (_) {
+        // The durable build/projection remains authoritative. The resilient
+        // stream will reconcile independently; do not mark the build failed
+        // because this viewer temporarily lost live evidence.
+      },
+    );
+  }
+
   Future<void> _requestChange(String text) async {
     final request = text.trim();
     if (request.length < 4 || _changing || _projection?.canChange != true) {
@@ -1048,12 +1079,13 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       }
 
       if (!mounted) return;
-      await experience.requestBuild(
+      final buildStart = await experience.requestBuild(
         projectId: widget.project.id,
         idempotencyKey:
             'pandora-v2-change-build:${widget.project.id}:$intentId',
       );
       if (!mounted) return;
+      _startActiveBuildTheatre(experience, buildStart);
       await _watchExactChange(baseVersion);
     } on ProjectExperienceException catch (error) {
       if (!mounted) return;
@@ -1670,6 +1702,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       recentlyUpdated: _recentlyUpdated,
       currentVersionVerified: _currentVersionVerified,
       changeDiff: _lastChangeDiff,
+      activeBuildStreamId: _activeBuildStreamId,
+      activeBuildSnapshot: _activeBuildSnapshot,
       intelligenceReply: _intelligenceReply,
       publishReceipt: _publishReceipt,
       error: _error,
