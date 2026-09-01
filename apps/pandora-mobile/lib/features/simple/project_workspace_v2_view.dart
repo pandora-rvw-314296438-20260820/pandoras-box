@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/data/project_experience_api.dart';
 import '../../core/platform/pandora_preview_host.dart';
+import 'live_build_theatre/live_build_reducer.dart';
 import 'live_build_theatre/live_build_theatre.dart';
 import 'live_build_theatre/project_build_stream_theatre_projection.dart';
 import 'pandora_v2_ui.dart';
@@ -739,6 +740,123 @@ class _PreviewIconButton extends StatelessWidget {
           color: PandoraV2Colors.ink,
         ),
       );
+}
+
+class _LiveBuildActivityCapsule extends StatelessWidget {
+  const _LiveBuildActivityCapsule({
+    required this.streamId,
+    required this.snapshot,
+  });
+
+  final String streamId;
+  final ProjectBuildStreamSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    LiveBuildTheatreState? theatre;
+    try {
+      theatre = ProjectBuildStreamTheatreProjection.fromSnapshot(
+        streamId: streamId,
+        snapshot: snapshot,
+      );
+    } on FormatException {
+      theatre = null;
+    }
+
+    final stage = snapshot.buildStage?.replaceAll('_', ' ').trim();
+    final title = theatre?.statusLabel ??
+        (stage == null || stage.isEmpty ? 'Pandora is building' : 'Working · $stage');
+    final detail = theatre?.activeFile ??
+        (snapshot.reconnecting
+            ? 'Reconnecting to real build evidence'
+            : theatre == null
+                ? 'Durable build state remains authoritative'
+                : '${theatre.completedFileCount} files completed');
+
+    return Material(
+      color: PandoraV2Colors.surface.withValues(alpha: .97),
+      elevation: 3,
+      shadowColor: Colors.black12,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        key: const Key('live-build-activity-capsule'),
+        borderRadius: BorderRadius.circular(18),
+        onTap: theatre == null
+            ? null
+            : () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: PandoraV2Colors.surface,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  builder: (sheetContext) => SafeArea(
+                    top: false,
+                    child: DraggableScrollableSheet(
+                      expand: false,
+                      initialChildSize: .68,
+                      minChildSize: .38,
+                      maxChildSize: .92,
+                      builder: (context, scrollController) =>
+                          SingleChildScrollView(
+                        controller: scrollController,
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                        child: LiveBuildTheatre(state: theatre!),
+                      ),
+                    ),
+                  ),
+                ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 11, 12, 11),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.code_rounded,
+                size: 18,
+                color: PandoraV2Colors.ink,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PandoraV2Colors.ink,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PandoraV2Colors.muted,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (theatre != null)
+                const Icon(
+                  Icons.expand_less_rounded,
+                  size: 18,
+                  color: PandoraV2Colors.muted,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ProjectProgressCapsule extends StatelessWidget {
