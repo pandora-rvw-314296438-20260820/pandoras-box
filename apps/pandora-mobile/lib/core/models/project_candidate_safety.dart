@@ -74,6 +74,32 @@ class ProjectCandidateSafety {
       candidateVerificationState == 'failed' ||
       candidateVerificationState == 'blocked';
 
+  /// Candidate that is safe to render as a clearly-labeled preview before it
+  /// becomes the committed visible current. A provider-bound preview identity
+  /// is required, and terminal/blocked candidates fail closed.
+  String? get candidateVersionToPreview {
+    final candidate = roles.candidateVersionId;
+    if (candidate == null ||
+        candidate == roles.visibleCurrentVersionId ||
+        candidateFailed) {
+      return null;
+    }
+    return candidate;
+  }
+
+  bool canShowCandidatePreview({
+    required String versionId,
+    required String? previewDeploymentId,
+    required bool exactPreviewReady,
+  }) {
+    final candidate = candidateVersionToPreview;
+    return candidate != null &&
+        versionId == candidate &&
+        previewDeploymentId != null &&
+        previewDeploymentId.trim().isNotEmpty &&
+        exactPreviewReady;
+  }
+
   /// The only version the canvas may attempt to hydrate next.
   ///
   /// An existing visible version is preserved while a candidate is building,
