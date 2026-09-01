@@ -17,7 +17,7 @@ const generator = fs.readFileSync(
 );
 
 test('live source events are rendered in canonical chronological order', () => {
-  assert.ok(api.includes('..sort((left, right) => left.id.compareTo(right.id))'));
+  assert.ok(api.includes('..sort((left, right) => left.sequence.compareTo(right.sequence))'));
   assert.ok(conversation.includes('view.currentFile != null && view.visibleCode.isNotEmpty'));
   assert.ok(!conversation.includes("view.visibleCode.isEmpty ? ' ' : view.visibleCode"));
 });
