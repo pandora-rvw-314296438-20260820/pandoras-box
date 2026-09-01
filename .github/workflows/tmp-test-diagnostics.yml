@@ -24,7 +24,21 @@ jobs:
       - name: Build repository
         run: npm run build
       - name: Root tests
-        run: node --test test/*.test.js
+        shell: bash
+        run: |
+          set +e
+          for file in test/*.test.js; do
+            node --test "$file" > /tmp/root-test.log 2>&1
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              echo "::error title=Root test failed::$file"
+              grep -E 'not ok|AssertionError|ERR_|actual:|expected:|operator:|at .*test/' /tmp/root-test.log | head -n 20 | while IFS= read -r line; do
+                echo "::error title=Root test detail::$line"
+              done
+              exit "$status"
+            fi
+          done
+          exit 0
       - name: Meta tests
         run: node --test apps/meta-business-mcp/test/*.test.js
       - name: Shared security tests
