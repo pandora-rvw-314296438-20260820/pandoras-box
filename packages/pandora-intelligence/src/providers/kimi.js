@@ -104,6 +104,7 @@ function buildKimiBody(request) {
     body.response_format = { type: 'json_object' };
   } else if (outputMode === 'structured') {
     const schema = requireRecord(request.schema, 'schema');
+    assertSupportedJsonSchema(schema);
     body.response_format = { type: 'json_schema', json_schema: { name: 'pandora_result', strict: true, schema } };
   } else if (!['text', 'tool_proposals'].includes(outputMode)) {
     throw unsupported(`unsupported outputMode for Kimi: ${outputMode}`);
@@ -342,6 +343,26 @@ function validateJsonSchema(value, schema) {
   validateSchemaNode(value, schema, '$', errors);
   return { ok: errors.length === 0, errors };
 }
+/** @param {Record<string, unknown>} schema @param {string} path */
+function assertSupportedJsonSchema(schema, path = '$') {
+  const allowed = new Set(['type', 'properties', 'required', 'additionalProperties', 'items', 'enum', 'const', 'description', 'title', '$schema']);
+  for (const key of Object.keys(schema)) if (!allowed.has(key)) throw unsupported(`unsupported structured schema keyword at ${path}: ${key}`);
+  if (schema.type !== undefined) {
+    if (typeof schema.type !== 'string' || !['null', 'array', 'object', 'integer', 'number', 'string', 'boolean'].includes(schema.type)) throw unsupported(`unsupported structured schema type at ${path}`);
+  }
+  if (schema.description !== undefined && typeof schema.description !== 'string') throw unsupported(`schema description must be a string at ${path}`);
+  if (schema.title !== undefined && typeof schema.title !== 'string') throw unsupported(`schema title must be a string at ${path}`);
+  if (schema.$schema !== undefined && typeof schema.$schema !== 'string') throw unsupported(`schema $schema must be a string at ${path}`);
+  if (schema.enum !== undefined && !Array.isArray(schema.enum)) throw unsupported(`schema enum must be an array at ${path}`);
+  if (schema.required !== undefined && (!Array.isArray(schema.required) || schema.required.some((key) => typeof key !== 'string'))) throw unsupported(`schema required must be an array of strings at ${path}`);
+  if (schema.additionalProperties !== undefined && typeof schema.additionalProperties !== 'boolean') throw unsupported(`schema additionalProperties must be boolean at ${path}`);
+  if (schema.properties !== undefined) {
+    const properties = requireRecord(schema.properties, `${path}.properties`);
+    for (const [key, nested] of Object.entries(properties)) assertSupportedJsonSchema(requireRecord(nested, `${path}.properties.${key}`), `${path}.properties.${key}`);
+  }
+  if (schema.items !== undefined) assertSupportedJsonSchema(requireRecord(schema.items, `${path}.items`), `${path}.items`);
+  return schema;
+}
 /** @param {unknown} value @param {Record<string, unknown>} schema @param {string} path @param {string[]} errors */
 function validateSchemaNode(value, schema, path, errors) {
   if (Array.isArray(schema.enum) && !schema.enum.some((item) => JSON.stringify(item) === JSON.stringify(value))) errors.push(`${path} is not in enum`);
@@ -444,4 +465,5 @@ module.exports = {
   normalizeKimiResponse,
   normalizeKimiStreamEvent,
   validateJsonSchema,
+  assertSupportedJsonSchema,
 };
