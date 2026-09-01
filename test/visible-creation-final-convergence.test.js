@@ -30,3 +30,14 @@ test('subsequent changes keep the product visible while real build theatre strea
   assert.match(workspaceView, /LiveBuildTheatre\(state: theatre!\)/);
   assert.doesNotMatch(workspaceView, /% complete|progressPercent|progress_percent/i);
 });
+
+
+test('durable conversation history is surfaced inside the live product workspace', () => {
+  const repository = fs.readFileSync('apps/pandora-mobile/lib/core/data/project_experience_repository.dart', 'utf8');
+  assert.match(repository, /loadProjectConversation/);
+  assert.match(workspace, /_conversationHistory/);
+  assert.match(workspace, /loadProjectConversation/);
+  assert.match(workspaceView, /_ProjectHistoryCard/);
+  assert.match(workspaceView, /project-conversation-history/);
+  assert.match(workspaceView, /Project history/);
+});
