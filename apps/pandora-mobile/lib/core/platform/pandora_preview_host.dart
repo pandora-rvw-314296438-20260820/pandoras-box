@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'pandora_android_preview.dart';
+import 'pandora_desktop_preview.dart';
+import 'pandora_ios_preview.dart';
 import 'pandora_preview_contract.dart';
+import 'pandora_web_preview.dart';
 
 export 'pandora_preview_contract.dart';
 
@@ -28,7 +31,10 @@ class PandoraPreviewHost extends StatelessWidget {
   final String? selectedSelector;
   final ValueChanged<PandoraPreviewSelection>? onSelection;
 
-  static bool get isSupported => PandoraAndroidPreview.isSupported;
+  static bool get isSupported =>
+      PandoraAndroidPreview.isSupported ||
+      PandoraIosPreview.isSupported ||
+      PandoraWebPreview.isSupported;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +51,35 @@ class PandoraPreviewHost extends StatelessWidget {
       );
     }
 
-    return fallback;
+    if (PandoraIosPreview.isSupported) {
+      return PandoraIosPreview(
+        files: files,
+        versionId: versionId,
+        fallback: fallback,
+        selectionEnabled: selectionEnabled,
+        selectedSelector: selectedSelector,
+        onSelection: onSelection,
+      );
+    }
+
+    if (PandoraWebPreview.isSupported) {
+      return PandoraWebPreview(
+        files: files,
+        versionId: versionId,
+        fallback: fallback,
+        selectionEnabled: selectionEnabled,
+        selectedSelector: selectedSelector,
+        onSelection: onSelection,
+      );
+    }
+
+    return PandoraDesktopPreview(
+      files: files,
+      versionId: versionId,
+      fallback: fallback,
+      selectionEnabled: selectionEnabled,
+      selectedSelector: selectedSelector,
+      onSelection: onSelection,
+    );
   }
 }
