@@ -16,7 +16,7 @@ const req = (n = 1, refs = []) => ({ buildJobId: uuid(n), organizationId: uuid(1
 function store() { const rows = new Map(); const k=(s,i)=>`${s}|${i}`; return { rows, get: async(s,i)=>rows.get(k(s,i))??null, put: async r=>rows.set(k(r.stepKey,r.idempotencyKey),{...(rows.get(k(r.stepKey,r.idempotencyKey))??{}),...structuredClone(r)}) }; }
 
 test('Worker A lease transport hashes raw token', async () => {
-  const calls=[]; const c=createWorkerAControlPlane({workerIdentity:'worker-d-1',rpc:async(name,args)=>calls.push({name,args})});
+  const calls=[]; const c=createWorkerAControlPlane({workerIdentity:'worker-d-1',rpc:async(name,args)=>{calls.push({name,args});return true;}});
   const token='lease-secret-1234567890'; await c.claim(uuid(1),token); await c.heartbeat(uuid(1),token);
   assert.equal(calls[0].args.p_lease_token_sha256,sha256Hex(token)); assert.equal(JSON.stringify(calls).includes(token),false);
 });
