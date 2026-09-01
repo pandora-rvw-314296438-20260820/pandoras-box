@@ -67,6 +67,8 @@ function requiredText(value, field) { if (typeof value !== 'string' || !value.tr
 /** @param {unknown} value @param {string} field */
 function optionalText(value, field) { if (value == null) return null; if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${field} must be a non-empty string when provided`); return value; }
 /** @param {unknown} value @param {string} field */
+function preserveOptionalString(value, field) { if (value == null) return null; if (typeof value !== 'string') throw new TypeError(`${field} must be a string when provided`); return value; }
+/** @param {unknown} value @param {string} field */
 function requireRecord(value, field) { if (!isRecord(value)) throw new TypeError(`${field} must be an object`); return /** @type {Record<string, unknown>} */ (value); }
 
 /** @param {Record<string, unknown>} request */
@@ -98,7 +100,7 @@ function buildKimiBody(request) {
   }
 
   const outputMode = String(request.outputMode ?? 'structured');
-  if (outputMode === 'json') {
+  if (outputMode === 'json' || outputMode === 'tool_proposals') {
     body.response_format = { type: 'json_object' };
   } else if (outputMode === 'structured') {
     const schema = requireRecord(request.schema, 'schema');
@@ -132,11 +134,13 @@ function serializeMessages(source) {
       if (message.name != null) normalized.name = requiredText(message.name, `context.messages[${index}].name`);
       return normalized;
     }
-    normalized.content = serializeMessageContent(message.content, `context.messages[${index}].content`);
+    if (role === 'assistant' && message.content == null) normalized.content = null;
+    else if (role === 'assistant' && typeof message.content === 'string') normalized.content = message.content;
+    else normalized.content = serializeMessageContent(message.content, `context.messages[${index}].content`);
     if (message.name != null) normalized.name = requiredText(message.name, `context.messages[${index}].name`);
     if (role === 'assistant') {
-      if (message.reasoning_content != null) normalized.reasoning_content = optionalText(message.reasoning_content, `context.messages[${index}].reasoning_content`);
-      if (message.reasoningContent != null) normalized.reasoning_content = optionalText(message.reasoningContent, `context.messages[${index}].reasoningContent`);
+      if (message.reasoning_content != null) normalized.reasoning_content = preserveOptionalString(message.reasoning_content, `context.messages[${index}].reasoning_content`);
+      if (message.reasoningContent != null) normalized.reasoning_content = preserveOptionalString(message.reasoningContent, `context.messages[${index}].reasoningContent`);
       if (message.tool_calls !== undefined) normalized.tool_calls = serializeAssistantToolCalls(message.tool_calls, `context.messages[${index}].tool_calls`);
       if (message.toolCalls !== undefined) normalized.tool_calls = serializeAssistantToolCalls(message.toolCalls, `context.messages[${index}].toolCalls`);
     }
