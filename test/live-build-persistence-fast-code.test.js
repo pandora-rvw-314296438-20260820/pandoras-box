@@ -11,6 +11,14 @@ const conversation = fs.readFileSync(
   'apps/pandora-mobile/lib/features/simple/project_build_conversation.dart',
   'utf8',
 );
+const projection = fs.readFileSync(
+  'apps/pandora-mobile/lib/features/simple/live_build_theatre/project_build_stream_theatre_projection.dart',
+  'utf8',
+);
+const theatre = fs.readFileSync(
+  'apps/pandora-mobile/lib/features/simple/live_build_theatre/live_build_theatre.dart',
+  'utf8',
+);
 const generator = fs.readFileSync(
   'supabase/functions/pandora-project-source-generator/index.ts',
   'utf8',
@@ -18,7 +26,11 @@ const generator = fs.readFileSync(
 
 test('live source events are rendered in canonical chronological order', () => {
   assert.ok(api.includes('..sort((left, right) => left.sequence.compareTo(right.sequence))'));
-  assert.ok(conversation.includes('view.currentFile != null && view.visibleCode.isNotEmpty'));
+  assert.ok(projection.includes('sequence: event.sequence'));
+  assert.ok(projection.includes('contentChunk: event.contentChunk'));
+  assert.ok(conversation.includes('ProjectBuildStreamTheatreProjection.fromSnapshot('));
+  assert.ok(conversation.includes('LiveBuildTheatre(state: theatre)'));
+  assert.ok(theatre.includes('if (state.sourceBytesAvailable)'));
   assert.ok(!conversation.includes("view.visibleCode.isEmpty ? ' ' : view.visibleCode"));
 });
 
