@@ -571,9 +571,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       _projection = next;
       _loading = false;
       if (safety.candidateFailed) {
-        _error = safety.failureMessage(
-          backendMessage: next.safeFailureMessage,
-        );
+        _error = safety.failureMessage(backendMessage: next.safeFailureMessage);
       } else if (next.hasSafeFailure && _error == null) {
         _error = next.safeFailureMessage ??
             'Pandora found something to resolve. Your current version is unchanged.';
@@ -1141,6 +1139,71 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
   }
 
+  Future<void> _renameProject() async {
+    final currentName = _snapshot?.project.name ?? widget.project.name;
+    final controller = TextEditingController(text: currentName);
+    final nextName = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: PandoraV2Colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          22,
+          24,
+          22 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Rename project',
+              style: TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 80,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(labelText: 'Project name'),
+              onSubmitted: (value) =>
+                  Navigator.of(sheetContext).pop(value.trim()),
+            ),
+            const SizedBox(height: 12),
+            PandoraV2PrimaryAction(
+              label: 'Save name',
+              onPressed: () =>
+                  Navigator.of(sheetContext).pop(controller.text.trim()),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (!mounted || nextName == null || nextName == currentName) return;
+    final api = PandoraDependencies.of(context).projectExperienceRepository;
+    if (api == null) return;
+    try {
+      await api.renameProject(projectId: widget.project.id, name: nextName);
+      await _refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Project renamed.')));
+    } on ProjectExperienceException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
+  }
+
   Future<void> _showProjectActions() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -1163,6 +1226,14 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                   color: PandoraV2Colors.line,
                   borderRadius: BorderRadius.circular(99),
                 ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Rename project'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_renameProject());
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.open_in_full_rounded),

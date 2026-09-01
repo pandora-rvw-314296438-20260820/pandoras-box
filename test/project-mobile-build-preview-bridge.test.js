@@ -9,11 +9,13 @@ const journey = fs.readFileSync('apps/pandora-mobile/lib/features/simple/project
 const generator = fs.readFileSync('supabase/functions/pandora-project-source-generator/index.ts', 'utf8');
 const migration = fs.readFileSync('supabase/migrations/20260829173334_pandora_generated_build_rpc_bridge_v1.sql', 'utf8');
 
-test('mobile Build triggers the provider-blind governed source generator', () => {
-  assert.match(experience, /Future<void> requestBuild\(/);
+test('mobile Build triggers the provider-blind governed source generator and returns the admitted live stream', () => {
+  assert.match(experience, /Future<ProjectBuildStart> requestBuild\(/);
   assert.match(experience, /functions\.invoke\(\s*'pandora-project-source-generator'/s);
   assert.match(experience, /'projectId': projectId/);
   assert.match(experience, /'idempotencyKey': idempotencyKey/);
+  assert.match(experience, /final streamId = _optionalText\(data\['streamId'\]\)/);
+  assert.match(experience, /return ProjectBuildStart\(\s*streamId: streamId/s);
   assert.doesNotMatch(experience, /Gemini|Vercel|GitHub|GPT/);
 });
 

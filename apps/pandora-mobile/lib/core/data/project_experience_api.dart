@@ -110,6 +110,24 @@ class ProjectExperienceApi {
       }
 
       final specId = _requiredText(spec['id']);
+      final projectState = await _client
+          .from('projectos_projects')
+          .select('name,config')
+          .eq('organization_id', _organizationId)
+          .eq('id', projectId)
+          .maybeSingle();
+      if (projectState == null) {
+        throw const ProjectExperienceException(
+          'Pandora could not find that project right now.',
+        );
+      }
+      final rawConfig = projectState['config'];
+      final config = rawConfig is Map ? rawConfig : const <String, Object?>{};
+      final rawJourney = config['customerJourney'];
+      final journey =
+          rawJourney is Map ? rawJourney : const <String, Object?>{};
+      final distilledSummary = _optionalText(journey['intentSummary']);
+
       final objectives = await _client
           .from('pandora_project_business_objectives')
           .select('objective,desired_outcome')
@@ -130,6 +148,8 @@ class ProjectExperienceApi {
       return OwnerProjectUnderstanding.ready(
         specId: specId,
         version: _int(spec['version']),
+        projectName: _text(projectState['name'], fallback: 'Project'),
+        intentSummary: distilledSummary,
         projectType: _text(spec['project_type'], fallback: 'Project'),
         targetUsers: _optionalText(spec['target_user_summary']),
         businessSummary: _optionalText(spec['business_summary']),
@@ -155,7 +175,45 @@ class ProjectExperienceApi {
     }
   }
 
-  Future<void> requestBuild({
+  Future<String> renameProject({
+    required String projectId,
+    required String name,
+  }) async {
+    final nextName = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (nextName.length < 2 ||
+        nextName.length > 80 ||
+        nextName.contains('\n')) {
+      throw const ProjectExperienceException(
+        'Use a short project name between 2 and 80 characters.',
+      );
+    }
+    try {
+      final updated = await _client
+          .from('projectos_projects')
+          .update(<String, Object?>{
+            'name': nextName,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('organization_id', _organizationId)
+          .eq('id', projectId)
+          .select('name')
+          .maybeSingle();
+      if (updated == null) {
+        throw const ProjectExperienceException(
+          'Pandora could not rename that project right now.',
+        );
+      }
+      return _requiredText(updated['name']);
+    } on ProjectExperienceException {
+      rethrow;
+    } on PostgrestException {
+      throw const ProjectExperienceException(
+        'Pandora could not rename that project right now.',
+      );
+    }
+  }
+
+  Future<ProjectBuildStart> requestBuild({
     required String projectId,
     required String idempotencyKey,
   }) async {
@@ -173,16 +231,60 @@ class ProjectExperienceApi {
         },
       );
       final data = result.data;
-      if (data is Map && data['ok'] == false && data['state'] == 'blocked') {
+      if (data is! Map) {
+        throw const ProjectExperienceException(
+          'Pandora returned an unreadable build response.',
+        );
+      }
+      if (data['ok'] == false && data['state'] == 'blocked') {
         throw const ProjectExperienceException(
           'Pandora found something to resolve before this build can start.',
         );
       }
+      final streamId = _optionalText(data['streamId']);
+      if (streamId == null) {
+        throw const ProjectExperienceException(
+          'The build plan changed before coding started. Refresh the proposal and build it again.',
+        );
+      }
+      return ProjectBuildStart(
+        streamId: streamId,
+        state: _text(data['state'], fallback: 'working'),
+        buildJobId: _optionalText(data['buildJobId']),
+        projectVersionId: _optionalText(data['projectVersionId']),
+      );
+    } on ProjectExperienceException {
+      rethrow;
     } on FunctionException {
       throw const ProjectExperienceException(
         'Pandora could not start this build right now.',
       );
     }
+  }
+
+  Stream<List<ProjectBuildStreamEvent>> watchBuildStream({
+    required String projectId,
+    required String streamId,
+  }) {
+    return _client
+        .from('pandora_build_stream_events')
+        .stream(primaryKey: const <String>['id'])
+        .eq('stream_id', streamId)
+        .order('id')
+        .map((rows) {
+          for (final row in rows) {
+            if (_text(row['organization_id']) != _organizationId ||
+                _text(row['project_id']) != projectId ||
+                _text(row['stream_id']) != streamId) {
+              throw const ProjectExperienceException(
+                'Pandora rejected a mismatched build stream.',
+              );
+            }
+          }
+          return List<ProjectBuildStreamEvent>.unmodifiable(
+            rows.map(ProjectBuildStreamEvent.fromJson),
+          );
+        });
   }
 
   Future<List<Map<String, Object?>>> loadExactPreviewFiles({
@@ -305,6 +407,66 @@ class ProjectExperienceApi {
   }
 }
 
+class ProjectBuildStart {
+  const ProjectBuildStart({
+    required this.streamId,
+    required this.state,
+    this.buildJobId,
+    this.projectVersionId,
+  });
+
+  final String streamId;
+  final String state;
+  final String? buildJobId;
+  final String? projectVersionId;
+}
+
+class ProjectBuildStreamEvent {
+  const ProjectBuildStreamEvent({
+    required this.id,
+    required this.eventType,
+    required this.safePayload,
+    required this.createdAt,
+    this.filePath,
+    this.contentChunk,
+    this.buildJobId,
+  });
+
+  factory ProjectBuildStreamEvent.fromJson(Map<String, dynamic> json) {
+    final rawPayload = json['safe_payload'];
+    final payload = rawPayload is Map
+        ? Map<String, Object?>.unmodifiable(
+            rawPayload.map((key, value) => MapEntry(key.toString(), value)),
+          )
+        : const <String, Object?>{};
+    final rawId = json['id'];
+    final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    final createdAt = DateTime.tryParse(_text(json['created_at']));
+    if (id == null || createdAt == null) {
+      throw const FormatException('Invalid build stream event.');
+    }
+    return ProjectBuildStreamEvent(
+      id: id,
+      eventType: _requiredText(json['event_type']),
+      safePayload: payload,
+      createdAt: createdAt.toUtc(),
+      filePath: _optionalText(json['file_path']),
+      contentChunk: json['content_chunk'] is String
+          ? json['content_chunk'] as String
+          : null,
+      buildJobId: _optionalText(json['build_job_id']),
+    );
+  }
+
+  final int id;
+  final String eventType;
+  final String? filePath;
+  final String? contentChunk;
+  final String? buildJobId;
+  final Map<String, Object?> safePayload;
+  final DateTime createdAt;
+}
+
 class ProjectExperienceException implements Exception {
   const ProjectExperienceException(this.message);
   final String message;
@@ -320,6 +482,8 @@ class OwnerProjectUnderstanding {
     required this.state,
     this.specId,
     this.version,
+    this.projectName,
+    this.intentSummary,
     this.projectType,
     this.targetUsers,
     this.businessSummary,
@@ -337,6 +501,8 @@ class OwnerProjectUnderstanding {
   factory OwnerProjectUnderstanding.ready({
     required String specId,
     required int version,
+    required String projectName,
+    required String? intentSummary,
     required String projectType,
     required String? targetUsers,
     required String? businessSummary,
@@ -348,6 +514,8 @@ class OwnerProjectUnderstanding {
         state: OwnerProjectUnderstandingState.ready,
         specId: specId,
         version: version,
+        projectName: projectName,
+        intentSummary: intentSummary,
         projectType: projectType,
         targetUsers: targetUsers,
         businessSummary: businessSummary,
@@ -359,6 +527,8 @@ class OwnerProjectUnderstanding {
   final OwnerProjectUnderstandingState state;
   final String? specId;
   final int? version;
+  final String? projectName;
+  final String? intentSummary;
   final String? projectType;
   final String? targetUsers;
   final String? businessSummary;

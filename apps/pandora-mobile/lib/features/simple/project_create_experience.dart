@@ -9,7 +9,7 @@ import '../../core/models/project_journey_models.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import 'pandora_v2_ui.dart';
-import 'project_experience_v2.dart';
+import 'project_build_conversation.dart';
 
 class CreateProjectExperienceScreen extends StatefulWidget {
   const CreateProjectExperienceScreen({super.key, this.initialIntent});
@@ -109,8 +109,8 @@ class _CreateProjectExperienceScreenState
         MaterialPageRoute<void>(
           builder: (_) => ProjectUnderstandingScreen(
             project: project,
-            intentText: intent,
             sourceIntentId: intentId,
+            originalIntent: intent,
           ),
         ),
       );
@@ -211,13 +211,13 @@ class ProjectUnderstandingScreen extends StatefulWidget {
   const ProjectUnderstandingScreen({
     super.key,
     required this.project,
-    required this.intentText,
     required this.sourceIntentId,
+    this.originalIntent = '',
   });
 
   final CustomerProject project;
-  final String intentText;
   final String sourceIntentId;
+  final String originalIntent;
 
   @override
   State<ProjectUnderstandingScreen> createState() =>
@@ -264,6 +264,8 @@ class _ProjectUnderstandingScreenState
 
   Future<void> _build() async {
     if (_building) return;
+    final understanding = _understanding;
+    if (understanding == null || !understanding.isReady) return;
     final api = PandoraDependencies.of(context).projectExperienceRepository;
     if (api == null) return;
     setState(() {
@@ -271,14 +273,22 @@ class _ProjectUnderstandingScreenState
       _error = null;
     });
     try {
-      await api.requestBuild(
+      final start = await api.requestBuild(
         projectId: widget.project.id,
         idempotencyKey: 'pandora-v2-build:${widget.project.id}',
       );
       if (!mounted) return;
+      final project = widget.project.copyWith(
+        name: understanding.projectName ?? widget.project.name,
+      );
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) => ProjectWorkspaceV2Screen(project: widget.project),
+          builder: (_) => ProjectBuildConversationScreen(
+            project: project,
+            originalIntent: widget.originalIntent,
+            understanding: understanding,
+            buildStart: start,
+          ),
         ),
       );
     } on ProjectExperienceException catch (error) {
@@ -293,8 +303,14 @@ class _ProjectUnderstandingScreenState
     final u = _understanding;
     final ready = u?.isReady ?? false;
     final businessSummary = u?.businessSummary;
+    final projectName = u?.projectName ?? 'Understanding your project…';
+    final intentSummary = u?.intentSummary ?? businessSummary;
     final objectives = u?.objectives ?? const <String>[];
     final requirements = u?.requirements ?? const <String>[];
+    final plan = <String>[
+      if (objectives.isNotEmpty) objectives.first,
+      ...requirements.take(4),
+    ];
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
       body: SafeArea(
@@ -302,39 +318,38 @@ class _ProjectUnderstandingScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PandoraV2ObjectHeader(title: widget.project.name),
+              PandoraV2ObjectHeader(title: projectName),
               const SizedBox(height: 30),
-              const Text(
-                'Pandora looks at your intent before it builds.',
-                style: TextStyle(
-                  color: PandoraV2Colors.muted,
-                  fontSize: 16,
+              if (!ready) ...[
+                const Text(
+                  'Turning your request into a clear build plan…',
+                  style: TextStyle(color: PandoraV2Colors.muted, fontSize: 16),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                widget.intentText,
-                style: const TextStyle(
-                  color: PandoraV2Colors.ink,
-                  fontSize: 27,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -.6,
-                  height: 1.12,
+                const SizedBox(height: 18),
+                const PandoraV2Skeleton(height: 156),
+              ] else ...[
+                const Text(
+                  'Here’s what Pandora will build.',
+                  style: TextStyle(color: PandoraV2Colors.muted, fontSize: 16),
                 ),
-              ),
-              const SizedBox(height: 32),
-              if (!ready)
-                const PandoraV2Skeleton(height: 190)
-              else ...[
-                PandoraV2InlineMessage(
-                  title: 'What Pandora understands',
-                  message: [
-                    if (businessSummary != null) businessSummary,
-                    if (objectives.isNotEmpty) ...objectives,
-                    if (requirements.isNotEmpty)
-                      'Key needs: ${requirements.take(3).join(' • ')}',
-                  ].join('\n').trim(),
-                ),
+                const SizedBox(height: 10),
+                if (intentSummary != null)
+                  Text(
+                    intentSummary,
+                    style: const TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -.45,
+                      height: 1.14,
+                    ),
+                  ),
+                const SizedBox(height: 24),
+                if (plan.isNotEmpty)
+                  PandoraV2InlineMessage(
+                    title: 'Build plan',
+                    message: plan.join('\n'),
+                  ),
                 const SizedBox(height: 28),
                 PandoraV2PrimaryAction(
                   label: 'Build it',

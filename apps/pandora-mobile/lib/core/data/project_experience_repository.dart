@@ -34,9 +34,19 @@ abstract interface class ProjectExperienceRepository {
     required String expectedSourceIntentId,
   });
 
-  Future<void> requestBuild({
+  Future<String> renameProject({
+    required String projectId,
+    required String name,
+  });
+
+  Future<ProjectBuildStart> requestBuild({
     required String projectId,
     required String idempotencyKey,
+  });
+
+  Stream<List<ProjectBuildStreamEvent>> watchBuildStream({
+    required String projectId,
+    required String streamId,
   });
 
   Future<List<Map<String, Object?>>> loadExactPreviewFiles({
@@ -150,7 +160,14 @@ class CompositeProjectExperienceRepository
       );
 
   @override
-  Future<void> requestBuild({
+  Future<String> renameProject({
+    required String projectId,
+    required String name,
+  }) =>
+      _mutations.renameProject(projectId: projectId, name: name);
+
+  @override
+  Future<ProjectBuildStart> requestBuild({
     required String projectId,
     required String idempotencyKey,
   }) =>
@@ -158,6 +175,13 @@ class CompositeProjectExperienceRepository
         projectId: projectId,
         idempotencyKey: idempotencyKey,
       );
+
+  @override
+  Stream<List<ProjectBuildStreamEvent>> watchBuildStream({
+    required String projectId,
+    required String streamId,
+  }) =>
+      _mutations.watchBuildStream(projectId: projectId, streamId: streamId);
 
   @override
   Future<List<Map<String, Object?>>> loadExactPreviewFiles({
