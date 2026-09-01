@@ -23,12 +23,18 @@ const compiler = fs.readFileSync(
 );
 
 test("professional plan is grounded in the compiled ProjectSpec projection", () => {
+  assert.match(plan, /understanding\.productPromise/);
   assert.match(plan, /understanding\.intentSummary/);
   assert.match(plan, /understanding\.businessSummary/);
-  assert.match(plan, /understanding\.targetUsers/);
-  assert.match(plan, /understanding\.projectType/);
-  assert.match(plan, /understanding\.requirements\.take\(7\)/);
-  assert.match(plan, /understanding\.objectives\.take\(3\)/);
+  assert.match(plan, /understanding\.audiences/);
+  assert.match(plan, /understanding\.customerValue/);
+  assert.match(plan, /understanding\.ownerValue/);
+  assert.match(plan, /understanding\.firstVersionCapabilities/);
+  assert.match(plan, /understanding\.primaryWorkflows/);
+  assert.match(plan, /understanding\.coreExperiences/);
+  assert.match(plan, /understanding\.integrations/);
+  assert.match(plan, /understanding\.successCriteria/);
+  assert.match(plan, /understanding\.reviewAssurance/);
 });
 
 test("professional plan presents an attractive but truthful product proposal", () => {
@@ -59,4 +65,26 @@ test("Gemini is instructed to make the plan specific and commercially compelling
   assert.match(compiler, /tangible capabilities and customer-visible experiences/);
   assert.match(compiler, /Make the proposal feel considered and desirable/);
   assert.match(compiler, /guaranteed outcomes, or unsupported claims/);
+});
+
+
+test("ProjectSpec compiler requires the governed owner-facing proposal contract and retries invalid structured output", () => {
+  for (const field of [
+    "productPromise",
+    "audiences",
+    "customerValue",
+    "ownerValue",
+    "coreExperiences",
+    "firstVersionCapabilities",
+    "primaryWorkflows",
+    "successCriteria",
+    "reviewAssurance",
+  ]) {
+    assert.match(compiler, new RegExp(field));
+  }
+  assert.match(compiler, /project-spec-compiler-v5/);
+  assert.match(compiler, /allowedKeys\(product/);
+  assert.match(compiler, /allowedKeys\(acceptance/);
+  assert.match(compiler, /Previous output failed strict ProjectSpec validation/);
+  assert.match(compiler, /plausible benefits, not fabricated performance claims/);
 });
