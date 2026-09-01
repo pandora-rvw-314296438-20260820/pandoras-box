@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/platform/pandora_preview_host.dart';
 import 'pandora_v2_ui.dart';
+import 'project_exact_source_diff.dart';
 
 enum ProjectChangePhase { idle, designing, building, checking }
 
@@ -30,6 +31,7 @@ class ProjectWorkspaceV2View extends StatelessWidget {
     required this.progressPhase,
     required this.recentlyUpdated,
     required this.currentVersionVerified,
+    required this.changeDiff,
     required this.intelligenceReply,
     required this.publishReceipt,
     required this.error,
@@ -64,6 +66,7 @@ class ProjectWorkspaceV2View extends StatelessWidget {
   final ProjectChangePhase? progressPhase;
   final bool recentlyUpdated;
   final bool currentVersionVerified;
+  final ProjectExactSourceDiff? changeDiff;
   final String? intelligenceReply;
   final Map<String, Object?>? publishReceipt;
   final String? error;
@@ -177,6 +180,7 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                         right: 12,
                         top: 58,
                         child: _VerifiedChangeCapsule(
+                          diff: changeDiff,
                           canUndo: canUndo,
                           undoing: undoing,
                           onUndo: onUndo,
@@ -790,18 +794,20 @@ class _ProjectProgressCapsule extends StatelessWidget {
 
 class _VerifiedChangeCapsule extends StatelessWidget {
   const _VerifiedChangeCapsule({
+    required this.diff,
     required this.canUndo,
     required this.undoing,
     required this.onUndo,
   });
 
+  final ProjectExactSourceDiff? diff;
   final bool canUndo;
   final bool undoing;
   final VoidCallback onUndo;
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
         decoration: BoxDecoration(
           color: PandoraV2Colors.surface.withValues(alpha: .96),
           borderRadius: BorderRadius.circular(18),
@@ -814,39 +820,195 @@ class _VerifiedChangeCapsule extends StatelessWidget {
             ),
           ],
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE9F5EF),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_rounded,
-                size: 16,
-                color: PandoraV2Colors.success,
-              ),
+            Row(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE9F5EF),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    size: 16,
+                    color: PandoraV2Colors.success,
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Verified change',
+                        style: TextStyle(
+                          color: PandoraV2Colors.ink,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (diff != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          diff!.compactSummary,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: PandoraV2Colors.muted,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 9),
-            const Expanded(
-              child: Text(
-                'Verified change',
-                style: TextStyle(
-                  color: PandoraV2Colors.ink,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+            if (diff != null || canUndo) ...[
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (diff != null)
+                    TextButton(
+                      onPressed: () => showModalBottomSheet<void>(
+                        context: context,
+                        backgroundColor: PandoraV2Colors.surface,
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(24)),
+                        ),
+                        builder: (_) => _ExactSourceDiffSheet(diff: diff!),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: PandoraV2Colors.ink,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: const Text('View changes'),
+                    ),
+                  if (canUndo)
+                    TextButton(
+                      onPressed: undoing ? null : onUndo,
+                      style: TextButton.styleFrom(
+                        foregroundColor: PandoraV2Colors.ink,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(undoing ? 'Undoing…' : 'Undo'),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      );
+}
+
+class _ExactSourceDiffSheet extends StatelessWidget {
+  const _ExactSourceDiffSheet({required this.diff});
+
+  final ProjectExactSourceDiff diff;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        top: false,
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: .58,
+          minChildSize: .34,
+          maxChildSize: .88,
+          builder: (context, scrollController) => ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: PandoraV2Colors.line,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
                 ),
               ),
-            ),
-            if (canUndo)
-              TextButton(
-                onPressed: undoing ? null : onUndo,
-                style:
-                    TextButton.styleFrom(foregroundColor: PandoraV2Colors.ink),
-                child: Text(undoing ? 'Undoing…' : 'Undo'),
+              const SizedBox(height: 18),
+              const Text(
+                'What changed',
+                style: TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.4,
+                ),
               ),
+              const SizedBox(height: 4),
+              Text(diff.compactSummary, style: pandoraV2Muted),
+              const SizedBox(height: 18),
+              if (diff.files.isEmpty)
+                const Text(
+                  'No material file changes detected.',
+                  style: pandoraV2Muted,
+                )
+              else
+                for (final file in diff.files) ...[
+                  _ExactSourceDiffRow(file: file),
+                  const Divider(height: 1, color: PandoraV2Colors.line),
+                ],
+            ],
+          ),
+        ),
+      );
+}
+
+class _ExactSourceDiffRow extends StatelessWidget {
+  const _ExactSourceDiffRow({required this.file});
+
+  final ProjectExactSourceDiffFile file;
+
+  IconData get _icon => switch (file.status) {
+        ProjectExactSourceDiffStatus.added => Icons.add_circle_outline_rounded,
+        ProjectExactSourceDiffStatus.modified => Icons.edit_outlined,
+        ProjectExactSourceDiffStatus.removed => Icons.remove_circle_outline,
+      };
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(_icon, size: 18, color: PandoraV2Colors.ink),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    file.path,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    file.detailLabel,
+                    style: const TextStyle(
+                      color: PandoraV2Colors.muted,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       );
