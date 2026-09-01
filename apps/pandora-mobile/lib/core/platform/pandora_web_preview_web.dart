@@ -62,8 +62,7 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
   @override
   void didUpdateWidget(covariant PandoraWebPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final bundleChanged =
-        oldWidget.versionId != widget.versionId ||
+    final bundleChanged = oldWidget.versionId != widget.versionId ||
         !identical(oldWidget.files, widget.files);
     if (bundleChanged) {
       _materialize();
@@ -130,7 +129,10 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
     final frame = _frame;
     final target = frame?.contentWindow;
     final versionId = widget.versionId.trim();
-    if (frame == null || target == null || _bundle == null || versionId.isEmpty) {
+    if (frame == null ||
+        target == null ||
+        _bundle == null ||
+        versionId.isEmpty) {
       return;
     }
 
@@ -277,7 +279,10 @@ bool _isSafePath(String path) {
   }
   return path.split('/').every(
         (part) =>
-            part.isNotEmpty && part != '.' && part != '..' && part.length <= 255,
+            part.isNotEmpty &&
+            part != '.' &&
+            part != '..' &&
+            part.length <= 255,
       );
 }
 
@@ -378,8 +383,7 @@ String _materializeUri(
       var text = utf8.decode(bytes, allowMalformed: false);
       if (mime.contains('css')) {
         text = text.replaceAllMapped(
-          RegExp(r'''url\(\s*(["']?)([^)"']+)\1\s*\)''',
-              caseSensitive: false),
+          RegExp(r'''url\(\s*(["']?)([^)"']+)\1\s*\)''', caseSensitive: false),
           (match) {
             final nested = _resolvePath(path, match.group(2)!, files);
             if (nested == null) return match.group(0)!;
@@ -631,8 +635,7 @@ String _bootstrapScript(String versionId) {
 ''';
 }
 
-const String _unavailableDocument =
-    '<!doctype html><html><head>'
+const String _unavailableDocument = '<!doctype html><html><head>'
     '<meta http-equiv="Content-Security-Policy" '
     'content="default-src &#39;none&#39;; connect-src &#39;none&#39;; '
     'frame-src &#39;none&#39;; form-action &#39;none&#39;">'
