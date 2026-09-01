@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const compiler = fs.readFileSync('supabase/functions/pandora-project-spec-compiler/index.ts', 'utf8');
 
 test('ProjectSpec compiler retries malformed structured output without weakening validation', () => {
-  assert.match(compiler, /project-spec-compiler-v3/);
+  assert.match(compiler, /project-spec-compiler-v4/);
   assert.match(compiler, /for \(let attempt = 1; attempt <= 3; attempt\+\+\)/);
   assert.match(compiler, /candidate = validateCandidate\(parsed\)/);
   assert.match(compiler, /attempt === 3/);
