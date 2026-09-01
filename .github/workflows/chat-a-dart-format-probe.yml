@@ -1,6 +1,8 @@
 name: Chat A Dart Format Probe
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - chat-a/format-probe-20260901
 permissions:
   contents: read
 jobs:
