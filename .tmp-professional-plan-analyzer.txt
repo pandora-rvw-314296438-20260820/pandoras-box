@@ -1,10 +1,4 @@
 Analyzing .pandora-mobile-build...                              
+No issues found! (ran in 10.4s)
 
-  error • Undefined name 'intentSummary'. Try correcting the name to one that is defined, or defining the name • lib/features/simple/project_create_experience.dart:330:21 • undefined_identifier
-  error • Undefined name 'intentSummary'. Try correcting the name to one that is defined, or defining the name • lib/features/simple/project_create_experience.dart:332:21 • undefined_identifier
-  error • Undefined name 'plan'. Try correcting the name to one that is defined, or defining the name • lib/features/simple/project_create_experience.dart:342:21 • undefined_identifier
-  error • Undefined name 'plan'. Try correcting the name to one that is defined, or defining the name • lib/features/simple/project_create_experience.dart:345:30 • undefined_identifier
-
-4 issues found. (ran in 10.2s)
-
-analyzer_exit=1
+analyzer_exit=0
