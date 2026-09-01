@@ -168,7 +168,9 @@ void main() {
     expect(state.locallyCompleteSourceMetrics, isFalse);
   });
 
-  test('local final metrics are only trusted after complete source history is proven', () {
+  test(
+      'local final metrics are only trusted after complete source history is proven',
+      () {
     final events = <LiveBuildEvent>[
       event(1, LiveBuildEventKind.fileStarted, filePath: 'lib/a.dart'),
       event(
