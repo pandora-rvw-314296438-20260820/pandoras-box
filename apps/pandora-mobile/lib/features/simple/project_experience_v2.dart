@@ -13,7 +13,9 @@ import '../../core/models/project_journey_models.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/platform/pandora_preview_host.dart';
 import 'pandora_v2_ui.dart';
-import 'project_exact_source_diff.dart';\nimport 'project_history_screen.dart';\nimport 'project_source_files_screen.dart';
+import 'project_exact_source_diff.dart';
+import 'project_history_screen.dart';
+import 'project_source_files_screen.dart';
 import 'project_workspace_v2_view.dart';
 
 String? _safeHttps(String? value) {
