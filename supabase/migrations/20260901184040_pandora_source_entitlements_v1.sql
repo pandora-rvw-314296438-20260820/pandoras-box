@@ -1,1 +1,8 @@
--- Pandora remote migration history receipt.\n-- Version: 20260901184040\n-- Name: pandora_source_entitlements_v1\n-- Original SQL SHA-256: 3f0051cbdc990edceb12b04e46d475ec1be8dccb2099279bf71e732641c4e5a9\n-- Original statement count: 1\n-- Canonical executable authority: supabase/migrations/20260902013000_pandora_source_entitlements_v1.sql\n-- Replay mode: history_receipt_noop; provider history is represented without republishing already-applied executable SQL.\nselect 1;\n
+-- Pandora remote migration history receipt.
+-- Version: 20260901184040
+-- Name: pandora_source_entitlements_v1
+-- Original SQL SHA-256: 3f0051cbdc990edceb12b04e46d475ec1be8dccb2099279bf71e732641c4e5a9
+-- Original statement count: 1
+-- Canonical executable authority: supabase/migrations/20260902013000_pandora_source_entitlements_v1.sql
+-- Replay mode: history_receipt_noop; provider history is represented without republishing already-applied executable SQL.
+select 1;
