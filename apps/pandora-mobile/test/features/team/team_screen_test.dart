@@ -62,12 +62,11 @@ class _FakeGateway implements PandoraUserAdminGateway {
 }
 
 void main() {
-  testWidgets('owner can invite a person and refresh the team list',
-      (tester) async {
+  testWidgets('owner can invite a person and refresh the team list', (
+    tester,
+  ) async {
     final gateway = _FakeGateway();
-    await tester.pumpWidget(
-      MaterialApp(home: TeamScreen(gateway: gateway)),
-    );
+    await tester.pumpWidget(MaterialApp(home: TeamScreen(gateway: gateway)));
     await tester.pumpAndSettle();
 
     expect(find.text('Team'), findsOneWidget);
@@ -90,12 +89,15 @@ void main() {
     expect(gateway.lastInvite?.email, 'new.person@example.com');
     expect(find.text('New Person'), findsOneWidget);
     expect(find.text('Invited'), findsWidgets);
-    expect(find.text('Invitation sent to new.person@example.com.'),
-        findsOneWidget);
+    expect(
+      find.text('Invitation sent to new.person@example.com.'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('More account navigation opens the real Team screen',
-      (tester) async {
+  testWidgets('More account navigation opens the real Team screen', (
+    tester,
+  ) async {
     final gateway = _FakeGateway();
     await tester.pumpWidget(
       MaterialApp(home: MoreScreen(teamGateway: gateway)),
@@ -109,8 +111,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-        find.text('Invite people and give each person the access they need.'),
-        findsOneWidget);
+      find.text('Invite people and give each person the access they need.'),
+      findsOneWidget,
+    );
     expect(find.text('Mark Johnson'), findsOneWidget);
   });
 }

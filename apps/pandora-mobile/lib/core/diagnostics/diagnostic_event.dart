@@ -24,16 +24,16 @@ class DiagnosticEvent {
   final String? errorCode;
 
   Map<String, Object?> toSafeJson() => <String, Object?>{
-        'occurredAt': occurredAt.toUtc().toIso8601String(),
-        'operation': operation,
-        'method': method,
-        'routeTemplate': routeTemplate,
-        'outcome': outcome.name,
-        'durationMs': duration.inMilliseconds,
-        if (statusCode != null) 'statusCode': statusCode,
-        if (requestId != null) 'requestId': requestId,
-        if (errorCode != null) 'errorCode': errorCode,
-      };
+    'occurredAt': occurredAt.toUtc().toIso8601String(),
+    'operation': operation,
+    'method': method,
+    'routeTemplate': routeTemplate,
+    'outcome': outcome.name,
+    'durationMs': duration.inMilliseconds,
+    if (statusCode != null) 'statusCode': statusCode,
+    if (requestId != null) 'requestId': requestId,
+    if (errorCode != null) 'errorCode': errorCode,
+  };
 }
 
 abstract interface class DiagnosticsSink {

@@ -8,7 +8,7 @@ typedef ScreenLoader<T> = Future<RepositorySnapshot<T>> Function();
 
 class ScreenController<T> extends ChangeNotifier {
   ScreenController(this._loader, {DateTime Function()? clock})
-      : _clock = clock ?? DateTime.now;
+    : _clock = clock ?? DateTime.now;
 
   final ScreenLoader<T> _loader;
   final DateTime Function() _clock;
@@ -66,8 +66,7 @@ class ScreenController<T> extends ChangeNotifier {
   bool _mayRetainPrevious(PandoraRepositoryException error) =>
       switch (error.kind) {
         PandoraApiErrorKind.sessionExpired ||
-        PandoraApiErrorKind.forbidden =>
-          false,
+        PandoraApiErrorKind.forbidden => false,
         _ => true,
       };
 

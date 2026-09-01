@@ -22,30 +22,30 @@ class StatusBadge extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final (color, onColor, icon) = switch (tone) {
       PandoraStatusTone.informative => (
-          palette.informative,
-          palette.onInformative,
-          Icons.info_outline_rounded,
-        ),
+        palette.informative,
+        palette.onInformative,
+        Icons.info_outline_rounded,
+      ),
       PandoraStatusTone.verified => (
-          palette.verified,
-          palette.onVerified,
-          Icons.verified_outlined,
-        ),
+        palette.verified,
+        palette.onVerified,
+        Icons.verified_outlined,
+      ),
       PandoraStatusTone.attention => (
-          palette.attention,
-          palette.onAttention,
-          Icons.priority_high_rounded,
-        ),
+        palette.attention,
+        palette.onAttention,
+        Icons.priority_high_rounded,
+      ),
       PandoraStatusTone.critical => (
-          palette.critical,
-          palette.onCritical,
-          Icons.error_outline_rounded,
-        ),
+        palette.critical,
+        palette.onCritical,
+        Icons.error_outline_rounded,
+      ),
       PandoraStatusTone.neutral => (
-          scheme.surfaceContainerHighest,
-          scheme.onSurfaceVariant,
-          Icons.remove_circle_outline_rounded,
-        ),
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+        Icons.remove_circle_outline_rounded,
+      ),
     };
     return Semantics(
       container: true,
@@ -71,9 +71,7 @@ class StatusBadge extends StatelessWidget {
                   label,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
+                  style: Theme.of(context).textTheme.labelMedium
                       ?.copyWith(color: onColor, fontWeight: FontWeight.w600),
                 ),
               ),

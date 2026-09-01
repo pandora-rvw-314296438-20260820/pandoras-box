@@ -22,11 +22,11 @@ class SupabaseProjectExperienceProjectionRepository
   SupabaseProjectExperienceProjectionRepository({
     required SupabaseClient client,
     required String organizationId,
-  })  : _client = client,
-        _organizationId = _requiredIdentifier(
-          organizationId,
-          name: 'organizationId',
-        );
+  }) : _client = client,
+       _organizationId = _requiredIdentifier(
+         organizationId,
+         name: 'organizationId',
+       );
 
   static const _table = 'pandora_project_experience_projection';
 
@@ -57,9 +57,7 @@ class SupabaseProjectExperienceProjectionRepository
     final id = _requiredIdentifier(projectId, name: 'projectId');
     return _client
         .from(_table)
-        .stream(
-          primaryKey: const <String>['organization_id', 'project_id'],
-        )
+        .stream(primaryKey: const <String>['organization_id', 'project_id'])
         .eq('project_id', id)
         .map((rows) {
           if (rows.isEmpty) {
@@ -100,10 +98,7 @@ class SupabaseProjectExperienceProjectionRepository
     }
   }
 
-  static String _requiredIdentifier(
-    String value, {
-    required String name,
-  }) {
+  static String _requiredIdentifier(String value, {required String name}) {
     final text = value.trim();
     if (!RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',

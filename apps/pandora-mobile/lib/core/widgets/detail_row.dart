@@ -18,42 +18,40 @@ class DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.xs),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 18,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: PandoraSpacing.sm),
-            ],
-            Expanded(
-              flex: 2,
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
+    padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.xs),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (icon != null) ...[
+          Icon(
+            icon,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: PandoraSpacing.sm),
+        ],
+        Expanded(
+          flex: 2,
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(width: PandoraSpacing.sm),
-            Expanded(
-              flex: 3,
-              child: Text(
-                value,
-                textAlign: TextAlign.end,
-                style: technical
-                    ? Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(fontFamily: 'monospace')
-                    : Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+        const SizedBox(width: PandoraSpacing.sm),
+        Expanded(
+          flex: 3,
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: technical
+                ? Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(fontFamily: 'monospace')
+                : Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+      ],
+    ),
+  );
 }

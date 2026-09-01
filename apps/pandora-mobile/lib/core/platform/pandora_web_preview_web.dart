@@ -62,7 +62,8 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
   @override
   void didUpdateWidget(covariant PandoraWebPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final bundleChanged = oldWidget.versionId != widget.versionId ||
+    final bundleChanged =
+        oldWidget.versionId != widget.versionId ||
         !identical(oldWidget.files, widget.files);
     if (bundleChanged) {
       _materialize();
@@ -143,10 +144,7 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
     _port = channel.port1;
     _portSubscription = channel.port1.onMessage.listen(_handlePortMessage);
     target.postMessage(
-      <String, Object?>{
-        'type': 'pandora-preview-init',
-        'versionId': versionId,
-      },
+      <String, Object?>{'type': 'pandora-preview-init', 'versionId': versionId},
       '*',
       <html.MessagePort>[channel.port2],
     );
@@ -185,8 +183,9 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
       role: value('role'),
       accessibleName: value('accessibleName'),
       route: value('route').isEmpty ? '/' : value('route'),
-      sourceFile:
-          value('sourceFile').isEmpty ? 'index.html' : value('sourceFile'),
+      sourceFile: value('sourceFile').isEmpty
+          ? 'index.html'
+          : value('sourceFile'),
       sourceLine: integer('sourceLine'),
       bounds: width > 0 && height > 0
           ? PandoraPreviewBounds(
@@ -278,7 +277,9 @@ bool _isSafePath(String path) {
       path.contains('#')) {
     return false;
   }
-  return path.split('/').every(
+  return path
+      .split('/')
+      .every(
         (part) =>
             part.isNotEmpty &&
             part != '.' &&
@@ -293,7 +294,8 @@ String _buildSrcdoc(Map<String, _PreviewFile> files, String versionId) {
   final cache = <String, String>{};
   final rewritten = _rewriteHtml(htmlText, files, cache, 'index.html');
   final bootstrap = _bootstrapScript(versionId);
-  const csp = "default-src 'none'; "
+  const csp =
+      "default-src 'none'; "
       "script-src 'unsafe-inline' data: blob:; "
       "style-src 'unsafe-inline' data: blob:; "
       "img-src data: blob:; "
@@ -341,8 +343,10 @@ String _rewriteHtml(
   String basePath,
 ) {
   var output = source.replaceAllMapped(
-    RegExp(r'''(\b(?:src|href|poster)\s*=\s*["'])([^"']+)(["'])''',
-        caseSensitive: false),
+    RegExp(
+      r'''(\b(?:src|href|poster)\s*=\s*["'])([^"']+)(["'])''',
+      caseSensitive: false,
+    ),
     (match) {
       final ref = match.group(2)!;
       final path = _resolvePath(basePath, ref, files);
@@ -636,7 +640,8 @@ String _bootstrapScript(String versionId) {
 ''';
 }
 
-const String _unavailableDocument = '<!doctype html><html><head>'
+const String _unavailableDocument =
+    '<!doctype html><html><head>'
     '<meta http-equiv="Content-Security-Policy" '
     'content="default-src &#39;none&#39;; connect-src &#39;none&#39;; '
     'frame-src &#39;none&#39;; form-action &#39;none&#39;">'
