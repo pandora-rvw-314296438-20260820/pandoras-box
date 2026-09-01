@@ -1,7 +1,9 @@
 'use strict';
 
 const VALIDATOR_REGISTRY_VERSION = 'pandora-kimi-validator-registry-v1';
-/** @typedef {{executor: string, deterministic: boolean}} ValidatorDescriptor */\n/** @type {Readonly<Record<string, ValidatorDescriptor>>} */\nconst VALIDATOR_REGISTRY = Object.freeze({
+/** @typedef {{executor: string, deterministic: boolean}} ValidatorDescriptor */
+/** @type {Readonly<Record<string, ValidatorDescriptor>>} */
+const VALIDATOR_REGISTRY = Object.freeze({
   unit_tests: Object.freeze({ executor: 'sandbox', deterministic: true }),
   forbidden_change_scan: Object.freeze({ executor: 'sandbox', deterministic: true }),
   typecheck: Object.freeze({ executor: 'sandbox', deterministic: true }),
@@ -20,8 +22,10 @@ const VALIDATOR_REGISTRY_VERSION = 'pandora-kimi-validator-registry-v1';
   migration_preflight: Object.freeze({ executor: 'sandbox', deterministic: true }),
 });
 
-/** @param {unknown} value @returns {value is Record<string, any>} */\nfunction isRecord(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
-/** @param {unknown} value @returns {Record<string, any> | null} */\nfunction outputObject(value) {
+/** @param {unknown} value @returns {value is Record<string, any>} */
+function isRecord(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
+/** @param {unknown} value @returns {Record<string, any> | null} */
+function outputObject(value) {
   if (isRecord(value)) return value;
   if (typeof value === 'string') {
     try { const parsed = JSON.parse(value); return isRecord(parsed) ? parsed : null; }
@@ -29,7 +33,8 @@ const VALIDATOR_REGISTRY_VERSION = 'pandora-kimi-validator-registry-v1';
   }
   return null;
 }
-/** @param {unknown} value @param {Record<string, any>} schema */\nfunction validateRequiredSchema(value, schema) {
+/** @param {unknown} value @param {Record<string, any>} schema */
+function validateRequiredSchema(value, schema) {
   const object = outputObject(value);
   if (!object) return { status: 'FAIL', reason: 'not_object' };
   const required = Array.isArray(schema?.required) ? schema.required.map(String) : [];
@@ -41,7 +46,8 @@ const VALIDATOR_REGISTRY_VERSION = 'pandora-kimi-validator-registry-v1';
   return { status: 'PASS', reason: null };
 }
 
-/**\n * @param {Record<string, any>} benchmarkCase\n * @param {unknown} output\n * @param {{externalValidators?: Record<string, (input: Record<string, any>) => Promise<Record<string, any>> | Record<string, any>>}} [options]\n */\nasync function runDeterministicValidators(benchmarkCase, output, options = {}) {
+/**\n * @param {Record<string, any>} benchmarkCase\n * @param {unknown} output\n * @param {{externalValidators?: Record<string, (input: Record<string, any>) => Promise<Record<string, any>> | Record<string, any>>}} [options]\n */
+async function runDeterministicValidators(benchmarkCase, output, options = {}) {
   const validators = Array.isArray(benchmarkCase?.deterministicValidators) ? benchmarkCase.deterministicValidators : [];
   const external = isRecord(options.externalValidators) ? options.externalValidators : {};
   const results = [];
