@@ -46,7 +46,9 @@ Map<String, Object?> projectionJson({
 void main() {
   test('LIVE remains primary while a background build is active', () {
     final projection = ProjectExperienceProjection.fromJson(
-      projectionJson(activeBuildJobId: '66666666-6666-4666-8666-666666666666'),
+      projectionJson(
+        activeBuildJobId: '66666666-6666-4666-8666-666666666666',
+      ),
     );
 
     expect(projection.state, ProjectExperienceState.live);
@@ -74,10 +76,16 @@ void main() {
       projectionJson(transitionSequence: 7),
     );
     final laterSequence = ProjectExperienceProjection.fromJson(
-      projectionJson(transitionSequence: 8, updatedAt: '2026-08-31T06:00:00Z'),
+      projectionJson(
+        transitionSequence: 8,
+        updatedAt: '2026-08-31T06:00:00Z',
+      ),
     );
     final sameSequenceNewerUpdate = ProjectExperienceProjection.fromJson(
-      projectionJson(transitionSequence: 7, updatedAt: '2026-08-31T08:00:00Z'),
+      projectionJson(
+        transitionSequence: 7,
+        updatedAt: '2026-08-31T08:00:00Z',
+      ),
     );
 
     expect(laterSequence.isNewerThan(current), isTrue);
