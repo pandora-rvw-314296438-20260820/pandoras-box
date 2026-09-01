@@ -176,7 +176,7 @@ class _LiveBuildProjection extends StatelessWidget {
           if (disconnected || snapshot.reconnecting) ...[
             const SizedBox(height: 10),
             const Text(
-              'Live view reconnecting. The durable build continues independently and will reconcile from authoritative replay.',
+              'Reconnecting to the live build. The durable build continues independently and will reconcile from authoritative replay.',
               style: TextStyle(
                 color: PandoraV2Colors.muted,
                 fontSize: 12.5,
