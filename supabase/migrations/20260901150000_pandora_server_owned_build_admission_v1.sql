@@ -55,7 +55,7 @@ begin
     return jsonb_build_object('state',case when v_job.status='succeeded' then 'ready'
       when v_job.status in ('failed','cancelled') then 'blocked' else 'working' end,
       'authorizationId',v_auth.id,'buildJobId',v_job.id,'streamId',v_stream.id,
-      'sourceQueueId',v_queue.id,'projectSpecId',v_auth.project_spec_id,
+      'sourceQueueId',v_queue.id,'sourceIdempotencyKey',v_queue.idempotency_key,'projectSpecId',v_auth.project_spec_id,
       'projectVersionId',v_job.target_project_version_id,'admittedAt',v_auth.admitted_at,'replayed',true);
   end if;
 
@@ -97,7 +97,7 @@ begin
       'sourceQueueId',v_queue.id,'admittedAt',v_auth.admitted_at)
   );
   return jsonb_build_object('state','working','authorizationId',v_auth.id,'buildJobId',v_job.id,
-    'streamId',v_stream.id,'sourceQueueId',v_queue.id,'projectSpecId',v_auth.project_spec_id,
+    'streamId',v_stream.id,'sourceQueueId',v_queue.id,'sourceIdempotencyKey',v_queue.idempotency_key,'projectSpecId',v_auth.project_spec_id,
     'projectVersionId',null,'admittedAt',v_auth.admitted_at,'replayed',false);
 end;$fn$;
 
