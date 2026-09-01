@@ -268,10 +268,15 @@ function createRoutingPolicy(input = {}) {
     trafficWeights: normalizeTrafficWeights(input.trafficWeights),
     slaFallbackOrder: normalizeSlaFallbackOrder(input.slaFallbackOrder),
     activeModelVersions: normalizeActiveModelVersions(input.activeModelVersions),
-    adaptive: normalizeAdaptiveConfig({ ...(isRecord(input.adaptive) ? input.adaptive : {}), reasoningPolicies: normalizeReasoningPolicies(isRecord(input.adaptive) ? input.adaptive.reasoningPolicies : null) }),
+    adaptive: normalizeAdaptiveConfig(input.adaptive),
   });
 }
 
+/** @param {Readonly<Record<string, unknown>>} model @param {Readonly<Record<string, unknown>>} policy */
+function performanceFor(model, policy) {
+  const performance = isRecord(policy.performance) ? /** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */ (policy.performance) : {};
+  return performance[`${String(model.provider)}:${String(model.modelId)}`] ?? null;
+}
 /** @param {Readonly<Record<string, unknown>>} model @param {Readonly<Record<string, unknown>>} policy */
 function controlFor(model, policy) {
   const provider = String(model.provider), modelId = String(model.modelId);
@@ -283,7 +288,7 @@ function controlFor(model, policy) {
   };
 }
 
-/** @param {Readonly<Record<string, unknown>> item @param {string} task @param {string} prefix @param {string[]} reasons */
+/** @param {Readonly<Record<string, unknown>>} item @param {string} task @param {string} prefix @param {string[]} reasons */
 function applyControl(item, task, prefix, reasons) {
   if (item.enabled === false) reasons.push(`${prefix}_disabled`);
   if (item.killSwitch === true) reasons.push(`${prefix}_kill_switch`);
@@ -294,7 +299,7 @@ function applyControl(item, task, prefix, reasons) {
   if (deniedTasks.includes(task) || deniedTasks.includes('*')) reasons.push(`${prefix}_task_denied`);
 }
 
-/** @param {Readonly<Record<string, unknown>> model @param {Readonly<Record<string, unknown>> policy @param {{task?:string,estimatedCostUsd?:number|null,requestMaxCostUsd?:number|null,allowCircuitProbe?:boolean,nowMs?:number}} context */
+/** @param {Readonly<Record<string, unknown>>} model @param {Readonly<Record<string, unknown>>} policy @param {{task?:string,estimatedCostUsd?:number|null,requestMaxCostUsd?:number|null,allowCircuitProbe?:boolean,nowMs?:number}} context */
 function modelEligibility(model, policy, context = {}) {
   const provider = String(model.provider), modelId = String(model.modelId), task = context.task ?? '*';
   /** @type {string[]} */
@@ -380,10 +385,10 @@ function routingPolicyScoreDetailed(model, policy, context = {}) {
   const index = order.findIndex((candidate) => candidate === key || candidate === model.modelId || candidate === model.provider);
   const sla = index < 0 ? 0 : Math.max(0, 100 - index * 10);
 
-  return Object.freeze({ total: performance + preference + traffic + exploration + sla, performance, preference, traffic, included_candidates, sla, evidenceWeight: weight });
+  return Object.freeze({ total: performance + preference + traffic + exploration + sla, performance, preference, traffic, exploration, sla, evidenceWeight: weight });
 }
 
-/** @param {Readonly<Record<string, unknown>> model @param {Readonly<Record<string, unknown>>|null|undefined} policy */
+/** @param {Readonly<Record<string, unknown>>} model @param {Readonly<Record<string, unknown>>|null|undefined} policy */
 function routingPolicyScore(model, policy) { return routingPolicyScoreDetailed(model, policy).total; }
 
 module.exports = {
