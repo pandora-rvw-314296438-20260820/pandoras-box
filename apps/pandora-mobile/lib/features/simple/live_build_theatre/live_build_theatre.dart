@@ -29,11 +29,7 @@ class LiveBuildTheatre extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                _iconFor(state.stage),
-                size: 19,
-                color: PandoraV2Colors.ink,
-              ),
+              Icon(_iconFor(state.stage), size: 19, color: PandoraV2Colors.ink),
               const SizedBox(width: 9),
               Expanded(
                 child: Text(
@@ -63,10 +59,7 @@ class LiveBuildTheatre extends StatelessWidget {
           ],
           if (state.hasVisibleRealSource) ...[
             const SizedBox(height: 14),
-            LiveBuildCodeView(
-              state: state,
-              onFollowChanged: onFollowChanged,
-            ),
+            LiveBuildCodeView(state: state, onFollowChanged: onFollowChanged),
           ],
           if (state.files.isNotEmpty) ...[
             const SizedBox(height: 12),

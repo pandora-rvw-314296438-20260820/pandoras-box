@@ -38,17 +38,16 @@ Map<String, Object?> binaryFile({
   required String path,
   required List<int> bytes,
   required String sha,
-}) =>
-    <String, Object?>{
-      'file': path,
-      'mimeType': 'image/png',
-      'dataBase64': base64.encode(bytes),
-      'byteSize': bytes.length,
-      'sha256': sha * 64,
-      'artifactDigest': artifactDigest,
-      'previewProjectId': _project,
-      'previewVersionId': versionId,
-    };
+}) => <String, Object?>{
+  'file': path,
+  'mimeType': 'image/png',
+  'dataBase64': base64.encode(bytes),
+  'byteSize': bytes.length,
+  'sha256': sha * 64,
+  'artifactDigest': artifactDigest,
+  'previewProjectId': _project,
+  'previewVersionId': versionId,
+};
 
 void main() {
   test('computes exact add modify remove and net text-line delta', () {
@@ -112,11 +111,7 @@ void main() {
     expect(diff.compactSummary, '3 files changed · +1 text line net');
     expect(
       diff.files.map((file) => '${file.statusLabel}:${file.path}').toList(),
-      const <String>[
-        'Modified:index.html',
-        'Added:new.js',
-        'Removed:old.js',
-      ],
+      const <String>['Modified:index.html', 'Added:new.js', 'Removed:old.js'],
     );
     expect(
       diff.files.firstWhere((file) => file.path == 'index.html').textLineDelta,

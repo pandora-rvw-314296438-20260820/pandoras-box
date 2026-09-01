@@ -35,8 +35,8 @@ void main() {
   });
 
   test('settings exposes the complete secondary owner suite', () {
-    final source =
-        File('lib/features/settings/settings_screen.dart').readAsStringSync();
+    final source = File('lib/features/settings/settings_screen.dart')
+        .readAsStringSync();
 
     for (final label in <String>[
       'Portfolio intelligence',

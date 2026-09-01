@@ -6,8 +6,8 @@ void main() {
   test('Create Project follows the V2 intent-first journey', () {
     final source = File('lib/features/simple/project_create_experience.dart')
         .readAsStringSync();
-    final projects =
-        File('lib/features/simple/projects_screen.dart').readAsStringSync();
+    final projects = File('lib/features/simple/projects_screen.dart')
+        .readAsStringSync();
     final legacy = File('lib/features/simple/project_journey_flow.dart')
         .readAsStringSync();
 
@@ -27,10 +27,7 @@ void main() {
         'Pandora has turned your intent into a build-ready product proposal.',
       ),
     );
-    expect(
-      source,
-      contains('PandoraProfessionalBuildPlan(understanding: u!)'),
-    );
+    expect(source, contains('PandoraProfessionalBuildPlan(understanding: u!)'));
     expect(source, contains("label: 'Build it'"));
     expect(source, contains('ProjectBuildConversationScreen('));
     expect(source, isNot(contains('What Pandora understands')));
@@ -40,8 +37,8 @@ void main() {
   });
 
   test('understanding is bound to the exact submitted intent', () {
-    final source =
-        File('lib/core/data/project_experience_api.dart').readAsStringSync();
+    final source = File('lib/core/data/project_experience_api.dart')
+        .readAsStringSync();
 
     expect(source, contains(".from('pandora_project_intents')"));
     expect(source, contains(".from('pandora_project_specs')"));

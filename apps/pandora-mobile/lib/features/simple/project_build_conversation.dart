@@ -36,8 +36,7 @@ class _ProjectBuildConversationScreenState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _stream ??= PandoraDependencies.of(context)
-        .projectExperienceRepository
+    _stream ??= PandoraDependencies.of(context).projectExperienceRepository
         ?.watchResilientBuildStream(
           projectId: widget.project.id,
           streamId: widget.buildStart.streamId,
@@ -97,7 +96,8 @@ class _ProjectBuildConversationScreenState
                         stream: stream,
                         initialData: const ProjectBuildStreamSnapshot.empty(),
                         builder: (context, snapshot) {
-                          final streamState = snapshot.data ??
+                          final streamState =
+                              snapshot.data ??
                               const ProjectBuildStreamSnapshot.empty();
                           return _LiveBuildProjection(
                             streamId: widget.buildStart.streamId,
@@ -197,8 +197,7 @@ class _LiveBuildProjection extends StatelessWidget {
     } on FormatException {
       return const PandoraV2InlineMessage(
         title: 'Live build evidence unavailable',
-        message:
-            'Pandora rejected an invalid live-build projection. The durable build remains authoritative.',
+        message: 'Pandora rejected an invalid live-build projection. The durable build remains authoritative.',
         danger: true,
       );
     }
@@ -312,9 +311,7 @@ class _BuildExecutionView {
         case 'repair_completed':
           final status = _text(payload['status']) ?? 'completed';
           final files = _integer(payload['changed_file_count']);
-          record(
-            'Repair $status${files == null ? '' : ' · $files files'}',
-          );
+          record('Repair $status${files == null ? '' : ' · $files files'}');
           break;
         case 'verification':
           record('Verifying the exact build');
@@ -338,59 +335,56 @@ class _BuildExecutionActivity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        key: const Key('live-build-execution-activity'),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: PandoraV2Colors.soft,
-          borderRadius: BorderRadius.circular(16),
+    key: const Key('live-build-execution-activity'),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: PandoraV2Colors.soft,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Build activity',
+          style: TextStyle(
+            color: PandoraV2Colors.ink,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Build activity',
-              style: TextStyle(
-                color: PandoraV2Colors.ink,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
+        const SizedBox(height: 8),
+        for (final line in lines)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 7),
+            child: Text(
+              line,
+              style: const TextStyle(
+                color: PandoraV2Colors.muted,
+                fontSize: 12.5,
+                height: 1.35,
               ),
             ),
-            const SizedBox(height: 8),
-            for (final line in lines)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 7),
-                child: Text(
-                  line,
-                  style: const TextStyle(
-                    color: PandoraV2Colors.muted,
-                    fontSize: 12.5,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
+          ),
+      ],
+    ),
+  );
 }
 
 class _ConversationBuildNotice extends StatelessWidget {
-  const _ConversationBuildNotice({
-    required this.title,
-    required this.message,
-  });
+  const _ConversationBuildNotice({required this.title, required this.message});
 
   final String title;
   final String message;
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const _ConversationLabel(label: 'Pandora'),
-          const SizedBox(height: 8),
-          PandoraV2InlineMessage(title: title, message: message),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const _ConversationLabel(label: 'Pandora'),
+      const SizedBox(height: 8),
+      PandoraV2InlineMessage(title: title, message: message),
+    ],
+  );
 }
 
 class _ConversationLabel extends StatelessWidget {
@@ -400,14 +394,14 @@ class _ConversationLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        label,
-        style: const TextStyle(
-          color: PandoraV2Colors.muted,
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          letterSpacing: .2,
-        ),
-      );
+    label,
+    style: const TextStyle(
+      color: PandoraV2Colors.muted,
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+      letterSpacing: .2,
+    ),
+  );
 }
 
 class _CollapsibleIntent extends StatelessWidget {

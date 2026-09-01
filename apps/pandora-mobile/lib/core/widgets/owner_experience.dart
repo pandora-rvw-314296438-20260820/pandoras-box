@@ -36,13 +36,13 @@ class OwnerBriefingHero extends StatelessWidget {
       PandoraStatusTone.attention => (palette.attention, palette.onAttention),
       PandoraStatusTone.critical => (palette.critical, palette.onCritical),
       PandoraStatusTone.informative => (
-          palette.informative,
-          palette.onInformative,
-        ),
+        palette.informative,
+        palette.onInformative,
+      ),
       PandoraStatusTone.neutral => (
-          scheme.surfaceContainerHighest,
-          scheme.onSurfaceVariant,
-        ),
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+      ),
     };
     return Semantics(
       container: true,
@@ -72,19 +72,17 @@ class OwnerBriefingHero extends StatelessWidget {
                       children: [
                         Text(
                           eyebrow.toUpperCase(),
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.9,
-                                  ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.9,
+                              ),
                         ),
                         const SizedBox(height: PandoraSpacing.xxs),
                         Text(
                           title,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
+                          style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: -0.4,
@@ -179,12 +177,14 @@ class OwnerMetricGrid extends StatelessWidget {
                 final scaler = MediaQuery.textScalerOf(context);
                 final scaled = scaler.scale(16) / 16;
                 final minimumCellWidth = scaled >= 1.5 ? 168.0 : 136.0;
-                final byWidth = ((constraints.maxWidth + PandoraSpacing.xs) /
-                        (minimumCellWidth + PandoraSpacing.xs))
-                    .floor()
-                    .clamp(1, 4);
-                final columns =
-                    metrics.length < byWidth ? metrics.length : byWidth;
+                final byWidth =
+                    ((constraints.maxWidth + PandoraSpacing.xs) /
+                            (minimumCellWidth + PandoraSpacing.xs))
+                        .floor()
+                        .clamp(1, 4);
+                final columns = metrics.length < byWidth
+                    ? metrics.length
+                    : byWidth;
                 final gap = PandoraSpacing.xs * (columns - 1);
                 final width = (constraints.maxWidth - gap) / columns;
                 return Wrap(
@@ -204,7 +204,8 @@ class OwnerMetricGrid extends StatelessWidget {
         ),
       ),
     );
-    final ownerCountersUnverified = metrics.length == 3 &&
+    final ownerCountersUnverified =
+        metrics.length == 3 &&
         metrics[0].label == 'Needs you' &&
         metrics[1].label == 'Working now' &&
         metrics[2].label == 'Portfolio attention' &&
@@ -212,8 +213,7 @@ class OwnerMetricGrid extends StatelessWidget {
     if (!ownerCountersUnverified) return grid;
     return Semantics(
       container: true,
-      label:
-          'Approvals: not verified\nActive projects: not verified\nNeeds attention: not verified',
+      label: 'Approvals: not verified\nActive projects: not verified\nNeeds attention: not verified',
       child: grid,
     );
   }
@@ -254,17 +254,13 @@ class _MetricCell extends StatelessWidget {
             const SizedBox(height: PandoraSpacing.sm),
             Text(
               metric.value,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
+              style: Theme.of(context).textTheme.titleLarge
                   ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.4),
             ),
             const SizedBox(height: PandoraSpacing.xxs),
             Text(
               metric.label,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
+              style: Theme.of(context).textTheme.labelSmall
                   ?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
@@ -300,8 +296,8 @@ class OwnerSectionHeading extends StatelessWidget {
           Text(
             subtitle!,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ],
@@ -379,9 +375,9 @@ class OwnerSignal extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: PandoraSpacing.xxs),
                 Text(value),

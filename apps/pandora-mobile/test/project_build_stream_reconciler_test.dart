@@ -50,39 +50,42 @@ void main() {
     expect(snapshot.events.map((event) => event.sequence), <int>[3]);
   });
 
-  test('live sequence gap refuses out-of-order rendering and requires replay',
-      () {
-    final reconciler = ProjectBuildStreamReconciler();
-    reconciler.seedCursor(3);
+  test(
+    'live sequence gap refuses out-of-order rendering and requires replay',
+    () {
+      final reconciler = ProjectBuildStreamReconciler();
+      reconciler.seedCursor(3);
 
-    final snapshot = reconciler.mergeLive(<ProjectBuildStreamEvent>[
-      _event(5),
-    ]);
+      final snapshot = reconciler.mergeLive(<ProjectBuildStreamEvent>[
+        _event(5),
+      ]);
 
-    expect(snapshot.latestSequence, 3);
-    expect(snapshot.requiresReplay, isTrue);
-    expect(snapshot.events, isEmpty);
-  });
+      expect(snapshot.latestSequence, 3);
+      expect(snapshot.requiresReplay, isTrue);
+      expect(snapshot.events, isEmpty);
+    },
+  );
 
   test(
-      'retention gap accepts surviving authoritative replay without fake source',
-      () {
-    final reconciler = ProjectBuildStreamReconciler();
-    reconciler.seedCursor(3);
+    'retention gap accepts surviving authoritative replay without fake source',
+    () {
+      final reconciler = ProjectBuildStreamReconciler();
+      reconciler.seedCursor(3);
 
-    final snapshot = reconciler.mergeReplay(
-      _replay(
-        events: <ProjectBuildStreamEvent>[_event(5, type: 'verification')],
-        watermark: 5,
-        oldestRetained: 5,
-        retentionGap: true,
-      ),
-    );
+      final snapshot = reconciler.mergeReplay(
+        _replay(
+          events: <ProjectBuildStreamEvent>[_event(5, type: 'verification')],
+          watermark: 5,
+          oldestRetained: 5,
+          retentionGap: true,
+        ),
+      );
 
-    expect(snapshot.latestSequence, 5);
-    expect(snapshot.historyGapDueToRetention, isTrue);
-    expect(snapshot.events.single.eventType, 'verification');
-  });
+      expect(snapshot.latestSequence, 5);
+      expect(snapshot.historyGapDueToRetention, isTrue);
+      expect(snapshot.events.single.eventType, 'verification');
+    },
+  );
 
   test('fully expired theatre can fast-forward to durable watermark', () {
     final reconciler = ProjectBuildStreamReconciler();

@@ -32,7 +32,8 @@ ProjectBuildStreamSnapshot snapshot(
 }) {
   return ProjectBuildStreamSnapshot(
     events: events,
-    latestSequence: latestSequence ??
+    latestSequence:
+        latestSequence ??
         events.fold<int>(
           0,
           (value, event) => event.sequence > value ? event.sequence : value,
@@ -51,12 +52,12 @@ ProjectBuildStreamSnapshot snapshot(
 }
 
 void main() {
-  test('projection preserves exact source bytes and authoritative ordering',
-      () {
-    final state = ProjectBuildStreamTheatreProjection.fromSnapshot(
-      streamId: 'stream-1',
-      snapshot: snapshot(
-        <ProjectBuildStreamEvent>[
+  test(
+    'projection preserves exact source bytes and authoritative ordering',
+    () {
+      final state = ProjectBuildStreamTheatreProjection.fromSnapshot(
+        streamId: 'stream-1',
+        snapshot: snapshot(<ProjectBuildStreamEvent>[
           streamEvent(
             4,
             'generation_completed',
@@ -82,28 +83,26 @@ void main() {
             content: 'void main() {\n',
             retentionClass: 'ephemeral',
           ),
-        ],
-      ),
-    );
+        ]),
+      );
 
-    expect(state.streamId, 'stream-1');
-    expect(state.latestSequence, 4);
-    expect(state.visibleCode, 'void main() {\n}\n');
-    expect(state.sourceByteCount, 16);
-    expect(state.sourceLineCount, 3);
-    expect(state.sourceHistoryComplete, isTrue);
-    expect(state.locallyCompleteSourceMetrics, isTrue);
-  });
+      expect(state.streamId, 'stream-1');
+      expect(state.latestSequence, 4);
+      expect(state.visibleCode, 'void main() {\n}\n');
+      expect(state.sourceByteCount, 16);
+      expect(state.sourceLineCount, 3);
+      expect(state.sourceHistoryComplete, isTrue);
+      expect(state.locallyCompleteSourceMetrics, isTrue);
+    },
+  );
 
   test('projection refuses non-v2 stream evidence', () {
     expect(
       () => ProjectBuildStreamTheatreProjection.fromSnapshot(
         streamId: 'stream-1',
-        snapshot: snapshot(
-          <ProjectBuildStreamEvent>[
-            streamEvent(1, 'stream_started', schemaVersion: 1),
-          ],
-        ),
+        snapshot: snapshot(<ProjectBuildStreamEvent>[
+          streamEvent(1, 'stream_started', schemaVersion: 1),
+        ]),
       ),
       throwsFormatException,
     );
@@ -134,19 +133,16 @@ void main() {
   test('candidate identity does not invent preview readiness', () {
     final state = ProjectBuildStreamTheatreProjection.fromSnapshot(
       streamId: 'stream-1',
-      snapshot: snapshot(
-        <ProjectBuildStreamEvent>[
-          streamEvent(
-            1,
-            'job_state',
-            payload: const <String, Object?>{
-              'status': 'building',
-              'stage': 'previewing',
-            },
-          ),
-        ],
-        projectVersionId: 'version-1',
-      ),
+      snapshot: snapshot(<ProjectBuildStreamEvent>[
+        streamEvent(
+          1,
+          'job_state',
+          payload: const <String, Object?>{
+            'status': 'building',
+            'stage': 'previewing',
+          },
+        ),
+      ], projectVersionId: 'version-1'),
     );
 
     expect(state.previewReady, isFalse);

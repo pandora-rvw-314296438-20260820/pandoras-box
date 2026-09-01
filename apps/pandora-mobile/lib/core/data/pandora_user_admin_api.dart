@@ -22,7 +22,7 @@ abstract interface class PandoraUserAdminGateway {
 
 class SupabasePandoraUserAdminGateway implements PandoraUserAdminGateway {
   SupabasePandoraUserAdminGateway({SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client;
+    : _client = client ?? Supabase.instance.client;
 
   final SupabaseClient _client;
 
@@ -190,16 +190,16 @@ class PandoraTeamMember {
   });
 
   factory PandoraTeamMember.fromJson(PandoraJson json) => PandoraTeamMember(
-        id: _string(json['id']) ?? '',
-        email: _string(json['email']),
-        displayName: _string(json['displayName'] ?? json['display_name']),
-        role: _string(json['role']) ?? 'member',
-        status: _string(json['status']) ?? 'invited',
-        invitedBy: _string(json['invitedBy'] ?? json['invited_by']),
-        joinedAt: _date(json['joinedAt'] ?? json['joined_at']),
-        createdAt: _date(json['createdAt'] ?? json['created_at']),
-        updatedAt: _date(json['updatedAt'] ?? json['updated_at']),
-      );
+    id: _string(json['id']) ?? '',
+    email: _string(json['email']),
+    displayName: _string(json['displayName'] ?? json['display_name']),
+    role: _string(json['role']) ?? 'member',
+    status: _string(json['status']) ?? 'invited',
+    invitedBy: _string(json['invitedBy'] ?? json['invited_by']),
+    joinedAt: _date(json['joinedAt'] ?? json['joined_at']),
+    createdAt: _date(json['createdAt'] ?? json['created_at']),
+    updatedAt: _date(json['updatedAt'] ?? json['updated_at']),
+  );
 
   final String id;
   final String? email;
@@ -247,11 +247,11 @@ class PandoraInviteRequest {
   final String timezone;
 
   PandoraJson toJson() => <String, dynamic>{
-        'email': email.trim().toLowerCase(),
-        'displayName': _nullableTrimmed(displayName),
-        'timezone': timezone.trim().isEmpty ? 'UTC' : timezone.trim(),
-        'role': role,
-      };
+    'email': email.trim().toLowerCase(),
+    'displayName': _nullableTrimmed(displayName),
+    'timezone': timezone.trim().isEmpty ? 'UTC' : timezone.trim(),
+    'role': role,
+  };
 }
 
 class PandoraInviteResult {
@@ -302,13 +302,13 @@ class PandoraUserAdminFailure implements Exception {
     PandoraJson payload, {
     required String fallbackCode,
     required String fallbackMessage,
-  }) =>
-      PandoraUserAdminFailure(
-        code: _string(payload['code']) ?? fallbackCode,
-        message: _string(payload['plainMessage'] ?? payload['message']) ??
-            fallbackMessage,
-        requestId: _string(payload['requestId']),
-      );
+  }) => PandoraUserAdminFailure(
+    code: _string(payload['code']) ?? fallbackCode,
+    message:
+        _string(payload['plainMessage'] ?? payload['message']) ??
+        fallbackMessage,
+    requestId: _string(payload['requestId']),
+  );
 
   final String code;
   final String message;

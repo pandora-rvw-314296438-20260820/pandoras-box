@@ -6,10 +6,10 @@ import 'package:pandora_mobile/core/network/pandora_api_error.dart';
 import 'package:pandora_mobile/core/state/screen_controller.dart';
 
 RepositorySnapshot<String> snapshot(String value) => RepositorySnapshot<String>(
-      data: value,
-      source: RepositorySource.network,
-      fetchedAt: DateTime.utc(2026, 8, 14),
-    );
+  data: value,
+  source: RepositorySource.network,
+  fetchedAt: DateTime.utc(2026, 8, 14),
+);
 
 void main() {
   test('refresh failure keeps the last verified snapshot visible', () async {

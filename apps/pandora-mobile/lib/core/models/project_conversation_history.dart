@@ -83,9 +83,7 @@ class ProjectConversationHistoryItem {
       expandable: json['expandable'] == true,
       evidenceAvailable: json['evidence_available'] == true,
       displayPayload: Map<String, Object?>.unmodifiable(
-        rawPayload.map(
-          (key, value) => MapEntry(key.toString(), value),
-        ),
+        rawPayload.map((key, value) => MapEntry(key.toString(), value)),
       ),
     );
   }

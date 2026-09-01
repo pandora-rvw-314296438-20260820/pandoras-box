@@ -84,15 +84,15 @@ class _VerificationRepository extends FakeRepository {
 }
 
 Widget _subject(_VerificationRepository repository) => PandoraDependencies(
-      auth: const FakeAuth(),
-      repository: repository,
-      diagnostics: DiagnosticsStore(),
-      child: testApp(
-        child: const Scaffold(
-          body: SingleChildScrollView(child: ExactSourceVerificationCard()),
-        ),
-      ),
-    );
+  auth: const FakeAuth(),
+  repository: repository,
+  diagnostics: DiagnosticsStore(),
+  child: testApp(
+    child: const Scaffold(
+      body: SingleChildScrollView(child: ExactSourceVerificationCard()),
+    ),
+  ),
+);
 
 Future<void> _fillRequiredFields(
   WidgetTester tester, {

@@ -90,7 +90,8 @@ void main() {
   testWidgets('long filename and long line stay bounded without overflow', (
     tester,
   ) async {
-    final file = 'lib/features/some/extremely/long/path/'
+    final file =
+        'lib/features/some/extremely/long/path/'
         'this_is_a_very_long_generated_file_name_for_mobile_layout.dart';
     final state = stateWith(
       events: <LiveBuildEvent>[

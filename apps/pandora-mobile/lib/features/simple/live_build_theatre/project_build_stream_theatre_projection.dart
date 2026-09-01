@@ -50,11 +50,12 @@ class ProjectBuildStreamTheatreProjection {
     final bySequence = <int, ProjectBuildStreamEvent>{
       for (final event in snapshot.events) event.sequence: event,
     };
-    final generationSequences = bySequence.values
-        .where((event) => event.eventType == 'generation_completed')
-        .map((event) => event.sequence)
-        .toList()
-      ..sort();
+    final generationSequences =
+        bySequence.values
+            .where((event) => event.eventType == 'generation_completed')
+            .map((event) => event.sequence)
+            .toList()
+          ..sort();
     if (generationSequences.isEmpty) return false;
 
     final generationSequence = generationSequences.first;

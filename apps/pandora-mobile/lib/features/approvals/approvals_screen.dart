@@ -41,12 +41,13 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
   void _scheduleExpiryRefresh() {
     _expiryTimer?.cancel();
     final now = DateTime.now();
-    final expiries = (_controller?.data ?? const <ApprovalSummary>[])
-        .map((approval) => approval.expiresAt)
-        .whereType<DateTime>()
-        .where((expiry) => expiry.isAfter(now))
-        .toList(growable: false)
-      ..sort();
+    final expiries =
+        (_controller?.data ?? const <ApprovalSummary>[])
+            .map((approval) => approval.expiresAt)
+            .whereType<DateTime>()
+            .where((expiry) => expiry.isAfter(now))
+            .toList(growable: false)
+          ..sort();
     if (expiries.isEmpty) return;
     _expiryTimer = Timer(
       expiries.first.difference(now) + const Duration(milliseconds: 1),
@@ -102,8 +103,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
     }
     setState(() => _decidingId = approval.id);
     try {
-      final result = await PandoraDependencies.of(context)
-          .repository
+      final result = await PandoraDependencies.of(context).repository
           .decideApproval(approvalId: approval.id, decision: decision);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -127,7 +127,8 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
               : 'Decision disabled — this owner cannot decide this approval.';
         });
       }
-      final needsReconciliation = error.outcomeMayBeUnknown ||
+      final needsReconciliation =
+          error.outcomeMayBeUnknown ||
           error.kind == PandoraApiErrorKind.conflict ||
           error.kind == PandoraApiErrorKind.notFound ||
           isLocalDecisionDenial;
@@ -151,124 +152,123 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraPage(
-        title: 'Approvals',
-        subtitle: 'Review only what needs your decision.',
-        actions: [
-          IconButton(
-            tooltip: 'Refresh Approvals',
-            onPressed: () => _controller?.refresh(),
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-        ],
-        onRefresh: () => _controller!.refresh(),
-        child: AnimatedBuilder(
-          animation: _controller!,
-          builder: (context, _) {
-            final controller = _controller!;
-            if (controller.isLoading && controller.data == null) {
-              return const ContentSkeleton(lines: 3);
-            }
-            if (controller.error != null && controller.data == null) {
-              return ErrorContent(
-                title: 'Approvals could not load',
-                message: _safeError(controller.error),
-                onRetry: controller.load,
-              );
-            }
-            final approvals = controller.data ?? const <ApprovalSummary>[];
-            if (approvals.isEmpty) {
-              return const EmptyContent(
-                title: 'Nothing needs you right now',
-                message:
-                    'Pandora will bring work here only when your judgment is required.',
-                icon: Icons.check_circle_outline_rounded,
-              );
-            }
-            final highRisk = approvals
-                .where(
-                  (approval) =>
-                      approval.risk == ActionRisk.high ||
-                      approval.risk == ActionRisk.critical,
-                )
-                .length;
-            final reversible =
-                approvals.where((approval) => approval.reversible).length;
-            final expiringSoon = approvals.where(_expiresSoon).length;
+    title: 'Approvals',
+    subtitle: 'Review only what needs your decision.',
+    actions: [
+      IconButton(
+        tooltip: 'Refresh Approvals',
+        onPressed: () => _controller?.refresh(),
+        icon: const Icon(Icons.refresh_rounded),
+      ),
+    ],
+    onRefresh: () => _controller!.refresh(),
+    child: AnimatedBuilder(
+      animation: _controller!,
+      builder: (context, _) {
+        final controller = _controller!;
+        if (controller.isLoading && controller.data == null) {
+          return const ContentSkeleton(lines: 3);
+        }
+        if (controller.error != null && controller.data == null) {
+          return ErrorContent(
+            title: 'Approvals could not load',
+            message: _safeError(controller.error),
+            onRetry: controller.load,
+          );
+        }
+        final approvals = controller.data ?? const <ApprovalSummary>[];
+        if (approvals.isEmpty) {
+          return const EmptyContent(
+            title: 'Nothing needs you right now',
+            message: 'Pandora will bring work here only when your judgment is required.',
+            icon: Icons.check_circle_outline_rounded,
+          );
+        }
+        final highRisk = approvals
+            .where(
+              (approval) =>
+                  approval.risk == ActionRisk.high ||
+                  approval.risk == ActionRisk.critical,
+            )
+            .length;
+        final reversible = approvals
+            .where((approval) => approval.reversible)
+            .length;
+        final expiringSoon = approvals.where(_expiresSoon).length;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                OwnerBriefingHero(
-                  eyebrow: 'Needs you',
-                  title:
-                      '${approvals.length} decision${approvals.length == 1 ? '' : 's'} waiting',
-                  message:
-                      'Review what will change, then choose Approve or Reject.',
-                  icon: Icons.approval_outlined,
-                  tone: PandoraStatusTone.attention,
-                  statusLabel: 'Your decision only',
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            OwnerBriefingHero(
+              eyebrow: 'Needs you',
+              title:
+                  '${approvals.length} decision${approvals.length == 1 ? '' : 's'} waiting',
+              message:
+                  'Review what will change, then choose Approve or Reject.',
+              icon: Icons.approval_outlined,
+              tone: PandoraStatusTone.attention,
+              statusLabel: 'Your decision only',
+            ),
+            const SizedBox(height: PandoraSpacing.md),
+            OwnerMetricGrid(
+              metrics: [
+                OwnerMetric(
+                  label: 'High risk',
+                  value: '$highRisk',
+                  icon: Icons.warning_amber_rounded,
+                  tone: highRisk > 0
+                      ? PandoraStatusTone.critical
+                      : PandoraStatusTone.neutral,
                 ),
-                const SizedBox(height: PandoraSpacing.md),
-                OwnerMetricGrid(
-                  metrics: [
-                    OwnerMetric(
-                      label: 'High risk',
-                      value: '$highRisk',
-                      icon: Icons.warning_amber_rounded,
-                      tone: highRisk > 0
-                          ? PandoraStatusTone.critical
-                          : PandoraStatusTone.neutral,
-                    ),
-                    OwnerMetric(
-                      label: 'Reversible',
-                      value: '$reversible',
-                      icon: Icons.undo_rounded,
-                      tone: PandoraStatusTone.verified,
-                    ),
-                    OwnerMetric(
-                      label: 'Expiring soon',
-                      value: '$expiringSoon',
-                      icon: Icons.timer_outlined,
-                      tone: expiringSoon > 0
-                          ? PandoraStatusTone.attention
-                          : PandoraStatusTone.neutral,
-                    ),
-                  ],
+                OwnerMetric(
+                  label: 'Reversible',
+                  value: '$reversible',
+                  icon: Icons.undo_rounded,
+                  tone: PandoraStatusTone.verified,
                 ),
-                if (controller.error != null) ...[
-                  const SizedBox(height: PandoraSpacing.md),
-                  ErrorContent(
-                    title: 'Live approval state could not be revalidated',
-                    message: controller.error!.message,
-                    onRetry: controller.refresh,
-                  ),
-                ],
-                const SizedBox(height: PandoraSpacing.xl),
-                const OwnerSectionHeading(
-                  title: 'Decision queue',
-                  subtitle: 'See what changes and whether it can be undone.',
+                OwnerMetric(
+                  label: 'Expiring soon',
+                  value: '$expiringSoon',
+                  icon: Icons.timer_outlined,
+                  tone: expiringSoon > 0
+                      ? PandoraStatusTone.attention
+                      : PandoraStatusTone.neutral,
                 ),
-                const SizedBox(height: PandoraSpacing.sm),
-                for (var index = 0; index < approvals.length; index++) ...[
-                  _ApprovalCard(
-                    approval: approvals[index],
-                    busy: _decidingId == approvals[index].id,
-                    enabled: controller.error == null && !controller.isLoading,
-                    decisionDisabledReason:
-                        _decisionBlocks[approvals[index].id],
-                    onApprove: () =>
-                        _decide(approvals[index], ApprovalDecision.approve),
-                    onReject: () =>
-                        _decide(approvals[index], ApprovalDecision.reject),
-                  ),
-                  if (index != approvals.length - 1)
-                    const SizedBox(height: PandoraSpacing.md),
-                ],
               ],
-            );
-          },
-        ),
-      );
+            ),
+            if (controller.error != null) ...[
+              const SizedBox(height: PandoraSpacing.md),
+              ErrorContent(
+                title: 'Live approval state could not be revalidated',
+                message: controller.error!.message,
+                onRetry: controller.refresh,
+              ),
+            ],
+            const SizedBox(height: PandoraSpacing.xl),
+            const OwnerSectionHeading(
+              title: 'Decision queue',
+              subtitle: 'See what changes and whether it can be undone.',
+            ),
+            const SizedBox(height: PandoraSpacing.sm),
+            for (var index = 0; index < approvals.length; index++) ...[
+              _ApprovalCard(
+                approval: approvals[index],
+                busy: _decidingId == approvals[index].id,
+                enabled: controller.error == null && !controller.isLoading,
+                decisionDisabledReason: _decisionBlocks[approvals[index].id],
+                onApprove: () =>
+                    _decide(approvals[index], ApprovalDecision.approve),
+                onReject: () =>
+                    _decide(approvals[index], ApprovalDecision.reject),
+              ),
+              if (index != approvals.length - 1)
+                const SizedBox(height: PandoraSpacing.md),
+            ],
+          ],
+        );
+      },
+    ),
+  );
 }
 
 class _ApprovalCard extends StatelessWidget {
@@ -292,7 +292,8 @@ class _ApprovalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final canDecide = approval.canDecideAt(now);
-    final blockReason = decisionDisabledReason ??
+    final blockReason =
+        decisionDisabledReason ??
         (canDecide ? '' : approval.decisionBlockReasonAt(now));
     final decisionEnabled = enabled && decisionDisabledReason == null;
     return PandoraSurface(
@@ -381,8 +382,9 @@ class _ApprovalCard extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final approve = FilledButton.icon(
-                onPressed:
-                    busy || !decisionEnabled || !canDecide ? null : onApprove,
+                onPressed: busy || !decisionEnabled || !canDecide
+                    ? null
+                    : onApprove,
                 icon: busy
                     ? const SizedBox.square(
                         dimension: 18,
@@ -392,8 +394,9 @@ class _ApprovalCard extends StatelessWidget {
                 label: const Text('Approve'),
               );
               final reject = OutlinedButton.icon(
-                onPressed:
-                    busy || !decisionEnabled || !canDecide ? null : onReject,
+                onPressed: busy || !decisionEnabled || !canDecide
+                    ? null
+                    : onReject,
                 icon: const Icon(Icons.close_rounded),
                 label: const Text('Reject'),
               );
@@ -453,8 +456,9 @@ Future<void> _showApprovalDetails(
             const SizedBox(height: PandoraSpacing.xs),
             OwnerSignal(
               label: 'Reversibility',
-              value:
-                  approval.reversible ? 'Undo available' : 'Undo not verified',
+              value: approval.reversible
+                  ? 'Undo available'
+                  : 'Undo not verified',
               icon: Icons.undo_rounded,
               tone: approval.reversible
                   ? PandoraStatusTone.verified

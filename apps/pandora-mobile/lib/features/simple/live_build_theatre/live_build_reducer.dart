@@ -56,28 +56,27 @@ class LiveBuildTheatreState {
 
   factory LiveBuildTheatreState.empty({
     bool historyGapDueToRetention = false,
-  }) =>
-      LiveBuildTheatreState(
-        streamId: null,
-        latestSequence: 0,
-        stage: LiveBuildStage.starting,
-        activeFile: null,
-        visibleCode: '',
-        files: const <LiveBuildFileSummary>[],
-        uniqueFileCount: 0,
-        completedFileCount: 0,
-        sourceByteCount: 0,
-        sourceLineCount: 0,
-        generationComplete: false,
-        historyGapDueToRetention: historyGapDueToRetention,
-        sourceHistoryComplete: false,
-        previewReady: false,
-        failed: false,
-        needsYou: false,
-        reportedFileCount: null,
-        reportedSourceByteCount: null,
-        reportedSourceLineCount: null,
-      );
+  }) => LiveBuildTheatreState(
+    streamId: null,
+    latestSequence: 0,
+    stage: LiveBuildStage.starting,
+    activeFile: null,
+    visibleCode: '',
+    files: const <LiveBuildFileSummary>[],
+    uniqueFileCount: 0,
+    completedFileCount: 0,
+    sourceByteCount: 0,
+    sourceLineCount: 0,
+    generationComplete: false,
+    historyGapDueToRetention: historyGapDueToRetention,
+    sourceHistoryComplete: false,
+    previewReady: false,
+    failed: false,
+    needsYou: false,
+    reportedFileCount: null,
+    reportedSourceByteCount: null,
+    reportedSourceLineCount: null,
+  );
 
   final String? streamId;
   final int latestSequence;
@@ -135,8 +134,8 @@ class LiveBuildTheatreReducer {
   const LiveBuildTheatreReducer({
     this.maxVisibleSourceChars = 65536,
     this.maxTrackedFiles = 2048,
-  })  : assert(maxVisibleSourceChars > 0),
-        assert(maxTrackedFiles > 0);
+  }) : assert(maxVisibleSourceChars > 0),
+       assert(maxTrackedFiles > 0);
 
   final int maxVisibleSourceChars;
   final int maxTrackedFiles;
@@ -382,11 +381,12 @@ LiveBuildStage _stageFromPayload(
   Map<String, Object?> payload, {
   required LiveBuildStage fallback,
 }) {
-  final stage = (_payloadText(payload, 'stage') ??
-          _payloadText(payload, 'stepKind') ??
-          _payloadText(payload, 'step_kind') ??
-          '')
-      .toLowerCase();
+  final stage =
+      (_payloadText(payload, 'stage') ??
+              _payloadText(payload, 'stepKind') ??
+              _payloadText(payload, 'step_kind') ??
+              '')
+          .toLowerCase();
   if (stage.contains('repair') || stage.contains('correct')) {
     return LiveBuildStage.correcting;
   }

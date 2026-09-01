@@ -20,12 +20,7 @@ void main() {
       route: '/',
       sourceFile: 'index.html',
       sourceLine: 42,
-      bounds: const ProjectFocusBounds(
-        x: 10,
-        y: 20,
-        width: 120,
-        height: 44,
-      ),
+      bounds: const ProjectFocusBounds(x: 10, y: 20, width: 120, height: 44),
       issuedAt: issuedAt,
       expiresAt: expiresAt,
     );
@@ -80,9 +75,9 @@ void main() {
     );
 
     expect(
-        token.isExpired(
-            at: expiresAt.subtract(const Duration(microseconds: 1))),
-        isFalse);
+      token.isExpired(at: expiresAt.subtract(const Duration(microseconds: 1))),
+      isFalse,
+    );
     expect(token.isExpired(at: expiresAt), isTrue);
     expect(
       token.matchesVisible(

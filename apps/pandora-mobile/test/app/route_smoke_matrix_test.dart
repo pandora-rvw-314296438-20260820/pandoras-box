@@ -60,8 +60,9 @@ void main() {
           themeMode: themeMode,
           child: Builder(
             builder: (context) => TextButton(
-              onPressed: () => Navigator.of(context)
-                  .push(MaterialPageRoute<void>(builder: (_) => build())),
+              onPressed: () =>
+                  Navigator.of(context)
+                      .push(MaterialPageRoute<void>(builder: (_) => build())),
               child: const Text('open'),
             ),
           ),

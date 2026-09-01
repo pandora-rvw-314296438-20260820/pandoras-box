@@ -77,9 +77,9 @@ class PandoraRuntimeBootstrap {
     );
     final projectExperienceProjection =
         SupabaseProjectExperienceProjectionRepository(
-      client: supabase,
-      organizationId: PandoraConfig.organizationId,
-    );
+          client: supabase,
+          organizationId: PandoraConfig.organizationId,
+        );
     final projectExperienceRepository = CompositeProjectExperienceRepository(
       projection: projectExperienceProjection,
       mutations: projectExperience,

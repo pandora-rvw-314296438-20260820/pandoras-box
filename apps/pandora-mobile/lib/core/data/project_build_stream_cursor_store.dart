@@ -28,8 +28,7 @@ class SharedPreferencesProjectBuildStreamCursorStore
     required String organizationId,
     required String projectId,
     required String streamId,
-  }) =>
-      '$_prefix:$userId:$organizationId:$projectId:$streamId';
+  }) => '$_prefix:$userId:$organizationId:$projectId:$streamId';
 
   @override
   Future<int> read({
@@ -39,7 +38,8 @@ class SharedPreferencesProjectBuildStreamCursorStore
     required String streamId,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final value = prefs.getInt(
+    final value =
+        prefs.getInt(
           _key(
             userId: userId,
             organizationId: organizationId,
