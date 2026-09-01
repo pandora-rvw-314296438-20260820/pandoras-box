@@ -50,21 +50,24 @@ Deno.serve(async(req:Request)=>{
 
     const {data:version,error:versionError}=await admin.from("pandora_project_versions").select("id,organization_id,project_id,root_artifact_version_id,artifact_digest_sha256,source_sha256,source_commit").eq("id",versionId).eq("organization_id",organizationId).eq("project_id",projectId).maybeSingle();
     if(versionError||!version) throw new Error("EXACT_VERSION_REQUIRED");
-    const rootArtifactVersionId=text(version.root_artifact_version_id),artifactDigest=text(version.artifact_digest_sha256).toLowerCase(),sourceSha=text(version.source_sha256).toLowerCase();
-    if(!UUID_RE.test(rootArtifactVersionId)||!SHA256_RE.test(artifactDigest)||!SHA256_RE.test(sourceSha)) throw new Error("ARTIFACT_LINEAGE_INCOMPLETE");
+    const rootArtifactVersionId=text(version.root_artifact_version_id),artifactDigest=text(version.artifact_digest_sha256).toLowerCase(),sourceSha=text(version.source_sha256).toLowerCase(),sourceCommitSha=text(version.source_commit).toLowerCase();
+    if(!UUID_RE.test(rootArtifactVersionId)||!SHA256_RE.test(artifactDigest)||!SHA256_RE.test(sourceSha)||!SOURCE_COMMIT_RE.test(sourceCommitSha)) throw new Error("ARTIFACT_LINEAGE_INCOMPLETE");
+
+    const {data:deployment,error:deploymentError}=await admin.from("pandora_project_deployments")
+      .select("id,url,immutable_url,status,provider_state,verification_state,source_sha256,artifact_digest,source_commit_sha,created_at")
+      .eq("organization_id",organizationId).eq("project_id",projectId).eq("version_id",versionId).eq("environment","preview")
+      .eq("status","ready").eq("provider_state","READY").eq("verification_state","live_verified")
+      .order("created_at",{ascending:false}).limit(1).maybeSingle();
+    if(deploymentError||!deployment) throw new Error("HOSTED_PREVIEW_NOT_READY");
+    if(text(deployment.source_sha256).toLowerCase()!==sourceSha||text(deployment.artifact_digest).toLowerCase()!==artifactDigest||text(deployment.source_commit_sha).toLowerCase()!==sourceCommitSha) throw new Error("HOSTED_PREVIEW_IDENTITY_MISMATCH");
+    const previewDeploymentId=text(deployment.id).toLowerCase();
+    if(!UUID_RE.test(previewDeploymentId)) throw new Error("HOSTED_PREVIEW_IDENTITY_MISMATCH");
 
     const {data:entitlement,error:entitlementError}=await userClient.rpc("pandora_get_source_entitlement_v1",{p_project_id:projectId,p_capability:"read"});
     if(entitlementError) throw new Error("SOURCE_ENTITLEMENT_CHECK_FAILED");
     const decision=asRecord(entitlement),sourceAllowed=decision.allowed===true,entitlementId=text(decision.entitlementId),decisionReason=text(decision.reason)||"NO_SOURCE_ENTITLEMENT";
 
     if(!sourceAllowed){
-      const {data:deployment,error:deploymentError}=await admin.from("pandora_project_deployments")
-        .select("id,url,immutable_url,status,provider_state,verification_state,source_sha256,artifact_digest,created_at")
-        .eq("organization_id",organizationId).eq("project_id",projectId).eq("version_id",versionId).eq("environment","preview")
-        .eq("status","ready").eq("provider_state","READY").eq("verification_state","live_verified")
-        .order("created_at",{ascending:false}).limit(1).maybeSingle();
-      if(deploymentError||!deployment) throw new Error("HOSTED_PREVIEW_NOT_READY");
-      if(text(deployment.source_sha256).toLowerCase()!==sourceSha||text(deployment.artifact_digest).toLowerCase()!==artifactDigest) throw new Error("HOSTED_PREVIEW_IDENTITY_MISMATCH");
       const hostedUrl=exactHttpsUrl(text(deployment.immutable_url)||text(deployment.url));
       const wrapper=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src https:; style-src 'unsafe-inline'"><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;background:#fff;overflow:hidden}</style></head><body><iframe title="Pandora exact hosted preview" src="${htmlEscape(hostedUrl)}" sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"></iframe></body></html>`;
       const wrapperBytes=new TextEncoder().encode(wrapper),wrapperDigest=await sha256Hex(wrapperBytes);
