@@ -148,7 +148,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901153000_pandora_build_watchdog_v1.sql',
     '20260901162500_pandora_worker_d_vercel_sandbox_log_readback_v1.sql',
     '20260901162600_pandora_visible_execution_event_protocol_v2.sql',
-    '20260901162700_pandora_preview_deployment_stream_trust_v1.sql',
+    '20260901162700_pandora_preview_deployment_stream_trust_v1.sql',\n    '20260901173359_pandora_kimi_vault_transport_v1.sql',
     '20260901182500_pandora_build_stream_nonpreview_trigger_fix_v1.sql',
     '20260901193000_pandora_source_dispatch_exhaustion_watchdog_v1.sql',
     '20260902004500_pandora_change_impact_assessment_v1.sql'
@@ -306,7 +306,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901153000_pandora_build_watchdog_v1.sql',
     '20260901162500_pandora_worker_d_vercel_sandbox_log_readback_v1.sql',
     '20260901162600_pandora_visible_execution_event_protocol_v2.sql',
-    '20260901162700_pandora_preview_deployment_stream_trust_v1.sql',
+    '20260901162700_pandora_preview_deployment_stream_trust_v1.sql',\n    '20260901173359_pandora_kimi_vault_transport_v1.sql',
     '20260901182500_pandora_build_stream_nonpreview_trigger_fix_v1.sql',
     '20260901193000_pandora_source_dispatch_exhaustion_watchdog_v1.sql',
     '20260902004500_pandora_change_impact_assessment_v1.sql'
@@ -416,7 +416,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901153000_pandora_build_watchdog_v1.sql',
     '20260901162500_pandora_worker_d_vercel_sandbox_log_readback_v1.sql',
     '20260901162600_pandora_visible_execution_event_protocol_v2.sql',
-    '20260901162700_pandora_preview_deployment_stream_trust_v1.sql',
+    '20260901162700_pandora_preview_deployment_stream_trust_v1.sql',\n    '20260901173359_pandora_kimi_vault_transport_v1.sql',
     '20260901182500_pandora_build_stream_nonpreview_trigger_fix_v1.sql',
     '20260901193000_pandora_source_dispatch_exhaustion_watchdog_v1.sql',
     '20260902004500_pandora_change_impact_assessment_v1.sql'
