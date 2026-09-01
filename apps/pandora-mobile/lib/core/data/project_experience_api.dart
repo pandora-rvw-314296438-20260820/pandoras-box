@@ -544,6 +544,81 @@ class ProjectExperienceApi {
     return controller.stream;
   }
 
+  Future<Map<String, Object?>?> loadLatestPublishReceipt({
+    required String projectId,
+  }) async {
+    if (_client.auth.currentUser == null) {
+      throw const ProjectExperienceException(
+        'Please sign in again before reading this project history.',
+      );
+    }
+    try {
+      final raw = await _client.rpc(
+        'pandora_get_project_conversation_v1',
+        params: <String, Object?>{
+          'p_project_id': projectId,
+          'p_limit': 50,
+        },
+      );
+      if (raw is! List) {
+        throw const ProjectExperienceException(
+          'Pandora returned an unreadable project history.',
+        );
+      }
+
+      Map<String, Object?>? latest;
+      DateTime? latestAt;
+      for (final item in raw) {
+        final row = _map(item);
+        if (row == null || _text(row['kind']) != 'PUBLISH_RECEIPT') {
+          continue;
+        }
+        final occurredAt = DateTime.tryParse(_text(row['occurred_at']))?.toUtc();
+        final versionId = _optionalText(row['project_version_id']);
+        final verificationRunId = _optionalText(row['verification_run_id']);
+        final deploymentId = _optionalText(row['deployment_id']);
+        final conversationItemId = _optionalText(row['conversation_item_id']);
+        if (occurredAt == null ||
+            versionId == null ||
+            verificationRunId == null ||
+            deploymentId == null ||
+            conversationItemId == null) {
+          continue;
+        }
+        if (latestAt != null && !occurredAt.isAfter(latestAt)) continue;
+        final payload = _map(row['display_payload']) ?? const <String, dynamic>{};
+        final rawVersion = payload['version'];
+        final versionNumber = rawVersion is num
+            ? rawVersion.toInt()
+            : int.tryParse(rawVersion?.toString() ?? '');
+        latestAt = occurredAt;
+        latest = <String, Object?>{
+          'conversationItemId': conversationItemId,
+          'title': _text(row['title'], fallback: 'Live · Verified'),
+          'summary': _text(
+            row['summary'],
+            fallback: 'Published and verified live.',
+          ),
+          'status': _text(row['status'], fallback: 'Live'),
+          'projectVersionId': versionId,
+          'verificationRunId': verificationRunId,
+          'deploymentId': deploymentId,
+          'occurredAt': occurredAt.toIso8601String(),
+          'publishedAt': _optionalText(payload['publishedAt']) ??
+              occurredAt.toIso8601String(),
+          'versionNumber': versionNumber,
+        };
+      }
+      return latest;
+    } on ProjectExperienceException {
+      rethrow;
+    } on PostgrestException {
+      throw const ProjectExperienceException(
+        'Pandora could not read the verified publish receipt right now.',
+      );
+    }
+  }
+
   Future<List<Map<String, Object?>>> loadExactPreviewFiles({
     required String projectId,
     required String versionId,
