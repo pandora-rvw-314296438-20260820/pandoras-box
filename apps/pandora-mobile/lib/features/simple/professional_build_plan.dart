@@ -59,18 +59,18 @@ class PandoraProfessionalBuildPlan extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final requirements =
-        (understanding.firstVersionCapabilities.isNotEmpty
-                ? understanding.firstVersionCapabilities
-                : understanding.requirements)
-            .take(7)
-            .toList();
-    final objectives =
-        (understanding.successCriteria.isNotEmpty
-                ? understanding.successCriteria
-                : understanding.objectives)
-            .take(4)
-            .toList();
+    final requirements = <String>[];
+    if (understanding.firstVersionCapabilities.isNotEmpty) {
+      requirements.addAll(understanding.firstVersionCapabilities.take(7));
+    } else {
+      requirements.addAll(understanding.requirements.take(7));
+    }
+    final objectives = <String>[];
+    if (understanding.successCriteria.isNotEmpty) {
+      objectives.addAll(understanding.successCriteria.take(4));
+    } else {
+      objectives.addAll(understanding.objectives.take(4));
+    }
     final workflows = understanding.primaryWorkflows.take(5).toList();
     final experiences = understanding.coreExperiences.take(5).toList();
     final integrations = understanding.integrations.take(5).toList();
