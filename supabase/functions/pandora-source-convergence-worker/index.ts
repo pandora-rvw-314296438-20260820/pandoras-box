@@ -773,7 +773,8 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
       if (existing.error) throw new Error("BUILD_READ_FAILED");
-      if (existing.data) {
+      // A pre-admitted BuildJob has no candidate yet; only replay after source attachment.
+      if (existing.data?.target_project_version_id) {
         const requiredSelections = primitiveMaterialization.selections;
         let hasPrimitiveComposition = requiredSelections.length === 0;
         const projectVersionId = text(existing.data.target_project_version_id);
