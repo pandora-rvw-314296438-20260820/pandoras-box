@@ -125,7 +125,10 @@ class IndependentProviderVerifier {
       latency += finite(response?.latencyMs);
       const decision = String(response?.decision ?? '').toUpperCase();
       if (!DECISIONS.includes(decision)) return this.finish(input, builder, verifier, 'HOLD', 'invalid_verifier_decision', calls, tokens, cost, latency, remediationCycles);
-      if (decision === 'PASS') return this.finish(input, builder, verifier, 'PASS', 'verifier_pass', calls, tokens, cost, latency, remediationCycles);
+      if (decision === 'PASS') {
+        if (level >= 4 && input.humanApproval !== true) return this.finish(input, builder, verifier, 'HOLD', 'human_approval_required', calls, tokens, cost, latency, remediationCycles);
+        return this.finish(input, builder, verifier, 'PASS', 'verifier_pass', calls, tokens, cost, latency, remediationCycles);
+      }
       if (decision === 'FAIL') return this.finish(input, builder, verifier, 'FAIL', 'verifier_fail', calls, tokens, cost, latency, remediationCycles);
       if (decision === 'HOLD') return this.finish(input, builder, verifier, 'HOLD', 'verifier_hold', calls, tokens, cost, latency, remediationCycles);
       if (!this.repairBuilder || remediationCycles >= budget.maxRemediationCycles) return this.finish(input, builder, verifier, 'HOLD', 'remediation_exhausted', calls, tokens, cost, latency, remediationCycles);
