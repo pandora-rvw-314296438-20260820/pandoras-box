@@ -1,0 +1,41 @@
+name: Temporary repository check diagnostics
+
+on:
+  push:
+    branches:
+      - feature/pandora-intent-distillation-20260901
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Use Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Root TypeScript
+        run: npx tsc -p tsconfig.json --noEmit
+      - name: Shared security TypeScript
+        run: npx tsc -p packages/shared-security/tsconfig.json --noEmit
+      - name: Meta TypeScript
+        run: npx tsc -p apps/meta-business-mcp/tsconfig.json --noEmit
+      - name: Vercel TypeScript
+        run: npx tsc -p tsconfig.vercel.json
+      - name: Browser syntax
+        run: npm run check:browser
+      - name: Frontend mirrors
+        run: npm run check:mirrors
+      - name: Supabase syntax and hardening
+        run: npm run check:supabase
+      - name: Supabase Edge types
+        run: npm run check:supabase:types
+      - name: Supabase migration replay
+        run: npm run check:supabase:replay
