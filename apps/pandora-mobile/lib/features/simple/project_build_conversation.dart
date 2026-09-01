@@ -337,7 +337,7 @@ class _LiveBuildMessage extends StatelessWidget {
                   ),
                 ],
               ),
-              if (view.currentFile != null) ...[
+              if (view.currentFile != null && view.visibleCode.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Text(
                   view.currentFile!,
@@ -358,7 +358,7 @@ class _LiveBuildMessage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
-                    view.visibleCode.isEmpty ? ' ' : view.visibleCode,
+                    view.visibleCode,
                     style: const TextStyle(
                       color: Colors.white,
                       fontFamily: 'monospace',
