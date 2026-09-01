@@ -281,9 +281,9 @@ class ProjectExperienceApi {
               );
             }
           }
-          return List<ProjectBuildStreamEvent>.unmodifiable(
-            rows.map(ProjectBuildStreamEvent.fromJson),
-          );
+          final events = rows.map(ProjectBuildStreamEvent.fromJson).toList()
+            ..sort((left, right) => left.id.compareTo(right.id));
+          return List<ProjectBuildStreamEvent>.unmodifiable(events);
         });
   }
 
