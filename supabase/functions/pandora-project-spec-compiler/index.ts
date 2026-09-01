@@ -107,6 +107,33 @@ function requiredProposalText(value: unknown, max: number) {
   return normalized;
 }
 
+function normalizedProposalLine(value: unknown) {
+  return text(value).toLowerCase().replace(/[^a-z0-9%]+/g, " ").trim().replace(/\s+/g, " ");
+}
+
+function requireDistinctProposalList(value: unknown) {
+  const items = stringArray(value, "proposal.quality", true);
+  const normalized = items.map(normalizedProposalLine);
+  if (new Set(normalized).size !== normalized.length) throw new Error("INVALID_STRUCTURED_OUTPUT");
+}
+
+function validateProposalQuality(product: JsonRecord, acceptance: JsonRecord) {
+  const narrative = [product.productPromise, product.customerValue, product.ownerValue, acceptance.reviewAssurance]
+    .map((value) => requiredProposalText(value, 1200));
+  const normalizedNarrative = narrative.map(normalizedProposalLine);
+  if (new Set(normalizedNarrative).size !== normalizedNarrative.length) throw new Error("INVALID_STRUCTURED_OUTPUT");
+  for (const value of narrative) {
+    if (normalizedProposalLine(value).split(" ").filter(Boolean).length < 4) throw new Error("INVALID_STRUCTURED_OUTPUT");
+    if (/\b(?:tbd|to be determined|generic solution|various features|etcetera)\b/i.test(value)) throw new Error("INVALID_STRUCTURED_OUTPUT");
+    if (/\b(?:seamless|robust|cutting-edge|world-class|best-in-class)\s+(?:solution|platform|experience)\b/i.test(value)) throw new Error("INVALID_STRUCTURED_OUTPUT");
+    if (/\b(?:microservices?|repositories?|database schema|api endpoints?|ci\/cd|containers?|frameworks?|rpc|sdk)\b/i.test(value)) throw new Error("INVALID_STRUCTURED_OUTPUT");
+    if (/\b(?:guaranteed|guarantees|100% guaranteed|double(?:s|d)? revenue|increase revenue by \d+%|reduce costs by \d+%)\b/i.test(value)) throw new Error("INVALID_STRUCTURED_OUTPUT");
+  }
+  for (const value of [product.audiences, product.coreExperiences, product.firstVersionCapabilities, product.primaryWorkflows, acceptance.successCriteria]) {
+    requireDistinctProposalList(value);
+  }
+}
+
 function validateCandidate(value: unknown) {
   const root = record(value);
   const allowed = new Set(["version", "business", "product", "data", "integrations", "design", "deployment", "acceptance", "metadata"]);
@@ -161,6 +188,7 @@ function validateCandidate(value: unknown) {
   stringArray(acceptance.business, "acceptance.business");
   stringArray(acceptance.successCriteria, "acceptance.successCriteria", true);
   requiredProposalText(acceptance.reviewAssurance, 1200);
+  validateProposalQuality(product, acceptance);
 
   const serialized = JSON.stringify(root);
   if (new TextEncoder().encode(serialized).byteLength > MAX_MODEL_TEXT_BYTES || /AIza[0-9A-Za-z_-]{20,}|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/i.test(serialized)) {
