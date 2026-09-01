@@ -77,8 +77,7 @@ function sourcePrompt(spec: JsonRecord, project: JsonRecord, adapter: string, pr
   };
 }
 
-type StreamAssembler = {
-  streamId: string;
+type StreamAssembler = {\n  streamId: string;\n  buildJobId: string;
   organizationId: string;
   projectId: string;
   currentPath: string | null;
@@ -115,8 +114,7 @@ async function flushStreamEvents(admin: ReturnType<typeof adminClient>, state: S
 
 function queueStreamEvent(state: StreamAssembler, eventType: string, filePath: string | null = null, contentChunk: string | null = null, safePayload: JsonRecord = {}) {
   state.pending.push({
-    stream_id: state.streamId,
-    organization_id: state.organizationId,
+    stream_id: state.streamId,\n    organization_id: state.organizationId,\n    build_job_id: state.buildJobId,
     project_id: state.projectId,
     event_type: eventType,
     file_path: filePath,
