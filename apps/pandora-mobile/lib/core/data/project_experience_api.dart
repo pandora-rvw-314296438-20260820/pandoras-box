@@ -3,19 +3,24 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../network/idempotency_key.dart';
+import 'project_build_stream_cursor_store.dart';
 
 class ProjectExperienceApi {
   ProjectExperienceApi({
     required SupabaseClient client,
     required String organizationId,
     IdempotencyKeyFactory? idempotencyKeys,
+    ProjectBuildStreamCursorStore? cursorStore,
   })  : _client = client,
         _organizationId = organizationId,
-        _keys = idempotencyKeys ?? IdempotencyKeyFactory();
+        _keys = idempotencyKeys ?? IdempotencyKeyFactory(),
+        _cursorStore = cursorStore ??
+            const SharedPreferencesProjectBuildStreamCursorStore();
 
   final SupabaseClient _client;
   final String _organizationId;
   final IdempotencyKeyFactory _keys;
+  final ProjectBuildStreamCursorStore _cursorStore;
   final Map<String, DateTime> _lastCompilationRequest = <String, DateTime>{};
 
   Future<String> submitIntent({
