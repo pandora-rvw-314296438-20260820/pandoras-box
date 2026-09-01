@@ -47,7 +47,6 @@ jobs:
             echo 'No formatter changes required.'
             exit 0
           fi
-          test -z "$(git status --porcelain | grep -v -E '^( M|M |MM|A |\?\?) (apps/pandora-mobile/lib/features/simple/project_exact_source_diff.dart|apps/pandora-mobile/test/architecture/exact_source_diff_guard_test.dart|apps/pandora-mobile/test/features/simple/project_exact_source_diff_test.dart)$' || true)"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
@@ -56,3 +55,7 @@ jobs:
             apps/pandora-mobile/test/features/simple/project_exact_source_diff_test.dart
           git commit -m 'style(mobile): format exact source diff proof'
           git push origin HEAD:chat-d/exact-source-diff-proof-20260901
+
+      - name: Confirm exact target branch was pushed
+        shell: bash
+        run: git rev-parse HEAD
