@@ -1248,6 +1248,13 @@
             "replayMode": "history_receipt_noop",
             "originalSqlSha256": "bdfab8f0a010382086e256a7abc1f2667fb9b71a90126a0d20d28f977c4a25d3",
             "originalStatementCount": 2
+        },
+        {
+            "name": "temporary_exact_android_artifact_transfer_credential_20260901",
+            "version": "20260901005913",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "d173612791c29a1f33ce334ffa187445b5760455cc79d278a14c2af060d99d97",
+            "originalStatementCount": 1
         }
     ],
     "projectRef": "jcyqixttuebxqqfkjonq",
