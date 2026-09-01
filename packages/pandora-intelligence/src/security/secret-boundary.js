@@ -24,8 +24,10 @@ const SECRET_VALUE_PATTERNS = Object.freeze([
   /gh[pousr]_[A-Za-z0-9_]{20,}/,
   /sk-[A-Za-z0-9_-]{20,}/,
   /AIza[0-9A-Za-z_-]{20,}/,
+  /\bBearer\s+[A-Za-z0-9._~+\/-]{12,}/i,
+  /(?:MOONSHOT|KIMI)_API_KEY\s*[:=]\s*[^\s,;]+/i,
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
-  /(?:postgres(?:ql)?):\/\/[^\s:@]+:[^\s@]+@/i,
+  /(?:postgres(?:ql)?):\/\/[^\s:@]+:[^@\s]+@/i,
 ]);
 
 /**
