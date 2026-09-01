@@ -144,7 +144,7 @@ begin
     'status',v_tool.status,
     'decision',v_tool.decision,
     'risk',v_tool.risk_level,
-    'environment',v_tool.environm,
+    'environment',v_tool.environment,
     'preflightVerificationRunId',p_preflight_verification_run_id,
     'replayed',v_tool.requested_at<v_now
   );
