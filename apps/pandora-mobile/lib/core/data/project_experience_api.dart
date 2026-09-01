@@ -269,15 +269,22 @@ class ProjectExperienceApi {
     return _client
         .from('pandora_build_stream_events')
         .stream(primaryKey: const <String>['id'])
-        .eq('organization_id', _organizationId)
-        .eq('project_id', projectId)
         .eq('stream_id', streamId)
         .order('id')
-        .map(
-          (rows) => List<ProjectBuildStreamEvent>.unmodifiable(
+        .map((rows) {
+          for (final row in rows) {
+            if (_text(row['organization_id']) != _organizationId ||
+                _text(row['project_id']) != projectId ||
+                _text(row['stream_id']) != streamId) {
+              throw const ProjectExperienceException(
+                'Pandora rejected a mismatched build stream.',
+              );
+            }
+          }
+          return List<ProjectBuildStreamEvent>.unmodifiable(
             rows.map(ProjectBuildStreamEvent.fromJson),
-          ),
-        );
+          );
+        });
   }
 
   Future<List<Map<String, Object?>>> loadExactPreviewFiles({
