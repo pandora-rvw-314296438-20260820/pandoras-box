@@ -98,7 +98,12 @@ type StreamProviderMeta = {
 function providerChunkText(envelope: JsonRecord) {
   const candidates = Array.isArray(envelope.candidates) ? envelope.candidates as unknown[] : [];
   const parts = Array.isArray(rec(rec(candidates[0]).content).parts) ? rec(rec(candidates[0]).content).parts as unknown[] : [];
-  return parts.map((part) => text(rec(part).text)).filter(Boolean).join("");
+  // Preserve provider bytes exactly. Trimming an SSE text part can remove the
+  // newline between two NDJSON events and corrupt the real source stream.
+  return parts.map((part) => {
+    const value = rec(part).text;
+    return typeof value === "string" ? value : "";
+  }).join("");
 }
 
 async function flushStreamEvents(admin: ReturnType<typeof adminClient>, state: StreamAssembler, force = false) {
