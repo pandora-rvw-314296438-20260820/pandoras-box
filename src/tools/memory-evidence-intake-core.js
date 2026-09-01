@@ -145,6 +145,28 @@ const ProofStageSchema = z.enum([
   "production_verified",
 ]);
 
+const EvidenceKindSchema = z.enum([
+  "verified_build",
+  "verified_preview",
+  "verified_publish",
+  "verified_repair",
+  "repeated_failure",
+]);
+const EVIDENCE_KIND_PROOF_STAGES = Object.freeze({
+  verified_build: new Set(["tested", "deployed", "production_verified"]),
+  verified_preview: new Set(["deployed", "production_verified"]),
+  verified_publish: new Set(["production_verified"]),
+  verified_repair: new Set(["tested", "deployed", "production_verified"]),
+  repeated_failure: new Set(["tested", "deployed", "production_verified"]),
+});
+const EVIDENCE_KIND_REQUIRED_TYPES = Object.freeze({
+  verified_build: ["build_job", "project_version", "verification_run"],
+  verified_preview: ["project_version", "preview_deployment", "verification_run"],
+  verified_publish: ["project_version", "production_deployment", "verification_run"],
+  verified_repair: ["repair_attempt", "project_version", "verification_run"],
+  repeated_failure: ["failure_fingerprint", "failure_run"],
+});
+
 const EvidenceCandidateSuccessResponseSchema = z.object({
   ok: z.literal(true),
   candidate_id: z.string().regex(CANONICAL_PROJECT_ID_PATTERN),
@@ -155,6 +177,7 @@ const EvidenceCandidateSuccessResponseSchema = z.object({
   project_id: z.string().regex(CANONICAL_PROJECT_ID_PATTERN),
   project_key: z.string().regex(CANONICAL_PROJECT_KEY_PATTERN),
   proof_stage: ProofStageSchema,
+  evidence_kind: EvidenceKindSchema,
   deduplicated: z.boolean(),
   created_at: z.string().datetime({ offset: true }).nullable(),
   canonical_memory_written: z.literal(false),
@@ -184,12 +207,29 @@ exports.EvidenceCandidateArgsSchema = z.object({
   title: z.string().trim().min(1).max(200),
   summary: z.string().trim().min(1).max(1800),
   proofStage: ProofStageSchema,
+  evidenceKind: EvidenceKindSchema,
   claim: z.string().trim().min(1).max(1000),
   evidenceRefs: z.array(EvidenceRefSchema).min(1).max(20),
   provenance: ProvenanceSchema,
   idempotencyKey: z.string().trim().regex(/^[A-Za-z0-9._:-]{16,160}$/),
-}).strict().refine((value) => Boolean(value.projectId || value.projectKey), {
-  message: "projectId or projectKey is required",
+}).strict().superRefine((value, ctx) => {
+  if (!value.projectId && !value.projectKey) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "projectId or projectKey is required" });
+  }
+  const stages = EVIDENCE_KIND_PROOF_STAGES[value.evidenceKind];
+  if (!stages?.has(value.proofStage)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "proofStage is not valid for evidenceKind" });
+  }
+  const types = new Set(value.evidenceRefs.map((ref) => ref.type));
+  const required = EVIDENCE_KIND_REQUIRED_TYPES[value.evidenceKind] || [];
+  if (!required.every((type) => types.has(type))) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "evidenceRefs are incomplete for evidenceKind" });
+  }
+  if (value.evidenceKind === "repeated_failure") {
+    if (value.evidenceRefs.length < 2) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "repeated_failure requires repeated evidence" });
+  } else if (!value.evidenceRefs.some((ref) => typeof ref.sha256 === "string")) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "verified evidence requires a SHA-256-backed ref" });
+  }
 });
 
 function normalizeOrigin(value) {
@@ -366,6 +406,7 @@ function parseBoundSuccessResponse(status, body, input) {
     value.idempotency_key !== input.idempotencyKey ||
     value.namespace !== input.namespace ||
     value.proof_stage !== input.proofStage ||
+    value.evidence_kind !== input.evidenceKind ||
     (input.projectId && value.project_id !== input.projectId) ||
     (input.projectKey && value.project_key !== input.projectKey)
   ) {
@@ -493,6 +534,7 @@ async function submitEvidenceCandidate(args, configuration, fetchFn = globalThis
     title: input.title,
     summary: input.summary,
     proof_stage: input.proofStage,
+    evidence_kind: input.evidenceKind,
     claim: input.claim,
     evidence_refs: input.evidenceRefs,
     provenance: input.provenance,
@@ -605,6 +647,7 @@ async function submitEvidenceCandidate(args, configuration, fetchFn = globalThis
       projectId: success.project_id,
       projectKey: success.project_key,
       proofStage: success.proof_stage,
+      evidenceKind: success.evidence_kind,
       createdAt: success.created_at,
       privacyPolicy: success.privacy_policy,
       privacyScanVersion: EVIDENCE_PRIVACY_SCAN_VERSION,
