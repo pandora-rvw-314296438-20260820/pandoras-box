@@ -299,6 +299,7 @@ function sourcePrompt(
   project: JsonRecord,
   adapter: string,
   priorSource: JsonRecord | null,
+  impactPlan: JsonRecord,
   repairFeedback: JsonRecord[],
   trustedPrimitives: JsonRecord[],
 ) {
@@ -327,6 +328,9 @@ function sourcePrompt(
           "Use relative POSIX file paths only. Implement the requested experience and every acceptance criterion. Never invent measured business results.",
           repairInstruction,
           sourceInstruction,
+          priorSource && impactPlan.authoritative === true && Number(impactPlan.impactTier) <= 1 && repairFeedback.length === 0
+            ? "This is an authoritative low-impact incremental change. Emit complete replacement contents only for customer-owned files that actually change. Do not emit untouched files and do not delete files. Pandora will merge these exact changed files onto the exact verified baseline before building."
+            : "Emit the complete customer-owned project source required by the active ProjectSpec.",
           "Trusted primitive-core source is materialized separately from exact Worker E evidence. Do not create, modify, duplicate, or reference files under pandora-primitives/. Implement only customer-owned application code or bounded adapter glue; never regenerate primitive-core responsibilities.",
           contract,
         ].join(" "),
@@ -351,7 +355,8 @@ function sourcePrompt(
             deployment: spec.deployment_scope,
             acceptance: spec.acceptance_scope,
           },
-          existingVerifiedSource: priorSource,
+          existingVerifiedSource: priorSource ? { versionId: priorSource.versionId, artifactVersionId: priorSource.artifactVersionId, sourceDigest: priorSource.sourceDigest, files: priorSource.files } : null,
+          changeImpact: impactPlan,
           independentVerificationFailures: repairFeedback,
           trustedPrimitives: trustedPrimitives.map((value) => ({
             name: text(value.name),
@@ -571,12 +576,14 @@ async function loadBaseSource(
   });
 
   let used = 0;
+  let fullUsed = 0;
   const files: JsonRecord[] = [];
+  const allFiles: JsonRecord[] = [];
   for (const value of prioritized) {
     const row = rec(value);
     const path = text(row.file);
     const encoded = text(row.data);
-    if (!path || !encoded || text(row.encoding) !== "base64") continue;
+    if (!path || !encoded || text(row.encoding) !== "base64" || path.startsWith("pandora-primitives/")) continue;
     let content = "";
     try {
       content = new TextDecoder("utf-8", { fatal: true })
@@ -586,6 +593,9 @@ async function loadBaseSource(
     }
     if (SECRET.test(content)) throw new Error("BASE_SOURCE_UNSAFE");
     const bytes = new TextEncoder().encode(content).byteLength;
+    fullUsed += bytes;
+    if (fullUsed > MAX_SOURCE_BYTES) throw new Error("BASE_SOURCE_INVALID");
+    allFiles.push({ path, content });
     if (used + bytes > MAX_BASE_CONTEXT_BYTES) continue;
     used += bytes;
     files.push({ path, content });
@@ -597,6 +607,7 @@ async function loadBaseSource(
       artifactVersionId: version.data.root_artifact_version_id,
       sourceDigest: artifact.data.content_sha256,
       files,
+      allFiles,
     }
     : null;
 }
