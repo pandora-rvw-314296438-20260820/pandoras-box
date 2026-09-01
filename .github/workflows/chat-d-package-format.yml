@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
-          ref: chat-d/visible-code-theatre-foundation-20260901
+          ref: chat-d/live-theatre-conversation-integration-20260901
           fetch-depth: 0
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
@@ -28,16 +28,25 @@ jobs:
           cmp pubspec.lock.expected pubspec.lock
       - name: Apply package-context Dart formatter
         working-directory: apps/pandora-mobile
-        run: dart format lib/features/simple/live_build_theatre test/features/simple/live_build_theatre
+        run: |
+          dart format \
+            lib/features/simple/project_build_conversation.dart \
+            lib/features/simple/live_build_theatre/project_build_stream_theatre_projection.dart \
+            test/architecture/live_build_conversation_integration_guard_test.dart \
+            test/features/simple/live_build_theatre/project_build_stream_theatre_projection_test.dart
       - name: Commit exact formatter output
         run: |
           set -euo pipefail
           git config user.name "pandora-rvw-314296438-20260820"
           git config user.email "plpboracay@gmail.com"
-          git add apps/pandora-mobile/lib/features/simple/live_build_theatre apps/pandora-mobile/test/features/simple/live_build_theatre
+          git add \
+            apps/pandora-mobile/lib/features/simple/project_build_conversation.dart \
+            apps/pandora-mobile/lib/features/simple/live_build_theatre/project_build_stream_theatre_projection.dart \
+            apps/pandora-mobile/test/architecture/live_build_conversation_integration_guard_test.dart \
+            apps/pandora-mobile/test/features/simple/live_build_theatre/project_build_stream_theatre_projection_test.dart
           if git diff --cached --quiet; then
             echo "No formatter changes required."
             exit 0
           fi
           git commit -m "chore(mobile): apply package-context Dart format"
-          git push origin HEAD:chat-d/visible-code-theatre-foundation-20260901
+          git push origin HEAD:chat-d/live-theatre-conversation-integration-20260901
