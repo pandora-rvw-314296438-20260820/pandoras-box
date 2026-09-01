@@ -15,7 +15,7 @@ test('live build theatre renders only real generated source chunks', () => {
   assert.match(generator, /"file_end"/);
   assert.match(generator, /"done"/);
   assert.match(generator, /Never emit fake code/);
-  assert.match(generator, /queueStreamEvent\(state, "code_chunk", path, content/);
+  assert.match(generator, /queueStreamEvent\(state, "code_chunk", path, liveChunk/);
   assert.match(generator, /content_chunk: contentChunk/);
   assert.match(generator, /"x-goog-api-key": credential\.data\.trim\(\)/);
   assert.doesNotMatch(generator, /[?&]key=\$\{/);
