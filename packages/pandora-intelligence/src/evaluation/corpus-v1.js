@@ -4,6 +4,29 @@ const { CORPUS_VERSION } = require('./kimi-program.js');
 const { VALIDATOR_REGISTRY } = require('./validator-registry-v1.js');
 const V = Object.freeze(Object.keys(VALIDATOR_REGISTRY));
 
+/**
+ * @typedef {{
+ *   instruction?: string,
+ *   targetTokens?: number,
+ *   capabilityGated?: boolean,
+ *   kind?: string,
+ *   testsMustPass?: boolean,
+ *   allowedTools?: string[],
+ *   schema?: Record<string, unknown> | null,
+ *   latencyBudgetMs?: number,
+ *   costBudgetUsd?: number,
+ *   riskClass?: string,
+ *   invariants?: string[],
+ *   reviewerRubric?: Record<string, unknown>
+ * }} CorpusCaseOptions
+ */
+/**
+ * @param {string} caseId
+ * @param {string} taskClass
+ * @param {string[]} validators
+ * @param {string[]} capabilities
+ * @param {CorpusCaseOptions} [options]
+ */
 function c(caseId, taskClass, validators, capabilities, options = {}) {
   return Object.freeze({
     caseId, version: CORPUS_VERSION, taskClass,
