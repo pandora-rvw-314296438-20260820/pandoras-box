@@ -24,30 +24,45 @@ jobs:
           flutter-version: '3.47.0'
           cache: true
 
-      - name: Format changed mobile sources
+      - name: Format in the exact materialized mobile package
         shell: bash
         run: |
           set -euo pipefail
-          dart --version
-          dart format \
-            apps/pandora-mobile/lib/core/data/project_experience_api.dart \
-            apps/pandora-mobile/lib/core/data/project_experience_repository.dart \
-            apps/pandora-mobile/lib/core/models/project_journey_models.dart \
-            apps/pandora-mobile/lib/features/simple/project_create_experience.dart \
-            apps/pandora-mobile/lib/features/simple/project_build_conversation.dart \
-            apps/pandora-mobile/lib/features/simple/project_experience_v2.dart
-          git add \
-            apps/pandora-mobile/lib/core/data/project_experience_api.dart \
-            apps/pandora-mobile/lib/core/data/project_experience_repository.dart \
-            apps/pandora-mobile/lib/core/models/project_journey_models.dart \
-            apps/pandora-mobile/lib/features/simple/project_create_experience.dart \
-            apps/pandora-mobile/lib/features/simple/project_build_conversation.dart \
-            apps/pandora-mobile/lib/features/simple/project_experience_v2.dart
+          rm -rf .pandora-mobile-format
+          mkdir .pandora-mobile-format
+          cd .pandora-mobile-format
+          flutter create \
+            --platforms=android,web \
+            --org com.banataosystems \
+            --project-name pandora_mobile \
+            .
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R ../apps/pandora-mobile/lib ./lib
+          cp -R ../apps/pandora-mobile/test ./test
+          cp -R ../apps/pandora-mobile/assets ./assets
+          cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
+          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+          dart format lib test
+          cd ..
+          for path in \
+            core/data/project_experience_api.dart \
+            core/data/project_experience_repository.dart \
+            core/models/project_journey_models.dart \
+            features/simple/project_create_experience.dart \
+            features/simple/project_build_conversation.dart \
+            features/simple/project_experience_v2.dart; do
+            cp ".pandora-mobile-format/lib/$path" "apps/pandora-mobile/lib/$path"
+          done
+          git add apps/pandora-mobile/lib
           if git diff --cached --quiet; then
-            echo 'Exact formatter produced no changes.'
+            echo 'Exact materialized formatter produced no changes.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'style: apply exact Flutter 3.47.0 formatter'
+          git commit -m 'style: apply exact materialized Flutter 3.47.0 formatter'
           git push origin HEAD:feature/pandora-intent-distillation-20260901
