@@ -110,44 +110,40 @@ void main() {
     );
   });
 
-  test(
-    'candidate failure cannot replace current and copy guarantees safety',
-    () {
-      final state = safety(
-        candidateVerificationState: 'failed',
-        safeFailureMessage: 'Pandora could not verify that change.',
-      );
+  test('candidate failure cannot replace current and copy guarantees safety',
+      () {
+    final state = safety(
+      candidateVerificationState: 'failed',
+      safeFailureMessage: 'Pandora could not verify that change.',
+    );
 
-      expect(state.candidateFailed, isTrue);
-      expect(state.versionToHydrate, isNull);
-      expect(
-        state.failureMessage(
-          backendMessage: 'Pandora could not verify that change.',
-        ),
-        'Pandora could not verify that change. Your current version is unchanged.',
-      );
-      expect(state.roles.visibleCurrentVersionId, 'current-v1');
-    },
-  );
+    expect(state.candidateFailed, isTrue);
+    expect(state.versionToHydrate, isNull);
+    expect(
+      state.failureMessage(
+        backendMessage: 'Pandora could not verify that change.',
+      ),
+      'Pandora could not verify that change. Your current version is unchanged.',
+    );
+    expect(state.roles.visibleCurrentVersionId, 'current-v1');
+  });
 
-  test(
-    'existing current can bootstrap while a newer candidate is checking',
-    () {
-      final state = safety(
-        visibleCurrentVersionId: null,
-        candidateVerificationState: 'checking',
-      );
+  test('existing current can bootstrap while a newer candidate is checking',
+      () {
+    final state = safety(
+      visibleCurrentVersionId: null,
+      candidateVerificationState: 'checking',
+    );
 
-      expect(state.versionToHydrate, 'current-v1');
-      expect(
-        state.canCommitVisibleVersion(
-          versionId: 'current-v1',
-          exactPreviewReady: true,
-        ),
-        isTrue,
-      );
-    },
-  );
+    expect(state.versionToHydrate, 'current-v1');
+    expect(
+      state.canCommitVisibleVersion(
+        versionId: 'current-v1',
+        exactPreviewReady: true,
+      ),
+      isTrue,
+    );
+  });
 
   test('projection cannot force an unverified candidate into the canvas', () {
     final state = safety(
