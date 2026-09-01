@@ -1,12 +1,12 @@
-
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('resilient stream consumes Protocol V2 replay and sequence authority', () {
-    final api = File('lib/core/data/project_experience_api.dart')
-        .readAsStringSync();
+  test('resilient stream consumes Protocol V2 replay and sequence authority',
+      () {
+    final api =
+        File('lib/core/data/project_experience_api.dart').readAsStringSync();
     final repository = File('lib/core/data/project_experience_repository.dart')
         .readAsStringSync();
 
@@ -39,8 +39,8 @@ void main() {
   });
 
   test('expired theatre is described truthfully instead of recreated', () {
-    final api = File('lib/core/data/project_experience_api.dart')
-        .readAsStringSync();
+    final api =
+        File('lib/core/data/project_experience_api.dart').readAsStringSync();
     final conversation =
         File('lib/features/simple/project_build_conversation.dart')
             .readAsStringSync();
