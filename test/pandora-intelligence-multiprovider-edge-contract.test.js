@@ -34,6 +34,7 @@ test('fallback and sticky recovery are bounded and explicit',()=>{
   assert.match(edge,/pandora_recover_intelligence_thread_route_v1/);
   assert.match(edge,/recoveryEpoch/);
   assert.match(edge,/fallbackUsed/);
+  assert.match(edge,/slice\(0,4\)/);
 });
 
 test('routing state wrappers remain service-role only',()=>{
