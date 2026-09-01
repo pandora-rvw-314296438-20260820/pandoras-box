@@ -68,6 +68,7 @@ class _ProjectBuildConversationScreenState
           children: [
             Expanded(
               child: PandoraV2Page(
+                scrollable: false,
                 child: ListView(
                   padding: EdgeInsets.zero,
                   children: [

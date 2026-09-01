@@ -6,6 +6,7 @@ const generator = fs.readFileSync('supabase/functions/pandora-project-source-gen
 const migration = fs.readFileSync('supabase/migrations/20260901074500_pandora_live_code_stream_v1.sql', 'utf8');
 const api = fs.readFileSync('apps/pandora-mobile/lib/core/data/project_experience_api.dart', 'utf8');
 const conversation = fs.readFileSync('apps/pandora-mobile/lib/features/simple/project_build_conversation.dart', 'utf8');
+const createExperience = fs.readFileSync('apps/pandora-mobile/lib/features/simple/project_create_experience.dart', 'utf8');
 
 test('live build theatre renders only real generated source chunks', () => {
   assert.match(generator, /streamGenerateContent\?alt=sse/);
@@ -24,6 +25,10 @@ test('live build theatre renders only real generated source chunks', () => {
   assert.match(conversation, /Pandora is coding/);
   assert.doesNotMatch(conversation, /LinearProgressIndicator/);
   assert.doesNotMatch(conversation, /progress_percent|progressPercent|% complete/i);
+  assert.equal(conversation.includes('scrollable: false,'), true);
+  assert.equal(generator.includes('return typeof value === "string" ? value : "";'), true);
+  assert.equal(generator.includes('parts.map((part) => text(rec(part).text))'), false);
+  assert.equal(createExperience.includes("idempotencyKey: _keys.create('pandora-v2-build:${widget.project.id}')"), true);
 });
 
 test('live source visibility is ephemeral and read-only to authenticated members', () => {

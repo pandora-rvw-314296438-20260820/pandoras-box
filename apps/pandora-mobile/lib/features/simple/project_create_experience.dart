@@ -226,6 +226,7 @@ class ProjectUnderstandingScreen extends StatefulWidget {
 
 class _ProjectUnderstandingScreenState
     extends State<ProjectUnderstandingScreen> {
+  final _keys = IdempotencyKeyFactory();
   OwnerProjectUnderstanding? _understanding;
   Timer? _timer;
   bool _building = false;
@@ -275,7 +276,7 @@ class _ProjectUnderstandingScreenState
     try {
       final start = await api.requestBuild(
         projectId: widget.project.id,
-        idempotencyKey: 'pandora-v2-build:${widget.project.id}',
+        idempotencyKey: _keys.create('pandora-v2-build:${widget.project.id}'),
       );
       if (!mounted) return;
       final project = widget.project.copyWith(
