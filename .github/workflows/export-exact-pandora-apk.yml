@@ -33,5 +33,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          gh release upload pandora-live-code-e47b0be4             Pandora-Live-Code-e47b0be4.apk             --clobber             --repo "${{ github.repository }}"
+          set -u
+          if ! out=$(gh release upload pandora-live-code-e47b0be4             Pandora-Live-Code-e47b0be4.apk             --clobber             --repo "${{ github.repository }}" 2>&1); then
+            echo "::error::$out"
+            exit 1
+          fi
+          echo "$out"
