@@ -26,6 +26,11 @@ test('Kimi adapter requires an injected trusted transport and exposes no secret 
   assert.equal(kimi.KIMI_MODEL_CONFIG.modelId, 'kimi-k3');
   assert.equal(kimi.KIMI_MODEL_CONFIG.apiBaseUrl, 'https://api.moonshot.ai/v1');
   assert.equal(kimi.KIMI_MODEL_CONFIG.maxContextTokens, 1048576);
+  assert.equal(kimi.KIMI_MODEL_CONFIG.providerDefaultMaxCompletionTokens, 131072);
+  assert.equal(kimi.KIMI_MODEL_CONFIG.transportDefaultMaxCompletionTokens, 8192);
+  assert.equal(kimi.KIMI_MODEL_CONFIG.transportMaxCompletionTokens, 16384);
+  assert.equal(kimi.KIMI_K3_CAPABILITY_DECLARATION.metadata.supportsStreaming, false);
+  assert.equal(kimi.KIMI_K3_CAPABILITY_DECLARATION.metadata.providerSupportsStreaming, true);
   assert.doesNotThrow(() => assertNoCredentialMaterial(kimi.KIMI_MODEL_CONFIG));
   assert.equal(kimi.KIMI_K3_CAPABILITY_DECLARATION.capabilities.multimodal, true);
   assert.equal(kimi.KIMI_K3_CAPABILITY_DECLARATION.capabilities.toolCalling, true);
@@ -33,7 +38,7 @@ test('Kimi adapter requires an injected trusted transport and exposes no secret 
 
 test('Kimi serializer creates bounded K3 request with conservative reasoning mapping', () => {
   const body = kimi.buildKimiBody(request());
-  assert.equal(body.model, 'kimi-k3');
+  assert.equal('model' in body, false);
   assert.equal(body.reasoning_effort, 'high');
   assert.equal(body.max_completion_tokens, 512);
   assert.equal(body.stream, false);
@@ -93,7 +98,27 @@ test('Kimi adapter normalizes text, usage, request id, reasoning setting and con
   assert.equal(result.metadata.reasoningEffort, 'high');
   assert.equal(result.continuation.assistantMessage.reasoning_content, 'internal reasoning');
   assert.equal(captured.model, 'kimi-k3');
+  assert.equal('model' in captured.body, false);
   assert.doesNotMatch(JSON.stringify(captured), /moonshot_api_key|kimi_api_key|authorization|bearer/i);
+});
+
+test('Kimi rejects output budgets above the current trusted transport bound before network execution', async () => {
+  let calls = 0;
+  const adapter = new kimi.KimiProviderAdapter({ transport: { createChatCompletion: async () => { calls += 1; return { status: 200, body: successBody() }; } } });
+  await assert.rejects(() => adapter.execute(request({ budget: { maxAttempts: 1, remainingAttempts: 1, maxOutputTokens: 16385 } }), declaration()), e => e.code === 'invalid_request' && e.retryable === false);
+  assert.equal(calls, 0);
+});
+
+test('Kimi consumes the deployed trusted transport safe error contract without leaking provider payloads', async () => {
+  const cases = [
+    [{ status: 0, ok: false, error: { kind: 'timeout', retryable: true, retryAfterMs: null } }, 'timeout', true],
+    [{ status: 429, ok: false, error: { kind: 'quota_exhausted', providerCode: 'exceeded_current_quota_error', retryable: false, retryAfterMs: null } }, 'rate_limited', false],
+    [{ status: 502, ok: false, error: { kind: 'response_too_large', retryable: false, retryAfterMs: null } }, 'provider_error', false],
+  ];
+  for (const [transportResponse, code, retryable] of cases) {
+    const adapter = new kimi.KimiProviderAdapter({ transport: { createChatCompletion: async () => transportResponse } });
+    await assert.rejects(() => adapter.execute(request(), declaration()), e => e.code === code && e.retryable === retryable && !/exceeded_current_quota_error/.test(e.message));
+  }
 });
 
 test('Kimi rejects structured schema constraints it cannot independently validate', () => {
