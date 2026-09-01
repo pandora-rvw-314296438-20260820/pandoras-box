@@ -21,6 +21,7 @@ module.exports = {
   ...require('./lineage/ai-execution-receipt.js'),
   ...require('./planning/intelligence-composer.js'),
   ...require('./evaluation/kimi-program.js'),
+  ...require('./evaluation/validator-registry-v1.js'),
   benchmarkCorpusV1: require('./evaluation/corpus-v1.js'),
   promotionThresholdsV1: require('./evaluation/promotion-thresholds-v1.js'),
 };
