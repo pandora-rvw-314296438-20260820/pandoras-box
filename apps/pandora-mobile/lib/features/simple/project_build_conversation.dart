@@ -33,7 +33,8 @@ class _ProjectBuildConversationScreenState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _stream ??= PandoraDependencies.of(context).projectExperienceRepository
+    _stream ??= PandoraDependencies.of(context)
+        .projectExperienceRepository
         ?.watchBuildStream(
           projectId: widget.project.id,
           streamId: widget.buildStart.streamId,
@@ -51,8 +52,7 @@ class _ProjectBuildConversationScreenState
   @override
   Widget build(BuildContext context) {
     final stream = _stream;
-    final summary =
-        widget.understanding.intentSummary ??
+    final summary = widget.understanding.intentSummary ??
         widget.understanding.businessSummary ??
         'Pandora has a build plan for this project.';
     final plan = <String>[
@@ -102,8 +102,7 @@ class _ProjectBuildConversationScreenState
                         stream: stream,
                         initialData: const <ProjectBuildStreamEvent>[],
                         builder: (context, snapshot) {
-                          final events =
-                              snapshot.data ??
+                          final events = snapshot.data ??
                               const <ProjectBuildStreamEvent>[];
                           final view = _BuildConversationView.from(events);
                           return Column(
@@ -111,9 +110,8 @@ class _ProjectBuildConversationScreenState
                             children: [
                               _LiveBuildMessage(
                                 view: view,
-                                onOpenProject: view.previewReady
-                                    ? _openProject
-                                    : null,
+                                onOpenProject:
+                                    view.previewReady ? _openProject : null,
                               ),
                               if (snapshot.hasError) ...[
                                 const SizedBox(height: 10),
@@ -149,14 +147,14 @@ class _ConversationLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-    label,
-    style: const TextStyle(
-      color: PandoraV2Colors.muted,
-      fontSize: 13,
-      fontWeight: FontWeight.w700,
-      letterSpacing: .2,
-    ),
-  );
+        label,
+        style: const TextStyle(
+          color: PandoraV2Colors.muted,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          letterSpacing: .2,
+        ),
+      );
 }
 
 class _CollapsibleIntent extends StatelessWidget {
@@ -230,65 +228,65 @@ class _PandoraProposal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: PandoraV2Colors.surface,
-      border: Border.all(color: PandoraV2Colors.line),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          name,
-          style: const TextStyle(
-            color: PandoraV2Colors.ink,
-            fontSize: 23,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -.4,
-          ),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: PandoraV2Colors.surface,
+          border: Border.all(color: PandoraV2Colors.line),
+          borderRadius: BorderRadius.circular(20),
         ),
-        const SizedBox(height: 8),
-        Text(summary, style: pandoraV2Muted),
-        if (plan.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          for (final item in plan)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 7),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 7),
-                    child: SizedBox(
-                      width: 5,
-                      height: 5,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: PandoraV2Colors.ink,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      item,
-                      style: const TextStyle(
-                        color: PandoraV2Colors.ink,
-                        fontSize: 15,
-                        height: 1.35,
-                      ),
-                    ),
-                  ),
-                ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              name,
+              style: const TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 23,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -.4,
               ),
             ),
-        ],
-      ],
-    ),
-  );
+            const SizedBox(height: 8),
+            Text(summary, style: pandoraV2Muted),
+            if (plan.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              for (final item in plan)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 7),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 7),
+                        child: SizedBox(
+                          width: 5,
+                          height: 5,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: PandoraV2Colors.ink,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          item,
+                          style: const TextStyle(
+                            color: PandoraV2Colors.ink,
+                            fontSize: 15,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        ),
+      );
 }
 
 class _LiveBuildMessage extends StatelessWidget {
@@ -327,8 +325,8 @@ class _LiveBuildMessage extends StatelessWidget {
                       view.previewReady
                           ? 'Build complete'
                           : view.failed
-                          ? 'Build stopped'
-                          : 'Pandora is coding',
+                              ? 'Build stopped'
+                              : 'Pandora is coding',
                       style: const TextStyle(
                         color: PandoraV2Colors.ink,
                         fontSize: 18,
@@ -485,12 +483,10 @@ class _BuildConversationView {
     }
 
     final lines = code.split('\n');
-    final visibleLines = lines.length > 36
-        ? lines.sublist(lines.length - 36)
-        : lines;
-    final recentActivity = activity.length > 7
-        ? activity.sublist(activity.length - 7)
-        : activity;
+    final visibleLines =
+        lines.length > 36 ? lines.sublist(lines.length - 36) : lines;
+    final recentActivity =
+        activity.length > 7 ? activity.sublist(activity.length - 7) : activity;
 
     return _BuildConversationView(
       currentFile: currentFile,

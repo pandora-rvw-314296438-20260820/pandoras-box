@@ -87,34 +87,40 @@ class CustomerProject {
   bool get hasPreview => previewUrl != null;
 
   CustomerProject copyWith({String? name}) => CustomerProject(
-    id: id,
-    projectKey: projectKey,
-    name: name ?? this.name,
-    objective: objective,
-    buildKind: buildKind,
-    stage: stage,
-    runtimeStatus: runtimeStatus,
-    vercelProjectId: vercelProjectId,
-    vercelProjectName: vercelProjectName,
-    previewUrl: previewUrl,
-    liveUrl: liveUrl,
-    requestedDomain: requestedDomain,
-    domainStatus: domainStatus,
-    createdAt: createdAt,
-    updatedAt: updatedAt,
-  );
+        id: id,
+        projectKey: projectKey,
+        name: name ?? this.name,
+        objective: objective,
+        buildKind: buildKind,
+        stage: stage,
+        runtimeStatus: runtimeStatus,
+        vercelProjectId: vercelProjectId,
+        vercelProjectName: vercelProjectName,
+        previewUrl: previewUrl,
+        liveUrl: liveUrl,
+        requestedDomain: requestedDomain,
+        domainStatus: domainStatus,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      );
 
   factory CustomerProject.fromJson(Object? value) {
     final json = asJsonMap(value);
     return CustomerProject(
       id: requiredJsonText(json, const ['id'], field: 'customerProject.id'),
-      projectKey: requiredJsonText(json, const [
-        'projectKey',
-        'project_key',
-      ], field: 'customerProject.projectKey'),
-      name: requiredJsonText(json, const [
-        'name',
-      ], field: 'customerProject.name'),
+      projectKey: requiredJsonText(
+          json,
+          const [
+            'projectKey',
+            'project_key',
+          ],
+          field: 'customerProject.projectKey'),
+      name: requiredJsonText(
+          json,
+          const [
+            'name',
+          ],
+          field: 'customerProject.name'),
       objective: jsonText(json['objective']),
       buildKind: ProjectBuildKind.parse(json['buildKind']),
       stage: jsonText(json['stage'], fallback: 'idea'),
@@ -191,9 +197,12 @@ class ProjectRuntimeDomain {
     final json = asJsonMap(value);
     return ProjectRuntimeDomain(
       id: requiredJsonText(json, const ['id'], field: 'projectDomain.id'),
-      domain: requiredJsonText(json, const [
-        'domain',
-      ], field: 'projectDomain.domain'),
+      domain: requiredJsonText(
+          json,
+          const [
+            'domain',
+          ],
+          field: 'projectDomain.domain'),
       status: jsonText(json['status'], fallback: 'pending'),
       verified: jsonBool(json['verified']),
       primary: jsonBool(json['primary_domain']),
@@ -221,12 +230,18 @@ class ProjectRuntimeCandidate {
   factory ProjectRuntimeCandidate.fromJson(Object? value) {
     final json = asJsonMap(value);
     return ProjectRuntimeCandidate(
-      versionId: requiredJsonText(json, const [
-        'versionId',
-      ], field: 'projectCandidate.versionId'),
-      artifactDigest: requiredJsonText(json, const [
-        'artifactDigest',
-      ], field: 'projectCandidate.artifactDigest'),
+      versionId: requiredJsonText(
+          json,
+          const [
+            'versionId',
+          ],
+          field: 'projectCandidate.versionId'),
+      artifactDigest: requiredJsonText(
+          json,
+          const [
+            'artifactDigest',
+          ],
+          field: 'projectCandidate.artifactDigest'),
       status: jsonText(json['status'], fallback: 'built'),
       parentVersionId: _optionalText(json['parentVersionId']),
     );
@@ -282,9 +297,8 @@ class ProjectRuntimeSnapshot {
     final verification = json['verification'];
     return ProjectRuntimeSnapshot(
       project: CustomerProject.fromJson(json['project']),
-      preview: preview == null
-          ? null
-          : ProjectRuntimeDeployment.fromJson(preview),
+      preview:
+          preview == null ? null : ProjectRuntimeDeployment.fromJson(preview),
       production: production == null
           ? null
           : ProjectRuntimeDeployment.fromJson(production),
