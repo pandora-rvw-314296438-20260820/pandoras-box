@@ -275,7 +275,7 @@ class ProjectExperienceApi {
         .from('pandora_build_stream_events')
         .stream(primaryKey: const <String>['id'])
         .eq('stream_id', streamId)
-        .order('id')
+        .order('sequence')
         .map((rows) {
           for (final row in rows) {
             if (_text(row['organization_id']) != _organizationId ||
@@ -286,10 +286,256 @@ class ProjectExperienceApi {
               );
             }
           }
-          final events = rows.map(ProjectBuildStreamEvent.fromJson).toList()
-            ..sort((left, right) => left.id.compareTo(right.id));
+          final now = DateTime.now().toUtc();
+          final events = rows
+              .map(ProjectBuildStreamEvent.fromJson)
+              .where((event) =>
+                  event.expiresAt == null || event.expiresAt!.isAfter(now))
+              .toList()
+            ..sort((left, right) => left.sequence.compareTo(right.sequence));
           return List<ProjectBuildStreamEvent>.unmodifiable(events);
         });
+  }
+
+  Future<ProjectBuildStreamReplay> replayBuildStream({
+    required String projectId,
+    required String streamId,
+    int afterSequence = 0,
+    int limit = 250,
+  }) async {
+    if (_client.auth.currentUser == null) {
+      throw const ProjectExperienceException(
+        'Please sign in again before reopening this build.',
+      );
+    }
+    if (afterSequence < 0 || limit < 1 || limit > 500) {
+      throw const ProjectExperienceException(
+        'Pandora rejected an invalid build replay request.',
+      );
+    }
+    try {
+      final raw = await _client.rpc(
+        'pandora_build_stream_replay_v2',
+        params: <String, Object?>{
+          'p_stream_id': streamId,
+          'p_after_sequence': afterSequence,
+          'p_limit': limit,
+        },
+      );
+      final data = _map(raw);
+      final session = _map(data?['session']);
+      if (data == null ||
+          _int(data['protocolVersion']) != 2 ||
+          session == null ||
+          _text(session['streamId']) != streamId ||
+          _text(session['organizationId']) != _organizationId ||
+          _text(session['projectId']) != projectId) {
+        throw const ProjectExperienceException(
+          'Pandora rejected a mismatched build replay.',
+        );
+      }
+
+      final rawEvents = data['events'];
+      if (rawEvents is! List) {
+        throw const ProjectExperienceException(
+          'Pandora returned an unreadable build replay.',
+        );
+      }
+      final events = <ProjectBuildStreamEvent>[];
+      for (final rawEvent in rawEvents) {
+        final eventMap = _map(rawEvent);
+        if (eventMap == null) {
+          throw const ProjectExperienceException(
+            'Pandora returned an unreadable build replay.',
+          );
+        }
+        events.add(ProjectBuildStreamEvent.fromJson(eventMap));
+      }
+      events.sort((left, right) => left.sequence.compareTo(right.sequence));
+      for (var index = 1; index < events.length; index += 1) {
+        if (events[index].sequence == events[index - 1].sequence) {
+          throw const ProjectExperienceException(
+            'Pandora rejected a duplicate build replay sequence.',
+          );
+        }
+      }
+
+      final build = _map(data['build']);
+      final durableSummary = _map(data['durableSummary']) ??
+          const <String, dynamic>{};
+      return ProjectBuildStreamReplay(
+        events: List<ProjectBuildStreamEvent>.unmodifiable(events),
+        watermarkSequence: _int(data['watermarkSequence']),
+        oldestRetainedSequence: _optionalInt(data['oldestRetainedSequence']),
+        historyGapDueToRetention: data['historyGapDueToRetention'] == true,
+        hasMore: data['hasMore'] == true,
+        streamStatus: _text(session['status'], fallback: 'building'),
+        buildStatus: _optionalText(build?['status']),
+        buildStage: _optionalText(build?['stage']),
+        buildJobId: _optionalText(session['buildJobId']),
+        projectVersionId: _optionalText(session['projectVersionId']),
+        publicErrorCode: _optionalText(session['publicErrorCode']) ??
+            _optionalText(build?['errorCode']),
+        durableSummary: Map<String, Object?>.unmodifiable(
+          durableSummary.map(
+            (key, value) => MapEntry(key.toString(), value),
+          ),
+        ),
+      );
+    } on ProjectExperienceException {
+      rethrow;
+    } on PostgrestException {
+      throw const ProjectExperienceException(
+        'Pandora could not reconcile this build right now.',
+      );
+    }
+  }
+
+  Stream<ProjectBuildStreamSnapshot> watchResilientBuildStream({
+    required String projectId,
+    required String streamId,
+  }) {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      return Stream<ProjectBuildStreamSnapshot>.error(
+        const ProjectExperienceException(
+          'Please sign in again before reopening this build.',
+        ),
+      );
+    }
+
+    final reconciler = ProjectBuildStreamReconciler();
+    final controller = StreamController<ProjectBuildStreamSnapshot>();
+    StreamSubscription<List<ProjectBuildStreamEvent>>? subscription;
+    Timer? retryTimer;
+    var closed = false;
+    var reconciling = false;
+    var reconnectAttempt = 0;
+
+    Future<void> persistCursor() async {
+      final sequence = reconciler.latestSequence;
+      if (sequence < 1) return;
+      await _cursorStore.write(
+        userId: userId,
+        organizationId: _organizationId,
+        projectId: projectId,
+        streamId: streamId,
+        sequence: sequence,
+      );
+    }
+
+    Future<void> reconcile({bool reconnecting = false}) async {
+      if (closed || reconciling) return;
+      reconciling = true;
+      try {
+        if (!reconciler.hasSeededCursor) {
+          final stored = await _cursorStore.read(
+            userId: userId,
+            organizationId: _organizationId,
+            projectId: projectId,
+            streamId: streamId,
+          );
+          reconciler.seedCursor(stored);
+        }
+
+        var pages = 0;
+        while (!closed) {
+          pages += 1;
+          if (pages > 20) {
+            throw const ProjectExperienceException(
+              'Pandora stopped an unbounded build replay.',
+            );
+          }
+          final before = reconciler.latestSequence;
+          final replay = await replayBuildStream(
+            projectId: projectId,
+            streamId: streamId,
+            afterSequence: before,
+            limit: 500,
+          );
+          final snapshot = reconciler.mergeReplay(
+            replay,
+            reconnecting: reconnecting,
+          );
+          await persistCursor();
+          if (!closed) controller.add(snapshot);
+          if (!replay.hasMore) break;
+          if (reconciler.latestSequence <= before) {
+            throw const ProjectExperienceException(
+              'Pandora rejected a non-advancing build replay.',
+            );
+          }
+        }
+        reconnectAttempt = 0;
+      } catch (error, stackTrace) {
+        if (!closed) controller.addError(error, stackTrace);
+      } finally {
+        reconciling = false;
+      }
+    }
+
+    Future<void> handleLive(List<ProjectBuildStreamEvent> events) async {
+      if (closed) return;
+      final snapshot = reconciler.mergeLive(events);
+      if (snapshot.requiresReplay) {
+        await reconcile(reconnecting: true);
+        return;
+      }
+      await persistCursor();
+      if (!closed) controller.add(snapshot);
+    }
+
+    void subscribe() {
+      if (closed) return;
+      subscription = watchBuildStream(
+        projectId: projectId,
+        streamId: streamId,
+      ).listen(
+        (events) => unawaited(handleLive(events)),
+        onError: (Object error, StackTrace stackTrace) {
+          if (closed) return;
+          controller.add(reconciler.snapshot(reconnecting: true));
+          controller.addError(error, stackTrace);
+          if (retryTimer?.isActive == true) return;
+          final slot = reconnectAttempt > 3 ? 3 : reconnectAttempt;
+          final delayMs = const <int>[500, 1000, 2000, 4000][slot];
+          if (reconnectAttempt < 3) reconnectAttempt += 1;
+          retryTimer = Timer(Duration(milliseconds: delayMs), () {
+            if (closed) return;
+            final current = subscription;
+            subscription = null;
+            if (current != null) unawaited(current.cancel());
+            unawaited(reconcile(reconnecting: true));
+            subscribe();
+          });
+        },
+        onDone: () {
+          if (closed || retryTimer?.isActive == true) return;
+          final slot = reconnectAttempt > 3 ? 3 : reconnectAttempt;
+          final delayMs = const <int>[500, 1000, 2000, 4000][slot];
+          if (reconnectAttempt < 3) reconnectAttempt += 1;
+          retryTimer = Timer(Duration(milliseconds: delayMs), () {
+            if (closed) return;
+            unawaited(reconcile(reconnecting: true));
+            subscribe();
+          });
+        },
+        cancelOnError: false,
+      );
+    }
+
+    controller.onListen = () {
+      subscribe();
+      unawaited(reconcile());
+    };
+    controller.onCancel = () {
+      closed = true;
+      retryTimer?.cancel();
+      final current = subscription;
+      subscription = null;
+      if (current != null) unawaited(current.cancel());
+    };
+    return controller.stream;
   }
 
   Future<List<Map<String, Object?>>> loadExactPreviewFiles({
