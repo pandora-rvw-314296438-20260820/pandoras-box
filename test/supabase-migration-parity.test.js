@@ -145,6 +145,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901134500_pandora_build_approval_receipts_v1.sql',
     '20260901134600_pandora_project_conversation_projection_v1.sql',
     '20260901150000_pandora_server_owned_build_admission_v1.sql',
+    '20260901153000_pandora_build_watchdog_v1.sql',
     '20260901162500_pandora_worker_d_vercel_sandbox_log_readback_v1.sql',
     '20260901162600_pandora_visible_execution_event_protocol_v2.sql',
     '20260901162700_pandora_preview_deployment_stream_trust_v1.sql'
@@ -299,6 +300,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901134500_pandora_build_approval_receipts_v1.sql',
     '20260901134600_pandora_project_conversation_projection_v1.sql',
     '20260901150000_pandora_server_owned_build_admission_v1.sql',
+    '20260901153000_pandora_build_watchdog_v1.sql',
     '20260901162500_pandora_worker_d_vercel_sandbox_log_readback_v1.sql',
     '20260901162600_pandora_visible_execution_event_protocol_v2.sql',
     '20260901162700_pandora_preview_deployment_stream_trust_v1.sql'
@@ -405,6 +407,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901134500_pandora_build_approval_receipts_v1.sql',
     '20260901134600_pandora_project_conversation_projection_v1.sql',
     '20260901150000_pandora_server_owned_build_admission_v1.sql',
+    '20260901153000_pandora_build_watchdog_v1.sql',
     '20260901162500_pandora_worker_d_vercel_sandbox_log_readback_v1.sql',
     '20260901162600_pandora_visible_execution_event_protocol_v2.sql',
     '20260901162700_pandora_preview_deployment_stream_trust_v1.sql'

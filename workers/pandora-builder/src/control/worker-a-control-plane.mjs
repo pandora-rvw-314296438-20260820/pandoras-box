@@ -27,7 +27,7 @@ function assertLeaseOwnership({ job, workerIdentity, leaseToken, now = new Date(
 function createWorkerAControlPlane({ rpc, workerIdentity, leaseSeconds = 300, loadJob = null, persistEvent = null, clock = () => new Date() }) {
   if (typeof rpc !== 'function') throw new Error('CONTROL_PLANE_RPC_REQUIRED');
   if (typeof workerIdentity !== 'string' || workerIdentity.length < 3) throw new Error('WORKER_IDENTITY_REQUIRED');
-  if (!Number.isInteger(leaseSeconds) || leaseSeconds < 30 || leaseSeconds > 3600) throw new Error('INVALID_LEASE_SECONDS');
+  if (!Number.isInteger(leaseSeconds) || leaseSeconds < 30 || leaseSeconds > 1800) throw new Error('INVALID_LEASE_SECONDS');
 
   const invoke = (name, args) => rpc(name, args);
 
@@ -43,12 +43,14 @@ function createWorkerAControlPlane({ rpc, workerIdentity, leaseSeconds = 300, lo
       });
     },
     async heartbeat(jobId, leaseToken) {
-      return invoke('pandora_heartbeat_build_job', {
+      const renewed = await invoke('pandora_heartbeat_build_job', {
         p_job_id: jobId,
         p_worker_identity: workerIdentity,
         p_lease_token_sha256: sha256Hex(leaseToken),
         p_lease_seconds: leaseSeconds,
       });
+      if (renewed !== true) throw new Error('LEASE_LOST');
+      return true;
     },
     async requeueExpired(limit = 100) {
       if (!Number.isInteger(limit) || limit < 1 || limit > 1000) throw new Error('INVALID_REQUEUE_LIMIT');
