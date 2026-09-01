@@ -10,6 +10,7 @@ const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_MAX_RESPONSE_BYTES = 500000;
 const DEFAULT_CANONICAL_MAX_AGE_MS = 86_400_000;
 const NamespaceSchema = zod_1.z.enum(['real_life', 'au']);
+const ProjectKeySchema = zod_1.z.string().trim().regex(/^[a-z0-9][a-z0-9._-]{1,95}$/);
 const RuntimeConfigurationSchema = zod_1.z.object({
     baseUrl: zod_1.z.string().min(1),
     oidcToken: zod_1.z.string().min(64),
@@ -20,6 +21,7 @@ const RuntimeConfigurationSchema = zod_1.z.object({
 });
 const SearchArgsSchema = zod_1.z.object({
     namespace: NamespaceSchema,
+    projectKey: ProjectKeySchema,
     query: zod_1.z.string().trim().min(1).max(4000),
     currentTask: zod_1.z.string().trim().min(1).max(2000).optional(),
     maxItems: zod_1.z.number().int().min(1).max(50).default(12),
@@ -30,6 +32,7 @@ const SearchArgsSchema = zod_1.z.object({
 });
 const CanonicalContextArgsSchema = zod_1.z.object({
     namespace: NamespaceSchema,
+    projectKey: ProjectKeySchema,
     query: zod_1.z.string().trim().min(1).max(4000),
     currentTask: zod_1.z.string().trim().min(1).max(2000).optional(),
     maxItems: zod_1.z.number().int().min(1).max(50).default(25),
@@ -130,6 +133,7 @@ class PandoraMemoryMCPServer {
         }
         return (0, memory_response_1.sanitizeMemorySearchResponse)(await this.request('/api/projectos/memory/search', 'POST', {
             namespace: input.namespace,
+            project_key: input.projectKey,
             query: input.query,
             current_task: input.currentTask,
             max_items: input.maxItems,
@@ -150,6 +154,7 @@ class PandoraMemoryMCPServer {
     async canonicalContext(input) {
         const search = await this.search(SearchArgsSchema.parse({
             namespace: input.namespace,
+            projectKey: input.projectKey,
             query: input.query,
             currentTask: input.currentTask,
             maxItems: input.maxItems,
@@ -222,6 +227,11 @@ exports.memoryTools = {
                     enum: ['real_life', 'au'],
                     description: 'Exact Pandora Memory namespace',
                 },
+                projectKey: {
+                    type: 'string',
+                    pattern: '^[a-z0-9][a-z0-9._-]{1,95}$',
+                    description: 'Exact Pandora Memory project key',
+                },
                 query: {
                     type: 'string',
                     minLength: 1,
@@ -245,7 +255,7 @@ exports.memoryTools = {
                 includeRecent: { type: 'boolean', default: true },
                 includeOpenLoops: { type: 'boolean', default: true },
             },
-            required: ['namespace', 'query'],
+            required: ['namespace', 'projectKey', 'query'],
         },
     },
     'memory.submitEvidenceCandidate': {
@@ -301,6 +311,11 @@ exports.memoryTools = {
                     enum: ['real_life', 'au'],
                     description: 'Exact Pandora Memory namespace',
                 },
+                projectKey: {
+                    type: 'string',
+                    pattern: '^[a-z0-9][a-z0-9._-]{1,95}$',
+                    description: 'Exact Pandora Memory project key',
+                },
                 query: {
                     type: 'string',
                     minLength: 1,
@@ -326,7 +341,7 @@ exports.memoryTools = {
                     description: 'Disclose unreviewed drafts for reviewer inspection. Drafts are never canonical',
                 },
             },
-            required: ['namespace', 'query'],
+            required: ['namespace', 'projectKey', 'query'],
         },
     },
 };

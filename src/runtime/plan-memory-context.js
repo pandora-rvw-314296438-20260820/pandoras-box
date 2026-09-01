@@ -20,6 +20,8 @@ const SAFE_IDENTIFIER_KEYS = new Set([
     'repo',
     'repository',
     'repository_full_name',
+    'projectKey',
+    'project_key',
     'projectId',
     'project_id',
     'projectRef',
@@ -171,6 +173,10 @@ class PandoraPlanMemoryContextProvider {
         const query = contextQuery(input.tool, identifiers);
         const queryHash = sha256(query);
         const now = this.now();
+        const projectKey = boundedText(input.args?.projectKey ?? input.args?.project_key, MAX_IDENTIFIER_LENGTH);
+        if (!projectKey) {
+            return createUnavailablePlanMemoryContext(input, new memory_js_1.PandoraMemoryError('Explicit Pandora Memory project identity is required', 400), now);
+        }
         try {
             const memory = new memory_js_1.PandoraMemoryMCPServer({
                 baseUrl: this.baseUrl,
@@ -182,6 +188,7 @@ class PandoraPlanMemoryContextProvider {
             }, this.fetchFn);
             const search = await memory.search({
                 namespace: 'real_life',
+                projectKey,
                 query,
                 currentTask: `Prepare a durable ProjectOS plan for ${input.tool}`,
                 maxItems: 6,

@@ -16,6 +16,7 @@ const memory_js_1 = require("./tools/memory.js");
 const canonical_status_provider_js_1 = require("./projectos/canonical-status-provider.js");
 const worker_plan_context_provider_js_1 = require("./projectos/worker-plan-context-provider.js");
 const CANONICAL_MEMORY_ORIGIN = 'https://pandorasbox-memory.vercel.app';
+const CANONICAL_MEMORY_PROJECT_KEY = 'mcpmaster-pandoras-box';
 const MEMORY_HEALTH_TTL_MS = 5 * 60 * 1000;
 const MEMORY_DEGRADED_TTL_MS = 30 * 1000;
 function runtimePort(environment) {
@@ -69,6 +70,7 @@ function createCanonicalMemoryHealthProbe(environment = process.env, fetchFn = g
                 const health = await memory.health();
                 const search = await memory.search({
                     namespace: 'real_life',
+                    projectKey: CANONICAL_MEMORY_PROJECT_KEY,
                     query: 'Pandoras-Box canonical runtime connectivity proof',
                     currentTask: 'Verify the canonical container workload identity and bounded Memory retrieval',
                     maxItems: 1,
