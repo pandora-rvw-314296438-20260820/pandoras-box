@@ -25,6 +25,9 @@ function toWorkerDBuildExecutionRequest(executionRequest, trusted) {
   if (credentialLeaseRefs.length > 0 && trusted.credential_lease_store_durability !== "durable") throw new PandoraToolError("policy_denied", "WORKER_D_DURABLE_CREDENTIAL_LEASE_REQUIRED", "Cross-worker credential lease references require durable lease state");
   if (credentialLeaseRefs.some((ref) => typeof ref !== "string" || !ref.trim())) throw new PandoraToolError("invalid_request", "WORKER_D_CREDENTIAL_LEASE_REF_INVALID", "Credential lease reference is invalid");
   const idempotencyKey = executionRequest.arguments.idempotency_key;
+  const argumentsForWorker = structuredClone(executionRequest.arguments);
+  delete argumentsForWorker.change_impact;
+  if (trusted.change_impact != null) argumentsForWorker.change_impact = structuredClone(trusted.change_impact);
   const request = Object.freeze({
     schemaVersion: 1,
     executionId: trusted.execution_id,
@@ -43,7 +46,7 @@ function toWorkerDBuildExecutionRequest(executionRequest, trusted) {
     idempotencyKey,
     attempt: trusted.attempt || 1,
     cancellationRef: trusted.cancellation_ref || null,
-    arguments: structuredClone(executionRequest.arguments),
+    arguments: argumentsForWorker,
   });
   const gatewayAuthorization = Object.freeze({
     version: 1,
