@@ -17,6 +17,10 @@ const conversation = fs.readFileSync(
   path.join(process.cwd(), "apps/pandora-mobile/lib/features/simple/project_build_conversation.dart"),
   "utf8",
 );
+const compiler = fs.readFileSync(
+  path.join(process.cwd(), "supabase/functions/pandora-project-spec-compiler/index.ts"),
+  "utf8",
+);
 
 test("professional plan is grounded in the compiled ProjectSpec projection", () => {
   assert.match(plan, /understanding\.intentSummary/);
@@ -46,4 +50,13 @@ test("the proposal is shown before build and preserved in conversation history",
   assert.doesNotMatch(createUi, /requirements\.take\(4\)/);
   assert.match(conversation, /PandoraProfessionalBuildPlan\([\s\S]*understanding: widget\.understanding,[\s\S]*showDeliveryPromise: false/);
   assert.doesNotMatch(conversation, /class _PandoraProposal extends StatelessWidget/);
+});
+
+
+test("Gemini is instructed to make the plan specific and commercially compelling without invented claims", () => {
+  assert.match(compiler, /polished product proposal/);
+  assert.match(compiler, /commercially aware/);
+  assert.match(compiler, /tangible capabilities and customer-visible experiences/);
+  assert.match(compiler, /Make the proposal feel considered and desirable/);
+  assert.match(compiler, /guaranteed outcomes, or unsupported claims/);
 });
