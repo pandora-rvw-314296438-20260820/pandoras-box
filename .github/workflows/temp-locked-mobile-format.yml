@@ -1,0 +1,54 @@
+name: Exact locked mobile formatter
+
+on:
+  push:
+    branches:
+      - feature/professional-build-plan-20260901
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: feature/professional-build-plan-20260901
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Reproduce the release-gate package context exactly
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .pandora-mobile-build
+          mkdir .pandora-mobile-build
+          cd .pandora-mobile-build
+          flutter create --platforms=android,web --org com.banataosystems --project-name pandora_mobile .
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R ../apps/pandora-mobile/lib ./lib
+          cp -R ../apps/pandora-mobile/test ./test
+          cp -R ../apps/pandora-mobile/assets ./assets
+          cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
+          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+          dart format lib test
+          cd ..
+          rm -rf apps/pandora-mobile/lib apps/pandora-mobile/test
+          cp -R .pandora-mobile-build/lib apps/pandora-mobile/lib
+          cp -R .pandora-mobile-build/test apps/pandora-mobile/test
+          if git diff --quiet --exit-code -- apps/pandora-mobile/lib apps/pandora-mobile/test; then
+            echo 'No canonical formatter changes required.'
+            exit 0
+          fi
+          git config user.name 'pandora-rvw-314296438-20260820'
+          git config user.email 'plpboracay@gmail.com'
+          git add apps/pandora-mobile/lib apps/pandora-mobile/test
+          git commit -m 'style(mobile): match locked release-gate formatter'
+          git push origin HEAD:feature/professional-build-plan-20260901
