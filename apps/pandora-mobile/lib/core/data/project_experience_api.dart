@@ -412,6 +412,11 @@ class ProjectExperienceApi {
     var reconciling = false;
     var reconnectAttempt = 0;
 
+    Future<void> cancelLiveSubscription() async {
+      await subscription?.cancel();
+      subscription = null;
+    }
+
     Future<void> persistCursor() async {
       final sequence = reconciler.latestSequence;
       if (sequence < 1) return;
@@ -528,12 +533,13 @@ class ProjectExperienceApi {
       subscribe();
       unawaited(reconcile());
     };
-    controller.onCancel = () {
+    controller.onCancel = () async {
       closed = true;
       retryTimer?.cancel();
-      final current = subscription;
-      subscription = null;
-      if (current != null) unawaited(current.cancel());
+      await cancelLiveSubscription();
+      if (!controller.isClosed) {
+        await controller.close();
+      }
     };
     return controller.stream;
   }
