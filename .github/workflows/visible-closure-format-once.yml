@@ -25,10 +25,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dart format \n            apps/pandora-mobile/lib/core/models/project_source_models.dart \n            apps/pandora-mobile/lib/features/simple/project_history_screen.dart \n            apps/pandora-mobile/lib/features/simple/project_source_files_screen.dart
+          dart format apps/pandora-mobile/lib/core/models/project_source_models.dart apps/pandora-mobile/lib/features/simple/project_history_screen.dart apps/pandora-mobile/lib/features/simple/project_source_files_screen.dart
           rm .github/workflows/visible-closure-format-once.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add apps/pandora-mobile/lib/core/models/project_source_models.dart \n                  apps/pandora-mobile/lib/features/simple/project_history_screen.dart \n                  apps/pandora-mobile/lib/features/simple/project_source_files_screen.dart \n                  .github/workflows/visible-closure-format-once.yml
+          git add apps/pandora-mobile/lib/core/models/project_source_models.dart apps/pandora-mobile/lib/features/simple/project_history_screen.dart apps/pandora-mobile/lib/features/simple/project_source_files_screen.dart .github/workflows/visible-closure-format-once.yml
           git commit -m "style(mobile): canonical format visible closure files"
           git push origin HEAD:visible/closure-current-main-20260902
