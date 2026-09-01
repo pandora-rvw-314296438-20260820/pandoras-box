@@ -156,7 +156,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260902004500_pandora_change_impact_assessment_v1.sql',
     '20260902013000_pandora_source_entitlements_v1.sql',
     '20260902023000_pandora_database_change_tool_gateway_binding_v1.sql',
-    '20260902024500_pandora_intelligence_thread_routing_state_v1.sql',
+    '20260901183204_pandora_intelligence_thread_routing_state_v1.sql',
     '20260901202428_chat_c_kimi_runtime_provider_config_v1.sql',
     '20260901202441_chat_c_edge_runtime_convergence_v1.sql'
   ]);
@@ -321,7 +321,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260902004500_pandora_change_impact_assessment_v1.sql',
     '20260902013000_pandora_source_entitlements_v1.sql',
     '20260902023000_pandora_database_change_tool_gateway_binding_v1.sql',
-    '20260902024500_pandora_intelligence_thread_routing_state_v1.sql',
+    '20260901183204_pandora_intelligence_thread_routing_state_v1.sql',
     '20260901202428_chat_c_kimi_runtime_provider_config_v1.sql',
     '20260901202441_chat_c_edge_runtime_convergence_v1.sql'
   ]);
@@ -438,7 +438,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260902004500_pandora_change_impact_assessment_v1.sql',
     '20260902013000_pandora_source_entitlements_v1.sql',
     '20260902023000_pandora_database_change_tool_gateway_binding_v1.sql',
-    '20260902024500_pandora_intelligence_thread_routing_state_v1.sql',
+    '20260901183204_pandora_intelligence_thread_routing_state_v1.sql',
     '20260901202428_chat_c_kimi_runtime_provider_config_v1.sql',
     '20260901202441_chat_c_edge_runtime_convergence_v1.sql'
   ]);
