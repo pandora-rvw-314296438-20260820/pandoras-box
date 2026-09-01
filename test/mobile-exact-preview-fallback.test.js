@@ -17,7 +17,7 @@ test("mobile preview content is authenticated and bound to exact artifact lineag
   assert.match(edge, /SUPABASE_ANON_KEY/);
   assert.match(edge, /userClient\.auth\.getUser\(\)/);
   assert.match(edge, /\.from\("memberships"\)/);
-  assert.match(edge, /\.in\("role", \["owner", "admin"\]\)/);
+  assert.match(edge, /\.in\("role",\s*\["owner",\s*"admin"\]\)/);
   assert.match(edge, /root_artifact_version_id/);
   assert.match(edge, /artifact_digest_sha256/);
   assert.match(edge, /sha256Hex\(bundleBytes\)/);
