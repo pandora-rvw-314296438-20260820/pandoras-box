@@ -158,7 +158,12 @@ function modelRequest(intent: JsonRecord, project: JsonRecord) {
     "acceptance.functional must contain at least one observable criterion.",
     "metadata.projectName must be a concise owner-facing name, ideally 2-6 words and no more than 60 characters. Name the thing being built; do not repeat the raw request or start with verbs such as Build, Create, Make, Design, or Develop.",
     "metadata.intentSummary must be one concise owner-readable sentence, no more than 240 characters, stating what Pandora will build without implementation jargon.",
-    "Do not invent measured business results, credentials, provider secrets, or deployed URLs.",
+    "Do not invent measured business results, credentials, provider secrets, deployed URLs, guaranteed outcomes, or unsupported claims.",
+    "Write the ProjectSpec so its owner-facing fields can double as a polished product proposal. Be concrete, commercially aware, and specific to this customer's domain without sounding like generic AI copy.",
+    "business.objective should express the core product outcome in plain language. business.expectedOutcome, when used, should explain why the product is worth having without inventing metrics.",
+    "product.features, product.workflows, product.screens, and product.userStories should describe tangible capabilities and customer-visible experiences rather than implementation tasks. Prefer 4-8 strong, non-duplicative items when the intent supports them.",
+    "acceptance.business should state believable owner-visible success conditions. acceptance.functional should state observable working-product behavior.",
+    "Make the proposal feel considered and desirable: emphasize control, convenience, clarity, speed, reduced friction, direct customer experience, or other benefits only when they genuinely follow from the request.",
     "Prefer owner-readable requirements and infer technical details only when needed to satisfy the stated result."
   ].join(" ");
   const prompt = `Project name: ${text(project.name).slice(0, 300)}\nRequested project kind: ${kind.slice(0, 80)}\nCustomer intent:\n${text(intent.intent_text).slice(0, 50000)}`;

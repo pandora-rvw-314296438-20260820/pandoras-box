@@ -46,9 +46,9 @@ test("understanding screen does not render the raw long intent", () => {
   const understandingSource = createUi.slice(understandingStart);
   assert.doesNotMatch(understandingSource, /intentText/);
   assert.doesNotMatch(understandingSource, /widget\.intentText/);
-  assert.match(understandingSource, /Here’s what Pandora will build\./);
-  assert.match(understandingSource, /requirements\.take\(4\)/);
-  assert.match(understandingSource, /intentSummary/);
+  assert.match(understandingSource, /PandoraProfessionalBuildPlan\(understanding: u!\)/);
+  assert.match(understandingSource, /Ready to see it become real\?/);
+  assert.match(understandingSource, /starts writing the real code immediately/);
 });
 
 test("owner can rename the display project later without provider churn", () => {
