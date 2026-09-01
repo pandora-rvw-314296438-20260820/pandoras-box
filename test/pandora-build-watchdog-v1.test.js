@@ -5,7 +5,7 @@ const test = require('node:test');
 
 const root = join(__dirname, '..');
 const migration = readFileSync(
-  join(root, 'supabase/migrations/20260901153000_pandora_build_watchdog_v1.sql'),
+  join(root, 'supabase/migrations/20260901094550_pandora_build_watchdog_v1.sql'),
   'utf8',
 );
 
