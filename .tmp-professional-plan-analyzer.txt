@@ -1,4 +1,4 @@
 Analyzing .pandora-mobile-build...                              
-No issues found! (ran in 10.4s)
+No issues found! (ran in 7.0s)
 
 analyzer_exit=0
