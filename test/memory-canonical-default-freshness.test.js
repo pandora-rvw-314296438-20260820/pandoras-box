@@ -40,7 +40,7 @@ test('canonicalContext defaults to a 24-hour fail-closed freshness gate', async 
   const stale = new Date(Date.now() - (2 * 24 * 60 * 60 * 1000)).toISOString();
   const result = await executeMemoryTool(
     'memory.canonicalContext',
-    { namespace: 'real_life', query: 'current state' },
+    { namespace: 'real_life', projectKey: 'mcpmaster-pandoras-box', query: 'current state' },
     CONFIG,
     async () => responseFor(stale),
   );
@@ -54,7 +54,7 @@ test('explicit wider freshness window still works and remains query-scoped', asy
   const recentEnough = new Date(Date.now() - (2 * 24 * 60 * 60 * 1000)).toISOString();
   const result = await executeMemoryTool(
     'memory.canonicalContext',
-    { namespace: 'real_life', query: 'current state', maxAgeMs: 7 * 24 * 60 * 60 * 1000 },
+    { namespace: 'real_life', projectKey: 'mcpmaster-pandoras-box', query: 'current state', maxAgeMs: 7 * 24 * 60 * 60 * 1000 },
     CONFIG,
     async () => responseFor(recentEnough),
   );
@@ -66,7 +66,7 @@ test('explicit wider freshness window still works and remains query-scoped', asy
 test('approved canonical records without a usable timestamp fail closed', async () => {
   const result = await executeMemoryTool(
     'memory.canonicalContext',
-    { namespace: 'real_life', query: 'current state' },
+    { namespace: 'real_life', projectKey: 'mcpmaster-pandoras-box', query: 'current state' },
     CONFIG,
     async () => responseFor(null),
   );

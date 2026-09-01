@@ -776,6 +776,7 @@ async function readMemoryStatus({ env, fetchFn }) {
     memory.health(),
     memory.canonicalContext({
       namespace: "real_life",
+      projectKey: "mcpmaster-pandoras-box",
       query: "Pandoras-box current source status deployment rollback blockers and next action",
       currentTask: "Generate the canonical status pack",
       maxItems: 25,
