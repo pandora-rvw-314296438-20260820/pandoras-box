@@ -323,28 +323,37 @@ class _ProjectUnderstandingScreenState
                 const PandoraV2Skeleton(height: 156),
               ] else ...[
                 const Text(
-                  'Here’s what Pandora will build.',
-                  style: TextStyle(color: PandoraV2Colors.muted, fontSize: 16),
+                  'Pandora has turned your intent into a build-ready product proposal.',
+                  style: TextStyle(
+                    color: PandoraV2Colors.muted,
+                    fontSize: 16,
+                    height: 1.35,
+                  ),
                 ),
-                const SizedBox(height: 10),
-                if (intentSummary != null)
-                  Text(
-                    intentSummary,
-                    style: const TextStyle(
-                      color: PandoraV2Colors.ink,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -.45,
-                      height: 1.14,
-                    ),
+                const SizedBox(height: 18),
+                PandoraProfessionalBuildPlan(understanding: u!),
+                const SizedBox(height: 22),
+                const Text(
+                  'Ready to see it become real?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: PandoraV2Colors.ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.2,
                   ),
-                const SizedBox(height: 24),
-                if (plan.isNotEmpty)
-                  PandoraV2InlineMessage(
-                    title: 'Build plan',
-                    message: plan.join('\n'),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Pandora starts writing the real code immediately. You’ll review the working result before anything goes live.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: PandoraV2Colors.muted,
+                    fontSize: 13.5,
+                    height: 1.35,
                   ),
-                const SizedBox(height: 28),
+                ),
+                const SizedBox(height: 16),
                 PandoraV2PrimaryAction(
                   label: 'Build it',
                   loading: _building,
