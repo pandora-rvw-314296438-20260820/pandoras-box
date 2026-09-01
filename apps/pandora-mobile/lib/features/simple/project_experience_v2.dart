@@ -10,6 +10,7 @@ import '../../core/models/project_candidate_safety.dart';
 import '../../core/models/project_experience_projection.dart';
 import '../../core/models/project_focus_token.dart';
 import '../../core/models/project_journey_models.dart';
+import '../../core/models/project_preview_identity.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/platform/pandora_preview_host.dart';
 import 'pandora_v2_ui.dart';
@@ -34,27 +35,34 @@ Future<List<Map<String, Object?>>> _loadExactPreviewFiles(
   );
 }
 
-String? _previewArtifactDigest(
+ProjectPreviewIdentity? _previewIdentity(
   List<Map<String, Object?>>? files, {
   required String projectId,
   required String versionId,
 }) {
   if (files == null || files.isEmpty) return null;
-  String normalized(Object? value) =>
-      (value as String? ?? '').trim().toLowerCase();
-  final expectedProject = projectId.trim().toLowerCase();
-  final expectedVersion = versionId.trim().toLowerCase();
-  final digest = normalized(files.first['artifactDigest']);
-  if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(digest)) return null;
-  for (final file in files) {
-    if (normalized(file['artifactDigest']) != digest ||
-        normalized(file['previewProjectId']) != expectedProject ||
-        normalized(file['previewVersionId']) != expectedVersion) {
+  try {
+    final identity = ProjectPreviewIdentity.fromExactPreviewFiles(files);
+    if (identity.projectId != projectId.trim().toLowerCase() ||
+        identity.versionId != versionId.trim().toLowerCase()) {
       return null;
     }
+    return identity;
+  } on FormatException {
+    return null;
   }
-  return digest;
 }
+
+String? _previewArtifactDigest(
+  List<Map<String, Object?>>? files, {
+  required String projectId,
+  required String versionId,
+}) =>
+    _previewIdentity(
+      files,
+      projectId: projectId,
+      versionId: versionId,
+    )?.artifactDigest;
 
 class ProjectBuildExperienceV2Screen extends StatefulWidget {
   const ProjectBuildExperienceV2Screen({
@@ -138,7 +146,12 @@ class _ProjectBuildExperienceV2ScreenState
     if (candidate == null) return false;
     return _previewUrl != null ||
         (_localPreviewVersionId == candidate.versionId &&
-            _localPreviewFiles != null);
+            _previewIdentity(
+                  _localPreviewFiles,
+                  projectId: widget.project.id,
+                  versionId: candidate.versionId,
+                ) !=
+                null);
   }
 
   void _enterWorkspaceIfReady() {
@@ -779,7 +792,13 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       }
       if (!mounted) return;
 
-      final exactPreviewReady = files != null && files.isNotEmpty;
+      final exactPreviewReady = targetVersionId != null &&
+          _previewIdentity(
+                files,
+                projectId: widget.project.id,
+                versionId: targetVersionId,
+              ) !=
+              null;
       final commitVisible = targetVersionId != null &&
           safety.canCommitVisibleVersion(
             versionId: targetVersionId,
@@ -1133,9 +1152,14 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
 
     if (!mounted) return;
-    if (files == null || files.isEmpty) {
+    final previewIdentity = _previewIdentity(
+      files,
+      projectId: widget.project.id,
+      versionId: versionId,
+    );
+    if (previewIdentity == null) {
       throw const ProjectExperienceException(
-        'Pandora verified the new version, but its exact preview is still preparing. Your current version is unchanged.',
+        'Pandora verified the new version, but its exact preview identity is still preparing. Your current version is unchanged.',
       );
     }
     if (!transitionSafety.canCommitVisibleVersion(
