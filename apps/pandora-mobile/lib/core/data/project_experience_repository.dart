@@ -49,6 +49,11 @@ abstract interface class ProjectExperienceRepository {
     required String streamId,
   });
 
+  Stream<ProjectBuildStreamSnapshot> watchResilientBuildStream({
+    required String projectId,
+    required String streamId,
+  });
+
   Future<List<Map<String, Object?>>> loadExactPreviewFiles({
     required String projectId,
     required String versionId,
@@ -182,6 +187,16 @@ class CompositeProjectExperienceRepository
     required String streamId,
   }) =>
       _mutations.watchBuildStream(projectId: projectId, streamId: streamId);
+
+  @override
+  Stream<ProjectBuildStreamSnapshot> watchResilientBuildStream({
+    required String projectId,
+    required String streamId,
+  }) =>
+      _mutations.watchResilientBuildStream(
+        projectId: projectId,
+        streamId: streamId,
+      );
 
   @override
   Future<List<Map<String, Object?>>> loadExactPreviewFiles({
