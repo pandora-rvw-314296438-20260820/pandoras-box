@@ -492,7 +492,8 @@ class _BuildConversationView {
           break;
         case 'test_completed':
           final failedCount = event.safePayload['failed'];
-          record(failedCount == 0 ? '✓ Checks completed' : 'Checks need repair');
+          record(
+              failedCount == 0 ? '✓ Checks completed' : 'Checks need repair');
           break;
         case 'repair_started':
           record('Repairing build issues');
