@@ -13,7 +13,9 @@ const KIMI_MODEL_CONFIG = Object.freeze({
   modelId: KIMI_DEFAULT_MODEL_ID,
   apiBaseUrl: KIMI_API_BASE_URL,
   maxContextTokens: 1048576,
-  defaultMaxCompletionTokens: 131072,
+  providerDefaultMaxCompletionTokens: 131072,
+  transportDefaultMaxCompletionTokens: 8192,
+  transportMaxCompletionTokens: 16384,
   reasoningAlwaysOn: true,
 });
 const KIMI_K3_CAPABILITY_DECLARATION = Object.freeze({
@@ -43,8 +45,11 @@ const KIMI_K3_CAPABILITY_DECLARATION = Object.freeze({
     reasoningAlwaysOn: true,
     reasoningEfforts: KIMI_REASONING_EFFORTS,
     defaultReasoningEffort: 'max',
-    defaultMaxCompletionTokens: 131072,
-    supportsStreaming: true,
+    providerDefaultMaxCompletionTokens: 131072,
+    transportDefaultMaxCompletionTokens: 8192,
+    transportMaxCompletionTokens: 16384,
+    supportsStreaming: false,
+    providerSupportsStreaming: true,
     supportsImages: true,
     supportsVideo: true,
     preservesAssistantReasoningForContinuity: true,
@@ -89,13 +94,12 @@ function buildKimiBody(request) {
 
   /** @type {Record<string, unknown>} */
   const body = {
-    model: KIMI_DEFAULT_MODEL_ID,
     messages,
     reasoning_effort: mapKimiReasoningEffort(request),
     stream: false,
   };
   if (Number.isInteger(budget.maxOutputTokens) && Number(budget.maxOutputTokens) > 0) {
-    if (Number(budget.maxOutputTokens) > KIMI_MODEL_CONFIG.maxContextTokens) throw unsupported('budget.maxOutputTokens exceeds Kimi K3 context capacity');
+    if (Number(budget.maxOutputTokens) > KIMI_MODEL_CONFIG.transportMaxCompletionTokens) throw invalidRequest('budget.maxOutputTokens exceeds the current trusted Kimi transport limit', 'transport_output_limit');
     body.max_completion_tokens = Number(budget.maxOutputTokens);
   }
 
@@ -209,6 +213,22 @@ function normalizeKimiHttpResponse(response) {
   const status = Number(record.status ?? 0);
   const body = isRecord(record.body) ? /** @type {Record<string, unknown>} */ (record.body) : null;
   if (status >= 200 && status < 300 && body) return body;
+
+  const safeError = isRecord(record.error) ? /** @type {Record<string, unknown>} */ (record.error) : null;
+  if (safeError) {
+    const kind = typeof safeError.kind === 'string' && safeError.kind ? safeError.kind : 'provider_rejected';
+    const retryable = typeof safeError.retryable === 'boolean' ? safeError.retryable : false;
+    const retryAfterMs = Number.isInteger(safeError.retryAfterMs) && Number(safeError.retryAfterMs) > 0 ? Number(safeError.retryAfterMs) : null;
+    if (kind === 'authorization' || kind === 'authentication') throw providerFailure('authentication_failed', false, 'Kimi provider authentication or authorization failed', kind, retryAfterMs);
+    if (kind === 'rate_limit' || kind === 'quota_exhausted') throw providerFailure('rate_limited', retryable, 'Kimi provider rate limit or quota was reached', kind, retryAfterMs);
+    if (kind === 'timeout') throw providerFailure('timeout', retryable, 'Kimi provider request timed out', kind, retryAfterMs);
+    if (kind === 'transport_unavailable' || kind === 'provider_unavailable') throw providerFailure('provider_unavailable', retryable, 'Kimi provider is temporarily unavailable', kind, retryAfterMs);
+    if (kind === 'not_found') throw providerFailure('unsupported_capability', retryable, 'Kimi model is unavailable for this account or endpoint', kind, retryAfterMs);
+    if (kind === 'invalid_request') throw providerFailure('invalid_request', retryable, 'Kimi rejected the provider request', kind, retryAfterMs);
+    if (kind === 'context_too_large') throw providerFailure('context_too_large', retryable, 'Kimi request exceeds the model context limit', kind, retryAfterMs);
+    throw providerFailure('provider_error', retryable, 'Kimi trusted transport rejected the provider response', kind, retryAfterMs);
+  }
+
   const errorBody = body && isRecord(body.error) ? /** @type {Record<string, unknown>} */ (body.error) : {};
   const type = typeof errorBody.type === 'string' ? errorBody.type : '';
   const message = typeof errorBody.message === 'string' ? errorBody.message : '';
@@ -392,6 +412,8 @@ function matchesJsonType(value, type) {
 
 /** @param {string} message */
 function unsupported(message) { return providerFailure('unsupported_capability', false, message, 'unsupported_capability'); }
+/** @param {string} message @param {string} kind */
+function invalidRequest(message, kind = 'invalid_request') { return providerFailure('invalid_request', false, message, kind); }
 /** @param {string} code @param {boolean} retryable @param {string} message @param {string} kind @param {number|null} retryAfterMs */
 function providerFailure(code, retryable, message, kind, retryAfterMs = null) { return Object.assign(new Error(message), { code, retryable, retryAfterMs, safeDetails: { kind } }); }
 
@@ -410,7 +432,6 @@ class KimiProviderAdapter {
     const requestId = requiredText(request.requestId, 'requestId');
     try {
       const body = buildKimiBody(request);
-      body.model = model;
       const response = await this.transport.createChatCompletion({ model, requestId, body });
       const normalizedBody = normalizeKimiHttpResponse(response);
       return normalizeKimiResponse(normalizedBody, request, model);
