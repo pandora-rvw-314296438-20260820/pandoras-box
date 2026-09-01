@@ -341,7 +341,9 @@ class _PublishReceiptCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final versionNumber = receipt['versionNumber'];
-    final versionLabel = versionNumber == null ? 'Verified version' : 'Version $versionNumber';
+    final versionLabel = versionNumber == null
+        ? 'Verified version'
+        : 'Version $versionNumber';
     final verification = _short('verificationRunId');
     final deployment = _short('deploymentId');
     final publishedAt = _text('publishedAt');
@@ -358,7 +360,11 @@ class _PublishReceiptCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.verified_rounded, size: 18, color: PandoraV2Colors.success),
+              const Icon(
+                Icons.verified_rounded,
+                size: 18,
+                color: PandoraV2Colors.success,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
