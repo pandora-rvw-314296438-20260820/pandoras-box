@@ -14,6 +14,8 @@ import '../../core/platform/pandora_native_io.dart';
 import '../../core/platform/pandora_preview_host.dart';
 import 'pandora_v2_ui.dart';
 import 'project_exact_source_diff.dart';
+import 'project_history_screen.dart';
+import 'project_source_files_screen.dart';
 import 'project_workspace_v2_view.dart';
 
 String? _safeHttps(String? value) {
@@ -1271,6 +1273,15 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
   }
 
+  String? get _sourceVersionId {
+    final preview = _previewVersionId?.trim();
+    if (preview != null && preview.isNotEmpty) return preview;
+    final production = _projection?.productionVersionId?.trim();
+    if (production != null && production.isNotEmpty) return production;
+    final candidate = _projection?.candidateVersionId?.trim();
+    return candidate == null || candidate.isEmpty ? null : candidate;
+  }
+
   Future<void> _showProjectActions() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -1310,6 +1321,40 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
                   unawaited(_openExactPreview());
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.history_rounded),
+                title: const Text('History'),
+                subtitle: const Text('Requests, builds, previews and releases'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ProjectHistoryScreen(
+                        project: _snapshot?.project ?? widget.project,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              if (_sourceVersionId != null)
+                ListTile(
+                  leading: const Icon(Icons.folder_open_rounded),
+                  title: const Text('Files'),
+                  subtitle: const Text('Available with source access'),
+                  onTap: () {
+                    final versionId = _sourceVersionId;
+                    Navigator.of(sheetContext).pop();
+                    if (versionId == null) return;
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ProjectSourceFilesScreen(
+                          project: _snapshot?.project ?? widget.project,
+                          versionId: versionId,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               if (_canPublish)
                 ListTile(
                   leading: const Icon(Icons.public_rounded),
