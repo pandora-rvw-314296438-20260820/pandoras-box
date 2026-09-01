@@ -14,6 +14,8 @@ test('Ask Pandora wires Kimi only through the trusted service RPC and preserves 
   assert.match(edge,/pandora_runtime_provider_configs/);
   assert.doesNotMatch(edge,/api\.moonshot\.ai|moonshot_api_key|kimi_api_key/i);
   assert.match(edge,/stream:false/);
+  assert.match(edge,/req\\.signal\\.aborted/);
+  assert.match(edge,/REQUEST_CANCELLED/);
   assert.match(routing,/\('kimi','stream_mode','buffered_v1'/);
 });
 
