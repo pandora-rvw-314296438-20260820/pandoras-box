@@ -122,8 +122,23 @@ begin
   elsif new.current_stage = 'verifying' or new.status = 'waiting_verification' then
     v_event_type := 'verification';
   end if;
-  if tg_op = 'INSERT'
-     or new.status is distinct from old.status
+  if tg_op = 'INSERT' then
+    insert into public.pandora_build_stream_events(
+      stream_id, organization_id, project_id, build_job_id, event_type, safe_payload
+    ) values (
+      v_stream_id, new.organization_id, new.project_id, new.id, v_event_type,
+      jsonb_build_object('status', new.status, 'stage', new.current_stage)
+    );
+    update public.pandora_build_stream_sessions
+      set status = case
+        when new.status = 'failed' then 'failed'
+        when new.status = 'cancelled' then 'cancelled'
+        when new.status = 'succeeded' and new.current_stage = 'preview_ready' then 'completed'
+        else 'building'
+      end,
+      updated_at = now()
+    where id = v_stream_id;
+  elsif new.status is distinct from old.status
      or new.current_stage is distinct from old.current_stage then
     insert into public.pandora_build_stream_events(
       stream_id, organization_id, project_id, build_job_id, event_type, safe_payload
@@ -160,8 +175,19 @@ begin
   order by s.created_at desc
   limit 1;
   if v_stream.id is null then return new; end if;
-  if tg_op = 'INSERT'
-     or new.status is distinct from old.status
+  if tg_op = 'INSERT' then
+    insert into public.pandora_build_stream_events(
+      stream_id, organization_id, project_id, build_job_id, event_type, safe_payload
+    ) values (
+      v_stream.id, new.organization_id, new.project_id, new.build_job_id, 'build_step',
+      jsonb_strip_nulls(jsonb_build_object(
+        'stepKey', new.step_key,
+        'stepKind', new.step_kind,
+        'status', new.status,
+        'error', new.public_error_summary
+      ))
+    );
+  elsif new.status is distinct from old.status
      or new.started_at is distinct from old.started_at
      or new.completed_at is distinct from old.completed_at then
     insert into public.pandora_build_stream_events(
