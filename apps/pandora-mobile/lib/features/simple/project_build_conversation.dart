@@ -107,11 +107,26 @@ class _ProjectBuildConversationScreenState
                           final events = snapshot.data ??
                               const <ProjectBuildStreamEvent>[];
                           final view = _BuildConversationView.from(events);
-                          return _LiveBuildMessage(
-                            view: view,
-                            onOpenProject: view.previewReady
-                                ? _openProject
-                                : null,
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _LiveBuildMessage(
+                                view: view,
+                                onOpenProject:
+                                    view.previewReady ? _openProject : null,
+                              ),
+                              if (snapshot.hasError) ...[
+                                const SizedBox(height: 10),
+                                const Text(
+                                  'Live code view disconnected. The durable build record will resync when the connection returns.',
+                                  style: TextStyle(
+                                    color: PandoraV2Colors.muted,
+                                    fontSize: 12.5,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ],
                           );
                         },
                       ),
@@ -345,7 +360,7 @@ class _LiveBuildMessage extends StatelessWidget {
                     color: PandoraV2Colors.ink,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: SelectableText(
+                  child: Text(
                     view.visibleCode.isEmpty
                         ? ' '
                         : view.visibleCode,
@@ -415,22 +430,28 @@ class _BuildConversationView {
       switch (event.eventType) {
         case 'stream_started':
           record('Source stream connected');
+          break;
         case 'file_started':
           currentFile = event.filePath;
           code = '';
           if (currentFile != null) record('Writing $currentFile');
+          break;
         case 'code_chunk':
           if (event.filePath == currentFile && event.contentChunk != null) {
             code += event.contentChunk!;
           }
+          break;
         case 'file_completed':
           completedFiles += 1;
           if (event.filePath != null) record('✓ ${event.filePath} saved');
+          break;
         case 'generation_completed':
           final count = event.safePayload['fileCount'] ?? completedFiles;
           record('✓ $count source files generated');
+          break;
         case 'build_job_created':
           record('Source handed to the builder');
+          break;
         case 'build_step':
           final kind = event.safePayload['stepKind']?.toString() ?? 'build';
           final status = event.safePayload['status']?.toString() ?? '';
@@ -441,32 +462,35 @@ class _BuildConversationView {
             failed = true;
             record('Build step failed · ${_friendlyStep(key, kind)}');
           } else {
-            record('${_friendlyStep(key, kind)}…');
+            record(_friendlyStep(key, kind));
           }
+          break;
         case 'verification':
-          record('Verifying the exact build…');
+          record('Verifying the exact build');
+          break;
         case 'preview_ready':
           previewReady = true;
           record('✓ Preview ready');
+          break;
         case 'stream_error':
           failed = true;
           final codeValue = event.safePayload['code']?.toString();
           record(codeValue == null
               ? 'Live code stream stopped'
               : 'Live code stream stopped · $codeValue');
+          break;
         case 'job_state':
           final stage = event.safePayload['stage']?.toString();
           if (stage != null && stage.isNotEmpty) record(_friendlyStage(stage));
+          break;
       }
     }
 
     final lines = code.split('\n');
-    final visibleLines = lines.length > 36
-        ? lines.sublist(lines.length - 36)
-        : lines;
-    final recentActivity = activity.length > 7
-        ? activity.sublist(activity.length - 7)
-        : activity;
+    final visibleLines =
+        lines.length > 36 ? lines.sublist(lines.length - 36) : lines;
+    final recentActivity =
+        activity.length > 7 ? activity.sublist(activity.length - 7) : activity;
 
     return _BuildConversationView(
       currentFile: currentFile,
@@ -499,14 +523,14 @@ class _BuildConversationView {
   static String _friendlyStage(String stage) {
     switch (stage.toLowerCase()) {
       case 'building':
-        return 'Compiling application…';
+        return 'Compiling application';
       case 'testing':
       case 'verifying':
-        return 'Running checks…';
+        return 'Running checks';
       case 'repairing':
-        return 'Repairing build issues…';
+        return 'Repairing build issues';
       case 'previewing':
-        return 'Preparing preview…';
+        return 'Preparing preview';
       case 'preview_ready':
         return '✓ Preview ready';
       default:
