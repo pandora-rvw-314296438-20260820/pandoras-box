@@ -76,12 +76,10 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                 );
               }
               final changeReady = items
-                  .where(
-                    (connection) =>
-                        resolveOwnerConnectionState(connection) ==
-                            OwnerConnectionState.verified &&
-                        connection.canChange,
-                  )
+                  .where((connection) =>
+                      resolveOwnerConnectionState(connection) ==
+                          OwnerConnectionState.verified &&
+                      connection.canChange)
                   .length;
               final needsAttention = items.where((connection) {
                 final state = resolveOwnerConnectionState(connection);
@@ -90,11 +88,9 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                     state == OwnerConnectionState.capabilityUnverified;
               }).length;
               final healthy = items
-                  .where(
-                    (connection) =>
-                        resolveOwnerConnectionState(connection) ==
-                        OwnerConnectionState.verified,
-                  )
+                  .where((connection) =>
+                      resolveOwnerConnectionState(connection) ==
+                      OwnerConnectionState.verified)
                   .length;
 
               return Column(
