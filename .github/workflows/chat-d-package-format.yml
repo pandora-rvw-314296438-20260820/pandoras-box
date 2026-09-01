@@ -4,49 +4,40 @@ on:
   push:
     branches:
       - chat-d/formatter-workbench-20260901
-    paths:
-      - .github/workflows/chat-d-package-format.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   format:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
-          persist-credentials: false
+          ref: chat-d/visible-code-theatre-foundation-20260901
+          fetch-depth: 0
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           flutter-version: '3.47.0'
           cache: true
       - name: Resolve exact mobile lockfile
         working-directory: apps/pandora-mobile
-        shell: bash
         run: |
-          set -euo pipefail
           cp pubspec.lock pubspec.lock.expected
           flutter pub get --enforce-lockfile
           cmp pubspec.lock.expected pubspec.lock
       - name: Apply package-context Dart formatter
         working-directory: apps/pandora-mobile
-        shell: bash
+        run: dart format lib/features/simple/live_build_theatre test/features/simple/live_build_theatre
+      - name: Commit exact formatter output
         run: |
           set -euo pipefail
-          dart format \
-            lib/features/simple/live_build_theatre/live_build_code_view.dart \
-            lib/features/simple/live_build_theatre/live_build_event.dart \
-            lib/features/simple/live_build_theatre/live_build_file_activity.dart \
-            lib/features/simple/live_build_theatre/live_build_reducer.dart \
-            test/features/simple/live_build_theatre/live_build_code_view_test.dart \
-            test/features/simple/live_build_theatre/live_build_reducer_test.dart
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: chat-d-package-formatted-source
-          path: |
-            apps/pandora-mobile/lib/features/simple/live_build_theatre
-            apps/pandora-mobile/test/features/simple/live_build_theatre
-          if-no-files-found: error
-          retention-days: 1
+          git config user.name "pandora-rvw-314296438-20260820"
+          git config user.email "plpboracay@gmail.com"
+          git add apps/pandora-mobile/lib/features/simple/live_build_theatre apps/pandora-mobile/test/features/simple/live_build_theatre
+          if git diff --cached --quiet; then
+            echo "No formatter changes required."
+            exit 0
+          fi
+          git commit -m "chore(mobile): apply package-context Dart format"
+          git push origin HEAD:chat-d/visible-code-theatre-foundation-20260901
