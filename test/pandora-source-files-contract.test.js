@@ -31,8 +31,9 @@ test('paid source API redacts high-risk secrets and emits a real ZIP envelope fo
   assert.match(source, /0x04034b50/);
   assert.match(source, /0x02014b50/);
   assert.match(source, /0x06054b50/);
-  assert.match(source, /content-type": "application\/zip"/);
+  assert.match(source, /content-type": "application\/octet-stream"/);
   assert.match(source, /x-pandora-source-version/);
+  assert.match(source, /x-pandora-content-type/);
 });
 
 test('paid source API never treats membership or preview access as durable source authority', () => {
