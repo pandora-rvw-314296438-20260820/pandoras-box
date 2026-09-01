@@ -157,8 +157,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260902013000_pandora_source_entitlements_v1.sql',
     '20260902023000_pandora_database_change_tool_gateway_binding_v1.sql',
     '20260902024500_pandora_intelligence_thread_routing_state_v1.sql',
-    '20260902040000_chat_c_kimi_runtime_provider_config_v1.sql',
-    '20260902043000_chat_c_edge_runtime_convergence_v1.sql'
+    '20260901202428_chat_c_kimi_runtime_provider_config_v1.sql',
+    '20260901202441_chat_c_edge_runtime_convergence_v1.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -322,8 +322,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260902013000_pandora_source_entitlements_v1.sql',
     '20260902023000_pandora_database_change_tool_gateway_binding_v1.sql',
     '20260902024500_pandora_intelligence_thread_routing_state_v1.sql',
-    '20260902040000_chat_c_kimi_runtime_provider_config_v1.sql',
-    '20260902043000_chat_c_edge_runtime_convergence_v1.sql'
+    '20260901202428_chat_c_kimi_runtime_provider_config_v1.sql',
+    '20260901202441_chat_c_edge_runtime_convergence_v1.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -439,8 +439,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260902013000_pandora_source_entitlements_v1.sql',
     '20260902023000_pandora_database_change_tool_gateway_binding_v1.sql',
     '20260902024500_pandora_intelligence_thread_routing_state_v1.sql',
-    '20260902040000_chat_c_kimi_runtime_provider_config_v1.sql',
-    '20260902043000_chat_c_edge_runtime_convergence_v1.sql'
+    '20260901202428_chat_c_kimi_runtime_provider_config_v1.sql',
+    '20260901202441_chat_c_edge_runtime_convergence_v1.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
