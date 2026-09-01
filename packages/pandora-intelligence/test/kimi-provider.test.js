@@ -95,6 +95,11 @@ test('Kimi adapter normalizes text, usage, request id, reasoning setting and con
   assert.doesNotMatch(JSON.stringify(captured), /moonshot_api_key|kimi_api_key|authorization|bearer/i);
 });
 
+test('Kimi rejects structured schema constraints it cannot independently validate', () => {
+  const schema = { type: 'object', properties: { name: { type: 'string', minLength: 3 } } };
+  assert.throws(() => kimi.buildKimiBody(request({ outputMode: 'structured', schema })), /unsupported structured schema keyword/);
+});
+
 test('Kimi structured output is parsed and schema-validated; malformed or mismatched output fails', async () => {
   const schema = { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' } }, additionalProperties: false };
   const good = new kimi.KimiProviderAdapter({ transport: { createChatCompletion: async () => ({ status: 200, body: successBody({ choices: [{ message: { role: 'assistant', content: '{"ok":true}' }, finish_reason: 'stop' }] }) }) } });
