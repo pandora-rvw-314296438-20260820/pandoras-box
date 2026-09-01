@@ -254,7 +254,8 @@ Deno.serve(async (req: Request) => {
     return new Response(zip, {
       status: 200,
       headers: {
-        "content-type": "application/octet-stream",\n        "x-pandora-content-type": "application/zip",
+        "content-type": "application/octet-stream",
+        "x-pandora-content-type": "application/zip",
         "content-disposition": `attachment; filename="pandora-${projectId}-${versionId}.zip"`,
         "cache-control": "no-store, max-age=0",
         "x-content-type-options": "nosniff",
