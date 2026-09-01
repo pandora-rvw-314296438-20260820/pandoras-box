@@ -27,7 +27,7 @@ class ProjectBuildConversationScreen extends StatefulWidget {
 
 class _ProjectBuildConversationScreenState
     extends State<ProjectBuildConversationScreen> {
-  Stream<List<ProjectBuildStreamEvent>>? _stream;
+  Stream<ProjectBuildStreamSnapshot>? _stream;
   bool _intentExpanded = false;
 
   @override
@@ -35,7 +35,7 @@ class _ProjectBuildConversationScreenState
     super.didChangeDependencies();
     _stream ??= PandoraDependencies.of(context)
         .projectExperienceRepository
-        ?.watchBuildStream(
+        ?.watchResilientBuildStream(
           projectId: widget.project.id,
           streamId: widget.buildStart.streamId,
         );
@@ -99,13 +99,13 @@ class _ProjectBuildConversationScreenState
                         danger: true,
                       )
                     else
-                      StreamBuilder<List<ProjectBuildStreamEvent>>(
+                      StreamBuilder<ProjectBuildStreamSnapshot>(
                         stream: stream,
-                        initialData: const <ProjectBuildStreamEvent>[],
+                        initialData: const ProjectBuildStreamSnapshot.empty(),
                         builder: (context, snapshot) {
-                          final events = snapshot.data ??
-                              const <ProjectBuildStreamEvent>[];
-                          final view = _BuildConversationView.from(events);
+                          final streamState = snapshot.data ??
+                              const ProjectBuildStreamSnapshot.empty();
+                          final view = _BuildConversationView.from(streamState);
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
