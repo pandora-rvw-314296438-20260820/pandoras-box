@@ -87,9 +87,9 @@ class CompositeProjectExperienceRepository
     required ProjectExperienceProjectionRepository projection,
     required ProjectExperienceApi mutations,
     required ProjectRuntimeApi runtime,
-  })  : _projection = projection,
-        _mutations = mutations,
-        _runtime = runtime;
+  }) : _projection = projection,
+       _mutations = mutations,
+       _runtime = runtime;
 
   final ProjectExperienceProjectionRepository _projection;
   final ProjectExperienceApi _mutations;
@@ -109,13 +109,12 @@ class CompositeProjectExperienceRepository
     required ProjectBuildKind buildKind,
     required String objective,
     String? idempotencyKey,
-  }) =>
-      _runtime.createProject(
-        name: name,
-        buildKind: buildKind,
-        objective: objective,
-        idempotencyKey: idempotencyKey,
-      );
+  }) => _runtime.createProject(
+    name: name,
+    buildKind: buildKind,
+    objective: objective,
+    idempotencyKey: idempotencyKey,
+  );
 
   @override
   Future<String> submitIntent({
@@ -123,66 +122,57 @@ class CompositeProjectExperienceRepository
     required String intentText,
     String intentKind = 'build',
     String? idempotencyKey,
-  }) =>
-      _mutations.submitIntent(
-        projectId: projectId,
-        intentText: intentText,
-        intentKind: intentKind,
-        idempotencyKey: idempotencyKey,
-      );
+  }) => _mutations.submitIntent(
+    projectId: projectId,
+    intentText: intentText,
+    intentKind: intentKind,
+    idempotencyKey: idempotencyKey,
+  );
 
   @override
   Future<String> submitChange({
     required String projectId,
     required String changeText,
     String? idempotencyKey,
-  }) =>
-      _mutations.submitIntent(
-        projectId: projectId,
-        intentText: changeText,
-        intentKind: 'change',
-        idempotencyKey: idempotencyKey,
-      );
+  }) => _mutations.submitIntent(
+    projectId: projectId,
+    intentText: changeText,
+    intentKind: 'change',
+    idempotencyKey: idempotencyKey,
+  );
 
   @override
   Future<OwnerProjectUnderstanding> understanding({
     required String projectId,
     required String expectedSourceIntentId,
-  }) =>
-      _mutations.understanding(
-        projectId: projectId,
-        expectedSourceIntentId: expectedSourceIntentId,
-      );
+  }) => _mutations.understanding(
+    projectId: projectId,
+    expectedSourceIntentId: expectedSourceIntentId,
+  );
 
   @override
   Future<ProjectBuildStart> requestBuild({
     required String projectId,
     required String idempotencyKey,
-  }) =>
-      _mutations.requestBuild(
-        projectId: projectId,
-        idempotencyKey: idempotencyKey,
-      );
+  }) => _mutations.requestBuild(
+    projectId: projectId,
+    idempotencyKey: idempotencyKey,
+  );
 
   @override
   Stream<List<ProjectBuildStreamEvent>> watchBuildStream({
     required String projectId,
     required String streamId,
-  }) =>
-      _mutations.watchBuildStream(
-        projectId: projectId,
-        streamId: streamId,
-      );
+  }) => _mutations.watchBuildStream(projectId: projectId, streamId: streamId);
 
   @override
   Future<List<Map<String, Object?>>> loadExactPreviewFiles({
     required String projectId,
     required String versionId,
-  }) =>
-      _mutations.loadExactPreviewFiles(
-        projectId: projectId,
-        versionId: versionId,
-      );
+  }) => _mutations.loadExactPreviewFiles(
+    projectId: projectId,
+    versionId: versionId,
+  );
 
   @override
   Future<ProjectRuntimeSnapshot> runtime(String projectId) =>
@@ -194,25 +184,23 @@ class CompositeProjectExperienceRepository
     required String versionId,
     required String artifactDigest,
     String? idempotencyKey,
-  }) =>
-      _runtime.createPreview(
-        projectId: projectId,
-        versionId: versionId,
-        artifactDigest: artifactDigest,
-        idempotencyKey: idempotencyKey,
-      );
+  }) => _runtime.createPreview(
+    projectId: projectId,
+    versionId: versionId,
+    artifactDigest: artifactDigest,
+    idempotencyKey: idempotencyKey,
+  );
 
   @override
   Future<ProjectRuntimeSnapshot> undo({
     required String projectId,
     required String versionId,
     String? idempotencyKey,
-  }) =>
-      _runtime.undo(
-        projectId: projectId,
-        versionId: versionId,
-        idempotencyKey: idempotencyKey,
-      );
+  }) => _runtime.undo(
+    projectId: projectId,
+    versionId: versionId,
+    idempotencyKey: idempotencyKey,
+  );
 
   @override
   Future<ProjectPublishResult> publish({
@@ -220,13 +208,12 @@ class CompositeProjectExperienceRepository
     String? versionId,
     String? domain,
     String? idempotencyKey,
-  }) =>
-      _runtime.publish(
-        projectId: projectId,
-        versionId: versionId,
-        domain: domain,
-        idempotencyKey: idempotencyKey,
-      );
+  }) => _runtime.publish(
+    projectId: projectId,
+    versionId: versionId,
+    domain: domain,
+    idempotencyKey: idempotencyKey,
+  );
 
   @override
   Future<void> rollback({
@@ -234,13 +221,12 @@ class CompositeProjectExperienceRepository
     required String targetVersionId,
     required String expectedProductionVersionId,
     String? idempotencyKey,
-  }) =>
-      _runtime.rollback(
-        projectId: projectId,
-        targetVersionId: targetVersionId,
-        expectedProductionVersionId: expectedProductionVersionId,
-        idempotencyKey: idempotencyKey,
-      );
+  }) => _runtime.rollback(
+    projectId: projectId,
+    targetVersionId: targetVersionId,
+    expectedProductionVersionId: expectedProductionVersionId,
+    idempotencyKey: idempotencyKey,
+  );
 
   @override
   void beginAuthenticatedIdentityEpoch() {
