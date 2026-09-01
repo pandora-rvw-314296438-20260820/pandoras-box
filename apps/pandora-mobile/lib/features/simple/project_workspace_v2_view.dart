@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/data/project_experience_api.dart';
+import '../../core/models/project_conversation_history.dart';
 import '../../core/platform/pandora_preview_host.dart';
 import 'live_build_theatre/live_build_reducer.dart';
 import 'live_build_theatre/live_build_theatre.dart';
@@ -40,6 +41,7 @@ class ProjectWorkspaceV2View extends StatelessWidget {
     required this.activeBuildSnapshot,
     required this.intelligenceReply,
     required this.publishReceipt,
+    required this.conversationHistory,
     required this.error,
     required this.onClearSelection,
     required this.onDismissIntelligence,
@@ -77,6 +79,7 @@ class ProjectWorkspaceV2View extends StatelessWidget {
   final ProjectBuildStreamSnapshot? activeBuildSnapshot;
   final String? intelligenceReply;
   final Map<String, Object?>? publishReceipt;
+  final List<ProjectConversationHistoryItem> conversationHistory;
   final String? error;
   final VoidCallback onClearSelection;
   final VoidCallback onDismissIntelligence;
@@ -219,6 +222,7 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                           selectedPreviewTarget: selectedPreviewTarget,
                           intelligenceReply: intelligenceReply,
                           publishReceipt: publishReceipt,
+                          conversationHistory: conversationHistory,
                           error: error,
                           onClearSelection: onClearSelection,
                           onDismissIntelligence: onDismissIntelligence,
@@ -248,6 +252,7 @@ class _PandoraComposerSheet extends StatelessWidget {
     required this.selectedPreviewTarget,
     required this.intelligenceReply,
     required this.publishReceipt,
+    required this.conversationHistory,
     required this.error,
     required this.onClearSelection,
     required this.onDismissIntelligence,
@@ -263,6 +268,7 @@ class _PandoraComposerSheet extends StatelessWidget {
   final PandoraPreviewSelection? selectedPreviewTarget;
   final String? intelligenceReply;
   final Map<String, Object?>? publishReceipt;
+  final List<ProjectConversationHistoryItem> conversationHistory;
   final String? error;
   final VoidCallback onClearSelection;
   final VoidCallback onDismissIntelligence;
@@ -311,6 +317,10 @@ class _PandoraComposerSheet extends StatelessWidget {
               onSubmit: onSubmit,
               onVoice: onVoice,
             ),
+            if (conversationHistory.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _ProjectHistoryCard(items: conversationHistory),
+            ],
             if (selectionMode || selectedPreviewTarget != null) ...[
               const SizedBox(height: 8),
               _SelectionContextCapsule(
