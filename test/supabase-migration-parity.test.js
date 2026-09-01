@@ -151,14 +151,14 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901162700_pandora_preview_deployment_stream_trust_v1.sql',
     '20260901173359_pandora_kimi_vault_transport_v1.sql',
     '20260901182500_pandora_build_stream_nonpreview_trigger_fix_v1.sql',
+    '20260901183204_pandora_intelligence_thread_routing_state_v1.sql',
     '20260901193000_pandora_source_dispatch_exhaustion_watchdog_v1.sql',
     '20260901194449_pandora_kimi_shared_deadline_budget_v2.sql',
+    '20260901202428_chat_c_kimi_runtime_provider_config_v1.sql',
+    '20260901202441_chat_c_edge_runtime_convergence_v1.sql',
     '20260902004500_pandora_change_impact_assessment_v1.sql',
     '20260902013000_pandora_source_entitlements_v1.sql',
-    '20260902023000_pandora_database_change_tool_gateway_binding_v1.sql',
-    '20260901183204_pandora_intelligence_thread_routing_state_v1.sql',
-    '20260901202428_chat_c_kimi_runtime_provider_config_v1.sql',
-    '20260901202441_chat_c_edge_runtime_convergence_v1.sql'
+    '20260902023000_pandora_database_change_tool_gateway_binding_v1.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -316,14 +316,14 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901162700_pandora_preview_deployment_stream_trust_v1.sql',
     '20260901173359_pandora_kimi_vault_transport_v1.sql',
     '20260901182500_pandora_build_stream_nonpreview_trigger_fix_v1.sql',
+    '20260901183204_pandora_intelligence_thread_routing_state_v1.sql',
     '20260901193000_pandora_source_dispatch_exhaustion_watchdog_v1.sql',
     '20260901194449_pandora_kimi_shared_deadline_budget_v2.sql',
+    '20260901202428_chat_c_kimi_runtime_provider_config_v1.sql',
+    '20260901202441_chat_c_edge_runtime_convergence_v1.sql',
     '20260902004500_pandora_change_impact_assessment_v1.sql',
     '20260902013000_pandora_source_entitlements_v1.sql',
-    '20260902023000_pandora_database_change_tool_gateway_binding_v1.sql',
-    '20260901183204_pandora_intelligence_thread_routing_state_v1.sql',
-    '20260901202428_chat_c_kimi_runtime_provider_config_v1.sql',
-    '20260901202441_chat_c_edge_runtime_convergence_v1.sql'
+    '20260902023000_pandora_database_change_tool_gateway_binding_v1.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -433,14 +433,14 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901162700_pandora_preview_deployment_stream_trust_v1.sql',
     '20260901173359_pandora_kimi_vault_transport_v1.sql',
     '20260901182500_pandora_build_stream_nonpreview_trigger_fix_v1.sql',
+    '20260901183204_pandora_intelligence_thread_routing_state_v1.sql',
     '20260901193000_pandora_source_dispatch_exhaustion_watchdog_v1.sql',
     '20260901194449_pandora_kimi_shared_deadline_budget_v2.sql',
+    '20260901202428_chat_c_kimi_runtime_provider_config_v1.sql',
+    '20260901202441_chat_c_edge_runtime_convergence_v1.sql',
     '20260902004500_pandora_change_impact_assessment_v1.sql',
     '20260902013000_pandora_source_entitlements_v1.sql',
-    '20260902023000_pandora_database_change_tool_gateway_binding_v1.sql',
-    '20260901183204_pandora_intelligence_thread_routing_state_v1.sql',
-    '20260901202428_chat_c_kimi_runtime_provider_config_v1.sql',
-    '20260901202441_chat_c_edge_runtime_convergence_v1.sql'
+    '20260902023000_pandora_database_change_tool_gateway_binding_v1.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
