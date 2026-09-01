@@ -112,7 +112,8 @@ class ProjectConversationHistoryItem {
   final bool evidenceAvailable;
   final Map<String, Object?> displayPayload;
 
-  bool get isUserIntent => kind == 'USER_INTENT' || kind == 'USER_CHANGE_INTENT';
+  bool get isUserIntent =>
+      kind == 'USER_INTENT' || kind == 'USER_CHANGE_INTENT';
   bool get isProposal => kind == 'PANDORA_PROPOSAL';
   bool get isBuild =>
       kind == 'BUILD_ADMITTED' ||

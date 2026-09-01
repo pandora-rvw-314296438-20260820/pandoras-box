@@ -52,7 +52,9 @@ class ProjectPreviewIdentity {
           requiredText(file, 'sourceSha256') != sourceSha256 ||
           requiredText(file, 'sourceCommitSha') != sourceCommitSha ||
           requiredText(file, 'artifactDigest') != artifactDigest) {
-        throw const FormatException('Exact preview identity drifted across files.');
+        throw const FormatException(
+          'Exact preview identity drifted across files.',
+        );
       }
     }
 
