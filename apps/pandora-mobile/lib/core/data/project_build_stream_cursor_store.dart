@@ -1,4 +1,3 @@
-
 import 'package:shared_preferences/shared_preferences.dart';
 
 abstract interface class ProjectBuildStreamCursorStore {
