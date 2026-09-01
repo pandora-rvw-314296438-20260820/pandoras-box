@@ -46,7 +46,11 @@ function validateRequiredSchema(value, schema) {
   return { status: 'PASS', reason: null };
 }
 
-/**\n * @param {Record<string, any>} benchmarkCase\n * @param {unknown} output\n * @param {{externalValidators?: Record<string, (input: Record<string, any>) => Promise<Record<string, any>> | Record<string, any>>}} [options]\n */
+/**
+ * @param {Record<string, any>} benchmarkCase
+ * @param {unknown} output
+ * @param {{externalValidators?: Record<string, (input: Record<string, any>) => Promise<Record<string, any>> | Record<string, any>>}} [options]
+ */
 async function runDeterministicValidators(benchmarkCase, output, options = {}) {
   const validators = Array.isArray(benchmarkCase?.deterministicValidators) ? benchmarkCase.deterministicValidators : [];
   const external = isRecord(options.externalValidators) ? options.externalValidators : {};
