@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/data/project_experience_api.dart';
 import '../../core/platform/pandora_preview_host.dart';
+import 'live_build_theatre/live_build_theatre.dart';
+import 'live_build_theatre/project_build_stream_theatre_projection.dart';
 import 'pandora_v2_ui.dart';
 import 'project_exact_source_diff.dart';
 
@@ -32,6 +35,8 @@ class ProjectWorkspaceV2View extends StatelessWidget {
     required this.recentlyUpdated,
     required this.currentVersionVerified,
     required this.changeDiff,
+    required this.activeBuildStreamId,
+    required this.activeBuildSnapshot,
     required this.intelligenceReply,
     required this.publishReceipt,
     required this.error,
@@ -67,6 +72,8 @@ class ProjectWorkspaceV2View extends StatelessWidget {
   final bool recentlyUpdated;
   final bool currentVersionVerified;
   final ProjectExactSourceDiff? changeDiff;
+  final String? activeBuildStreamId;
+  final ProjectBuildStreamSnapshot? activeBuildSnapshot;
   final String? intelligenceReply;
   final Map<String, Object?>? publishReceipt;
   final String? error;
@@ -167,7 +174,18 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                           ],
                         ),
                       ),
-                    if (progressPhase != null)
+                    if (activeBuildStreamId != null &&
+                        activeBuildSnapshot != null)
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        top: 58,
+                        child: _LiveBuildActivityCapsule(
+                          streamId: activeBuildStreamId!,
+                          snapshot: activeBuildSnapshot!,
+                        ),
+                      )
+                    else if (progressPhase != null)
                       Positioned(
                         left: 12,
                         right: 12,
