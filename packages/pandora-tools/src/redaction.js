@@ -1,12 +1,15 @@
 "use strict";
 
-const SENSITIVE_KEY = /(^|[_-])(authorization|proxy[_-]?authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|cookie|set[_-]?cookie|private[_-]?key|service[_-]?role|client[_-]?secret|github[_-]?token|vercel[_-]?token|gemini[_-]?api[_-]?key|database[_-]?url)($|[_-])/i;
+const SENSITIVE_KEY = /(^|[_-])(authorization|proxy[_-]?authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|cookie|set[_-]?cookie|private[_-]?key|service[_-]?role|client[_-]?secret|github[_-]?token|vercel[_-]?token|gemini[_-]?api[_-]?key|moonshot[_-]?api[_-]?key|kimi[_-]?api[_-]?key|database[_-]?url)($|[_-])/i;
 const VALUE_PATTERNS = [
   /\bBearer\s+[A-Za-z0-9._~+\/-]+=*/gi,
+  /\bsk-[A-Za-z0-9_-]{20,}\b/g,
   /\bgh[pousr]_[A-Za-z0-9]{20,}\b/g,
   /\bgithub_pat_[A-Za-z0-9_]{20,}\b/g,
   /\bvercel_[A-Za-z0-9_-]{20,}\b/gi,
   /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g,
+  /(?:MOONSHOT|KIMI)[_-]?API[_-]?KEY\s*[:=]\s*["']?[^\s,;}"']+/gi,
+  /[?&](?:api[_-]?key|access[_-]?token|token)=[^&#\s]+/gi,
   /(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?):\/\/[^\s:@/]+:[^\s@/]+@/gi,
 ];
 const REDACTED = "[REDACTED]";
