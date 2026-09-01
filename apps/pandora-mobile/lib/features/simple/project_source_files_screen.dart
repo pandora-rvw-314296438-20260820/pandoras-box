@@ -128,7 +128,8 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
                       padding: EdgeInsets.only(bottom: 10),
                       child: PandoraV2InlineMessage(
                         title: 'Secret value withheld',
-                        message: 'Pandora removed a high-risk secret value from this view.',
+                        message:
+                            'Pandora removed a high-risk secret value from this view.',
                       ),
                     ),
                   Expanded(
@@ -275,8 +276,7 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
               else if (tree == null)
                 PandoraV2InlineMessage(
                   title: 'Source access',
-                  message:
-                      _error ??
+                  message: _error ??
                       'Source files are available with source access.',
                   actionLabel: 'Try again',
                   onAction: () {
