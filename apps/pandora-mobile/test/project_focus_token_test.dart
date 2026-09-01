@@ -79,7 +79,10 @@ void main() {
       expiresAt: expiresAt,
     );
 
-    expect(token.isExpired(at: expiresAt.subtract(const Duration(microseconds: 1))), isFalse);
+    expect(
+        token.isExpired(
+            at: expiresAt.subtract(const Duration(microseconds: 1))),
+        isFalse);
     expect(token.isExpired(at: expiresAt), isTrue);
     expect(
       token.matchesVisible(
