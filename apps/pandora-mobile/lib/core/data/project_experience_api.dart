@@ -242,7 +242,12 @@ class ProjectExperienceApi {
           'Pandora found something to resolve before this build can start.',
         );
       }
-      final streamId = _requiredText(data['streamId']);
+      final streamId = _optionalText(data['streamId']);
+      if (streamId == null) {
+        throw const ProjectExperienceException(
+          'The build plan changed before coding started. Refresh the proposal and build it again.',
+        );
+      }
       return ProjectBuildStart(
         streamId: streamId,
         state: _text(data['state'], fallback: 'working'),
