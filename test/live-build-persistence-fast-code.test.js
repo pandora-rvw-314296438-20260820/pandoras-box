@@ -23,7 +23,7 @@ test('live source events are rendered in canonical chronological order', () => {
 });
 
 test('real provider source is exposed as rapid realtime display slices', () => {
-  assert.ok(generator.includes('offset + 768'));
+  assert.ok(generator.includes('offset + 512'));
   assert.ok(generator.includes('const liveChunk = content.slice(offset, end);'));
   assert.ok(generator.includes('queueStreamEvent(state, "code_chunk", path, liveChunk'));
   assert.ok(!generator.includes('queueStreamEvent(state, "code_chunk", path, content, { byteSize: bytes.byteLength })'));
