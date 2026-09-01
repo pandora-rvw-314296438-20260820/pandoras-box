@@ -308,7 +308,7 @@ test("privacy boundary rejects broader identifiers, secrets, nesting, and encode
     [{ ...validArgs(), claim: "-----BEGIN PRIVATE KEY-----" }, /private_key_material/],
     [{ ...validArgs(), provenance: { ...validArgs().provenance, source_locator: "owner%40example.com" } }, /direct_identifier_email/],
     [{ ...validArgs(), provenance: { ...validArgs().provenance, source_locator: "owner＠example.com" } }, /direct_identifier_email/],
-    [{ ...validArgs(), evidenceRefs: [{ ...validArgs().evidenceRefs[0], ref: "phone%3A%20%2B63%20917%20123%204567" }] }, /direct_identifier_phone/],
+    [{ ...validArgs(), evidenceRefs: validArgs().evidenceRefs.map((ref, index) => index === 4 ? { ...ref, ref: "phone%3A%20%2B63%20917%20123%204567" } : ref) }, /direct_identifier_phone/],
   ];
   for (const [args, expected] of attacks) {
     let called = false;
