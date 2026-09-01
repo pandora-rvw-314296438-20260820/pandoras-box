@@ -34,6 +34,11 @@ abstract interface class ProjectExperienceRepository {
     required String expectedSourceIntentId,
   });
 
+  Future<String> renameProject({
+    required String projectId,
+    required String name,
+  });
+
   Future<ProjectBuildStart> requestBuild({
     required String projectId,
     required String idempotencyKey,
@@ -153,6 +158,13 @@ class CompositeProjectExperienceRepository
         projectId: projectId,
         expectedSourceIntentId: expectedSourceIntentId,
       );
+
+  @override
+  Future<String> renameProject({
+    required String projectId,
+    required String name,
+  }) =>
+      _mutations.renameProject(projectId: projectId, name: name);
 
   @override
   Future<ProjectBuildStart> requestBuild({
