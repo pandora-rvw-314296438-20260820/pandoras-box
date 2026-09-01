@@ -159,7 +159,7 @@ async function acceptModelLine(admin: ReturnType<typeof adminClient>, state: Str
     state.totalBytes = nextTotal;
     state.files.get(path)!.push(content);
     queueStreamEvent(state, "code_chunk", path, content, { byteSize: bytes.byteLength });
-    await flushStreamEvents(admin, state);
+    await flushStreamEvents(admin, state, true);
     return;
   }
   if (kind === "file_end") {
@@ -187,9 +187,9 @@ async function streamGeminiSource(admin: ReturnType<typeof adminClient>, provide
   if (credential.error || typeof credential.data !== "string" || !credential.data.trim()) throw new Error("PROVIDER_UNAVAILABLE");
   let providerResponse: Response;
   try {
-    providerResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(credential.data.trim())}`, {
+    providerResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:streamGenerateContent?alt=sse`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-goog-api-key": credential.data.trim() },
       body: JSON.stringify(providerRequest),
       signal: AbortSignal.timeout(90000),
     });
