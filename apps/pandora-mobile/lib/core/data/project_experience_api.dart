@@ -12,11 +12,12 @@ class ProjectExperienceApi {
     required String organizationId,
     IdempotencyKeyFactory? idempotencyKeys,
     ProjectBuildStreamCursorStore? cursorStore,
-  })  : _client = client,
-        _organizationId = organizationId,
-        _keys = idempotencyKeys ?? IdempotencyKeyFactory(),
-        _cursorStore = cursorStore ??
-            const SharedPreferencesProjectBuildStreamCursorStore();
+  }) : _client = client,
+       _organizationId = organizationId,
+       _keys = idempotencyKeys ?? IdempotencyKeyFactory(),
+       _cursorStore =
+           cursorStore ??
+           const SharedPreferencesProjectBuildStreamCursorStore();
 
   final SupabaseClient _client;
   final String _organizationId;
@@ -131,8 +132,9 @@ class ProjectExperienceApi {
       final rawConfig = projectState['config'];
       final config = rawConfig is Map ? rawConfig : const <String, Object?>{};
       final rawJourney = config['customerJourney'];
-      final journey =
-          rawJourney is Map ? rawJourney : const <String, Object?>{};
+      final journey = rawJourney is Map
+          ? rawJourney
+          : const <String, Object?>{};
       final distilledSummary = _optionalText(journey['intentSummary']);
       final productScope =
           _map(spec['product_scope']) ?? const <String, dynamic>{};
@@ -178,8 +180,9 @@ class ProjectExperienceApi {
         customerValue: _optionalText(productScope['customerValue']),
         ownerValue: _optionalText(productScope['ownerValue']),
         coreExperiences: _stringList(productScope['coreExperiences']),
-        firstVersionCapabilities:
-            _stringList(productScope['firstVersionCapabilities']),
+        firstVersionCapabilities: _stringList(
+          productScope['firstVersionCapabilities'],
+        ),
         primaryWorkflows: _stringList(productScope['primaryWorkflows']),
         integrations: List<String>.unmodifiable(proposalIntegrations),
         successCriteria: _stringList(acceptanceScope['successCriteria']),
@@ -313,12 +316,18 @@ class ProjectExperienceApi {
             }
           }
           final now = DateTime.now().toUtc();
-          final events = rows
-              .map(ProjectBuildStreamEvent.fromJson)
-              .where((event) =>
-                  event.expiresAt == null || event.expiresAt!.isAfter(now))
-              .toList()
-            ..sort((left, right) => left.sequence.compareTo(right.sequence));
+          final events =
+              rows
+                  .map(ProjectBuildStreamEvent.fromJson)
+                  .where(
+                    (event) =>
+                        event.expiresAt == null ||
+                        event.expiresAt!.isAfter(now),
+                  )
+                  .toList()
+                ..sort(
+                  (left, right) => left.sequence.compareTo(right.sequence),
+                );
           return List<ProjectBuildStreamEvent>.unmodifiable(events);
         });
   }
@@ -400,12 +409,11 @@ class ProjectExperienceApi {
         buildStage: _optionalText(build?['stage']),
         buildJobId: _optionalText(session['buildJobId']),
         projectVersionId: _optionalText(session['projectVersionId']),
-        publicErrorCode: _optionalText(session['publicErrorCode']) ??
+        publicErrorCode:
+            _optionalText(session['publicErrorCode']) ??
             _optionalText(build?['errorCode']),
         durableSummary: Map<String, Object?>.unmodifiable(
-          durableSummary.map(
-            (key, value) => MapEntry(key.toString(), value),
-          ),
+          durableSummary.map((key, value) => MapEntry(key.toString(), value)),
         ),
       );
     } on ProjectExperienceException {
@@ -518,41 +526,39 @@ class ProjectExperienceApi {
 
     void subscribe() {
       if (closed) return;
-      subscription = watchBuildStream(
-        projectId: projectId,
-        streamId: streamId,
-      ).listen(
-        (events) => unawaited(handleLive(events)),
-        onError: (Object error, StackTrace stackTrace) {
-          if (closed) return;
-          controller.add(reconciler.snapshot(reconnecting: true));
-          controller.addError(error, stackTrace);
-          if (retryTimer?.isActive == true) return;
-          final slot = reconnectAttempt > 3 ? 3 : reconnectAttempt;
-          final delayMs = const <int>[500, 1000, 2000, 4000][slot];
-          if (reconnectAttempt < 3) reconnectAttempt += 1;
-          retryTimer = Timer(Duration(milliseconds: delayMs), () {
-            if (closed) return;
-            final current = subscription;
-            subscription = null;
-            if (current != null) unawaited(current.cancel());
-            unawaited(reconcile(reconnecting: true));
-            subscribe();
-          });
-        },
-        onDone: () {
-          if (closed || retryTimer?.isActive == true) return;
-          final slot = reconnectAttempt > 3 ? 3 : reconnectAttempt;
-          final delayMs = const <int>[500, 1000, 2000, 4000][slot];
-          if (reconnectAttempt < 3) reconnectAttempt += 1;
-          retryTimer = Timer(Duration(milliseconds: delayMs), () {
-            if (closed) return;
-            unawaited(reconcile(reconnecting: true));
-            subscribe();
-          });
-        },
-        cancelOnError: false,
-      );
+      subscription = watchBuildStream(projectId: projectId, streamId: streamId)
+          .listen(
+            (events) => unawaited(handleLive(events)),
+            onError: (Object error, StackTrace stackTrace) {
+              if (closed) return;
+              controller.add(reconciler.snapshot(reconnecting: true));
+              controller.addError(error, stackTrace);
+              if (retryTimer?.isActive == true) return;
+              final slot = reconnectAttempt > 3 ? 3 : reconnectAttempt;
+              final delayMs = const <int>[500, 1000, 2000, 4000][slot];
+              if (reconnectAttempt < 3) reconnectAttempt += 1;
+              retryTimer = Timer(Duration(milliseconds: delayMs), () {
+                if (closed) return;
+                final current = subscription;
+                subscription = null;
+                if (current != null) unawaited(current.cancel());
+                unawaited(reconcile(reconnecting: true));
+                subscribe();
+              });
+            },
+            onDone: () {
+              if (closed || retryTimer?.isActive == true) return;
+              final slot = reconnectAttempt > 3 ? 3 : reconnectAttempt;
+              final delayMs = const <int>[500, 1000, 2000, 4000][slot];
+              if (reconnectAttempt < 3) reconnectAttempt += 1;
+              retryTimer = Timer(Duration(milliseconds: delayMs), () {
+                if (closed) return;
+                unawaited(reconcile(reconnecting: true));
+                subscribe();
+              });
+            },
+            cancelOnError: false,
+          );
     }
 
     controller.onListen = () {
@@ -683,10 +689,7 @@ class ProjectExperienceApi {
     try {
       final raw = await _client.rpc(
         'pandora_get_project_conversation_v1',
-        params: <String, Object?>{
-          'p_project_id': projectId,
-          'p_limit': 50,
-        },
+        params: <String, Object?>{'p_project_id': projectId, 'p_limit': 50},
       );
       if (raw is! List) {
         throw const ProjectExperienceException(
@@ -701,8 +704,8 @@ class ProjectExperienceApi {
         if (row == null || _text(row['kind']) != 'PUBLISH_RECEIPT') {
           continue;
         }
-        final occurredAt =
-            DateTime.tryParse(_text(row['occurred_at']))?.toUtc();
+        final occurredAt = DateTime.tryParse(_text(row['occurred_at']))
+            ?.toUtc();
         final versionId = _optionalText(row['project_version_id']);
         final verificationRunId = _optionalText(row['verification_run_id']);
         final deploymentId = _optionalText(row['deployment_id']);
@@ -734,7 +737,8 @@ class ProjectExperienceApi {
           'verificationRunId': verificationRunId,
           'deploymentId': deploymentId,
           'occurredAt': occurredAt.toIso8601String(),
-          'publishedAt': _optionalText(payload['publishedAt']) ??
+          'publishedAt':
+              _optionalText(payload['publishedAt']) ??
               occurredAt.toIso8601String(),
           'versionNumber': versionNumber,
         };
@@ -775,7 +779,8 @@ class ProjectExperienceApi {
       final responseProjectId = _text(data['projectId']).toLowerCase();
       final responseVersionId = _text(data['versionId']).toLowerCase();
       final artifactDigest = _text(data['artifactDigest']).toLowerCase();
-      final previewDeploymentId = _text(data['previewDeploymentId']).toLowerCase();
+      final previewDeploymentId = _text(data['previewDeploymentId'])
+          .toLowerCase();
       final sourceSha256 = _text(data['sourceSha256']).toLowerCase();
       final sourceCommitSha = _text(data['sourceCommitSha']).toLowerCase();
       final requestedProjectId = projectId.trim().toLowerCase();
@@ -783,9 +788,12 @@ class ProjectExperienceApi {
       if (responseProjectId != requestedProjectId ||
           responseVersionId != requestedVersionId ||
           !RegExp(r'^[0-9a-f]{64}$').hasMatch(artifactDigest) ||
-          !RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$').hasMatch(previewDeploymentId) ||
+          !RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          ).hasMatch(previewDeploymentId) ||
           !RegExp(r'^[0-9a-f]{64}$').hasMatch(sourceSha256) ||
-          !RegExp(r'^(?:[0-9a-f]{40}|[0-9a-f]{64})$').hasMatch(sourceCommitSha)) {
+          !RegExp(r'^(?:[0-9a-f]{40}|[0-9a-f]{64})$')
+              .hasMatch(sourceCommitSha)) {
         throw const ProjectExperienceException(
           'Pandora returned an unreadable preview.',
         );
@@ -855,10 +863,12 @@ class ProjectExperienceApi {
 
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
-        await _client.functions.invoke(
-          'pandora-project-spec-compiler',
-          body: <String, Object?>{'intentId': sourceIntentId},
-        ).timeout(const Duration(seconds: 12));
+        await _client.functions
+            .invoke(
+              'pandora-project-spec-compiler',
+              body: <String, Object?>{'intentId': sourceIntentId},
+            )
+            .timeout(const Duration(seconds: 12));
         return;
       } catch (_) {
         if (attempt == 0) {
@@ -928,12 +938,15 @@ class ProjectBuildStreamEvent {
     return ProjectBuildStreamEvent(
       id: id,
       sequence: sequence,
-      eventSchemaVersion: _optionalInt(
-              json['event_schema_version'] ?? json['eventSchemaVersion']) ??
+      eventSchemaVersion:
+          _optionalInt(
+            json['event_schema_version'] ?? json['eventSchemaVersion'],
+          ) ??
           1,
       eventType: _requiredText(json['event_type'] ?? json['eventType']),
-      retentionClass:
-          _optionalText(json['retention_class'] ?? json['retentionClass']),
+      retentionClass: _optionalText(
+        json['retention_class'] ?? json['retentionClass'],
+      ),
       safePayload: payload,
       createdAt: createdAt.toUtc(),
       expiresAt: expiresAt?.toUtc(),
@@ -1005,18 +1018,18 @@ class ProjectBuildStreamSnapshot {
   });
 
   const ProjectBuildStreamSnapshot.empty()
-      : events = const <ProjectBuildStreamEvent>[],
-        latestSequence = 0,
-        historyGapDueToRetention = false,
-        requiresReplay = false,
-        reconnecting = false,
-        streamStatus = 'building',
-        buildStatus = null,
-        buildStage = null,
-        buildJobId = null,
-        projectVersionId = null,
-        publicErrorCode = null,
-        durableSummary = const <String, Object?>{};
+    : events = const <ProjectBuildStreamEvent>[],
+      latestSequence = 0,
+      historyGapDueToRetention = false,
+      requiresReplay = false,
+      reconnecting = false,
+      streamStatus = 'building',
+      buildStatus = null,
+      buildStage = null,
+      buildJobId = null,
+      projectVersionId = null,
+      publicErrorCode = null,
+      durableSummary = const <String, Object?>{};
 
   final List<ProjectBuildStreamEvent> events;
   final int latestSequence;
@@ -1034,7 +1047,7 @@ class ProjectBuildStreamSnapshot {
 
 class ProjectBuildStreamReconciler {
   ProjectBuildStreamReconciler({this.maxBufferedEvents = 800})
-      : assert(maxBufferedEvents > 0);
+    : assert(maxBufferedEvents > 0);
 
   final int maxBufferedEvents;
   final Map<int, ProjectBuildStreamEvent> _events =
@@ -1058,9 +1071,7 @@ class ProjectBuildStreamReconciler {
     if (sequence > _latestSequence) _latestSequence = sequence;
   }
 
-  ProjectBuildStreamSnapshot mergeLive(
-    List<ProjectBuildStreamEvent> incoming,
-  ) {
+  ProjectBuildStreamSnapshot mergeLive(List<ProjectBuildStreamEvent> incoming) {
     final ordered = List<ProjectBuildStreamEvent>.of(incoming)
       ..sort((left, right) => left.sequence.compareTo(right.sequence));
     var expected = _latestSequence + 1;
@@ -1083,7 +1094,8 @@ class ProjectBuildStreamReconciler {
     ProjectBuildStreamReplay replay, {
     bool reconnecting = false,
   }) {
-    final initialRetentionGap = _latestSequence == 0 &&
+    final initialRetentionGap =
+        _latestSequence == 0 &&
         replay.watermarkSequence > 0 &&
         (replay.oldestRetainedSequence == null ||
             replay.oldestRetainedSequence! > 1);
@@ -1119,10 +1131,7 @@ class ProjectBuildStreamReconciler {
     _durableSummary = replay.durableSummary;
     _hasSeededCursor = true;
     _trim();
-    return snapshot(
-      reconnecting: reconnecting,
-      requiresReplay: replay.hasMore,
-    );
+    return snapshot(reconnecting: reconnecting, requiresReplay: replay.hasMore);
   }
 
   ProjectBuildStreamSnapshot snapshot({
@@ -1193,10 +1202,10 @@ class OwnerProjectUnderstanding {
   });
 
   const OwnerProjectUnderstanding.waiting()
-      : this._(state: OwnerProjectUnderstandingState.waiting);
+    : this._(state: OwnerProjectUnderstandingState.waiting);
 
   const OwnerProjectUnderstanding.rejected()
-      : this._(state: OwnerProjectUnderstandingState.rejected);
+    : this._(state: OwnerProjectUnderstandingState.rejected);
 
   factory OwnerProjectUnderstanding.ready({
     required String specId,
@@ -1219,31 +1228,31 @@ class OwnerProjectUnderstanding {
     required List<String> objectives,
     required List<String> requirements,
     required DateTime? compiledAt,
-  }) =>
-      OwnerProjectUnderstanding._(
-        state: OwnerProjectUnderstandingState.ready,
-        specId: specId,
-        version: version,
-        projectName: projectName,
-        intentSummary: intentSummary,
-        projectType: projectType,
-        targetUsers: targetUsers,
-        businessSummary: businessSummary,
-        productPromise: productPromise,
-        audiences: List<String>.unmodifiable(audiences),
-        customerValue: customerValue,
-        ownerValue: ownerValue,
-        coreExperiences: List<String>.unmodifiable(coreExperiences),
-        firstVersionCapabilities:
-            List<String>.unmodifiable(firstVersionCapabilities),
-        primaryWorkflows: List<String>.unmodifiable(primaryWorkflows),
-        integrations: List<String>.unmodifiable(integrations),
-        successCriteria: List<String>.unmodifiable(successCriteria),
-        reviewAssurance: reviewAssurance,
-        objectives: List<String>.unmodifiable(objectives),
-        requirements: List<String>.unmodifiable(requirements),
-        compiledAt: compiledAt,
-      );
+  }) => OwnerProjectUnderstanding._(
+    state: OwnerProjectUnderstandingState.ready,
+    specId: specId,
+    version: version,
+    projectName: projectName,
+    intentSummary: intentSummary,
+    projectType: projectType,
+    targetUsers: targetUsers,
+    businessSummary: businessSummary,
+    productPromise: productPromise,
+    audiences: List<String>.unmodifiable(audiences),
+    customerValue: customerValue,
+    ownerValue: ownerValue,
+    coreExperiences: List<String>.unmodifiable(coreExperiences),
+    firstVersionCapabilities: List<String>.unmodifiable(
+      firstVersionCapabilities,
+    ),
+    primaryWorkflows: List<String>.unmodifiable(primaryWorkflows),
+    integrations: List<String>.unmodifiable(integrations),
+    successCriteria: List<String>.unmodifiable(successCriteria),
+    reviewAssurance: reviewAssurance,
+    objectives: List<String>.unmodifiable(objectives),
+    requirements: List<String>.unmodifiable(requirements),
+    compiledAt: compiledAt,
+  );
 
   final OwnerProjectUnderstandingState state;
   final String? specId;
@@ -1295,9 +1304,7 @@ int? _optionalInt(Object? value) {
 
 Map<String, dynamic>? _map(Object? value) {
   if (value is! Map) return null;
-  return value.map(
-    (key, item) => MapEntry(key.toString(), item),
-  );
+  return value.map((key, item) => MapEntry(key.toString(), item));
 }
 
 String _requiredText(Object? value) {
