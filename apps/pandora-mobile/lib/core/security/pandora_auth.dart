@@ -71,10 +71,10 @@ class SupabasePandoraAuth implements PandoraAuth {
 
   @override
   Stream<PandoraSession?> get changes => _client.auth.onAuthStateChange.map(
-    (event) => event.session == null
-        ? null
-        : PandoraSession(userId: event.session!.user.id),
-  );
+        (event) => event.session == null
+            ? null
+            : PandoraSession(userId: event.session!.user.id),
+      );
 
   @override
   Future<void> signIn({required String email, required String password}) async {

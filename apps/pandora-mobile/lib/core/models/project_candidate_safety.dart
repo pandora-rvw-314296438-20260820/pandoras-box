@@ -59,9 +59,8 @@ class ProjectCandidateSafety {
         visibleCurrentVersionId: visibleCurrentVersionId,
       ),
       projectedCurrentVersionId: projection.currentVersionId,
-      candidateVerificationState: projection.candidateVerificationState
-          .trim()
-          .toLowerCase(),
+      candidateVerificationState:
+          projection.candidateVerificationState.trim().toLowerCase(),
     );
   }
 

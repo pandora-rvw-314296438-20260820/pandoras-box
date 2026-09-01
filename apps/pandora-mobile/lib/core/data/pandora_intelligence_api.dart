@@ -6,8 +6,8 @@ class PandoraIntelligenceApi {
   PandoraIntelligenceApi({
     required SupabaseClient client,
     required String organizationId,
-  }) : _client = client,
-       _organizationId = organizationId;
+  })  : _client = client,
+        _organizationId = organizationId;
 
   final SupabaseClient _client;
   final String _organizationId;

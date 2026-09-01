@@ -133,8 +133,8 @@ class _TeamScreenState extends State<TeamScreen> {
       final text = result.inviteSent
           ? 'Invitation sent to ${result.email}.'
           : result.existingAccount
-          ? '${result.email} was added to the team.'
-          : '${result.email} is ready to join.';
+              ? '${result.email} was added to the team.'
+              : '${result.email} is ready to join.';
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(text)));
@@ -153,20 +153,20 @@ class _TeamScreenState extends State<TeamScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: PandoraPage(
-      title: 'Team',
-      subtitle: 'Invite people and give each person the access they need.',
-      onRefresh: _load,
-      actions: [
-        IconButton(
-          tooltip: 'Refresh team',
-          onPressed: _refreshing ? null : _load,
-          icon: const Icon(Icons.refresh_rounded),
+        body: PandoraPage(
+          title: 'Team',
+          subtitle: 'Invite people and give each person the access they need.',
+          onRefresh: _load,
+          actions: [
+            IconButton(
+              tooltip: 'Refresh team',
+              onPressed: _refreshing ? null : _load,
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+          ],
+          child: _buildBody(context),
         ),
-      ],
-      child: _buildBody(context),
-    ),
-  );
+      );
 
   Widget _buildBody(BuildContext context) {
     if (_loading && _organizations.isEmpty) {
@@ -234,16 +234,18 @@ class _TeamScreenState extends State<TeamScreen> {
                   child: Center(child: CircularProgressIndicator()),
                 )
               : _members.isEmpty
-              ? _EmptyTeamState(onInvite: _openInvite)
-              : Column(
-                  children: [
-                    for (var index = 0; index < _members.length; index++) ...[
-                      _MemberTile(member: _members[index]),
-                      if (index != _members.length - 1)
-                        const Divider(height: 1),
-                    ],
-                  ],
-                ),
+                  ? _EmptyTeamState(onInvite: _openInvite)
+                  : Column(
+                      children: [
+                        for (var index = 0;
+                            index < _members.length;
+                            index++) ...[
+                          _MemberTile(member: _members[index]),
+                          if (index != _members.length - 1)
+                            const Divider(height: 1),
+                        ],
+                      ],
+                    ),
         ),
         const SizedBox(height: PandoraSpacing.lg),
       ],
@@ -316,26 +318,26 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-    label: '$label: $value',
-    child: Container(
-      constraints: const BoxConstraints(minWidth: 92),
-      padding: const EdgeInsets.symmetric(
-        horizontal: PandoraSpacing.md,
-        vertical: PandoraSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value, style: Theme.of(context).textTheme.headlineSmall),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      ),
-    ),
-  );
+        label: '$label: $value',
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 92),
+          padding: const EdgeInsets.symmetric(
+            horizontal: PandoraSpacing.md,
+            vertical: PandoraSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value, style: Theme.of(context).textTheme.headlineSmall),
+              Text(label, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+      );
 }
 
 class _MemberTile extends StatelessWidget {
@@ -402,19 +404,22 @@ class _Tag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-    decoration: BoxDecoration(
-      color: (foreground ?? Theme.of(context).colorScheme.onSurface).withValues(
-        alpha: 0.08,
-      ),
-      borderRadius: BorderRadius.circular(999),
-    ),
-    child: Text(
-      label,
-      style: Theme.of(context).textTheme.labelSmall
-          ?.copyWith(color: foreground, fontWeight: FontWeight.w600),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          color: (foreground ?? Theme.of(context).colorScheme.onSurface)
+              .withValues(
+            alpha: 0.08,
+          ),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context)
+              .textTheme
+              .labelSmall
+              ?.copyWith(color: foreground, fontWeight: FontWeight.w600),
+        ),
+      );
 }
 
 class _InviteMemberSheet extends StatefulWidget {
@@ -575,9 +580,9 @@ class _TeamLoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.symmetric(vertical: 72),
-    child: Center(child: CircularProgressIndicator()),
-  );
+        padding: EdgeInsets.symmetric(vertical: 72),
+        child: Center(child: CircularProgressIndicator()),
+      );
 }
 
 class _EmptyTeamState extends StatelessWidget {
@@ -587,34 +592,34 @@ class _EmptyTeamState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.lg),
-    child: Column(
-      children: [
-        Icon(
-          Icons.group_add_outlined,
-          size: 48,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.lg),
+        child: Column(
+          children: [
+            Icon(
+              Icons.group_add_outlined,
+              size: 48,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: PandoraSpacing.sm),
+            Text(
+              'No one has been added yet.',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: PandoraSpacing.xs),
+            Text(
+              'Add the first person and choose what they can access.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: PandoraSpacing.md),
+            OutlinedButton.icon(
+              onPressed: onInvite,
+              icon: const Icon(Icons.person_add_alt_1_rounded),
+              label: const Text('Add person'),
+            ),
+          ],
         ),
-        const SizedBox(height: PandoraSpacing.sm),
-        Text(
-          'No one has been added yet.',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: PandoraSpacing.xs),
-        Text(
-          'Add the first person and choose what they can access.',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: PandoraSpacing.md),
-        OutlinedButton.icon(
-          onPressed: onInvite,
-          icon: const Icon(Icons.person_add_alt_1_rounded),
-          label: const Text('Add person'),
-        ),
-      ],
-    ),
-  );
+      );
 }
 
 class _InlineFailure extends StatelessWidget {
@@ -625,30 +630,30 @@ class _InlineFailure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: Theme.of(context).colorScheme.errorContainer,
-    borderRadius: BorderRadius.circular(16),
-    child: Padding(
-      padding: const EdgeInsets.all(PandoraSpacing.md),
-      child: Row(
-        children: [
-          Icon(
-            Icons.info_outline_rounded,
-            color: Theme.of(context).colorScheme.onErrorContainer,
-          ),
-          const SizedBox(width: PandoraSpacing.sm),
-          Expanded(
-            child: Text(
-              failure.message,
-              style: TextStyle(
+        color: Theme.of(context).colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(PandoraSpacing.md),
+          child: Row(
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
                 color: Theme.of(context).colorScheme.onErrorContainer,
               ),
-            ),
+              const SizedBox(width: PandoraSpacing.sm),
+              Expanded(
+                child: Text(
+                  failure.message,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+              ),
+              TextButton(onPressed: onRetry, child: const Text('Retry')),
+            ],
           ),
-          TextButton(onPressed: onRetry, child: const Text('Retry')),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 class _TeamFailureState extends StatelessWidget {
@@ -659,27 +664,27 @@ class _TeamFailureState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSurface(
-    title: 'Team is temporarily unavailable',
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(failure.message),
-        if (failure.requestId != null) ...[
-          const SizedBox(height: PandoraSpacing.xs),
-          SelectableText(
-            'Reference: ${failure.requestId}',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-        const SizedBox(height: PandoraSpacing.md),
-        FilledButton.tonalIcon(
-          onPressed: onRetry,
-          icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Try again'),
+        title: 'Team is temporarily unavailable',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(failure.message),
+            if (failure.requestId != null) ...[
+              const SizedBox(height: PandoraSpacing.xs),
+              SelectableText(
+                'Reference: ${failure.requestId}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            const SizedBox(height: PandoraSpacing.md),
+            FilledButton.tonalIcon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try again'),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class _NoTeamAccessState extends StatelessWidget {
@@ -689,36 +694,36 @@ class _NoTeamAccessState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraSurface(
-    title: 'Owner or administrator access required',
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'Only an active organization owner or administrator can invite people or view the team directory.',
+        title: 'Owner or administrator access required',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Only an active organization owner or administrator can invite people or view the team directory.',
+            ),
+            const SizedBox(height: PandoraSpacing.md),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Check access again'),
+            ),
+          ],
         ),
-        const SizedBox(height: PandoraSpacing.md),
-        OutlinedButton.icon(
-          onPressed: onRetry,
-          icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Check access again'),
-        ),
-      ],
-    ),
-  );
+      );
 }
 
 String _roleLabel(String role) => switch (role) {
-  'owner' => 'Owner',
-  'admin' => 'Administrator',
-  'operator' => 'Operator',
-  'viewer' => 'Viewer',
-  _ => 'Member',
-};
+      'owner' => 'Owner',
+      'admin' => 'Administrator',
+      'operator' => 'Operator',
+      'viewer' => 'Viewer',
+      _ => 'Member',
+    };
 
 String _statusLabel(String status) => switch (status) {
-  'active' => 'Active',
-  'invited' => 'Invited',
-  'suspended' => 'Suspended',
-  'revoked' => 'Revoked',
-  _ => status,
-};
+      'active' => 'Active',
+      'invited' => 'Invited',
+      'suspended' => 'Suspended',
+      'revoked' => 'Revoked',
+      _ => status,
+    };

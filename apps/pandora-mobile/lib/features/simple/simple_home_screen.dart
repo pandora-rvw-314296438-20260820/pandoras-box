@@ -74,10 +74,10 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
   }
 
   void _create(String value) => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => CreateProjectExperienceScreen(initialIntent: value),
-    ),
-  );
+        MaterialPageRoute<void>(
+          builder: (_) => CreateProjectExperienceScreen(initialIntent: value),
+        ),
+      );
 
   Future<void> _open(ProjectSummary project) async {
     if (_openingId != null) return;
@@ -108,8 +108,7 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
     if (p.blocker != null && p.blocker!.trim().isNotEmpty) {
       return 'Needs you';
     }
-    final live =
-        p.evidenceState(EvidenceStage.productionVerified) ==
+    final live = p.evidenceState(EvidenceStage.productionVerified) ==
             EvidenceClaimState.verified &&
         p.freshness.isFresh;
     if (live) return 'Live';
@@ -191,8 +190,8 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
               onAttachment: () async {
                 final file = await PandoraNativeIo.pickTextAttachment();
                 if (file != null && mounted) {
-                  _intent.text = '${_intent.text.trim()}\n${file.promptBlock}'
-                      .trim();
+                  _intent.text =
+                      '${_intent.text.trim()}\n${file.promptBlock}'.trim();
                 }
               },
             ),
@@ -234,7 +233,8 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
             else if (summary.topProjects.isEmpty)
               PandoraV2InlineMessage(
                 title: 'Nothing here yet',
-                message: 'Describe what you want above and Pandora will create the first working version.',
+                message:
+                    'Describe what you want above and Pandora will create the first working version.',
               )
             else
               for (final project in summary.topProjects) ...[
@@ -273,7 +273,8 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
                 title: summary.approvalCount == 1
                     ? 'One decision is waiting for you'
                     : '${summary.approvalCount} decisions are waiting for you',
-                message: 'Pandora has paused only the work that requires your judgment.',
+                message:
+                    'Pandora has paused only the work that requires your judgment.',
                 actionLabel: 'Review',
                 onAction: widget.onOpenNeedsYou,
               ),

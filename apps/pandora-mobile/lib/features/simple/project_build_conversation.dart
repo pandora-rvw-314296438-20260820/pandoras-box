@@ -34,7 +34,8 @@ class _ProjectBuildConversationScreenState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _stream ??= PandoraDependencies.of(context).projectExperienceRepository
+    _stream ??= PandoraDependencies.of(context)
+        .projectExperienceRepository
         ?.watchBuildStream(
           projectId: widget.project.id,
           streamId: widget.buildStart.streamId,
@@ -94,8 +95,7 @@ class _ProjectBuildConversationScreenState
                         stream: stream,
                         initialData: const <ProjectBuildStreamEvent>[],
                         builder: (context, snapshot) {
-                          final events =
-                              snapshot.data ??
+                          final events = snapshot.data ??
                               const <ProjectBuildStreamEvent>[];
                           final view = _BuildConversationView.from(events);
                           return Column(
@@ -103,9 +103,8 @@ class _ProjectBuildConversationScreenState
                             children: [
                               _LiveBuildMessage(
                                 view: view,
-                                onOpenProject: view.previewReady
-                                    ? _openProject
-                                    : null,
+                                onOpenProject:
+                                    view.previewReady ? _openProject : null,
                               ),
                               if (snapshot.hasError) ...[
                                 const SizedBox(height: 10),
@@ -141,14 +140,14 @@ class _ConversationLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-    label,
-    style: const TextStyle(
-      color: PandoraV2Colors.muted,
-      fontSize: 13,
-      fontWeight: FontWeight.w700,
-      letterSpacing: .2,
-    ),
-  );
+        label,
+        style: const TextStyle(
+          color: PandoraV2Colors.muted,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          letterSpacing: .2,
+        ),
+      );
 }
 
 class _CollapsibleIntent extends StatelessWidget {
@@ -245,8 +244,8 @@ class _LiveBuildMessage extends StatelessWidget {
                       view.previewReady
                           ? 'Build complete'
                           : view.failed
-                          ? 'Build stopped'
-                          : 'Pandora is coding',
+                              ? 'Build stopped'
+                              : 'Pandora is coding',
                       style: const TextStyle(
                         color: PandoraV2Colors.ink,
                         fontSize: 18,
@@ -403,12 +402,10 @@ class _BuildConversationView {
     }
 
     final lines = code.split('\n');
-    final visibleLines = lines.length > 36
-        ? lines.sublist(lines.length - 36)
-        : lines;
-    final recentActivity = activity.length > 7
-        ? activity.sublist(activity.length - 7)
-        : activity;
+    final visibleLines =
+        lines.length > 36 ? lines.sublist(lines.length - 36) : lines;
+    final recentActivity =
+        activity.length > 7 ? activity.sublist(activity.length - 7) : activity;
 
     return _BuildConversationView(
       currentFile: currentFile,

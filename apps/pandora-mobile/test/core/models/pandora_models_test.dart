@@ -9,19 +9,19 @@ Object? fixture(String name) =>
     jsonDecode(File('test/fixtures/owner_api/$name.json').readAsStringSync());
 
 Map<String, Object?> canonicalIntakeReceipt() => <String, Object?>{
-  'reply': 'Pandora recorded the request and will prepare a plan.',
-  'needsApproval': false,
-  'actionId': 'action-fixture-1',
-  'approvalId': null,
-  'status': <String, Object?>{
-    'whatChanged': 'A governed intake record was created.',
-    'whereWeAre': 'Planning',
-    'whatIsDone': 'The request was accepted.',
-    'whatIsHappeningNow': 'Pandora is checking preconditions.',
-    'whatIsStoppingUs': null,
-    'whatIWillDoNext': 'Show the plan before any protected change.',
-  },
-};
+      'reply': 'Pandora recorded the request and will prepare a plan.',
+      'needsApproval': false,
+      'actionId': 'action-fixture-1',
+      'approvalId': null,
+      'status': <String, Object?>{
+        'whatChanged': 'A governed intake record was created.',
+        'whereWeAre': 'Planning',
+        'whatIsDone': 'The request was accepted.',
+        'whatIsHappeningNow': 'Pandora is checking preconditions.',
+        'whatIsStoppingUs': null,
+        'whatIWillDoNext': 'Show the plan before any protected change.',
+      },
+    };
 
 void expectContractField(Object? value, String field) {
   expect(
@@ -210,10 +210,10 @@ void main() {
 
   test('task completion accepts only the canonical complete state', () {
     ProjectTask parse(String status) => ProjectTask.fromJson(<String, Object?>{
-      'id': 'task-fixture',
-      'title': 'Fixture task',
-      'status': status,
-    });
+          'id': 'task-fixture',
+          'title': 'Fixture task',
+          'status': status,
+        });
 
     expect(parse('complete').state, ProjectTaskState.complete);
     expect(parse('Incomplete').state, ProjectTaskState.unknown);
@@ -304,11 +304,12 @@ void main() {
       ApprovalSummary parse({
         Object? decision = 'pending',
         Object? expiresAt,
-      }) => ApprovalSummary.fromJson(<String, Object?>{
-        'id': 'approval-fixture-1',
-        'decision': decision,
-        'expiresAt': expiresAt,
-      });
+      }) =>
+          ApprovalSummary.fromJson(<String, Object?>{
+            'id': 'approval-fixture-1',
+            'decision': decision,
+            'expiresAt': expiresAt,
+          });
 
       expect(parse(expiresAt: '2026-08-14T01:00:01Z').canDecideAt(now), isTrue);
       expect(parse(expiresAt: null).canDecideAt(now), isFalse);

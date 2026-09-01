@@ -31,11 +31,11 @@ class PandoraEmbeddedPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraPreviewHost(
-    files: files,
-    versionId: versionId,
-    fallback: fallback,
-    selectionEnabled: selectionEnabled,
-    selectedSelector: selectedSelector,
-    onSelection: onSelection,
-  );
+        files: files,
+        versionId: versionId,
+        fallback: fallback,
+        selectionEnabled: selectionEnabled,
+        selectedSelector: selectedSelector,
+        onSelection: onSelection,
+      );
 }

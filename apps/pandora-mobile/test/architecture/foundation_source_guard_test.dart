@@ -3,12 +3,11 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/core/design/pandora_tokens.dart';
 
-List<File> dartFiles(String directory) =>
-    Directory(directory)
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((file) => file.path.endsWith('.dart'))
-        .toList(growable: false);
+List<File> dartFiles(String directory) => Directory(directory)
+    .listSync(recursive: true)
+    .whereType<File>()
+    .where((file) => file.path.endsWith('.dart'))
+    .toList(growable: false);
 
 void main() {
   test('bootstrap owns initialization, not feature presentation', () {
@@ -46,8 +45,8 @@ void main() {
     expect(source, contains('_PandoraV2BottomBar('));
     expect(source, isNot(contains("_Destination('Ask Pandora'")));
 
-    final home = File('lib/features/simple/simple_home_screen.dart')
-        .readAsStringSync();
+    final home =
+        File('lib/features/simple/simple_home_screen.dart').readAsStringSync();
     expect(home, contains('PandoraV2IntentSurface('));
     expect(home, contains("hintText: 'Tell Pandora what you want…'"));
   });
@@ -78,8 +77,8 @@ void main() {
   });
 
   test('memory cache is limited to explicitly safe summary lists', () {
-    final source = File('lib/core/data/read_only_memory_cache.dart')
-        .readAsStringSync();
+    final source =
+        File('lib/core/data/read_only_memory_cache.dart').readAsStringSync();
     expect(source, contains('List<ProjectSummary>'));
     expect(source, contains('List<AuditEvent>'));
     expect(source, contains('List<ConnectionSummary>'));

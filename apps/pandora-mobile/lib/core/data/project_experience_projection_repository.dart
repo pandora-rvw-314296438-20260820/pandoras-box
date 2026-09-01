@@ -22,11 +22,11 @@ class SupabaseProjectExperienceProjectionRepository
   SupabaseProjectExperienceProjectionRepository({
     required SupabaseClient client,
     required String organizationId,
-  }) : _client = client,
-       _organizationId = _requiredIdentifier(
-         organizationId,
-         name: 'organizationId',
-       );
+  })  : _client = client,
+        _organizationId = _requiredIdentifier(
+          organizationId,
+          name: 'organizationId',
+        );
 
   static const _table = 'pandora_project_experience_projection';
 

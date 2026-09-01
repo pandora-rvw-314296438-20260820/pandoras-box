@@ -139,7 +139,8 @@ class PandoraProfessionalBuildPlan extends StatelessWidget {
             ),
             const _PlanDeliveryLine(
               icon: Icons.build_circle_outlined,
-              text: 'It compiles and checks the working version before you review it.',
+              text:
+                  'It compiles and checks the working version before you review it.',
             ),
             const _PlanDeliveryLine(
               icon: Icons.visibility_outlined,
@@ -159,14 +160,14 @@ class _PlanSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-    text,
-    style: const TextStyle(
-      color: PandoraV2Colors.ink,
-      fontSize: 14,
-      fontWeight: FontWeight.w800,
-      letterSpacing: -.1,
-    ),
-  );
+        text,
+        style: const TextStyle(
+          color: PandoraV2Colors.ink,
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -.1,
+        ),
+      );
 }
 
 class _PlanFact extends StatelessWidget {
@@ -177,33 +178,33 @@ class _PlanFact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      SizedBox(
-        width: 88,
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: PandoraV2Colors.muted,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            height: 1.35,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 88,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: PandoraV2Colors.muted,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
           ),
-        ),
-      ),
-      Expanded(
-        child: Text(
-          value,
-          style: const TextStyle(
-            color: PandoraV2Colors.ink,
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
-            height: 1.35,
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
           ),
-        ),
-      ),
-    ],
-  );
+        ],
+      );
 }
 
 class _PlanBullet extends StatelessWidget {
@@ -214,34 +215,34 @@ class _PlanBullet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(
-            check
-                ? Icons.check_circle_outline_rounded
-                : Icons.arrow_forward_rounded,
-            size: 17,
-            color: PandoraV2Colors.ink,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: PandoraV2Colors.ink,
-              fontSize: 15,
-              height: 1.38,
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                check
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.arrow_forward_rounded,
+                size: 17,
+                color: PandoraV2Colors.ink,
+              ),
             ),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: const TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 15,
+                  height: 1.38,
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class _PlanDeliveryLine extends StatelessWidget {
@@ -252,23 +253,23 @@ class _PlanDeliveryLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: PandoraV2Colors.muted),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: PandoraV2Colors.muted,
-              fontSize: 14,
-              height: 1.38,
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: PandoraV2Colors.muted),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: const TextStyle(
+                  color: PandoraV2Colors.muted,
+                  fontSize: 14,
+                  height: 1.38,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }

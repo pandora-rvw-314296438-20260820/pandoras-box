@@ -6,9 +6,9 @@ class ReadOnlyMemoryCache {
     int maxProjectSummaries = 250,
     int maxActivityItems = 50,
     int maxConnections = 100,
-  }) : maxProjectSummaries = maxProjectSummaries.clamp(1, 1000).toInt(),
-       maxActivityItems = maxActivityItems.clamp(1, 100).toInt(),
-       maxConnections = maxConnections.clamp(1, 250).toInt();
+  })  : maxProjectSummaries = maxProjectSummaries.clamp(1, 1000).toInt(),
+        maxActivityItems = maxActivityItems.clamp(1, 100).toInt(),
+        maxConnections = maxConnections.clamp(1, 250).toInt();
 
   final int maxProjectSummaries;
   final int maxActivityItems;

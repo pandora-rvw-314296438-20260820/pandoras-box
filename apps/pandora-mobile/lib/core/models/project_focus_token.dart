@@ -12,11 +12,11 @@ class ProjectFocusBounds {
   final double height;
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'x': x,
-    'y': y,
-    'width': width,
-    'height': height,
-  };
+        'x': x,
+        'y': y,
+        'width': width,
+        'height': height,
+      };
 
   String get compact =>
       'x=${x.toStringAsFixed(1)},y=${y.toStringAsFixed(1)},w=${width.toStringAsFixed(1)},h=${height.toStringAsFixed(1)}';
@@ -55,12 +55,10 @@ class ProjectFocusToken {
     final normalizedProject = projectId.trim().toLowerCase();
     final normalizedVersion = versionId.trim().toLowerCase();
     final normalizedDigest = artifactDigest.trim().toLowerCase();
-    final normalizedSemantic = semanticId.trim().isNotEmpty
-        ? semanticId.trim()
-        : selector.trim();
-    final normalizedSource = sourceFile.trim().isEmpty
-        ? 'index.html'
-        : sourceFile.trim();
+    final normalizedSemantic =
+        semanticId.trim().isNotEmpty ? semanticId.trim() : selector.trim();
+    final normalizedSource =
+        sourceFile.trim().isEmpty ? 'index.html' : sourceFile.trim();
     if (normalizedProject.isEmpty ||
         normalizedVersion.isEmpty ||
         !RegExp(r'^[0-9a-f]{64}$').hasMatch(normalizedDigest) ||
@@ -124,17 +122,17 @@ class ProjectFocusToken {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'schemaVersion': schemaVersion,
-    'projectId': projectId,
-    'versionId': versionId,
-    'artifactDigest': artifactDigest,
-    'semanticId': semanticId,
-    'selector': selector,
-    'role': role,
-    'accessibleName': accessibleName,
-    'route': route,
-    'sourceFile': sourceFile,
-    'sourceLine': sourceLine,
-    'bounds': bounds?.toJson(),
-  };
+        'schemaVersion': schemaVersion,
+        'projectId': projectId,
+        'versionId': versionId,
+        'artifactDigest': artifactDigest,
+        'semanticId': semanticId,
+        'selector': selector,
+        'role': role,
+        'accessibleName': accessibleName,
+        'route': route,
+        'sourceFile': sourceFile,
+        'sourceLine': sourceLine,
+        'bounds': bounds?.toJson(),
+      };
 }

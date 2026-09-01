@@ -77,8 +77,7 @@ class ProjectWorkspaceV2View extends StatelessWidget {
   Widget build(BuildContext context) {
     final files = previewFiles;
     final versionId = previewVersionId;
-    final hasExactPreview =
-        files != null &&
+    final hasExactPreview = files != null &&
         files.isNotEmpty &&
         versionId != null &&
         versionId.isNotEmpty;
@@ -116,23 +115,23 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                           child: loading
                               ? _ExactPreviewLoadingSurface(projectName: title)
                               : hasExactPreview
-                              ? PandoraPreviewHost(
-                                  key: ValueKey<String>(versionId),
-                                  files: files,
-                                  versionId: versionId,
-                                  selectionEnabled: selectionMode,
-                                  selectedSelector:
-                                      selectedPreviewTarget?.selector,
-                                  onSelection: onSelection,
-                                  fallback: _ExactPreviewFallback(
-                                    projectName: title,
-                                    onOpen: onOpenPreview,
-                                  ),
-                                )
-                              : _ExactPreviewFallback(
-                                  projectName: title,
-                                  onOpen: onOpenPreview,
-                                ),
+                                  ? PandoraPreviewHost(
+                                      key: ValueKey<String>(versionId),
+                                      files: files,
+                                      versionId: versionId,
+                                      selectionEnabled: selectionMode,
+                                      selectedSelector:
+                                          selectedPreviewTarget?.selector,
+                                      onSelection: onSelection,
+                                      fallback: _ExactPreviewFallback(
+                                        projectName: title,
+                                        onOpen: onOpenPreview,
+                                      ),
+                                    )
+                                  : _ExactPreviewFallback(
+                                      projectName: title,
+                                      onOpen: onOpenPreview,
+                                    ),
                         ),
                       ),
                     ),
@@ -190,19 +189,19 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                         snapSizes: const [.38],
                         builder: (context, scrollController) =>
                             _PandoraComposerSheet(
-                              scrollController: scrollController,
-                              selectionMode: selectionMode,
-                              selectedPreviewTarget: selectedPreviewTarget,
-                              intelligenceReply: intelligenceReply,
-                              error: error,
-                              onClearSelection: onClearSelection,
-                              onDismissIntelligence: onDismissIntelligence,
-                              onDismissError: onDismissError,
-                              changeController: changeController,
-                              changeEnabled: changeEnabled,
-                              onSubmit: onSubmit,
-                              onVoice: onVoice,
-                            ),
+                          scrollController: scrollController,
+                          selectionMode: selectionMode,
+                          selectedPreviewTarget: selectedPreviewTarget,
+                          intelligenceReply: intelligenceReply,
+                          error: error,
+                          onClearSelection: onClearSelection,
+                          onDismissIntelligence: onDismissIntelligence,
+                          onDismissError: onDismissError,
+                          changeController: changeController,
+                          changeEnabled: changeEnabled,
+                          onSubmit: onSubmit,
+                          onVoice: onVoice,
+                        ),
                       ),
                     ),
                   ],
@@ -247,74 +246,74 @@ class _PandoraComposerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    elevation: 12,
-    shadowColor: Colors.black12,
-    color: PandoraV2Colors.surface,
-    clipBehavior: Clip.antiAlias,
-    shape: const RoundedRectangleBorder(
-      side: BorderSide(color: PandoraV2Colors.line),
-      borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-    ),
-    child: ListView(
-      controller: scrollController,
-      padding: EdgeInsets.fromLTRB(
-        12,
-        8,
-        12,
-        10 + MediaQuery.paddingOf(context).bottom,
-      ),
-      children: [
-        Center(
-          child: Container(
-            width: 34,
-            height: 4,
-            decoration: BoxDecoration(
-              color: PandoraV2Colors.line,
-              borderRadius: BorderRadius.circular(99),
+        elevation: 12,
+        shadowColor: Colors.black12,
+        color: PandoraV2Colors.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: const RoundedRectangleBorder(
+          side: BorderSide(color: PandoraV2Colors.line),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        child: ListView(
+          controller: scrollController,
+          padding: EdgeInsets.fromLTRB(
+            12,
+            8,
+            12,
+            10 + MediaQuery.paddingOf(context).bottom,
+          ),
+          children: [
+            Center(
+              child: Container(
+                width: 34,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: PandoraV2Colors.line,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 8),
+            PandoraV2IntentSurface(
+              controller: changeController,
+              hintText: selectedPreviewTarget == null
+                  ? 'Tell Pandora what to change…'
+                  : 'Change ${selectedPreviewTarget!.label}…',
+              enabled: changeEnabled,
+              onSubmit: onSubmit,
+              onVoice: onVoice,
+            ),
+            if (selectionMode || selectedPreviewTarget != null) ...[
+              const SizedBox(height: 8),
+              _SelectionContextCapsule(
+                selecting: selectionMode,
+                selection: selectedPreviewTarget,
+                onClear: onClearSelection,
+              ),
+            ],
+            if (intelligenceReply != null) ...[
+              const SizedBox(height: 8),
+              PandoraV2InlineMessage(
+                title: 'Pandora',
+                message: intelligenceReply!,
+                actionLabel: 'Dismiss',
+                onAction: onDismissIntelligence,
+              ),
+            ],
+            if (error != null) ...[
+              const SizedBox(height: 8),
+              PandoraV2InlineMessage(
+                title: 'Project unchanged',
+                message: error!,
+                actionLabel: 'Dismiss',
+                onAction: onDismissError,
+                danger: true,
+              ),
+            ],
+            const SizedBox(height: 4),
+          ],
         ),
-        const SizedBox(height: 8),
-        PandoraV2IntentSurface(
-          controller: changeController,
-          hintText: selectedPreviewTarget == null
-              ? 'Tell Pandora what to change…'
-              : 'Change ${selectedPreviewTarget!.label}…',
-          enabled: changeEnabled,
-          onSubmit: onSubmit,
-          onVoice: onVoice,
-        ),
-        if (selectionMode || selectedPreviewTarget != null) ...[
-          const SizedBox(height: 8),
-          _SelectionContextCapsule(
-            selecting: selectionMode,
-            selection: selectedPreviewTarget,
-            onClear: onClearSelection,
-          ),
-        ],
-        if (intelligenceReply != null) ...[
-          const SizedBox(height: 8),
-          PandoraV2InlineMessage(
-            title: 'Pandora',
-            message: intelligenceReply!,
-            actionLabel: 'Dismiss',
-            onAction: onDismissIntelligence,
-          ),
-        ],
-        if (error != null) ...[
-          const SizedBox(height: 8),
-          PandoraV2InlineMessage(
-            title: 'Project unchanged',
-            message: error!,
-            actionLabel: 'Dismiss',
-            onAction: onDismissError,
-            danger: true,
-          ),
-        ],
-        const SizedBox(height: 4),
-      ],
-    ),
-  );
+      );
 }
 
 class _SelectionContextCapsule extends StatelessWidget {
@@ -398,78 +397,78 @@ class _LiveProjectHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 58,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Row(
-        children: [
-          IconButton(
-            tooltip: 'Back',
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_rounded),
-            color: PandoraV2Colors.ink,
-          ),
-          const SizedBox(width: 2),
-          Expanded(
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: PandoraV2Colors.ink,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -.25,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Flexible(
-                  child: Text(
-                    status,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: PandoraV2Colors.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (canUndo)
-            TextButton(
-              onPressed: undoing ? null : onUndo,
-              style: TextButton.styleFrom(
-                foregroundColor: PandoraV2Colors.ink,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: 58,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'Back',
+                onPressed: onBack,
+                icon: const Icon(Icons.arrow_back_rounded),
+                color: PandoraV2Colors.ink,
               ),
-              child: Text(undoing ? 'Undoing…' : 'Undo'),
-            ),
-          IconButton(
-            tooltip: 'More',
-            onPressed: onMore,
-            icon: const Icon(Icons.more_horiz_rounded),
-            color: PandoraV2Colors.ink,
+              const SizedBox(width: 2),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PandoraV2Colors.ink,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -.25,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        status,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PandoraV2Colors.muted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (canUndo)
+                TextButton(
+                  onPressed: undoing ? null : onUndo,
+                  style: TextButton.styleFrom(
+                    foregroundColor: PandoraV2Colors.ink,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  child: Text(undoing ? 'Undoing…' : 'Undo'),
+                ),
+              IconButton(
+                tooltip: 'More',
+                onPressed: onMore,
+                icon: const Icon(Icons.more_horiz_rounded),
+                color: PandoraV2Colors.ink,
+              ),
+            ],
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 class _ExactPreviewLoadingSurface extends StatelessWidget {
@@ -479,75 +478,75 @@ class _ExactPreviewLoadingSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(24),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: PandoraV2Colors.soft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: PandoraV2Colors.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    projectName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
             Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
+              height: 18,
+              width: double.infinity,
+              decoration: BoxDecoration(
                 color: PandoraV2Colors.soft,
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: const Padding(
-                padding: EdgeInsets.all(10),
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: PandoraV2Colors.ink,
+            ),
+            const SizedBox(height: 10),
+            FractionallySizedBox(
+              widthFactor: .72,
+              child: Container(
+                height: 14,
+                decoration: BoxDecoration(
+                  color: PandoraV2Colors.soft,
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                projectName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: PandoraV2Colors.ink,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
+            const SizedBox(height: 20),
+            Container(
+              height: 132,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: PandoraV2Colors.soft,
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
+            const Spacer(),
           ],
         ),
-        const Spacer(),
-        Container(
-          height: 18,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: PandoraV2Colors.soft,
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        const SizedBox(height: 10),
-        FractionallySizedBox(
-          widthFactor: .72,
-          child: Container(
-            height: 14,
-            decoration: BoxDecoration(
-              color: PandoraV2Colors.soft,
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          height: 132,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: PandoraV2Colors.soft,
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        const Spacer(),
-      ],
-    ),
-  );
+      );
 }
 
 class _ExactPreviewFallback extends StatelessWidget {
@@ -561,50 +560,50 @@ class _ExactPreviewFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: PandoraV2Colors.surface,
-    child: InkWell(
-      onTap: onOpen,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: const BoxDecoration(
-                  color: PandoraV2Colors.soft,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.language_rounded,
-                  color: PandoraV2Colors.ink,
-                ),
+        color: PandoraV2Colors.surface,
+        child: InkWell(
+          onTap: onOpen,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: const BoxDecoration(
+                      color: PandoraV2Colors.soft,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.language_rounded,
+                      color: PandoraV2Colors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    projectName,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -.4,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Open the exact project preview',
+                    textAlign: TextAlign.center,
+                    style: pandoraV2Muted,
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                projectName,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: PandoraV2Colors.ink,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -.4,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Open the exact project preview',
-                textAlign: TextAlign.center,
-                style: pandoraV2Muted,
-              ),
-            ],
+            ),
           ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 class _PreviewIconButton extends StatelessWidget {
@@ -620,17 +619,17 @@ class _PreviewIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: PandoraV2Colors.surface.withValues(alpha: .94),
-    elevation: 2,
-    shadowColor: Colors.black12,
-    shape: const CircleBorder(),
-    child: IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      icon: Icon(icon, size: 19),
-      color: PandoraV2Colors.ink,
-    ),
-  );
+        color: PandoraV2Colors.surface.withValues(alpha: .94),
+        elevation: 2,
+        shadowColor: Colors.black12,
+        shape: const CircleBorder(),
+        child: IconButton(
+          tooltip: tooltip,
+          onPressed: onPressed,
+          icon: Icon(icon, size: 19),
+          color: PandoraV2Colors.ink,
+        ),
+      );
 }
 
 class _ProjectProgressCapsule extends StatelessWidget {
@@ -639,11 +638,11 @@ class _ProjectProgressCapsule extends StatelessWidget {
   final ProjectChangePhase phase;
 
   int get _activeIndex => switch (phase) {
-    ProjectChangePhase.designing => 0,
-    ProjectChangePhase.building => 1,
-    ProjectChangePhase.checking => 2,
-    ProjectChangePhase.idle => 2,
-  };
+        ProjectChangePhase.designing => 0,
+        ProjectChangePhase.building => 1,
+        ProjectChangePhase.checking => 2,
+        ProjectChangePhase.idle => 2,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -715,52 +714,53 @@ class _VerifiedChangeCapsule extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-    decoration: BoxDecoration(
-      color: PandoraV2Colors.surface.withValues(alpha: .96),
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: PandoraV2Colors.line),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x14000000),
-          blurRadius: 18,
-          offset: Offset(0, 6),
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: const BoxDecoration(
-            color: Color(0xFFE9F5EF),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.check_rounded,
-            size: 16,
-            color: PandoraV2Colors.success,
-          ),
-        ),
-        const SizedBox(width: 9),
-        const Expanded(
-          child: Text(
-            'Verified change',
-            style: TextStyle(
-              color: PandoraV2Colors.ink,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        decoration: BoxDecoration(
+          color: PandoraV2Colors.surface.withValues(alpha: .96),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: PandoraV2Colors.line),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 18,
+              offset: Offset(0, 6),
             ),
-          ),
+          ],
         ),
-        if (canUndo)
-          TextButton(
-            onPressed: undoing ? null : onUndo,
-            style: TextButton.styleFrom(foregroundColor: PandoraV2Colors.ink),
-            child: Text(undoing ? 'Undoing…' : 'Undo'),
-          ),
-      ],
-    ),
-  );
+        child: Row(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE9F5EF),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                size: 16,
+                color: PandoraV2Colors.success,
+              ),
+            ),
+            const SizedBox(width: 9),
+            const Expanded(
+              child: Text(
+                'Verified change',
+                style: TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (canUndo)
+              TextButton(
+                onPressed: undoing ? null : onUndo,
+                style:
+                    TextButton.styleFrom(foregroundColor: PandoraV2Colors.ink),
+                child: Text(undoing ? 'Undoing…' : 'Undo'),
+              ),
+          ],
+        ),
+      );
 }
