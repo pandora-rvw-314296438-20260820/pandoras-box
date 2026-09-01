@@ -33,5 +33,8 @@ test('accepted builds are server-owned and survive the mobile app lifecycle', ()
   assert.ok(generator.includes('runtime.waitUntil(runGenerationInBackground({'));
   assert.ok(generator.includes('output_mode: "structured"'));
   assert.ok(!generator.includes('output_mode: "streamed_source"'));
-  assert.ok(generator.includes('event_type: "build_job_created"'));
+  assert.ok(generator.includes('pandora_admit_authorized_build_service_v1'));
+  assert.ok(generator.includes('buildJobId: admission.buildJobId'));
+  assert.ok(generator.includes('if (runtime?.waitUntil && !admission.projectVersionId)'));
+  assert.ok(!generator.includes('pandora_build_stream_sessions").insert'));
 });
