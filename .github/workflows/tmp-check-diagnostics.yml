@@ -44,11 +44,8 @@ jobs:
           npm run check:supabase:replay > /tmp/replay.log 2>&1
           status=$?
           if [ "$status" -ne 0 ]; then
-            tail -n 240 /tmp/replay.log > tmp-replay-diagnostic.txt
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add tmp-replay-diagnostic.txt
-            git commit -m 'ci: capture migration replay diagnostic'
-            git push origin HEAD:feature/pandora-intent-distillation-20260901
+            tail -n 80 /tmp/replay.log | while IFS= read -r line; do
+              echo "::error title=Migration replay diagnostic::$line"
+            done
           fi
           exit "$status"
