@@ -100,9 +100,10 @@ class _PandoraAndroidPreviewState extends State<PandoraAndroidPreview> {
   void _syncSelectionMode() {
     final channel = _selectionChannel;
     if (channel == null) return;
-    channel.invokeMethod<void>('setSelectionMode', <String, Object?>{
-      'enabled': widget.selectionEnabled,
-    }).catchError((_) {});
+    channel.invokeMethod<void>(
+      'setSelectionMode',
+      <String, Object?>{'enabled': widget.selectionEnabled},
+    ).catchError((_) {});
   }
 
   void _clearNativeSelection() {
