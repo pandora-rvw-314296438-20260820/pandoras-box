@@ -1,4 +1,3 @@
-
 import { randomUUID } from 'node:crypto';
 import { validateBuildExecutionRequest } from '../contracts/build-execution.mjs';
 import { SandboxProvider } from './sandbox-manager.mjs';
@@ -11,6 +10,7 @@ const SAFE_NAME = /^[a-z0-9][a-z0-9-]{0,62}$/;
 const SAFE_EXECUTABLE = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$/;
 const FORBIDDEN_EXECUTABLES = new Set(['sh','bash','zsh','cmd','cmd.exe','powershell','powershell.exe','pwsh']);
 const SECRET_ENV = /(?:^|_)(?:TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY|AUTHORIZATION|COOKIE)(?:_|$)/i;
+const MAX_PROVIDER_LOG_BYTES = 64 * 1024;
 
 function required(value, field, pattern) {
   if (typeof value !== 'string' || !pattern.test(value)) throw new Error(`INVALID_${field.toUpperCase()}`);
@@ -91,7 +91,9 @@ function normalizeOperation(operation, handle) {
   }
   const timeoutMs = Number(operation.timeoutMs ?? 15 * 60_000);
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 30 * 60_000) throw new Error('INVALID_SANDBOX_TIMEOUT');
-  return Object.freeze({ executable, args: [...operation.args], cwd, env: { ...env }, timeoutMs, signal: operation.signal ?? null });
+  const maxOutputBytes = Number(operation.maxOutputBytes ?? MAX_PROVIDER_LOG_BYTES);
+  if (!Number.isInteger(maxOutputBytes) || maxOutputBytes < 1024 || maxOutputBytes > MAX_PROVIDER_LOG_BYTES) throw new Error('INVALID_SANDBOX_OUTPUT_LIMIT');
+  return Object.freeze({ executable, args: [...operation.args], cwd, env: { ...env }, timeoutMs, maxOutputBytes, signal: operation.signal ?? null });
 }
 
 function commandRecord(body) {
@@ -99,6 +101,64 @@ function commandRecord(body) {
   const id = required(command?.id, 'command_id', COMMAND_ID);
   const exitCode = command?.exitCode == null ? null : Number(command.exitCode);
   return { id, exitCode: Number.isInteger(exitCode) ? exitCode : null, durationMs: Number(command?.durationMs ?? 0) || 0 };
+}
+
+function appendBounded(current, value, maxBytes) {
+  if (!value) return { text: current, truncated: false };
+  const currentBytes = Buffer.byteLength(current);
+  if (currentBytes >= maxBytes) return { text: current, truncated: true };
+  const remaining = maxBytes - currentBytes;
+  const buffer = Buffer.from(String(value));
+  if (buffer.length <= remaining) return { text: current + buffer.toString('utf8'), truncated: false };
+  return { text: current + buffer.subarray(0, remaining).toString('utf8'), truncated: true };
+}
+
+function parseCommandLogResponse(body, maxBytes = MAX_PROVIDER_LOG_BYTES) {
+  if (!Number.isInteger(maxBytes) || maxBytes < 1024 || maxBytes > MAX_PROVIDER_LOG_BYTES) throw new Error('INVALID_SANDBOX_OUTPUT_LIMIT');
+  const raw = typeof body?.raw === 'string'
+    ? body.raw
+    : typeof body?.text === 'string'
+      ? body.text
+      : Array.isArray(body)
+        ? body.map((entry) => JSON.stringify(entry)).join('\n')
+        : body?.stream && body?.data
+          ? JSON.stringify(body)
+          : '';
+  let stdout = '';
+  let stderr = '';
+  let truncated = false;
+  let parseErrors = 0;
+
+  for (const line of raw.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      parseErrors += 1;
+      continue;
+    }
+    const stream = String(entry?.stream ?? '').toLowerCase();
+    const message = typeof entry?.data === 'string'
+      ? entry.data
+      : typeof entry?.data?.message === 'string'
+        ? entry.data.message
+        : typeof entry?.message === 'string'
+          ? entry.message
+          : '';
+    if (!message) continue;
+    if (stream === 'stdout') {
+      const appended = appendBounded(stdout, message, maxBytes);
+      stdout = appended.text;
+      truncated ||= appended.truncated;
+    } else if (stream === 'stderr' || stream === 'error') {
+      const appended = appendBounded(stderr, message, maxBytes);
+      stderr = appended.text;
+      truncated ||= appended.truncated;
+    }
+  }
+
+  return Object.freeze({ stdout, stderr, truncated, parseErrors });
 }
 
 function delay(ms, signal) {
@@ -115,8 +175,8 @@ class VercelSandboxProvider extends SandboxProvider {
     this.transport = transport;
     this.teamId = required(teamId, 'team_id', TEAM_ID);
     this.projectId = required(projectId, 'project_id', PROJECT_ID);
-    this.pollIntervalMs = Math.max(50, Math.min(Number(pollIntervalMs) || 250, 5000));
-    this.maxPolls = Math.max(1, Math.min(Number(maxPolls) || 7200, 10000));
+    this.pollIntervalMs = Math.max(50, Math.min(5000, Number(pollIntervalMs) || 250));
+    this.maxPolls = Math.max(1, Math.min(10000, Number(maxPolls) || 7200));
   }
 
   async create(rawRequest) {
@@ -167,7 +227,7 @@ class VercelSandboxProvider extends SandboxProvider {
     for (let i = 0; command.exitCode == null && i < this.maxPolls; i += 1) {
       if (operation.signal?.aborted) {
         await this.transport.request('POST', scoped(`/v2/sandboxes/sessions/${sessionId}/cmd/${command.id}/kill`, this.teamId), {}).catch(() => null);
-        return Object.freeze({ status: 'cancelled', exitCode: null, failureClass: 'cancelled', stdout: { text: '' }, stderr: { text: '' }, startedAt, finishedAt: new Date().toISOString(), commandId: command.id });
+        return Object.freeze({ status: 'cancelled', exitCode: null, failureClass: 'cancelled', stdout: { text: '' }, stderr: { text: '' }, startedAt, finishedAt: new Date().toISOString(), commandId: command.id, outputReadback: 'not_requested' });
       }
       await delay(this.pollIntervalMs, operation.signal).catch(async () => {
         await this.transport.request('POST', scoped(`/v2/sandboxes/sessions/${sessionId}/cmd/${command.id}/kill`, this.teamId), {}).catch(() => null);
@@ -178,9 +238,35 @@ class VercelSandboxProvider extends SandboxProvider {
     }
     if (command.exitCode == null) {
       await this.transport.request('POST', scoped(`/v2/sandboxes/sessions/${sessionId}/cmd/${command.id}/kill`, this.teamId), {}).catch(() => null);
-      return Object.freeze({ status: 'failed', exitCode: null, failureClass: 'timeout', stdout: { text: '' }, stderr: { text: '' }, startedAt, finishedAt: new Date().toISOString(), commandId: command.id });
+      return Object.freeze({ status: 'failed', exitCode: null, failureClass: 'timeout', stdout: { text: '' }, stderr: { text: '' }, startedAt, finishedAt: new Date().toISOString(), commandId: command.id, outputReadback: 'not_requested' });
     }
-    return Object.freeze({ status: command.exitCode === 0 ? 'completed' : 'failed', exitCode: command.exitCode, failureClass: command.exitCode === 0 ? null : 'unknown', stdout: { text: '' }, stderr: { text: '' }, startedAt, finishedAt: new Date().toISOString(), durationMs: command.durationMs, commandId: command.id });
+
+    let logs = { stdout: '', stderr: '', truncated: false, parseErrors: 0 };
+    let outputReadback = 'completed';
+    try {
+      const logBody = responseBody(await this.transport.request(
+        'GET',
+        scoped(`/v2/sandboxes/sessions/${sessionId}/cmd/${command.id}/logs`, this.teamId),
+        null,
+      ));
+      logs = parseCommandLogResponse(logBody, operation.maxOutputBytes);
+    } catch {
+      outputReadback = 'unavailable';
+    }
+
+    return Object.freeze({
+      status: command.exitCode === 0 ? 'completed' : 'failed',
+      exitCode: command.exitCode,
+      failureClass: command.exitCode === 0 ? null : 'unknown',
+      stdout: { text: logs.stdout, truncated: logs.truncated },
+      stderr: { text: logs.stderr, truncated: logs.truncated },
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      durationMs: command.durationMs,
+      commandId: command.id,
+      outputReadback,
+      outputParseErrors: logs.parseErrors,
+    });
   }
 
   async cancel(handle, reason = 'cancelled') {
@@ -202,4 +288,9 @@ class VercelSandboxProvider extends SandboxProvider {
   }
 }
 
-export { VercelSandboxProvider, networkPolicy as vercelSandboxNetworkPolicy };
+export {
+  MAX_PROVIDER_LOG_BYTES,
+  VercelSandboxProvider,
+  networkPolicy as vercelSandboxNetworkPolicy,
+  parseCommandLogResponse,
+};

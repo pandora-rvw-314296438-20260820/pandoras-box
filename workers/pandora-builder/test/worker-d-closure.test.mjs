@@ -16,7 +16,7 @@ const req = (n = 1, refs = []) => ({ buildJobId: uuid(n), organizationId: uuid(1
 function store() { const rows = new Map(); const k=(s,i)=>`${s}|${i}`; return { rows, get: async(s,i)=>rows.get(k(s,i))??null, put: async r=>rows.set(k(r.stepKey,r.idempotencyKey),{...(rows.get(k(r.stepKey,r.idempotencyKey))??{}),...structuredClone(r)}) }; }
 
 test('Worker A lease transport hashes raw token', async () => {
-  const calls=[]; const c=createWorkerAControlPlane({workerIdentity:'worker-d-1',rpc:async(name,args)=>calls.push({name,args})});
+  const calls=[]; const c=createWorkerAControlPlane({workerIdentity:'worker-d-1',rpc:async(name,args)=>{calls.push({name,args});return true;}});
   const token='lease-secret-1234567890'; await c.claim(uuid(1),token); await c.heartbeat(uuid(1),token);
   assert.equal(calls[0].args.p_lease_token_sha256,sha256Hex(token)); assert.equal(JSON.stringify(calls).includes(token),false);
 });
@@ -40,7 +40,7 @@ test('durable journal replays exact duplicates, rejects conflicts, quarantines a
 test('authorized repair uses distinct workspace, budgets changes, rebuilds, and cleans up', async () => {
   const destroyed=[]; const c=createRepairController({buildJobId:uuid(9),sourceDigest:'a'.repeat(64),budget:{maxAttempts:1,maxChangedFiles:2,maxChangedBytes:100,maxCostCents:5}});
   const r=await executeRepairAttempt({controller:c,failureClass:'compile',authorizationId:'auth-repair',estimatedCostCents:2,changedFiles:[{path:'src/a.js',operation:'modify',sizeBytes:5}],createWorkspace:async({workspaceKey})=>({root:`/sandbox/${workspaceKey}`}),applyChanges:async()=>({appliedCount:1}),rebuild:async()=>({status:'completed',manifestSha256:'b'.repeat(64)}),destroyWorkspace:async({workspaceKey})=>destroyed.push(workspaceKey)});
-  assert.equal(r.status,'completed'); assert.match(r.workspaceKey,/:repair:1$/); assert.deepEqual(destroyed,[r.workspaceKey]); assert.throws(()=>c.authorize({failureClass:'test',authorizationId:'auth-2',changedFiles:[]}),/REPAIR_ATTEMPT_BUDGET_EXCEEDED/);
+  assert.equal(r.status,'completed'); assert.match(r.workspaceKey,/:repair:1$/); assert.deepEqual(destroyed,[r.workspaceKey]); assert.throws(()=>c.authorize({failureClass:'compile',authorizationId:'auth-2',changedFiles:[]}),/REPAIR_ATTEMPT_BUDGET_EXCEEDED/);
 });
 
 test('admission, health, crash recovery, and orphan cleanup are fail closed', () => {
