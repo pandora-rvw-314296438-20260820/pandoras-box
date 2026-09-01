@@ -97,3 +97,14 @@ test('verifier input rejects credential-bearing artifacts and telemetry is safe/
   assert.equal(Object.hasOwn(records[0], 'producedResult'), false);
   assert.equal(Object.hasOwn(records[0], 'taskSpec'), false);
 });
+
+
+test('critical verification requires human approval after independent verifier pass', async () => {
+  const engine = new verification.IndependentProviderVerifier({ executeVerifier: async () => ({ decision: 'PASS' }) });
+  const held = await engine.verify({ taskClass: 'infrastructure_change', riskClass: 'critical', builder: gemini, verifierCandidates: [kimi], producedResult: {}, deterministicEvidence: passEvidence });
+  assert.equal(verification.requiredVerificationLevel('infrastructure_change', 'critical'), 4);
+  assert.equal(held.decision, 'HOLD');
+  assert.equal(held.reason, 'human_approval_required');
+  const passed = await engine.verify({ taskClass: 'infrastructure_change', riskClass: 'critical', builder: gemini, verifierCandidates: [kimi], producedResult: {}, deterministicEvidence: passEvidence, humanApproval: true });
+  assert.equal(passed.decision, 'PASS');
+});
