@@ -35,7 +35,7 @@ jobs:
           flutter analyze > /tmp/analyze.log 2>&1
           status=$?
           if [ "$status" -ne 0 ]; then
-            tail -n 120 /tmp/analyze.log | while IFS= read -r line; do
+            grep -E '(^|[[:space:]])(error|warning|info)[[:space:]]+•|issues? found|No issues found' /tmp/analyze.log | while IFS= read -r line; do
               echo "::error title=Flutter analyze::$line"
             done
           fi
