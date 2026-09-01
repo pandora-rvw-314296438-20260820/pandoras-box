@@ -169,15 +169,13 @@ class PandoraProfessionalBuildPlan extends StatelessWidget {
             const SizedBox(height: 20),
             const _PlanSectionTitle('Core experience'),
             const SizedBox(height: 10),
-            for (final experience in experiences)
-              _PlanBullet(text: experience),
+            for (final experience in experiences) _PlanBullet(text: experience),
           ],
           if (workflows.isNotEmpty) ...[
             const SizedBox(height: 20),
             const _PlanSectionTitle('Main workflows'),
             const SizedBox(height: 10),
-            for (final workflow in workflows)
-              _PlanBullet(text: workflow),
+            for (final workflow in workflows) _PlanBullet(text: workflow),
           ],
           if (integrations.isNotEmpty) ...[
             const SizedBox(height: 20),
