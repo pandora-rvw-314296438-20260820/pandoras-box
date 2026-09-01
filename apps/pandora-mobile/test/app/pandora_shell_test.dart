@@ -402,32 +402,32 @@ void main() {
     expect(repository.projectCalls, 1);
   });
 
-  testWidgets(
-    'V2 home exposes intent without the legacy floating Ask control',
-    (tester) async {
-      await setTestSurface(tester, logicalSize: const Size(400, 800));
-      await tester.pumpWidget(
-        testApp(
-          child: PandoraDependencies(
-            auth: const _Auth(),
-            repository: _Repository(),
-            diagnostics: DiagnosticsStore(),
-            child: const PandoraShell(),
-          ),
+  testWidgets('V2 home exposes intent without the legacy floating Ask control',
+      (
+    tester,
+  ) async {
+    await setTestSurface(tester, logicalSize: const Size(400, 800));
+    await tester.pumpWidget(
+      testApp(
+        child: PandoraDependencies(
+          auth: const _Auth(),
+          repository: _Repository(),
+          diagnostics: DiagnosticsStore(),
+          child: const PandoraShell(),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('What do you want\nto make happen?'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey<String>('ask-pandora-open')),
-        findsNothing,
-      );
-      expect(find.text('Home'), findsWidgets);
-      expect(find.text('Work'), findsWidgets);
-      expect(find.text('Needs You'), findsWidgets);
-    },
-  );
+    expect(find.text('What do you want\nto make happen?'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('ask-pandora-open')),
+      findsNothing,
+    );
+    expect(find.text('Home'), findsWidgets);
+    expect(find.text('Work'), findsWidgets);
+    expect(find.text('Needs You'), findsWidgets);
+  });
 
   testWidgets('tabs load lazily and preserve their first mounted state', (
     tester,
