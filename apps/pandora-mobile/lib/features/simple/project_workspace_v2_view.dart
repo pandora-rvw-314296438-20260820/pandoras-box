@@ -358,6 +358,149 @@ class _PandoraComposerSheet extends StatelessWidget {
       );
 }
 
+class _ProjectHistoryCard extends StatelessWidget {
+  const _ProjectHistoryCard({required this.items});
+
+  final List<ProjectConversationHistoryItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = items.isEmpty ? null : items.last;
+    return Material(
+      color: PandoraV2Colors.soft,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        key: const Key('project-conversation-history'),
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _showHistory(context),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.history_rounded,
+                size: 18,
+                color: PandoraV2Colors.ink,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'History · ${items.length} events',
+                      style: const TextStyle(
+                        color: PandoraV2Colors.ink,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (latest != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        latest.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PandoraV2Colors.muted,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: PandoraV2Colors.muted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showHistory(BuildContext context) {
+    final recent = items.reversed.take(30).toList(growable: false);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: PandoraV2Colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: .72,
+          minChildSize: .42,
+          maxChildSize: .94,
+          builder: (context, controller) => ListView.separated(
+            controller: controller,
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
+            itemCount: recent.length + 1,
+            separatorBuilder: (_, __) => const Divider(
+              height: 20,
+              color: PandoraV2Colors.line,
+            ),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return const Text(
+                  'Project history',
+                  style: TextStyle(
+                    color: PandoraV2Colors.ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                );
+              }
+              final item = recent[index - 1];
+              final exactIntent = item.payloadText('intentText');
+              final body = exactIntent ?? item.summary;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: const TextStyle(
+                            color: PandoraV2Colors.ink,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      if (item.evidenceAvailable)
+                        const Icon(
+                          Icons.verified_outlined,
+                          size: 16,
+                          color: PandoraV2Colors.success,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    body,
+                    maxLines: item.isUserIntent ? 6 : 4,
+                    overflow: TextOverflow.ellipsis,
+                    style: pandoraV2Muted,
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PublishReceiptCard extends StatelessWidget {
   const _PublishReceiptCard({required this.receipt});
 
