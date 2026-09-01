@@ -2,8 +2,8 @@ const { readFile } = require('node:fs/promises');
 const { join } = require('node:path');
 
 const migrationPaths = [
-  '20260901134500_pandora_build_approval_receipts_v1.sql',
-  '20260901134600_pandora_project_conversation_projection_v1.sql',
+  '20260901075624_pandora_build_approval_receipts_v1.sql',
+  '20260901075716_pandora_project_conversation_projection_v1.sql',
 ].map((name) => join(process.cwd(), 'supabase', 'migrations', name));
 
 const UUID = {
