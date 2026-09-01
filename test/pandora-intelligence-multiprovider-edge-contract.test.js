@@ -7,50 +7,60 @@ const root=path.resolve(__dirname,'..');
 const edge=fs.readFileSync(path.join(root,'supabase/functions/pandora-intelligence-chat/index.ts'),'utf8');
 const config=fs.readFileSync(path.join(root,'supabase/migrations/20260902040000_chat_c_kimi_runtime_provider_config_v1.sql'),'utf8');
 const routing=fs.readFileSync(path.join(root,'supabase/migrations/20260902043000_chat_c_edge_runtime_convergence_v1.sql'),'utf8');
+const must=(text,needle)=>assert.ok(text.includes(needle),`missing contract marker: ${needle}`);
+const mustNot=(text,needle)=>assert.equal(text.includes(needle),false,`forbidden contract marker: ${needle}`);
 
-test('Ask Pandora wires Kimi only through the trusted service RPC and preserves Gemini',()=>{
-  assert.match(edge,/pandora_kimi_chat_request_v1/);
-  assert.match(edge,/pandora_worker_b_gemini_request_20260829/);
-  assert.match(edge,/pandora_runtime_provider_configs/);
-  assert.doesNotMatch(edge,/api\.moonshot\.ai|moonshot_api_key|kimi_api_key/i);
-  assert.match(edge,/stream:false/);
-  assert.match(edge,/req\\.signal\\.aborted/);
-  assert.match(edge,/REQUEST_CANCELLED/);
-  assert.match(routing,/\('kimi','stream_mode','buffered_v1'/);
+test('Ask Pandora wires Kimi only through trusted service RPC and preserves Gemini',()=>{
+  must(edge,'pandora_kimi_chat_request_v1');
+  must(edge,'pandora_worker_b_gemini_request_20260829');
+  must(edge,'pandora_runtime_provider_configs');
+  for(const forbidden of ['api.moonshot.ai','moonshot_api_key','kimi_api_key'])mustNot(edge,forbidden);
+  must(edge,'stream:false');
+  must(edge,'req.signal.aborted');
+  must(edge,'REQUEST_CANCELLED');
+  must(routing,"('kimi','stream_mode','buffered_v1'");
 });
 
 test('provider choice is server-owned and Kimi defaults fail closed',()=>{
-  assert.doesNotMatch(edge,/\bb\.provider\b|\bb\.model\b/);
-  assert.match(edge,/preferred_tasks/);
-  assert.match(edge,/cfg\.enabled&&cfg\.routingEligible/);
-  assert.match(config,/\('kimi','enabled','false',true,now\(\)\)/);
-  assert.match(config,/\('kimi','default_model','kimi-k3',true,now\(\)\)/);
+  mustNot(edge,'b.provider');
+  mustNot(edge,'b.model');
+  must(edge,'preferred_tasks');
+  must(edge,'cfg.enabled&&cfg.routingEligible');
+  must(config,"('kimi','enabled','false',true,now())");
+  must(config,"('kimi','default_model','kimi-k3',true,now())");
 });
 
-test('fallback and sticky recovery are bounded and explicit',()=>{
-  assert.match(edge,/\["provider_unavailable","timeout","rate_limited"\]/);
-  assert.match(edge,/pandora_read_intelligence_thread_route_v1/);
-  assert.match(edge,/pandora_claim_intelligence_thread_route_v1/);
-  assert.match(edge,/pandora_recover_intelligence_thread_route_v1/);
-  assert.match(edge,/recoveryEpoch/);
-  assert.match(edge,/fallbackUsed/);
-  assert.match(edge,/slice\(0,4\)/);
+test('fallback and sticky recovery are bounded explicit and classified',()=>{
+  must(edge,'["provider_unavailable","timeout","rate_limited"]');
+  must(edge,'pandora_read_intelligence_thread_route_v1');
+  must(edge,'pandora_claim_intelligence_thread_route_v1');
+  must(edge,'pandora_recover_intelligence_thread_route_v1');
+  must(edge,'recoveryEpoch');
+  must(edge,'fallbackUsed');
+  must(edge,'.slice(0,4)');
+  must(edge,'crossProviderEligible:true');
+  must(edge,'crossProviderEligible:false');
+  must(edge,'crossesProvider&&rec(e).crossProviderEligible!==true');
 });
 
 test('routing state wrappers remain service-role only',()=>{
   for(const fn of ['pandora_read_intelligence_thread_route_v1','pandora_claim_intelligence_thread_route_v1','pandora_recover_intelligence_thread_route_v1']){
-    assert.match(routing,new RegExp(`revoke all on function public\\.${fn}`));
-    assert.match(routing,new RegExp(`grant execute on function public\\.${fn}[^;]+service_role`));
+    must(routing,`revoke all on function public.${fn}`);
+    const grant=routing.split('\n').find(line=>line.includes(`grant execute on function public.${fn}`));
+    assert.ok(grant&&grant.includes('to service_role;'));
   }
 });
 
-test('Kimi and Gemini share the existing owner trust gates and customer response stays provider-blind',()=>{
-  assert.match(edge,/auth\.getUser\(\)/);
-  assert.match(edge,/memberships/);
-  assert.match(edge,/\["owner","admin"\]/);
-  assert.match(edge,/consume_runtime_rate_limit/);
-  assert.match(edge,/provider:result\.provider,model:result\.model/);
-  const successReturn=edge.match(/return res\(\{ok:true,threadId:tid[\s\S]*?\}\)\}catch/);
-  assert.ok(successReturn);
-  assert.doesNotMatch(successReturn[0],/provider:result|model:result/);
+test('Kimi and Gemini share owner trust gates and customer response stays provider-blind',()=>{
+  must(edge,'auth.getUser()');
+  must(edge,'memberships');
+  must(edge,'["owner","admin"]');
+  must(edge,'consume_runtime_rate_limit');
+  must(edge,'provider:result.provider,model:result.model');
+  const start=edge.indexOf('return res({ok:true,threadId:tid');
+  const end=edge.indexOf('}catch(e)',start);
+  assert.ok(start>=0&&end>start);
+  const publicSuccess=edge.slice(start,end);
+  mustNot(publicSuccess,'provider:result');
+  mustNot(publicSuccess,'model:result');
 });
