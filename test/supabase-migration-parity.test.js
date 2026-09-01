@@ -150,6 +150,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901162600_pandora_visible_execution_event_protocol_v2.sql',
     '20260901162700_pandora_preview_deployment_stream_trust_v1.sql',
     '20260901182500_pandora_build_stream_nonpreview_trigger_fix_v1.sql',
+    '20260901184000_pandora_model_telemetry_economics_v1.sql',
     '20260901193000_pandora_source_dispatch_exhaustion_watchdog_v1.sql',
     '20260902004500_pandora_change_impact_assessment_v1.sql'
   ]);
@@ -308,6 +309,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901162600_pandora_visible_execution_event_protocol_v2.sql',
     '20260901162700_pandora_preview_deployment_stream_trust_v1.sql',
     '20260901182500_pandora_build_stream_nonpreview_trigger_fix_v1.sql',
+    '20260901184000_pandora_model_telemetry_economics_v1.sql',
     '20260901193000_pandora_source_dispatch_exhaustion_watchdog_v1.sql',
     '20260902004500_pandora_change_impact_assessment_v1.sql'
   ]);
@@ -418,6 +420,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260901162600_pandora_visible_execution_event_protocol_v2.sql',
     '20260901162700_pandora_preview_deployment_stream_trust_v1.sql',
     '20260901182500_pandora_build_stream_nonpreview_trigger_fix_v1.sql',
+    '20260901184000_pandora_model_telemetry_economics_v1.sql',
     '20260901193000_pandora_source_dispatch_exhaustion_watchdog_v1.sql',
     '20260902004500_pandora_change_impact_assessment_v1.sql'
   ]);
