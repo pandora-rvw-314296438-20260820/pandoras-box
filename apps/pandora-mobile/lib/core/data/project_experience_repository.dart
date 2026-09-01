@@ -59,6 +59,10 @@ abstract interface class ProjectExperienceRepository {
     required String versionId,
   });
 
+  Future<Map<String, Object?>?> loadLatestPublishReceipt({
+    required String projectId,
+  });
+
   Future<ProjectRuntimeSnapshot> runtime(String projectId);
 
   Future<ProjectPreviewResult> createPreview({
@@ -207,6 +211,12 @@ class CompositeProjectExperienceRepository
         projectId: projectId,
         versionId: versionId,
       );
+
+  @override
+  Future<Map<String, Object?>?> loadLatestPublishReceipt({
+    required String projectId,
+  }) =>
+      _mutations.loadLatestPublishReceipt(projectId: projectId);
 
   @override
   Future<ProjectRuntimeSnapshot> runtime(String projectId) =>
