@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/project_conversation_history.dart';
 import '../network/idempotency_key.dart';
 import 'project_build_stream_cursor_store.dart';
 
@@ -567,6 +568,108 @@ class ProjectExperienceApi {
       }
     };
     return controller.stream;
+  }
+
+  Future<List<ProjectConversationHistoryItem>> loadProjectConversation({
+    required String projectId,
+    int limit = 50,
+  }) async {
+    if (_client.auth.currentUser == null) {
+      throw const ProjectExperienceException(
+        'Please sign in again before opening project history.',
+      );
+    }
+    if (limit < 1 || limit > 100) {
+      throw const ProjectExperienceException(
+        'Pandora rejected an invalid history request.',
+      );
+    }
+    try {
+      final raw = await _client.rpc(
+        'pandora_get_project_conversation_v1',
+        params: <String, Object?>{
+          'p_project_id': projectId,
+          'p_limit': limit,
+          'p_before_occurred_at': null,
+          'p_before_item_id': null,
+        },
+      );
+      if (raw is! List) {
+        throw const ProjectExperienceException(
+          'Pandora returned unreadable project history.',
+        );
+      }
+      final items = <ProjectConversationHistoryItem>[];
+      for (final row in raw) {
+        final mapped = _map(row);
+        if (mapped == null) {
+          throw const ProjectExperienceException(
+            'Pandora returned unreadable project history.',
+          );
+        }
+        try {
+          items.add(
+            ProjectConversationHistoryItem.fromJson(
+              Map<String, Object?>.from(mapped),
+              expectedProjectId: projectId,
+              expectedOrganizationId: _organizationId,
+            ),
+          );
+        } on FormatException {
+          throw const ProjectExperienceException(
+            'Pandora rejected mismatched project history.',
+          );
+        }
+      }
+      items.sort((left, right) {
+        final time = left.occurredAt.compareTo(right.occurredAt);
+        return time != 0 ? time : left.id.compareTo(right.id);
+      });
+      return List<ProjectConversationHistoryItem>.unmodifiable(items);
+    } on ProjectExperienceException {
+      rethrow;
+    } on PostgrestException {
+      throw const ProjectExperienceException(
+        'Pandora could not read project history right now.',
+      );
+    }
+  }
+
+  Future<String?> findBuildStreamId({
+    required String projectId,
+    required String buildJobId,
+  }) async {
+    if (_client.auth.currentUser == null) {
+      throw const ProjectExperienceException(
+        'Please sign in again before reopening this build.',
+      );
+    }
+    try {
+      final row = await _client
+          .from('pandora_build_stream_sessions')
+          .select('id,organization_id,project_id,build_job_id,created_at')
+          .eq('organization_id', _organizationId)
+          .eq('project_id', projectId)
+          .eq('build_job_id', buildJobId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      if (row == null) return null;
+      if (_text(row['organization_id']) != _organizationId ||
+          _text(row['project_id']) != projectId ||
+          _text(row['build_job_id']) != buildJobId) {
+        throw const ProjectExperienceException(
+          'Pandora rejected a mismatched build stream.',
+        );
+      }
+      return _requiredText(row['id']);
+    } on ProjectExperienceException {
+      rethrow;
+    } on PostgrestException {
+      throw const ProjectExperienceException(
+        'Pandora could not reopen this build right now.',
+      );
+    }
   }
 
   Future<Map<String, Object?>?> loadLatestPublishReceipt({
