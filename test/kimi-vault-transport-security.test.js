@@ -15,7 +15,7 @@ const migrationPath = path.join(
   '..',
   'supabase',
   'migrations',
-  '20260902011500_pandora_kimi_vault_transport_v1.sql',
+  '20260901173359_pandora_kimi_vault_transport_v1.sql',
 );
 const migration = fs.readFileSync(migrationPath, 'utf8');
 
