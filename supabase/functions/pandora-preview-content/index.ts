@@ -6,7 +6,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const SHA256_RE = /^[0-9a-f]{64}$/;
+const SHA256_RE = /^[0-9a-f]{64}$/;\nconst SOURCE_COMMIT_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const MAX_BUNDLE_BYTES = 25 * 1024 * 1024;
 const MAX_MOBILE_BYTES = 12 * 1024 * 1024;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -48,7 +48,7 @@ Deno.serve(async(req:Request)=>{
     const {data:membership,error:membershipError}=await admin.from("memberships").select("organization_id,role,status").eq("organization_id",organizationId).eq("user_id",authData.user.id).eq("status","active").in("role",["owner","admin"]).maybeSingle();
     if(membershipError||!membership) throw new Error("ORGANIZATION_ACCESS_REQUIRED");
 
-    const {data:version,error:versionError}=await admin.from("pandora_project_versions").select("id,organization_id,project_id,root_artifact_version_id,artifact_digest_sha256,source_sha256").eq("id",versionId).eq("organization_id",organizationId).eq("project_id",projectId).maybeSingle();
+    const {data:version,error:versionError}=await admin.from("pandora_project_versions").select("id,organization_id,project_id,root_artifact_version_id,artifact_digest_sha256,source_sha256,source_commit").eq("id",versionId).eq("organization_id",organizationId).eq("project_id",projectId).maybeSingle();
     if(versionError||!version) throw new Error("EXACT_VERSION_REQUIRED");
     const rootArtifactVersionId=text(version.root_artifact_version_id),artifactDigest=text(version.artifact_digest_sha256).toLowerCase(),sourceSha=text(version.source_sha256).toLowerCase();
     if(!UUID_RE.test(rootArtifactVersionId)||!SHA256_RE.test(artifactDigest)||!SHA256_RE.test(sourceSha)) throw new Error("ARTIFACT_LINEAGE_INCOMPLETE");
@@ -69,7 +69,7 @@ Deno.serve(async(req:Request)=>{
       const wrapper=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src https:; style-src 'unsafe-inline'"><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;background:#fff;overflow:hidden}</style></head><body><iframe title="Pandora exact hosted preview" src="${htmlEscape(hostedUrl)}" sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"></iframe></body></html>`;
       const wrapperBytes=new TextEncoder().encode(wrapper),wrapperDigest=await sha256Hex(wrapperBytes);
       await recordAudit(admin,{p_organization_id:organizationId,p_project_id:projectId,p_user_id:authData.user.id,p_entitlement_id:null,p_capability:"read",p_action:"preview.source_withheld",p_resource_ref:versionId,p_allowed:false,p_reason:decisionReason,p_request_id:requestId,p_metadata:{deploymentId:deployment.id,hostedPreview:true,sourceSha256:sourceSha,artifactDigest}},false);
-      return json({kind:"pandora.mobile-preview-bundle.v1",projectId,versionId,artifactDigest,totalBytes:wrapperBytes.byteLength,sourceIncluded:false,sourceEntitled:false,hostedPreview:{deploymentId:deployment.id,url:hostedUrl,sourceSha256:sourceSha,artifactDigest},files:[{file:"index.html",mimeType:"text/html",dataBase64:base64Bytes(wrapperBytes),byteSize:wrapperBytes.byteLength,sha256:wrapperDigest}]},200,requestId);
+      return json({kind:"pandora.mobile-preview-bundle.v1",projectId,versionId,artifactDigest,totalBytes:wrapperBytes.byteLength,sourceIncluded:false,sourceEntitled:false,hostedPreview:{deploymentId:deployment.id,url:hostedUrl,sourceSha256:sourceSha,artifactDigest},files:[{file:"index.html",mimeType:"text/html",dataBase64:base64Bytes(wrapperBytes),byteSize:wrapperBytes.byteLength,sha256:wrapperDigest,artifactDigest,previewProjectId:projectId,previewVersionId:versionId,previewDeploymentId,sourceSha256:sourceSha,sourceCommitSha}]},200,requestId);
     }
 
     await recordAudit(admin,{p_organization_id:organizationId,p_project_id:projectId,p_user_id:authData.user.id,p_entitlement_id:UUID_RE.test(entitlementId)?entitlementId:null,p_capability:"read",p_action:"preview.source_bundle",p_resource_ref:versionId,p_allowed:true,p_reason:"SOURCE_ENTITLEMENT_ACTIVE",p_request_id:requestId,p_metadata:{sourceSha256:sourceSha,artifactDigest}},true);
@@ -85,9 +85,9 @@ Deno.serve(async(req:Request)=>{
     let bundle:JsonRecord; try{bundle=asRecord(JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(bundleBytes)));}catch{throw new Error("ARTIFACT_BUNDLE_JSON_INVALID");}
     if(bundle.kind!=="pandora.runtime-bundle.v1"||bundle.schemaVersion!==1||text(bundle.projectVersionId)!==versionId||!Array.isArray(bundle.files)) throw new Error("ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED");
     let totalBytes=0,hasIndex=false;const files:Array<JsonRecord>=[],seen=new Set<string>();let prior="";
-    for(const raw of bundle.files){const entry=asRecord(raw),file=safePath(entry.file);if(seen.has(file)||(prior&&prior.localeCompare(file,"en")>=0)) throw new Error("ARTIFACT_FILES_NOT_CANONICAL");seen.add(file);prior=file;if(file==="index.html")hasIndex=true;if(entry.encoding!=="base64")throw new Error("ARTIFACT_FILE_ENCODING_UNSUPPORTED");const fileBytes=canonicalBase64(entry.data);totalBytes+=fileBytes.byteLength;if(totalBytes>MAX_MOBILE_BYTES)throw new Error("PREVIEW_BUNDLE_TOO_LARGE");const fileDigest=text(entry.sha256).toLowerCase();if(!SHA256_RE.test(fileDigest)||await sha256Hex(fileBytes)!==fileDigest||Number(entry.byteSize)!==fileBytes.byteLength)throw new Error("ARTIFACT_FILE_DIGEST_MISMATCH");files.push({file,mimeType:mimeType(file),dataBase64:text(entry.data),byteSize:fileBytes.byteLength,sha256:fileDigest});}
+    for(const raw of bundle.files){const entry=asRecord(raw),file=safePath(entry.file);if(seen.has(file)||(prior&&prior.localeCompare(file,"en")>=0)) throw new Error("ARTIFACT_FILES_NOT_CANONICAL");seen.add(file);prior=file;if(file==="index.html")hasIndex=true;if(entry.encoding!=="base64")throw new Error("ARTIFACT_FILE_ENCODING_UNSUPPORTED");const fileBytes=canonicalBase64(entry.data);totalBytes+=fileBytes.byteLength;if(totalBytes>MAX_MOBILE_BYTES)throw new Error("PREVIEW_BUNDLE_TOO_LARGE");const fileDigest=text(entry.sha256).toLowerCase();if(!SHA256_RE.test(fileDigest)||await sha256Hex(fileBytes)!==fileDigest||Number(entry.byteSize)!==fileBytes.byteLength)throw new Error("ARTIFACT_FILE_DIGEST_MISMATCH");files.push({file,mimeType:mimeType(file),dataBase64:text(entry.data),byteSize:fileBytes.byteLength,sha256:fileDigest,artifactDigest,previewProjectId:projectId,previewVersionId:versionId,previewDeploymentId,sourceSha256:sourceSha,sourceCommitSha});}
     if(!hasIndex) throw new Error("ARTIFACT_ENTRYPOINT_MISSING");
-    return json({kind:"pandora.mobile-preview-bundle.v1",projectId,versionId,artifactDigest,totalBytes,sourceIncluded:true,sourceEntitled:true,entitlementId,files},200,requestId);
+    return json({kind:"pandora.mobile-preview-bundle.v1",projectId,versionId,artifactDigest,previewDeploymentId,sourceSha256:sourceSha,sourceCommitSha,totalBytes,sourceIncluded:true,sourceEntitled:true,entitlementId,files},200,requestId);
   }catch(error){
     const code=error instanceof Error?error.message:"PREVIEW_CONTENT_UNAVAILABLE";
     if(code==="SIGN_IN_REQUIRED")return json({code,plainMessage:"Please sign in again.",requestId},401,requestId);
