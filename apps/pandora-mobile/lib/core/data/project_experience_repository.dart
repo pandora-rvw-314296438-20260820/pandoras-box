@@ -1,3 +1,4 @@
+import '../models/project_conversation_history.dart';
 import '../models/project_experience_projection.dart';
 import '../models/project_journey_models.dart';
 import 'project_experience_api.dart';
@@ -8,6 +9,11 @@ abstract interface class ProjectExperienceRepository {
   Future<ProjectExperienceProjection> loadExperience(String projectId);
 
   Stream<ProjectExperienceProjection> watchExperience(String projectId);
+
+  Future<List<ProjectConversationHistoryItem>> loadProjectConversation({
+    required String projectId,
+    int limit = 50,
+  });
 
   Future<CustomerProject> createProject({
     required String name,
@@ -116,6 +122,13 @@ class CompositeProjectExperienceRepository
   @override
   Stream<ProjectExperienceProjection> watchExperience(String projectId) =>
       _projection.watch(projectId);
+
+  @override
+  Future<List<ProjectConversationHistoryItem>> loadProjectConversation({
+    required String projectId,
+    int limit = 50,
+  }) =>
+      _mutations.loadProjectConversation(projectId: projectId, limit: limit);
 
   @override
   Future<CustomerProject> createProject({
