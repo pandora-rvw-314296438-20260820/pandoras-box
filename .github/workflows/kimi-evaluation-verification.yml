@@ -30,6 +30,6 @@ jobs:
       - name: Typecheck provider-neutral intelligence contracts
         run: ./node_modules/.bin/tsc -p packages/pandora-intelligence/tsconfig.json
       - name: Evaluation and shadow safety regressions
-        run: node --test packages/pandora-intelligence/test/kimi-evaluation.test.js packages/pandora-intelligence/test/model-router.test.js
+        run: node --test packages/pandora-intelligence/test/kimi-*.test.js packages/pandora-intelligence/test/model-router.test.js
       - name: Independent provider verification regressions
         run: node --test test/pandora-model-provider-verification.test.js test/pandora-verification-engine.test.js
