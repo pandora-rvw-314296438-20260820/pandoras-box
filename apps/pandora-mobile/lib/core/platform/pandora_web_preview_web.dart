@@ -181,6 +181,7 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
       tag: value('tag'),
       selector: value('selector'),
       text: value('text'),
+      componentId: value('componentId'),
       semanticId: value('semanticId'),
       role: value('role'),
       accessibleName: value('accessibleName'),
@@ -614,6 +615,13 @@ String _bootstrapScript(String versionId) {
       tag: element.tagName ? element.tagName.toLowerCase() : '',
       selector: selectedSelector,
       text: String(element.textContent || '').trim().slice(0, 500),
+      componentId: String(
+        element.getAttribute('data-pandora-component-id') ||
+        element.getAttribute('data-component-id') ||
+        element.getAttribute('data-pandora-id') ||
+        element.id ||
+        selectedSelector
+      ).trim().slice(0, 200),
       semanticId: String(element.getAttribute('data-pandora-id') || ''),
       role: String(element.getAttribute('role') || ''),
       accessibleName: String(
