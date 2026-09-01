@@ -1,0 +1,27 @@
+name: Chat A Dart Format Probe
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: chat-a/proposal-contract-v1-20260901
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444eea76d18a8b3c316f4e0eae4e7530680
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - name: Format exact target
+        working-directory: apps/pandora-mobile
+        run: dart format lib/features/simple/professional_build_plan.dart
+      - name: Upload exact formatted target
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: chat-a-formatted-professional-build-plan
+          path: apps/pandora-mobile/lib/features/simple/professional_build_plan.dart
+          if-no-files-found: error
