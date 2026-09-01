@@ -1,7 +1,7 @@
 {
     "mode": "remote_history_receipts_without_replaying_temporary_recovery_surfaces",
     "reason": "Supabase production had audited recovery migrations absent from canonical source; receipt files restore migration-version parity without recreating retired credential or provider bridges.",
-    "baseSha": "bd9bcb9b85a1e7e5a15d1ae219f62c2dce972284",
+    "baseSha": "5928bd732cac59d2c695430c18307debf8f8bc6a",
     "entries": [
         {
             "name": "temporary_github_supabase_provider_probe",
@@ -1255,11 +1255,266 @@
             "replayMode": "history_receipt_noop",
             "originalSqlSha256": "d173612791c29a1f33ce334ffa187445b5760455cc79d278a14c2af060d99d97",
             "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_oauth_credential_v1",
+            "version": "20260831004032",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "9767b0fc1aedc0763849c1cee59c516658ce98a5802a5cd788c3c0b377145440",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_probe_trigger_v1",
+            "version": "20260831004044",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "d7e221997774e6284a40285372e9e965af5d0c9af145bc912fdfea8e95eea73b",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_probe_log_v1",
+            "version": "20260831004052",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "c01dfba8a7f7ca9398030ea32f0972e9e9272fda5b25bd74330f239f3911c1b7",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_probe_log_write_rpc_v1",
+            "version": "20260831004113",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "85b35aea534b695576783deea697e8837ed5fb89008c07ba464dafd061c1c81d",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "invoke_pandora_bitbucket_probe_v1",
+            "version": "20260831004306",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "31edc7467537679db10f4adcc624974ce03db5d4e4bb0cbca994decd69c7dcad",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_ondemand_mirror_log_v1",
+            "version": "20260831004430",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "96407450a98ce4c1d7d159e814dfe79d24f515368b36a3433978e0e9c398b8c4",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "invoke_pandora_bitbucket_ondemand_mirror_v1",
+            "version": "20260831004508",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "f8c1f0c94dd906c55f955c57212ba798768d4a4822583c3cca24eb9e7a09d798",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_ref_sync_log_v1",
+            "version": "20260831004737",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "c55fb8a52a1022461037a33e1fdc15c63c3c29517a40921bd48bbdeac1425e49",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "invoke_pandora_bitbucket_ref_sync_v1",
+            "version": "20260831004818",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "454fa558bae9053417bfb8931a7a75c0a2ae00a327051040629e928cf8b54642",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "invoke_pandora_bitbucket_git_auth_probe_v1",
+            "version": "20260831005029",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "c8bc2df3e9e683cd84a1ea1737b26eb084c292c06564d6e1550eee38556c16e3",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_ref_sync_trigger_v1",
+            "version": "20260831011049",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "178dfbb958461b657193eb3229dea886ff4e92ca0235449a9b0f729455627774",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_auto_mirror_queue_v1",
+            "version": "20260831044701",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "7f651963397af17fc0ea6ec433a48762cb15b623e70590cc31a1d0b6326d93dd",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_auto_mirror_cron_v1",
+            "version": "20260831044738",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "e62649c506162fa3334be3c5367f86c0a94b8f6b66f26e5ab8a9eedccdc823b2",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_serial_mirror_queue_v1",
+            "version": "20260831045103",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "e0f2f9f0c9c67108db9228cc79d3ff1b2b233a78b15f013cfd5decf99af8cfd0",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_auto_cycle_cron_v1",
+            "version": "20260831045244",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "4e7858eefdaa2974320c81dfd4782956a943e0852d6a2ffa25fc618bbe7d4938",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_git_proxy_lease_v1",
+            "version": "20260831051544",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "1f372927dd0d56054e86d73037481f6e2042dedacccfaed933bd84317427965d",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_sandbox_mirror_config_v1",
+            "version": "20260831051954",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "5b392e82c0cc72df80a6c239ce880a4dab885feccc2fb6cb40fe041141a386a6",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_sandbox_mirror_tick_v1",
+            "version": "20260831052044",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "284e9c341f098bd8b1cd08d8ced67dea8b2a5e5d59c5a123c74786276cc20f20",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_bitbucket_sandbox_mirror_cron_v1",
+            "version": "20260831052344",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "e32e336d22a7a27f9c94643c45379fc3d2ebd6348181b3d850f38baa8adf95e4",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_worker_i_verification_run_lineage_v1",
+            "version": "20260831053928",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "a87a49be46b05517449a392ac53080735242007886986259538be37471dd36ea",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260831084000_pandora_worker_i_verification_run_lineage_v1.sql"
+        },
+        {
+            "name": "pandora_project_experience_projection_v1",
+            "version": "20260831063735",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "132aee80ac2df9add3e477bfbf25013008b00df0715fdd43c4da2511cd074dc1",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260831085000_pandora_project_experience_projection_v1.sql"
+        },
+        {
+            "name": "pandora_project_experience_projection_privilege_hardening_v2",
+            "version": "20260831064016",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "90f48bdefd0f08c7bf7a0f32c91d783f12a624f6c6b5955ae94580069994add7",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260831090000_pandora_project_experience_projection_privilege_hardening_v2.sql"
+        },
+        {
+            "name": "pandora_project_experience_drift_telemetry_v1",
+            "version": "20260831144946",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "44755211a53211f6307c0b76bbd81011462a50bdcfacff4da581f35ea6f22c2d",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260831143000_pandora_project_experience_drift_telemetry_v1.sql"
+        },
+        {
+            "name": "pandora_exact_recovery_github_transport_memory_scope_20260901",
+            "version": "20260831193121",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "55b0005e2d88e3d06bed45a644c9c840a6e4ebfda90dff9781b71c01d1d3c915",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "align_recovery_authority_and_vercel_scope_20260901",
+            "version": "20260831194935",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "57d998dda0937722a8f6b946e1948bc3794cc14906f8c8b61c696f278881fac7",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "align_recovery_authority_constraints_20260901",
+            "version": "20260831205054",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "7b1e8090ae01c5a63d9167a0627ed989461dccb7d3e33e57be16eb673fab7568",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "align_vercel_connector_account_identity_20260901",
+            "version": "20260831205855",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "15329be465b9c266d32796af9fa4685f26b027962e264dfdd877fb8f3558c238",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_temp_task28_github_supabase_rpc",
+            "version": "20260831210035",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "2577395cf028daea3d899e9dda5ff91eb9d0487bf06c9433058dbc167432fff0",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "retire_pandora_temp_task28_github_supabase_rpc",
+            "version": "20260831211219",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "a79e97ffc6bd0d318fc96c9200e8938bf74aeffdc4153f8792b2af8017cb0208",
+            "originalStatementCount": 1
+        },
+        {
+            "name": "pandora_customer_repo_provisioning_v1",
+            "version": "20260831212122",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "4aeb9c6573781fe1e350e0f10274b3cab777b6d773656a2d9ab68f1578700535",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260901054500_pandora_customer_repo_provisioning_v1.sql"
+        },
+        {
+            "name": "pandora_customer_vercel_project_domain_v1",
+            "version": "20260831223816",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "6dc176875de389919ff8f40091276860179c7f25d8173310abc1cae234572d7e",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260901060000_pandora_customer_vercel_project_domain_v1.sql"
+        },
+        {
+            "name": "pandora_worker_d_vercel_sandbox_log_readback_v1",
+            "version": "20260901092817",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "393c6fb6ff6718d8916b757c0ff5f5e0fb0867d5f6c122734bf42c1a26c2f851",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260901162500_pandora_worker_d_vercel_sandbox_log_readback_v1.sql"
+        },
+        {
+            "name": "pandora_visible_execution_event_protocol_v2",
+            "version": "20260901092834",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "97b841404f9f6f9f873995b48759d79d8bbda5c36edbb2cf7a34060f2cc2686c",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260901162600_pandora_visible_execution_event_protocol_v2.sql"
+        },
+        {
+            "name": "pandora_preview_deployment_stream_trust_v1",
+            "version": "20260901092858",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "0c83ece5a5f3c3e6493e57a9f7d2951df0c7bae1bed34a3c553390dbd9ecef3b",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260901162700_pandora_preview_deployment_stream_trust_v1.sql"
+        },
+        {
+            "name": "pandora_build_watchdog_v1",
+            "version": "20260901094550",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "64a491ff5cb1ae6d81a213593e33312e9be5bf155c1f47cfd42750d69a6b419e",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260901153000_pandora_build_watchdog_v1.sql"
         }
     ],
     "projectRef": "jcyqixttuebxqqfkjonq",
     "repository": "pandora-rvw-314296438-20260820/pandoras-box",
     "generatedAt": "2026-08-29T15:07:37.693Z",
     "schemaVersion": 1,
-    "migrationCount": 179
+    "migrationCount": 214
 }
