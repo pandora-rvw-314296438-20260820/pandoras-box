@@ -62,6 +62,12 @@ Secrets, authorization headers, provider credentials, hidden prompts, chain-of-t
 
 The detailed normative producer requirements for the Chat E execution events are in `docs/pandora-visible-execution-events-v2.md`. That extension does not create a second stream or state machine.
 
+## Command-output timing contract
+
+`stdout_chunk` and `stderr_chunk` are truthful completed-command evidence chunks in Protocol V2. They may be emitted only after the governed provider command has returned a real result. They are sliced from the actual provider stdout/stderr, redacted and bounded before customer projection, ordered after `command_started` and before `command_completed`, and never synthesized from expected output.
+
+Protocol V2 does **not** claim byte-by-byte or line-by-line transport while the provider process is still running. A future provider transport may add incremental delivery only if it preserves the same redaction, bounds, ordering and durable-checkpoint guarantees. Clients must not infer process liveness from the cadence of stdout/stderr chunks.
+
 ## Retention
 
 `code_chunk`, `file_started`, `file_completed`, `stdout_chunk`, and `stderr_chunk` are ephemeral and expire after 20 minutes.

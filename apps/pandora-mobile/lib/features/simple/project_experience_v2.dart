@@ -488,6 +488,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   String? _previewVersionId;
   String? _error;
   String? _intelligenceReply;
+  Map<String, Object?>? _publishReceipt;
   bool _started = false;
   bool _loading = true;
   bool _openingPreview = false;
@@ -721,6 +722,14 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     try {
       final snapshot = await experience.runtime(widget.project.id);
       final projection = await experience.loadExperience(widget.project.id);
+      Map<String, Object?>? publishReceipt;
+      try {
+        publishReceipt = await experience.loadLatestPublishReceipt(
+          projectId: widget.project.id,
+        );
+      } catch (_) {
+        // Receipt history is supplemental to the authoritative project canvas.
+      }
       if (!mounted) return;
 
       final safety = ProjectCandidateSafety.fromProjection(
@@ -747,6 +756,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       setState(() {
         _snapshot = snapshot;
         if (acceptProjection) _projection = projection;
+        _publishReceipt = publishReceipt;
         _loading = false;
 
         if (commitVisible) {
@@ -1344,6 +1354,21 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     domainController.dispose();
   }
 
+  Future<void> _refreshPublishReceipt() async {
+    final experience =
+        PandoraDependencies.of(context).projectExperienceRepository;
+    if (experience == null) return;
+    try {
+      final receipt = await experience.loadLatestPublishReceipt(
+        projectId: widget.project.id,
+      );
+      if (!mounted) return;
+      setState(() => _publishReceipt = receipt);
+    } catch (_) {
+      // Receipt history is supplemental to the authoritative lifecycle projection.
+    }
+  }
+
   Future<void> _watchPublishCompletion(String versionId) async {
     final repository =
         PandoraDependencies.of(context).projectExperienceRepository;
@@ -1383,6 +1408,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
             'Pandora found something to resolve before this version can go live.',
       );
     }
+    await _refreshPublishReceipt();
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text('Live.')));
   }
@@ -1407,6 +1434,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       final projection = _projection;
       if (projection?.state == ProjectExperienceState.live &&
           projection?.productionVersionId == versionId) {
+        await _refreshPublishReceipt();
+        if (!mounted) return;
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Live.')));
       } else {
@@ -1559,6 +1588,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       recentlyUpdated: _recentlyUpdated,
       currentVersionVerified: _currentVersionVerified,
       intelligenceReply: _intelligenceReply,
+      publishReceipt: _publishReceipt,
       error: _error,
       onClearSelection: _clearPreviewSelection,
       onDismissIntelligence: _dismissIntelligenceReply,

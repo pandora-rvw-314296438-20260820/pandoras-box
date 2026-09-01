@@ -219,6 +219,7 @@ async function vercelRequest(path: string, init: RequestInit, accepted: number[]
     const nested = asRecord(payload.error);
     const providerCode = textValue(nested.code ?? payload.code);
     const providerResource = textValue(nested.resource ?? payload.resource);
+    if (status === 404 && /^\/v9\/projects\//.test(path)) throw new Error("VERCEL_PROJECT_NOT_FOUND");
     if (status === 402 && providerCode === "payment_required" && providerResource === "api-deployments-free-per-day") throw new Error("VERCEL_DEPLOYMENT_QUOTA_EXHAUSTED");
     if (status === 409 || providerCode.includes("conflict")) throw new Error("VERCEL_CONFLICT");
     if (providerCode.includes("domain") || status === 400 && path.includes("/domains")) throw new Error("VERCEL_DOMAIN_REJECTED");
@@ -233,8 +234,31 @@ async function ensureVercelProject(context: UserContext, project: JsonRecord) {
   const existingId = textValue(journey.vercelProjectId);
   const existingName = textValue(journey.vercelProjectName);
   if (existingId && existingName) {
-    const defaultDomain = textValue(journey.vercelDefaultDomain, `${existingName}.vercel.app`);
-    return { id: existingId, name: existingName, defaultDomain, config };
+    const authoritative = await vercelRequest(`/v9/projects/${encodeURIComponent(existingId)}`, { method: "GET" }, [200]);
+    const authoritativeId = textValue(authoritative.id);
+    const authoritativeName = textValue(authoritative.name);
+    if (authoritativeId !== existingId || !authoritativeName) throw new Error("VERCEL_PROJECT_IDENTITY_MISMATCH");
+    const defaultDomain = `${authoritativeName}.vercel.app`;
+    if (authoritativeName === existingName && textValue(journey.vercelDefaultDomain) === defaultDomain) {
+      return { id: existingId, name: authoritativeName, defaultDomain, config };
+    }
+    const nextConfig = {
+      ...config,
+      customerJourney: {
+        ...journey,
+        vercelProjectId: existingId,
+        vercelProjectName: authoritativeName,
+        vercelDefaultDomain: defaultDomain,
+        vercelDefaultDomainStatus: "reserved",
+        runtimeStatus: "ready",
+        runtimeUpdatedAt: new Date().toISOString(),
+      },
+    };
+    const { error: refreshError } = await serviceClient().from("projectos_projects")
+      .update({ config: nextConfig, updated_at: new Date().toISOString() })
+      .eq("organization_id", context.organizationId).eq("id", textValue(project.id));
+    if (refreshError) throw new Error("BACKEND_WRITE_FAILED");
+    return { id: existingId, name: authoritativeName, defaultDomain, config: nextConfig };
   }
 
   const projectId = textValue(project.id);
@@ -1526,7 +1550,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
     const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "INVALID_DOMAIN", "VERSION_REQUIRED", "INVALID_PRODUCTION_PRECONDITION", "EXACT_VERSION_REQUIRED", "ARTIFACT_FILE_BASE64_INVALID", "ARTIFACT_FILE_BASE64_NON_CANONICAL", "ARTIFACT_FILE_PATH_INVALID", "ARTIFACT_BUNDLE_JSON_INVALID", "ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED", "ARTIFACT_BUNDLE_FILES_INVALID", "INVALID_DOMAIN_REQUEST", "INVALID_ROLLBACK_REQUEST", "INVALID_UNDO_REQUEST"]);
-    const conflicts = new Set(["PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED", "ARTIFACT_LINEAGE_INCOMPLETE", "ARTIFACT_NOT_FOUND", "ARTIFACT_DIGEST_MISMATCH", "ARTIFACT_STORAGE_INVALID", "ARTIFACT_STORAGE_READ_FAILED", "ARTIFACT_KIND_NOT_DEPLOYABLE", "ARTIFACT_PROVENANCE_MISMATCH", "ARTIFACT_BUNDLE_SIZE_INVALID", "ARTIFACT_BUNDLE_DIGEST_MISMATCH", "ARTIFACT_BUNDLE_LINEAGE_MISMATCH", "ARTIFACT_FILES_NOT_CANONICAL", "ARTIFACT_FILE_ENCODING_UNSUPPORTED", "ARTIFACT_FILE_TOO_LARGE", "ARTIFACT_FILES_TOTAL_TOO_LARGE", "ARTIFACT_FILE_DIGEST_MISMATCH", "ARTIFACT_FILE_SIZE_MISMATCH", "ARTIFACT_ENTRYPOINT_MISSING", "DOMAIN_DEPLOYMENT_REQUIRED", "DOMAIN_NOT_FOUND", "ROLLBACK_TARGET_NOT_ELIGIBLE", "ROLLBACK_TARGET_NOT_VERIFIED", "SUPABASE_FALLBACK_DOMAIN_UNAVAILABLE", "PRODUCTION_PROVIDER_UNSUPPORTED"]);
+    const conflicts = new Set(["PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED", "VERCEL_PROJECT_NOT_FOUND", "VERCEL_PROJECT_IDENTITY_MISMATCH", "ARTIFACT_LINEAGE_INCOMPLETE", "ARTIFACT_NOT_FOUND", "ARTIFACT_DIGEST_MISMATCH", "ARTIFACT_STORAGE_INVALID", "ARTIFACT_STORAGE_READ_FAILED", "ARTIFACT_KIND_NOT_DEPLOYABLE", "ARTIFACT_PROVENANCE_MISMATCH", "ARTIFACT_BUNDLE_SIZE_INVALID", "ARTIFACT_BUNDLE_DIGEST_MISMATCH", "ARTIFACT_BUNDLE_LINEAGE_MISMATCH", "ARTIFACT_FILES_NOT_CANONICAL", "ARTIFACT_FILE_ENCODING_UNSUPPORTED", "ARTIFACT_FILE_TOO_LARGE", "ARTIFACT_FILES_TOTAL_TOO_LARGE", "ARTIFACT_FILE_DIGEST_MISMATCH", "ARTIFACT_FILE_SIZE_MISMATCH", "ARTIFACT_ENTRYPOINT_MISSING", "DOMAIN_DEPLOYMENT_REQUIRED", "DOMAIN_NOT_FOUND", "ROLLBACK_TARGET_NOT_ELIGIBLE", "ROLLBACK_TARGET_NOT_VERIFIED", "SUPABASE_FALLBACK_DOMAIN_UNAVAILABLE", "PRODUCTION_PROVIDER_UNSUPPORTED"]);
     if (code === "SIGN_IN_REQUIRED") return jsonResponse({ code, plainMessage: "Please sign in again.", requestId }, 401, requestId, origin);
     if (["ORGANIZATION_ACCESS_REQUIRED", "OWNER_ROLE_REQUIRED", "ROLLBACK_OWNER_REQUIRED", "ROLLBACK_AUTHORIZATION_FAILED"].includes(code)) return jsonResponse({ code, plainMessage: "You do not have permission to roll back this production project.", requestId }, 403, requestId, origin);
     if (code === "ORGANIZATION_SELECTION_REQUIRED") return jsonResponse({ code, plainMessage: "Choose which organization you want to use.", requestId }, 409, requestId, origin);

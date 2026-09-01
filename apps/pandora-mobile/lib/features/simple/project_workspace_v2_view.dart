@@ -31,6 +31,7 @@ class ProjectWorkspaceV2View extends StatelessWidget {
     required this.recentlyUpdated,
     required this.currentVersionVerified,
     required this.intelligenceReply,
+    required this.publishReceipt,
     required this.error,
     required this.onClearSelection,
     required this.onDismissIntelligence,
@@ -64,6 +65,7 @@ class ProjectWorkspaceV2View extends StatelessWidget {
   final bool recentlyUpdated;
   final bool currentVersionVerified;
   final String? intelligenceReply;
+  final Map<String, Object?>? publishReceipt;
   final String? error;
   final VoidCallback onClearSelection;
   final VoidCallback onDismissIntelligence;
@@ -193,6 +195,7 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                           selectionMode: selectionMode,
                           selectedPreviewTarget: selectedPreviewTarget,
                           intelligenceReply: intelligenceReply,
+                          publishReceipt: publishReceipt,
                           error: error,
                           onClearSelection: onClearSelection,
                           onDismissIntelligence: onDismissIntelligence,
@@ -221,6 +224,7 @@ class _PandoraComposerSheet extends StatelessWidget {
     required this.selectionMode,
     required this.selectedPreviewTarget,
     required this.intelligenceReply,
+    required this.publishReceipt,
     required this.error,
     required this.onClearSelection,
     required this.onDismissIntelligence,
@@ -235,6 +239,7 @@ class _PandoraComposerSheet extends StatelessWidget {
   final bool selectionMode;
   final PandoraPreviewSelection? selectedPreviewTarget;
   final String? intelligenceReply;
+  final Map<String, Object?>? publishReceipt;
   final String? error;
   final VoidCallback onClearSelection;
   final VoidCallback onDismissIntelligence;
@@ -300,6 +305,10 @@ class _PandoraComposerSheet extends StatelessWidget {
                 onAction: onDismissIntelligence,
               ),
             ],
+            if (publishReceipt != null) ...[
+              const SizedBox(height: 8),
+              _PublishReceiptCard(receipt: publishReceipt!),
+            ],
             if (error != null) ...[
               const SizedBox(height: 8),
               PandoraV2InlineMessage(
@@ -314,6 +323,84 @@ class _PandoraComposerSheet extends StatelessWidget {
           ],
         ),
       );
+}
+
+class _PublishReceiptCard extends StatelessWidget {
+  const _PublishReceiptCard({required this.receipt});
+
+  final Map<String, Object?> receipt;
+
+  String _text(String key) => (receipt[key] as String? ?? '').trim();
+
+  String _short(String key) {
+    final value = _text(key);
+    if (value.length <= 8) return value;
+    return value.substring(0, 8);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final versionNumber = receipt['versionNumber'];
+    final versionLabel =
+        versionNumber == null ? 'Verified version' : 'Version $versionNumber';
+    final verification = _short('verificationRunId');
+    final deployment = _short('deploymentId');
+    final publishedAt = _text('publishedAt');
+    return Container(
+      key: const Key('publish-receipt'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: PandoraV2Colors.soft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: PandoraV2Colors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.verified_rounded,
+                size: 18,
+                color: PandoraV2Colors.success,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _text('title').isEmpty ? 'Live · Verified' : _text('title'),
+                  style: const TextStyle(
+                    color: PandoraV2Colors.ink,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _text('summary').isEmpty
+                ? 'Published and verified live.'
+                : _text('summary'),
+            style: pandoraV2Muted,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$versionLabel · check $verification · deployment $deployment'
+            '${publishedAt.isEmpty ? '' : ' · $publishedAt'}',
+            key: const Key('publish-receipt-evidence'),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PandoraV2Colors.muted,
+              fontSize: 11.5,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _SelectionContextCapsule extends StatelessWidget {
