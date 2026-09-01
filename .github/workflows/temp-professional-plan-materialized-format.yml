@@ -1,0 +1,54 @@
+name: Exact materialized professional plan formatter
+
+on:
+  push:
+    branches:
+      - feature/professional-build-plan-20260901
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: feature/professional-build-plan-20260901
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Format in the APK gate package layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .pandora-mobile-build
+          mkdir -p .pandora-mobile-build/lib/features/simple
+          cp apps/pandora-mobile/pubspec.yaml .pandora-mobile-build/pubspec.yaml
+          cp apps/pandora-mobile/analysis_options.yaml .pandora-mobile-build/analysis_options.yaml
+          cp apps/pandora-mobile/lib/features/simple/professional_build_plan.dart .pandora-mobile-build/lib/features/simple/
+          cp apps/pandora-mobile/lib/features/simple/project_create_experience.dart .pandora-mobile-build/lib/features/simple/
+          cp apps/pandora-mobile/lib/features/simple/project_build_conversation.dart .pandora-mobile-build/lib/features/simple/
+          cd .pandora-mobile-build
+          dart format \
+            lib/features/simple/professional_build_plan.dart \
+            lib/features/simple/project_create_experience.dart \
+            lib/features/simple/project_build_conversation.dart
+          cd ..
+          cp .pandora-mobile-build/lib/features/simple/professional_build_plan.dart apps/pandora-mobile/lib/features/simple/
+          cp .pandora-mobile-build/lib/features/simple/project_create_experience.dart apps/pandora-mobile/lib/features/simple/
+          cp .pandora-mobile-build/lib/features/simple/project_build_conversation.dart apps/pandora-mobile/lib/features/simple/
+          if git diff --quiet --exit-code; then
+            echo 'No materialized formatter changes required.'
+            exit 0
+          fi
+          git config user.name 'pandora-rvw-314296438-20260820'
+          git config user.email 'plpboracay@gmail.com'
+          git add \
+            apps/pandora-mobile/lib/features/simple/professional_build_plan.dart \
+            apps/pandora-mobile/lib/features/simple/project_create_experience.dart \
+            apps/pandora-mobile/lib/features/simple/project_build_conversation.dart
+          git commit -m 'style(mobile): match materialized APK formatter output'
+          git push origin HEAD:feature/professional-build-plan-20260901
