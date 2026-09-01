@@ -10,7 +10,6 @@ import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import 'pandora_v2_ui.dart';
 import 'project_build_conversation.dart';
-import 'project_experience_v2.dart';
 
 class CreateProjectExperienceScreen extends StatefulWidget {
   const CreateProjectExperienceScreen({super.key, this.initialIntent});
