@@ -407,17 +407,15 @@ class _Tag extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(
           color: (foreground ?? Theme.of(context).colorScheme.onSurface)
-              .withValues(
-            alpha: 0.08,
-          ),
+              .withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           label,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(color: foreground, fontWeight: FontWeight.w600),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: foreground,
+                fontWeight: FontWeight.w600,
+              ),
         ),
       );
 }
@@ -478,10 +476,8 @@ class _InviteMemberSheetState extends State<_InviteMemberSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Add a person',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
+            Text('Add a person',
+                style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: PandoraSpacing.xs),
             Text(
               'Pandora will send an invitation and apply the selected access after the person confirms their email.',
@@ -601,10 +597,8 @@ class _EmptyTeamState extends StatelessWidget {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: PandoraSpacing.sm),
-            Text(
-              'No one has been added yet.',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('No one has been added yet.',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: PandoraSpacing.xs),
             Text(
               'Add the first person and choose what they can access.',
