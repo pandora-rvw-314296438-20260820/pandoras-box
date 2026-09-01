@@ -4,7 +4,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const runtime = fs.readFileSync('supabase/functions/pandora-project-runtime/index.ts', 'utf8');
-const receipts = fs.readFileSync('supabase/migrations/20260901093000_pandora_publish_receipts_v1.sql', 'utf8');
+const receiptAliasPath = 'supabase/migrations/20260901093000_pandora_publish_receipts_v1.sql';
+const receiptAlias = fs.readFileSync(receiptAliasPath, 'utf8');
+const canonicalReceiptMatch = receiptAlias.match(/Canonical executable migration:\s+([0-9A-Za-z_.-]+\.sql)/);
+const receiptPath = canonicalReceiptMatch ? `supabase/migrations/${canonicalReceiptMatch[1]}` : receiptAliasPath;
+const receipts = fs.readFileSync(receiptPath, 'utf8');
 const restore = fs.readFileSync('packages/pandora-verification/src/restore-semantics.js', 'utf8');
 
 const publishStart = runtime.indexOf('async function publishProject');
