@@ -1190,7 +1190,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       ),
     );
     controller.dispose();
-    if (nextName == null || nextName == currentName) return;
+    if (!mounted || nextName == null || nextName == currentName) return;
     final api = PandoraDependencies.of(context).projectExperienceRepository;
     if (api == null) return;
     try {
