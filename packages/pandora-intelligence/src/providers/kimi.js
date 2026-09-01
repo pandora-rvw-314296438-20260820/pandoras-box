@@ -113,7 +113,7 @@ function buildKimiBody(request) {
   if (context.tools !== undefined) body.tools = serializeTools(context.tools);
   if (context.toolChoice !== undefined) {
     const toolChoice = String(context.toolChoice);
-    if (!['auto', 'none'].includes(toolChoice)) throw unsupported('Kimi K3 toolChoice must be auto or none for the always-on reasoning path');
+    if (!['auto', 'none', 'required'].includes(toolChoice)) throw unsupported('Kimi K3 toolChoice must be auto, none, or required');
     body.tool_choice = toolChoice;
   }
 
@@ -182,7 +182,6 @@ function serializeTextContent(value, field) { return requiredText(value, field);
 /** @param {unknown} value */
 function serializeTools(value) {
   if (!Array.isArray(value) || value.length === 0) throw new TypeError('context.tools must be a non-empty array');
-  if (value.length > 128) throw unsupported('Kimi supports at most 128 tools per request');
   return value.map((item, index) => {
     const tool = requireRecord(item, `context.tools[${index}]`);
     const type = tool.type == null ? 'function' : String(tool.type);
