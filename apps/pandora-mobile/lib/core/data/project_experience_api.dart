@@ -675,47 +675,268 @@ class ProjectBuildStart {
 class ProjectBuildStreamEvent {
   const ProjectBuildStreamEvent({
     required this.id,
+    required this.sequence,
     required this.eventType,
     required this.safePayload,
     required this.createdAt,
+    this.eventSchemaVersion = 2,
+    this.retentionClass,
     this.filePath,
     this.contentChunk,
     this.buildJobId,
+    this.expiresAt,
   });
 
   factory ProjectBuildStreamEvent.fromJson(Map<String, dynamic> json) {
-    final rawPayload = json['safe_payload'];
+    final rawPayload = json['safe_payload'] ?? json['safePayload'];
     final payload = rawPayload is Map
         ? Map<String, Object?>.unmodifiable(
             rawPayload.map((key, value) => MapEntry(key.toString(), value)),
           )
         : const <String, Object?>{};
-    final rawId = json['id'];
-    final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
-    final createdAt = DateTime.tryParse(_text(json['created_at']));
-    if (id == null || createdAt == null) {
+    final sequence = _optionalInt(json['sequence']);
+    final id = _optionalInt(json['id']) ?? sequence;
+    final createdAt = DateTime.tryParse(
+      _text(json['created_at'] ?? json['createdAt']),
+    );
+    final expiresAt = DateTime.tryParse(
+      _text(json['expires_at'] ?? json['expiresAt']),
+    );
+    if (id == null || sequence == null || sequence < 1 || createdAt == null) {
       throw const FormatException('Invalid build stream event.');
     }
     return ProjectBuildStreamEvent(
       id: id,
-      eventType: _requiredText(json['event_type']),
+      sequence: sequence,
+      eventSchemaVersion:
+          _optionalInt(json['event_schema_version'] ?? json['eventSchemaVersion']) ??
+              1,
+      eventType: _requiredText(json['event_type'] ?? json['eventType']),
+      retentionClass:
+          _optionalText(json['retention_class'] ?? json['retentionClass']),
       safePayload: payload,
       createdAt: createdAt.toUtc(),
-      filePath: _optionalText(json['file_path']),
-      contentChunk: json['content_chunk'] is String
-          ? json['content_chunk'] as String
+      expiresAt: expiresAt?.toUtc(),
+      filePath: _optionalText(json['file_path'] ?? json['filePath']),
+      contentChunk: (json['content_chunk'] ?? json['contentChunk']) is String
+          ? (json['content_chunk'] ?? json['contentChunk']) as String
           : null,
-      buildJobId: _optionalText(json['build_job_id']),
+      buildJobId: _optionalText(json['build_job_id'] ?? json['buildJobId']),
     );
   }
 
   final int id;
+  final int sequence;
+  final int eventSchemaVersion;
   final String eventType;
+  final String? retentionClass;
   final String? filePath;
   final String? contentChunk;
   final String? buildJobId;
   final Map<String, Object?> safePayload;
   final DateTime createdAt;
+  final DateTime? expiresAt;
+}
+
+class ProjectBuildStreamReplay {
+  const ProjectBuildStreamReplay({
+    required this.events,
+    required this.watermarkSequence,
+    required this.oldestRetainedSequence,
+    required this.historyGapDueToRetention,
+    required this.hasMore,
+    required this.streamStatus,
+    required this.buildStatus,
+    required this.buildStage,
+    required this.buildJobId,
+    required this.projectVersionId,
+    required this.publicErrorCode,
+    required this.durableSummary,
+  });
+
+  final List<ProjectBuildStreamEvent> events;
+  final int watermarkSequence;
+  final int? oldestRetainedSequence;
+  final bool historyGapDueToRetention;
+  final bool hasMore;
+  final String streamStatus;
+  final String? buildStatus;
+  final String? buildStage;
+  final String? buildJobId;
+  final String? projectVersionId;
+  final String? publicErrorCode;
+  final Map<String, Object?> durableSummary;
+}
+
+class ProjectBuildStreamSnapshot {
+  const ProjectBuildStreamSnapshot({
+    required this.events,
+    required this.latestSequence,
+    required this.historyGapDueToRetention,
+    required this.requiresReplay,
+    required this.reconnecting,
+    required this.streamStatus,
+    required this.buildStatus,
+    required this.buildStage,
+    required this.buildJobId,
+    required this.projectVersionId,
+    required this.publicErrorCode,
+    required this.durableSummary,
+  });
+
+  const ProjectBuildStreamSnapshot.empty()
+      : events = const <ProjectBuildStreamEvent>[],
+        latestSequence = 0,
+        historyGapDueToRetention = false,
+        requiresReplay = false,
+        reconnecting = false,
+        streamStatus = 'building',
+        buildStatus = null,
+        buildStage = null,
+        buildJobId = null,
+        projectVersionId = null,
+        publicErrorCode = null,
+        durableSummary = const <String, Object?>{};
+
+  final List<ProjectBuildStreamEvent> events;
+  final int latestSequence;
+  final bool historyGapDueToRetention;
+  final bool requiresReplay;
+  final bool reconnecting;
+  final String streamStatus;
+  final String? buildStatus;
+  final String? buildStage;
+  final String? buildJobId;
+  final String? projectVersionId;
+  final String? publicErrorCode;
+  final Map<String, Object?> durableSummary;
+}
+
+class ProjectBuildStreamReconciler {
+  ProjectBuildStreamReconciler({this.maxBufferedEvents = 800})
+      : assert(maxBufferedEvents > 0);
+
+  final int maxBufferedEvents;
+  final Map<int, ProjectBuildStreamEvent> _events =
+      <int, ProjectBuildStreamEvent>{};
+  var _latestSequence = 0;
+  var _historyGapDueToRetention = false;
+  var _hasSeededCursor = false;
+  var _streamStatus = 'building';
+  String? _buildStatus;
+  String? _buildStage;
+  String? _buildJobId;
+  String? _projectVersionId;
+  String? _publicErrorCode;
+  Map<String, Object?> _durableSummary = const <String, Object?>{};
+
+  int get latestSequence => _latestSequence;
+  bool get hasSeededCursor => _hasSeededCursor;
+
+  void seedCursor(int sequence) {
+    _hasSeededCursor = true;
+    if (sequence > _latestSequence) _latestSequence = sequence;
+  }
+
+  ProjectBuildStreamSnapshot mergeLive(
+    List<ProjectBuildStreamEvent> incoming,
+  ) {
+    final ordered = List<ProjectBuildStreamEvent>.of(incoming)
+      ..sort((left, right) => left.sequence.compareTo(right.sequence));
+    var expected = _latestSequence + 1;
+    var requiresReplay = false;
+    for (final event in ordered) {
+      if (event.sequence <= _latestSequence) continue;
+      if (event.sequence != expected) {
+        requiresReplay = true;
+        break;
+      }
+      _events[event.sequence] = event;
+      _latestSequence = event.sequence;
+      expected = _latestSequence + 1;
+    }
+    _trim();
+    return snapshot(requiresReplay: requiresReplay);
+  }
+
+  ProjectBuildStreamSnapshot mergeReplay(
+    ProjectBuildStreamReplay replay, {
+    bool reconnecting = false,
+  }) {
+    final initialRetentionGap = _latestSequence == 0 &&
+        replay.watermarkSequence > 0 &&
+        (replay.oldestRetainedSequence == null ||
+            replay.oldestRetainedSequence! > 1);
+    final retentionGap =
+        replay.historyGapDueToRetention || initialRetentionGap;
+    final ordered = List<ProjectBuildStreamEvent>.of(replay.events)
+      ..sort((left, right) => left.sequence.compareTo(right.sequence));
+    var expected = _latestSequence + 1;
+    for (final event in ordered) {
+      if (event.sequence <= _latestSequence) continue;
+      if (event.sequence != expected && !retentionGap) {
+        throw const FormatException('Build replay sequence gap.');
+      }
+      _events[event.sequence] = event;
+      _latestSequence = event.sequence;
+      expected = _latestSequence + 1;
+    }
+    if (retentionGap &&
+        ordered.isEmpty &&
+        replay.watermarkSequence > _latestSequence) {
+      _latestSequence = replay.watermarkSequence;
+    }
+    if (replay.watermarkSequence < _latestSequence) {
+      throw const FormatException('Build replay watermark regressed.');
+    }
+
+    _historyGapDueToRetention =
+        _historyGapDueToRetention || retentionGap;
+    _streamStatus = replay.streamStatus;
+    _buildStatus = replay.buildStatus;
+    _buildStage = replay.buildStage;
+    _buildJobId = replay.buildJobId;
+    _projectVersionId = replay.projectVersionId;
+    _publicErrorCode = replay.publicErrorCode;
+    _durableSummary = replay.durableSummary;
+    _hasSeededCursor = true;
+    _trim();
+    return snapshot(
+      reconnecting: reconnecting,
+      requiresReplay: replay.hasMore,
+    );
+  }
+
+  ProjectBuildStreamSnapshot snapshot({
+    bool reconnecting = false,
+    bool requiresReplay = false,
+  }) {
+    final ordered = _events.values.toList()
+      ..sort((left, right) => left.sequence.compareTo(right.sequence));
+    return ProjectBuildStreamSnapshot(
+      events: List<ProjectBuildStreamEvent>.unmodifiable(ordered),
+      latestSequence: _latestSequence,
+      historyGapDueToRetention: _historyGapDueToRetention,
+      requiresReplay: requiresReplay,
+      reconnecting: reconnecting,
+      streamStatus: _streamStatus,
+      buildStatus: _buildStatus,
+      buildStage: _buildStage,
+      buildJobId: _buildJobId,
+      projectVersionId: _projectVersionId,
+      publicErrorCode: _publicErrorCode,
+      durableSummary: _durableSummary,
+    );
+  }
+
+  void _trim() {
+    if (_events.length <= maxBufferedEvents) return;
+    final keys = _events.keys.toList()..sort();
+    final removeCount = _events.length - maxBufferedEvents;
+    for (final key in keys.take(removeCount)) {
+      _events.remove(key);
+    }
+  }
 }
 
 class ProjectExperienceException implements Exception {
