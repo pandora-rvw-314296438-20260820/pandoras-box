@@ -25,8 +25,7 @@ class ProjectBuildStreamTheatreProjection {
           schemaVersion: event.eventSchemaVersion,
           kind: liveBuildEventKindFromWire(event.eventType),
           rawEventType: event.eventType,
-          retentionClass:
-              liveBuildRetentionClassFromWire(event.retentionClass),
+          retentionClass: liveBuildRetentionClassFromWire(event.retentionClass),
           filePath: event.filePath,
           contentChunk: event.contentChunk,
           buildJobId: event.buildJobId,

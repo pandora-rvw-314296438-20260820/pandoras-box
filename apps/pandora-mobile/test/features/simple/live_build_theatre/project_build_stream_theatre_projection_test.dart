@@ -51,7 +51,8 @@ ProjectBuildStreamSnapshot snapshot(
 }
 
 void main() {
-  test('projection preserves exact source bytes and authoritative ordering', () {
+  test('projection preserves exact source bytes and authoritative ordering',
+      () {
     final state = ProjectBuildStreamTheatreProjection.fromSnapshot(
       streamId: 'stream-1',
       snapshot: snapshot(

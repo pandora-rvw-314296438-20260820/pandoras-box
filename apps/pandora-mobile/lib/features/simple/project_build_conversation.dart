@@ -282,7 +282,9 @@ class _BuildExecutionView {
         case 'test_started':
           final suites = _integer(payload['suite_count']);
           record(
-            suites == null ? 'Checks started' : 'Checks started · $suites suites',
+            suites == null
+                ? 'Checks started'
+                : 'Checks started · $suites suites',
           );
           break;
         case 'test_result':
@@ -320,8 +322,9 @@ class _BuildExecutionView {
       }
     }
 
-    final recent =
-        activity.length > 12 ? activity.sublist(activity.length - 12) : activity;
+    final recent = activity.length > 12
+        ? activity.sublist(activity.length - 12)
+        : activity;
     return _BuildExecutionView(activity: List<String>.unmodifiable(recent));
   }
 
