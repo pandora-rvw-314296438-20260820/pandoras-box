@@ -1,0 +1,50 @@
+name: Visible Closure Generated-Context Format Once
+
+on:
+  push:
+    branches:
+      - visible/closure-current-main-20260902
+
+permissions:
+  contents: write
+
+jobs:
+  format-generated-context-once:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: visible/closure-current-main-20260902
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - name: Reproduce release formatter context
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .visible-format-build
+          mkdir .visible-format-build
+          cd .visible-format-build
+          flutter create --platforms=android,web --org com.banataosystems --project-name pandora_mobile .
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R ../apps/pandora-mobile/lib ./lib
+          cp -R ../apps/pandora-mobile/test ./test
+          cp -R ../apps/pandora-mobile/assets ./assets
+          cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
+          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+          flutter pub get --enforce-lockfile
+          dart format lib/features/simple/project_history_screen.dart lib/features/simple/project_source_files_screen.dart
+          cp lib/features/simple/project_history_screen.dart ../apps/pandora-mobile/lib/features/simple/project_history_screen.dart
+          cp lib/features/simple/project_source_files_screen.dart ../apps/pandora-mobile/lib/features/simple/project_source_files_screen.dart
+          cd ..
+          rm -rf .visible-format-build
+          rm .github/workflows/visible-closure-generated-context-format-once.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add apps/pandora-mobile/lib/features/simple/project_history_screen.dart apps/pandora-mobile/lib/features/simple/project_source_files_screen.dart .github/workflows/visible-closure-generated-context-format-once.yml
+          git commit -m "style(mobile): match generated release formatter context"
+          git push origin HEAD:visible/closure-current-main-20260902
