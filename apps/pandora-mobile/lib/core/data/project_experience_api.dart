@@ -775,11 +775,17 @@ class ProjectExperienceApi {
       final responseProjectId = _text(data['projectId']).toLowerCase();
       final responseVersionId = _text(data['versionId']).toLowerCase();
       final artifactDigest = _text(data['artifactDigest']).toLowerCase();
+      final previewDeploymentId = _text(data['previewDeploymentId']).toLowerCase();
+      final sourceSha256 = _text(data['sourceSha256']).toLowerCase();
+      final sourceCommitSha = _text(data['sourceCommitSha']).toLowerCase();
       final requestedProjectId = projectId.trim().toLowerCase();
       final requestedVersionId = versionId.trim().toLowerCase();
       if (responseProjectId != requestedProjectId ||
           responseVersionId != requestedVersionId ||
-          !RegExp(r'^[0-9a-f]{64}$').hasMatch(artifactDigest)) {
+          !RegExp(r'^[0-9a-f]{64}$').hasMatch(artifactDigest) ||
+          !RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$').hasMatch(previewDeploymentId) ||
+          !RegExp(r'^[0-9a-f]{64}$').hasMatch(sourceSha256) ||
+          !RegExp(r'^(?:[0-9a-f]{40}|[0-9a-f]{64})$').hasMatch(sourceCommitSha)) {
         throw const ProjectExperienceException(
           'Pandora returned an unreadable preview.',
         );
@@ -824,6 +830,9 @@ class ProjectExperienceApi {
           'artifactDigest': artifactDigest,
           'previewProjectId': responseProjectId,
           'previewVersionId': responseVersionId,
+          'previewDeploymentId': previewDeploymentId,
+          'sourceSha256': sourceSha256,
+          'sourceCommitSha': sourceCommitSha,
         });
       }
       return files;
