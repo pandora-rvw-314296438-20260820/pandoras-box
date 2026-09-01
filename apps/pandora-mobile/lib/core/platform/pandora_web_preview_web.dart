@@ -143,7 +143,10 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
     _port = channel.port1;
     _portSubscription = channel.port1.onMessage.listen(_handlePortMessage);
     target.postMessage(
-      <String, Object?>{'type': 'pandora-preview-init', 'versionId': versionId},
+      <String, Object?>{
+        'type': 'pandora-preview-init',
+        'versionId': versionId,
+      },
       '*',
       <html.MessagePort>[channel.port2],
     );
@@ -338,10 +341,8 @@ String _rewriteHtml(
   String basePath,
 ) {
   var output = source.replaceAllMapped(
-    RegExp(
-      r'''(\b(?:src|href|poster)\s*=\s*["'])([^"']+)(["'])''',
-      caseSensitive: false,
-    ),
+    RegExp(r'''(\b(?:src|href|poster)\s*=\s*["'])([^"']+)(["'])''',
+        caseSensitive: false),
     (match) {
       final ref = match.group(2)!;
       final path = _resolvePath(basePath, ref, files);
