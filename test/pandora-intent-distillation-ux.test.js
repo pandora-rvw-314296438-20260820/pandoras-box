@@ -10,7 +10,7 @@ const compiler = fs.readFileSync(
   "utf8",
 );
 const migration = fs.readFileSync(
-  path.join(process.cwd(), "supabase/migrations/20260901071500_pandora_intent_distillation_naming_v1.sql"),
+  path.join(process.cwd(), "supabase/migrations/20260901004803_pandora_intent_distillation_naming_v1.sql"),
   "utf8",
 );
 const createUi = fs.readFileSync(

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const generator = fs.readFileSync('supabase/functions/pandora-project-source-generator/index.ts', 'utf8');
-const migration = fs.readFileSync('supabase/migrations/20260901074500_pandora_live_code_stream_v1.sql', 'utf8');
+const migration = fs.readFileSync('supabase/migrations/20260901004825_pandora_live_code_stream_v1.sql', 'utf8');
 const api = fs.readFileSync('apps/pandora-mobile/lib/core/data/project_experience_api.dart', 'utf8');
 const conversation = fs.readFileSync('apps/pandora-mobile/lib/features/simple/project_build_conversation.dart', 'utf8');
 const createExperience = fs.readFileSync('apps/pandora-mobile/lib/features/simple/project_create_experience.dart', 'utf8');

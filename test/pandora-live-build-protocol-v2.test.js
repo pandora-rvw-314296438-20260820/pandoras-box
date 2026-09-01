@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const migration = fs.readFileSync(
-  'supabase/migrations/20260901140500_pandora_live_build_protocol_v2.sql',
+  'supabase/migrations/20260901061023_pandora_live_build_protocol_v2.sql',
   'utf8',
 );
 const protocol = fs.readFileSync(
