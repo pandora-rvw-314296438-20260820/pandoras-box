@@ -26,9 +26,13 @@ function validArgs() {
     title: "Pandora Mobile owner-device read-only journey",
     summary: "Owner-operated Android journey verified installation, authentication, live reads, and primary read-only navigation.",
     proofStage: "tested",
+    evidenceKind: "verified_build",
     claim: "Physical Android authenticated read-only foundation is tested; merge, deployment, and production remain unverified.",
     evidenceRefs: [
-      { type: "video_sha256", ref: SHA256, sha256: SHA256, artifact_class: "private-raw-evidence" },
+      { type: "build_job", ref: "build-job-verified-0001" },
+      { type: "project_version", ref: "project-version-verified-0001" },
+      { type: "verification_run", ref: "verification-run-pass-0001" },
+      { type: "artifact_digest", ref: SHA256, sha256: SHA256, artifact_class: "verified-build-artifact" },
       { type: "github_source", ref: "banataosystems/Pandoras-box#37@" + SHA40 },
     ],
     provenance: {
@@ -62,6 +66,7 @@ function successBody(overrides = {}) {
     project_id: CANONICAL_PROJECT_ID,
     project_key: CANONICAL_PROJECT_KEY,
     proof_stage: "tested",
+    evidence_kind: "verified_build",
     deduplicated: false,
     created_at: "2026-08-14T11:00:00Z",
     canonical_memory_written: false,
@@ -82,6 +87,9 @@ function assertResponseContractFailure(error) {
 test("candidate schema requires a project identity and exact proof stage", () => {
   const parsed = EvidenceCandidateArgsSchema.parse(validArgs());
   assert.equal(parsed.proofStage, "tested");
+  assert.equal(parsed.evidenceKind, "verified_build");
+  assert.throws(() => EvidenceCandidateArgsSchema.parse({ ...validArgs(), evidenceKind: "activity_chunk" }));
+  assert.throws(() => EvidenceCandidateArgsSchema.parse({ ...validArgs(), evidenceRefs: [{ type: "build_job", ref: "only-one-ref" }] }));
   assert.throws(() => EvidenceCandidateArgsSchema.parse({ ...validArgs(), projectKey: undefined }));
   assert.throws(() => EvidenceCandidateArgsSchema.parse({ ...validArgs(), proofStage: "done" }));
   assert.throws(() => EvidenceCandidateArgsSchema.parse({ ...validArgs(), summary: "x".repeat(1801) }));
@@ -111,6 +119,7 @@ test("submission is bounded, OIDC-authenticated, and remains pending review", as
   assert.equal(observed.init.method, "POST");
   assert.equal(observed.init.headers["x-pandora-vercel-oidc"], config.oidcToken);
   assert.equal(observed.body.proof_stage, "tested");
+  assert.equal(observed.body.evidence_kind, "verified_build");
   assert.equal(result.status, "pending_review");
   assert.equal(result.canonicalPromoted, false);
   assert.equal(result.namespace, validArgs().namespace);
@@ -122,6 +131,7 @@ test("response identity and proof stage are bound to the submitted candidate", a
   for (const [name, override] of [
     ["namespace", { namespace: "au" }],
     ["proof stage", { proof_stage: "production_verified" }],
+    ["evidence kind", { evidence_kind: "verified_publish" }],
     ["idempotency", { idempotency_key: "different-key-123456789" }],
     ["project key", { project_key: "memory" }],
   ]) {
@@ -298,7 +308,7 @@ test("privacy boundary rejects broader identifiers, secrets, nesting, and encode
     [{ ...validArgs(), claim: "-----BEGIN PRIVATE KEY-----" }, /private_key_material/],
     [{ ...validArgs(), provenance: { ...validArgs().provenance, source_locator: "owner%40example.com" } }, /direct_identifier_email/],
     [{ ...validArgs(), provenance: { ...validArgs().provenance, source_locator: "owner＠example.com" } }, /direct_identifier_email/],
-    [{ ...validArgs(), evidenceRefs: [{ ...validArgs().evidenceRefs[0], ref: "phone%3A%20%2B63%20917%20123%204567" }] }, /direct_identifier_phone/],
+    [{ ...validArgs(), evidenceRefs: validArgs().evidenceRefs.map((ref, index) => index === 4 ? { ...ref, ref: "phone%3A%20%2B63%20917%20123%204567" } : ref) }, /direct_identifier_phone/],
   ];
   for (const [args, expected] of attacks) {
     let called = false;
