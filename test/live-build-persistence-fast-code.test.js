@@ -30,7 +30,7 @@ test('live source events are rendered in canonical chronological order', () => {
   assert.ok(projection.includes('contentChunk: event.contentChunk'));
   assert.ok(conversation.includes('ProjectBuildStreamTheatreProjection.fromSnapshot('));
   assert.ok(conversation.includes('LiveBuildTheatre(state: theatre)'));
-  assert.ok(theatre.includes('if (state.sourceBytesAvailable)'));
+  assert.ok(theatre.includes('if (state.hasVisibleRealSource)'));
   assert.ok(!conversation.includes("view.visibleCode.isEmpty ? ' ' : view.visibleCode"));
 });
 
