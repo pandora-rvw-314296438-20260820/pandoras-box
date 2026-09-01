@@ -54,7 +54,10 @@ function scan(value, path, findings, seen) {
   }
 
   for (const [key, nested] of Object.entries(value)) {
-    const normalized = key.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const normalized = key
+      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_');
     if (
       FORBIDDEN_SECRET_KEYS.includes(normalized) ||
       normalized.endsWith('_secret') ||

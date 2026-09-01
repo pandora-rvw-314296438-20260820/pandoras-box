@@ -10,6 +10,7 @@ module.exports = {
   ...require('./prompts/trusted-material-registry.js'),
   ...require('./prompts/trusted-context-bundle.js'),
   ...require('./providers/gemini.js'),
+  ...require('./providers/kimi.js'),
   ...require('./routing/policy.js'),
   ...require('./routing/model-router.js'),
   ...require('./skills/registry.js'),
