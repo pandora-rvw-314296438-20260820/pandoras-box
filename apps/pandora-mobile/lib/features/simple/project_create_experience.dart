@@ -9,6 +9,7 @@ import '../../core/models/project_journey_models.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import 'pandora_v2_ui.dart';
+import 'professional_build_plan.dart';
 import 'project_build_conversation.dart';
 
 class CreateProjectExperienceScreen extends StatefulWidget {
@@ -303,15 +304,7 @@ class _ProjectUnderstandingScreenState
   Widget build(BuildContext context) {
     final u = _understanding;
     final ready = u?.isReady ?? false;
-    final businessSummary = u?.businessSummary;
     final projectName = u?.projectName ?? 'Understanding your project…';
-    final intentSummary = u?.intentSummary ?? businessSummary;
-    final objectives = u?.objectives ?? const <String>[];
-    final requirements = u?.requirements ?? const <String>[];
-    final plan = <String>[
-      if (objectives.isNotEmpty) objectives.first,
-      ...requirements.take(4),
-    ];
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
       body: SafeArea(
