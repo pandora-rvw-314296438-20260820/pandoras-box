@@ -17,12 +17,7 @@ void main() {
       route: '/',
       sourceFile: 'index.html',
       sourceLine: 42,
-      bounds: const ProjectFocusBounds(
-        x: 10,
-        y: 20,
-        width: 120,
-        height: 44,
-      ),
+      bounds: const ProjectFocusBounds(x: 10, y: 20, width: 120, height: 44),
     );
 
     expect(
