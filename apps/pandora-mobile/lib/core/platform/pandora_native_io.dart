@@ -74,6 +74,31 @@ abstract final class PandoraNativeIo {
     }
   }
 
+  static Future<bool> saveBinaryDocument({
+    required String name,
+    required String mimeType,
+    required Uint8List bytes,
+  }) async {
+    final safeName = name.trim();
+    final safeMime = mimeType.trim();
+    if (safeName.isEmpty || safeMime.isEmpty || bytes.isEmpty) return false;
+    try {
+      return await _channel.invokeMethod<bool>(
+            'saveBinaryDocument',
+            <String, Object?>{
+              'name': safeName,
+              'mimeType': safeMime,
+              'data': bytes,
+            },
+          ) ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   static Future<PandoraTextAttachment?> pickTextAttachment() async {
     try {
       final value = await _channel.invokeMapMethod<String, Object?>(
