@@ -433,10 +433,38 @@ async function runGenerationInBackground(input: {
 
     const adapter = chooseAdapter(input.spec);
     const priorSource = await loadLatestVerifiedSource(admin, organizationId, projectId);
-    const providerRequest = sourcePrompt(input.spec, input.project, adapter, priorSource);
+    const impactRead = await admin.rpc("pandora_project_change_impact_service_v1", { p_project_spec_id: input.spec.id });
+    const impact = !impactRead.error && impactRead.data && typeof impactRead.data === "object"
+      ? rec(impactRead.data)
+      : { authoritative: false, impactTier: 4, impactClass: "database", buildScope: "full_candidate", verificationScope: "database_plus_global", changedScopes: { conservativeFallback: true } };
+    const incremental = impact.authoritative === true && Number(impact.impactTier) <= 1 &&
+      text(impact.buildScope) !== "full_candidate" && priorSource && Array.isArray(priorSource.allFiles) && priorSource.allFiles.length > 0;
+    queueStreamEvent(state, "impact_classified", null, null, {
+      authoritative: impact.authoritative === true,
+      impactTier: Number(impact.impactTier),
+      impactClass: text(impact.impactClass),
+      buildScope: incremental ? text(impact.buildScope) : "full_candidate",
+      verificationScope: text(impact.verificationScope),
+    });
+    await flushStreamEvents(admin, state, true);
+    const providerRequest = sourcePrompt(input.spec, input.project, adapter, priorSource, impact);
     const requestSha = await sha256Text(JSON.stringify(providerRequest));
     const streamed = await streamGeminiSource(admin, providerRequest, state);
-    const files = [...state.files.entries()].map(([path, chunks]) => ({ path, content: chunks.join("") }));
+    const generatedFiles = [...state.files.entries()].map(([path, chunks]) => ({ path, content: chunks.join("") }));
+    const files = incremental
+      ? (() => {
+          const merged = new Map<string, string>();
+          for (const value of priorSource.allFiles as JsonRecord[]) {
+            const row = rec(value);
+            const path = text(row.path);
+            const content = typeof row.content === "string" ? row.content : "";
+            if (!SAFE_PATH.test(path) || !content || SECRET.test(content)) throw new Error("BASE_SOURCE_INVALID");
+            merged.set(path, content);
+          }
+          for (const file of generatedFiles) merged.set(file.path, file.content);
+          return [...merged.entries()].map(([path, content]) => ({ path, content }));
+        })()
+      : generatedFiles;
     const canonical = await canonicalBundle({ schemaVersion: 1, files }, text(input.spec.id), adapter);
     const responseSha = await sha256Text(streamed.rawOutput);
     const requestId = crypto.randomUUID();
