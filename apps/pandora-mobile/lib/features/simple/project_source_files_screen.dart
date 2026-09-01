@@ -354,9 +354,13 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       onTap: () {
-                        final entry = tree.files
-                            .where((file) => file.path == match.path)
-                            .firstOrNull;
+                        ProjectSourceEntry? entry;
+                        for (final file in tree.files) {
+                          if (file.path == match.path) {
+                            entry = file;
+                            break;
+                          }
+                        }
                         if (entry != null) unawaited(_openFile(entry));
                       },
                     ),
