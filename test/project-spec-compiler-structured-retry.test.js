@@ -15,6 +15,6 @@ test('ProjectSpec compiler retries malformed structured output without weakening
   assert.match(compiler, /outputTokens \+= attemptOutputTokens/);
   assert.match(compiler, /totalTokens \+= attemptTotalTokens/);
   const validateAt = compiler.indexOf('candidate = validateCandidate(parsed)');
-  const commitAt = compiler.indexOf('pandora_commit_compiled_project_spec_20260829');
+  const commitAt = compiler.indexOf('pandora_commit_compiled_project_spec_v2_20260901');
   assert.ok(validateAt > 0 && commitAt > validateAt, 'strict validation must remain before ProjectSpec commit');
 });
