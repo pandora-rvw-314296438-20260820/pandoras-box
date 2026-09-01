@@ -901,11 +901,19 @@ Deno.serve(async (req) => {
       throw new Error("REPAIR_FEEDBACK_INVALID");
     }
 
+    const impactRead = await admin.rpc("pandora_project_change_impact_service_v1", { p_project_spec_id: spec.id });
+    const impact = !impactRead.error && impactRead.data && typeof impactRead.data === "object"
+      ? rec(impactRead.data)
+      : { authoritative: false, impactTier: 4, impactClass: "database", buildScope: "full_candidate", verificationScope: "database_plus_global", changedScopes: { conservativeFallback: true } };
+    const incremental = row.reason === "active_spec" && impact.authoritative === true && Number(impact.impactTier) <= 1 &&
+      text(impact.buildScope) !== "full_candidate" && priorSource && Array.isArray(priorSource.allFiles) && priorSource.allFiles.length > 0;
+
     const providerRequest = sourcePrompt(
       spec,
       project,
       adapter,
       priorSource,
+      impact,
       repairFeedback,
       primitiveMaterialization.selections,
     );
@@ -925,8 +933,29 @@ Deno.serve(async (req) => {
     } catch {
       throw new Error("INVALID_GENERATED_SOURCE");
     }
+    const generatedRecord = rec(generatedSource);
+    let sourceForBundle: unknown = generatedSource;
+    if (incremental) {
+      const generatedRows = Array.isArray(generatedRecord.files) ? generatedRecord.files.map(rec) : [];
+      if (generatedRecord.schemaVersion !== 1 || generatedRows.length < 1) throw new Error("INVALID_GENERATED_SOURCE");
+      const merged = new Map<string, string>();
+      for (const value of priorSource.allFiles as JsonRecord[]) {
+        const rowValue = rec(value);
+        const path = text(rowValue.path);
+        const content = typeof rowValue.content === "string" ? rowValue.content : "";
+        if (!SAFE_PATH.test(path) || path.startsWith("pandora-primitives/") || !content || SECRET.test(content)) throw new Error("BASE_SOURCE_INVALID");
+        merged.set(path, content);
+      }
+      for (const value of generatedRows) {
+        const path = text(value.path);
+        const content = typeof value.content === "string" ? value.content : "";
+        if (!SAFE_PATH.test(path) || path.startsWith("pandora-primitives/") || !content) throw new Error("INVALID_GENERATED_SOURCE");
+        merged.set(path, content);
+      }
+      sourceForBundle = { schemaVersion: 1, files: [...merged.entries()].map(([path, content]) => ({ path, content })) };
+    }
     const canonical = await canonicalBundle(
-      generatedSource,
+      sourceForBundle,
       String(spec.id),
       adapter,
       primitiveMaterialization.files,
