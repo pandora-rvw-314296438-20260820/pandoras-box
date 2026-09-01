@@ -144,6 +144,20 @@ jobs:
         working-directory: .pandora-mobile-build
         run: dart format --output=none --set-exit-if-changed lib test
 
+      - name: Materialize canonical web formatter repair
+        if: ${{ failure() }}
+        working-directory: .pandora-mobile-build
+        run: dart format lib/core/platform/pandora_web_preview_web.dart
+
+      - name: Upload canonical web formatter repair
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: pandora-mobile-web-formatter-canonical
+          path: .pandora-mobile-build/lib/core/platform/pandora_web_preview_web.dart
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Analyze
         working-directory: .pandora-mobile-build
         run: flutter analyze
