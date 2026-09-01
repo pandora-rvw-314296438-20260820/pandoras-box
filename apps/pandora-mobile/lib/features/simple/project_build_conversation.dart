@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/project_experience_api.dart';
 import '../../core/models/project_journey_models.dart';
+import 'live_build_theatre/live_build_theatre.dart';
+import 'live_build_theatre/project_build_stream_theatre_projection.dart';
 import 'pandora_v2_ui.dart';
 import 'professional_build_plan.dart';
 import 'project_experience_v2.dart';
@@ -67,7 +69,7 @@ class _ProjectBuildConversationScreenState
                   children: [
                     PandoraV2ObjectHeader(title: widget.project.name),
                     const SizedBox(height: 28),
-                    _ConversationLabel(label: 'You'),
+                    const _ConversationLabel(label: 'You'),
                     const SizedBox(height: 8),
                     _CollapsibleIntent(
                       text: widget.originalIntent,
@@ -97,27 +99,11 @@ class _ProjectBuildConversationScreenState
                         builder: (context, snapshot) {
                           final streamState = snapshot.data ??
                               const ProjectBuildStreamSnapshot.empty();
-                          final view = _BuildConversationView.from(streamState);
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _LiveBuildMessage(
-                                view: view,
-                                onOpenProject:
-                                    view.previewReady ? _openProject : null,
-                              ),
-                              if (snapshot.hasError) ...[
-                                const SizedBox(height: 10),
-                                const Text(
-                                  'Live code view disconnected. The durable build record will resync when the connection returns.',
-                                  style: TextStyle(
-                                    color: PandoraV2Colors.muted,
-                                    fontSize: 12.5,
-                                    height: 1.35,
-                                  ),
-                                ),
-                              ],
-                            ],
+                          return _LiveBuildProjection(
+                            streamId: widget.buildStart.streamId,
+                            snapshot: streamState,
+                            disconnected: snapshot.hasError,
+                            onOpenProject: _openProject,
                           );
                         },
                       ),
@@ -131,6 +117,277 @@ class _ProjectBuildConversationScreenState
       ),
     );
   }
+}
+
+class _LiveBuildProjection extends StatelessWidget {
+  const _LiveBuildProjection({
+    required this.streamId,
+    required this.snapshot,
+    required this.disconnected,
+    required this.onOpenProject,
+  });
+
+  final String streamId;
+  final ProjectBuildStreamSnapshot snapshot;
+  final bool disconnected;
+  final VoidCallback onOpenProject;
+
+  @override
+  Widget build(BuildContext context) {
+    if (snapshot.requiresReplay) {
+      return const _ConversationBuildNotice(
+        title: 'Refreshing live build evidence',
+        message: 'Pandora is reconciling the authoritative build sequence.',
+      );
+    }
+
+    if (snapshot.events.isEmpty) {
+      if (snapshot.historyGapDueToRetention || snapshot.latestSequence > 0) {
+        final stage = snapshot.buildStage?.replaceAll('_', ' ');
+        return _ConversationBuildNotice(
+          title: 'Build continued while you were away',
+          message: stage == null || stage.isEmpty
+              ? 'Expired source is not recreated. Current durable build state remains authoritative.'
+              : 'Current durable stage: $stage. Expired source is not recreated.',
+        );
+      }
+      return const _ConversationBuildNotice(
+        title: 'Connecting to the live build',
+        message: 'Source will appear only after real source bytes arrive.',
+      );
+    }
+
+    try {
+      final theatre = ProjectBuildStreamTheatreProjection.fromSnapshot(
+        streamId: streamId,
+        snapshot: snapshot,
+      );
+      final execution = _BuildExecutionView.from(snapshot.events);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _ConversationLabel(label: 'Pandora'),
+          const SizedBox(height: 8),
+          LiveBuildTheatre(state: theatre),
+          if (execution.activity.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _BuildExecutionActivity(lines: execution.activity),
+          ],
+          if (disconnected || snapshot.reconnecting) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Live view reconnecting. The durable build continues independently and will reconcile from authoritative replay.',
+              style: TextStyle(
+                color: PandoraV2Colors.muted,
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
+          ],
+          if (theatre.previewReady) ...[
+            const SizedBox(height: 12),
+            PandoraV2PrimaryAction(
+              label: 'Open result',
+              onPressed: onOpenProject,
+              icon: Icons.arrow_forward_rounded,
+            ),
+          ],
+        ],
+      );
+    } on FormatException {
+      return const PandoraV2InlineMessage(
+        title: 'Live build evidence unavailable',
+        message:
+            'Pandora rejected an invalid live-build projection. The durable build remains authoritative.',
+        danger: true,
+      );
+    }
+  }
+}
+
+class _BuildExecutionView {
+  const _BuildExecutionView({required this.activity});
+
+  factory _BuildExecutionView.from(List<ProjectBuildStreamEvent> input) {
+    final events = List<ProjectBuildStreamEvent>.of(input)
+      ..sort((left, right) => left.sequence.compareTo(right.sequence));
+    final activity = <String>[];
+
+    void record(String? value) {
+      if (value == null || value.trim().isEmpty) return;
+      final normalized = value.trim();
+      if (activity.isEmpty || activity.last != normalized) {
+        activity.add(normalized);
+      }
+    }
+
+    for (final event in events) {
+      final payload = event.safePayload;
+      switch (event.eventType) {
+        case 'command_started':
+          final command = _text(payload['display_command']);
+          final commandClass = _text(payload['command_class']);
+          record(
+            command ??
+                (commandClass == null
+                    ? 'Build command started'
+                    : '${_sentenceCase(commandClass)} command started'),
+          );
+          break;
+        case 'stdout_chunk':
+          final text = _text(payload['text']);
+          if (text != null) record(text);
+          break;
+        case 'stderr_chunk':
+          final text = _text(payload['text']);
+          if (text != null) record('Error output · $text');
+          break;
+        case 'command_completed':
+          final status = _text(payload['status']) ?? 'completed';
+          final exitCode = _integer(payload['exit_code']);
+          record(
+            exitCode == null
+                ? 'Command $status'
+                : 'Command $status · exit $exitCode',
+          );
+          break;
+        case 'compile_started':
+          final tool = _text(payload['tool']);
+          record(tool == null ? 'Compile started' : 'Compile started · $tool');
+          break;
+        case 'compile_diagnostic':
+          final severity = _text(payload['severity']) ?? 'diagnostic';
+          final code = _text(payload['error_code']);
+          final message = _text(payload['message']) ?? 'Compiler diagnostic';
+          final line = _integer(payload['line']);
+          final column = _integer(payload['column']);
+          var location = '';
+          if (event.filePath != null) {
+            location = event.filePath!;
+            if (line != null) {
+              location += ':$line';
+              if (column != null) location += ':$column';
+            }
+            location += ' · ';
+          }
+          final codeText = code == null ? '' : '$code · ';
+          record('$location$severity · $codeText$message');
+          break;
+        case 'compile_completed':
+          final status = _text(payload['status']) ?? 'completed';
+          final errors = _integer(payload['error_count']) ?? 0;
+          final warnings = _integer(payload['warning_count']) ?? 0;
+          record('Compile $status · $errors errors · $warnings warnings');
+          break;
+        case 'test_started':
+          final suites = _integer(payload['suite_count']);
+          record(
+            suites == null ? 'Checks started' : 'Checks started · $suites suites',
+          );
+          break;
+        case 'test_result':
+          final suite = _text(payload['suite']) ?? 'check';
+          final status = _text(payload['status']) ?? 'unknown';
+          record('$suite · $status');
+          break;
+        case 'test_completed':
+          final executed = _integer(payload['executed']) ?? 0;
+          final passed = _integer(payload['passed']) ?? 0;
+          final failed = _integer(payload['failed']) ?? 0;
+          final skipped = _integer(payload['skipped']) ?? 0;
+          record(
+            'Checks complete · $executed executed · $passed passed · $failed failed · $skipped skipped',
+          );
+          break;
+        case 'repair_started':
+          final attempt = _integer(payload['repair_attempt']);
+          final files = _integer(payload['changed_file_count']);
+          record(
+            'Repair started${attempt == null ? '' : ' · attempt $attempt'}'
+            '${files == null ? '' : ' · $files files'}',
+          );
+          break;
+        case 'repair_completed':
+          final status = _text(payload['status']) ?? 'completed';
+          final files = _integer(payload['changed_file_count']);
+          record(
+            'Repair $status${files == null ? '' : ' · $files files'}',
+          );
+          break;
+        case 'verification':
+          record('Verifying the exact build');
+          break;
+      }
+    }
+
+    final recent =
+        activity.length > 12 ? activity.sublist(activity.length - 12) : activity;
+    return _BuildExecutionView(activity: List<String>.unmodifiable(recent));
+  }
+
+  final List<String> activity;
+}
+
+class _BuildExecutionActivity extends StatelessWidget {
+  const _BuildExecutionActivity({required this.lines});
+
+  final List<String> lines;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        key: const Key('live-build-execution-activity'),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: PandoraV2Colors.soft,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Build activity',
+              style: TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (final line in lines)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: Text(
+                  line,
+                  style: const TextStyle(
+                    color: PandoraV2Colors.muted,
+                    fontSize: 12.5,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+}
+
+class _ConversationBuildNotice extends StatelessWidget {
+  const _ConversationBuildNotice({
+    required this.title,
+    required this.message,
+  });
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _ConversationLabel(label: 'Pandora'),
+          const SizedBox(height: 8),
+          PandoraV2InlineMessage(title: title, message: message),
+        ],
+      );
 }
 
 class _ConversationLabel extends StatelessWidget {
@@ -208,305 +465,17 @@ class _CollapsibleIntent extends StatelessWidget {
   }
 }
 
-class _LiveBuildMessage extends StatelessWidget {
-  const _LiveBuildMessage({required this.view, required this.onOpenProject});
-
-  final _BuildConversationView view;
-  final VoidCallback? onOpenProject;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _ConversationLabel(label: 'Pandora'),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: PandoraV2Colors.surface,
-            border: Border.all(color: PandoraV2Colors.line),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.code_rounded,
-                    size: 20,
-                    color: PandoraV2Colors.ink,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      view.previewReady
-                          ? 'Build complete'
-                          : view.failed
-                              ? 'Build stopped'
-                              : 'Pandora is coding',
-                      style: const TextStyle(
-                        color: PandoraV2Colors.ink,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (view.currentFile != null && view.visibleCode.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  view.currentFile!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: PandoraV2Colors.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  constraints: const BoxConstraints(minHeight: 170),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: PandoraV2Colors.ink,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    view.visibleCode,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'monospace',
-                      fontSize: 12.5,
-                      height: 1.36,
-                    ),
-                  ),
-                ),
-              ],
-              if (view.activity.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                for (final line in view.activity)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 7),
-                    child: Text(
-                      line,
-                      style: const TextStyle(
-                        color: PandoraV2Colors.muted,
-                        fontSize: 13.5,
-                        height: 1.3,
-                      ),
-                    ),
-                  ),
-              ],
-              if (onOpenProject != null) ...[
-                const SizedBox(height: 12),
-                PandoraV2PrimaryAction(
-                  label: 'Open result',
-                  onPressed: onOpenProject,
-                  icon: Icons.arrow_forward_rounded,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+String? _text(Object? value) {
+  if (value is String && value.trim().isNotEmpty) return value.trim();
+  return null;
 }
 
-class _BuildConversationView {
-  const _BuildConversationView({
-    required this.currentFile,
-    required this.visibleCode,
-    required this.activity,
-    required this.previewReady,
-    required this.failed,
-  });
+int? _integer(Object? value) {
+  if (value is int) return value;
+  return int.tryParse(value?.toString() ?? '');
+}
 
-  factory _BuildConversationView.from(ProjectBuildStreamSnapshot snapshot) {
-    final events = List<ProjectBuildStreamEvent>.of(snapshot.events)
-      ..sort((left, right) => left.sequence.compareTo(right.sequence));
-    String? currentFile;
-    var code = '';
-    var completedFiles = 0;
-    var previewReady = false;
-    var failed = snapshot.streamStatus == 'failed' ||
-        snapshot.streamStatus == 'cancelled' ||
-        snapshot.buildStatus == 'failed' ||
-        snapshot.buildStatus == 'cancelled';
-    final activity = <String>[];
-
-    void record(String value) {
-      if (value.isEmpty) return;
-      if (activity.isEmpty || activity.last != value) activity.add(value);
-    }
-
-    if (snapshot.historyGapDueToRetention) {
-      record('Build continued while you were away');
-    }
-    if (snapshot.reconnecting) {
-      record('Reconnecting to the live build');
-    }
-    if (snapshot.buildStage != null && snapshot.buildStage!.isNotEmpty) {
-      record(_friendlyStage(snapshot.buildStage!));
-    }
-
-    for (final event in events) {
-      switch (event.eventType) {
-        case 'stream_started':
-          record('Source stream connected');
-          break;
-        case 'file_started':
-          currentFile = event.filePath;
-          code = '';
-          if (currentFile != null) record('Writing $currentFile');
-          break;
-        case 'code_chunk':
-          if (event.filePath == currentFile && event.contentChunk != null) {
-            code += event.contentChunk!;
-          }
-          break;
-        case 'file_completed':
-          completedFiles += 1;
-          if (event.filePath != null) record('✓ ${event.filePath} saved');
-          break;
-        case 'generation_completed':
-          final count = event.safePayload['fileCount'] ?? completedFiles;
-          record('✓ $count source files generated');
-          break;
-        case 'build_job_created':
-          record('Source handed to the builder');
-          break;
-        case 'command_started':
-          final commandClass =
-              event.safePayload['command_class']?.toString() ?? 'build command';
-          record('Running ${commandClass.replaceAll('_', ' ')}');
-          break;
-        case 'command_completed':
-          final status = event.safePayload['status']?.toString();
-          if (status == 'completed' || status == 'succeeded') {
-            record('✓ Build command completed');
-          }
-          break;
-        case 'compile_started':
-          record('Compiling application');
-          break;
-        case 'compile_diagnostic':
-          if (event.filePath != null) {
-            record('Compiler found an issue in ${event.filePath}');
-          }
-          break;
-        case 'compile_completed':
-          final status = event.safePayload['status']?.toString();
-          record(status == 'completed' || status == 'succeeded'
-              ? '✓ Application compiled'
-              : 'Compile attempt needs repair');
-          break;
-        case 'test_started':
-          record('Running checks');
-          break;
-        case 'test_completed':
-          final failedCount = event.safePayload['failed'];
-          record(
-              failedCount == 0 ? '✓ Checks completed' : 'Checks need repair');
-          break;
-        case 'repair_started':
-          record('Repairing build issues');
-          break;
-        case 'repair_completed':
-          record('✓ Repair source rebuilt');
-          break;
-        case 'build_step':
-          final kind = event.safePayload['stepKind']?.toString() ?? 'build';
-          final status = event.safePayload['status']?.toString() ?? '';
-          final key = event.safePayload['stepKey']?.toString() ?? kind;
-          if (status == 'succeeded' || status == 'completed') {
-            record('✓ ${_friendlyStep(key, kind)}');
-          } else if (status == 'failed') {
-            record('Build step failed · ${_friendlyStep(key, kind)}');
-          } else {
-            record(_friendlyStep(key, kind));
-          }
-          break;
-        case 'verification':
-          record('Verifying the exact build');
-          break;
-        case 'preview_ready':
-          previewReady = true;
-          record('✓ Preview ready');
-          break;
-        case 'stream_error':
-          failed = true;
-          final codeValue = event.safePayload['code']?.toString();
-          record(
-            codeValue == null
-                ? 'Live code stream stopped'
-                : 'Live code stream stopped · $codeValue',
-          );
-          break;
-        case 'job_state':
-          final stage = event.safePayload['stage']?.toString();
-          if (stage != null && stage.isNotEmpty) record(_friendlyStage(stage));
-          break;
-      }
-    }
-
-    if (failed && snapshot.publicErrorCode != null) {
-      record('Build stopped · ${snapshot.publicErrorCode}');
-    }
-
-    final lines = code.split('\n');
-    final visibleLines =
-        lines.length > 36 ? lines.sublist(lines.length - 36) : lines;
-    final recentActivity =
-        activity.length > 7 ? activity.sublist(activity.length - 7) : activity;
-
-    return _BuildConversationView(
-      currentFile: currentFile,
-      visibleCode: visibleLines.join('\n'),
-      activity: List<String>.unmodifiable(recentActivity),
-      previewReady: previewReady,
-      failed: failed,
-    );
-  }
-
-  final String? currentFile;
-  final String visibleCode;
-  final List<String> activity;
-  final bool previewReady;
-  final bool failed;
-
-  static String _friendlyStep(String key, String kind) {
-    final value = '$kind $key'.toLowerCase();
-    if (value.contains('source')) return 'Source snapshot ready';
-    if (value.contains('depend')) return 'Dependencies resolved';
-    if (value.contains('test') || value.contains('verify')) {
-      return 'Checks completed';
-    }
-    if (value.contains('build') || value.contains('package')) {
-      return 'Application compiled';
-    }
-    return key.replaceAll('_', ' ');
-  }
-
-  static String _friendlyStage(String stage) {
-    switch (stage.toLowerCase()) {
-      case 'building':
-        return 'Compiling application';
-      case 'testing':
-      case 'verifying':
-        return 'Running checks';
-      case 'repairing':
-        return 'Repairing build issues';
-      case 'previewing':
-        return 'Preparing preview';
-      case 'preview_ready':
-        return '✓ Preview ready';
-      default:
-        return stage.replaceAll('_', ' ');
-    }
-  }
+String _sentenceCase(String value) {
+  if (value.isEmpty) return value;
+  return '${value[0].toUpperCase()}${value.substring(1).replaceAll('_', ' ')}';
 }
