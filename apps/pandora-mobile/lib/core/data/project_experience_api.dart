@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../analytics/owner_analytics.dart';
 import '../models/project_conversation_history.dart';
 import '../models/project_source_models.dart';
 import '../network/idempotency_key.dart';
@@ -649,13 +650,34 @@ class ProjectExperienceApi {
         },
       );
       final data = response.data;
-      if (data is Uint8List && data.isNotEmpty) return data;
-      if (data is List<int> && data.isNotEmpty) {
-        return Uint8List.fromList(data);
+      final Uint8List bytes;
+      if (data is Uint8List && data.isNotEmpty) {
+        bytes = data;
+      } else if (data is List<int> && data.isNotEmpty) {
+        bytes = Uint8List.fromList(data);
+      } else {
+        throw const ProjectExperienceException(
+          'Pandora returned an unreadable source export.',
+        );
       }
-      throw const ProjectExperienceException(
-        'Pandora returned an unreadable source export.',
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          OwnerAnalyticsEvent.sourceAccessGranted,
+          projectId: projectId,
+          projectVersionId: versionId,
+          status: 'export',
+        ),
       );
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          OwnerAnalyticsEvent.sourceExported,
+          projectId: projectId,
+          projectVersionId: versionId,
+          count: bytes.length,
+          status: 'export',
+        ),
+      );
+      return bytes;
     } on ProjectExperienceException {
       rethrow;
     } on FunctionException catch (error) {
@@ -696,10 +718,30 @@ class ProjectExperienceApi {
           'Pandora rejected mismatched source evidence.',
         );
       }
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          OwnerAnalyticsEvent.sourceAccessGranted,
+          projectId: projectId,
+          projectVersionId: versionId,
+          status: operation,
+        ),
+      );
       return Map<String, Object?>.from(data);
     } on ProjectExperienceException {
       rethrow;
     } on FunctionException catch (error) {
+      final details = error.details;
+      if (details is Map &&
+          _text(details['code']) == 'SOURCE_ENTITLEMENT_REQUIRED') {
+        unawaited(
+          OwnerAnalytics.shared.capture(
+            OwnerAnalyticsEvent.sourcePaywallViewed,
+            projectId: projectId,
+            projectVersionId: versionId,
+            status: operation,
+          ),
+        );
+      }
       throw ProjectExperienceException(
         _sourceFunctionMessage(error),
       );

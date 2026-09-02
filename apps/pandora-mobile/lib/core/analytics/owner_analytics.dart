@@ -22,8 +22,10 @@ enum OwnerAnalyticsEvent {
   proposalShown('proposal_shown'),
   buildClicked('build_clicked'),
   buildAdmitted('build_admitted'),
+  firstStreamEvent('first_stream_event'),
   firstCode('first_code'),
   fileComplete('file_complete'),
+  sourceComplete('source_complete'),
   previewReady('preview_ready'),
   repairStarted('repair_started'),
   repairCompleted('repair_completed'),
@@ -81,6 +83,12 @@ class OwnerAnalytics {
     int? itemCount,
     int? attempt,
     bool? historyGap,
+    String? projectId,
+    String? buildJobId,
+    String? streamId,
+    String? projectVersionId,
+    int? count,
+    String? status,
     Duration? duration,
   }) async {
     if (!enabled) return;
@@ -110,7 +118,19 @@ class OwnerAnalytics {
       if (itemCount != null && itemCount >= 0) 'item_count': itemCount,
       if (attempt != null && attempt >= 0) 'attempt': attempt,
       if (historyGap != null) 'history_gap': historyGap,
-      if (duration != null) 'duration_ms': duration.inMilliseconds,
+      if (projectId != null && projectId.trim().isNotEmpty)
+        'project_id': _bounded(projectId, 80),
+      if (buildJobId != null && buildJobId.trim().isNotEmpty)
+        'build_job_id': _bounded(buildJobId, 80),
+      if (streamId != null && streamId.trim().isNotEmpty)
+        'stream_id': _bounded(streamId, 80),
+      if (projectVersionId != null && projectVersionId.trim().isNotEmpty)
+        'project_version_id': _bounded(projectVersionId, 80),
+      if (count != null && count >= 0) 'count': count,
+      if (status != null && status.trim().isNotEmpty)
+        'status': _bounded(status, 80),
+      if (duration != null && duration.inMilliseconds >= 0)
+        'duration_ms': duration.inMilliseconds,
     };
 
     try {
