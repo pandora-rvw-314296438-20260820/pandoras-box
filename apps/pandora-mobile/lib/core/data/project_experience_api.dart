@@ -63,7 +63,32 @@ class ProjectExperienceApi {
           })
           .select('id')
           .single();
-      return _requiredText(result['id']);
+      final intentId = _requiredText(result['id']);
+      if (intentKind == 'change') {
+        try {
+          final changes = await _client
+              .from('pandora_project_intents')
+              .select('id')
+              .eq('organization_id', _organizationId)
+              .eq('project_id', projectId)
+              .eq('intent_kind', 'change')
+              .order('created_at', ascending: true)
+              .limit(3);
+          if (changes.length == 2) {
+            unawaited(
+              OwnerAnalytics.shared.capture(
+                OwnerAnalyticsEvent.secondChangeSubmitted,
+                projectId: projectId,
+                resultClass: 'second_change',
+                count: 2,
+              ),
+            );
+          }
+        } catch (_) {
+          // Conversion analytics is non-authoritative and never blocks a saved change.
+        }
+      }
+      return intentId;
     } on PostgrestException catch (error) {
       if (error.code != '23505') {
         throw const ProjectExperienceException(
