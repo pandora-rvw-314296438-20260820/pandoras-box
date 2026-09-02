@@ -94,6 +94,135 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
     }
   }
 
+  Future<void> _showEvidenceDetails(ProjectConversationHistoryItem item) async {
+    final ids = <MapEntry<String, String>>[];
+    void add(String label, String? value) {
+      final normalized = value?.trim();
+      if (normalized != null && normalized.isNotEmpty) {
+        ids.add(MapEntry<String, String>(label, normalized));
+      }
+    }
+
+    add('Request', item.sourceIntentId);
+    add('Plan', item.projectSpecId);
+    add('Build authorization', item.buildAuthorizationId);
+    add('Build', item.buildJobId);
+    add('Version', item.projectVersionId);
+    add('Verification', item.verificationRunId);
+    add('Deployment', item.deploymentId);
+    add('Evidence record', item.sourceId);
+    add('History record', item.id);
+
+    final proofLabels = <String>[
+      if (item.sourceIntentId != null) 'Request linked',
+      if (item.projectSpecId != null) 'Plan linked',
+      if (item.buildJobId != null) 'Build linked',
+      if (item.projectVersionId != null) 'Exact version linked',
+      if (item.verificationRunId != null) 'Verification linked',
+      if (item.deploymentId != null) 'Deployment linked',
+    ];
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: PandoraV2Colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: FractionallySizedBox(
+          heightFactor: .72,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Evidence',
+                      style: TextStyle(
+                        color: PandoraV2Colors.ink,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              Text(
+                item.title,
+                style: const TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                ids.isEmpty
+                    ? 'Pandora retained this durable history record.'
+                    : 'Pandora retained the exact records behind this result so it can be independently traced.',
+                style: pandoraV2Muted,
+              ),
+              if (proofLabels.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final label in proofLabels)
+                      Chip(
+                        avatar: const Icon(Icons.verified_outlined, size: 16),
+                        label: Text(label),
+                      ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.schedule_rounded),
+                title: const Text('Recorded'),
+                subtitle: Text(_historyTime(item.occurredAt)),
+              ),
+              if (item.status != null)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.fact_check_outlined),
+                  title: const Text('Status'),
+                  subtitle: Text(item.status!),
+                ),
+              if (ids.isNotEmpty)
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  title: const Text('Technical IDs'),
+                  subtitle: const Text(
+                    'Exact lineage for advanced verification',
+                  ),
+                  children: [
+                    for (final entry in ids)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(entry.key),
+                        subtitle: SelectableText(entry.value),
+                      ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final items = _items;
@@ -154,6 +283,9 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
                     onOpenBuild: item.buildJobId == null
                         ? null
                         : () => _openBuildEvidence(item),
+                    onOpenEvidence: item.evidenceAvailable
+                        ? () => _showEvidenceDetails(item)
+                        : null,
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -166,10 +298,15 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
 }
 
 class _HistoryItemCard extends StatefulWidget {
-  const _HistoryItemCard({required this.item, this.onOpenBuild});
+  const _HistoryItemCard({
+    required this.item,
+    this.onOpenBuild,
+    this.onOpenEvidence,
+  });
 
   final ProjectConversationHistoryItem item;
   final VoidCallback? onOpenBuild;
+  final VoidCallback? onOpenEvidence;
 
   @override
   State<_HistoryItemCard> createState() => _HistoryItemCardState();
@@ -250,7 +387,9 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
               ),
             ),
           ],
-          if (canExpand || widget.onOpenBuild != null) ...[
+          if (canExpand ||
+              widget.onOpenBuild != null ||
+              widget.onOpenEvidence != null) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -260,6 +399,12 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
                   TextButton(
                     onPressed: () => setState(() => _expanded = !_expanded),
                     child: Text(_expanded ? 'Show less' : 'Show details'),
+                  ),
+                if (widget.onOpenEvidence != null)
+                  TextButton.icon(
+                    onPressed: widget.onOpenEvidence,
+                    icon: const Icon(Icons.verified_outlined),
+                    label: const Text('Evidence'),
                   ),
                 if (widget.onOpenBuild != null)
                   TextButton.icon(
