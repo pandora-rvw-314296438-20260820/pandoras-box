@@ -439,6 +439,27 @@ private class PandoraExactPreviewView(
     private var selectionMode = false
 
     init {
+        val projectId = (params["projectId"] as? String)?.trim()?.lowercase().orEmpty()
+        val versionId = (params["versionId"] as? String)?.trim()?.lowercase().orEmpty()
+        val deploymentId = (params["deploymentId"] as? String)?.trim()?.lowercase().orEmpty()
+        val sourceSha256 = (params["sourceSha256"] as? String)?.trim()?.lowercase().orEmpty()
+        val sourceCommitSha = (params["sourceCommitSha"] as? String)?.trim()?.lowercase().orEmpty()
+        val artifactDigest = (params["artifactDigest"] as? String)?.trim()?.lowercase().orEmpty()
+        val localArtifact = deploymentId == "local-artifact"
+        val uuid = Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+        val sha256 = Regex("^[0-9a-f]{64}$")
+        val commit = Regex("^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+        if (!uuid.matches(projectId) ||
+            !uuid.matches(versionId) ||
+            (!localArtifact && !uuid.matches(deploymentId)) ||
+            !sha256.matches(sourceSha256) ||
+            !sha256.matches(artifactDigest) ||
+            (sourceCommitSha.isNotEmpty() && !commit.matches(sourceCommitSha)) ||
+            (params["localArtifact"] as? Boolean ?: false) != localArtifact
+        ) {
+            throw IllegalArgumentException("Invalid exact preview identity")
+        }
+
         val rawFiles = params["files"] as? List<*>
             ?: throw IllegalArgumentException("Exact preview files are required")
         if (rawFiles.isEmpty() || rawFiles.size > 1000) {
