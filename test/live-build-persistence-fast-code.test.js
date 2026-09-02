@@ -35,9 +35,14 @@ test('live source events are rendered in canonical chronological order', () => {
 });
 
 test('real provider source is exposed as rapid realtime display slices', () => {
-  assert.ok(generator.includes('offset + 512'));
+  assert.ok(generator.includes('offset + 2048'));
   assert.ok(generator.includes('const liveChunk = content.slice(offset, end);'));
   assert.ok(generator.includes('queueStreamEvent(state, "code_chunk", path, liveChunk'));
+  assert.ok(generator.includes('if (!state.pending.length || (!force && state.pending.length < 6)) return;'));
+  assert.ok(generator.includes('await flushStreamEvents(admin, state);'));
+  assert.ok(generator.includes('await flushStreamEvents(admin, state, true);'));
+  const worstCaseRows = Math.ceil((4 * 1024 * 1024) / 2048) + (120 * 2) + 8;
+  assert.ok(worstCaseRows <= 2500);
   assert.ok(!generator.includes('queueStreamEvent(state, "code_chunk", path, content, { byteSize: bytes.byteLength })'));
 });
 
