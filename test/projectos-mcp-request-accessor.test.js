@@ -96,7 +96,15 @@ async function invoke(request) {
 function assertMetadata(response) {
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.resource, `${RESOURCE_ORIGIN}/mcp`);
-  assert.deepEqual(response.body.scopes_supported, ["openid", "email", "profile"]);
+  assert.deepEqual(response.body.scopes_supported, [
+    "openid",
+    "email",
+    "profile",
+    "projectos:read",
+    "projectos:plan",
+    "projectos:approve",
+    "projectos:execute",
+  ]);
   assert.equal(response.headers["www-authenticate"], undefined);
 }
 
