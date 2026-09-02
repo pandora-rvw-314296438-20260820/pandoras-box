@@ -14,16 +14,42 @@ private struct PandoraPreviewFile {
 }
 
 private struct PandoraPreviewBundle {
+    let projectId: String
     let versionId: String
+    let deploymentId: String
+    let sourceSha256: String
+    let sourceCommitSha: String
+    let artifactDigest: String
     let files: [String: PandoraPreviewFile]
 
     static func parse(_ arguments: Any?) -> PandoraPreviewBundle? {
         guard
             let params = arguments as? [String: Any],
-            let rawVersion = params["versionId"] as? String
+            let rawProject = params["projectId"] as? String,
+            let rawVersion = params["versionId"] as? String,
+            let rawDeployment = params["deploymentId"] as? String,
+            let rawSource = params["sourceSha256"] as? String,
+            let rawArtifact = params["artifactDigest"] as? String
         else { return nil }
-        let versionId = rawVersion.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !versionId.isEmpty else { return nil }
+        let projectId = rawProject.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let versionId = rawVersion.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let deploymentId = rawDeployment.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let sourceSha256 = rawSource.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let sourceCommitSha = (params["sourceCommitSha"] as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let artifactDigest = rawArtifact.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let localArtifact = deploymentId == "local-artifact"
+        let uuid = "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        let sha256 = "^[0-9a-f]{64}$"
+        let commit = "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        guard projectId.range(of: uuid, options: .regularExpression) != nil,
+              versionId.range(of: uuid, options: .regularExpression) != nil,
+              (localArtifact || deploymentId.range(of: uuid, options: .regularExpression) != nil),
+              sourceSha256.range(of: sha256, options: .regularExpression) != nil,
+              artifactDigest.range(of: sha256, options: .regularExpression) != nil,
+              (sourceCommitSha.isEmpty || sourceCommitSha.range(of: commit, options: .regularExpression) != nil),
+              (params["localArtifact"] as? Bool ?? false) == localArtifact
+        else { return nil }
 
         guard let rawFiles = params["files"] as? [[String: Any]],
               !rawFiles.isEmpty,
@@ -53,7 +79,15 @@ private struct PandoraPreviewBundle {
             files[path] = PandoraPreviewFile(data: data, mimeType: mimeType)
         }
         guard files["index.html"] != nil else { return nil }
-        return PandoraPreviewBundle(versionId: versionId, files: files)
+        return PandoraPreviewBundle(
+            projectId: projectId,
+            versionId: versionId,
+            deploymentId: deploymentId,
+            sourceSha256: sourceSha256,
+            sourceCommitSha: sourceCommitSha,
+            artifactDigest: artifactDigest,
+            files: files
+        )
     }
 
     private static func isSafePreviewPath(_ path: String) -> Bool {
