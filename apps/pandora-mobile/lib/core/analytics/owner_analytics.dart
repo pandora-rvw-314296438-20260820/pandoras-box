@@ -17,7 +17,26 @@ enum OwnerAnalyticsEvent {
   artifactOpened('artifact_opened'),
   releaseOpened('release_opened'),
   rollbackStarted('rollback_started'),
-  rollbackVerified('rollback_verified');
+  rollbackVerified('rollback_verified'),
+  intentSent('intent_sent'),
+  proposalShown('proposal_shown'),
+  buildClicked('build_clicked'),
+  buildAdmitted('build_admitted'),
+  firstStreamEvent('first_stream_event'),
+  firstCode('first_code'),
+  fileComplete('file_complete'),
+  sourceComplete('source_complete'),
+  previewReady('preview_ready'),
+  repairStarted('repair_started'),
+  repairCompleted('repair_completed'),
+  streamReconnected('stream_reconnected'),
+  historyGap('history_gap'),
+  publishStarted('publish_started'),
+  publishVerified('publish_verified'),
+  publishFailed('publish_failed'),
+  sourcePaywallViewed('source_paywall_viewed'),
+  sourceAccessGranted('source_access_granted'),
+  sourceExported('source_exported');
 
   const OwnerAnalyticsEvent(this.wireName);
   final String wireName;
@@ -57,6 +76,13 @@ class OwnerAnalytics {
     String? errorCode,
     String? proofStage,
     Duration? duration,
+    String? projectId,
+    String? buildJobId,
+    String? streamId,
+    String? projectVersionId,
+    int? sequence,
+    int? count,
+    String? status,
   }) async {
     if (!enabled) return;
     final properties = <String, Object?>{
@@ -73,7 +99,20 @@ class OwnerAnalytics {
         'error_code': _bounded(errorCode, 80),
       if (proofStage != null && proofStage.trim().isNotEmpty)
         'proof_stage': _bounded(proofStage, 80),
-      if (duration != null) 'duration_ms': duration.inMilliseconds,
+      if (duration != null && duration.inMilliseconds >= 0)
+        'duration_ms': duration.inMilliseconds,
+      if (projectId != null && projectId.trim().isNotEmpty)
+        'project_id': _bounded(projectId, 80),
+      if (buildJobId != null && buildJobId.trim().isNotEmpty)
+        'build_job_id': _bounded(buildJobId, 80),
+      if (streamId != null && streamId.trim().isNotEmpty)
+        'stream_id': _bounded(streamId, 80),
+      if (projectVersionId != null && projectVersionId.trim().isNotEmpty)
+        'project_version_id': _bounded(projectVersionId, 80),
+      if (sequence != null && sequence >= 0) 'sequence': sequence,
+      if (count != null && count >= 0) 'count': count,
+      if (status != null && status.trim().isNotEmpty)
+        'status': _bounded(status, 80),
     };
 
     try {
