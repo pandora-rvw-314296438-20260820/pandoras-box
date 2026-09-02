@@ -11,6 +11,7 @@ const sourceAuthority = read('src/runtime/source-authority.js');
 const sourceAuthorityPolicy = JSON.parse(read('SOURCE_AUTHORITY_POLICY.json'));
 const provider = read('src/projectos/project-memory-context-provider.js');
 const operator = read('apps/meta-business-mcp/src/operator/api.js');
+const operatorEntry = read('api/operator.ts');
 const compiler = read('supabase/functions/pandora-project-spec-compiler/index.ts');
 const generator = read('supabase/functions/pandora-project-source-generator/index.ts');
 const lineage = read('supabase/migrations/20260903010000_pandora_project_memory_decision_lineage_v1.sql');
@@ -37,6 +38,8 @@ test('operator records an immutable exact-project context receipt before decisio
   assert.match(provider, /approvedMemoryItemIds/);
   assert.match(operator, /\/project-memory-context/);
   assert.match(operator, /projectos:plan/);
+  assert.match(operatorEntry, /resolveVercelWorkloadToken/);
+  assert.doesNotMatch(operatorEntry, /request\.headers\?\.\['x-vercel-oidc-token'\]/);
   assert.match(lineage, /PANDORA_MEMORY_CONTEXT_RECEIPT_IMMUTABLE/);
   assert.match(lineage, /projectos_context_json_sha256/);
   assert.match(lineage, /MEMORY_CONTEXT_HASH_MISMATCH/);
@@ -57,14 +60,22 @@ test('compiler and source generator use only bounded advisory Memory context', (
   assert.match(generator, /approvedMemoryContext/);
   assert.match(generator, /MAX_STREAM_FRAME_BUFFER_BYTES/);
   assert.match(generator, /SOURCE_SECRET_LOOKBEHIND_CHARS/);
+  assert.match(compiler, /pandora_commit_compiled_project_spec_memory_v1/);
+  assert.match(compiler, /p_memory_context_hash/);
+  assert.match(generator, /context_sha256: text\(input\.memoryContext\.contextHash\)/);
+  assert.doesNotMatch(generator, /context_sha256: input\.spec\.content_sha256/);
 });
 
 test('decision influence and verified outcomes remain project-bound and non-canonical', () => {
   assert.match(lineage, /visible_creation_decision_influence_v1/);
   assert.match(lineage, /visible_creation_decision_outcome_v1/);
   assert.match(lineage, /approved_memory_item_ids/);
-  assert.match(lineage, /pandora_project_spec_memory_influence_v1/);
-  assert.match(lineage, /pandora_build_memory_influence_v1/);
+  assert.match(lineage, /drop trigger if exists pandora_project_spec_memory_influence_v1/);
+  assert.match(lineage, /drop trigger if exists pandora_build_memory_influence_v1/);
+  assert.match(lineage, /pandora_model_run_memory_influence_v2/);
+  assert.match(lineage, /new\.status<>'succeeded'/);
+  assert.match(lineage, /context_hash=new\.context_sha256/);
+  assert.match(lineage, /v_receipt_id,v_decision_type,v_decision_id,new\.id/);
   assert.match(lineage, /pandora_verification_memory_outcome_v1/);
   assert.match(transport, /pandora-projectos-decision-lineage/);
   assert.match(transport, /projectos_memory_learning_hmac/);
