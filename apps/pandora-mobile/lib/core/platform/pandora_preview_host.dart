@@ -48,9 +48,13 @@ class PandoraPreviewHost extends StatelessWidget {
       return fallback;
     }
     if (identity.versionId != versionId.trim().toLowerCase()) return fallback;
+    final rendererKey = ValueKey<String>(
+      '${identity.projectId}:${identity.versionId}:${identity.deploymentId}:${identity.sourceSha256}:${identity.artifactDigest}:${identity.sourceCommitSha}',
+    );
 
     if (PandoraAndroidPreview.isSupported) {
       return PandoraAndroidPreview(
+        key: rendererKey,
         files: files,
         versionId: versionId,
         identity: identity,
@@ -63,6 +67,7 @@ class PandoraPreviewHost extends StatelessWidget {
 
     if (PandoraIosPreview.isSupported) {
       return PandoraIosPreview(
+        key: rendererKey,
         files: files,
         versionId: versionId,
         identity: identity,
@@ -75,6 +80,7 @@ class PandoraPreviewHost extends StatelessWidget {
 
     if (PandoraWebPreview.isSupported) {
       return PandoraWebPreview(
+        key: rendererKey,
         files: files,
         versionId: versionId,
         identity: identity,
@@ -86,8 +92,10 @@ class PandoraPreviewHost extends StatelessWidget {
     }
 
     return PandoraDesktopPreview(
+      key: rendererKey,
       files: files,
       versionId: versionId,
+      identity: identity,
       fallback: fallback,
       selectionEnabled: selectionEnabled,
       selectedSelector: selectedSelector,
