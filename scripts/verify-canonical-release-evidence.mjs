@@ -519,7 +519,7 @@ export function validateWorkflowText(text) {
   }
   for (const action of [
     "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
-    "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+    "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
     "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
   ]) {
     assert(uses.includes(action), `workflow is missing pinned ${action}`);
