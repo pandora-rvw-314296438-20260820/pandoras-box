@@ -38,16 +38,17 @@ test("Simple Home makes customer intent and current projects the interface", () 
   assert.equal(home.includes("class _IntentCard"), false);
 });
 
-test("primary navigation is reduced to Home, Work, and Needs You", () => {
+test("primary navigation stays focused on Home, Work, Needs You, and More", () => {
   assert.equal(shell.includes("_Destination('Home'"), true);
   assert.equal(shell.includes("_Destination('Work'"), true);
   assert.equal(shell.includes("'Needs You'"), true);
+  assert.equal(shell.includes("_Destination('More'"), true);
   assert.equal(shell.includes("1 => 'work'"), true);
   assert.equal(shell.includes("2 => 'needs_you'"), true);
-  assert.equal(shell.includes("_Destination('More'"), false);
+  assert.equal(shell.includes("3 => 'more'"), true);
   assert.equal(shell.includes("'Ask Pandora'"), false);
   assert.equal(shell.includes("AskPandoraScreen"), false);
-  assert.equal(shell.includes("MoreScreen"), false);
+  assert.equal(shell.includes("MoreScreen"), true);
 });
 
 test("Home projection carries owner-safe domain truth", () => {
