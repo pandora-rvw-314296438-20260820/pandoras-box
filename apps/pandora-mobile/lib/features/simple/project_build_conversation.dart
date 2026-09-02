@@ -160,11 +160,25 @@ class _ProjectBuildConversationScreenState
         resultClass: 'runtime_stalled',
         errorCode: terminalError,
       );
+      captureOnce(
+        'funnel_drop_off:$terminalError',
+        OwnerAnalyticsEvent.funnelDropOff,
+        status: snapshot.buildStatus ?? 'failed',
+        resultClass: 'build_stalled',
+        errorCode: terminalError,
+      );
     }
     if (terminalError == 'VERIFICATION_FAILED') {
       captureOnce(
         'verification_failed:$terminalError',
         OwnerAnalyticsEvent.verificationFailed,
+        status: snapshot.buildStatus ?? 'failed',
+        resultClass: 'verification_failed',
+        errorCode: terminalError,
+      );
+      captureOnce(
+        'funnel_drop_off:$terminalError',
+        OwnerAnalyticsEvent.funnelDropOff,
         status: snapshot.buildStatus ?? 'failed',
         resultClass: 'verification_failed',
         errorCode: terminalError,
