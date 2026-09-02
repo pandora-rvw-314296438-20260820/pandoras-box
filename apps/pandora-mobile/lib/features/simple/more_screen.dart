@@ -111,8 +111,7 @@ class MoreScreen extends StatelessWidget {
                     title: 'Advanced Mode',
                     subtitle:
                         'Code, changes, database, deployments, jobs, versions, evidence, runtime, and settings',
-                    onTap: () =>
-                        _openMore(context, const AdvancedModeScreen()),
+                    onTap: () => _openMore(context, const AdvancedModeScreen()),
                   ),
                   _MoreTile(
                     icon: Icons.terminal_rounded,
