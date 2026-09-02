@@ -324,8 +324,9 @@ class _ProjectBuildExperienceV2ScreenState
 
   String get _stageTitle {
     final updating = widget.baseVersionId?.trim().isNotEmpty == true;
-    if (_ready && !_publishReady)
+    if (_ready && !_publishReady) {
       return updating ? 'Change preview' : 'Preview';
+    }
     if (_ready) return updating ? 'Updated' : 'Ready';
     if (_candidate != null) return 'Preparing your preview';
     if (_snapshot?.verification?.state == 'checking') return 'Checking';
