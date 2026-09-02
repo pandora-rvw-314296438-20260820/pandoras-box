@@ -47,6 +47,18 @@ jobs:
         with:
           node-version: 24
 
+      - name: Link exact Vercel project
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_TOKEN"
+          npx --yes vercel@59.10.0 link \
+            --yes \
+            --project="$VERCEL_PROJECT_ID" \
+            --token="$VERCEL_TOKEN"
+          test -f .vercel/project.json
+          node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync(".vercel/project.json","utf8"));console.log(JSON.stringify({orgId:p.orgId,projectId:p.projectId}));if(p.orgId!==process.env.VERCEL_ORG_ID||p.projectId!==process.env.VERCEL_PROJECT_ID)process.exit(1)'
+
       - name: Pull production project configuration
         shell: bash
         run: |
