@@ -1558,11 +1558,19 @@
             "originalSqlSha256": "65178a1693b828fc38d8bc196236e73487707c5a419f8c514ed29d8fd16f494b",
             "originalStatementCount": 1,
             "canonicalExecutablePath": "supabase/migrations/20260902040000_align_vercel_supabase_connect_identity.sql"
+        },
+        {
+            "name": "pandora_source_privilege_hardening_v1",
+            "version": "20260902071826",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "e5452fc5fb31083f72579d4d3744acb733d5708bd09e311d7211759e68a77234",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260902070000_pandora_source_privilege_hardening_v1.sql"
         }
     ],
     "projectRef": "jcyqixttuebxqqfkjonq",
     "repository": "pandora-rvw-314296438-20260820/pandoras-box",
-    "generatedAt": "2026-09-02T00:53:06Z",
+    "generatedAt": "2026-09-02T07:20:08Z",
     "schemaVersion": 1,
-    "migrationCount": 220
+    "migrationCount": 221
 }
