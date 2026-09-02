@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/project_preview_identity.dart';
 import 'pandora_preview_contract.dart';
 
 /// iOS implementation of Pandora's exact in-memory preview host.
@@ -14,6 +15,7 @@ class PandoraIosPreview extends StatefulWidget {
     super.key,
     required this.files,
     required this.versionId,
+    required this.identity,
     required this.fallback,
     this.selectionEnabled = false,
     this.selectedSelector,
@@ -22,6 +24,7 @@ class PandoraIosPreview extends StatefulWidget {
 
   final List<Map<String, Object?>> files;
   final String versionId;
+  final ProjectPreviewIdentity identity;
   final Widget fallback;
   final bool selectionEnabled;
   final String? selectedSelector;
@@ -121,7 +124,8 @@ class _PandoraIosPreviewState extends State<PandoraIosPreview> {
   Widget build(BuildContext context) {
     if (!PandoraIosPreview.isSupported ||
         widget.files.isEmpty ||
-        widget.versionId.trim().isEmpty) {
+        widget.versionId.trim().isEmpty ||
+        widget.identity.versionId != widget.versionId.trim().toLowerCase()) {
       return widget.fallback;
     }
     return UiKitView(
@@ -130,7 +134,7 @@ class _PandoraIosPreviewState extends State<PandoraIosPreview> {
       creationParamsCodec: const StandardMessageCodec(),
       onPlatformViewCreated: _onPlatformViewCreated,
       creationParams: <String, Object?>{
-        'versionId': widget.versionId.trim(),
+        ...widget.identity.toCreationParams(),
         'files': widget.files,
       },
     );
