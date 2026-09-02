@@ -24,7 +24,7 @@ test('mobile admits only preview-eligible exact candidates and keeps early previ
   assert.match(experience, /candidate\.isPreviewEligible && !_ready && !_previewRequested/);
   assert.match(experience, /verification\.isPublishReadyFor\(candidate\)/);
   assert.match(experience, /subtitle: _ready && _publishReady \? 'Ready' : 'Working'/);
-  assert.match(experience, /if \(_ready && !_publishReady\) return updating \? 'Change preview' : 'Preview'/);
+  assert.match(experience, /if \(_ready && !_publishReady\)\s+return updating \? 'Change preview' : 'Preview'/);
   assert.doesNotMatch(experience, /subtitle: _ready \? 'Ready' : 'Working'/);
 });
 
