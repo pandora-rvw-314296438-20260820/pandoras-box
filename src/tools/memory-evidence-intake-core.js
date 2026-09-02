@@ -327,7 +327,7 @@ function privacyTextReason(value) {
     [/(?:^|\n)\s*(?:system|developer|assistant|user)\s*:\s*[^\n]{4,}\n(?:[\s\S]*?\n)?\s*(?:system|developer|assistant|user)\s*:\s*[^\n]{4,}/i, "prompt_transcript"],
     [/(?:^|\n)\s*(?:export\s+)?[A-Za-z][A-Za-z0-9_.-]{2,}\s*=\s*[^\n]{1,200}\n\s*(?:export\s+)?[A-Za-z][A-Za-z0-9_.-]{2,}\s*=\s*[^\n]{1,200}(?:\n|$)/, "env_config_dump"],
     [/\{\s*["'][A-Za-z_][A-Za-z0-9_.-]{1,64}["']\s*:\s*[^{}\n]{1,160},\s*(?:\n\s*)?["'][A-Za-z_][A-Za-z0-9_.-]{1,64}["']\s*:/, "env_config_dump"],
-    [/(?:^|\n)\s*(?:import\s+.+\s+from\s+|export\s+(?:default\s+)?|(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=|(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\(|class\s+[A-Za-z_$][\w$]*\b|def\s+[A-Za-z_]\w*\s*\()[^\n]{0,240}\n\s*(?:import\s+|export\s+|(?:const|let|var)\s+|return\b|if\s*\(|for\s*\(|while\s*\(|(?:async\s+)?function\s+|class\s+|def\s+|[A-Za-z_$][\w$]*\s*\()/m, "raw_source_multiline"],
+    [/(?:^|\n)\s*(?:import\s+.+\s+from\s+|export\s+(?:default\s+)?|(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=|(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\(|class\s+[A-Za-z_$][\w$]*\b|def\s+[A-Za-z_]\w*\s*\()[^\n]{0,240}\n\s*(?:import\s+|export\s+|(?:const|let|var)\s+|return\b|if\s*\(|for\s*\(|while\s*\(|(?:async\s+)?function\s+|class\s+|def\s+|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\s*\()/m, "raw_source_multiline"],
   ];
   for (const [pattern, reason] of checks) {
     if (pattern.test(text)) return reason;
