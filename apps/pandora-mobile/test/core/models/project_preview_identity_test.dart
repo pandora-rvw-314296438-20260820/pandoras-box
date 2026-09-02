@@ -57,7 +57,10 @@ void main() {
         artifactDigest: digest,
       ),
     ]);
-    expect(identity.deploymentId, ProjectPreviewIdentity.localArtifactDeploymentId);
+    expect(
+      identity.deploymentId,
+      ProjectPreviewIdentity.localArtifactDeploymentId,
+    );
     expect(identity.isLocalArtifact, isTrue);
   });
 
