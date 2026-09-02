@@ -41,3 +41,27 @@ test('paid source API never treats membership or preview access as durable sourc
   assert.doesNotMatch(source, /pandora-preview-content/);
   assert.match(source, /SOURCE_ENTITLEMENT_ACTIVE/);
 });
+
+test('paid source export binds SHA-256 provenance of the returned ZIP and audits after zipStored', () => {
+  const zipStored = source.indexOf('const zip = zipStored(exportFiles);');
+  const exportDigest = source.indexOf('const exportDigest = await sha256Hex(zip);');
+  const completedAudit = source.indexOf('p_action: "source.export.completed"');
+  const completedReason = source.indexOf('p_reason: "SOURCE_EXPORT_COMPLETED"');
+  const response = source.indexOf('return new Response(zip,');
+  const artifactHeader = source.indexOf('"x-pandora-artifact-digest": artifactDigest');
+  const exportHeader = source.indexOf('"x-pandora-export-digest": exportDigest');
+  assert.ok(zipStored >= 0, 'export must materialize the ZIP before hashing');
+  assert.ok(exportDigest > zipStored, 'export digest must hash the exact ZIP bytes after zipStored');
+  assert.ok(completedAudit > exportDigest, 'source.export.completed audit must follow ZIP digest');
+  assert.ok(completedReason > completedAudit, 'completed audit must use SOURCE_EXPORT_COMPLETED');
+  assert.ok(response > completedReason, 'ZIP response must not precede completed audit');
+  assert.ok(artifactHeader > response, 'artifact digest header must bind the selected version artifact');
+  assert.ok(exportHeader > artifactHeader, 'export digest header must bind the returned ZIP');
+  assert.match(source, /SHA256_RE\.test\(exportDigest\)/);
+  assert.match(source, /p_capability:\s*"export"/);
+  assert.match(source, /artifactDigest,/);
+  assert.match(source, /exportDigest,/);
+  assert.match(source, /exportBytes:\s*zip\.length/);
+  assert.match(source, /redactedFileCount/);
+  assert.match(source, /"x-pandora-export-bytes": String\(zip\.length\)/);
+});

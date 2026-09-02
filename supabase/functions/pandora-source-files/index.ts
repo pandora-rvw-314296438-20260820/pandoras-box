@@ -243,14 +243,37 @@ Deno.serve(async (req: Request) => {
       return json({ kind: "pandora.source-search.v1", projectId, versionId, query, truncated: matches.length >= MAX_SEARCH_MATCHES, matches }, 200, requestId);
     }
 
+    let redactedFileCount = 0;
     const exportFiles = files.map((source) => {
       if (!isTextFile(source.file)) return source;
       const redaction = redactSecrets(new TextDecoder("utf-8").decode(source.bytes));
       if (!redaction.redacted) return source;
+      redactedFileCount += 1;
       const bytes = new TextEncoder().encode(redaction.value);
       return { file: source.file, bytes, byteSize: bytes.length, sha256: source.sha256 };
     });
     const zip = zipStored(exportFiles);
+    const exportDigest = await sha256Hex(zip);
+    if (!SHA256_RE.test(exportDigest)) throw new Error("SOURCE_EXPORT_DIGEST_INVALID");
+    await recordAudit(admin, {
+      p_organization_id: organizationId,
+      p_project_id: projectId,
+      p_user_id: authData.user.id,
+      p_entitlement_id: UUID_RE.test(entitlementId) ? entitlementId : null,
+      p_capability: "export",
+      p_action: "source.export.completed",
+      p_resource_ref: versionId,
+      p_allowed: true,
+      p_reason: "SOURCE_EXPORT_COMPLETED",
+      p_request_id: requestId,
+      p_metadata: {
+        artifactDigest,
+        exportDigest,
+        exportBytes: zip.length,
+        fileCount: exportFiles.length,
+        redactedFileCount,
+      },
+    }, true);
     return new Response(zip, {
       status: 200,
       headers: {
@@ -261,6 +284,9 @@ Deno.serve(async (req: Request) => {
         "x-content-type-options": "nosniff",
         "x-request-id": requestId,
         "x-pandora-source-version": versionId,
+        "x-pandora-artifact-digest": artifactDigest,
+        "x-pandora-export-digest": exportDigest,
+        "x-pandora-export-bytes": String(zip.length),
       },
     });
   } catch (error) {
