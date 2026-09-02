@@ -52,7 +52,7 @@ function safePath(value: unknown) {
 function base64Bytes(value: unknown) {
   const source = text(value);
   if (!source || source.length % 4 !== 0 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(source)) {
-    throw new Eror("SOURCE_FILE_BASE64_INVALID");
+    throw new Error("SOURCE_FILE_BASE64_INVALID");
   }
   let binary = "";
   try { binary = atob(source); } catch { throw new Error("SOURCE_FILE_BASE64_INVALID"); }
@@ -75,7 +75,7 @@ function redactSecrets(source: string) {
     redacted = true;
     return "[REDACTED_PRIVATE_KEY]";
   });
-  value = value.replace(/\b(SUPABASE_SERVICE_ROLE_KEY|OPENAI_API_KEY|GITHUB_TOKEN|VERCEL_TOKEN|AWS_SECRET_ACCESS_KEY)\b\s*([:=])+\s*(["']?)[A-Za-z0-9+/_=.\-]{12,}\3/g, (_match, name, separator) => {
+  value = value.replace(/\b(SUPABASE_SERVICE_ROLE_KEY|OPENAI_API_KEY|GITHUB_TOKEN|VERCEL_TOKEN|AWS_SECRET_ACCESS_KEY)\b\s*([:=])\s*(["']?)[A-Za-z0-9+/_=.\-]{12,}\3/g, (_match, name, separator) => {
     redacted = true;
     return `${name}${separator}[REDACTED_SECRET]`;
   });
