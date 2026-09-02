@@ -16,6 +16,7 @@ test('server authority defines the first-safe-preview threshold without implying
 
 test('mobile admits only preview-eligible exact candidates and keeps early preview Working', () => {
   assert.match(models, /bool get isPreviewEligible/);
+  assert.match(models, /status: jsonText\(json\['status'\], fallback: 'unknown'\)/);
   assert.match(models, /'built',[\s\S]*'verification_pending',[\s\S]*'verified',[\s\S]*'preview_ready'/);
   assert.match(models, /_artifactDigestPattern\.hasMatch\(normalizedDigest\)/);
   assert.match(experience, /candidate == null \|\| !candidate\.isPreviewEligible/);
