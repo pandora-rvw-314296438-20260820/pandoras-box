@@ -10,9 +10,9 @@ const runtime = fs.readFileSync('apps/pandora-mobile/lib/core/data/project_runti
 const generator = fs.readFileSync('supabase/functions/pandora-project-source-generator/index.ts', 'utf8');
 
 const requiredEvents = [
-  'intent_sent', 'proposal_shown', 'build_clicked', 'build_admitted',
+  'intent_sent', 'proposal_shown', 'build_clicked', 'build_admitted', 'build_admission_failed',
   'first_stream_event', 'first_code', 'file_complete', 'source_complete',
-  'preview_ready', 'repair_started', 'repair_completed', 'stream_reconnected',
+  'preview_ready', 'build_stalled', 'repair_started', 'repair_completed', 'verification_failed', 'stream_reconnected',
   'history_gap', 'publish_started', 'publish_verified', 'publish_failed',
   'source_paywall_viewed', 'source_access_granted', 'source_exported',
 ];
@@ -42,6 +42,19 @@ test('intent proposal and build admission milestones follow authoritative transi
   assert.match(create, /buildClickedAt:\s*clickedAt/);
   const intentCapture = create.slice(intent, create.indexOf('      );', intent) + 8);
   assert.doesNotMatch(intentCapture, /intentText|originalIntent|objective/);
+});
+
+test('reliability failures are emitted only from authoritative bounded failure classes', () => {
+  const admissionFailure = create.indexOf('OwnerAnalyticsEvent.buildAdmissionFailed');
+  assert.ok(admissionFailure >= 0);
+  const admissionCapture = create.slice(admissionFailure, create.indexOf('      );', admissionFailure) + 8);
+  assert.match(admissionCapture, /resultClass: 'admission_failed'/);
+  assert.doesNotMatch(admissionCapture, /error\.message|intentText|originalIntent|objective/);
+  assert.match(conversation, /BUILD_DEADLINE_EXCEEDED[\s\S]{0,520}OwnerAnalyticsEvent\.buildStalled/);
+  assert.match(conversation, /BUILD_LEASE_RETRY_EXHAUSTED[\s\S]{0,520}OwnerAnalyticsEvent\.buildStalled/);
+  assert.match(conversation, /VERIFICATION_FAILED[\s\S]{0,520}OwnerAnalyticsEvent\.verificationFailed/);
+  assert.match(conversation, /resultClass: 'runtime_stalled'/);
+  assert.match(conversation, /resultClass: 'verification_failed'/);
 });
 
 test('TTFC and source milestones are derived from real ordered stream events only', () => {
