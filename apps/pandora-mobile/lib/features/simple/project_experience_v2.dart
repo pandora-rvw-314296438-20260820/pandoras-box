@@ -12,6 +12,8 @@ import '../../core/models/project_focus_token.dart';
 import '../../core/models/project_journey_models.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/platform/pandora_preview_host.dart';
+import 'live_build_theatre/live_build_reducer.dart';
+import 'live_build_theatre/project_build_stream_theatre_projection.dart';
 import 'pandora_v2_ui.dart';
 import 'project_exact_source_diff.dart';
 import 'project_history_screen.dart';
@@ -500,6 +502,12 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _undoing = false;
   bool _recentlyUpdated = false;
   ProjectExactSourceDiff? _lastChangeDiff;
+  StreamSubscription<ProjectBuildStreamSnapshot>? _liveBuildSubscription;
+  Timer? _liveBuildRetryTimer;
+  String? _liveBuildJobId;
+  String? _liveBuildStreamId;
+  LiveBuildTheatreState? _liveBuildActivity;
+  bool _resolvingLiveBuild = false;
   bool _selectionMode = false;
   PandoraPreviewSelection? _selectedPreviewTarget;
   ProjectFocusToken? _focusToken;
@@ -521,6 +529,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   @override
   void dispose() {
     _previewRetryTimer?.cancel();
+    _liveBuildRetryTimer?.cancel();
+    _liveBuildSubscription?.cancel();
     _projectionSubscription?.cancel();
     _change.dispose();
     super.dispose();
@@ -583,6 +593,137 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       }
     });
     if (shouldHydrate) unawaited(_refresh());
+    unawaited(_syncLiveBuildActivity(next.activeBuildJobId));
+  }
+
+  void _scheduleLiveBuildRetry(String buildJobId) {
+    if (_liveBuildRetryTimer?.isActive == true) return;
+    _liveBuildRetryTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted &&
+          _liveBuildJobId == buildJobId &&
+          _liveBuildSubscription == null) {
+        unawaited(_syncLiveBuildActivity(buildJobId));
+      }
+    });
+  }
+
+  void _acceptLiveBuildSnapshot(
+    String streamId,
+    ProjectBuildStreamSnapshot snapshot,
+  ) {
+    if (!mounted ||
+        _liveBuildStreamId != streamId ||
+        snapshot.requiresReplay ||
+        snapshot.events.isEmpty) {
+      return;
+    }
+    try {
+      final activity = ProjectBuildStreamTheatreProjection.fromSnapshot(
+        streamId: streamId,
+        snapshot: snapshot,
+      );
+      setState(() => _liveBuildActivity = activity);
+    } on FormatException {
+      // Reject mismatched stream evidence instead of fabricating activity.
+    }
+  }
+
+  Future<void> _syncLiveBuildActivity(String? rawBuildJobId) async {
+    final buildJobId = rawBuildJobId?.trim();
+    if (buildJobId == null || buildJobId.isEmpty) {
+      _liveBuildRetryTimer?.cancel();
+      await _liveBuildSubscription?.cancel();
+      _liveBuildSubscription = null;
+      _resolvingLiveBuild = false;
+      if (!mounted) return;
+      if (_liveBuildJobId != null ||
+          _liveBuildStreamId != null ||
+          _liveBuildActivity != null) {
+        setState(() {
+          _liveBuildJobId = null;
+          _liveBuildStreamId = null;
+          _liveBuildActivity = null;
+        });
+      }
+      return;
+    }
+
+    if (_liveBuildJobId != buildJobId) {
+      _liveBuildRetryTimer?.cancel();
+      await _liveBuildSubscription?.cancel();
+      _liveBuildSubscription = null;
+      if (!mounted) return;
+      setState(() {
+        _liveBuildJobId = buildJobId;
+        _liveBuildStreamId = null;
+        _liveBuildActivity = null;
+      });
+    }
+    if (_liveBuildSubscription != null || _resolvingLiveBuild) return;
+
+    final repository =
+        PandoraDependencies.of(context).projectExperienceRepository;
+    if (repository == null) return;
+
+    _resolvingLiveBuild = true;
+    try {
+      final streamId = await repository.findBuildStreamId(
+        projectId: widget.project.id,
+        buildJobId: buildJobId,
+      );
+      if (!mounted || _liveBuildJobId != buildJobId) return;
+      final normalizedStreamId = streamId?.trim();
+      if (normalizedStreamId == null || normalizedStreamId.isEmpty) {
+        _scheduleLiveBuildRetry(buildJobId);
+        return;
+      }
+      setState(() => _liveBuildStreamId = normalizedStreamId);
+      _liveBuildSubscription = repository
+          .watchResilientBuildStream(
+        projectId: widget.project.id,
+        streamId: normalizedStreamId,
+      )
+          .listen(
+        (snapshot) => _acceptLiveBuildSnapshot(
+          normalizedStreamId,
+          snapshot,
+        ),
+        onError: (_) {
+          // The generic lifecycle capsule remains the fail-closed fallback.
+        },
+      );
+    } on ProjectExperienceException {
+      _scheduleLiveBuildRetry(buildJobId);
+    } catch (_) {
+      _scheduleLiveBuildRetry(buildJobId);
+    } finally {
+      _resolvingLiveBuild = false;
+    }
+  }
+
+  String? get _liveActivityLabel {
+    final activity = _liveBuildActivity;
+    if (activity == null || activity.latestSequence <= 0) return null;
+    return activity.statusLabel;
+  }
+
+  String? get _liveActivityDetail {
+    final activity = _liveBuildActivity;
+    if (activity == null || activity.uniqueFileCount <= 0) return null;
+    return '${activity.completedFileCount} of ${activity.uniqueFileCount} files written';
+  }
+
+  Future<void> _openLiveBuildActivity() async {
+    final streamId = _liveBuildStreamId;
+    if (streamId == null || streamId.isEmpty) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => ProjectHistoryBuildEvidenceScreen(
+          project: _snapshot?.project ?? widget.project,
+          streamId: streamId,
+        ),
+      ),
+    );
   }
 
   ProjectChangePhase? get _projectionProgressPhase {
@@ -834,6 +975,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           _error = null;
         }
       });
+
+      unawaited(_syncLiveBuildActivity(projection.activeBuildJobId));
 
       if (targetVersionId != null &&
           _previewVersionId != targetVersionId &&
@@ -1688,6 +1831,10 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       onToggleSelection: _togglePreviewSelection,
       onOpenPreview: _openExactPreview,
       progressPhase: _projectionProgressPhase,
+      liveActivityLabel: _liveActivityLabel,
+      liveActivityDetail: _liveActivityDetail,
+      onOpenLiveActivity:
+          _liveBuildStreamId == null ? null : _openLiveBuildActivity,
       recentlyUpdated: _recentlyUpdated,
       currentVersionVerified: _currentVersionVerified,
       changeDiff: _lastChangeDiff,
