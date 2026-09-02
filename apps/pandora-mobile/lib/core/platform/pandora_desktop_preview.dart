@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../models/project_preview_identity.dart';
 import 'pandora_preview_contract.dart';
 
 /// Explicit fail-closed host for desktop platforms without a governed exact
@@ -13,6 +14,7 @@ class PandoraDesktopPreview extends StatelessWidget {
     super.key,
     required this.files,
     required this.versionId,
+    required this.identity,
     required this.fallback,
     this.selectionEnabled = false,
     this.selectedSelector,
@@ -21,6 +23,7 @@ class PandoraDesktopPreview extends StatelessWidget {
 
   final List<Map<String, Object?>> files;
   final String versionId;
+  final ProjectPreviewIdentity identity;
   final Widget fallback;
   final bool selectionEnabled;
   final String? selectedSelector;
