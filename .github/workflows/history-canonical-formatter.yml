@@ -1,0 +1,33 @@
+name: History canonical formatter
+
+on:
+  push:
+    branches:
+      - chatgpt/history-ux-79-81-20260903
+    paths:
+      - .github/workflows/history-canonical-formatter.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Format History source
+        run: dart format apps/pandora-mobile/lib/features/simple/project_history_screen.dart
+      - name: Upload canonical History source
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: history-canonical-dart
+          path: apps/pandora-mobile/lib/features/simple/project_history_screen.dart
+          if-no-files-found: error
+          retention-days: 1
