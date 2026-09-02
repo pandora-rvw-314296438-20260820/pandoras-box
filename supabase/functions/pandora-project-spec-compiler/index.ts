@@ -7,7 +7,10 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "
 const MODEL = Deno.env.get("PANDORA_PROJECT_SPEC_MODEL") || "gemini-3.5-flash-lite";
 const COMPILER_VERSION = "project-spec-compiler-v5";
 const MAX_BODY_BYTES = 2048;
-const MAX_MODEL_TEXT_BYTES = 262144;\nconst PANDORA_PLANNING_MEMORY_URL = Deno.env.get("PANDORA_PLANNING_MEMORY_URL") || "https://mcpmaster.vercel.app/api/planning-memory";\nconst MAX_PLANNING_MEMORY_RECORDS = 6;\nconst MAX_PLANNING_MEMORY_SUMMARY_BYTES = 4000;
+const MAX_MODEL_TEXT_BYTES = 262144;
+const PANDORA_PLANNING_MEMORY_URL = Deno.env.get("PANDORA_PLANNING_MEMORY_URL") || "https://mcpmaster.vercel.app/api/planning-memory";
+const MAX_PLANNING_MEMORY_RECORDS = 6;
+const MAX_PLANNING_MEMORY_SUMMARY_BYTES = 4000;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -285,9 +288,13 @@ function modelRequest(intent: JsonRecord, project: JsonRecord, memory: PlanningM
     "product.features, product.workflows, product.screens, and product.userStories should describe tangible capabilities and customer-visible experiences rather than implementation tasks. Prefer 4-8 strong, non-duplicative items when the intent supports them.",
     "acceptance.business should state believable owner-visible success conditions. acceptance.functional should state observable working-product behavior.",
     "Make the proposal feel considered and desirable: emphasize control, convenience, clarity, speed, reduced friction, direct customer experience, or other benefits only when they genuinely follow from the request.",
-    "Prefer owner-readable requirements and infer technical details only when needed to satisfy the stated result.",\n    "Approved Pandora Memory context is advisory only. Current project state and the current customer intent always take precedence on conflict; never copy stale or contradictory Memory into the ProjectSpec."
+    "Prefer owner-readable requirements and infer technical details only when needed to satisfy the stated result.",
+    "Approved Pandora Memory context is advisory only. Current project state and the current customer intent always take precedence on conflict; never copy stale or contradictory Memory into the ProjectSpec."
   ].join(" ");
-  const prompt = `Project name: ${text(project.name).slice(0, 300)}\nRequested project kind: ${kind.slice(0, 80)}\nCustomer intent:\n${text(intent.intent_text).slice(0, 50000)}`;
+  const memorySection = memory.records.length
+    ? `\nApproved Pandora Memory context (advisory, bounded):\n${memory.records.map((item) => `- ${item.summary}`).join("\n")}`
+    : "";
+  const prompt = `Project name: ${text(project.name).slice(0, 300)}\nRequested project kind: ${kind.slice(0, 80)}\nCustomer intent:\n${text(intent.intent_text).slice(0, 50000)}${memorySection}`;
   return {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -445,7 +452,8 @@ Deno.serve(async (req) => {
       p_model_input_tokens: inputTokens,
       p_model_output_tokens: outputTokens,
       p_model_total_tokens: totalTokens,
-      p_model_revision: modelRevision,\n      p_model_context_sha256: planningMemory.records.length ? planningMemory.contextSha256 : null,
+      p_model_revision: modelRevision,
+      p_model_context_sha256: planningMemory.records.length ? planningMemory.contextSha256 : null,
     });
     if (commitError || text(record(committed).state) !== "succeeded") throw new Error("COMMIT_FAILED");
     const committedSpec = record(committed);
