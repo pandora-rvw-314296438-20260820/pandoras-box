@@ -126,6 +126,10 @@ const HealthResponseSchema = zod_1.z.object({
 const SearchResponseSchema = zod_1.z.object({
     ok: zod_1.z.literal(true),
     namespace: NamespaceSchema.optional(),
+    project_id: zod_1.z.string().uuid().optional(),
+    project_key: zod_1.z.string().trim().min(1).max(96).optional(),
+    retrieval_log_id: zod_1.z.string().uuid().nullable().optional(),
+    approved_memory_item_ids: zod_1.z.array(zod_1.z.string().uuid()).max(50).default([]),
     current_task: zod_1.z.string().max(2000).nullable().optional(),
     adaptive_profile: zod_1.z.array(ProfileSchema).max(50).default([]),
     style_profile: zod_1.z.array(ProfileSchema).max(50).default([]),
