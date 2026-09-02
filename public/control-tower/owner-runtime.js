@@ -87,6 +87,7 @@ async function refresh({ announce = false } = {}) {
 
 function statusSummary() {
   if (state.loading || state.refreshing) return { label: 'Checking status', kind: 'checking' };
+  if (!state.session?.authenticated) return { label: 'Sign in to view status', kind: 'warning' };
   if (!state.live) return { label: 'Live status unavailable', kind: 'warning' };
   const blockedProjects = deriveProjects().filter((project) => project.blockedCount > 0).length;
   if (blockedProjects) return { label: `${blockedProjects} project${blockedProjects === 1 ? '' : 's'} need attention`, kind: 'warning' };
@@ -166,18 +167,19 @@ function badge(label, kind = 'neutral') {
 
 function header() {
   const status = statusSummary();
+  const statusActionLabel = state.session?.authenticated
+    ? `${status.label}. Refresh status.`
+    : 'Sign in to view protected status.';
   return `<header class="owner-header">
     <div class="owner-brand">
       <img src="${BRAND_MARK}" alt="" class="owner-brand-mark" />
       <div class="owner-brand-copy"><strong>Pandoras-Box</strong><span>Everything in one place</span></div>
     </div>
-    <button type="button" class="owner-status ${status.kind}" data-action="refresh" aria-label="${esc(status.label)}. Refresh status.">
+    <button type="button" class="owner-status ${status.kind}" data-action="refresh" aria-label="${esc(statusActionLabel)}">
       <span class="owner-status-dot" aria-hidden="true"></span><span>${esc(status.label)}</span>
     </button>
   </header>`;
 }
-
-
 
 window.PandorasOwnerRuntime = Object.freeze({
   request, loadProjection, refresh, statusSummary, pendingPlans, attentionCount, showToast, closeToast, navigate, openDialog, closeDialog, focusableInDialog, button, badge, header
