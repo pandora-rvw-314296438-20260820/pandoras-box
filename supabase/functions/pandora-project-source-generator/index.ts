@@ -15,7 +15,25 @@ const MIN_STATIC_INDEX_BYTES = 1024;
 const BUCKET = "pandora-build-artifacts";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SAFE_PATH = /^(?!\.)(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9_@+.-]+(?:\/[A-Za-z0-9_@+.-]+)*$/;
-const SECRET = /(?:AIza[0-9A-Za-z_-]{20,}|github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:api[_-]?key|secret|password|authorization)\s*[:=]\s*["'][^"']{12,}["'])/i;
+
+const SOURCE_SECRET_LOOKBEHIND_CHARS = 4096;
+const SOURCE_SECRET_RULES = [
+  String.raw`Authorization\s*[:=]\s*["'\x60]?(?:Bearer|Basic)\s+[A-Za-z0-9._~+\/=-]{8,}`,
+  String.raw`\bBearer\s+[A-Za-z0-9._~+\/-]{12,}=*`,
+  String.raw`\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|password|private[_-]?key)\s*[:=]\s*["'\x60][^"'\x60\r\n]{12,}`,
+  String.raw`(?:^|[\s;{])(?:GITHUB_TOKEN|GITHUB_PAT|GITHUB_SUPABASE|VERCEL_TOKEN|SUPABASE_SERVICE_ROLE|SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY|GEMINI_API_KEY|MOONSHOT_API_KEY|KIMI_API_KEY|DATABASE_URL)\s*=\s*["'\x60]?(?!process\.env\b|Deno\.env\b|import\.meta\.env\b|\$\{)[^\s,;}"'\x60]{12,}`,
+  String.raw`sk-[A-Za-z0-9_-]{20,}`,
+  String.raw`github_pat_[A-Za-z0-9_]{20,}`,
+  String.raw`gh[pousr]_[A-Za-z0-9_]{20,}`,
+  String.raw`glpat-[A-Za-z0-9_-]{20,}`,
+  String.raw`(?:sbp|vcp|vercel)_[A-Za-z0-9_-]{20,}`,
+  String.raw`sb_secret_[A-Za-z0-9_-]{20,}`,
+  String.raw`AIza[A-Za-z0-9_-]{20,}`,
+  String.raw`eyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}`,
+  String.raw`-----BEGIN [A-Z ]*PRIVATE KEY-----`,
+  String.raw`https?:\/\/[^\/\s:@]+:[^@\s\/]+@`,
+] as const;
+const SOURCE_SECRET_PATTERNS = SOURCE_SECRET_RULES.map((source) => new RegExp(source, "i"));
 type JsonRecord = Record<string, unknown>;
 
 function rec(value: unknown): JsonRecord { return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : {}; }
@@ -91,7 +109,8 @@ type StreamAssembler = {
   totalBytes: number;
   pending: JsonRecord[];
   done: boolean;
-  rollingSecretWindow: string;
+  liveDisplayBuffer: string;
+  knownSecrets: string[];
 };
 
 type StreamProviderMeta = {
@@ -130,6 +149,30 @@ function queueStreamEvent(state: StreamAssembler, eventType: string, filePath: s
   });
 }
 
+
+function sourceContainsSecret(value: string, knownSecrets: string[] = []) {
+  const candidate = String(value ?? "");
+  for (const secret of knownSecrets) {
+    const normalized = typeof secret === "string" ? secret.trim() : "";
+    if (normalized.length >= 8 && candidate.includes(normalized)) return true;
+  }
+  return SOURCE_SECRET_PATTERNS.some((pattern) => pattern.test(candidate));
+}
+
+async function emitLiveSource(admin: ReturnType<typeof adminClient>, state: StreamAssembler, path: string, content: string) {
+  if (!content) return;
+  for (let offset = 0; offset < content.length;) {
+    let end = Math.min(content.length, offset + 512);
+    if (end < content.length && /[\uD800-\uDBFF]/.test(content[end - 1])) end -= 1;
+    if (end <= offset) end = Math.min(content.length, offset + 2);
+    const liveChunk = content.slice(offset, end);
+    const liveBytes = new TextEncoder().encode(liveChunk).byteLength;
+    queueStreamEvent(state, "code_chunk", path, liveChunk, { byteSize: liveBytes });
+    await flushStreamEvents(admin, state, true);
+    offset = end;
+  }
+}
+
 async function acceptModelLine(admin: ReturnType<typeof adminClient>, state: StreamAssembler, rawLine: string) {
   const line = rawLine.trim();
   if (!line) return;
@@ -142,7 +185,7 @@ async function acceptModelLine(admin: ReturnType<typeof adminClient>, state: Str
     return;
   }
   if (kind === "file_start") {
-    if (!exactKeys(event, ["type", "path"]) || state.currentPath || state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (!exactKeys(event, ["type", "path"]) || state.currentPath || state.liveDisplayBuffer || state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
     const path = text(event.path);
     if (!SAFE_PATH.test(path) || path.length > 512 || path.startsWith(".env") || path.includes("/.env") || path.includes("node_modules/") || path.startsWith("build/") || path.startsWith("dist/") || path.startsWith(".next/") || state.files.has(path) || state.files.size >= MAX_FILES) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
     state.currentPath = path;
@@ -162,38 +205,35 @@ async function acceptModelLine(admin: ReturnType<typeof adminClient>, state: Str
     const nextFileBytes = (state.fileBytes.get(path) || 0) + bytes.byteLength;
     const nextTotal = state.totalBytes + bytes.byteLength;
     if (nextFileBytes > MAX_FILE_BYTES || nextTotal > MAX_SOURCE_BYTES) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
-    const secretWindow = state.rollingSecretWindow + content;
-    if (SECRET.test(secretWindow)) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
-    state.rollingSecretWindow = secretWindow.slice(-1024);
+    // Withhold a bounded tail before customer delivery. The next provider chunk is
+    // scanned together with this tail, so a credential split across transport/model
+    // chunk boundaries is rejected before any credential bytes can reach code_chunk.
+    const candidateLiveSource = state.liveDisplayBuffer + content;
+    if (sourceContainsSecret(candidateLiveSource, state.knownSecrets)) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
     state.fileBytes.set(path, nextFileBytes);
     state.totalBytes = nextTotal;
     state.files.get(path)!.push(content);
-    // Publish the exact provider-produced source in small, truthful realtime
-    // slices so the customer can actually watch the code move. These are
-    // display slices of the real generated bytes, never synthetic typing.
-    for (let offset = 0; offset < content.length;) {
-      let end = Math.min(content.length, offset + 512);
-      if (end < content.length && /[\uD800-\uDBFF]/.test(content[end - 1])) end -= 1;
-      const liveChunk = content.slice(offset, end);
-      const liveBytes = new TextEncoder().encode(liveChunk).byteLength;
-      queueStreamEvent(state, "code_chunk", path, liveChunk, { byteSize: liveBytes });
-      await flushStreamEvents(admin, state, true);
-      offset = end;
-    }
+    let publishLength = Math.max(0, candidateLiveSource.length - SOURCE_SECRET_LOOKBEHIND_CHARS);
+    if (publishLength > 0 && /[\uD800-\uDBFF]/.test(candidateLiveSource[publishLength - 1])) publishLength -= 1;
+    const safeLiveSource = candidateLiveSource.slice(0, publishLength);
+    state.liveDisplayBuffer = candidateLiveSource.slice(publishLength);
+    await emitLiveSource(admin, state, path, safeLiveSource);
     return;
   }
   if (kind === "file_end") {
     if (!exactKeys(event, ["type", "path"]) || state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
     const path = text(event.path);
     if (path !== state.currentPath || !state.files.has(path) || (state.fileBytes.get(path) || 0) < 1) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (sourceContainsSecret(state.liveDisplayBuffer, state.knownSecrets)) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    await emitLiveSource(admin, state, path, state.liveDisplayBuffer);
+    state.liveDisplayBuffer = "";
     state.currentPath = null;
-    state.rollingSecretWindow = "";
     queueStreamEvent(state, "file_completed", path, null, { byteSize: state.fileBytes.get(path) || 0 });
     await flushStreamEvents(admin, state, true);
     return;
   }
   if (kind === "done") {
-    if (!exactKeys(event, ["type", "schemaVersion"]) || event.schemaVersion !== 1 || state.currentPath || !state.files.size || state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (!exactKeys(event, ["type", "schemaVersion"]) || event.schemaVersion !== 1 || state.currentPath || state.liveDisplayBuffer || !state.files.size || state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
     state.done = true;
     queueStreamEvent(state, "generation_completed", null, null, { fileCount: state.files.size, byteSize: state.totalBytes });
     await flushStreamEvents(admin, state, true);
@@ -205,11 +245,13 @@ async function acceptModelLine(admin: ReturnType<typeof adminClient>, state: Str
 async function streamGeminiSource(admin: ReturnType<typeof adminClient>, providerRequest: JsonRecord, state: StreamAssembler) {
   const credential = await admin.rpc("pandora_gemini_stream_credential_service_20260901");
   if (credential.error || typeof credential.data !== "string" || !credential.data.trim()) throw new Error("PROVIDER_UNAVAILABLE");
+  const providerCredential = credential.data.trim();
+  if (!state.knownSecrets.includes(providerCredential)) state.knownSecrets.push(providerCredential);
   let providerResponse: Response;
   try {
     providerResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:streamGenerateContent?alt=sse`, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": credential.data.trim() },
+      headers: { "content-type": "application/json", "x-goog-api-key": providerCredential },
       body: JSON.stringify(providerRequest),
       signal: AbortSignal.timeout(90000),
     });
@@ -283,7 +325,7 @@ async function canonicalBundle(raw: unknown, projectSpecId: string, adapter: str
     const path = text(row.path); const content = typeof row.content === "string" ? row.content : "";
     if (adapter === "static-web" && path === "index.html") staticIndexContent = content;
     if (!SAFE_PATH.test(path) || path.length > 512 || path.startsWith(".env") || path.includes("/.env") || path.includes("node_modules/") || path.startsWith("build/") || path.startsWith("dist/") || path.startsWith(".next/") || seen.has(path)) throw new Error("INVALID_GENERATED_SOURCE");
-    const bytes = new TextEncoder().encode(content); if (!bytes.length || bytes.length > MAX_FILE_BYTES || SECRET.test(content)) throw new Error("INVALID_GENERATED_SOURCE");
+    const bytes = new TextEncoder().encode(content); if (!bytes.length || bytes.length > MAX_FILE_BYTES || sourceContainsSecret(content, [SUPABASE_SERVICE_ROLE_KEY])) throw new Error("INVALID_GENERATED_SOURCE");
     total += bytes.length; if (total > MAX_SOURCE_BYTES) throw new Error("INVALID_GENERATED_SOURCE"); seen.add(path);
     files.push({ file: path, data: base64(bytes), encoding: "base64", sha256: await sha256Bytes(bytes), byteSize: bytes.length });
   }
@@ -338,7 +380,7 @@ async function loadLatestVerifiedSource(
     throw new Error("BASE_SOURCE_READ_FAILED");
   }
   const raw = await downloaded.data.text();
-  if (SECRET.test(raw)) throw new Error("BASE_SOURCE_UNSAFE");
+  if (sourceContainsSecret(raw, [SUPABASE_SERVICE_ROLE_KEY])) throw new Error("BASE_SOURCE_UNSAFE");
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { throw new Error("BASE_SOURCE_INVALID"); }
   const bundle = rec(parsed);
@@ -368,7 +410,7 @@ async function loadLatestVerifiedSource(
     } catch {
       continue;
     }
-    if (SECRET.test(content)) throw new Error("BASE_SOURCE_UNSAFE");
+    if (sourceContainsSecret(content, [SUPABASE_SERVICE_ROLE_KEY])) throw new Error("BASE_SOURCE_UNSAFE");
     const bytes = new TextEncoder().encode(content).byteLength;
     fullUsed += bytes;
     if (fullUsed > MAX_SOURCE_BYTES) throw new Error("BASE_SOURCE_INVALID");
@@ -411,7 +453,8 @@ async function runGenerationInBackground(input: {
     totalBytes: 0,
     pending: [],
     done: false,
-    rollingSecretWindow: "",
+    liveDisplayBuffer: "",
+    knownSecrets: [SUPABASE_SERVICE_ROLE_KEY].filter((value) => value.trim().length >= 8),
   };
   try {
     const claimed = await admin.from("pandora_source_generation_queue")
@@ -458,7 +501,7 @@ async function runGenerationInBackground(input: {
             const row = rec(value);
             const path = text(row.path);
             const content = typeof row.content === "string" ? row.content : "";
-            if (!SAFE_PATH.test(path) || !content || SECRET.test(content)) throw new Error("BASE_SOURCE_INVALID");
+            if (!SAFE_PATH.test(path) || !content || sourceContainsSecret(content, [SUPABASE_SERVICE_ROLE_KEY])) throw new Error("BASE_SOURCE_INVALID");
             merged.set(path, content);
           }
           for (const file of generatedFiles) merged.set(file.path, file.content);
