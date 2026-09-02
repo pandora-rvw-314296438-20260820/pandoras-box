@@ -32,6 +32,8 @@ enum OwnerAnalyticsEvent {
   repairStarted('repair_started'),
   repairCompleted('repair_completed'),
   verificationFailed('verification_failed'),
+  secondChangeSubmitted('second_change_submitted'),
+  funnelDropOff('funnel_drop_off'),
   streamReconnected('stream_reconnected'),
   historyGap('history_gap'),
   publishStarted('publish_started'),
