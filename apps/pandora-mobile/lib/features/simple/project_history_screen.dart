@@ -21,8 +21,11 @@ class ProjectHistoryScreen extends StatefulWidget {
 
 class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
   List<ProjectConversationHistoryItem>? _items;
+  Map<String, _BuildHistoryFacts> _buildFacts =
+      const <String, _BuildHistoryFacts>{};
   String? _error;
   bool _loading = true;
+  var _factsGeneration = 0;
 
   @override
   void didChangeDependencies() {
@@ -45,11 +48,14 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
         limit: 100,
       );
       if (!mounted) return;
+      final generation = ++_factsGeneration;
       setState(() {
         _items = items;
+        _buildFacts = const <String, _BuildHistoryFacts>{};
         _loading = false;
         _error = null;
       });
+      unawaited(_loadBuildFacts(api, items, generation));
     } on ProjectExperienceException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -57,6 +63,78 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
         _error = error.message;
       });
     }
+  }
+
+  Future<void> _loadBuildFacts(
+    ProjectExperienceApi api,
+    List<ProjectConversationHistoryItem> items,
+    int generation,
+  ) async {
+    final facts = <String, _BuildHistoryFacts>{};
+    final builds = items.where(
+      (item) => item.isBuild && item.buildJobId != null,
+    );
+    await Future.wait<void>(
+      builds.map((item) async {
+        final buildJobId = item.buildJobId!;
+        final verification = _matchingVerification(items, buildJobId);
+        var fileCount = 0;
+        var lineCount = 0;
+        var exactSourceAvailable = false;
+        final versionId = item.projectVersionId;
+        if (versionId != null) {
+          try {
+            final files = await api.loadExactPreviewFiles(
+              projectId: widget.project.id,
+              versionId: versionId,
+            );
+            exactSourceAvailable = true;
+            fileCount = files.length;
+            for (final file in files) {
+              final content = file['content'];
+              if (content is! String || content.isEmpty) continue;
+              lineCount += '\n'.allMatches(content).length;
+              if (!content.endsWith('\n')) lineCount += 1;
+            }
+          } on ProjectExperienceException {
+            // Fail closed: never infer source counts from expired transport events.
+          }
+        }
+        facts[buildJobId] = _BuildHistoryFacts(
+          exactSourceAvailable: exactSourceAvailable,
+          fileCount: fileCount,
+          lineCount: lineCount,
+          checksTotal: verification?.payloadInt('checksTotal'),
+          checksPassed: verification?.payloadInt('checksPassed'),
+          duration: _buildDuration(item),
+        );
+      }),
+    );
+    if (!mounted || generation != _factsGeneration) return;
+    setState(
+      () => _buildFacts = Map<String, _BuildHistoryFacts>.unmodifiable(facts),
+    );
+  }
+
+  ProjectConversationHistoryItem? _matchingVerification(
+    List<ProjectConversationHistoryItem> items,
+    String buildJobId,
+  ) {
+    for (final candidate in items.reversed) {
+      if (candidate.isVerification && candidate.buildJobId == buildJobId) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  Duration? _buildDuration(ProjectConversationHistoryItem item) {
+    final completedAt = DateTime.tryParse(
+      item.payloadText('completedAt') ?? '',
+    );
+    if (completedAt == null) return null;
+    final duration = completedAt.toUtc().difference(item.occurredAt.toUtc());
+    return duration.isNegative ? null : duration;
   }
 
   Future<void> _openBuildEvidence(ProjectConversationHistoryItem item) async {
@@ -234,6 +312,18 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
         surfaceTintColor: Colors.transparent,
         title: const Text('History'),
       ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          color: PandoraV2Colors.canvas,
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: FilledButton.icon(
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.arrow_back_rounded),
+            label: const Text('Back to live'),
+          ),
+        ),
+      ),
       body: SafeArea(
         top: false,
         child: RefreshIndicator(
@@ -280,6 +370,10 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
                 for (final item in items) ...[
                   _HistoryItemCard(
                     item: item,
+                    projectName: widget.project.name,
+                    buildFacts: item.buildJobId == null
+                        ? null
+                        : _buildFacts[item.buildJobId!],
                     onOpenBuild: item.buildJobId == null
                         ? null
                         : () => _openBuildEvidence(item),
@@ -297,14 +391,36 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
   }
 }
 
+class _BuildHistoryFacts {
+  const _BuildHistoryFacts({
+    required this.exactSourceAvailable,
+    required this.fileCount,
+    required this.lineCount,
+    required this.checksTotal,
+    required this.checksPassed,
+    required this.duration,
+  });
+
+  final bool exactSourceAvailable;
+  final int fileCount;
+  final int lineCount;
+  final int? checksTotal;
+  final int? checksPassed;
+  final Duration? duration;
+}
+
 class _HistoryItemCard extends StatefulWidget {
   const _HistoryItemCard({
     required this.item,
+    required this.projectName,
+    this.buildFacts,
     this.onOpenBuild,
     this.onOpenEvidence,
   });
 
   final ProjectConversationHistoryItem item;
+  final String projectName;
+  final _BuildHistoryFacts? buildFacts;
   final VoidCallback? onOpenBuild;
   final VoidCallback? onOpenEvidence;
 
@@ -320,11 +436,23 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
     final item = widget.item;
     final exactIntent =
         item.isUserIntent ? item.payloadText('intentText') : null;
-    final detail = exactIntent ?? item.summary;
-    final canExpand =
-        item.expandable || detail.length > 260 || item.evidenceAvailable;
+    final proposalSummary = item.isProposal
+        ? item.payloadText('businessSummary') ?? item.summary
+        : null;
+    final detail = exactIntent ?? proposalSummary ?? item.summary;
+    final canExpand = item.isProposal ||
+        item.expandable ||
+        detail.length > 260 ||
+        item.evidenceAvailable;
     final actor = item.actorType == 'customer' ? 'You' : 'Pandora';
     final status = item.status?.trim();
+    final title = item.isProposal
+        ? '${widget.projectName} proposal'
+        : item.isBuild && item.buildJobId != null
+            ? 'Build · ${_shortId(item.buildJobId!)}'
+            : item.title;
+    final collapsedLines = item.isProposal || item.isBuild ? 2 : 5;
+    final facts = widget.buildFacts;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -358,7 +486,7 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
           ),
           const SizedBox(height: 7),
           Text(
-            item.title,
+            title,
             style: const TextStyle(
               color: PandoraV2Colors.ink,
               fontSize: 16,
@@ -368,7 +496,7 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
           const SizedBox(height: 7),
           Text(
             detail,
-            maxLines: _expanded ? null : 5,
+            maxLines: _expanded ? null : collapsedLines,
             overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
             style: const TextStyle(
               color: PandoraV2Colors.ink,
@@ -376,6 +504,26 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
               height: 1.42,
             ),
           ),
+          if (item.isBuild && facts != null) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                if (facts.duration != null)
+                  _HistoryFact(label: _formatDuration(facts.duration!)),
+                if (facts.exactSourceAvailable)
+                  _HistoryFact(label: '${facts.fileCount} files'),
+                if (facts.exactSourceAvailable)
+                  _HistoryFact(label: '${facts.lineCount} lines'),
+                if (facts.checksTotal != null)
+                  _HistoryFact(
+                    label:
+                        '${facts.checksPassed ?? 0}/${facts.checksTotal} checks',
+                  ),
+              ],
+            ),
+          ],
           if (status != null && status.isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(
@@ -398,7 +546,11 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
                 if (canExpand)
                   TextButton(
                     onPressed: () => setState(() => _expanded = !_expanded),
-                    child: Text(_expanded ? 'Show less' : 'Show details'),
+                    child: Text(
+                      item.isProposal
+                          ? (_expanded ? 'Hide plan' : 'View plan')
+                          : (_expanded ? 'Show less' : 'Show details'),
+                    ),
                   ),
                 if (widget.onOpenEvidence != null)
                   TextButton.icon(
@@ -410,7 +562,7 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
                   TextButton.icon(
                     onPressed: widget.onOpenBuild,
                     icon: const Icon(Icons.play_circle_outline_rounded),
-                    label: const Text('Build activity'),
+                    label: const Text('View build evidence'),
                   ),
               ],
             ),
@@ -419,6 +571,30 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
       ),
     );
   }
+}
+
+class _HistoryFact extends StatelessWidget {
+  const _HistoryFact({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: PandoraV2Colors.canvas,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: PandoraV2Colors.line),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: PandoraV2Colors.muted,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
 }
 
 class ProjectHistoryBuildEvidenceScreen extends StatefulWidget {
@@ -510,6 +686,23 @@ class _ProjectHistoryBuildEvidenceScreenState
           ),
         ),
       );
+}
+
+String _shortId(String value) {
+  final normalized = value.trim();
+  return normalized.length <= 8 ? normalized : normalized.substring(0, 8);
+}
+
+String _formatDuration(Duration duration) {
+  if (duration.inHours > 0) {
+    final minutes = duration.inMinutes.remainder(60);
+    return '${duration.inHours}h ${minutes}m';
+  }
+  if (duration.inMinutes > 0) {
+    final seconds = duration.inSeconds.remainder(60);
+    return '${duration.inMinutes}m ${seconds}s';
+  }
+  return '${duration.inSeconds}s';
 }
 
 String _historyTime(DateTime time) {
