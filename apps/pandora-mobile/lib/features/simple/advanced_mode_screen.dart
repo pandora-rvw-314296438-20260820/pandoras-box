@@ -13,9 +13,7 @@ class AdvancedModeScreen extends StatelessWidget {
   const AdvancedModeScreen({super.key});
 
   void _open(BuildContext context, Widget screen) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => screen),
-    );
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
   }
 
   @override
@@ -115,9 +113,9 @@ class AdvancedModeScreen extends StatelessWidget {
                 onTap: () => _open(context, const SettingsScreen()),
               ),
             ),
-          ],
-        ),
-      );
+        ],
+      ),
+    );
 }
 
 class _AdvancedTile extends StatelessWidget {
