@@ -173,7 +173,7 @@ async function emitLiveSource(admin: ReturnType<typeof adminClient>, state: Stre
     const liveChunk = content.slice(offset, end);
     const liveBytes = new TextEncoder().encode(liveChunk).byteLength;
     queueStreamEvent(state, "code_chunk", path, liveChunk, { byteSize: liveBytes });
-    await flushStreamEvents(admin, state, true);
+    await flushStreamEvents(admin, state);
     offset = end;
   }
 }
