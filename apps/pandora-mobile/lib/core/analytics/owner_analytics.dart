@@ -17,7 +17,24 @@ enum OwnerAnalyticsEvent {
   artifactOpened('artifact_opened'),
   releaseOpened('release_opened'),
   rollbackStarted('rollback_started'),
-  rollbackVerified('rollback_verified');
+  rollbackVerified('rollback_verified'),
+  intentSent('intent_sent'),
+  proposalShown('proposal_shown'),
+  buildClicked('build_clicked'),
+  buildAdmitted('build_admitted'),
+  firstCode('first_code'),
+  fileComplete('file_complete'),
+  previewReady('preview_ready'),
+  repairStarted('repair_started'),
+  repairCompleted('repair_completed'),
+  streamReconnected('stream_reconnected'),
+  historyGap('history_gap'),
+  publishStarted('publish_started'),
+  publishVerified('publish_verified'),
+  publishFailed('publish_failed'),
+  sourcePaywallViewed('source_paywall_viewed'),
+  sourceAccessGranted('source_access_granted'),
+  sourceExported('source_exported');
 
   const OwnerAnalyticsEvent(this.wireName);
   final String wireName;
@@ -56,6 +73,14 @@ class OwnerAnalytics {
     String? resultClass,
     String? errorCode,
     String? proofStage,
+    String? buildKey,
+    String? versionKey,
+    String? statusClass,
+    String? capability,
+    int? sequence,
+    int? itemCount,
+    int? attempt,
+    bool? historyGap,
     Duration? duration,
   }) async {
     if (!enabled) return;
@@ -73,6 +98,18 @@ class OwnerAnalytics {
         'error_code': _bounded(errorCode, 80),
       if (proofStage != null && proofStage.trim().isNotEmpty)
         'proof_stage': _bounded(proofStage, 80),
+      if (buildKey != null && buildKey.trim().isNotEmpty)
+        'build_key': _bounded(buildKey, 160),
+      if (versionKey != null && versionKey.trim().isNotEmpty)
+        'version_key': _bounded(versionKey, 160),
+      if (statusClass != null && statusClass.trim().isNotEmpty)
+        'status_class': _bounded(statusClass, 80),
+      if (capability != null && capability.trim().isNotEmpty)
+        'capability': _bounded(capability, 40),
+      if (sequence != null && sequence >= 0) 'sequence': sequence,
+      if (itemCount != null && itemCount >= 0) 'item_count': itemCount,
+      if (attempt != null && attempt >= 0) 'attempt': attempt,
+      if (historyGap != null) 'history_gap': historyGap,
       if (duration != null) 'duration_ms': duration.inMilliseconds,
     };
 
