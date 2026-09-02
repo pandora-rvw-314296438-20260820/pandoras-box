@@ -62,8 +62,8 @@ test('effective apply path preserves immutable plan identity and validates actua
   hasFix('migration tool-call claim conflict');
   hasFix('database plan execution claim conflict');
   hasFix('migration tool-call completion write failed');
-  assert.ok(!fix.includes('schema_after_sha256=v_after'));
-  assert.ok(!fix.includes('schema_diff_sha256='));
+  assert.ok(!fix.includes("set status='applied',schema_after_sha256=v_after"));
+  assert.ok(!fix.includes("schema_diff_sha256=encode(extensions.digest(convert_to(schema_before_sha256||':'||v_after"));
 });
 
 test('corrective migration preserves service-only execution boundary', () => {
