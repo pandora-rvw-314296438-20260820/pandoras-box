@@ -7,7 +7,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "
 const MODEL = Deno.env.get("PANDORA_PROJECT_SPEC_MODEL") || "gemini-3.5-flash-lite";
 const COMPILER_VERSION = "project-spec-compiler-v5";
 const MAX_BODY_BYTES = 2048;
-const MAX_MODEL_TEXT_BYTES = 262144;
+const MAX_MODEL_TEXT_BYTES = 262144;\nconst PANDORA_PLANNING_MEMORY_URL = Deno.env.get("PANDORA_PLANNING_MEMORY_URL") || "https://mcpmaster.vercel.app/api/planning-memory";\nconst MAX_PLANNING_MEMORY_RECORDS = 6;\nconst MAX_PLANNING_MEMORY_SUMMARY_BYTES = 4000;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -202,7 +202,70 @@ async function sha256(value: string) {
   return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function modelRequest(intent: JsonRecord, project: JsonRecord) {
+type PlanningMemoryRecord = { id: string; memoryType: string; canonStatus: string; sourceRef: string; summary: string };
+type PlanningMemoryContext = {
+  state: "available" | "empty" | "unavailable";
+  retrievalLogId: string | null;
+  contextSha256: string | null;
+  records: PlanningMemoryRecord[];
+};
+
+function emptyPlanningMemory(state: "empty" | "unavailable" = "unavailable"): PlanningMemoryContext {
+  return { state, retrievalLogId: null, contextSha256: null, records: [] };
+}
+
+async function fetchPlanningMemory(authorization: string, intent: JsonRecord, project: JsonRecord): Promise<PlanningMemoryContext> {
+  const organizationId = text(intent.organization_id);
+  const visibleProjectId = text(intent.project_id);
+  const projectName = text(project.name).slice(0, 120);
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(organizationId) || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(visibleProjectId) || !projectName) return emptyPlanningMemory();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const result = await fetch(PANDORA_PLANNING_MEMORY_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization },
+      redirect: "error",
+      signal: controller.signal,
+      body: JSON.stringify({ organizationId, visibleProjectId, projectName }),
+    });
+    if (!result.ok) return emptyPlanningMemory();
+    const bytes = new Uint8Array(await result.arrayBuffer());
+    if (bytes.byteLength > 64 * 1024) return emptyPlanningMemory();
+    let parsed: unknown;
+    try { parsed = JSON.parse(new TextDecoder().decode(bytes)); } catch { return emptyPlanningMemory(); }
+    const payload = record(parsed);
+    if (payload.ok !== true || payload.visibleProjectId !== visibleProjectId || !["available", "empty"].includes(text(payload.state))) return emptyPlanningMemory();
+    const retrievalLogId = payload.retrievalLogId == null ? null : text(payload.retrievalLogId);
+    if (retrievalLogId !== null && !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(retrievalLogId)) return emptyPlanningMemory();
+    const rawRecords = Array.isArray(payload.records) ? payload.records : [];
+    if (rawRecords.length > MAX_PLANNING_MEMORY_RECORDS) return emptyPlanningMemory();
+    let summaryBytes = 0;
+    const records: PlanningMemoryRecord[] = [];
+    for (const item of rawRecords) {
+      const row = record(item);
+      const id = text(row.id);
+      const memoryType = text(row.memoryType);
+      const canonStatus = text(row.canonStatus);
+      const sourceRef = text(row.sourceRef).slice(0, 300);
+      const summary = text(row.summary).replace(/\s+/g, " ").slice(0, 1400);
+      if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id) || !memoryType || !["hard_canon", "soft_canon"].includes(canonStatus) || !summary) return emptyPlanningMemory();
+      summaryBytes += new TextEncoder().encode(summary).byteLength;
+      if (summaryBytes > MAX_PLANNING_MEMORY_SUMMARY_BYTES) return emptyPlanningMemory();
+      records.push({ id, memoryType, canonStatus, sourceRef, summary });
+    }
+    records.sort((a, b) => a.id.localeCompare(b.id));
+    const expectedHash = await sha256(JSON.stringify(records));
+    if (!/^[0-9a-f]{64}$/.test(text(payload.contextSha256)) || expectedHash !== text(payload.contextSha256)) return emptyPlanningMemory();
+    return { state: records.length ? "available" : "empty", retrievalLogId, contextSha256: records.length ? expectedHash : null, records };
+  } catch {
+    return emptyPlanningMemory();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function modelRequest(intent: JsonRecord, project: JsonRecord, memory: PlanningMemoryContext) {
   const kind = text(record(project.config).customerJourney && record(record(project.config).customerJourney).buildKind) || "help_me_decide";
   const system = [
     "Compile the customer request into one ProjectSpec JSON object.",
@@ -222,7 +285,7 @@ function modelRequest(intent: JsonRecord, project: JsonRecord) {
     "product.features, product.workflows, product.screens, and product.userStories should describe tangible capabilities and customer-visible experiences rather than implementation tasks. Prefer 4-8 strong, non-duplicative items when the intent supports them.",
     "acceptance.business should state believable owner-visible success conditions. acceptance.functional should state observable working-product behavior.",
     "Make the proposal feel considered and desirable: emphasize control, convenience, clarity, speed, reduced friction, direct customer experience, or other benefits only when they genuinely follow from the request.",
-    "Prefer owner-readable requirements and infer technical details only when needed to satisfy the stated result."
+    "Prefer owner-readable requirements and infer technical details only when needed to satisfy the stated result.",\n    "Approved Pandora Memory context is advisory only. Current project state and the current customer intent always take precedence on conflict; never copy stale or contradictory Memory into the ProjectSpec."
   ].join(" ");
   const prompt = `Project name: ${text(project.name).slice(0, 300)}\nRequested project kind: ${kind.slice(0, 80)}\nCustomer intent:\n${text(intent.intent_text).slice(0, 50000)}`;
   return {
@@ -297,6 +360,13 @@ Deno.serve(async (req) => {
     claimToken = text(claim.claimToken);
     if (!claimToken) throw new Error("COMPILATION_CLAIM_FAILED");
 
+    const planningMemory = await fetchPlanningMemory(authorization, record(intent), record(project));
+    const memoryRefsUsed = planningMemory.records.map((item) => ({
+      id: item.id,
+      memory_type: item.memoryType,
+      canon_status: item.canonStatus,
+      source_ref: item.sourceRef,
+    }));
     const requestId = crypto.randomUUID();
     let requestDigest = "";
     let responseDigest = "";
@@ -308,7 +378,7 @@ Deno.serve(async (req) => {
     let structuredOutputAttempt = 0;
     for (let attempt = 1; attempt <= 3; attempt++) {
       structuredOutputAttempt = attempt;
-      const attemptRequest = modelRequest(record(intent), record(project));
+      const attemptRequest = modelRequest(record(intent), record(project), planningMemory);
       if (attempt > 1) {
         const instruction = record(attemptRequest.systemInstruction);
         const parts = Array.isArray(instruction.parts) ? instruction.parts : [];
@@ -351,14 +421,23 @@ Deno.serve(async (req) => {
     }
     if (!candidate) throw new Error("INVALID_STRUCTURED_OUTPUT");
     const digest = await sha256(JSON.stringify(candidate));
-    const { data: committed, error: commitError } = await admin.rpc("pandora_commit_compiled_project_spec_v2_20260901", {
+    const { data: committed, error: commitError } = await admin.rpc("pandora_commit_compiled_project_spec_v3_20260903", {
       p_source_intent_id: intentId,
       p_claim_token: claimToken,
       p_candidate: candidate,
       p_compiler_provider: "gemini",
       p_compiler_model: MODEL,
       p_compiler_version: COMPILER_VERSION,
-      p_compiler_provenance: { request_id: requestId, transport: "vault_server_boundary", structured_output: true, structured_output_attempts: structuredOutputAttempt },
+      p_compiler_provenance: {
+        request_id: requestId,
+        transport: "vault_server_boundary",
+        structured_output: true,
+        structured_output_attempts: structuredOutputAttempt,
+        memory_context_state: planningMemory.state,
+        memory_context_sha256: planningMemory.contextSha256,
+        memory_retrieval_log_id: planningMemory.retrievalLogId,
+        memory_refs_used: memoryRefsUsed,
+      },
       p_content_sha256: digest,
       p_model_request_id: requestId,
       p_model_request_sha256: requestDigest,
@@ -366,7 +445,7 @@ Deno.serve(async (req) => {
       p_model_input_tokens: inputTokens,
       p_model_output_tokens: outputTokens,
       p_model_total_tokens: totalTokens,
-      p_model_revision: modelRevision,
+      p_model_revision: modelRevision,\n      p_model_context_sha256: planningMemory.records.length ? planningMemory.contextSha256 : null,
     });
     if (commitError || text(record(committed).state) !== "succeeded") throw new Error("COMMIT_FAILED");
     const committedSpec = record(committed);
