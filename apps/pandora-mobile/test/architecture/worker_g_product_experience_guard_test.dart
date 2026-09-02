@@ -96,10 +96,13 @@ void main() {
     final view = File('lib/features/simple/project_workspace_v2_view.dart')
         .readAsStringSync();
     expect(view, contains('DraggableScrollableSheet('));
-    expect(view, contains('initialChildSize: .18'));
-    expect(view, contains('minChildSize: .18'));
-    expect(view, contains('maxChildSize: .64'));
+    expect(view, contains('previewPrimaryExtent = .14'));
+    expect(view, contains('pendingExtent = .28'));
+    expect(view, contains('initialChildSize: _restingExtent'));
+    expect(view, contains('minChildSize: _restingExtent'));
+    expect(view, contains('maxExtent = .64'));
     expect(view, contains('snapSizes: const [.38]'));
+    expect(view, contains('_controller.animateTo('));
     expect(view, contains('class _PandoraComposerSheet'));
     expect(view, contains('controller: scrollController'));
     expect(view, contains('PandoraV2IntentSurface('));
