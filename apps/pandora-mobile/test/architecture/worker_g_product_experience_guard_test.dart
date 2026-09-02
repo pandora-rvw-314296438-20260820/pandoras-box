@@ -77,7 +77,10 @@ void main() {
     expect(view, contains('ProjectChangePhase'));
     expect(source, contains('findBuildStreamId('));
     expect(source, contains('watchResilientBuildStream('));
-    expect(source, contains('ProjectBuildStreamTheatreProjection.fromSnapshot('));
+    expect(
+      source,
+      contains('ProjectBuildStreamTheatreProjection.fromSnapshot('),
+    );
     expect(source, contains('ProjectHistoryBuildEvidenceScreen('));
     expect(source, contains('liveActivityLabel: _liveActivityLabel'));
     expect(view, contains("Key('workspace-live-activity-strip')"));
