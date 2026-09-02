@@ -39,7 +39,7 @@ async function loadConfig() {
 
 function acceptAuthenticatedSession(session) {
   if (typeof session?.access_token !== 'string' || session.access_token.length < 20) {
-    throw new Error('Supabase did not return a usable access token');
+    throw new Error('A secure session could not be created');
   }
   authState.accessToken = session.access_token;
   authState.user = session.user || null;
@@ -60,7 +60,7 @@ const oauthCallbackPromise = (async () => {
     authState.accessToken = '';
     authState.user = null;
     authState.membership = null;
-    authState.oauthError = error?.message || 'GitHub authentication failed';
+    authState.oauthError = error?.message || 'Secure sign-in failed';
     return false;
   }
 })();
@@ -121,14 +121,14 @@ async function signIn() {
   const config = await loadConfig();
   while (true) {
     const { values, overlay } = await dialog({
-      eyebrow: 'SECURE OPERATOR SESSION',
-      title: 'Sign in to MCPMaster',
-      detail: 'Your Supabase access token remains in memory only. It is never stored in localStorage, a URL, analytics, or source code.',
+      eyebrow: 'SECURE PANDORA SESSION',
+      title: 'Sign in to Pandora',
+      detail: 'Sign in to view protected live status and approvals. Your session is kept securely for this visit and is not written to local storage.',
       content: `
         <div style="display:grid;gap:10px;margin-bottom:18px">
-          <button class="button primary" type="button" data-github-signin>Continue with GitHub</button>
-          <p style="margin:0;color:var(--muted)">Use the GitHub identity authorized for this MCPMaster organization. Plan approval is limited to authenticated owners and admins.</p>
-          ${authState.oauthError ? `<div class="alert danger"><strong>GitHub sign-in failed</strong><p>${html(authState.oauthError)}</p></div>` : ''}
+          <button class="button primary" type="button" data-github-signin>Continue securely</button>
+          <p style="margin:0;color:var(--muted)">Use your authorized Pandora owner account. Approvals remain limited to authenticated owners and admins.</p>
+          ${authState.oauthError ? `<div class="alert danger"><strong>Secure sign-in failed</strong><p>${html(authState.oauthError)}</p></div>` : ''}
           <div style="display:flex;align-items:center;gap:10px;color:var(--muted)"><span style="height:1px;flex:1;background:var(--line)"></span><span>or use email and password</span><span style="height:1px;flex:1;background:var(--line)"></span></div>
         </div>`,
       fields: [
@@ -150,7 +150,7 @@ async function signIn() {
         body: JSON.stringify({ email: values.email, password: values.password }),
       });
       if (typeof session.access_token !== 'string' || session.access_token.length < 20) {
-        throw new Error('Supabase did not return a usable access token');
+        throw new Error('A secure session could not be created');
       }
       authState.accessToken = session.access_token;
       authState.user = session.user || null;
