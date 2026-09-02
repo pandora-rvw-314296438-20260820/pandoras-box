@@ -27,6 +27,8 @@ enum OwnerAnalyticsEvent {
   fileComplete('file_complete'),
   sourceComplete('source_complete'),
   previewReady('preview_ready'),
+  secondChange('second_change'),
+  funnelDropOff('funnel_dropoff'),
   repairStarted('repair_started'),
   repairCompleted('repair_completed'),
   streamReconnected('stream_reconnected'),
