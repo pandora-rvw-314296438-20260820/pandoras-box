@@ -1,5 +1,6 @@
 "use strict";
 
+// Release-sync marker: no behavior change; forces owner-authored exact-head CI.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
