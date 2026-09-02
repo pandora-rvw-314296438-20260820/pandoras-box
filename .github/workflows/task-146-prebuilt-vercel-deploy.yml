@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   deploy:
-    name: prebuilt-mcpmaster-production
+    name: scoped-api-prebuilt-mcpmaster-production
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -47,56 +47,116 @@ jobs:
         with:
           node-version: 24
 
-      - name: Pull production project configuration
+      - name: Materialize project context through scoped Vercel REST APIs
         shell: bash
         run: |
           set -euo pipefail
           test -n "$VERCEL_TOKEN"
-          npx --yes vercel@59.10.0 pull             --yes             --environment=production             --token="$VERCEL_TOKEN"             --scope="$VERCEL_ORG_ID"
+          mkdir -p .vercel
 
-      - name: Build exact source on the GitHub runner
+          project_url="https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}"
+          project_status="$(
+            curl --silent --show-error \
+              --output /tmp/vercel-project.json \
+              --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "$project_url"
+          )"
+          if [ "$project_status" != "200" ]; then
+            code="$(jq -r '.error.code // "unknown"' /tmp/vercel-project.json 2>/dev/null || true)"
+            echo "::error title=Vercel project API::HTTP ${project_status}; code=${code}"
+            exit 1
+          fi
+
+          env_url="https://api.vercel.com/v3/env/pull/${VERCEL_PROJECT_ID}/production?source=task-146-prebuilt&teamId=${VERCEL_ORG_ID}"
+          env_status="$(
+            curl --silent --show-error \
+              --output .vercel/.env.production.local \
+              --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "$env_url"
+          )"
+          if [ "$env_status" != "200" ]; then
+            code="$(jq -r '.error.code // "unknown"' .vercel/.env.production.local 2>/dev/null || true)"
+            rm -f .vercel/.env.production.local
+            echo "::error title=Vercel production env API::HTTP ${env_status}; code=${code}"
+            exit 1
+          fi
+          chmod 600 .vercel/.env.production.local
+
+          jq -n \
+            --arg projectId "$VERCEL_PROJECT_ID" \
+            --arg orgId "$VERCEL_ORG_ID" \
+            --arg projectName "$(jq -r '.name' /tmp/vercel-project.json)" \
+            --argjson settings "$(
+              jq '{
+                createdAt,
+                framework,
+                devCommand,
+                installCommand,
+                buildCommand,
+                outputDirectory,
+                rootDirectory,
+                directoryListing,
+                nodeVersion
+              }' /tmp/vercel-project.json
+            )" \
+            '{
+              projectId: $projectId,
+              orgId: $orgId,
+              projectName: $projectName,
+              settings: $settings
+            }' > .vercel/project.json
+
+          test "$(jq -r '.projectId' .vercel/project.json)" = "$VERCEL_PROJECT_ID"
+          test "$(jq -r '.orgId' .vercel/project.json)" = "$VERCEL_ORG_ID"
+          echo "Scoped Vercel project and production environment context materialized."
+
+      - name: Build exact source locally without CLI authentication preflight
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes vercel@59.10.0 build             --prod             --token="$VERCEL_TOKEN"             --scope="$VERCEL_ORG_ID"
+          unset VERCEL_TOKEN
+          if ! build_output="$(npx --yes vercel@59.10.0 build --prod 2>&1)"; then
+            printf '%s\n' "$build_output" | tail -n 30
+            safe_line="$(printf '%s\n' "$build_output" | tail -n 1 | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')"
+            echo "::error title=Local Vercel build failed::${safe_line}"
+            exit 1
+          fi
+          printf '%s\n' "$build_output"
           test -f .vercel/output/config.json
 
-      - name: Deploy prebuilt output to production
+      - name: Deploy prebuilt output through Vercel API client
         id: deploy
-        shell: bash
-        run: |
-          set -euo pipefail
-          output="$(
-            npx --yes vercel@59.10.0 deploy               --prebuilt               --prod               --yes               --token="$VERCEL_TOKEN"               --scope="$VERCEL_ORG_ID"
-          )"
-          printf '%s\n' "$output"
-          url="$(printf '%s\n' "$output" | grep -Eo 'https://[^[:space:]]+\.vercel\.app' | tail -n 1)"
-          test -n "$url"
-          echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
+        uses: amondnet/vercel-action@de09aeac2ace6599ec9b11ef87558759a496bac4 # v42.3.0
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ env.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ env.VERCEL_PROJECT_ID }}
+          github-comment: false
+          experimental-api: true
+          prebuilt: true
+          target: production
+          vercel-output-dir: .vercel/output
+          auto-assign-custom-domains: true
 
-      - name: Verify deployment and production alias
+      - name: Verify production alias health
         shell: bash
-        env:
-          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location             --max-time 30 "$DEPLOYMENT_URL/health" > /tmp/deployment-health.json
-          curl --fail --silent --show-error --location             --max-time 30 "https://mcpmaster.vercel.app/health" > /tmp/production-health.json
-          printf 'deployment=%s\nsource_sha=%s\n' "$DEPLOYMENT_URL" "$SOURCE_SHA"
-          cat /tmp/deployment-health.json
-          printf '\n'
+          curl --fail --silent --show-error --location \
+            --max-time 30 "https://mcpmaster.vercel.app/health" > /tmp/production-health.json
+          printf 'source_sha=%s\n' "$SOURCE_SHA"
           cat /tmp/production-health.json
           printf '\n'
 
       - name: Record exact deployment evidence
         shell: bash
-        env:
-          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
         run: |
           {
-            echo '### Task 146 prebuilt production deployment'
+            echo '### Task 146 API-based prebuilt production deployment'
             echo
             echo "- Source SHA: \`$SOURCE_SHA\`"
-            echo "- Deployment: \`$DEPLOYMENT_URL\`"
             echo "- Production alias: \`https://mcpmaster.vercel.app\`"
+            echo "- Vercel API client: \`@vercel/client\` via pinned amondnet/vercel-action v42.3.0"
           } >> "$GITHUB_STEP_SUMMARY"
