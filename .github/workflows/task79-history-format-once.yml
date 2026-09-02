@@ -1,0 +1,30 @@
+name: Task79 History formatter once
+on:
+  push:
+    branches:
+      - chatgpt/history-ux-79-81-20260903
+permissions:
+  contents: write
+jobs:
+  format-history:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: true
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - name: Format and self-clean
+        run: |
+          set -euo pipefail
+          dart format apps/pandora-mobile/lib/features/simple/project_history_screen.dart
+          test "$(sha256sum apps/pandora-mobile/lib/features/simple/project_history_screen.dart | cut -d ' ' -f1)" = '46c47a7081600963154211a7735363294460bfc7fa2a0ab6d0f3566180a883b3'
+          git config user.name 'pandora-rvw-314296438-20260820'
+          git config user.email 'plpboracay@gmail.com'
+          git add apps/pandora-mobile/lib/features/simple/project_history_screen.dart
+          git rm .github/workflows/task79-history-format-once.yml
+          git commit -m 'fix(mobile): canonical-format History UX'
+          git push origin HEAD:chatgpt/history-ux-79-81-20260903
