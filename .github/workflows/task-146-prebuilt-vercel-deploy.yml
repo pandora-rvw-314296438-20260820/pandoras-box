@@ -52,6 +52,8 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$VERCEL_TOKEN"
+          mkdir -p .vercel
+          printf '{"orgId":"%s","projectId":"%s"}\n' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
           npx --yes vercel@59.10.0 pull \
             --yes \
             --environment=production \
