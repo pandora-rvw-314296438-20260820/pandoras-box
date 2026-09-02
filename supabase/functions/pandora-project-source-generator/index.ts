@@ -109,7 +109,8 @@ type StreamAssembler = {
   totalBytes: number;
   pending: JsonRecord[];
   done: boolean;
-  liveDisplayBuffer: string;\n  knownSecrets: string[];
+  liveDisplayBuffer: string;
+  knownSecrets: string[];
 };
 
 type StreamProviderMeta = {
@@ -452,7 +453,8 @@ async function runGenerationInBackground(input: {
     totalBytes: 0,
     pending: [],
     done: false,
-    liveDisplayBuffer: "",\n    knownSecrets: [SUPABASE_SERVICE_ROLE_KEY].filter((value) => value.trim().length >= 8),
+    liveDisplayBuffer: "",
+    knownSecrets: [SUPABASE_SERVICE_ROLE_KEY].filter((value) => value.trim().length >= 8),
   };
   try {
     const claimed = await admin.from("pandora_source_generation_queue")
