@@ -50,7 +50,7 @@ void main() {
     expect(source, contains('projectExperienceRepository'));
     expect(source, contains('_projection?.canPublish == true'));
     expect(source, isNot(contains('.projectRuntime;')));
-    expect(RegExp(r'\\.projectExperience;').allMatches(source).length, 1);
+    expect(RegExp(r'\.projectExperience;').allMatches(source).length, 1);
     expect(source, contains('final api = dependencies.projectExperience;'));
     expect(source, contains('final streamId = await api.findBuildStreamId('));
     for (final mutation in const [
