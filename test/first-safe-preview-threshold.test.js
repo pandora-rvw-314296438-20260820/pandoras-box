@@ -20,6 +20,7 @@ test('mobile admits only preview-eligible exact candidates and keeps early previ
   assert.match(models, /'built',[\s\S]*'verification_pending',[\s\S]*'verified',[\s\S]*'preview_ready'/);
   assert.match(models, /_artifactDigestPattern\.hasMatch\(normalizedDigest\)/);
   assert.match(experience, /candidate == null \|\| !candidate\.isPreviewEligible/);
+  assert.match(experience, /_localPreviewFiles\?\.isNotEmpty == true/);
   assert.match(experience, /candidate\.isPreviewEligible && !_ready && !_previewRequested/);
   assert.match(experience, /verification\.isPublishReadyFor\(candidate\)/);
   assert.match(experience, /subtitle: _ready && _publishReady \? 'Ready' : 'Working'/);
