@@ -81,13 +81,14 @@
     },
     "requiredChecks": {
       "type": "array",
-      "minItems": 5,
+      "minItems": 6,
       "prefixItems": [
         { "$ref": "#/$defs/node24Check" },
         { "$ref": "#/$defs/externalReviewCheck" },
         { "$ref": "#/$defs/canonicalReleaseSourceContractCheck" },
         { "$ref": "#/$defs/windowsWorkerContractCheck" },
-        { "$ref": "#/$defs/exactSourceFlutterAndroidCheck" }
+        { "$ref": "#/$defs/exactSourceFlutterAndroidCheck" },
+        { "$ref": "#/$defs/exactSourceFlutterIosCheck" }
       ],
       "items": false
     },
@@ -255,6 +256,18 @@
           "properties": {
             "name": { "const": "Exact source / Flutter / Android" },
             "command": { "const": "python3 -m unittest discover -s apps/pandora-mobile/tool -p 'test_*.py' && dart format --output=none --set-exit-if-changed lib test && flutter analyze && flutter test --reporter expanded && flutter build web --release && flutter build apk --debug" }
+          }
+        }
+      ]
+    },
+    "exactSourceFlutterIosCheck": {
+      "allOf": [
+        { "$ref": "#/$defs/repositoryCheck" },
+        {
+          "type": "object",
+          "properties": {
+            "name": { "const": "Exact source / Flutter / iOS" },
+            "command": { "const": "node --test test/mobile-preview-platform-hosts.test.js && python3 -m unittest discover -s apps/pandora-mobile/tool -p 'test_*.py' && dart format --output=none --set-exit-if-changed lib test && flutter analyze && flutter test --reporter expanded && flutter build ios --simulator --debug" }
           }
         }
       ]
