@@ -17,6 +17,7 @@ const REQUIRED_CHECKS = Object.freeze([
   Object.freeze({ name: "canonical-release-source-contract", providerContext: "canonical-release-source-contract", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
   Object.freeze({ name: "Windows worker contract", providerContext: "Windows worker contract", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
   Object.freeze({ name: "Exact source / Flutter / Android", providerContext: "Exact source / Flutter / Android", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
+  Object.freeze({ name: "Exact source / Flutter / iOS", providerContext: "Exact source / Flutter / iOS", authority: "GITHUB_ACTIONS_PROVIDER", appId: GITHUB_ACTIONS_APP_ID }),
 ]);
 const PAID_PILOT_STATES = new Set(["paid", "active", "completed"]);
 const OWNER_GATED_STATES = new Set([

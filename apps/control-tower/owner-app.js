@@ -25,6 +25,23 @@ async function refreshLiveStatus() {
   await refresh();
 }
 
+async function beginOwnerSession({ announce = true } = {}) {
+  try {
+    await window.MCPMasterAuth?.ensureSession?.();
+    state.session = window.MCPMasterAuth?.session?.() || {};
+    if (!state.session.authenticated) throw new Error('Sign-in did not complete');
+    await refresh({ announce });
+  } catch (error) {
+    state.loading = false;
+    state.refreshing = false;
+    if (!/cancel/i.test(error?.message || '')) {
+      showToast('Sign-in could not be completed. Nothing was changed.', 'error');
+    } else {
+      render();
+    }
+  }
+}
+
 async function approve(planId, trigger) {
   const plan = state.plans.find((item) => item.planId === planId);
   if (!plan || !state.live) return;
@@ -53,6 +70,10 @@ app.addEventListener('click', async (event) => {
   const action = target.dataset.action;
   if (action === 'refresh') {
     if (target.closest('[data-owner-dialog]')) closeDialog({ renderAfter: false });
+    if (!state.session?.authenticated) {
+      await beginOwnerSession();
+      return;
+    }
     await refresh({ announce: true });
     return;
   }
@@ -98,6 +119,7 @@ app.addEventListener('click', async (event) => {
   if (action === 'sign-out') {
     window.MCPMasterAuth?.signOut?.();
     state.session = {};
+    state.loading = false;
     state.live = false;
     state.connections = [];
     state.plans = [];
@@ -149,6 +171,7 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('mcpmaster-auth-changed', (event) => {
   state.session = event.detail || window.MCPMasterAuth?.session?.() || {};
   if (!state.session.authenticated) {
+    state.loading = false;
     state.live = false;
     state.connections = [];
     state.plans = [];
@@ -161,5 +184,13 @@ window.addEventListener('mcpmaster-auth-changed', (event) => {
 
 window.PandorasOwnerRender = render;
 navigate(state.route, { replace: true });
-refresh();
+if (state.session?.authenticated) {
+  refresh();
+} else {
+  state.loading = false;
+  state.refreshing = false;
+  state.live = false;
+  state.error = { code: 'SIGNED_OUT', message: 'Sign in to view protected live information.' };
+  render();
+}
 }

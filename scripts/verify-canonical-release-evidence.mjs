@@ -49,6 +49,13 @@ export const REQUIRED_CHECKS = Object.freeze([
     command:
       "python3 -m unittest discover -s apps/pandora-mobile/tool -p 'test_*.py' && dart format --output=none --set-exit-if-changed lib test && flutter analyze && flutter test --reporter expanded && flutter build web --release && flutter build apk --debug",
   }),
+  Object.freeze({
+    name: "Exact source / Flutter / iOS",
+    authority: "GITHUB_ACTIONS_PROVIDER",
+    producer: "repository_workflow",
+    command:
+      "node --test test/mobile-preview-platform-hosts.test.js && python3 -m unittest discover -s apps/pandora-mobile/tool -p 'test_*.py' && dart format --output=none --set-exit-if-changed lib test && flutter analyze && flutter test --reporter expanded && flutter build ios --simulator --debug",
+  }),
 ]);
 
 const CANONICAL_WORKFLOW_COMMANDS = Object.freeze([
@@ -456,6 +463,7 @@ export function validateSchemaContract(schema) {
       "#/$defs/canonicalReleaseSourceContractCheck",
       "#/$defs/windowsWorkerContractCheck",
       "#/$defs/exactSourceFlutterAndroidCheck",
+      "#/$defs/exactSourceFlutterIosCheck",
     ],
     "schema.requiredChecks.prefixItems",
   );

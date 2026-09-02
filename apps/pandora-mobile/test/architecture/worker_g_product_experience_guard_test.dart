@@ -3,17 +3,18 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Simple V2 keeps only the three customer navigation surfaces', () {
+  test('Simple V2 keeps the focused four customer navigation surfaces', () {
     final shell = File('lib/app/pandora_shell.dart').readAsStringSync();
     for (final declaration in const [
       "_Destination('Home'",
       "_Destination('Work'",
       "'Needs You'",
+      "_Destination('More'",
     ]) {
       expect(shell, contains(declaration));
     }
     expect(shell, isNot(contains("'Ask Pandora'")));
-    expect(shell, isNot(contains("_Destination('More'")));
+    expect(shell, contains('MoreScreen'));
     expect(shell, isNot(contains('emphasized: true')));
   });
 
@@ -75,6 +76,18 @@ void main() {
     expect(source, isNot(contains('Watch your project take shape')));
     expect(view, contains('class ProjectWorkspaceV2View'));
     expect(view, contains('ProjectChangePhase'));
+    expect(source, contains('repository.findBuildStreamId('));
+    expect(source, contains('watchResilientBuildStream('));
+    expect(
+      source,
+      contains('ProjectBuildStreamTheatreProjection.fromSnapshot('),
+    );
+    expect(source, contains('ProjectHistoryBuildEvidenceScreen('));
+    expect(source, contains('liveActivityLabel: _liveActivityLabel'));
+    expect(view, contains("Key('workspace-live-activity-strip')"));
+    expect(view, contains('child: _LiveBuildActivityStrip('));
+    expect(view, contains('else if (progressPhase != null)'));
+    expect(view, isNot(contains('fake activity')));
   });
 
   test('Simple experience depends only on platform-neutral preview host', () {

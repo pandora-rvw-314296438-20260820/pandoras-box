@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import '../analytics/owner_analytics.dart';
 import '../models/pandora_models.dart';
 import '../models/project_journey_models.dart';
 import '../network/idempotency_key.dart';
@@ -116,26 +119,57 @@ class ProjectRuntimeApi {
     String? domain,
     String? idempotencyKey,
   }) async {
-    final current = await runtime(projectId);
-    final expectedProductionVersionId = current.production?.versionId;
-    final normalizedDomain = domain?.trim();
-    final response = await _client.postJson(
-      pathSegments: <String>['projects', projectId, 'publish'],
-      operation: 'customerProject.publish',
-      routeTemplate: '/projects/:id/publish',
-      idempotencyKey:
-          idempotencyKey ?? _keys.create('customer-project-publish'),
-      body: <String, Object?>{
-        if (versionId != null && versionId.trim().isNotEmpty)
-          'versionId': versionId.trim(),
-        'expectedProductionVersionId': expectedProductionVersionId,
-        if (normalizedDomain != null && normalizedDomain.isNotEmpty)
-          'domain': normalizedDomain,
-      },
+    final startedAt = DateTime.now().toUtc();
+    unawaited(
+      OwnerAnalytics.shared.capture(
+        OwnerAnalyticsEvent.publishStarted,
+        projectId: projectId,
+        projectVersionId: versionId,
+      ),
     );
-    return ProjectPublishResult.fromJson(
-      _map(response.data, 'project publish'),
-    );
+    try {
+      final current = await runtime(projectId);
+      final expectedProductionVersionId = current.production?.versionId;
+      final normalizedDomain = domain?.trim();
+      final response = await _client.postJson(
+        pathSegments: <String>['projects', projectId, 'publish'],
+        operation: 'customerProject.publish',
+        routeTemplate: '/projects/:id/publish',
+        idempotencyKey:
+            idempotencyKey ?? _keys.create('customer-project-publish'),
+        body: <String, Object?>{
+          if (versionId != null && versionId.trim().isNotEmpty)
+            'versionId': versionId.trim(),
+          'expectedProductionVersionId': expectedProductionVersionId,
+          if (normalizedDomain != null && normalizedDomain.isNotEmpty)
+            'domain': normalizedDomain,
+        },
+      );
+      final result = ProjectPublishResult.fromJson(
+        _map(response.data, 'project publish'),
+      );
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          OwnerAnalyticsEvent.publishVerified,
+          projectId: projectId,
+          projectVersionId: versionId,
+          status: 'verified',
+          duration: DateTime.now().toUtc().difference(startedAt),
+        ),
+      );
+      return result;
+    } catch (_) {
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          OwnerAnalyticsEvent.publishFailed,
+          projectId: projectId,
+          projectVersionId: versionId,
+          status: 'failed',
+          duration: DateTime.now().toUtc().difference(startedAt),
+        ),
+      );
+      rethrow;
+    }
   }
 
   void beginAuthenticatedIdentityEpoch() =>
