@@ -8,7 +8,7 @@ const MODEL = Deno.env.get("PANDORA_PROJECT_SPEC_MODEL") || "gemini-3.5-flash-li
 const COMPILER_VERSION = "project-spec-compiler-v5";
 const MAX_BODY_BYTES = 2048;
 const MAX_MODEL_TEXT_BYTES = 262144;
-const MEMORY_CONTEXT_PREPARE_URL = "https://mcpmaster.vercel.app/api/operator/project-memory-context";
+const MEMORY_PLANNING_URL = "https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-projectos-planning-context";\nconst MEMORY_PLANNING_PURPOSE = "projectos-planning-context-v1";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -203,32 +203,108 @@ async function sha256(value: string) {
   return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function prepareMemoryContext(authorization: string, intentId: string, decisionType: "project_spec" | "build") {
+function compactPlanningText(value: unknown, max = 700) {
+  return (typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "").slice(0, max);
+}
+
+function planningHighlights(value: unknown) {
+  if (!Array.isArray(value) || value.length > 6) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
+  return value.map((raw) => {
+    const item = record(raw);
+    const id = text(item.id).toLowerCase();
+    const memoryType = compactPlanningText(item.memory_type, 80);
+    const summary = compactPlanningText(item.summary, 700);
+    const updatedAt = compactPlanningText(item.updated_at, 64);
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id) || !summary) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
+    return { id, memory_type: memoryType, summary, updated_at: updatedAt };
+  });
+}
+
+async function prepareMemoryContext(admin: ReturnType<typeof adminClient>, intentId: string, decisionType: "project_spec" | "build") {
+  const requestId = crypto.randomUUID();
+  const { data: signedData, error: signedError } = await admin.rpc("pandora_sign_project_memory_planning_request_v2", {
+    p_source_intent_id: intentId,
+    p_decision_type: decisionType,
+    p_request_id: requestId,
+  });
+  const signed = record(signedData);
+  const signedBody = record(signed.body);
+  const timestamp = text(signed.timestamp);
+  const signature = text(signed.signature);
+  if (signedError || !exactKeys(signedBody, ["schema_version", "purpose", "request_id", "organization_id", "visible_project_id", "project_key", "decision_type", "query_hash"])
+      || signedBody.schema_version !== 1 || text(signedBody.purpose) !== MEMORY_PLANNING_PURPOSE
+      || text(signedBody.request_id) !== requestId || text(signedBody.decision_type) !== decisionType
+      || !/^[0-9a-f]{64}$/i.test(text(signedBody.query_hash)) || !/^\d{13}$/.test(timestamp)
+      || !/^[0-9a-f]{64}$/i.test(signature)) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
+
   let prepared: Response;
   try {
-    prepared = await fetch(MEMORY_CONTEXT_PREPARE_URL, {
+    prepared = await fetch(MEMORY_PLANNING_URL, {
       method: "POST",
-      headers: { authorization, "content-type": "application/json", accept: "application/json" },
-      body: JSON.stringify({ intentId, decisionType }),
+      headers: { "content-type": "application/json", accept: "application/json", "x-pandora-timestamp": timestamp, "x-pandora-signature": signature },
+      body: JSON.stringify(signedBody),
       signal: AbortSignal.timeout(12000),
     });
   } catch { throw new Error("MEMORY_CONTEXT_UNAVAILABLE"); }
   let payload: unknown;
   try { payload = await prepared.json(); } catch { throw new Error("MEMORY_CONTEXT_UNAVAILABLE"); }
   if (!prepared.ok) throw new Error(prepared.status >= 500 ? "MEMORY_CONTEXT_UNAVAILABLE" : "MEMORY_CONTEXT_REJECTED");
-  const context = record(record(payload).context);
-  const envelope = record(context.contextEnvelope);
-  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(text(context.receiptId))
-      || text(context.sourceIntentId) !== intentId
-      || text(context.decisionType) !== decisionType
-      || !/^[0-9a-f]{64}$/i.test(text(context.contextHash))
-      || !["available", "empty", "unavailable"].includes(text(context.contextStatus))
-      || text(envelope.status) !== text(context.contextStatus)
-      || text(envelope.source) !== "pandora-memory"
-      || text(envelope.namespace) !== "real_life") {
+  const body = record(payload);
+  const highlights = planningHighlights(body.highlights);
+  const approvedIds = Array.isArray(body.approved_memory_item_ids)
+    ? body.approved_memory_item_ids.map((value) => text(value).toLowerCase()) : [];
+  if (approvedIds.length > 50 || approvedIds.some((id) => !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id))
+      || approvedIds.join(",") !== highlights.map((item) => item.id).join(",")
+      || body.ok !== true || body.schema_version !== 1 || text(body.purpose) !== MEMORY_PLANNING_PURPOSE
+      || text(body.request_id) !== requestId || text(body.organization_id) !== text(signedBody.organization_id)
+      || text(body.visible_project_id) !== text(signedBody.visible_project_id)
+      || text(body.project_key) !== text(signedBody.project_key) || text(body.decision_type) !== decisionType
+      || text(body.query_hash) !== text(signedBody.query_hash) || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(text(body.memory_project_id))
+      || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(text(body.retrieval_log_id))
+      || !["available", "empty"].includes(text(body.context_status))
+      || !/^[0-9a-f]{64}$/i.test(text(body.context_hash)) || body.canonical_memory_written !== false
+      || (text(body.context_status) === "available" && approvedIds.length < 1)
+      || (text(body.context_status) === "empty" && approvedIds.length !== 0)) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
+
+  const responseBasis = [
+    "projectos-planning-context-response-v1", requestId, text(body.organization_id), text(body.visible_project_id),
+    text(body.memory_project_id), text(body.project_key), decisionType, text(body.query_hash), text(body.retrieval_log_id),
+    text(body.context_status), approvedIds.join(","),
+    ...highlights.map((item) => [item.id, item.memory_type, item.summary, item.updated_at].join("|")),
+  ].join("\n");
+  if (await sha256(responseBasis) !== text(body.context_hash)) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
+
+  const { data: receiptData, error: receiptError } = await admin.rpc("pandora_record_project_memory_context_v2", {
+    p_source_intent_id: intentId,
+    p_decision_type: decisionType,
+    p_request_id: requestId,
+    p_memory_project_id: text(body.memory_project_id),
+    p_memory_project_key: text(body.project_key),
+    p_context_status: text(body.context_status),
+    p_context_hash: text(body.context_hash),
+    p_query_hash: text(body.query_hash),
+    p_retrieval_log_id: text(body.retrieval_log_id),
+    p_approved_memory_item_ids: approvedIds,
+  });
+  const receipt = record(receiptData);
+  if (receiptError || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(text(receipt.receiptId))
+      || text(receipt.contextHash) !== text(body.context_hash) || text(receipt.retrievalLogId) !== text(body.retrieval_log_id)) {
     throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
   }
-  return context;
+  return {
+    receiptId: text(receipt.receiptId),
+    sourceIntentId: intentId,
+    decisionType,
+    contextStatus: text(body.context_status),
+    contextHash: text(body.context_hash),
+    retrievalLogId: text(body.retrieval_log_id),
+    approvedMemoryItemIds: approvedIds,
+    contextEnvelope: {
+      schemaVersion: "1.0.0", status: text(body.context_status), source: "pandora-memory", namespace: "real_life",
+      highlights: { project: [], risks: [], openLoops: [], recent: [], semantic: highlights.map((item) => item.summary) },
+      warnings: [],
+    },
+  };
 }
 
 async function unavailableMemoryContext(intentId: string, decisionType: "project_spec" | "build") {
@@ -357,7 +433,7 @@ Deno.serve(async (req) => {
 
     let memoryContext: JsonRecord;
     try {
-      memoryContext = await prepareMemoryContext(authorization, intentId, "project_spec");
+      memoryContext = await prepareMemoryContext(admin, intentId, "project_spec");
     } catch {
       memoryContext = await unavailableMemoryContext(intentId, "project_spec");
     }
@@ -459,7 +535,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     const code = error instanceof Error ? error.message : "COMPILATION_FAILED";
     if (claimToken && intentId) await markFailed(adminClient(), intentId, claimToken, code);
-    const status = code === "SIGN_IN_REQUIRED" ? 401 : code === "INVALID_REQUEST" ? 400 : code === "INTENT_NOT_AVAILABLE" || code === "PROJECT_NOT_AVAILABLE" ? 404 : code === "PROVIDER_UNAVAILABLE" || code === "MEMORY_CONTEXT_UNAVAILABLE" ? 503 : code === "PROVIDER_REJECTED" || code === "MEMORY_CONTEXT_REJECTED" || code === "INVALID_STRUCTURED_OUTPUT" ? 422 : 503;
+    const status = code === "SIGN_IN_REQUIRED" ? 401 : code === "INVALID_REQUEST" ? 400 : code === "INTENT_NOT_AVAILABLE" || code === "PROJECT_NOT_AVAILABLE" ? 404 : code === "PROVIDER_UNAVAILABLE" ? 503 : code === "PROVIDER_REJECTED" || code === "INVALID_STRUCTURED_OUTPUT" ? 422 : 503;
     return response({ ok: false, state: status === 503 ? "waiting" : "blocked", error: { code } }, status);
   }
 });
