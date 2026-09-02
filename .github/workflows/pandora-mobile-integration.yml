@@ -147,10 +147,7 @@ jobs:
       - name: Materialize canonical web formatter repair
         if: ${{ failure() }}
         working-directory: .pandora-mobile-build
-        run: |
-          dart format lib/core/platform/pandora_web_preview_web.dart
-          dart format lib/features/simple/project_experience_v2.dart
-          diff -u ../apps/pandora-mobile/lib/features/simple/project_experience_v2.dart lib/features/simple/project_experience_v2.dart || true
+        run: dart format lib/core/platform/pandora_web_preview_web.dart
 
       - name: Upload canonical web formatter repair
         if: ${{ failure() }}
