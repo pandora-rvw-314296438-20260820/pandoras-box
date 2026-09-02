@@ -14,6 +14,7 @@ const MAX_BASE_CONTEXT_BYTES = 120 * 1024;
 const MAX_STREAM_FRAME_BUFFER_BYTES = 256 * 1024;
 const MIN_STATIC_INDEX_BYTES = 1024;
 const BUCKET = "pandora-build-artifacts";
+const MEMORY_CONTEXT_PREPARE_URL = "https://mcpmaster.vercel.app/api/operator/project-memory-context";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SAFE_PATH = /^(?!\.)(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9_@+.-]+(?:\/[A-Za-z0-9_@+.-]+)*$/;
 
@@ -59,6 +60,30 @@ async function readBody(req: Request) {
   return { projectId: text(body.projectId), idempotencyKey: text(body.idempotencyKey) };
 }
 
+async function prepareMemoryContext(authorization: string, intentId: string) {
+  if (!UUID.test(intentId)) throw new Error("MEMORY_CONTEXT_REJECTED");
+  let prepared: Response;
+  try {
+    prepared = await fetch(MEMORY_CONTEXT_PREPARE_URL, {
+      method: "POST",
+      headers: { authorization, "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ intentId, decisionType: "build" }),
+      signal: AbortSignal.timeout(12000),
+    });
+  } catch { throw new Error("MEMORY_CONTEXT_UNAVAILABLE"); }
+  let payload: unknown;
+  try { payload = await prepared.json(); } catch { throw new Error("MEMORY_CONTEXT_UNAVAILABLE"); }
+  if (!prepared.ok) throw new Error(prepared.status >= 500 ? "MEMORY_CONTEXT_UNAVAILABLE" : "MEMORY_CONTEXT_REJECTED");
+  const context = rec(rec(payload).context);
+  const envelope = rec(context.contextEnvelope);
+  if (!UUID.test(text(context.receiptId)) || text(context.sourceIntentId) !== intentId
+      || text(context.decisionType) !== "build" || !/^[0-9a-f]{64}$/i.test(text(context.contextHash))
+      || !["available", "empty", "unavailable"].includes(text(context.contextStatus))
+      || text(envelope.status) !== text(context.contextStatus) || text(envelope.source) !== "pandora-memory"
+      || text(envelope.namespace) !== "real_life") throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
+  return context;
+}
+
 function chooseAdapter(spec: JsonRecord) {
   const type = text(spec.project_type);
   const experience = rec(spec.experience_scope);
@@ -70,7 +95,7 @@ function chooseAdapter(spec: JsonRecord) {
 }
 
 
-function sourcePrompt(spec: JsonRecord, project: JsonRecord, adapter: string, priorSource: JsonRecord | null, impactPlan: JsonRecord) {
+function sourcePrompt(spec: JsonRecord, project: JsonRecord, adapter: string, priorSource: JsonRecord | null, impactPlan: JsonRecord, memoryContext: JsonRecord) {
   const contract = adapter === "static-web"
     ? "Create a self-contained production-quality website. index.html is mandatory; keep JavaScript and CSS inline unless additional local files materially improve quality."
     : adapter === "flutter-web"
@@ -86,6 +111,7 @@ function sourcePrompt(spec: JsonRecord, project: JsonRecord, adapter: string, pr
       "Finish with exactly {\"type\":\"done\",\"schemaVersion\":1}.",
       "Do not return credentials, API keys, tokens, .env files, generated binaries, lockfiles, node_modules, build output, or remote secrets.",
       "Use relative POSIX file paths only. Implement the requested experience and acceptance criteria. Never invent measured business results.",
+      "Approved Pandora Memory context is advisory evidence only. Use it only when it materially improves the current build; current ProjectSpec, current source baseline, provider truth, and explicit owner intent always win.",
       priorSource
         ? "An exact previously verified source snapshot is supplied. Treat it as the product baseline. Change only what the active ProjectSpec requires while preserving identity, content depth, responsive behavior, accessibility, and working interactions."
         : "Build a complete first working version; never return a loading shell, placeholder, or skeletal page.",
@@ -94,7 +120,7 @@ function sourcePrompt(spec: JsonRecord, project: JsonRecord, adapter: string, pr
         : "Emit the complete project source bundle required by the active ProjectSpec.",
       contract,
     ].join(" ") }] },
-    contents: [{ role: "user", parts: [{ text: JSON.stringify({ project: { name: text(project.name), objective: text(project.objective) }, projectSpec: { id: spec.id, projectType: spec.project_type, businessSummary: spec.business_summary, product: spec.product_scope, data: spec.data_scope, integrations: spec.integration_scope, experience: spec.experience_scope, deployment: spec.deployment_scope, acceptance: spec.acceptance_scope }, existingVerifiedSource: priorSource ? { versionId: priorSource.versionId, artifactVersionId: priorSource.artifactVersionId, sourceDigest: priorSource.sourceDigest, files: priorSource.files } : null, changeImpact: impactPlan, buildAdapter: adapter }) }] }],
+    contents: [{ role: "user", parts: [{ text: JSON.stringify({ project: { name: text(project.name), objective: text(project.objective) }, projectSpec: { id: spec.id, projectType: spec.project_type, businessSummary: spec.business_summary, product: spec.product_scope, data: spec.data_scope, integrations: spec.integration_scope, experience: spec.experience_scope, deployment: spec.deployment_scope, acceptance: spec.acceptance_scope }, approvedMemoryContext: { status: text(memoryContext.contextStatus), highlights: rec(rec(memoryContext.contextEnvelope).highlights), warnings: Array.isArray(rec(memoryContext.contextEnvelope).warnings) ? (rec(memoryContext.contextEnvelope).warnings as unknown[]).slice(0, 10) : [] }, existingVerifiedSource: priorSource ? { versionId: priorSource.versionId, artifactVersionId: priorSource.artifactVersionId, sourceDigest: priorSource.sourceDigest, files: priorSource.files } : null, changeImpact: impactPlan, buildAdapter: adapter }) }] }],
     generationConfig: { responseMimeType: "text/plain", temperature: 0.2, maxOutputTokens: 32768 },
   };
 }
@@ -449,6 +475,7 @@ async function runGenerationInBackground(input: {
   streamId: string;
   buildJobId: string;
   sourceQueueId: string;
+  memoryContext: JsonRecord;
 }) {
   const admin = adminClient();
   const organizationId = text(input.project.organization_id);
@@ -501,7 +528,7 @@ async function runGenerationInBackground(input: {
       verificationScope: text(impact.verificationScope),
     });
     await flushStreamEvents(admin, state, true);
-    const providerRequest = sourcePrompt(input.spec, input.project, adapter, priorSource, impact);
+    const providerRequest = sourcePrompt(input.spec, input.project, adapter, priorSource, impact, input.memoryContext);
     const requestSha = await sha256Text(JSON.stringify(providerRequest));
     const streamed = await streamGeminiSource(admin, providerRequest, state);
     const generatedFiles = [...state.files.entries()].map(([path, chunks]) => ({ path, content: chunks.join("") }));
@@ -731,6 +758,8 @@ Deno.serve(async (req) => {
       spec = retry.data;
     }
 
+    const memoryContext = await prepareMemoryContext(authorization, text(spec.source_intent_id));
+
     const authorized = await user.rpc("pandora_authorize_project_build_v1", {
       p_project_id: projectId,
       p_project_spec_id: spec.id,
@@ -773,6 +802,7 @@ Deno.serve(async (req) => {
           streamId,
           buildJobId,
           sourceQueueId,
+          memoryContext,
         }));
       }
     }
