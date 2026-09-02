@@ -40,7 +40,7 @@ test('intent proposal and build admission milestones follow authoritative transi
   assert.ok(proposal >= 0);
   assert.ok(clicked >= 0 && request > clicked && admitted > request);
   assert.match(create, /buildClickedAt:\s*clickedAt/);
-  const intentCapture = create.slice(intent, intent + 500);
+  const intentCapture = create.slice(intent, create.indexOf('      );', intent) + 8);
   assert.doesNotMatch(intentCapture, /intentText|originalIntent|objective/);
 });
 
