@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../core/analytics/owner_analytics.dart';
 import '../features/approvals/approvals_screen.dart';
+import '../features/simple/more_screen.dart';
 import '../features/simple/pandora_v2_ui.dart';
 import '../features/simple/projects_screen.dart';
 import '../features/simple/simple_home_screen.dart';
@@ -25,6 +26,7 @@ class _PandoraShellState extends State<PandoraShell> {
       Icons.check_circle_outline_rounded,
       Icons.check_circle_rounded,
     ),
+    _Destination('More', Icons.more_horiz, Icons.more_horiz_rounded),
   ];
 
   final Map<int, Widget> _roots = <int, Widget>{};
@@ -54,6 +56,7 @@ class _PandoraShellState extends State<PandoraShell> {
       0 => 'home',
       1 => 'work',
       2 => 'needs_you',
+      3 => 'more',
       _ => 'home',
     };
     unawaited(
@@ -73,6 +76,7 @@ class _PandoraShellState extends State<PandoraShell> {
             ),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
+          3 => const MoreScreen(),
           _ => const SimpleHomeScreen(),
         },
       );

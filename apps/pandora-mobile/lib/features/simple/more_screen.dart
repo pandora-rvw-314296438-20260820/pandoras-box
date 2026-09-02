@@ -15,6 +15,7 @@ import '../projects/projects_screen.dart';
 import '../safety/safety_screen.dart';
 import '../settings/settings_screen.dart';
 import '../team/team_screen.dart';
+import 'advanced_mode_screen.dart';
 import 'domains_screen.dart';
 import 'offline_evidence_screen.dart';
 import 'simple_briefing_screen.dart';
@@ -105,6 +106,13 @@ class MoreScreen extends StatelessWidget {
                   'Technical details stay here until you intentionally open them.',
               child: Column(
                 children: [
+                  _MoreTile(
+                    icon: Icons.tune_rounded,
+                    title: 'Advanced Mode',
+                    subtitle:
+                        'Code, changes, database, deployments, jobs, versions, evidence, runtime, and settings',
+                    onTap: () => _openMore(context, const AdvancedModeScreen()),
+                  ),
                   _MoreTile(
                     icon: Icons.terminal_rounded,
                     title: 'Advanced requests',

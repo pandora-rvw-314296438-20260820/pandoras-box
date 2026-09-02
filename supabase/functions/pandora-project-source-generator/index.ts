@@ -117,6 +117,13 @@ type StreamAssembler = {
 type StreamProviderMeta = {
   modelVersion: string;
   usage: JsonRecord;
+  startedAt: string;
+  completedAt: string;
+  providerLatencyMs: number | null;
+  transportLatencyMs: number;
+  timeToFirstTokenMs: number | null;
+  streamCompletionLatencyMs: number | null;
+  endToEndLatencyMs: number;
 };
 
 function providerChunkText(envelope: JsonRecord) {
@@ -252,6 +259,10 @@ async function streamGeminiSource(admin: ReturnType<typeof adminClient>, provide
   if (credential.error || typeof credential.data !== "string" || !credential.data.trim()) throw new Error("PROVIDER_UNAVAILABLE");
   const providerCredential = credential.data.trim();
   if (!state.knownSecrets.includes(providerCredential)) state.knownSecrets.push(providerCredential);
+  const providerStartedAtIso = new Date().toISOString();
+  const providerStartedAt = performance.now();
+  let responseHeadersAt = providerStartedAt;
+  let firstProviderByteAt: number | null = null;
   let providerResponse: Response;
   try {
     providerResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:streamGenerateContent?alt=sse`, {
@@ -260,6 +271,7 @@ async function streamGeminiSource(admin: ReturnType<typeof adminClient>, provide
       body: JSON.stringify(providerRequest),
       signal: AbortSignal.timeout(90000),
     });
+    responseHeadersAt = performance.now();
   } catch {
     throw new Error("PROVIDER_UNAVAILABLE");
   }
@@ -305,6 +317,9 @@ async function streamGeminiSource(admin: ReturnType<typeof adminClient>, provide
   for (;;) {
     const chunk = await reader.read();
     if (chunk.done) break;
+    if (firstProviderByteAt === null && chunk.value.byteLength > 0) {
+      firstProviderByteAt = performance.now();
+    }
     sseBuffer += decoder.decode(chunk.value, { stream: true });
     for (;;) {
       const newline = sseBuffer.indexOf("\n");
@@ -324,7 +339,23 @@ async function streamGeminiSource(admin: ReturnType<typeof adminClient>, provide
   }
   await flushStreamEvents(admin, state, true);
   if (!state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
-  return { rawOutput, meta: { modelVersion, usage } satisfies StreamProviderMeta };
+  const providerCompletedAt = performance.now();
+  const providerCompletedAtIso = new Date().toISOString();
+  const measuredFirstByteAt = firstProviderByteAt;
+  return {
+    rawOutput,
+    meta: {
+      modelVersion,
+      usage,
+      startedAt: providerStartedAtIso,
+      completedAt: providerCompletedAtIso,
+      transportLatencyMs: Math.max(0, Math.round(responseHeadersAt - providerStartedAt)),
+      providerLatencyMs: measuredFirstByteAt === null ? null : Math.max(0, Math.round(measuredFirstByteAt - responseHeadersAt)),
+      timeToFirstTokenMs: measuredFirstByteAt === null ? null : Math.max(0, Math.round(measuredFirstByteAt - providerStartedAt)),
+      streamCompletionLatencyMs: measuredFirstByteAt === null ? null : Math.max(0, Math.round(providerCompletedAt - measuredFirstByteAt)),
+      endToEndLatencyMs: Math.max(0, Math.round(providerCompletedAt - providerStartedAt)),
+    } satisfies StreamProviderMeta,
+  };
 }
 
 async function canonicalBundle(raw: unknown, projectSpecId: string, adapter: string) {
@@ -541,8 +572,13 @@ async function runGenerationInBackground(input: {
       input_tokens: Number(usage.promptTokenCount || 0),
       output_tokens: Number(usage.candidatesTokenCount || 0),
       total_tokens: Number(usage.totalTokenCount || 0),
-      started_at: new Date().toISOString(),
-      completed_at: new Date().toISOString(),
+      provider_latency_ms: streamed.meta.providerLatencyMs,
+      transport_latency_ms: streamed.meta.transportLatencyMs,
+      time_to_first_token_ms: streamed.meta.timeToFirstTokenMs,
+      stream_completion_latency_ms: streamed.meta.streamCompletionLatencyMs,
+      end_to_end_latency_ms: streamed.meta.endToEndLatencyMs,
+      started_at: streamed.meta.startedAt,
+      completed_at: streamed.meta.completedAt,
     }).select("id").single();
     if (modelRunError || !modelRun) throw new Error("MODEL_RUN_WRITE_FAILED");
 

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../analytics/owner_analytics.dart';
 import '../models/project_conversation_history.dart';
 import '../models/project_source_models.dart';
 import '../network/idempotency_key.dart';
@@ -649,13 +650,34 @@ class ProjectExperienceApi {
         },
       );
       final data = response.data;
-      if (data is Uint8List && data.isNotEmpty) return data;
-      if (data is List<int> && data.isNotEmpty) {
-        return Uint8List.fromList(data);
+      final Uint8List bytes;
+      if (data is Uint8List && data.isNotEmpty) {
+        bytes = data;
+      } else if (data is List<int> && data.isNotEmpty) {
+        bytes = Uint8List.fromList(data);
+      } else {
+        throw const ProjectExperienceException(
+          'Pandora returned an unreadable source export.',
+        );
       }
-      throw const ProjectExperienceException(
-        'Pandora returned an unreadable source export.',
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          OwnerAnalyticsEvent.sourceAccessGranted,
+          projectId: projectId,
+          projectVersionId: versionId,
+          status: 'export',
+        ),
       );
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          OwnerAnalyticsEvent.sourceExported,
+          projectId: projectId,
+          projectVersionId: versionId,
+          count: bytes.length,
+          status: 'export',
+        ),
+      );
+      return bytes;
     } on ProjectExperienceException {
       rethrow;
     } on FunctionException catch (error) {
@@ -696,10 +718,30 @@ class ProjectExperienceApi {
           'Pandora rejected mismatched source evidence.',
         );
       }
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          OwnerAnalyticsEvent.sourceAccessGranted,
+          projectId: projectId,
+          projectVersionId: versionId,
+          status: operation,
+        ),
+      );
       return Map<String, Object?>.from(data);
     } on ProjectExperienceException {
       rethrow;
     } on FunctionException catch (error) {
+      final details = error.details;
+      if (details is Map &&
+          _text(details['code']) == 'SOURCE_ENTITLEMENT_REQUIRED') {
+        unawaited(
+          OwnerAnalytics.shared.capture(
+            OwnerAnalyticsEvent.sourcePaywallViewed,
+            projectId: projectId,
+            projectVersionId: versionId,
+            status: operation,
+          ),
+        );
+      }
       throw ProjectExperienceException(
         _sourceFunctionMessage(error),
       );
@@ -924,6 +966,21 @@ class ProjectExperienceApi {
       final responseProjectId = _text(data['projectId']).toLowerCase();
       final responseVersionId = _text(data['versionId']).toLowerCase();
       final artifactDigest = _text(data['artifactDigest']).toLowerCase();
+      final hostedPreview = _map(data['hostedPreview']);
+      final previewDeploymentId =
+          _optionalText(hostedPreview?['deploymentId'])?.toLowerCase();
+      final sourceSha256 =
+          _optionalText(hostedPreview?['sourceSha256'])?.toLowerCase();
+      if (hostedPreview != null &&
+          (previewDeploymentId == null ||
+              !RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+                  .hasMatch(previewDeploymentId) ||
+              sourceSha256 == null ||
+              !RegExp(r'^[0-9a-f]{64}$').hasMatch(sourceSha256))) {
+        throw const ProjectExperienceException(
+          'Pandora returned an unreadable preview.',
+        );
+      }
       final requestedProjectId = projectId.trim().toLowerCase();
       final requestedVersionId = versionId.trim().toLowerCase();
       if (responseProjectId != requestedProjectId ||
@@ -973,6 +1030,9 @@ class ProjectExperienceApi {
           'artifactDigest': artifactDigest,
           'previewProjectId': responseProjectId,
           'previewVersionId': responseVersionId,
+          if (previewDeploymentId != null)
+            'previewDeploymentId': previewDeploymentId,
+          if (sourceSha256 != null) 'sourceSha256': sourceSha256,
         });
       }
       return files;
