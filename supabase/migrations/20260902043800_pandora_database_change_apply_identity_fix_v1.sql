@@ -204,3 +204,156 @@ revoke all on function private.pandora_worker_f_apply_isolated_create_table_2026
 grant execute on function private.pandora_worker_f_apply_isolated_create_table_20260829(uuid,text,text,uuid) to service_role;
 revoke all on function public.pandora_worker_f_apply_isolated_create_table_20260829(uuid,text,text,uuid) from public,anon,authenticated;
 grant execute on function public.pandora_worker_f_apply_isolated_create_table_20260829(uuid,text,text,uuid) to service_role;
+
+
+-- Repair planner semantics: schema_after_sha256 is the exact projected information_schema hash,
+-- not an intent digest. Idempotent replay must match the full immutable identity.
+create or replace function private.pandora_worker_f_plan_isolated_create_table_20260829(
+  p_runtime_resource_id uuid,
+  p_project_spec_id uuid,
+  p_project_version_id uuid,
+  p_table_name text,
+  p_idempotency_key text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path='pg_catalog','public'
+as $$
+declare
+  v_res public.pandora_runtime_resources%rowtype;
+  v_schema text;
+  v_before text;
+  v_after text;
+  v_diff text;
+  v_migration text;
+  v_plan uuid;
+  v_action text;
+begin
+  if p_table_name !~ '^[a-z][a-z0-9_]{0,62}$' or length(coalesce(p_idempotency_key,''))<8 then
+    raise exception 'invalid database change request' using errcode='22023';
+  end if;
+
+  select * into v_res
+  from public.pandora_runtime_resources
+  where id=p_runtime_resource_id
+    and resource_type='database'
+    and provider='supabase'
+    and isolation_mode='shared_isolated'
+    and status='ready';
+  if not found then
+    raise exception 'isolated database resource unavailable' using errcode='22023';
+  end if;
+  if v_res.project_version_id is distinct from p_project_version_id then
+    raise exception 'database version lineage mismatch' using errcode='22023';
+  end if;
+
+  v_schema:=v_res.configuration_redacted->>'schema';
+  if exists(
+    select 1 from information_schema.tables
+    where table_schema=v_schema and table_name=p_table_name
+  ) then
+    raise exception 'database migration identity conflict' using errcode='23505';
+  end if;
+
+  select encode(
+    extensions.digest(
+      convert_to(
+        coalesce(string_agg(table_name||':'||column_name||':'||data_type||':'||is_nullable,E'\n' order by table_name,ordinal_position),''),
+        'utf8'
+      ),
+      'sha256'
+    ),
+    'hex'
+  ) into v_before
+  from information_schema.columns
+  where table_schema=v_schema;
+
+  v_migration:='create_table:'||v_schema||'.'||p_table_name||':id_uuid,value_text,created_at_timestamptz';
+  v_action:=encode(extensions.digest(convert_to(v_migration,'utf8'),'sha256'),'hex');
+
+  select encode(
+    extensions.digest(
+      convert_to(
+        coalesce(string_agg(table_name||':'||column_name||':'||data_type||':'||is_nullable,E'\n' order by table_name,ordinal_position),''),
+        'utf8'
+      ),
+      'sha256'
+    ),
+    'hex'
+  ) into v_after
+  from (
+    select table_name,column_name,data_type,is_nullable,ordinal_position
+    from information_schema.columns
+    where table_schema=v_schema
+    union all select p_table_name,'id','uuid','NO',1
+    union all select p_table_name,'value','text','NO',2
+    union all select p_table_name,'created_at','timestamp with time zone','NO',3
+  ) projected;
+
+  v_diff:=encode(extensions.digest(convert_to(v_before||':'||v_after,'utf8'),'sha256'),'hex');
+
+  insert into public.pandora_database_change_plans(
+    organization_id,project_id,project_spec_id,project_version_id,target_runtime_resource_id,
+    environment,status,migration_set_sha256,schema_before_sha256,schema_after_sha256,
+    schema_diff_sha256,action_hash,destructive_change,backward_compatible,lock_risk,
+    approval_required,rollback_plan_sha256,idempotency_key,public_summary
+  ) values(
+    v_res.organization_id,v_res.project_id,p_project_spec_id,p_project_version_id,v_res.id,
+    v_res.environment,'reviewed',v_action,v_before,v_after,v_diff,v_action,false,true,'low',
+    (v_res.environment='production'),
+    encode(extensions.digest(convert_to('drop_table:'||v_schema||'.'||p_table_name,'utf8'),'sha256'),'hex'),
+    p_idempotency_key,'Add isolated application table '||p_table_name
+  ) on conflict(organization_id,project_id,idempotency_key) do nothing;
+
+  select id into v_plan
+  from public.pandora_database_change_plans
+  where organization_id=v_res.organization_id
+    and project_id=v_res.project_id
+    and idempotency_key=p_idempotency_key;
+
+  if not exists(
+    select 1
+    from public.pandora_database_change_plans p
+    where p.id=v_plan
+      and p.project_spec_id=p_project_spec_id
+      and p.project_version_id is not distinct from p_project_version_id
+      and p.target_runtime_resource_id=p_runtime_resource_id
+      and p.environment=v_res.environment
+      and p.migration_set_sha256=v_action
+      and p.schema_before_sha256=v_before
+      and p.schema_after_sha256=v_after
+      and p.schema_diff_sha256=v_diff
+      and p.action_hash=v_action
+      and not p.destructive_change
+      and p.backward_compatible
+      and p.lock_risk='low'
+  ) then
+    raise exception 'database plan idempotency identity collision' using errcode='23505';
+  end if;
+
+  insert into public.pandora_database_change_items(
+    organization_id,project_id,database_change_plan_id,sequence,change_kind,object_type,
+    object_name_sha256,destructive,backward_compatible,risk,public_summary
+  ) values(
+    v_res.organization_id,v_res.project_id,v_plan,1,'create','table',
+    encode(extensions.digest(convert_to(v_schema||'.'||p_table_name,'utf8'),'sha256'),'hex'),
+    false,true,'low','Create isolated application table'
+  ) on conflict do nothing;
+
+  return jsonb_build_object(
+    'planId',v_plan,
+    'status',(select status from public.pandora_database_change_plans where id=v_plan),
+    'migrationSetSha256',v_action,
+    'schemaBeforeSha256',v_before,
+    'schemaAfterSha256',v_after,
+    'schemaDiffSha256',v_diff,
+    'rollbackPlanSha256',encode(extensions.digest(convert_to('drop_table:'||v_schema||'.'||p_table_name,'utf8'),'sha256'),'hex')
+  );
+end;
+$$;
+
+revoke all on function private.pandora_worker_f_plan_isolated_create_table_20260829(uuid,uuid,uuid,text,text) from public,anon,authenticated;
+grant execute on function private.pandora_worker_f_plan_isolated_create_table_20260829(uuid,uuid,uuid,text,text) to service_role;
+revoke all on function public.pandora_worker_f_plan_isolated_create_table_20260829(uuid,uuid,uuid,text,text) from public,anon,authenticated;
+grant execute on function public.pandora_worker_f_plan_isolated_create_table_20260829(uuid,uuid,uuid,text,text) to service_role;
