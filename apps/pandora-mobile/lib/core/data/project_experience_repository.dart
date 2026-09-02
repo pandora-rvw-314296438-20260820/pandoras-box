@@ -192,7 +192,8 @@ class CompositeProjectExperienceRepository
         intentKind: 'change',
         idempotencyKey: idempotencyKey,
       );
-      final submissionCount = (_successfulChangeSubmissions[projectId] ?? 0) + 1;
+      final submissionCount =
+          (_successfulChangeSubmissions[projectId] ?? 0) + 1;
       _successfulChangeSubmissions[projectId] = submissionCount;
       if (submissionCount == 2) {
         unawaited(
