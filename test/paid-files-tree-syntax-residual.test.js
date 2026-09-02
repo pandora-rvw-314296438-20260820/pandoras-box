@@ -35,7 +35,7 @@ test('paid Files preserves authoritative version identity and governed source AP
   assert.match(source, /projection\.productionVersionId/);
   assert.match(source, /selectedFile\.sha256 != otherFile\.sha256/);
   assert.match(source, /versionId: _selectedVersionId/);
-  assert.match(source, /\$\{_selectedVersionId\}\.zip/);
+  assert.match(source, /-\$_selectedVersionId\.zip/);
   assert.match(source, /searchSourceFiles\(/);
   assert.match(source, /exportSourceZip\(/);
   assert.doesNotMatch(source, /signedUrl|createSignedUrl|publicUrl/i);
