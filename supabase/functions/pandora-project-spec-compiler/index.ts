@@ -231,6 +231,28 @@ async function prepareMemoryContext(authorization: string, intentId: string, dec
   return context;
 }
 
+async function unavailableMemoryContext(intentId: string, decisionType: "project_spec" | "build") {
+  const contextEnvelope = {
+    schemaVersion: "1.0.0",
+    status: "unavailable",
+    source: "pandora-memory",
+    namespace: "real_life",
+    counts: { projectContext: 0, riskWarnings: 0, openLoops: 0, recentEvents: 0, semanticMatches: 0 },
+    highlights: { project: [], risks: [], openLoops: [], recent: [], semantic: [] },
+    warnings: ["memory_context_unavailable"],
+  };
+  return {
+    receiptId: null,
+    sourceIntentId: intentId,
+    decisionType,
+    contextStatus: "unavailable",
+    contextHash: await sha256(JSON.stringify(contextEnvelope)),
+    retrievalLogId: null,
+    approvedMemoryItemIds: [],
+    contextEnvelope,
+  };
+}
+
 function modelRequest(intent: JsonRecord, project: JsonRecord, memoryContext: JsonRecord) {
   const kind = text(record(project.config).customerJourney && record(record(project.config).customerJourney).buildKind) || "help_me_decide";
   const system = [
@@ -333,7 +355,12 @@ Deno.serve(async (req) => {
     claimToken = text(claim.claimToken);
     if (!claimToken) throw new Error("COMPILATION_CLAIM_FAILED");
 
-    const memoryContext = await prepareMemoryContext(authorization, intentId, "project_spec");
+    let memoryContext: JsonRecord;
+    try {
+      memoryContext = await prepareMemoryContext(authorization, intentId, "project_spec");
+    } catch {
+      memoryContext = await unavailableMemoryContext(intentId, "project_spec");
+    }
     const requestId = crypto.randomUUID();
     let requestDigest = "";
     let responseDigest = "";
@@ -400,7 +427,7 @@ Deno.serve(async (req) => {
         transport: "vault_server_boundary",
         structured_output: true,
         structured_output_attempts: structuredOutputAttempt,
-        memory_context_receipt_id: text(memoryContext.receiptId),
+        memory_context_receipt_id: text(memoryContext.receiptId) || null,
         memory_context_status: text(memoryContext.contextStatus),
         memory_context_hash: text(memoryContext.contextHash),
         memory_retrieval_log_id: text(memoryContext.retrievalLogId) || null,
@@ -415,7 +442,7 @@ Deno.serve(async (req) => {
       p_model_total_tokens: totalTokens,
       p_model_revision: modelRevision,
       p_memory_context_hash: text(memoryContext.contextHash),
-      p_memory_receipt_id: text(memoryContext.receiptId),
+      p_memory_receipt_id: text(memoryContext.receiptId) || null,
     });
     if (commitError || text(record(committed).state) !== "succeeded") throw new Error("COMMIT_FAILED");
     const committedSpec = record(committed);
