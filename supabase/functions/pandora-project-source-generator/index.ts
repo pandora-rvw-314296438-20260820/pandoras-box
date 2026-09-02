@@ -84,6 +84,28 @@ async function prepareMemoryContext(authorization: string, intentId: string) {
   return context;
 }
 
+async function unavailableMemoryContext(intentId: string) {
+  const contextEnvelope = {
+    schemaVersion: "1.0.0",
+    status: "unavailable",
+    source: "pandora-memory",
+    namespace: "real_life",
+    counts: { projectContext: 0, riskWarnings: 0, openLoops: 0, recentEvents: 0, semanticMatches: 0 },
+    highlights: { project: [], risks: [], openLoops: [], recent: [], semantic: [] },
+    warnings: ["memory_context_unavailable"],
+  };
+  return {
+    receiptId: null,
+    sourceIntentId: intentId,
+    decisionType: "build",
+    contextStatus: "unavailable",
+    contextHash: await sha256Text(JSON.stringify(contextEnvelope)),
+    retrievalLogId: null,
+    approvedMemoryItemIds: [],
+    contextEnvelope,
+  };
+}
+
 function chooseAdapter(spec: JsonRecord) {
   const type = text(spec.project_type);
   const experience = rec(spec.experience_scope);
@@ -758,7 +780,12 @@ Deno.serve(async (req) => {
       spec = retry.data;
     }
 
-    const memoryContext = await prepareMemoryContext(authorization, text(spec.source_intent_id));
+    let memoryContext: JsonRecord;
+    try {
+      memoryContext = await prepareMemoryContext(authorization, text(spec.source_intent_id));
+    } catch {
+      memoryContext = await unavailableMemoryContext(text(spec.source_intent_id));
+    }
 
     const authorized = await user.rpc("pandora_authorize_project_build_v1", {
       p_project_id: projectId,
