@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
+const fs = require('fs');
 
 const generator = fs.readFileSync('supabase/functions/pandora-project-source-generator/index.ts', 'utf8');
 const migration = fs.readFileSync('supabase/migrations/20260901004825_pandora_live_code_stream_v1.sql', 'utf8');
@@ -17,9 +17,11 @@ test('live build theatre renders only real generated source chunks', () => {
   assert.match(generator, /"file_end"/);
   assert.match(generator, /"done"/);
   assert.match(generator, /Never emit fake code/);
-  assert.match(generator, /queueStreamEvent\(state, "code_chunk", path, liveChunk/);
+  assert.match(generator, /queueStreamEvent\(state, "code_chunk", path, liveChunk,/);
   assert.match(generator, /content_chunk: contentChunk/);
-  assert.match(generator, /"x-goog-api-key": credential\.data\.trim\(\)/);
+  assert.match(generator, /const providerCredential = credential\.data\.trim\(\);/);
+  assert.match(generator, /state\.knownSecrets\.push\(providerCredential\)/);
+  assert.match(generator, /"x-goog-api-key": providerCredential/);
   assert.doesNotMatch(generator, /[?&]key=\$\{/);
   assert.match(api, /watchBuildStream/);
   assert.match(api, /watchResilientBuildStream/);
