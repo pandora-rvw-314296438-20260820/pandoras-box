@@ -167,13 +167,13 @@ function sourceContainsSecret(value: string, knownSecrets: string[] = []) {
 async function emitLiveSource(admin: ReturnType<typeof adminClient>, state: StreamAssembler, path: string, content: string) {
   if (!content) return;
   for (let offset = 0; offset < content.length;) {
-    let end = Math.min(content.length, offset + 512);
+    let end = Math.min(content.length, offset + 2048);
     if (end < content.length && /[\uD800-\uDBFF]/.test(content[end - 1])) end -= 1;
     if (end <= offset) end = Math.min(content.length, offset + 2);
     const liveChunk = content.slice(offset, end);
     const liveBytes = new TextEncoder().encode(liveChunk).byteLength;
     queueStreamEvent(state, "code_chunk", path, liveChunk, { byteSize: liveBytes });
-    await flushStreamEvents(admin, state, true);
+    await flushStreamEvents(admin, state);
     offset = end;
   }
 }
