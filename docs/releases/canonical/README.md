@@ -88,7 +88,7 @@ and repeated by the physical observer.
 
 A schema-valid requirements contract contains exactly these five checks, in
 order: `node24`, `external-review`, `canonical-release-source-contract`,
-`Windows worker contract`, and `Exact source / Flutter / Android`. A duplicate,
+`Windows worker contract`, `Exact source / Flutter / Android`, and `Exact source / Flutter / iOS`. A duplicate,
 renamed, reordered, or command-weakened check cannot substitute for one of them.
 
 A separate evidence consumer may move the canonical status pack from `tested`
