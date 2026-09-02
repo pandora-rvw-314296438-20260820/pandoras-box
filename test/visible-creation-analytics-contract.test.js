@@ -45,7 +45,7 @@ test('intent proposal and build admission milestones follow authoritative transi
 });
 
 test('TTFC and source milestones are derived from real ordered stream events only', () => {
-  assert.match(conversation, /events\.sort\(\(left, right\) => left\.sequence\.compareTo\(right\.sequence\)\)/);
+  assert.match(conversation, /\.\.sort\(\(left, right\) => left\.sequence\.compareTo\(right\.sequence\)\)/);
   assert.match(conversation, /case 'code_chunk':[\s\S]{0,220}\(event\.contentChunk \?\? ''\)\.isNotEmpty[\s\S]{0,220}OwnerAnalyticsEvent\.firstCode/);
   assert.match(conversation, /case 'file_completed':[\s\S]{0,240}OwnerAnalyticsEvent\.fileComplete/);
   assert.match(conversation, /case 'generation_completed':[\s\S]{0,240}OwnerAnalyticsEvent\.sourceComplete/);
@@ -65,8 +65,13 @@ test('source access telemetry records outcomes without path query or source byte
   assert.match(experience, /OwnerAnalyticsEvent\.sourcePaywallViewed/);
   assert.match(experience, /OwnerAnalyticsEvent\.sourceAccessGranted/);
   assert.match(experience, /OwnerAnalyticsEvent\.sourceExported/);
-  const accessCapture = experience.slice(experience.indexOf('OwnerAnalyticsEvent.sourceAccessGranted'), experience.indexOf('String _sourceFunctionMessage'));
-  assert.doesNotMatch(accessCapture, /\bpath:\s*path\b|\bquery:\s*query\b|contentChunk|sourceBytes|body:/);
+  const captureCalls = [...experience.matchAll(/OwnerAnalytics\.shared\.capture\([\s\S]{0,520}?\),\n\s*\);/g)]
+    .map((match) => match[0])
+    .filter((value) => /source(?:AccessGranted|PaywallViewed|Exported)/.test(value));
+  assert.ok(captureCalls.length >= 3);
+  for (const call of captureCalls) {
+    assert.doesNotMatch(call, /\bpath:\s*path\b|\bquery:\s*query\b|contentChunk|sourceBytes|body:/);
+  }
 });
 
 test('publish telemetry has explicit start success and failure outcomes', () => {
