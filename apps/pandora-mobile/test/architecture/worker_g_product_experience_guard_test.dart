@@ -50,7 +50,18 @@ void main() {
     expect(source, contains('projectExperienceRepository'));
     expect(source, contains('_projection?.canPublish == true'));
     expect(source, isNot(contains('.projectRuntime;')));
-    expect(source, isNot(contains('.projectExperience;')));
+    expect(RegExp(r'\\.projectExperience;').allMatches(source).length, 1);
+    expect(source, contains('final api = dependencies.projectExperience;'));
+    expect(source, contains('final streamId = await api.findBuildStreamId('));
+    for (final mutation in const [
+      'api.requestBuild(',
+      'api.submitChange(',
+      'api.createPreview(',
+      'api.publish(',
+      'api.undo(',
+    ]) {
+      expect(source, isNot(contains(mutation)));
+    }
     expect(source, isNot(contains('.projectExperienceProjection;')));
     expect(source, contains('_projection?.candidateVersionId != null'));
     expect(source, contains('projection.productionVersionId == versionId'));
