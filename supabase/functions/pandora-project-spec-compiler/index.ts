@@ -8,7 +8,8 @@ const MODEL = Deno.env.get("PANDORA_PROJECT_SPEC_MODEL") || "gemini-3.5-flash-li
 const COMPILER_VERSION = "project-spec-compiler-v5";
 const MAX_BODY_BYTES = 2048;
 const MAX_MODEL_TEXT_BYTES = 262144;
-const MEMORY_PLANNING_URL = "https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-projectos-planning-context";\nconst MEMORY_PLANNING_PURPOSE = "projectos-planning-context-v1";
+const MEMORY_PLANNING_URL = "https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-projectos-planning-context";
+const MEMORY_PLANNING_PURPOSE = "projectos-planning-context-v1";
 
 type JsonRecord = Record<string, unknown>;
 
