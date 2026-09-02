@@ -336,19 +336,23 @@ class ExecutionLedgerClient {
         };
         this.assertRequestSize(createPayload);
         // Intake is intentionally completed before Memory retrieval, so every subsequent production
-        // operation is already linked to the canonical Pandoras-Box workspace.
+        // operation is already linked to the canonical Pandoras-Box workspace. Keep provider args
+        // immutable and inject only the accepted intake identity into Memory hydration.
+        const contextArgs = intake?.projectKey
+            ? { ...input.args, projectKey: intake.projectKey }
+            : input.args;
         let hydrated;
         if (this.contextProvider) {
             try {
                 hydrated = await this.contextProvider.hydrate(vercelOidcToken, {
                     tool: input.tool,
-                    args: input.args,
+                    args: contextArgs,
                 });
             }
             catch (error) {
                 hydrated = (0, plan_memory_context_js_1.createUnavailablePlanMemoryContext)({
                     tool: input.tool,
-                    args: input.args,
+                    args: contextArgs,
                 }, error);
             }
         }
