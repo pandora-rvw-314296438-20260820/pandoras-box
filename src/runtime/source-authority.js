@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sourceAuthorityPolicy = void 0;
+exports.canonicalMemoryProjectKey = canonicalMemoryProjectKey;
+exports.memoryProjectKeyForProjectOsIntake = memoryProjectKeyForProjectOsIntake;
 exports.repositorySourceStatus = repositorySourceStatus;
 exports.isOperationalRepository = isOperationalRepository;
 exports.assertOperationalRepository = assertOperationalRepository;
@@ -8,6 +10,7 @@ const fs_1 = require("node:fs");
 const path_1 = require("node:path");
 
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const PROJECT_KEY = /^[a-z0-9][a-z0-9._-]{0,79}$/;
 const POLICY_PATH = (0, path_1.resolve)(__dirname, '..', '..', 'SOURCE_AUTHORITY_POLICY.json');
 
 function loadPolicy() {
@@ -18,10 +21,32 @@ function loadPolicy() {
     if (!Array.isArray(parsed.deprecated_operational_sources)) {
         throw new Error('source authority policy has no deprecated operational sources');
     }
+    if (typeof parsed.project_key !== 'string' || !PROJECT_KEY.test(parsed.project_key)) {
+        throw new Error('source authority policy has no valid canonical project key');
+    }
+    if (!parsed.canonical || typeof parsed.canonical !== 'object'
+        || typeof parsed.canonical.vercel_project_name !== 'string'
+        || !PROJECT_KEY.test(parsed.canonical.vercel_project_name)) {
+        throw new Error('source authority policy has no valid ProjectOS control project key');
+    }
     return Object.freeze(parsed);
 }
 
 exports.sourceAuthorityPolicy = loadPolicy();
+
+function canonicalMemoryProjectKey() {
+    return exports.sourceAuthorityPolicy.project_key;
+}
+function memoryProjectKeyForProjectOsIntake(projectKey) {
+    if (typeof projectKey !== 'string')
+        throw new Error('ProjectOS project key is required for Memory hydration');
+    const normalized = projectKey.trim().toLowerCase();
+    if (!PROJECT_KEY.test(normalized))
+        throw new Error(`ProjectOS project key is invalid: ${projectKey}`);
+    return normalized === exports.sourceAuthorityPolicy.canonical.vercel_project_name
+        ? canonicalMemoryProjectKey()
+        : normalized;
+}
 
 function normalizedRepository(repository) {
     if (typeof repository !== 'string')

@@ -80,7 +80,7 @@ function buildExecutionIntakeRequest(input) {
     if (repository)
         (0, source_authority_js_1.assertOperationalRepository)(repository, 'create new work for');
     const explicitProjectKey = projectKeyFromArgs(input.args);
-    const fallbackProjectKey = repository ? undefined : 'mcpmaster-pandoras-box';
+    const fallbackProjectKey = repository ? undefined : 'mcpmaster';
     const resolvedProjectKey = explicitProjectKey ?? fallbackProjectKey;
     const target = repository ?? resolvedProjectKey ?? 'projectos-inbox';
     return {
