@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/project_preview_identity.dart';
 import 'pandora_preview_contract.dart';
 
 /// Android implementation of Pandora's exact in-memory preview host.
@@ -13,6 +14,7 @@ class PandoraAndroidPreview extends StatefulWidget {
     super.key,
     required this.files,
     required this.versionId,
+    required this.identity,
     required this.fallback,
     this.selectionEnabled = false,
     this.selectedSelector,
@@ -21,6 +23,7 @@ class PandoraAndroidPreview extends StatefulWidget {
 
   final List<Map<String, Object?>> files;
   final String versionId;
+  final ProjectPreviewIdentity identity;
   final Widget fallback;
   final bool selectionEnabled;
   final String? selectedSelector;
@@ -117,7 +120,8 @@ class _PandoraAndroidPreviewState extends State<PandoraAndroidPreview> {
   Widget build(BuildContext context) {
     if (!PandoraAndroidPreview.isSupported ||
         widget.files.isEmpty ||
-        widget.versionId.trim().isEmpty) {
+        widget.versionId.trim().isEmpty ||
+        widget.identity.versionId != widget.versionId.trim().toLowerCase()) {
       return widget.fallback;
     }
     return AndroidView(
@@ -126,7 +130,7 @@ class _PandoraAndroidPreviewState extends State<PandoraAndroidPreview> {
       creationParamsCodec: const StandardMessageCodec(),
       onPlatformViewCreated: _onPlatformViewCreated,
       creationParams: <String, Object?>{
-        'versionId': widget.versionId.trim(),
+        ...widget.identity.toCreationParams(),
         'files': widget.files,
       },
     );
