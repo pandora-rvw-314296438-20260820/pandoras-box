@@ -41,7 +41,7 @@
       "required": ["name", "providerContext", "authority", "conclusion", "sourceSha", "checkRunId", "checkSuiteId", "appId", "providerEvidenceRef"],
       "properties": {
         "name": {
-          "enum": ["node24", "external-review", "canonical-release-source-contract", "Windows worker contract", "Exact source / Flutter / Android"]
+          "enum": ["node24", "external-review", "canonical-release-source-contract", "Windows worker contract", "Exact source / Flutter / Android", "Exact source / Flutter / iOS"]
         },
         "providerContext": { "type": "string", "minLength": 1, "maxLength": 128 },
         "authority": { "enum": ["GITHUB_ACTIONS_PROVIDER", "TRUSTED_EXTERNAL_REVIEW_PROVIDER"] },
