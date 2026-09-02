@@ -5,8 +5,8 @@ const { resolveVercelWorkloadToken } = require('../src/runtime/vercel-workload-i
 const ORIGIN = 'https://pandorasbox-memory.vercel.app';
 const PROJECT = { key: 'mcpmaster-pandoras-box', id: '7c686cbd-d968-49d5-86cc-918f5e777bd2' };
 const DENIED = { key: 'launchos', id: 'b5ec8e3b-e470-44c5-a219-d3ad30e2be64' };
-const MEMORY_SHA = 'bfe88db4622a208eace9d1de025404d2d878e397';
-const DEPLOYMENT = 'dpl_9Y44hinKEjeGBmFjC49GG4nptVU1';
+const MEMORY_SHA = 'e40af4d532c7788f5d20176ca7e041b053ebe8f3';
+const DEPLOYMENT = 'dpl_Go5RXXwY7cwCqMgUZS9q7fTwMoS5';
 const IDEMPOTENCY = 'memory-max-task5-6-prod-20260903-v2';
 
 const digest = (value) => createHash('sha256').update(value, 'utf8').digest('hex');
