@@ -142,14 +142,7 @@ jobs:
 
       - name: Format
         working-directory: .pandora-mobile-build
-        shell: bash
-        run: |
-          set -euo pipefail
-          dart format lib/features/simple/project_experience_v2.dart
-          git --no-pager diff --no-index \
-            ../apps/pandora-mobile/lib/features/simple/project_experience_v2.dart \
-            lib/features/simple/project_experience_v2.dart || true
-          exit 1
+        run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Materialize canonical web formatter repair
         if: ${{ failure() }}
