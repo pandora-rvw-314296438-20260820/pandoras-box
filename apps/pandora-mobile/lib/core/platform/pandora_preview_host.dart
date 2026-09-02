@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/project_preview_identity.dart';
 import 'pandora_android_preview.dart';
 import 'pandora_desktop_preview.dart';
 import 'pandora_ios_preview.dart';
@@ -40,10 +41,19 @@ class PandoraPreviewHost extends StatelessWidget {
   Widget build(BuildContext context) {
     if (files.isEmpty || versionId.trim().isEmpty) return fallback;
 
+    ProjectPreviewIdentity identity;
+    try {
+      identity = ProjectPreviewIdentity.fromExactPreviewFiles(files);
+    } on FormatException {
+      return fallback;
+    }
+    if (identity.versionId != versionId.trim().toLowerCase()) return fallback;
+
     if (PandoraAndroidPreview.isSupported) {
       return PandoraAndroidPreview(
         files: files,
         versionId: versionId,
+        identity: identity,
         fallback: fallback,
         selectionEnabled: selectionEnabled,
         selectedSelector: selectedSelector,
@@ -55,6 +65,7 @@ class PandoraPreviewHost extends StatelessWidget {
       return PandoraIosPreview(
         files: files,
         versionId: versionId,
+        identity: identity,
         fallback: fallback,
         selectionEnabled: selectionEnabled,
         selectedSelector: selectedSelector,
@@ -66,6 +77,7 @@ class PandoraPreviewHost extends StatelessWidget {
       return PandoraWebPreview(
         files: files,
         versionId: versionId,
+        identity: identity,
         fallback: fallback,
         selectionEnabled: selectionEnabled,
         selectedSelector: selectedSelector,
