@@ -18,7 +18,7 @@ const IDEMPOTENCY_CONFLICT_CODE = "idempotency_conflict";
 const FAILURE_SCHEMA_VERSION = "1.0.0";
 const FAILURE_PROVIDER = "pandora-memory";
 const FAILURE_OPERATION = "memory.submitEvidenceCandidate";
-const EVIDENCE_PRIVACY_SCAN_VERSION = "evidence_privacy_v2";
+const EVIDENCE_PRIVACY_SCAN_VERSION = "evidence_privacy_v3";
 const MAX_RETRY_AFTER_MS = 86_400_000;
 
 const SAFE_BACKEND_FAILURES = new Map([
@@ -323,6 +323,11 @@ function privacyTextReason(value) {
     [/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/, "jwt_signature"],
     [/\b(?:password|passwd|passphrase|pwd|client[_ -]?secret|secret[_ -]?(?:key|access[_ -]?key)|aws[_ -]?(?:secret[_ -]?access[_ -]?key|access[_ -]?key[_ -]?id)|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|service[_ -]?role|private[_ -]?key|accountkey|sharedaccesssignature)\s*[:=]\s*["']?(?!(?:true|false|null|none|redacted|masked)\b)[^\s"',;}{]{4,}/i, "secret_assignment"],
     [/https?:\/\/[^/\s:@]+:[^/\s@]{4,}@/i, "credential_in_url"],
+    [/(?:^|\n)\s*```(?:[A-Za-z0-9_+.-]{0,32})[^\n]*\n[\s\S]{12,}?(?:\n\s*```|$)/m, "raw_source_code_block"],
+    [/(?:^|\n)\s*(?:system|developer|assistant|user)\s*:\s*[^\n]{4,}\n(?:[\s\S]*?\n)?\s*(?:system|developer|assistant|user)\s*:\s*[^\n]{4,}/i, "prompt_transcript"],
+    [/(?:^|\n)\s*(?:export\s+)?[A-Za-z][A-Za-z0-9_.-]{2,}\s*=\s*[^\n]{1,200}\n\s*(?:export\s+)?[A-Za-z][A-Za-z0-9_.-]{2,}\s*=\s*[^\n]{1,200}(?:\n|$)/, "env_config_dump"],
+    [/\{\s*["'][A-Za-z_][A-Za-z0-9_.-]{1,64}["']\s*:\s*[^{}\n]{1,160},\s*(?:\n\s*)?["'][A-Za-z_][A-Za-z0-9_.-]{1,64}["']\s*:/, "env_config_dump"],
+    [/(?:^|\n)\s*(?:import\s+.+\s+from\s+|export\s+(?:default\s+)?|(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=|(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\(|class\s+[A-Za-z_$][\w$]*\b|def\s+[A-Za-z_]\w*\s*\()[^\n]{0,240}\n\s*(?:import\s+|export\s+|(?:const|let|var)\s+|return\b|if\s*\(|for\s*\(|while\s*\(|(?:async\s+)?function\s+|class\s+|def\s+|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\s*\()/m, "raw_source_multiline"],
   ];
   for (const [pattern, reason] of checks) {
     if (pattern.test(text)) return reason;
