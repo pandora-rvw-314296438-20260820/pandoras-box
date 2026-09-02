@@ -7,6 +7,7 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/material.dart';
 
+import '../models/project_preview_identity.dart';
 import 'pandora_preview_contract.dart';
 
 const int _maxFileCount = 1000;
@@ -18,6 +19,7 @@ class PandoraWebPreview extends StatefulWidget {
     super.key,
     required this.files,
     required this.versionId,
+    required this.identity,
     required this.fallback,
     this.selectionEnabled = false,
     this.selectedSelector,
@@ -26,6 +28,7 @@ class PandoraWebPreview extends StatefulWidget {
 
   final List<Map<String, Object?>> files;
   final String versionId;
+  final ProjectPreviewIdentity identity;
   final Widget fallback;
   final bool selectionEnabled;
   final String? selectedSelector;
@@ -63,6 +66,10 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
   void didUpdateWidget(covariant PandoraWebPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
     final bundleChanged = oldWidget.versionId != widget.versionId ||
+        oldWidget.identity.deploymentId != widget.identity.deploymentId ||
+        oldWidget.identity.sourceSha256 != widget.identity.sourceSha256 ||
+        oldWidget.identity.artifactDigest != widget.identity.artifactDigest ||
+        oldWidget.identity.sourceCommitSha != widget.identity.sourceCommitSha ||
         !identical(oldWidget.files, widget.files);
     if (bundleChanged) {
       _materialize();
@@ -90,7 +97,9 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
   void _materialize() {
     final versionId = widget.versionId.trim();
     final parsed = _parseBundle(widget.files);
-    if (versionId.isEmpty || parsed == null) {
+    if (versionId.isEmpty ||
+        widget.identity.versionId != versionId.toLowerCase() ||
+        parsed == null) {
       _bundle = null;
       _srcdoc = null;
       return;
@@ -145,7 +154,7 @@ class _PandoraWebPreviewState extends State<PandoraWebPreview> {
     target.postMessage(
       <String, Object?>{
         'type': 'pandora-preview-init',
-        'versionId': versionId,
+        ...widget.identity.toCreationParams(),
       },
       '*',
       <html.MessagePort>[channel.port2],
