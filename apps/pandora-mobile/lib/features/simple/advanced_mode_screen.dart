@@ -113,9 +113,9 @@ class AdvancedModeScreen extends StatelessWidget {
                 onTap: () => _open(context, const SettingsScreen()),
               ),
             ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
 }
 
 class _AdvancedTile extends StatelessWidget {
