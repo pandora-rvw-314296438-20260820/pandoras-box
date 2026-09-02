@@ -215,9 +215,7 @@ class _ProjectBuildExperienceV2ScreenState
             if (mounted) setState(() => _error = error.message);
           }
         }
-      } else if (candidate.isPreviewEligible &&
-          !_ready &&
-          !_previewRequested) {
+      } else if (candidate.isPreviewEligible && !_ready && !_previewRequested) {
         _previewRequested = true;
         try {
           final result = await experience.createPreview(
