@@ -226,6 +226,18 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final items = _items;
+    String? latestProposalId;
+    DateTime? latestProposalAt;
+    if (items != null) {
+      for (final item in items) {
+        final currentLatest = latestProposalAt;
+        if (item.isProposal &&
+            (currentLatest == null || item.occurredAt.isAfter(currentLatest))) {
+          latestProposalId = item.id;
+          latestProposalAt = item.occurredAt;
+        }
+      }
+    }
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
       appBar: AppBar(
@@ -233,6 +245,18 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
         foregroundColor: PandoraV2Colors.ink,
         surfaceTintColor: Colors.transparent,
         title: const Text('History'),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: OutlinedButton.icon(
+            key: const ValueKey<String>('history-return-current-work'),
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back_rounded),
+            label: const Text('Back to current work'),
+          ),
+        ),
       ),
       body: SafeArea(
         top: false,
@@ -280,6 +304,9 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
                 for (final item in items) ...[
                   _HistoryItemCard(
                     item: item,
+                    collapsedByDefault:
+                        (item.isProposal && item.id != latestProposalId) ||
+                            item.isBuild,
                     onOpenBuild: item.buildJobId == null
                         ? null
                         : () => _openBuildEvidence(item),
@@ -300,11 +327,13 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
 class _HistoryItemCard extends StatefulWidget {
   const _HistoryItemCard({
     required this.item,
+    required this.collapsedByDefault,
     this.onOpenBuild,
     this.onOpenEvidence,
   });
 
   final ProjectConversationHistoryItem item;
+  final bool collapsedByDefault;
   final VoidCallback? onOpenBuild;
   final VoidCallback? onOpenEvidence;
 
@@ -321,8 +350,10 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
     final exactIntent =
         item.isUserIntent ? item.payloadText('intentText') : null;
     final detail = exactIntent ?? item.summary;
-    final canExpand =
-        item.expandable || detail.length > 260 || item.evidenceAvailable;
+    final canExpand = widget.collapsedByDefault ||
+        item.expandable ||
+        detail.length > 260 ||
+        item.evidenceAvailable;
     final actor = item.actorType == 'customer' ? 'You' : 'Pandora';
     final status = item.status?.trim();
     return Container(
@@ -366,16 +397,30 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
             ),
           ),
           const SizedBox(height: 7),
-          Text(
-            detail,
-            maxLines: _expanded ? null : 5,
-            overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PandoraV2Colors.ink,
-              fontSize: 14,
-              height: 1.42,
+          if (widget.collapsedByDefault && !_expanded)
+            Text(
+              item.summary,
+              key: ValueKey<String>('history-compact-summary-${item.id}'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 14,
+                height: 1.42,
+              ),
+            )
+          else
+            Text(
+              detail,
+              maxLines: _expanded ? null : 5,
+              overflow:
+                  _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 14,
+                height: 1.42,
+              ),
             ),
-          ),
           if (status != null && status.isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(
@@ -398,7 +443,15 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
                 if (canExpand)
                   TextButton(
                     onPressed: () => setState(() => _expanded = !_expanded),
-                    child: Text(_expanded ? 'Show less' : 'Show details'),
+                    child: Text(
+                      _expanded
+                          ? 'Show less'
+                          : widget.collapsedByDefault && item.isProposal
+                              ? 'Show proposal'
+                              : widget.collapsedByDefault && item.isBuild
+                                  ? 'Show build details'
+                                  : 'Show details',
+                    ),
                   ),
                 if (widget.onOpenEvidence != null)
                   TextButton.icon(
