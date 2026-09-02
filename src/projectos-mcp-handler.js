@@ -33,7 +33,14 @@ const MAX_BODY_BYTES = 256 * 1024;
 const DEFAULT_RESOURCE_ORIGIN = "https://mcpmaster.vercel.app";
 const AUTHORIZATION_SERVER = "https://jcyqixttuebxqqfkjonq.supabase.co/auth/v1";
 const IDENTITY_SCOPES = Object.freeze(["openid", "email", "profile"]);
-const LEGACY_IDENTITY_SCOPES = new Set([...IDENTITY_SCOPES, "offline_access"]);
+const PROJECTOS_ACTION_SCOPES = Object.freeze([
+    "projectos:read",
+    "projectos:plan",
+    "projectos:approve",
+    "projectos:execute",
+]);
+const MCP_OAUTH_SCOPES = Object.freeze([...IDENTITY_SCOPES, ...PROJECTOS_ACTION_SCOPES]);
+const LEGACY_IDENTITY_SCOPES = new Set([...IDENTITY_SCOPES, "phone", "offline_access"]);
 const MCP_ALLOWED_METHODS = "GET,POST,DELETE,OPTIONS";
 const MCP_ALLOWED_HEADERS = "Authorization,Content-Type,Mcp-Protocol-Version,Last-Event-ID,X-Request-Id";
 const MCP_EXPOSED_HEADERS = "WWW-Authenticate,Mcp-Protocol-Version,X-Request-Id";
@@ -129,7 +136,7 @@ function applyMcpCors(request, response, allowedOrigins) {
 }
 
 function oauthChallenge() {
-    return `Bearer resource_metadata="${resourceOrigin()}/.well-known/oauth-protected-resource/mcp", scope="${IDENTITY_SCOPES.join(" ")}"`;
+    return `Bearer resource_metadata="${resourceOrigin()}/.well-known/oauth-protected-resource/mcp", scope="${MCP_OAUTH_SCOPES.join(" ")}"`;
 }
 
 function protectedResourceMetadata() {
@@ -138,7 +145,7 @@ function protectedResourceMetadata() {
         resource: `${origin}/mcp`,
         resource_name: "Banatao Systems ProjectOS",
         authorization_servers: [AUTHORIZATION_SERVER],
-        scopes_supported: [...IDENTITY_SCOPES],
+        scopes_supported: [...MCP_OAUTH_SCOPES],
         bearer_methods_supported: ["header"],
         resource_documentation: `${origin}/control-tower`,
     };
