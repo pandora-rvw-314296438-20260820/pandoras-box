@@ -91,7 +91,11 @@ class _ProjectBuildConversationScreenState
       switch (event.eventType) {
         case 'code_chunk':
           if ((event.contentChunk ?? '').isNotEmpty) {
-            captureOnce('first_code', OwnerAnalyticsEvent.firstCode, event: event);
+            captureOnce(
+              'first_code',
+              OwnerAnalyticsEvent.firstCode,
+              event: event,
+            );
           }
           break;
         case 'file_completed':
