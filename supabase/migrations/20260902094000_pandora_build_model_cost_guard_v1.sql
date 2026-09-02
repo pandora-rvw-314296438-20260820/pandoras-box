@@ -101,7 +101,7 @@ create table if not exists public.pandora_source_model_budget_reservations (
     unique (queue_id, dispatch_attempt)
 );
 
-create index if not exists pandora_source_model_budget_reservation_spec_idxget_reservation_spec_idx
+create index if not exists pandora_source_model_budget_reservation_spec_idx
   on public.pandora_source_model_budget_reservations(project_spec_id, created_at desc);
 create index if not exists pandora_source_model_budget_reservation_model_run_idx
   on public.pandora_source_model_budget_reservations(model_run_id)
