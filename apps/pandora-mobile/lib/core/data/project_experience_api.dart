@@ -923,11 +923,24 @@ class ProjectExperienceApi {
       }
       final responseProjectId = _text(data['projectId']).toLowerCase();
       final responseVersionId = _text(data['versionId']).toLowerCase();
+      final previewDeploymentId =
+          _text(data['previewDeploymentId']).toLowerCase();
+      final sourceSha256 = _text(data['sourceSha256']).toLowerCase();
+      final sourceCommitSha =
+          _optionalText(data['sourceCommitSha'])?.toLowerCase();
       final artifactDigest = _text(data['artifactDigest']).toLowerCase();
       final requestedProjectId = projectId.trim().toLowerCase();
       final requestedVersionId = versionId.trim().toLowerCase();
+      final uuid = RegExp(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+      );
+      final commit = RegExp(r'^(?:[0-9a-f]{40}|[0-9a-f]{64})$');
       if (responseProjectId != requestedProjectId ||
           responseVersionId != requestedVersionId ||
+          (previewDeploymentId != 'local-artifact' &&
+              !uuid.hasMatch(previewDeploymentId)) ||
+          !RegExp(r'^[0-9a-f]{64}$').hasMatch(sourceSha256) ||
+          (sourceCommitSha != null && !commit.hasMatch(sourceCommitSha)) ||
           !RegExp(r'^[0-9a-f]{64}$').hasMatch(artifactDigest)) {
         throw const ProjectExperienceException(
           'Pandora returned an unreadable preview.',
@@ -973,9 +986,12 @@ class ProjectExperienceApi {
           'artifactDigest': artifactDigest,
           'previewProjectId': responseProjectId,
           'previewVersionId': responseVersionId,
+          'previewDeploymentId': previewDeploymentId,
+          'sourceSha256': sourceSha256,
+          if (sourceCommitSha != null) 'sourceCommitSha': sourceCommitSha,
         });
       }
-      return files;
+      return List<Map<String, Object?>>.unmodifiable(files);
     } on ProjectExperienceException {
       rethrow;
     } on FunctionException {
