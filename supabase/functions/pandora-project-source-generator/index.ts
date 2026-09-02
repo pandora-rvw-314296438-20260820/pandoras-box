@@ -563,7 +563,7 @@ async function runGenerationInBackground(input: {
       model: MODEL,
       model_revision: streamed.meta.modelVersion || MODEL,
       request_sha256: requestSha,
-      context_sha256: input.spec.content_sha256,
+      context_sha256: text(input.memoryContext.contextHash),
       response_sha256: responseSha,
       input_tokens: Number(usage.promptTokenCount || 0),
       output_tokens: Number(usage.candidatesTokenCount || 0),
