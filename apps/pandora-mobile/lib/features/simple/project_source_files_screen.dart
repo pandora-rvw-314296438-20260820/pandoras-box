@@ -53,8 +53,8 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_projectionSubscription == null) {
-      final repository =
-          PandoraDependencies.of(context).projectExperienceRepository;
+      final repository = PandoraDependencies.of(context)
+          .projectExperienceRepository;
       if (repository != null) {
         _projectionSubscription = repository
             .watchExperience(widget.project.id)
@@ -113,8 +113,9 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
   Future<void> _chooseComparison() async {
     final api = _api;
     final selected = _tree;
-    final alternatives =
-        _versions.where((choice) => choice.id != _selectedVersionId).toList();
+    final alternatives = _versions
+        .where((choice) => choice.id != _selectedVersionId)
+        .toList();
     if (api == null || selected == null || alternatives.isEmpty || _comparing) {
       return;
     }
@@ -266,8 +267,7 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
                       padding: EdgeInsets.only(bottom: 10),
                       child: PandoraV2InlineMessage(
                         title: 'Secret value withheld',
-                        message:
-                            'Pandora removed a high-risk secret value from this view.',
+                        message: 'Pandora removed a high-risk secret value from this view.',
                       ),
                     ),
                   Expanded(
@@ -443,7 +443,8 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
               else if (tree == null)
                 PandoraV2InlineMessage(
                   title: 'Source access',
-                  message: _error ??
+                  message:
+                      _error ??
                       'Source files are available with source access.',
                   actionLabel: 'Try again',
                   onAction: () {
@@ -470,7 +471,9 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.difference_rounded),
                         label: const Text('Compare'),
@@ -596,7 +599,6 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
   }
 }
 
-
 class _SourceVersionChoice {
   const _SourceVersionChoice({required this.id, required this.label});
 
@@ -613,10 +615,10 @@ class _SourceTreeChange {
   final _SourceTreeChangeStatus status;
 
   String get label => switch (status) {
-        _SourceTreeChangeStatus.added => 'Added',
-        _SourceTreeChangeStatus.modified => 'Modified',
-        _SourceTreeChangeStatus.removed => 'Removed',
-      };
+    _SourceTreeChangeStatus.added => 'Added',
+    _SourceTreeChangeStatus.modified => 'Modified',
+    _SourceTreeChangeStatus.removed => 'Removed',
+  };
 }
 
 class _SourceTreeDiff {
@@ -656,10 +658,7 @@ class _SourceTreeDiff {
         );
       } else if (otherFile == null) {
         changes.add(
-          _SourceTreeChange(
-            path: path,
-            status: _SourceTreeChangeStatus.added,
-          ),
+          _SourceTreeChange(path: path, status: _SourceTreeChangeStatus.added),
         );
       } else if (selectedFile.sha256 != otherFile.sha256) {
         changes.add(
@@ -689,45 +688,45 @@ class _SourceDiffCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: PandoraV2Colors.surface,
-          border: Border.all(color: PandoraV2Colors.line),
-          borderRadius: BorderRadius.circular(16),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: PandoraV2Colors.surface,
+      border: Border.all(color: PandoraV2Colors.line),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Compared with ${diff.otherLabel}',
+          style: const TextStyle(
+            color: PandoraV2Colors.ink,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Compared with ${diff.otherLabel}',
-              style: const TextStyle(
-                color: PandoraV2Colors.ink,
-                fontWeight: FontWeight.w700,
+        const SizedBox(height: 4),
+        Text(diff.otherVersionId, style: pandoraV2Muted),
+        const SizedBox(height: 10),
+        if (diff.changes.isEmpty)
+          const Text('No file digest changes.', style: pandoraV2Muted)
+        else
+          for (final change in diff.changes.take(100))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                '${change.label} · ${change.path}',
+                style: const TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 12.5,
+                ),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(diff.otherVersionId, style: pandoraV2Muted),
-            const SizedBox(height: 10),
-            if (diff.changes.isEmpty)
-              const Text('No file digest changes.', style: pandoraV2Muted)
-            else
-              for (final change in diff.changes.take(100))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    '${change.label} · ${change.path}',
-                    style: const TextStyle(
-                      color: PandoraV2Colors.ink,
-                      fontSize: 12.5,
-                    ),
-                  ),
-                ),
-            if (diff.changes.length > 100)
-              Text(
-                '${diff.changes.length - 100} more changes not shown.',
-                style: pandoraV2Muted,
-              ),
-          ],
-        ),
-      );
+        if (diff.changes.length > 100)
+          Text(
+            '${diff.changes.length - 100} more changes not shown.',
+            style: pandoraV2Muted,
+          ),
+      ],
+    ),
+  );
 }
