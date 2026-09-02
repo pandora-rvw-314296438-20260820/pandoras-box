@@ -254,7 +254,7 @@ Deno.serve(async (req: Request) => {
     });
     const zip = zipStored(exportFiles);
     const exportDigest = await sha256Hex(zip);
-    if (!SHA256_RE.test(exportDigest) throw new Error("SOURCE_EXPORT_DIGEST_INVALID");
+    if (!SHA256_RE.test(exportDigest)) throw new Error("SOURCE_EXPORT_DIGEST_INVALID");
     await recordAudit(admin, {
       p_organization_id: organizationId,
       p_project_id: projectId,
