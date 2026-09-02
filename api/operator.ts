@@ -7,6 +7,7 @@ import { createOperatorApiApp } from '../apps/meta-business-mcp/src/operator/api
 import { createCanonicalStatusProviderFromEnvironment } from '../src/projectos/canonical-status-provider.js';
 import { WorkerPlanContextProvider } from '../src/projectos/worker-plan-context-provider.js';
 import { ProjectMemoryContextProvider } from '../src/projectos/project-memory-context-provider.js';
+import { resolveVercelWorkloadToken } from '../src/runtime/vercel-workload-identity.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
 
@@ -46,9 +47,9 @@ function runtime() {
   return app;
 }
 
-export default function operator(request: any, response: any) {
+export default async function operator(request: any, response: any) {
   const platformOidc = process.env.VERCEL === '1'
-    ? request.headers?.['x-vercel-oidc-token']
+    ? await resolveVercelWorkloadToken()
     : undefined;
   Object.defineProperty(request, '__canonicalVercelOidcToken', {
     configurable: false,
