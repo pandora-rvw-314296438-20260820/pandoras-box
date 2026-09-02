@@ -29,6 +29,9 @@ class ProjectWorkspaceV2View extends StatelessWidget {
     required this.onToggleSelection,
     required this.onOpenPreview,
     required this.progressPhase,
+    this.liveActivityLabel,
+    this.liveActivityDetail,
+    this.onOpenLiveActivity,
     required this.recentlyUpdated,
     required this.currentVersionVerified,
     required this.changeDiff,
@@ -64,6 +67,9 @@ class ProjectWorkspaceV2View extends StatelessWidget {
   final VoidCallback onToggleSelection;
   final VoidCallback onOpenPreview;
   final ProjectChangePhase? progressPhase;
+  final String? liveActivityLabel;
+  final String? liveActivityDetail;
+  final VoidCallback? onOpenLiveActivity;
   final bool recentlyUpdated;
   final bool currentVersionVerified;
   final ProjectExactSourceDiff? changeDiff;
@@ -167,7 +173,18 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                           ],
                         ),
                       ),
-                    if (progressPhase != null)
+                    if (liveActivityLabel != null)
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        top: 58,
+                        child: _LiveBuildActivityStrip(
+                          label: liveActivityLabel!,
+                          detail: liveActivityDetail,
+                          onTap: onOpenLiveActivity,
+                        ),
+                      )
+                    else if (progressPhase != null)
                       Positioned(
                         left: 12,
                         right: 12,
@@ -807,6 +824,94 @@ class _PreviewIconButton extends StatelessWidget {
           color: PandoraV2Colors.ink,
         ),
       );
+}
+
+class _LiveBuildActivityStrip extends StatelessWidget {
+  const _LiveBuildActivityStrip({
+    required this.label,
+    required this.detail,
+    required this.onTap,
+  });
+
+  final String label;
+  final String? detail;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = detail?.trim();
+    return Material(
+      key: const Key('workspace-live-activity-strip'),
+      color: PandoraV2Colors.ink.withValues(alpha: .94),
+      elevation: 5,
+      shadowColor: Colors.black26,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(13, 10, 10, 10),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.code_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (secondary != null && secondary.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        secondary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: .72),
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (onTap != null) ...[
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ProjectProgressCapsule extends StatelessWidget {

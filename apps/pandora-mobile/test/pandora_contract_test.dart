@@ -16,7 +16,7 @@ void main() {
       '2270b266-59da-4c39-bfd9-9f8d08352af0',
     );
     expect(PandoraConfig.supabasePublishableKey, startsWith('sb_publishable_'));
-    expect(PandoraConfig.appVersion, '0.4.0-rc.1+7');
+    expect(PandoraConfig.appVersion, '0.4.0-rc.2+8');
   });
 
   test('only the contract-proven owner endpoint is configured', () {
