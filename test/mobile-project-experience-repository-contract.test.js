@@ -34,6 +34,7 @@ test('one repository owns the customer Project Experience contract', () => {
     'submitChange(',
     'understanding(',
     'requestBuild(',
+    'findBuildStreamId(',
     'loadExactPreviewFiles(',
     'runtime(',
     'createPreview(',
