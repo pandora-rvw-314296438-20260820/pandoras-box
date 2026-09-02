@@ -1,13 +1,20 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/core/data/project_experience_api.dart';
 
-ProjectBuildStreamEvent _event(int sequence, {String type = 'job_state'}) {
+ProjectBuildStreamEvent _event(
+  int sequence, {
+  String type = 'job_state',
+  String? filePath,
+  String? contentChunk,
+}) {
   return ProjectBuildStreamEvent(
     id: sequence,
     sequence: sequence,
     eventType: type,
     safePayload: const <String, Object?>{},
     createdAt: DateTime.utc(2026, 9, 1, 9, 0),
+    filePath: filePath,
+    contentChunk: contentChunk,
   );
 }
 
@@ -108,5 +115,131 @@ void main() {
       ),
       throwsFormatException,
     );
+  });
+
+  test('transport-reordered code_chunk is canonicalized before file_started',
+      () {
+    final reconciler = ProjectBuildStreamReconciler();
+    reconciler.seedCursor(0);
+
+    final snapshot = reconciler.mergeLive(<ProjectBuildStreamEvent>[
+      _event(
+        2,
+        type: 'code_chunk',
+        filePath: 'lib/main.dart',
+        contentChunk: 'void main() {}\n',
+      ),
+      _event(1, type: 'file_started', filePath: 'lib/main.dart'),
+    ]);
+
+    expect(snapshot.latestSequence, 2);
+    expect(snapshot.requiresReplay, isFalse);
+    expect(snapshot.events.map((event) => event.sequence), <int>[1, 2]);
+    expect(snapshot.events[0].eventType, 'file_started');
+    expect(snapshot.events[1].contentChunk, 'void main() {}\n');
+  });
+
+  test('shuffled replay source events converge to authoritative sequence', () {
+    final reconciler = ProjectBuildStreamReconciler();
+    reconciler.seedCursor(0);
+
+    final snapshot = reconciler.mergeReplay(
+      _replay(
+        events: <ProjectBuildStreamEvent>[
+          _event(3, type: 'file_completed', filePath: 'lib/main.dart'),
+          _event(
+            2,
+            type: 'code_chunk',
+            filePath: 'lib/main.dart',
+            contentChunk: 'alpha\n',
+          ),
+          _event(1, type: 'file_started', filePath: 'lib/main.dart'),
+        ],
+        watermark: 3,
+      ),
+    );
+
+    expect(snapshot.latestSequence, 3);
+    expect(snapshot.events.map((event) => event.sequence), <int>[1, 2, 3]);
+    expect(snapshot.events[1].contentChunk, 'alpha\n');
+  });
+
+  test('live overlap cannot replace replayed authoritative source bytes', () {
+    final reconciler = ProjectBuildStreamReconciler();
+    reconciler.seedCursor(0);
+
+    reconciler.mergeReplay(
+      _replay(
+        events: <ProjectBuildStreamEvent>[
+          _event(1, type: 'file_started', filePath: 'lib/a.dart'),
+          _event(
+            2,
+            type: 'code_chunk',
+            filePath: 'lib/a.dart',
+            contentChunk: 'authoritative\n',
+          ),
+          _event(3, type: 'file_completed', filePath: 'lib/a.dart'),
+        ],
+        watermark: 3,
+      ),
+    );
+
+    final snapshot = reconciler.mergeLive(<ProjectBuildStreamEvent>[
+      _event(
+        2,
+        type: 'code_chunk',
+        filePath: 'lib/a.dart',
+        contentChunk: 'stale-overlap\n',
+      ),
+      _event(4, type: 'file_started', filePath: 'lib/b.dart'),
+      _event(
+        5,
+        type: 'code_chunk',
+        filePath: 'lib/b.dart',
+        contentChunk: 'new\n',
+      ),
+      _event(3, type: 'file_completed', filePath: 'lib/a.dart'),
+    ]);
+
+    expect(snapshot.latestSequence, 5);
+    expect(snapshot.requiresReplay, isFalse);
+    expect(
+        snapshot.events.map((event) => event.sequence), <int>[1, 2, 3, 4, 5]);
+    expect(snapshot.events[1].contentChunk, 'authoritative\n');
+    expect(snapshot.events[4].contentChunk, 'new\n');
+  });
+
+  test('reconnect replay overlap converges to one monotonic sequence', () {
+    final reconciler = ProjectBuildStreamReconciler();
+    reconciler.seedCursor(0);
+
+    reconciler.mergeReplay(
+      _replay(
+        events: <ProjectBuildStreamEvent>[
+          _event(1),
+          _event(2),
+          _event(3),
+        ],
+        watermark: 3,
+      ),
+    );
+
+    final snapshot = reconciler.mergeReplay(
+      _replay(
+        events: <ProjectBuildStreamEvent>[
+          _event(5),
+          _event(2),
+          _event(4),
+          _event(3),
+        ],
+        watermark: 5,
+      ),
+      reconnecting: true,
+    );
+
+    expect(snapshot.latestSequence, 5);
+    expect(
+        snapshot.events.map((event) => event.sequence), <int>[1, 2, 3, 4, 5]);
+    expect(snapshot.reconnecting, isTrue);
   });
 }
