@@ -140,7 +140,7 @@ class _ProjectBuildExperienceV2ScreenState
     if (candidate == null || !candidate.isPreviewEligible) return false;
     return _previewUrl != null ||
         (_localPreviewVersionId == candidate.versionId &&
-            _localPreviewFiles != null);
+            _localPreviewFiles?.isNotEmpty == true);
   }
 
   bool get _publishReady {
