@@ -19,8 +19,9 @@ void main() {
     );
   });
 
-  testWidgets('Advanced Mode converges the nine technical surfaces',
-      (tester) async {
+  testWidgets('Advanced Mode converges the nine technical surfaces', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(1000, 1800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
