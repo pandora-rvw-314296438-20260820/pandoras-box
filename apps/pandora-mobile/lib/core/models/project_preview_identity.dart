@@ -63,8 +63,8 @@ class ProjectPreviewIdentity {
     );
     final sha256 = RegExp(r'^[0-9a-f]{64}$');
     final commit = RegExp(r'^(?:[0-9a-f]{40}|[0-9a-f]{64})$');
-    final deploymentOk =
-        rawDeployment == localArtifactDeploymentId || uuid.hasMatch(rawDeployment);
+    final deploymentOk = rawDeployment == localArtifactDeploymentId ||
+        uuid.hasMatch(rawDeployment);
     if (!uuid.hasMatch(projectId) ||
         !uuid.hasMatch(versionId) ||
         !sha256.hasMatch(artifactDigest) ||
