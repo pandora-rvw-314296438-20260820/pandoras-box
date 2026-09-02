@@ -661,14 +661,13 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
     if (_liveBuildSubscription != null || _resolvingLiveBuild) return;
 
-    final dependencies = PandoraDependencies.of(context);
-    final api = dependencies.projectExperience;
-    final repository = dependencies.projectExperienceRepository;
-    if (api == null || repository == null) return;
+    final repository =
+        PandoraDependencies.of(context).projectExperienceRepository;
+    if (repository == null) return;
 
     _resolvingLiveBuild = true;
     try {
-      final streamId = await api.findBuildStreamId(
+      final streamId = await repository.findBuildStreamId(
         projectId: widget.project.id,
         buildJobId: buildJobId,
       );
