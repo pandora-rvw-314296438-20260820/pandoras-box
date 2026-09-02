@@ -45,6 +45,11 @@ const REQUIRED_CHECK_BINDINGS = Object.freeze([
     providerContext: "Exact source / Flutter / Android",
     appId: GITHUB_ACTIONS_APP_ID,
   }),
+  Object.freeze({
+    name: "Exact source / Flutter / iOS",
+    providerContext: "Exact source / Flutter / iOS",
+    appId: GITHUB_ACTIONS_APP_ID,
+  }),
 ]);
 const REQUIRED_CHECK_IDENTITIES = Object.freeze(REQUIRED_CHECK_BINDINGS.map(({ name }) => name));
 const REPOSITORY_CHECK_IDENTITIES = Object.freeze(
@@ -55,6 +60,7 @@ const REQUIRED_CHECK_WORKFLOW_PATHS = Object.freeze({
   "canonical-release-source-contract": ".github/workflows/canonical-release-evidence.yml",
   "Windows worker contract": ".github/workflows/windows-worker-contract.yml",
   "Exact source / Flutter / Android": ".github/workflows/pandora-mobile-integration.yml",
+  "Exact source / Flutter / iOS": ".github/workflows/pandora-mobile-integration.yml",
 });
 const AUTHORITY_POLICY_PATH = require.resolve("../../SOURCE_AUTHORITY_POLICY.json");
 const HISTORICAL_SURFACES_PATH = require.resolve("../../docs/status/HISTORICAL_STATUS_SURFACES.json");
