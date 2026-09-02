@@ -15,50 +15,53 @@ Map<String, Object?> _file({
   String deploymentId = _deploymentId,
   String? sourceCommitSha = _sourceCommit,
   String artifactDigest = _artifactDigest,
-}) =>
-    <String, Object?>{
-      'file': path,
-      'previewProjectId': _projectId,
-      'previewVersionId': _versionId,
-      'previewDeploymentId': deploymentId,
-      'sourceSha256': _sourceSha,
-      if (sourceCommitSha != null) 'sourceCommitSha': sourceCommitSha,
-      'artifactDigest': artifactDigest,
-    };
+}) => <String, Object?>{
+  'file': path,
+  'previewProjectId': _projectId,
+  'previewVersionId': _versionId,
+  'previewDeploymentId': deploymentId,
+  'sourceSha256': _sourceSha,
+  if (sourceCommitSha != null) 'sourceCommitSha': sourceCommitSha,
+  'artifactDigest': artifactDigest,
+};
 
 void main() {
-  test('hosted identity preserves exact version, deployment, source, and artifact', () {
-    final identity = ProjectPreviewIdentity.fromExactPreviewFiles(<Map<String, Object?>>[
-      _file(),
-      _file(path: 'app.js'),
-    ]);
+  test(
+    'hosted identity preserves exact version, deployment, source, and artifact',
+    () {
+      final identity = ProjectPreviewIdentity.fromExactPreviewFiles(
+        <Map<String, Object?>>[_file(), _file(path: 'app.js')],
+      );
 
-    expect(identity.projectId, _projectId);
-    expect(identity.versionId, _versionId);
-    expect(identity.deploymentId, _deploymentId);
-    expect(identity.sourceSha256, _sourceSha);
-    expect(identity.sourceCommitSha, _sourceCommit);
-    expect(identity.artifactDigest, _artifactDigest);
-    expect(identity.isLocalArtifact, isFalse);
-    expect(
-      identity.matches(
-        projectId: _projectId,
-        versionId: _versionId,
-        deploymentId: _deploymentId,
-        sourceSha256: _sourceSha,
-        artifactDigest: _artifactDigest,
-      ),
-      isTrue,
-    );
-  });
+      expect(identity.projectId, _projectId);
+      expect(identity.versionId, _versionId);
+      expect(identity.deploymentId, _deploymentId);
+      expect(identity.sourceSha256, _sourceSha);
+      expect(identity.sourceCommitSha, _sourceCommit);
+      expect(identity.artifactDigest, _artifactDigest);
+      expect(identity.isLocalArtifact, isFalse);
+      expect(
+        identity.matches(
+          projectId: _projectId,
+          versionId: _versionId,
+          deploymentId: _deploymentId,
+          sourceSha256: _sourceSha,
+          artifactDigest: _artifactDigest,
+        ),
+        isTrue,
+      );
+    },
+  );
 
   test('local artifact identity remains explicit and may omit source commit', () {
-    final identity = ProjectPreviewIdentity.fromExactPreviewFiles(<Map<String, Object?>>[
-      _file(
-        deploymentId: ProjectPreviewIdentity.localArtifactDeploymentId,
-        sourceCommitSha: null,
-      ),
-    ]);
+    final identity = ProjectPreviewIdentity.fromExactPreviewFiles(
+      <Map<String, Object?>>[
+        _file(
+          deploymentId: ProjectPreviewIdentity.localArtifactDeploymentId,
+          sourceCommitSha: null,
+        ),
+      ],
+    );
 
     expect(identity.isLocalArtifact, isTrue);
     expect(identity.sourceCommitSha, isEmpty);
