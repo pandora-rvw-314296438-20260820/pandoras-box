@@ -187,28 +187,20 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                         ),
                       ),
                     Positioned.fill(
-                      child: DraggableScrollableSheet(
-                        initialChildSize: .18,
-                        minChildSize: .18,
-                        maxChildSize: .64,
-                        snap: true,
-                        snapSizes: const [.38],
-                        builder: (context, scrollController) =>
-                            _PandoraComposerSheet(
-                          scrollController: scrollController,
-                          selectionMode: selectionMode,
-                          selectedPreviewTarget: selectedPreviewTarget,
-                          intelligenceReply: intelligenceReply,
-                          publishReceipt: publishReceipt,
-                          error: error,
-                          onClearSelection: onClearSelection,
-                          onDismissIntelligence: onDismissIntelligence,
-                          onDismissError: onDismissError,
-                          changeController: changeController,
-                          changeEnabled: changeEnabled,
-                          onSubmit: onSubmit,
-                          onVoice: onVoice,
-                        ),
+                      child: _ProgressiveComposerSheet(
+                        hasExactPreview: hasExactPreview,
+                        selectionMode: selectionMode,
+                        selectedPreviewTarget: selectedPreviewTarget,
+                        intelligenceReply: intelligenceReply,
+                        publishReceipt: publishReceipt,
+                        error: error,
+                        onClearSelection: onClearSelection,
+                        onDismissIntelligence: onDismissIntelligence,
+                        onDismissError: onDismissError,
+                        changeController: changeController,
+                        changeEnabled: changeEnabled,
+                        onSubmit: onSubmit,
+                        onVoice: onVoice,
                       ),
                     ),
                   ],
@@ -220,6 +212,100 @@ class ProjectWorkspaceV2View extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ProgressiveComposerSheet extends StatefulWidget {
+  const _ProgressiveComposerSheet({
+    required this.hasExactPreview,
+    required this.selectionMode,
+    required this.selectedPreviewTarget,
+    required this.intelligenceReply,
+    required this.publishReceipt,
+    required this.error,
+    required this.onClearSelection,
+    required this.onDismissIntelligence,
+    required this.onDismissError,
+    required this.changeController,
+    required this.changeEnabled,
+    required this.onSubmit,
+    required this.onVoice,
+  });
+
+  static const previewPrimaryExtent = .14;
+  static const pendingExtent = .28;
+  static const maxExtent = .64;
+
+  final bool hasExactPreview;
+  final bool selectionMode;
+  final PandoraPreviewSelection? selectedPreviewTarget;
+  final String? intelligenceReply;
+  final Map<String, Object?>? publishReceipt;
+  final String? error;
+  final VoidCallback onClearSelection;
+  final VoidCallback onDismissIntelligence;
+  final VoidCallback onDismissError;
+  final TextEditingController changeController;
+  final bool changeEnabled;
+  final ValueChanged<String> onSubmit;
+  final Future<void> Function() onVoice;
+
+  @override
+  State<_ProgressiveComposerSheet> createState() =>
+      _ProgressiveComposerSheetState();
+}
+
+class _ProgressiveComposerSheetState extends State<_ProgressiveComposerSheet> {
+  final _controller = DraggableScrollableController();
+
+  double get _restingExtent => widget.hasExactPreview
+      ? _ProgressiveComposerSheet.previewPrimaryExtent
+      : _ProgressiveComposerSheet.pendingExtent;
+
+  @override
+  void didUpdateWidget(covariant _ProgressiveComposerSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.hasExactPreview == widget.hasExactPreview) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_controller.isAttached) return;
+      _controller.animateTo(
+        _restingExtent,
+        duration: const Duration(milliseconds: 360),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => DraggableScrollableSheet(
+        key: const Key('workspace-progressive-composer'),
+        controller: _controller,
+        initialChildSize: _restingExtent,
+        minChildSize: _restingExtent,
+        maxChildSize: _ProgressiveComposerSheet.maxExtent,
+        snap: true,
+        snapSizes: const [.38],
+        builder: (context, scrollController) => _PandoraComposerSheet(
+          scrollController: scrollController,
+          selectionMode: widget.selectionMode,
+          selectedPreviewTarget: widget.selectedPreviewTarget,
+          intelligenceReply: widget.intelligenceReply,
+          publishReceipt: widget.publishReceipt,
+          error: widget.error,
+          onClearSelection: widget.onClearSelection,
+          onDismissIntelligence: widget.onDismissIntelligence,
+          onDismissError: widget.onDismissError,
+          changeController: widget.changeController,
+          changeEnabled: widget.changeEnabled,
+          onSubmit: widget.onSubmit,
+          onVoice: widget.onVoice,
+        ),
+      );
 }
 
 class _PandoraComposerSheet extends StatelessWidget {
