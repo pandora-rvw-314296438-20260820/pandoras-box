@@ -215,7 +215,9 @@ class _ProjectBuildExperienceV2ScreenState
             if (mounted) setState(() => _error = error.message);
           }
         }
-      } else if (candidate.isPreviewEligible && !_ready && !_previewRequested) {
+      } else if (candidate.isPreviewEligible &&
+          !_ready &&
+          !_previewRequested) {
         _previewRequested = true;
         try {
           final result = await experience.createPreview(
@@ -324,7 +326,8 @@ class _ProjectBuildExperienceV2ScreenState
 
   String get _stageTitle {
     final updating = widget.baseVersionId?.trim().isNotEmpty == true;
-    if (_ready && !_publishReady) return updating ? 'Change preview' : 'Preview';
+    if (_ready && !_publishReady)
+      return updating ? 'Change preview' : 'Preview';
     if (_ready) return updating ? 'Updated' : 'Ready';
     if (_candidate != null) return 'Preparing your preview';
     if (_snapshot?.verification?.state == 'checking') return 'Checking';
