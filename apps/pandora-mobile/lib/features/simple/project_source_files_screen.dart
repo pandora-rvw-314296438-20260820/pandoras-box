@@ -346,7 +346,7 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
           .replaceAll(RegExp(r'^-+|-+$'), '');
       final saved = await PandoraNativeIo.saveBinaryDocument(
         name:
-            '${safeProject.isEmpty ? 'pandora-project' : safeProject}-${_selectedVersionId}.zip',
+            '${safeProject.isEmpty ? 'pandora-project' : safeProject}-$_selectedVersionId.zip',
         mimeType: 'application/zip',
         bytes: bytes,
       );
