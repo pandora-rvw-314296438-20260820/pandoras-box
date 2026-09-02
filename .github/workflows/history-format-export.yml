@@ -1,0 +1,27 @@
+name: History formatter export
+on:
+  push:
+    branches:
+      - chatgpt/history-ux-79-81-20260903
+permissions:
+  contents: read
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - name: Format History source
+        run: dart format apps/pandora-mobile/lib/features/simple/project_history_screen.dart
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: history-formatted-source
+          path: apps/pandora-mobile/lib/features/simple/project_history_screen.dart
+          retention-days: 1
