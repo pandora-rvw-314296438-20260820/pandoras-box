@@ -105,8 +105,8 @@
             },
             "requiredChecks": {
               "type": "array",
-              "minItems": 5,
-              "maxItems": 5,
+              "minItems": 6,
+              "maxItems": 6,
               "items": false,
               "prefixItems": [
                 {
@@ -137,6 +137,12 @@
                   "allOf": [
                     { "$ref": "#/$defs/canonicalCheckReceipt" },
                     { "properties": { "name": { "const": "Exact source / Flutter / Android" }, "providerContext": { "const": "Exact source / Flutter / Android" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
+                  ]
+                },
+                {
+                  "allOf": [
+                    { "$ref": "#/$defs/canonicalCheckReceipt" },
+                    { "properties": { "name": { "const": "Exact source / Flutter / iOS" }, "providerContext": { "const": "Exact source / Flutter / iOS" }, "authority": { "const": "GITHUB_ACTIONS_PROVIDER" }, "appId": { "const": 15368 } } }
                   ]
                 }
               ]
