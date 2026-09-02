@@ -1,7 +1,7 @@
 name: pandora_mobile
 publish_to: none
 description: Premium owner and admin control center for Pandora's Box.
-version: 0.4.0-rc.1+7
+version: 0.4.0-rc.2+8
 environment:
   sdk: '>=3.4.0 <4.0.0'
 
