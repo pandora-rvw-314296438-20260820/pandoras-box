@@ -11,8 +11,16 @@ const {
 const USER_ID = "e5f5744e-554b-4f92-aad2-3f58ae6a33ad";
 const ORGANIZATION_ID = "2270b266-59da-4c39-bfd9-9f8d08352af0";
 const RESOURCE_ORIGIN = "https://mcpmaster.vercel.app";
-const IDENTITY_SCOPES = ["openid", "email", "profile"];
-const CHALLENGE = `Bearer resource_metadata="${RESOURCE_ORIGIN}/.well-known/oauth-protected-resource/mcp", scope="openid email profile"`;
+const MCP_SCOPES = [
+  "openid",
+  "email",
+  "profile",
+  "projectos:read",
+  "projectos:plan",
+  "projectos:approve",
+  "projectos:execute",
+];
+const CHALLENGE = `Bearer resource_metadata="${RESOURCE_ORIGIN}/.well-known/oauth-protected-resource/mcp", scope="${MCP_SCOPES.join(" ")}"`;
 const ALLOWED_HEADERS = "Authorization,Content-Type,Mcp-Protocol-Version,Last-Event-ID,X-Request-Id";
 const ALLOWED_METHODS = "GET,POST,DELETE,OPTIONS";
 const EXPOSED_HEADERS = "WWW-Authenticate,Mcp-Protocol-Version,X-Request-Id";
@@ -81,7 +89,7 @@ test("only protected-resource discovery is public and matches the live metadata 
     resource: `${RESOURCE_ORIGIN}/mcp`,
     resource_name: "Banatao Systems ProjectOS",
     authorization_servers: ["https://jcyqixttuebxqqfkjonq.supabase.co/auth/v1"],
-    scopes_supported: IDENTITY_SCOPES,
+    scopes_supported: MCP_SCOPES,
     bearer_methods_supported: ["header"],
     resource_documentation: `${RESOURCE_ORIGIN}/control-tower`,
   };
