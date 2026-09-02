@@ -58,6 +58,8 @@ class _ProjectBuildConversationScreenState
       ProjectBuildStreamEvent? event,
       int? count,
       String? status,
+      String? resultClass,
+      String? errorCode,
     }) {
       if (!_capturedAnalytics.add(key)) return;
       unawaited(
@@ -73,6 +75,8 @@ class _ProjectBuildConversationScreenState
           sequence: event?.sequence,
           count: count,
           status: status,
+          resultClass: resultClass,
+          errorCode: errorCode,
           duration: _elapsed(event?.createdAt),
         ),
       );
@@ -144,6 +148,26 @@ class _ProjectBuildConversationScreenState
         OwnerAnalyticsEvent.streamReconnected,
         count: snapshot.latestSequence,
         status: 'reconnecting',
+      );
+    }
+    final terminalError = snapshot.publicErrorCode?.trim().toUpperCase();
+    if (terminalError == 'BUILD_DEADLINE_EXCEEDED' ||
+        terminalError == 'BUILD_LEASE_RETRY_EXHAUSTED') {
+      captureOnce(
+        'build_stalled:$terminalError',
+        OwnerAnalyticsEvent.buildStalled,
+        status: snapshot.buildStatus ?? 'failed',
+        resultClass: 'runtime_stalled',
+        errorCode: terminalError,
+      );
+    }
+    if (terminalError == 'VERIFICATION_FAILED') {
+      captureOnce(
+        'verification_failed:$terminalError',
+        OwnerAnalyticsEvent.verificationFailed,
+        status: snapshot.buildStatus ?? 'failed',
+        resultClass: 'verification_failed',
+        errorCode: terminalError,
       );
     }
     _wasReconnecting = snapshot.reconnecting;
