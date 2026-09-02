@@ -47,6 +47,14 @@ jobs:
         with:
           node-version: 24
 
+      - name: Materialize exact Vercel project binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .vercel
+          node -e 'const fs=require("fs");fs.writeFileSync(".vercel/project.json",JSON.stringify({orgId:process.env.VERCEL_ORG_ID,projectId:process.env.VERCEL_PROJECT_ID})+"\n")'
+          node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync(".vercel/project.json","utf8"));if(p.orgId!==process.env.VERCEL_ORG_ID||p.projectId!==process.env.VERCEL_PROJECT_ID)process.exit(1);console.log(JSON.stringify(p))'
+
       - name: Pull production project configuration
         shell: bash
         run: |
