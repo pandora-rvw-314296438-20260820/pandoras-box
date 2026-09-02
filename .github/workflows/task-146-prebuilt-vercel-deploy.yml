@@ -20,6 +20,7 @@ jobs:
       SOURCE_SHA: ${{ inputs.source_sha }}
       VERCEL_ORG_ID: team_3yw1CN59ce4pj5SwyQGCAqN3
       VERCEL_PROJECT_ID: prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk
+      VERCEL_SCOPE: mbanatao
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
       - name: Validate exact source identity
@@ -52,13 +53,20 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$VERCEL_TOKEN"
-          npx --yes vercel@59.10.0 pull             --yes             --environment=production             --token="$VERCEL_TOKEN"             --scope="$VERCEL_ORG_ID"
+          npx --yes vercel@59.10.0 pull \
+            --yes \
+            --environment=production \
+            --token="$VERCEL_TOKEN" \
+            --scope="$VERCEL_SCOPE"
 
       - name: Build exact source on the GitHub runner
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes vercel@59.10.0 build             --prod             --token="$VERCEL_TOKEN"             --scope="$VERCEL_ORG_ID"
+          npx --yes vercel@59.10.0 build \
+            --prod \
+            --token="$VERCEL_TOKEN" \
+            --scope="$VERCEL_SCOPE"
           test -f .vercel/output/config.json
 
       - name: Deploy prebuilt output to production
@@ -67,7 +75,12 @@ jobs:
         run: |
           set -euo pipefail
           output="$(
-            npx --yes vercel@59.10.0 deploy               --prebuilt               --prod               --yes               --token="$VERCEL_TOKEN"               --scope="$VERCEL_ORG_ID"
+            npx --yes vercel@59.10.0 deploy \
+              --prebuilt \
+              --prod \
+              --yes \
+              --token="$VERCEL_TOKEN" \
+              --scope="$VERCEL_SCOPE"
           )"
           printf '%s\n' "$output"
           url="$(printf '%s\n' "$output" | grep -Eo 'https://[^[:space:]]+\.vercel\.app' | tail -n 1)"
@@ -80,8 +93,10 @@ jobs:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment_url }}
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location             --max-time 30 "$DEPLOYMENT_URL/health" > /tmp/deployment-health.json
-          curl --fail --silent --show-error --location             --max-time 30 "https://mcpmaster.vercel.app/health" > /tmp/production-health.json
+          curl --fail --silent --show-error --location \
+            --max-time 30 "$DEPLOYMENT_URL/health" > /tmp/deployment-health.json
+          curl --fail --silent --show-error --location \
+            --max-time 30 "https://mcpmaster.vercel.app/health" > /tmp/production-health.json
           printf 'deployment=%s\nsource_sha=%s\n' "$DEPLOYMENT_URL" "$SOURCE_SHA"
           cat /tmp/deployment-health.json
           printf '\n'
