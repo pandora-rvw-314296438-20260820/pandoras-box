@@ -78,3 +78,18 @@ test('production and destructive execution are not silently authorized by this b
   assert.equal((base.match(/destructive_change/g) || []).length >= 2, true);
   assert.ok(!base.includes("environment='production' and decision='ALLOW'"));
 });
+
+
+test('planner binds the exact projected schema identity and rejects idempotent drift', () => {
+  hasFix('pandora_worker_f_plan_isolated_create_table_20260829');
+  hasFix("union all select p_table_name,'id','uuid','NO',1");
+  hasFix("union all select p_table_name,'value','text','NO',2");
+  hasFix("union all select p_table_name,'created_at','timestamp with time zone','NO',3");
+  hasFix("v_diff:=encode(extensions.digest(convert_to(v_before||':'||v_after,'utf8'),'sha256'),'hex')");
+  hasFix('database plan idempotency identity collision');
+  hasFix("p.schema_after_sha256=v_after");
+  hasFix("p.schema_diff_sha256=v_diff");
+  hasFix('revoke all on function private.pandora_worker_f_plan_isolated_create_table_20260829(uuid,uuid,uuid,text,text) from public,anon,authenticated');
+  hasFix('grant execute on function private.pandora_worker_f_plan_isolated_create_table_20260829(uuid,uuid,uuid,text,text) to service_role');
+  assert.ok(!fix.includes("v_before||E'\\n'||v_migration"));
+});
