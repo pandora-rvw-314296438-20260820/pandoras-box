@@ -388,7 +388,7 @@ Deno.serve(async (req) => {
     }
     if (!candidate) throw new Error("INVALID_STRUCTURED_OUTPUT");
     const digest = await sha256(JSON.stringify(candidate));
-    const { data: committed, error: commitError } = await admin.rpc("pandora_commit_compiled_project_spec_v2_20260901", {
+    const { data: committed, error: commitError } = await admin.rpc("pandora_commit_compiled_project_spec_memory_v1", {
       p_source_intent_id: intentId,
       p_claim_token: claimToken,
       p_candidate: candidate,
@@ -414,6 +414,8 @@ Deno.serve(async (req) => {
       p_model_output_tokens: outputTokens,
       p_model_total_tokens: totalTokens,
       p_model_revision: modelRevision,
+      p_memory_context_hash: text(memoryContext.contextHash),
+      p_memory_receipt_id: text(memoryContext.receiptId),
     });
     if (commitError || text(record(committed).state) !== "succeeded") throw new Error("COMMIT_FAILED");
     const committedSpec = record(committed);
