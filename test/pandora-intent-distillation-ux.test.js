@@ -30,7 +30,8 @@ test("Gemini distills a project name and short owner brief", () => {
   assert.match(compiler, /metadata=\{projectName:string,intentSummary:string\}/);
   assert.match(compiler, /projectName\.length > 80/);
   assert.match(compiler, /intentSummary\.length > 280/);
-  assert.match(compiler, /pandora_commit_compiled_project_spec_v2_20260901/);
+  assert.match(compiler, /pandora_commit_compiled_project_spec_memory_v1/);
+  assert.match(compiler, /p_memory_context_hash/);
 });
 
 test("initial create intent atomically persists the model name and concise summary", () => {
