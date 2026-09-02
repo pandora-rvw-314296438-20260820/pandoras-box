@@ -731,7 +731,8 @@ class ProjectExperienceApi {
       rethrow;
     } on FunctionException catch (error) {
       final details = error.details;
-      if (details is Map && _text(details['code']) == 'SOURCE_ENTITLEMENT_REQUIRED') {
+      if (details is Map &&
+          _text(details['code']) == 'SOURCE_ENTITLEMENT_REQUIRED') {
         unawaited(
           OwnerAnalytics.shared.capture(
             OwnerAnalyticsEvent.sourcePaywallViewed,
