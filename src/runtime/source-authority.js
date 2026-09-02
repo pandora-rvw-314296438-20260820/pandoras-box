@@ -24,6 +24,11 @@ function loadPolicy() {
     if (typeof parsed.project_key !== 'string' || !PROJECT_KEY.test(parsed.project_key)) {
         throw new Error('source authority policy has no valid canonical project key');
     }
+    if (!parsed.canonical || typeof parsed.canonical !== 'object'
+        || typeof parsed.canonical.vercel_project_name !== 'string'
+        || !PROJECT_KEY.test(parsed.canonical.vercel_project_name)) {
+        throw new Error('source authority policy has no valid ProjectOS control project key');
+    }
     return Object.freeze(parsed);
 }
 
@@ -38,7 +43,9 @@ function memoryProjectKeyForProjectOsIntake(projectKey) {
     const normalized = projectKey.trim().toLowerCase();
     if (!PROJECT_KEY.test(normalized))
         throw new Error(`ProjectOS project key is invalid: ${projectKey}`);
-    return normalized === 'mcpmaster' ? canonicalMemoryProjectKey() : normalized;
+    return normalized === exports.sourceAuthorityPolicy.canonical.vercel_project_name
+        ? canonicalMemoryProjectKey()
+        : normalized;
 }
 
 function normalizedRepository(repository) {

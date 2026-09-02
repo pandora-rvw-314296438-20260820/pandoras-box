@@ -5,7 +5,7 @@ const { ExecutionLedgerClient } = require("../runtime/execution-ledger-client.js
 const {
   PandoraPlanMemoryContextProvider,
 } = require("../runtime/plan-memory-context.js");
-const { memoryProjectKeyForControlProject } = require("../runtime/memory-project-scope.js");
+const { memoryProjectKeyForProjectOsIntake } = require("../runtime/source-authority.js");
 const { PlanContextLedgerClient } = require("../runtime/plan-context-ledger-client.js");
 const {
   resolveVercelWorkloadToken,
@@ -95,7 +95,7 @@ class WorkerPlanContextProvider {
       };
     }
 
-    const memoryProjectKey = memoryProjectKeyForControlProject(plan.projectKey);
+    const memoryProjectKey = memoryProjectKeyForProjectOsIntake(plan.projectKey);
     const contextArgs = memoryProjectKey
       ? { ...plan.args, projectKey: memoryProjectKey }
       : plan.args;

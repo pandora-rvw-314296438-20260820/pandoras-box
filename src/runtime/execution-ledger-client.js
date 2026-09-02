@@ -5,7 +5,7 @@ const zod_1 = require("zod");
 const mandatory_intake_js_1 = require("./mandatory-intake.js");
 const plan_memory_context_js_1 = require("./plan-memory-context.js");
 const plan_context_ledger_client_js_1 = require("./plan-context-ledger-client.js");
-const memory_project_scope_js_1 = require("./memory-project-scope.js");
+const source_authority_js_1 = require("./source-authority.js");
 const DEFAULT_CONTROL_URL = 'https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/mcpmaster-supabase-control';
 const DEFAULT_TIMEOUT_MS = 10000;
 const MAX_TIMEOUT_MS = 30000;
@@ -340,7 +340,7 @@ class ExecutionLedgerClient {
         // the accepted ProjectOS control workspace remains the plan identity, while Memory hydration
         // receives its own canonical project scope derived from the fail-closed source authority policy.
         const memoryProjectKey = intake?.projectKey
-            ? (0, memory_project_scope_js_1.memoryProjectKeyForControlProject)(intake.projectKey)
+            ? (0, source_authority_js_1.memoryProjectKeyForProjectOsIntake)(intake.projectKey)
             : undefined;
         const contextArgs = memoryProjectKey
             ? { ...input.args, projectKey: memoryProjectKey }
