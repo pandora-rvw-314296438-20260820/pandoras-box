@@ -748,7 +748,6 @@ class _SourceDiffCard extends StatelessWidget {
       );
 }
 
-
 class _FolderBreadcrumbs extends StatelessWidget {
   const _FolderBreadcrumbs({required this.path, required this.onOpen});
 
@@ -829,9 +828,8 @@ class _SyntaxSourceView extends StatelessWidget {
   Widget build(BuildContext context) {
     final bytes = utf8.encode(content);
     final truncated = bytes.length > _syntaxPreviewLimit;
-    final visible = truncated
-        ? _boundedUtf8Prefix(bytes, _syntaxPreviewLimit)
-        : content;
+    final visible =
+        truncated ? _boundedUtf8Prefix(bytes, _syntaxPreviewLimit) : content;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
