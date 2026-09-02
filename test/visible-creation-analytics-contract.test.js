@@ -12,7 +12,7 @@ const generator = fs.readFileSync('supabase/functions/pandora-project-source-gen
 const requiredEvents = [
   'intent_sent', 'proposal_shown', 'build_clicked', 'build_admitted', 'build_admission_failed',
   'first_stream_event', 'first_code', 'file_complete', 'source_complete',
-  'preview_ready', 'build_stalled', 'repair_started', 'repair_completed', 'verification_failed', 'stream_reconnected',
+  'preview_ready', 'build_stalled', 'repair_started', 'repair_completed', 'verification_failed', 'second_change_submitted', 'funnel_drop_off', 'stream_reconnected',
   'history_gap', 'publish_started', 'publish_verified', 'publish_failed',
   'source_paywall_viewed', 'source_access_granted', 'source_exported',
 ];
@@ -93,6 +93,21 @@ test('publish telemetry has explicit start success and failure outcomes', () => 
   const success = runtime.indexOf('OwnerAnalyticsEvent.publishVerified', call);
   const failure = runtime.indexOf('OwnerAnalyticsEvent.publishFailed', success);
   assert.ok(start >= 0 && call > start && success > call && failure > success);
+});
+
+test('second-change conversion is emitted only after the second durable change intent', () => {
+  assert.match(experience, /intentKind == 'change'/);
+  assert.match(experience, /\.eq\('intent_kind', 'change'\)[\s\S]{0,260}\.limit\(3\)/);
+  assert.match(experience, /changes\.length == 2[\s\S]{0,260}OwnerAnalyticsEvent\.secondChangeSubmitted/);
+  const secondChange = experience.slice(experience.indexOf('OwnerAnalyticsEvent.secondChangeSubmitted') - 240, experience.indexOf('OwnerAnalyticsEvent.secondChangeSubmitted') + 360);
+  assert.doesNotMatch(secondChange, /intentText|changeText|contentChunk|sourceBytes|body:/);
+});
+
+test('funnel drop-off events use bounded failure classes instead of raw messages', () => {
+  assert.match(create, /OwnerAnalyticsEvent\.funnelDropOff[\s\S]{0,260}resultClass: 'build_admission_failed'/);
+  assert.match(conversation, /OwnerAnalyticsEvent\.funnelDropOff[\s\S]{0,260}resultClass: 'build_stalled'/);
+  assert.match(conversation, /OwnerAnalyticsEvent\.funnelDropOff[\s\S]{0,260}resultClass: 'verification_failed'/);
+  assert.match(runtime, /OwnerAnalyticsEvent\.funnelDropOff[\s\S]{0,260}resultClass: 'publish_failed'/);
 });
 
 test('source provider latency is measured monotonically and persisted without invented values', () => {
