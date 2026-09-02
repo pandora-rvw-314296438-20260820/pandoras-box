@@ -69,8 +69,7 @@ class _ProjectBuildConversationScreenState
               snapshot.buildJobId ??
               widget.buildStart.buildJobId,
           streamId: widget.buildStart.streamId,
-          projectVersionId:
-              snapshot.projectVersionId ?? widget.buildStart.projectVersionId,
+          projectVersionId: snapshot.projectVersionId,
           sequence: event?.sequence,
           count: count,
           status: status,
