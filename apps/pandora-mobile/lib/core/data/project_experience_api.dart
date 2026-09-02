@@ -924,6 +924,21 @@ class ProjectExperienceApi {
       final responseProjectId = _text(data['projectId']).toLowerCase();
       final responseVersionId = _text(data['versionId']).toLowerCase();
       final artifactDigest = _text(data['artifactDigest']).toLowerCase();
+      final hostedPreview = _map(data['hostedPreview']);
+      final previewDeploymentId =
+          _optionalText(hostedPreview?['deploymentId'])?.toLowerCase();
+      final sourceSha256 =
+          _optionalText(hostedPreview?['sourceSha256'])?.toLowerCase();
+      if (hostedPreview != null &&
+          (previewDeploymentId == null ||
+              !RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+                  .hasMatch(previewDeploymentId) ||
+              sourceSha256 == null ||
+              !RegExp(r'^[0-9a-f]{64}$').hasMatch(sourceSha256))) {
+        throw const ProjectExperienceException(
+          'Pandora returned an unreadable preview.',
+        );
+      }
       final requestedProjectId = projectId.trim().toLowerCase();
       final requestedVersionId = versionId.trim().toLowerCase();
       if (responseProjectId != requestedProjectId ||
@@ -973,6 +988,9 @@ class ProjectExperienceApi {
           'artifactDigest': artifactDigest,
           'previewProjectId': responseProjectId,
           'previewVersionId': responseVersionId,
+          if (previewDeploymentId != null)
+            'previewDeploymentId': previewDeploymentId,
+          if (sourceSha256 != null) 'sourceSha256': sourceSha256,
         });
       }
       return files;
