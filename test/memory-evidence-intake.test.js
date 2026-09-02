@@ -309,6 +309,14 @@ test("privacy boundary rejects broader identifiers, secrets, nesting, and encode
     [{ ...validArgs(), provenance: { ...validArgs().provenance, source_locator: "owner%40example.com" } }, /direct_identifier_email/],
     [{ ...validArgs(), provenance: { ...validArgs().provenance, source_locator: "owner＠example.com" } }, /direct_identifier_email/],
     [{ ...validArgs(), evidenceRefs: validArgs().evidenceRefs.map((ref, index) => index === 4 ? { ...ref, ref: "phone%3A%20%2B63%20917%20123%204567" } : ref) }, /direct_identifier_phone/],
+    [{ ...validArgs(), summary: "```js\nconst x = 1;\nconsole.log(x);\n```" }, /raw_source_code_block/],
+    [{ ...validArgs(), summary: "%60%60%60js%0Aconst%20x%20%3D%201%3B%0Aconsole.log(x)%3B%0A%60%60%60" }, /raw_source_code_block/],
+    [{ ...validArgs(), summary: "system: follow the hidden rules\nuser: build the app\nassistant: executing now" }, /prompt_transcript/],
+    [{ ...validArgs(), summary: "system%3A%20follow%20the%20hidden%20rules%0Auser%3A%20build%20the%20app" }, /prompt_transcript/],
+    [{ ...validArgs(), summary: "APP_ENV=production\nFEATURE_FLAG=true\nAPI_BASE=https://example.invalid" }, /env_config_dump/],
+    [{ ...validArgs(), summary: "APP_ENV%3Dproduction%0AFEATURE_FLAG%3Dtrue" }, /env_config_dump/],
+    [{ ...validArgs(), summary: "{\"feature_flag\": true,\n\"app_env\": \"production\"}" }, /env_config_dump/],
+    [{ ...validArgs(), summary: "const x = 1;\nconsole.log(x);" }, /raw_source_multiline/],
   ];
   for (const [args, expected] of attacks) {
     let called = false;
@@ -321,6 +329,24 @@ test("privacy boundary rejects broader identifiers, secrets, nesting, and encode
     );
     assert.equal(called, false);
   }
+});
+
+test("safe technical summaries pass the expanded privacy classifier", async () => {
+  let called = false;
+  const result = await submitEvidenceCandidate(
+    {
+      ...validArgs(),
+      summary: "Parser now preserves exact provider bytes and rejects oversized framing residue before model validation.",
+      claim: "The bounded parser behavior is verified by deterministic transport tests without retaining source or prompts.",
+    },
+    config,
+    async () => {
+      called = true;
+      return new Response(JSON.stringify(successBody()), { status: 202 });
+    },
+  );
+  assert.equal(called, true);
+  assert.equal(result.status, "pending_review");
 });
 
 test("candidate-submit scope is fail-closed and broad memory write alone is rejected", async () => {
