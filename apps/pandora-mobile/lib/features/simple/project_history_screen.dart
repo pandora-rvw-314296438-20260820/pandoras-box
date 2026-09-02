@@ -21,7 +21,8 @@ class ProjectHistoryScreen extends StatefulWidget {
 
 class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
   List<ProjectConversationHistoryItem>? _items;
-  Map<String, _BuildHistoryFacts> _buildFacts = const <String, _BuildHistoryFacts>{};
+  Map<String, _BuildHistoryFacts> _buildFacts =
+      const <String, _BuildHistoryFacts>{};
   String? _error;
   bool _loading = true;
   var _factsGeneration = 0;
@@ -70,43 +71,49 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
     int generation,
   ) async {
     final facts = <String, _BuildHistoryFacts>{};
-    final builds = items.where((item) => item.isBuild && item.buildJobId != null);
-    await Future.wait<void>(builds.map((item) async {
-      final buildJobId = item.buildJobId!;
-      final verification = _matchingVerification(items, buildJobId);
-      var fileCount = 0;
-      var lineCount = 0;
-      var exactSourceAvailable = false;
-      final versionId = item.projectVersionId;
-      if (versionId != null) {
-        try {
-          final files = await api.loadExactPreviewFiles(
-            projectId: widget.project.id,
-            versionId: versionId,
-          );
-          exactSourceAvailable = true;
-          fileCount = files.length;
-          for (final file in files) {
-            final content = file['content'];
-            if (content is! String || content.isEmpty) continue;
-            lineCount += '\n'.allMatches(content).length;
-            if (!content.endsWith('\n')) lineCount += 1;
+    final builds = items.where(
+      (item) => item.isBuild && item.buildJobId != null,
+    );
+    await Future.wait<void>(
+      builds.map((item) async {
+        final buildJobId = item.buildJobId!;
+        final verification = _matchingVerification(items, buildJobId);
+        var fileCount = 0;
+        var lineCount = 0;
+        var exactSourceAvailable = false;
+        final versionId = item.projectVersionId;
+        if (versionId != null) {
+          try {
+            final files = await api.loadExactPreviewFiles(
+              projectId: widget.project.id,
+              versionId: versionId,
+            );
+            exactSourceAvailable = true;
+            fileCount = files.length;
+            for (final file in files) {
+              final content = file['content'];
+              if (content is! String || content.isEmpty) continue;
+              lineCount += '\n'.allMatches(content).length;
+              if (!content.endsWith('\n')) lineCount += 1;
+            }
+          } on ProjectExperienceException {
+            // Fail closed: never infer source counts from expired transport events.
           }
-        } on ProjectExperienceException {
-          // Fail closed: never infer source counts from expired transport events.
         }
-      }
-      facts[buildJobId] = _BuildHistoryFacts(
-        exactSourceAvailable: exactSourceAvailable,
-        fileCount: fileCount,
-        lineCount: lineCount,
-        checksTotal: verification?.payloadInt('checksTotal'),
-        checksPassed: verification?.payloadInt('checksPassed'),
-        duration: _buildDuration(item),
-      );
-    }));
+        facts[buildJobId] = _BuildHistoryFacts(
+          exactSourceAvailable: exactSourceAvailable,
+          fileCount: fileCount,
+          lineCount: lineCount,
+          checksTotal: verification?.payloadInt('checksTotal'),
+          checksPassed: verification?.payloadInt('checksPassed'),
+          duration: _buildDuration(item),
+        );
+      }),
+    );
     if (!mounted || generation != _factsGeneration) return;
-    setState(() => _buildFacts = Map<String, _BuildHistoryFacts>.unmodifiable(facts));
+    setState(
+      () => _buildFacts = Map<String, _BuildHistoryFacts>.unmodifiable(facts),
+    );
   }
 
   ProjectConversationHistoryItem? _matchingVerification(
@@ -122,7 +129,9 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
   }
 
   Duration? _buildDuration(ProjectConversationHistoryItem item) {
-    final completedAt = DateTime.tryParse(item.payloadText('completedAt') ?? '');
+    final completedAt = DateTime.tryParse(
+      item.payloadText('completedAt') ?? '',
+    );
     if (completedAt == null) return null;
     final duration = completedAt.toUtc().difference(item.occurredAt.toUtc());
     return duration.isNegative ? null : duration;
@@ -141,7 +150,9 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
       if (streamId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Live build detail has expired. Durable history remains.'),
+            content: Text(
+              'Live build detail has expired. Durable history remains.',
+            ),
           ),
         );
         return;
@@ -156,7 +167,8 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
       );
     } on ProjectExperienceException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
     }
   }
 
@@ -231,9 +243,7 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                ids.isEmpty
-                    ? 'Pandora retained this durable history record.'
-                    : 'Pandora retained the exact records behind this result so it can be independently traced.',
+                ids.isEmpty ? 'Pandora retained this durable history record.' : 'Pandora retained the exact records behind this result so it can be independently traced.',
                 style: pandoraV2Muted,
               ),
               if (proofLabels.isNotEmpty) ...[
@@ -269,7 +279,9 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
                   tilePadding: EdgeInsets.zero,
                   childrenPadding: EdgeInsets.zero,
                   title: const Text('Technical IDs'),
-                  subtitle: const Text('Exact lineage for advanced verification'),
+                  subtitle: const Text(
+                    'Exact lineage for advanced verification',
+                  ),
                   children: [
                     for (final entry in ids)
                       ListTile(
@@ -357,9 +369,15 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
                   _HistoryItemCard(
                     item: item,
                     projectName: widget.project.name,
-                    buildFacts: item.buildJobId == null ? null : _buildFacts[item.buildJobId!],
-                    onOpenBuild: item.buildJobId == null ? null : () => _openBuildEvidence(item),
-                    onOpenEvidence: item.evidenceAvailable ? () => _showEvidenceDetails(item) : null,
+                    buildFacts: item.buildJobId == null
+                        ? null
+                        : _buildFacts[item.buildJobId!],
+                    onOpenBuild: item.buildJobId == null
+                        ? null
+                        : () => _openBuildEvidence(item),
+                    onOpenEvidence: item.evidenceAvailable
+                        ? () => _showEvidenceDetails(item)
+                        : null,
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -414,17 +432,25 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
-    final exactIntent = item.isUserIntent ? item.payloadText('intentText') : null;
-    final proposalSummary = item.isProposal ? item.payloadText('businessSummary') ?? item.summary : null;
+    final exactIntent = item.isUserIntent
+        ? item.payloadText('intentText')
+        : null;
+    final proposalSummary = item.isProposal
+        ? item.payloadText('businessSummary') ?? item.summary
+        : null;
     final detail = exactIntent ?? proposalSummary ?? item.summary;
-    final canExpand = item.isProposal || item.expandable || detail.length > 260 || item.evidenceAvailable;
+    final canExpand =
+        item.isProposal ||
+        item.expandable ||
+        detail.length > 260 ||
+        item.evidenceAvailable;
     final actor = item.actorType == 'customer' ? 'You' : 'Pandora';
     final status = item.status?.trim();
     final title = item.isProposal
         ? '${widget.projectName} proposal'
         : item.isBuild && item.buildJobId != null
-            ? 'Build · ${_shortId(item.buildJobId!)}'
-            : item.title;
+        ? 'Build · ${_shortId(item.buildJobId!)}'
+        : item.title;
     final collapsedLines = item.isProposal || item.isBuild ? 2 : 5;
     final facts = widget.buildFacts;
     return Container(
@@ -451,7 +477,10 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
               ),
               Text(
                 _historyTime(item.occurredAt),
-                style: const TextStyle(color: PandoraV2Colors.muted, fontSize: 11.5),
+                style: const TextStyle(
+                  color: PandoraV2Colors.muted,
+                  fontSize: 11.5,
+                ),
               ),
             ],
           ),
@@ -469,7 +498,11 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
             detail,
             maxLines: _expanded ? null : collapsedLines,
             overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
-            style: const TextStyle(color: PandoraV2Colors.ink, fontSize: 14, height: 1.42),
+            style: const TextStyle(
+              color: PandoraV2Colors.ink,
+              fontSize: 14,
+              height: 1.42,
+            ),
           ),
           if (item.isBuild && facts != null) ...[
             const SizedBox(height: 10),
@@ -477,11 +510,17 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
               spacing: 8,
               runSpacing: 6,
               children: [
-                if (facts.duration != null) _HistoryFact(label: _formatDuration(facts.duration!)),
-                if (facts.exactSourceAvailable) _HistoryFact(label: '${facts.fileCount} files'),
-                if (facts.exactSourceAvailable) _HistoryFact(label: '${facts.lineCount} lines'),
+                if (facts.duration != null)
+                  _HistoryFact(label: _formatDuration(facts.duration!)),
+                if (facts.exactSourceAvailable)
+                  _HistoryFact(label: '${facts.fileCount} files'),
+                if (facts.exactSourceAvailable)
+                  _HistoryFact(label: '${facts.lineCount} lines'),
                 if (facts.checksTotal != null)
-                  _HistoryFact(label: '${facts.checksPassed ?? 0}/${facts.checksTotal} checks'),
+                  _HistoryFact(
+                    label:
+                        '${facts.checksPassed ?? 0}/${facts.checksTotal} checks',
+                  ),
               ],
             ),
           ],
@@ -496,7 +535,9 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
               ),
             ),
           ],
-          if (canExpand || widget.onOpenBuild != null || widget.onOpenEvidence != null) ...[
+          if (canExpand ||
+              widget.onOpenBuild != null ||
+              widget.onOpenEvidence != null) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -539,21 +580,21 @@ class _HistoryFact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: PandoraV2Colors.canvas,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: PandoraV2Colors.line),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: PandoraV2Colors.muted,
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    decoration: BoxDecoration(
+      color: PandoraV2Colors.canvas,
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: PandoraV2Colors.line),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: PandoraV2Colors.muted,
+        fontSize: 11.5,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
 }
 
 class ProjectHistoryBuildEvidenceScreen extends StatefulWidget {
@@ -567,16 +608,19 @@ class ProjectHistoryBuildEvidenceScreen extends StatefulWidget {
   final String streamId;
 
   @override
-  State<ProjectHistoryBuildEvidenceScreen> createState() => _ProjectHistoryBuildEvidenceScreenState();
+  State<ProjectHistoryBuildEvidenceScreen> createState() =>
+      _ProjectHistoryBuildEvidenceScreenState();
 }
 
-class _ProjectHistoryBuildEvidenceScreenState extends State<ProjectHistoryBuildEvidenceScreen> {
+class _ProjectHistoryBuildEvidenceScreenState
+    extends State<ProjectHistoryBuildEvidenceScreen> {
   Stream<ProjectBuildStreamSnapshot>? _stream;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _stream ??= PandoraDependencies.of(context).projectExperienceRepository?.watchResilientBuildStream(
+    _stream ??= PandoraDependencies.of(context).projectExperienceRepository
+        ?.watchResilientBuildStream(
           projectId: widget.project.id,
           streamId: widget.streamId,
         );
@@ -584,57 +628,61 @@ class _ProjectHistoryBuildEvidenceScreenState extends State<ProjectHistoryBuildE
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: PandoraV2Colors.canvas,
-        appBar: AppBar(
-          backgroundColor: PandoraV2Colors.canvas,
-          foregroundColor: PandoraV2Colors.ink,
-          surfaceTintColor: Colors.transparent,
-          title: const Text('Build activity'),
-        ),
-        body: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: _stream == null
-                ? const PandoraV2InlineMessage(
-                    title: 'Build activity unavailable',
-                    message: 'Durable project history remains authoritative.',
-                  )
-                : StreamBuilder<ProjectBuildStreamSnapshot>(
-                    stream: _stream,
-                    initialData: const ProjectBuildStreamSnapshot.empty(),
-                    builder: (context, snapshot) {
-                      final value = snapshot.data ?? const ProjectBuildStreamSnapshot.empty();
-                      if (value.requiresReplay) {
-                        return const PandoraV2InlineMessage(
-                          title: 'Refreshing build evidence',
-                          message: 'Pandora is reconciling the durable stream.',
-                        );
-                      }
-                      if (value.events.isEmpty) {
-                        return const PandoraV2InlineMessage(
-                          title: 'Detailed activity expired',
-                          message: 'Pandora does not recreate expired events. The durable history item remains available.',
-                        );
-                      }
-                      try {
-                        final theatre = ProjectBuildStreamTheatreProjection.fromSnapshot(
+    backgroundColor: PandoraV2Colors.canvas,
+    appBar: AppBar(
+      backgroundColor: PandoraV2Colors.canvas,
+      foregroundColor: PandoraV2Colors.ink,
+      surfaceTintColor: Colors.transparent,
+      title: const Text('Build activity'),
+    ),
+    body: SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: _stream == null
+            ? const PandoraV2InlineMessage(
+                title: 'Build activity unavailable',
+                message: 'Durable project history remains authoritative.',
+              )
+            : StreamBuilder<ProjectBuildStreamSnapshot>(
+                stream: _stream,
+                initialData: const ProjectBuildStreamSnapshot.empty(),
+                builder: (context, snapshot) {
+                  final value =
+                      snapshot.data ?? const ProjectBuildStreamSnapshot.empty();
+                  if (value.requiresReplay) {
+                    return const PandoraV2InlineMessage(
+                      title: 'Refreshing build evidence',
+                      message: 'Pandora is reconciling the durable stream.',
+                    );
+                  }
+                  if (value.events.isEmpty) {
+                    return const PandoraV2InlineMessage(
+                      title: 'Detailed activity expired',
+                      message: 'Pandora does not recreate expired events. The durable history item remains available.',
+                    );
+                  }
+                  try {
+                    final theatre =
+                        ProjectBuildStreamTheatreProjection.fromSnapshot(
                           streamId: widget.streamId,
                           snapshot: value,
                         );
-                        return SingleChildScrollView(child: LiveBuildTheatre(state: theatre));
-                      } on FormatException {
-                        return const PandoraV2InlineMessage(
-                          title: 'Build evidence rejected',
-                          message: 'Pandora rejected mismatched build evidence instead of displaying it.',
-                          danger: true,
-                        );
-                      }
-                    },
-                  ),
-          ),
-        ),
-      );
+                    return SingleChildScrollView(
+                      child: LiveBuildTheatre(state: theatre),
+                    );
+                  } on FormatException {
+                    return const PandoraV2InlineMessage(
+                      title: 'Build evidence rejected',
+                      message: 'Pandora rejected mismatched build evidence instead of displaying it.',
+                      danger: true,
+                    );
+                  }
+                },
+              ),
+      ),
+    ),
+  );
 }
 
 String _shortId(String value) {
