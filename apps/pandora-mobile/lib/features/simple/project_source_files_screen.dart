@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,8 @@ import '../../core/models/project_journey_models.dart';
 import '../../core/models/project_source_models.dart';
 import '../../core/platform/pandora_native_io.dart';
 import 'pandora_v2_ui.dart';
+
+const _syntaxPreviewLimit = 128 * 1024;
 
 class ProjectSourceFilesScreen extends StatefulWidget {
   const ProjectSourceFilesScreen({
@@ -34,6 +37,7 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
   ProjectSourceTree? _tree;
   ProjectSourceSearchResult? _searchResult;
   _SourceTreeDiff? _diff;
+  String _folderPath = '';
   String? _error;
   bool _loading = true;
   bool _searching = false;
@@ -101,6 +105,7 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
     if (versionId == _selectedVersionId) return;
     setState(() {
       _selectedVersionId = versionId;
+      _folderPath = '';
       _tree = null;
       _searchResult = null;
       _diff = null;
@@ -277,19 +282,17 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
                         color: PandoraV2Colors.soft,
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: SingleChildScrollView(
-                        child: SelectableText(
-                          file.encoding == 'utf-8'
-                              ? file.content
-                              : 'Binary file · ${file.byteSize} bytes',
-                          style: const TextStyle(
-                            color: PandoraV2Colors.ink,
-                            fontFamily: 'monospace',
-                            fontSize: 12.5,
-                            height: 1.45,
-                          ),
-                        ),
-                      ),
+                      child: file.encoding == 'utf-8'
+                          ? _SyntaxSourceView(
+                              path: file.path,
+                              content: file.content,
+                            )
+                          : Center(
+                              child: Text(
+                                'Binary file · ${file.byteSize} bytes',
+                                style: pandoraV2Muted,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -343,7 +346,7 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
           .replaceAll(RegExp(r'^-+|-+$'), '');
       final saved = await PandoraNativeIo.saveBinaryDocument(
         name:
-            '${safeProject.isEmpty ? 'pandora-project' : safeProject}-${widget.versionId}.zip',
+            '${safeProject.isEmpty ? 'pandora-project' : safeProject}-${_selectedVersionId}.zip',
         mimeType: 'application/zip',
         bytes: bytes,
       );
@@ -368,6 +371,9 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
   Widget build(BuildContext context) {
     final tree = _tree;
     final searchResult = _searchResult;
+    final folder = tree == null
+        ? const _FolderView([], [])
+        : _projectFolder(tree.files, _folderPath);
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
       appBar: AppBar(
@@ -563,8 +569,12 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
                     ),
                   const Divider(height: 28),
                 ],
+                _FolderBreadcrumbs(
+                  path: _folderPath,
+                  onOpen: (path) => setState(() => _folderPath = path),
+                ),
                 Text(
-                  '${tree.files.length} files',
+                  '${folder.folders.length} folders · ${folder.files.length} files',
                   style: const TextStyle(
                     color: PandoraV2Colors.muted,
                     fontSize: 12.5,
@@ -572,7 +582,15 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                for (final entry in tree.files)
+                for (final directory in folder.folders)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.folder_outlined),
+                    title: Text(directory.name),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => setState(() => _folderPath = directory.path),
+                  ),
+                for (final entry in folder.files)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(
@@ -581,7 +599,7 @@ class _ProjectSourceFilesScreenState extends State<ProjectSourceFilesScreen> {
                           : Icons.insert_drive_file_outlined,
                     ),
                     title: Text(
-                      entry.path,
+                      _basename(entry.path),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -729,3 +747,249 @@ class _SourceDiffCard extends StatelessWidget {
         ),
       );
 }
+
+
+class _FolderBreadcrumbs extends StatelessWidget {
+  const _FolderBreadcrumbs({required this.path, required this.onOpen});
+
+  final String path;
+  final ValueChanged<String> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = path.isEmpty ? <String>[] : path.split('/');
+    final paths = <String>[''];
+    var current = '';
+    for (final part in parts) {
+      current = current.isEmpty ? part : '$current/$part';
+      paths.add(current);
+    }
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (var i = 0; i < paths.length; i++) ...[
+            if (i > 0) const Icon(Icons.chevron_right_rounded, size: 16),
+            TextButton(
+              onPressed: i == paths.length - 1 ? null : () => onOpen(paths[i]),
+              child: Text(i == 0 ? 'Files' : _basename(paths[i])),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FolderView {
+  const _FolderView(this.folders, this.files);
+
+  final List<_Folder> folders;
+  final List<ProjectSourceEntry> files;
+}
+
+class _Folder {
+  const _Folder(this.name, this.path);
+
+  final String name;
+  final String path;
+}
+
+_FolderView _projectFolder(List<ProjectSourceEntry> files, String folderPath) {
+  final prefix = folderPath.isEmpty ? '' : '$folderPath/';
+  final folders = <String, _Folder>{};
+  final direct = <ProjectSourceEntry>[];
+  for (final file in files) {
+    if (!file.path.startsWith(prefix)) continue;
+    final relativePath = file.path.substring(prefix.length);
+    final parts = relativePath.split('/');
+    if (parts.length == 1) {
+      direct.add(file);
+    } else {
+      final name = parts.first;
+      folders.putIfAbsent(
+        name,
+        () => _Folder(name, folderPath.isEmpty ? name : '$folderPath/$name'),
+      );
+    }
+  }
+  final dirs = folders.values.toList()
+    ..sort((a, b) => a.name.compareTo(b.name));
+  direct.sort((a, b) => a.path.compareTo(b.path));
+  return _FolderView(List.unmodifiable(dirs), List.unmodifiable(direct));
+}
+
+class _SyntaxSourceView extends StatelessWidget {
+  const _SyntaxSourceView({required this.path, required this.content});
+
+  final String path;
+  final String content;
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = utf8.encode(content);
+    final truncated = bytes.length > _syntaxPreviewLimit;
+    final visible = truncated
+        ? _boundedUtf8Prefix(bytes, _syntaxPreviewLimit)
+        : content;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (truncated)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Large source preview is limited to 128 KiB. Copy still uses the exact returned source.',
+              style: pandoraV2Muted,
+            ),
+          ),
+        Expanded(
+          child: SingleChildScrollView(
+            child: SelectableText.rich(
+              TextSpan(children: _highlight(visible, _sourceLanguage(path))),
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 12.5,
+                height: 1.45,
+                color: PandoraV2Colors.ink,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _boundedUtf8Prefix(List<int> bytes, int maxBytes) {
+  if (bytes.length <= maxBytes) return utf8.decode(bytes);
+  var end = maxBytes;
+  while (end > 0 && (bytes[end] & 0xC0) == 0x80) {
+    end--;
+  }
+  return utf8.decode(bytes.sublist(0, end));
+}
+
+List<TextSpan> _highlight(String source, String language) {
+  final keywords = _languageKeywords(language);
+  if (keywords.isEmpty) return [TextSpan(text: source)];
+  final pattern = RegExp(
+    '\\b(?:${keywords.map(RegExp.escape).join('|')})\\b|\\b\\d+(?:\\.\\d+)?\\b',
+  );
+  final spans = <TextSpan>[];
+  var cursor = 0;
+  for (final match in pattern.allMatches(source)) {
+    if (match.start > cursor) {
+      spans.add(TextSpan(text: source.substring(cursor, match.start)));
+    }
+    final token = match.group(0) ?? '';
+    spans.add(
+      TextSpan(
+        text: token,
+        style: TextStyle(
+          color: keywords.contains(token)
+              ? const Color(0xFF245D9C)
+              : const Color(0xFF7B4BA3),
+          fontWeight: keywords.contains(token) ? FontWeight.w700 : null,
+        ),
+      ),
+    );
+    cursor = match.end;
+  }
+  if (cursor < source.length) {
+    spans.add(TextSpan(text: source.substring(cursor)));
+  }
+  return spans;
+}
+
+String _sourceLanguage(String path) => _language(path);
+
+String _language(String path) {
+  final p = path.toLowerCase();
+  if (p.endsWith('.dart')) return 'Dart';
+  if (p.endsWith('.ts') || p.endsWith('.tsx')) return 'TypeScript';
+  if (p.endsWith('.js') || p.endsWith('.jsx') || p.endsWith('.mjs')) {
+    return 'JavaScript';
+  }
+  if (p.endsWith('.sql')) return 'SQL';
+  if (p.endsWith('.py')) return 'Python';
+  if (p.endsWith('.json')) return 'JSON';
+  if (p.endsWith('.html')) return 'HTML';
+  if (p.endsWith('.css')) return 'CSS';
+  if (p.endsWith('.yaml') || p.endsWith('.yml')) return 'YAML';
+  if (p.endsWith('.md') || p.endsWith('.mdx')) return 'Markdown';
+  if (p.endsWith('.sh')) return 'Shell';
+  return 'Text';
+}
+
+Set<String> _languageKeywords(String language) {
+  switch (language) {
+    case 'Dart':
+      return const {
+        'class',
+        'const',
+        'final',
+        'var',
+        'void',
+        'async',
+        'await',
+        'if',
+        'else',
+        'for',
+        'return',
+        'import',
+        'extends',
+      };
+    case 'TypeScript':
+    case 'JavaScript':
+      return const {
+        'const',
+        'let',
+        'var',
+        'function',
+        'class',
+        'async',
+        'await',
+        'if',
+        'else',
+        'for',
+        'return',
+        'import',
+        'export',
+      };
+    case 'SQL':
+      return const {
+        'select',
+        'from',
+        'where',
+        'insert',
+        'update',
+        'delete',
+        'create',
+        'alter',
+        'grant',
+        'revoke',
+        'table',
+      };
+    case 'Python':
+      return const {
+        'def',
+        'class',
+        'if',
+        'elif',
+        'else',
+        'for',
+        'return',
+        'import',
+        'from',
+        'async',
+        'await',
+      };
+    case 'JSON':
+      return const {'true', 'false', 'null'};
+    default:
+      return const {};
+  }
+}
+
+String _basename(String path) => path.split('/').last;
