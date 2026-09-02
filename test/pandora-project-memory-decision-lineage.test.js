@@ -8,6 +8,7 @@ const read = (value) => fs.readFileSync(path.join(root, value), 'utf8');
 const memoryResponse = read('src/tools/memory-response.js');
 const planContext = read('src/runtime/plan-memory-context.js');
 const sourceAuthority = read('src/runtime/source-authority.js');
+const sourceAuthorityPolicy = JSON.parse(read('SOURCE_AUTHORITY_POLICY.json'));
 const provider = read('src/projectos/project-memory-context-provider.js');
 const operator = read('apps/meta-business-mcp/src/operator/api.js');
 const compiler = read('supabase/functions/pandora-project-spec-compiler/index.ts');
@@ -30,7 +31,9 @@ test('operator records an immutable exact-project context receipt before decisio
   assert.match(provider, /visible_creation\.\$\{decisionType\}/);
   assert.match(provider, /pandora_record_project_memory_context_v1/);
   assert.match(provider, /memoryProjectKeyForProjectOsIntake/);
-  assert.match(sourceAuthority, /mcpmaster-pandoras-box/);
+  assert.match(sourceAuthority, /sourceAuthorityPolicy\.project_key/);
+  assert.equal(sourceAuthorityPolicy.project_key, 'mcpmaster-pandoras-box');
+  assert.equal(sourceAuthorityPolicy.canonical.vercel_project_name, 'mcpmaster');
   assert.match(provider, /approvedMemoryItemIds/);
   assert.match(operator, /\/project-memory-context/);
   assert.match(operator, /projectos:plan/);
