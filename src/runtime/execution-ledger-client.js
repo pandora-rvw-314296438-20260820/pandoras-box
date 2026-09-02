@@ -5,6 +5,7 @@ const zod_1 = require("zod");
 const mandatory_intake_js_1 = require("./mandatory-intake.js");
 const plan_memory_context_js_1 = require("./plan-memory-context.js");
 const plan_context_ledger_client_js_1 = require("./plan-context-ledger-client.js");
+const source_authority_js_1 = require("./source-authority.js");
 const DEFAULT_CONTROL_URL = 'https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/mcpmaster-supabase-control';
 const DEFAULT_TIMEOUT_MS = 10000;
 const MAX_TIMEOUT_MS = 30000;
@@ -335,20 +336,27 @@ class ExecutionLedgerClient {
             intakeId,
         };
         this.assertRequestSize(createPayload);
-        // Intake is intentionally completed before Memory retrieval, so every subsequent production
-        // operation is already linked to the canonical Pandoras-Box workspace.
+        // Intake is intentionally completed before Memory retrieval. Keep provider args immutable:
+        // the accepted ProjectOS control workspace remains the plan identity, while Memory hydration
+        // receives its own canonical project scope derived from the fail-closed source authority policy.
+        const memoryProjectKey = intake?.projectKey
+            ? (0, source_authority_js_1.memoryProjectKeyForProjectOsIntake)(intake.projectKey)
+            : undefined;
+        const contextArgs = memoryProjectKey
+            ? { ...input.args, projectKey: memoryProjectKey }
+            : input.args;
         let hydrated;
         if (this.contextProvider) {
             try {
                 hydrated = await this.contextProvider.hydrate(vercelOidcToken, {
                     tool: input.tool,
-                    args: input.args,
+                    args: contextArgs,
                 });
             }
             catch (error) {
                 hydrated = (0, plan_memory_context_js_1.createUnavailablePlanMemoryContext)({
                     tool: input.tool,
-                    args: input.args,
+                    args: contextArgs,
                 }, error);
             }
         }
