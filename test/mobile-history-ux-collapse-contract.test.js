@@ -26,7 +26,14 @@ test("old proposals collapse to a bounded plan summary", () => {
 test("completed build history uses exact durable source and verification facts", () => {
   assert.match(history, /api\.loadExactPreviewFiles\(/);
   assert.match(history, /versionId: versionId/);
-  assert.match(history, /file\['content'\]/);
+  assert.match(history, /file\['dataBase64'\]/);
+  assert.match(history, /base64Decode\(encoded\)/);
+  assert.match(history, /utf8\.decode\(/);
+  assert.match(history, /allowMalformed: false/);
+  assert.match(history, /_isTextLikePreviewFile\(file\)/);
+  assert.doesNotMatch(history, /file\['content'\]/);
+  assert.match(history, /_buildHistoryTitle\(item\)/);
+  assert.doesNotMatch(history, /_shortId\(item\.buildJobId/);
   assert.match(history, /'checksTotal'/);
   assert.match(history, /'checksPassed'/);
   assert.match(history, /_matchingVerification\(items, buildJobId\)/);
