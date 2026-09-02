@@ -11,6 +11,7 @@ const MAX_FILES = 120;
 const MAX_FILE_BYTES = 512 * 1024;
 const MAX_SOURCE_BYTES = 4 * 1024 * 1024;
 const MAX_BASE_CONTEXT_BYTES = 120 * 1024;
+const MAX_STREAM_FRAME_BUFFER_BYTES = 256 * 1024;
 const MIN_STATIC_INDEX_BYTES = 1024;
 const BUCKET = "pandora-build-artifacts";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -127,6 +128,10 @@ function providerChunkText(envelope: JsonRecord) {
     const value = rec(part).text;
     return typeof value === "string" ? value : "";
   }).join("");
+}
+
+function assertProviderFrameBufferBounded(value: string) {
+  if (new TextEncoder().encode(value).byteLength > MAX_STREAM_FRAME_BUFFER_BYTES) throw new Error("PROVIDER_REJECTED");
 }
 
 async function flushStreamEvents(admin: ReturnType<typeof adminClient>, state: StreamAssembler, force = false) {
@@ -281,6 +286,7 @@ async function streamGeminiSource(admin: ReturnType<typeof adminClient>, provide
       modelBuffer = modelBuffer.slice(newline + 1);
       await acceptModelLine(admin, state, line);
     }
+    assertProviderFrameBufferBounded(modelBuffer);
   };
 
   const consumeSseLine = async (lineValue: string) => {
@@ -307,10 +313,15 @@ async function streamGeminiSource(admin: ReturnType<typeof adminClient>, provide
       sseBuffer = sseBuffer.slice(newline + 1);
       await consumeSseLine(line);
     }
+    assertProviderFrameBufferBounded(sseBuffer);
   }
   sseBuffer += decoder.decode();
-  if (sseBuffer.trim()) await consumeSseLine(sseBuffer.trim());
-  if (modelBuffer.trim()) await acceptModelLine(admin, state, modelBuffer);
+  assertProviderFrameBufferBounded(sseBuffer);
+  if (sseBuffer.trim()) await consumeSseLine(sseBuffer);
+  if (modelBuffer.trim()) {
+    try { JSON.parse(modelBuffer.trim()); } catch { throw new Error("PROVIDER_REJECTED"); }
+    await acceptModelLine(admin, state, modelBuffer);
+  }
   await flushStreamEvents(admin, state, true);
   if (!state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
   return { rawOutput, meta: { modelVersion, usage } satisfies StreamProviderMeta };
