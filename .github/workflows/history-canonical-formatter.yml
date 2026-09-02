@@ -6,28 +6,29 @@ on:
       - chatgpt/history-ux-79-81-20260903
     paths:
       - .github/workflows/history-canonical-formatter.yml
-  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out exact candidate
+      - name: Check out candidate branch
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: chatgpt/history-ux-79-81-20260903
       - name: Install pinned Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           flutter-version: '3.47.0'
           cache: true
-      - name: Format History source
-        run: dart format apps/pandora-mobile/lib/features/simple/project_history_screen.dart
-      - name: Upload canonical History source
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: history-canonical-dart
-          path: apps/pandora-mobile/lib/features/simple/project_history_screen.dart
-          if-no-files-found: error
-          retention-days: 1
+      - name: Format and remove one-shot workflow
+        run: |
+          dart format apps/pandora-mobile/lib/features/simple/project_history_screen.dart
+          git rm .github/workflows/history-canonical-formatter.yml
+          git add apps/pandora-mobile/lib/features/simple/project_history_screen.dart
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style(history): canonical Flutter format'
+          git push origin HEAD:chatgpt/history-ux-79-81-20260903
