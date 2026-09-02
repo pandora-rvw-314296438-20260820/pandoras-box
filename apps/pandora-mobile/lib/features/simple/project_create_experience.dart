@@ -344,6 +344,16 @@ class _ProjectUnderstandingScreenState
           duration: DateTime.now().toUtc().difference(clickedAt),
         ),
       );
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          OwnerAnalyticsEvent.funnelDropOff,
+          projectKey: widget.project.projectKey,
+          projectId: widget.project.id,
+          resultClass: 'build_admission_failed',
+          status: 'failed',
+          duration: DateTime.now().toUtc().difference(clickedAt),
+        ),
+      );
       if (mounted) setState(() => _error = error.message);
     } finally {
       if (mounted) setState(() => _building = false);
