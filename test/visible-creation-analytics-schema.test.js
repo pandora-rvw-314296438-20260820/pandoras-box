@@ -21,6 +21,8 @@ const requiredEvents = [
   'repair_started',
   'repair_completed',
   'verification_failed',
+  'second_change_submitted',
+  'funnel_drop_off',
   'stream_reconnected',
   'history_gap',
   'publish_started',
