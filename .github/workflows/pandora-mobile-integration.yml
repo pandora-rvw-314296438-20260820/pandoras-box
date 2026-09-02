@@ -150,6 +150,10 @@ jobs:
         run: |
           dart format lib/core/platform/pandora_web_preview_web.dart
           dart format lib/features/simple/project_source_files_screen.dart
+          echo TASK75_FORMATTED_B64_BEGIN
+          base64 -w0 lib/features/simple/project_source_files_screen.dart
+          echo
+          echo TASK75_FORMATTED_B64_END
 
       - name: Upload canonical web formatter repair
         if: ${{ failure() }}
