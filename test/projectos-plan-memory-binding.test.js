@@ -10,13 +10,14 @@ const {
   ExecutionLedgerClient,
 } = require("../dist/runtime/execution-ledger-client.js");
 
-const PROJECT_KEY = "mcpmaster-pandoras-box";
+const CONTROL_PROJECT_KEY = "mcpmaster";
+const MEMORY_PROJECT_KEY = "mcpmaster-pandoras-box";
 const REQUEST_ID = "11111111-1111-4111-8111-111111111111";
 const INTAKE_ID = "22222222-2222-4222-8222-222222222222";
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 const PLAN_ID = "44444444-4444-4444-8444-444444444444";
 
-test("mandatory intake defaults provider work to the canonical Pandora project", () => {
+test("mandatory intake keeps provider work in the canonical ProjectOS control workspace", () => {
   const request = buildExecutionIntakeRequest({
     requestId: REQUEST_ID,
     tool: "supabase.write-project-api",
@@ -26,7 +27,7 @@ test("mandatory intake defaults provider work to the canonical Pandora project",
     },
   });
 
-  assert.equal(request.projectKey, PROJECT_KEY);
+  assert.equal(request.projectKey, CONTROL_PROJECT_KEY);
   assert.equal(request.repository, undefined);
 });
 
@@ -50,7 +51,7 @@ test("execution ledger hydrates Memory from accepted intake without contaminatin
         return {
           intakeId: INTAKE_ID,
           projectId: PROJECT_ID,
-          projectKey: PROJECT_KEY,
+          projectKey: CONTROL_PROJECT_KEY,
           projectName: "Pandora's Box",
           status: "planned",
           idempotencyKey: `execution:${REQUEST_ID}`,
@@ -104,13 +105,13 @@ test("execution ledger hydrates Memory from accepted intake without contaminatin
 
   assert.deepEqual(intakeInput.args, providerArgs);
   assert.equal(Object.hasOwn(intakeInput.args, "projectKey"), false);
-  assert.equal(hydrationInput.args.projectKey, PROJECT_KEY);
+  assert.equal(hydrationInput.args.projectKey, MEMORY_PROJECT_KEY);
   assert.equal(hydrationInput.args.accountId, providerArgs.accountId);
   assert.equal(hydrationInput.args.projectRef, providerArgs.projectRef);
   assert.deepEqual(controlPayload.args, providerArgs);
   assert.equal(Object.hasOwn(controlPayload.args, "projectKey"), false);
   assert.equal(controlPayload.intakeId, INTAKE_ID);
-  assert.equal(plan.projectKey, PROJECT_KEY);
+  assert.equal(plan.projectKey, CONTROL_PROJECT_KEY);
   assert.equal(plan.memoryContextRecorded, true);
   assert.equal(attachedContext.planId, PLAN_ID);
   assert.equal(attachedContext.requestId, REQUEST_ID);

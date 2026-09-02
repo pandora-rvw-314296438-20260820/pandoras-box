@@ -5,6 +5,7 @@ const { ExecutionLedgerClient } = require("../runtime/execution-ledger-client.js
 const {
   PandoraPlanMemoryContextProvider,
 } = require("../runtime/plan-memory-context.js");
+const { memoryProjectKeyForControlProject } = require("../runtime/memory-project-scope.js");
 const { PlanContextLedgerClient } = require("../runtime/plan-context-ledger-client.js");
 const {
   resolveVercelWorkloadToken,
@@ -94,9 +95,13 @@ class WorkerPlanContextProvider {
       };
     }
 
+    const memoryProjectKey = memoryProjectKeyForControlProject(plan.projectKey);
+    const contextArgs = memoryProjectKey
+      ? { ...plan.args, projectKey: memoryProjectKey }
+      : plan.args;
     const hydrated = await this.memory.hydrate(token, {
       tool: plan.tool,
-      args: plan.args,
+      args: contextArgs,
     });
     if (hydrated.envelope?.status !== "available") {
       throw new Error("PANDORA_MEMORY_CONTEXT_UNAVAILABLE");

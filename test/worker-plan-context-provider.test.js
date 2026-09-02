@@ -23,6 +23,7 @@ function plan(overrides = {}) {
     planId: PLAN_ID,
     requestId: "a4c6e81c-89d0-4a63-9b8f-18e41bd2619a",
     intakeId: "a4c6e81c-89d0-4a63-9b8f-18e41bd2619a",
+    projectKey: "mcpmaster",
     tool: "projectos.worker.verify",
     risk: "write",
     args,
@@ -42,6 +43,7 @@ test("worker plan context accepts only the closed exact-source contract", () => 
 test("fresh Memory context is attached and verified by durable readback", async () => {
   let reads = 0;
   let attached;
+  let hydrationInput;
   const envelope = { status: "available", namespace: "real_life" };
   const provider = new WorkerPlanContextProvider({
     resolveToken: async () => "v".repeat(80),
@@ -58,7 +60,10 @@ test("fresh Memory context is attached and verified by durable readback", async 
       },
     },
     memory: {
-      hydrate: async () => ({ envelope, contextHash: "a".repeat(64) }),
+      hydrate: async (_token, input) => {
+        hydrationInput = input;
+        return { envelope, contextHash: "a".repeat(64) };
+      },
     },
     contextLedger: {
       attach: async (_token, input) => {
@@ -71,6 +76,8 @@ test("fresh Memory context is attached and verified by durable readback", async 
   assert.equal(result.contextHash, "a".repeat(64));
   assert.equal(result.idempotentReplay, false);
   assert.equal(attached.planId, PLAN_ID);
+  assert.equal(hydrationInput.args.projectKey, "mcpmaster-pandoras-box");
+  assert.equal(Object.hasOwn(args, "projectKey"), false);
   assert.equal(reads, 2);
 });
 
