@@ -681,18 +681,18 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       setState(() => _liveBuildStreamId = normalizedStreamId);
       _liveBuildSubscription = repository
           .watchResilientBuildStream(
-            projectId: widget.project.id,
-            streamId: normalizedStreamId,
-          )
+        projectId: widget.project.id,
+        streamId: normalizedStreamId,
+      )
           .listen(
-            (snapshot) => _acceptLiveBuildSnapshot(
-              normalizedStreamId,
-              snapshot,
-            ),
-            onError: (_) {
-              // The generic lifecycle capsule remains the fail-closed fallback.
-            },
-          );
+        (snapshot) => _acceptLiveBuildSnapshot(
+          normalizedStreamId,
+          snapshot,
+        ),
+        onError: (_) {
+          // The generic lifecycle capsule remains the fail-closed fallback.
+        },
+      );
     } on ProjectExperienceException {
       _scheduleLiveBuildRetry(buildJobId);
     } catch (_) {
