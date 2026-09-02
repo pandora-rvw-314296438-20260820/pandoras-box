@@ -390,18 +390,22 @@ declare
   v_spec_id uuid;
   v_model_run_id uuid;
 begin
-  if p_memory_receipt_id is null or p_memory_context_hash !~ '^[0-9a-f]{64}$' then
+  if p_memory_context_hash !~ '^[0-9a-f]{64}$' then
     raise exception 'MEMORY_CONTEXT_BIND_INVALID' using errcode='22023';
   end if;
 
-  select * into v_receipt
-  from private.pandora_project_memory_context_receipts
-  where id=p_memory_receipt_id
-    and source_intent_id=p_source_intent_id
-    and decision_type='project_spec'
-    and context_hash=p_memory_context_hash;
-  if v_receipt.id is null then
-    raise exception 'MEMORY_CONTEXT_RECEIPT_MISMATCH' using errcode='22023';
+  if p_memory_receipt_id is not null then
+    select * into v_receipt
+    from private.pandora_project_memory_context_receipts
+    where id=p_memory_receipt_id
+      and source_intent_id=p_source_intent_id
+      and decision_type='project_spec'
+      and context_hash=p_memory_context_hash;
+    if v_receipt.id is null then
+      raise exception 'MEMORY_CONTEXT_RECEIPT_MISMATCH' using errcode='22023';
+    end if;
+  elsif coalesce(p_compiler_provenance->>'memory_context_status','')<>'unavailable' then
+    raise exception 'MEMORY_CONTEXT_RECEIPT_REQUIRED' using errcode='22023';
   end if;
 
   v_result:=private.pandora_commit_compiled_project_spec_v2_20260901(
