@@ -149,6 +149,7 @@ jobs:
         working-directory: .pandora-mobile-build
         run: |
           dart format lib/core/platform/pandora_web_preview_web.dart
+          dart format lib/features/simple/project_experience_v2.dart
           diff -u ../apps/pandora-mobile/lib/features/simple/project_experience_v2.dart lib/features/simple/project_experience_v2.dart || true
 
       - name: Upload canonical web formatter repair
