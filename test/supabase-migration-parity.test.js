@@ -168,6 +168,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260902070000_pandora_source_privilege_hardening_v1.sql',
     '20260902094000_pandora_build_model_cost_guard_v1.sql',
     '20260902095600_pandora_stream_event_budget_and_expiry_index_v1.sql',
+    '20260902181500_pandora_history_compaction_metrics_v1.sql',
     '20260903013000_pandora_visible_memory_response_contract_v2.sql',
     '20260903100000_pandora_cost_ledger_append_only_hardening_v1.sql'
   ]);
@@ -344,6 +345,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260902070000_pandora_source_privilege_hardening_v1.sql',
     '20260902094000_pandora_build_model_cost_guard_v1.sql',
     '20260902095600_pandora_stream_event_budget_and_expiry_index_v1.sql',
+    '20260902181500_pandora_history_compaction_metrics_v1.sql',
     '20260903013000_pandora_visible_memory_response_contract_v2.sql',
     '20260903100000_pandora_cost_ledger_append_only_hardening_v1.sql'
   ]);
@@ -472,6 +474,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260902070000_pandora_source_privilege_hardening_v1.sql',
     '20260902094000_pandora_build_model_cost_guard_v1.sql',
     '20260902095600_pandora_stream_event_budget_and_expiry_index_v1.sql',
+    '20260902181500_pandora_history_compaction_metrics_v1.sql',
     '20260903013000_pandora_visible_memory_response_contract_v2.sql',
     '20260903100000_pandora_cost_ledger_append_only_hardening_v1.sql'
   ]);

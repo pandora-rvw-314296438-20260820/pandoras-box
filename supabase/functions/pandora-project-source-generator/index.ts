@@ -519,6 +519,11 @@ async function runGenerationInBackground(input: {
           return [...merged.entries()].map(([path, content]) => ({ path, content }));
         })()
       : generatedFiles;
+    const sourceFileCount = files.length;
+    const sourceLineCount = files.reduce((sum, file) => {
+      const content = typeof file.content === "string" ? file.content : "";
+      return sum + (content.length === 0 ? 0 : content.split(/\r\n|\r|\n/).length);
+    }, 0);
     const canonical = await canonicalBundle({ schemaVersion: 1, files }, text(input.spec.id), adapter);
     const responseSha = await sha256Text(streamed.rawOutput);
     const requestId = crypto.randomUUID();
@@ -580,6 +585,27 @@ async function runGenerationInBackground(input: {
     const buildJobId = text(result.buildJobId);
     const projectVersionId = text(result.projectVersionId);
     if (buildJobId !== input.buildJobId || !UUID.test(projectVersionId)) throw new Error("BUILD_INTAKE_FAILED");
+
+    const versionMetricsRead = await admin.from("pandora_project_versions")
+      .select("source_payload")
+      .eq("id", projectVersionId)
+      .eq("organization_id", organizationId)
+      .eq("project_id", projectId)
+      .maybeSingle();
+    if (versionMetricsRead.error || !versionMetricsRead.data) throw new Error("BUILD_INTAKE_FAILED");
+    const sourcePayload = rec(versionMetricsRead.data.source_payload);
+    const versionMetricsWrite = await admin.from("pandora_project_versions")
+      .update({
+        source_payload: {
+          ...sourcePayload,
+          fileCount: sourceFileCount,
+          lineCount: sourceLineCount,
+        },
+      })
+      .eq("id", projectVersionId)
+      .eq("organization_id", organizationId)
+      .eq("project_id", projectId);
+    if (versionMetricsWrite.error) throw new Error("BUILD_INTAKE_FAILED");
 
     const completed = await admin.from("pandora_source_generation_queue").update({
       status: "succeeded",
