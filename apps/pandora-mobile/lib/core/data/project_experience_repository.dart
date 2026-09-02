@@ -44,6 +44,11 @@ abstract interface class ProjectExperienceRepository {
     required String idempotencyKey,
   });
 
+  Future<String?> findBuildStreamId({
+    required String projectId,
+    required String buildJobId,
+  });
+
   Stream<List<ProjectBuildStreamEvent>> watchBuildStream({
     required String projectId,
     required String streamId,
@@ -183,6 +188,16 @@ class CompositeProjectExperienceRepository
       _mutations.requestBuild(
         projectId: projectId,
         idempotencyKey: idempotencyKey,
+      );
+
+  @override
+  Future<String?> findBuildStreamId({
+    required String projectId,
+    required String buildJobId,
+  }) =>
+      _mutations.findBuildStreamId(
+        projectId: projectId,
+        buildJobId: buildJobId,
       );
 
   @override
