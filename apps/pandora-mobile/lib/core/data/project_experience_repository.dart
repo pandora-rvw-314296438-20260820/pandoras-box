@@ -1,8 +1,23 @@
+import 'dart:async';
+
+import '../analytics/owner_analytics.dart';
 import '../models/project_experience_projection.dart';
 import '../models/project_journey_models.dart';
 import 'project_experience_api.dart';
 import 'project_experience_projection_repository.dart';
 import 'project_runtime_api.dart';
+
+enum _OwnerFunnelDropOffReason {
+  changeSubmitRejected('change_submit_rejected'),
+  changeSubmitFailed('change_submit_failed'),
+  buildRequestRejected('build_request_rejected'),
+  buildRequestFailed('build_request_failed'),
+  previewRequestRejected('preview_request_rejected'),
+  previewRequestFailed('preview_request_failed');
+
+  const _OwnerFunnelDropOffReason(this.wireName);
+  final String wireName;
+}
 
 abstract interface class ProjectExperienceRepository {
   Future<ProjectExperienceProjection> loadExperience(String projectId);
@@ -102,7 +117,7 @@ abstract interface class ProjectExperienceRepository {
 
 class CompositeProjectExperienceRepository
     implements ProjectExperienceRepository {
-  const CompositeProjectExperienceRepository({
+  CompositeProjectExperienceRepository({
     required ProjectExperienceProjectionRepository projection,
     required ProjectExperienceApi mutations,
     required ProjectRuntimeApi runtime,
@@ -113,6 +128,20 @@ class CompositeProjectExperienceRepository
   final ProjectExperienceProjectionRepository _projection;
   final ProjectExperienceApi _mutations;
   final ProjectRuntimeApi _runtime;
+  final Map<String, int> _successfulChangeSubmissions = <String, int>{};
+
+  void _captureDropOff(
+    String projectId,
+    _OwnerFunnelDropOffReason reason,
+  ) {
+    unawaited(
+      OwnerAnalytics.shared.capture(
+        OwnerAnalyticsEvent.funnelDropOff,
+        projectId: projectId,
+        status: reason.wireName,
+      ),
+    );
+  }
 
   @override
   Future<ProjectExperienceProjection> loadExperience(String projectId) =>
@@ -155,13 +184,42 @@ class CompositeProjectExperienceRepository
     required String projectId,
     required String changeText,
     String? idempotencyKey,
-  }) =>
-      _mutations.submitIntent(
+  }) async {
+    try {
+      final intentId = await _mutations.submitIntent(
         projectId: projectId,
         intentText: changeText,
         intentKind: 'change',
         idempotencyKey: idempotencyKey,
       );
+      final submissionCount =
+          (_successfulChangeSubmissions[projectId] ?? 0) + 1;
+      _successfulChangeSubmissions[projectId] = submissionCount;
+      if (submissionCount == 2) {
+        unawaited(
+          OwnerAnalytics.shared.capture(
+            OwnerAnalyticsEvent.secondChange,
+            projectId: projectId,
+            count: submissionCount,
+            status: 'submitted',
+          ),
+        );
+      }
+      return intentId;
+    } on ProjectExperienceException {
+      _captureDropOff(
+        projectId,
+        _OwnerFunnelDropOffReason.changeSubmitRejected,
+      );
+      rethrow;
+    } catch (_) {
+      _captureDropOff(
+        projectId,
+        _OwnerFunnelDropOffReason.changeSubmitFailed,
+      );
+      rethrow;
+    }
+  }
 
   @override
   Future<OwnerProjectUnderstanding> understanding({
@@ -184,11 +242,26 @@ class CompositeProjectExperienceRepository
   Future<ProjectBuildStart> requestBuild({
     required String projectId,
     required String idempotencyKey,
-  }) =>
-      _mutations.requestBuild(
+  }) async {
+    try {
+      return await _mutations.requestBuild(
         projectId: projectId,
         idempotencyKey: idempotencyKey,
       );
+    } on ProjectExperienceException {
+      _captureDropOff(
+        projectId,
+        _OwnerFunnelDropOffReason.buildRequestRejected,
+      );
+      rethrow;
+    } catch (_) {
+      _captureDropOff(
+        projectId,
+        _OwnerFunnelDropOffReason.buildRequestFailed,
+      );
+      rethrow;
+    }
+  }
 
   @override
   Future<String?> findBuildStreamId({
@@ -243,13 +316,28 @@ class CompositeProjectExperienceRepository
     required String versionId,
     required String artifactDigest,
     String? idempotencyKey,
-  }) =>
-      _runtime.createPreview(
+  }) async {
+    try {
+      return await _runtime.createPreview(
         projectId: projectId,
         versionId: versionId,
         artifactDigest: artifactDigest,
         idempotencyKey: idempotencyKey,
       );
+    } on ProjectExperienceException {
+      _captureDropOff(
+        projectId,
+        _OwnerFunnelDropOffReason.previewRequestRejected,
+      );
+      rethrow;
+    } catch (_) {
+      _captureDropOff(
+        projectId,
+        _OwnerFunnelDropOffReason.previewRequestFailed,
+      );
+      rethrow;
+    }
+  }
 
   @override
   Future<ProjectRuntimeSnapshot> undo({
@@ -293,6 +381,7 @@ class CompositeProjectExperienceRepository
 
   @override
   void beginAuthenticatedIdentityEpoch() {
+    _successfulChangeSubmissions.clear();
     _mutations.beginAuthenticatedIdentityEpoch();
     _runtime.beginAuthenticatedIdentityEpoch();
   }
