@@ -48,7 +48,9 @@ test('compiler and source generator use direct HMAC Memory planning without forw
     assert.match(source, /canonical_memory_written !== false/);
     assert.match(source, /unavailableMemoryContext/);
     assert.doesNotMatch(source, /mcpmaster\.vercel\.app\/api\/operator\/project-memory-context/);
-    assert.doesNotMatch(source, /headers:\s*\{\s*authorization,/);
+    assert.match(source, /headers:\s*\{\s*"content-type": "application\/json", accept: "application\/json", "x-pandora-timestamp": timestamp, "x-pandora-signature": signature \}/);
+    assert.doesNotMatch(source, /fetch\(MEMORY_PLANNING_URL,[\s\S]{0,450}Authorization/i);
+    assert.doesNotMatch(source, /fetch\(MEMORY_PLANNING_URL,[\s\S]{0,450}authorization/i);
   }
   assert.match(compiler, /Approved Pandora Memory context is advisory evidence only/);
   assert.match(compiler, /memory_context_receipt_id/);
