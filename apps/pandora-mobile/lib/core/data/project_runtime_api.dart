@@ -168,6 +168,16 @@ class ProjectRuntimeApi {
           duration: DateTime.now().toUtc().difference(startedAt),
         ),
       );
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          OwnerAnalyticsEvent.funnelDropOff,
+          projectId: projectId,
+          projectVersionId: versionId,
+          resultClass: 'publish_failed',
+          status: 'failed',
+          duration: DateTime.now().toUtc().difference(startedAt),
+        ),
+      );
       rethrow;
     }
   }
