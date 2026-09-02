@@ -21,7 +21,9 @@ test('preview-content hosted identity is validated and threaded into every previ
   assert.match(api, /final hostedPreview = _map\(data\['hostedPreview'\]\);/);
   assert.match(api, /_optionalText\(hostedPreview\?\['deploymentId'\]\)/);
   assert.match(api, /_optionalText\(hostedPreview\?\['sourceSha256'\]\)/);
-  assert.match(api, /if \(previewDeploymentId != null\)[\s\S]*'previewDeploymentId': previewDeploymentId/);
+  assert.match(api, /'previewDeploymentId': previewDeploymentId/);
+  assert.match(api, /'local-artifact'/);
+  assert.match(api, /_optionalText\(data\['sourceSha256'\]\)/);
   assert.match(api, /if \(sourceSha256 != null\) 'sourceSha256': sourceSha256/);
 });
 
