@@ -685,8 +685,10 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
             streamId: normalizedStreamId,
           )
           .listen(
-            (snapshot) =>
-                _acceptLiveBuildSnapshot(normalizedStreamId, snapshot),
+            (snapshot) => _acceptLiveBuildSnapshot(
+              normalizedStreamId,
+              snapshot,
+            ),
             onError: (_) {
               // The generic lifecycle capsule remains the fail-closed fallback.
             },
