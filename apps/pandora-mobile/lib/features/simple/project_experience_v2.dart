@@ -122,7 +122,7 @@ class _ProjectBuildExperienceV2ScreenState
 
   String? get _previewUrl {
     final candidate = _candidate;
-    if (candidate == null) return null;
+    if (candidate == null || !candidate.isPreviewEligible) return null;
     final preview = _snapshot?.preview;
     if (preview != null && preview.versionId == candidate.versionId) {
       return _safeHttps(preview.url);
@@ -137,10 +137,18 @@ class _ProjectBuildExperienceV2ScreenState
 
   bool get _ready {
     final candidate = _candidate;
-    if (candidate == null) return false;
+    if (candidate == null || !candidate.isPreviewEligible) return false;
     return _previewUrl != null ||
         (_localPreviewVersionId == candidate.versionId &&
             _localPreviewFiles != null);
+  }
+
+  bool get _publishReady {
+    final candidate = _candidate;
+    final verification = _snapshot?.verification;
+    return candidate != null &&
+        verification != null &&
+        verification.isPublishReadyFor(candidate);
   }
 
   void _enterWorkspaceIfReady() {
@@ -207,7 +215,7 @@ class _ProjectBuildExperienceV2ScreenState
             if (mounted) setState(() => _error = error.message);
           }
         }
-      } else if (!_ready && !_previewRequested) {
+      } else if (candidate.isPreviewEligible && !_ready && !_previewRequested) {
         _previewRequested = true;
         try {
           final result = await experience.createPreview(
@@ -316,6 +324,7 @@ class _ProjectBuildExperienceV2ScreenState
 
   String get _stageTitle {
     final updating = widget.baseVersionId?.trim().isNotEmpty == true;
+    if (_ready && !_publishReady) return updating ? 'Change preview' : 'Preview';
     if (_ready) return updating ? 'Updated' : 'Ready';
     if (_candidate != null) return 'Preparing your preview';
     if (_snapshot?.verification?.state == 'checking') return 'Checking';
@@ -324,6 +333,9 @@ class _ProjectBuildExperienceV2ScreenState
   }
 
   String get _stageMessage {
+    if (_ready && !_publishReady) {
+      return 'Your exact preview is available while Pandora finishes checking it.';
+    }
     if (_ready) return 'Your exact project is ready to experience.';
     if (_candidate != null) {
       return 'Preparing the exact version you just built.';
@@ -402,7 +414,7 @@ class _ProjectBuildExperienceV2ScreenState
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: PandoraV2ObjectHeader(
                   title: widget.project.name,
-                  subtitle: _ready ? 'Ready' : 'Working',
+                  subtitle: _ready && _publishReady ? 'Ready' : 'Working',
                 ),
               ),
               Expanded(
