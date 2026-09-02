@@ -353,4 +353,157 @@ revoke all on function private.pandora_enqueue_memory_decision_outcome_v1(uuid,t
 grant execute on function private.pandora_enqueue_memory_decision_influence_v1(uuid,text,uuid,uuid) to service_role;
 grant execute on function private.pandora_enqueue_memory_decision_outcome_v1(uuid,text,uuid,uuid,text,numeric,text) to service_role;
 
+
+-- Actual-use hardening: retrieval alone is never counted as influence.
+-- A ProjectSpec decision is bound atomically to the exact model run that consumed
+-- the validated Memory context. Build influence is emitted only after a
+-- successful source-generation model run carries the same context hash.
+drop trigger if exists pandora_project_spec_memory_influence_v1 on public.pandora_project_specs;
+drop trigger if exists pandora_build_memory_influence_v1 on public.pandora_build_jobs;
+
+create or replace function public.pandora_commit_compiled_project_spec_memory_v1(
+  p_source_intent_id uuid,
+  p_claim_token uuid,
+  p_candidate jsonb,
+  p_compiler_provider text,
+  p_compiler_model text,
+  p_compiler_version text,
+  p_compiler_provenance jsonb,
+  p_content_sha256 text,
+  p_model_request_id text,
+  p_model_request_sha256 text,
+  p_model_response_sha256 text,
+  p_model_input_tokens bigint,
+  p_model_output_tokens bigint,
+  p_model_total_tokens bigint,
+  p_model_revision text,
+  p_memory_context_hash text,
+  p_memory_receipt_id uuid
+) returns jsonb
+language plpgsql
+security definer
+set search_path=pg_catalog,private,public
+as $$
+declare
+  v_receipt private.pandora_project_memory_context_receipts%rowtype;
+  v_result jsonb;
+  v_spec_id uuid;
+  v_model_run_id uuid;
+begin
+  if p_memory_receipt_id is null or p_memory_context_hash !~ '^[0-9a-f]{64}$' then
+    raise exception 'MEMORY_CONTEXT_BIND_INVALID' using errcode='22023';
+  end if;
+
+  select * into v_receipt
+  from private.pandora_project_memory_context_receipts
+  where id=p_memory_receipt_id
+    and source_intent_id=p_source_intent_id
+    and decision_type='project_spec'
+    and context_hash=p_memory_context_hash;
+  if v_receipt.id is null then
+    raise exception 'MEMORY_CONTEXT_RECEIPT_MISMATCH' using errcode='22023';
+  end if;
+
+  v_result:=private.pandora_commit_compiled_project_spec_v2_20260901(
+    p_source_intent_id,p_claim_token,p_candidate,p_compiler_provider,p_compiler_model,
+    p_compiler_version,p_compiler_provenance,p_content_sha256,p_model_request_id,
+    p_model_request_sha256,p_model_response_sha256,p_model_input_tokens,
+    p_model_output_tokens,p_model_total_tokens,p_model_revision
+  );
+  if coalesce(v_result->>'state','')<>'succeeded' then return v_result; end if;
+
+  begin
+    v_spec_id:=(v_result->>'projectSpecId')::uuid;
+  exception when others then
+    raise exception 'MEMORY_CONTEXT_SPEC_ID_INVALID' using errcode='55000';
+  end;
+
+  update public.pandora_model_runs
+  set context_sha256=p_memory_context_hash
+  where project_spec_id=v_spec_id
+    and request_id=p_model_request_id
+    and task='compile_project_spec'
+    and status='succeeded'
+    and (context_sha256 is null or context_sha256=p_memory_context_hash)
+  returning id into v_model_run_id;
+  if v_model_run_id is null then
+    raise exception 'MEMORY_CONTEXT_MODEL_RUN_BIND_FAILED' using errcode='55000';
+  end if;
+
+  return v_result || jsonb_build_object(
+    'memoryContextHash',p_memory_context_hash,
+    'memoryReceiptId',p_memory_receipt_id,
+    'modelRunId',v_model_run_id
+  );
+end;
+$$;
+revoke all on function public.pandora_commit_compiled_project_spec_memory_v1(
+  uuid,uuid,jsonb,text,text,text,jsonb,text,text,text,text,bigint,bigint,bigint,text,text,uuid
+) from public,anon,authenticated;
+grant execute on function public.pandora_commit_compiled_project_spec_memory_v1(
+  uuid,uuid,jsonb,text,text,text,jsonb,text,text,text,text,bigint,bigint,bigint,text,text,uuid
+) to service_role;
+
+create or replace function private.pandora_model_run_memory_influence_trigger_v2()
+returns trigger
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare
+  v_source_intent_id uuid;
+  v_decision_type text;
+  v_decision_id uuid;
+  v_receipt_id uuid;
+  v_reference_time timestamptz;
+begin
+  if new.status<>'succeeded' or new.context_sha256 is null
+     or new.context_sha256 !~ '^[0-9a-f]{64}$' then
+    return new;
+  end if;
+  if tg_op='UPDATE' then
+    if old.context_sha256 is not distinct from new.context_sha256 then return new; end if;
+  end if;
+
+  if new.task='compile_project_spec' and new.project_spec_id is not null then
+    v_decision_type:='project_spec';
+    v_decision_id:=new.project_spec_id;
+    select source_intent_id into v_source_intent_id
+    from public.pandora_project_specs where id=new.project_spec_id;
+  elsif new.task='generate_project_source' and new.build_job_id is not null then
+    v_decision_type:='build';
+    v_decision_id:=new.build_job_id;
+    select source_intent_id into v_source_intent_id
+    from public.pandora_build_jobs where id=new.build_job_id;
+  else
+    return new;
+  end if;
+  if v_source_intent_id is null or v_decision_id is null then return new; end if;
+
+  v_reference_time:=coalesce(new.started_at,new.created_at,clock_timestamp());
+  select id into v_receipt_id
+  from private.pandora_project_memory_context_receipts
+  where source_intent_id=v_source_intent_id
+    and decision_type=v_decision_type
+    and context_status='available'
+    and context_hash=new.context_sha256
+    and created_at between v_reference_time-interval '10 minutes'
+                       and coalesce(new.completed_at,v_reference_time)+interval '1 minute'
+  order by created_at desc
+  limit 1;
+
+  if v_receipt_id is not null then
+    perform private.pandora_enqueue_memory_decision_influence_v1(
+      v_receipt_id,v_decision_type,v_decision_id,new.id
+    );
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists pandora_model_run_memory_influence_v2 on public.pandora_model_runs;
+create trigger pandora_model_run_memory_influence_v2
+after insert or update on public.pandora_model_runs
+for each row execute function private.pandora_model_run_memory_influence_trigger_v2();
+
 commit;
