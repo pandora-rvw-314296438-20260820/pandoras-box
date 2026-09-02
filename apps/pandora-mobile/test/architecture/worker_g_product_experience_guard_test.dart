@@ -75,6 +75,15 @@ void main() {
     expect(source, isNot(contains('Watch your project take shape')));
     expect(view, contains('class ProjectWorkspaceV2View'));
     expect(view, contains('ProjectChangePhase'));
+    expect(source, contains('findBuildStreamId('));
+    expect(source, contains('watchResilientBuildStream('));
+    expect(source, contains('ProjectBuildStreamTheatreProjection.fromSnapshot('));
+    expect(source, contains('ProjectHistoryBuildEvidenceScreen('));
+    expect(source, contains('liveActivityLabel: _liveActivityLabel'));
+    expect(view, contains("Key('workspace-live-activity-strip')"));
+    expect(view, contains('child: _LiveBuildActivityStrip('));
+    expect(view, contains('else if (progressPhase != null)'));
+    expect(view, isNot(contains('fake activity')));
   });
 
   test('Simple experience depends only on platform-neutral preview host', () {
