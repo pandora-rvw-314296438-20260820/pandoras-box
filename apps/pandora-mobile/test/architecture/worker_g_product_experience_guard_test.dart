@@ -3,17 +3,18 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Simple V2 keeps only the three customer navigation surfaces', () {
+  test('Simple V2 keeps the focused four customer navigation surfaces', () {
     final shell = File('lib/app/pandora_shell.dart').readAsStringSync();
     for (final declaration in const [
       "_Destination('Home'",
       "_Destination('Work'",
       "'Needs You'",
+      "_Destination('More'",
     ]) {
       expect(shell, contains(declaration));
     }
     expect(shell, isNot(contains("'Ask Pandora'")));
-    expect(shell, isNot(contains("_Destination('More'")));
+    expect(shell, contains('MoreScreen'));
     expect(shell, isNot(contains('emphasized: true')));
   });
 
