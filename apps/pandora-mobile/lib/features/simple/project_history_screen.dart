@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -91,10 +92,20 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
             exactSourceAvailable = true;
             fileCount = files.length;
             for (final file in files) {
-              final content = file['content'];
-              if (content is! String || content.isEmpty) continue;
-              lineCount += '\n'.allMatches(content).length;
-              if (!content.endsWith('\n')) lineCount += 1;
+              if (!_isTextLikePreviewFile(file)) continue;
+              final encoded = file['dataBase64'];
+              if (encoded is! String || encoded.isEmpty) continue;
+              try {
+                final content = utf8.decode(
+                  base64Decode(encoded),
+                  allowMalformed: false,
+                );
+                if (content.isEmpty) continue;
+                lineCount += '\n'.allMatches(content).length;
+                if (!content.endsWith('\n')) lineCount += 1;
+              } on FormatException {
+                // Exact bytes exist, but invalid UTF-8 is not guessed as source lines.
+              }
             }
           } on ProjectExperienceException {
             // Fail closed: never infer source counts from expired transport events.
@@ -448,8 +459,8 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
     final status = item.status?.trim();
     final title = item.isProposal
         ? '${widget.projectName} proposal'
-        : item.isBuild && item.buildJobId != null
-            ? 'Build · ${_shortId(item.buildJobId!)}'
+        : item.isBuild
+            ? _buildHistoryTitle(item)
             : item.title;
     final collapsedLines = item.isProposal || item.isBuild ? 2 : 5;
     final facts = widget.buildFacts;
@@ -688,9 +699,26 @@ class _ProjectHistoryBuildEvidenceScreenState
       );
 }
 
-String _shortId(String value) {
-  final normalized = value.trim();
-  return normalized.length <= 8 ? normalized : normalized.substring(0, 8);
+bool _isTextLikePreviewFile(Map<String, dynamic> file) {
+  final mimeType = (file['mimeType'] as String?)?.trim().toLowerCase() ?? '';
+  final fileName = (file['file'] as String?)?.trim().toLowerCase() ?? '';
+  if (mimeType.startsWith('text/') ||
+      mimeType.contains('json') ||
+      mimeType.contains('javascript') ||
+      mimeType.contains('typescript') ||
+      mimeType.contains('xml') ||
+      mimeType.contains('yaml') ||
+      mimeType.contains('x-dart')) {
+    return true;
+  }
+  return RegExp(
+    r'\.(?:dart|js|jsx|ts|tsx|json|html?|css|scss|md|txt|ya?ml|xml|sql|sh|py|java|kt|swift|c|cc|cpp|h|hpp|go|rs|rb|php)$',
+  ).hasMatch(fileName);
+}
+
+String _buildHistoryTitle(ProjectConversationHistoryItem item) {
+  final jobKind = (item.payloadText('jobKind') ?? '').trim().toLowerCase();
+  return jobKind.contains('repair') ? 'Repair' : 'Build';
 }
 
 String _formatDuration(Duration duration) {
