@@ -91,8 +91,6 @@ function clearPrivilegedCallerHeaders(request) {
     delete request.headers['x-vercel-sc-headers'];
 }
 function requiredOperatorScope(request) {
-    if (request.method === 'POST' && request.path === '/project-memory-context')
-        return 'projectos:plan';
     if (request.method === 'POST'
         && /^\/worker-plans\/[0-9a-f-]+\/context$/i.test(request.path))
         return 'projectos:plan';
@@ -309,50 +307,6 @@ function createOperatorApiApp(options) {
                 error: {
                     code: 'CANONICAL_STATUS_UNAVAILABLE',
                     message: 'The canonical status pack could not be refreshed.',
-                },
-            });
-        }
-    });
-    router.post('/project-memory-context', async (request, response) => {
-        noStore(response);
-        const current = actor(response);
-        const body = request.body && typeof request.body === 'object' && !Array.isArray(request.body)
-            ? request.body
-            : {};
-        const keys = Object.keys(body).sort();
-        if (!current || keys.length !== 2 || keys[0] !== 'decisionType' || keys[1] !== 'intentId'
-            || typeof body.intentId !== 'string'
-            || !['project_spec', 'build', 'repair'].includes(body.decisionType)) {
-            response.status(400).json({
-                ok: false,
-                error: { code: 'MEMORY_CONTEXT_REQUEST_INVALID', message: 'Exact intentId and decisionType are required.' },
-            });
-            return;
-        }
-        try {
-            const context = await options.projectMemoryContextProvider?.prepareIntent?.({
-                intentId: body.intentId,
-                decisionType: body.decisionType,
-                accessToken: current.identity.accessToken,
-                vercelOidcToken: request.__canonicalVercelOidcToken,
-            });
-            if (!context || context.sourceIntentId !== body.intentId || context.decisionType !== body.decisionType) {
-                throw new Error('MEMORY_CONTEXT_PROVIDER_UNAVAILABLE');
-            }
-            response.json({ ok: true, context });
-        }
-        catch (error) {
-            const candidate = typeof error === 'object' && error !== null && 'status' in error
-                ? Number(error.status)
-                : 503;
-            const status = [400, 401, 403, 404].includes(candidate) ? candidate : 503;
-            response.status(status).json({
-                ok: false,
-                error: {
-                    code: error instanceof Error ? error.message : 'MEMORY_CONTEXT_PROVIDER_UNAVAILABLE',
-                    message: status === 503
-                        ? 'Fresh project-scoped Pandora Memory context could not be prepared.'
-                        : 'The requested project Memory context is not available to this session.',
                 },
             });
         }
