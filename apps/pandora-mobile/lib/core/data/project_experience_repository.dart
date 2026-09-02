@@ -7,6 +7,18 @@ import 'project_experience_api.dart';
 import 'project_experience_projection_repository.dart';
 import 'project_runtime_api.dart';
 
+enum _OwnerFunnelDropOffReason {
+  changeSubmitRejected('change_submit_rejected'),
+  changeSubmitFailed('change_submit_failed'),
+  buildRequestRejected('build_request_rejected'),
+  buildRequestFailed('build_request_failed'),
+  previewRequestRejected('preview_request_rejected'),
+  previewRequestFailed('preview_request_failed');
+
+  const _OwnerFunnelDropOffReason(this.wireName);
+  final String wireName;
+}
+
 abstract interface class ProjectExperienceRepository {
   Future<ProjectExperienceProjection> loadExperience(String projectId);
 
@@ -118,12 +130,15 @@ class CompositeProjectExperienceRepository
   final ProjectRuntimeApi _runtime;
   final Map<String, int> _successfulChangeSubmissions = <String, int>{};
 
-  void _captureDropOff(String projectId, String reason) {
+  void _captureDropOff(
+    String projectId,
+    _OwnerFunnelDropOffReason reason,
+  ) {
     unawaited(
       OwnerAnalytics.shared.capture(
         OwnerAnalyticsEvent.funnelDropOff,
         projectId: projectId,
-        status: reason,
+        status: reason.wireName,
       ),
     );
   }
@@ -191,10 +206,16 @@ class CompositeProjectExperienceRepository
       }
       return intentId;
     } on ProjectExperienceException {
-      _captureDropOff(projectId, 'change_submit_rejected');
+      _captureDropOff(
+        projectId,
+        _OwnerFunnelDropOffReason.changeSubmitRejected,
+      );
       rethrow;
     } catch (_) {
-      _captureDropOff(projectId, 'change_submit_failed');
+      _captureDropOff(
+        projectId,
+        _OwnerFunnelDropOffReason.changeSubmitFailed,
+      );
       rethrow;
     }
   }
@@ -227,10 +248,16 @@ class CompositeProjectExperienceRepository
         idempotencyKey: idempotencyKey,
       );
     } on ProjectExperienceException {
-      _captureDropOff(projectId, 'build_request_rejected');
+      _captureDropOff(
+        projectId,
+        _OwnerFunnelDropOffReason.buildRequestRejected,
+      );
       rethrow;
     } catch (_) {
-      _captureDropOff(projectId, 'build_request_failed');
+      _captureDropOff(
+        projectId,
+        _OwnerFunnelDropOffReason.buildRequestFailed,
+      );
       rethrow;
     }
   }
@@ -297,10 +324,16 @@ class CompositeProjectExperienceRepository
         idempotencyKey: idempotencyKey,
       );
     } on ProjectExperienceException {
-      _captureDropOff(projectId, 'preview_request_rejected');
+      _captureDropOff(
+        projectId,
+        _OwnerFunnelDropOffReason.previewRequestRejected,
+      );
       rethrow;
     } catch (_) {
-      _captureDropOff(projectId, 'preview_request_failed');
+      _captureDropOff(
+        projectId,
+        _OwnerFunnelDropOffReason.previewRequestFailed,
+      );
       rethrow;
     }
   }
