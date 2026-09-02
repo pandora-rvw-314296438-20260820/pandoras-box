@@ -225,7 +225,22 @@ class ProjectRuntimeCandidate {
   final String status;
   final String? parentVersionId;
 
+  static final RegExp _artifactDigestPattern = RegExp(r'^[0-9a-f]{64}$');
+  static const Set<String> _previewEligibleStatuses = <String>{
+    'built',
+    'verification_pending',
+    'verified',
+    'preview_ready',
+  };
+
   bool get canUndo => parentVersionId != null && parentVersionId!.isNotEmpty;
+
+  bool get isPreviewEligible {
+    final normalizedStatus = status.trim().toLowerCase();
+    final normalizedDigest = artifactDigest.trim().toLowerCase();
+    return _previewEligibleStatuses.contains(normalizedStatus) &&
+        _artifactDigestPattern.hasMatch(normalizedDigest);
+  }
 
   factory ProjectRuntimeCandidate.fromJson(Object? value) {
     final json = asJsonMap(value);
@@ -260,6 +275,9 @@ class ProjectRuntimeVerification {
   final bool publishEligible;
   final String? versionId;
   final DateTime? checkedAt;
+
+  bool isPublishReadyFor(ProjectRuntimeCandidate candidate) =>
+      publishEligible && versionId == candidate.versionId;
 
   factory ProjectRuntimeVerification.fromJson(Object? value) {
     final json = asJsonMap(value);
