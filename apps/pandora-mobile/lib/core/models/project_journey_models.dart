@@ -257,7 +257,7 @@ class ProjectRuntimeCandidate {
             'artifactDigest',
           ],
           field: 'projectCandidate.artifactDigest'),
-      status: jsonText(json['status'], fallback: 'built'),
+      status: jsonText(json['status'], fallback: 'unknown'),
       parentVersionId: _optionalText(json['parentVersionId']),
     );
   }
