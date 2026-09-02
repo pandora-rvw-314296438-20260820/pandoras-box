@@ -64,6 +64,9 @@ test('compiler and source generator use only bounded advisory Memory context', (
   assert.match(compiler, /p_memory_context_hash/);
   assert.match(generator, /context_sha256: text\(input\.memoryContext\.contextHash\)/);
   assert.doesNotMatch(generator, /context_sha256: input\.spec\.content_sha256/);
+  assert.match(compiler, /unavailableMemoryContext/);
+  assert.match(generator, /unavailableMemoryContext/);
+  assert.match(compiler, /p_memory_receipt_id: text\(memoryContext\.receiptId\) \|\| null/);
 });
 
 test('decision influence and verified outcomes remain project-bound and non-canonical', () => {
@@ -76,6 +79,10 @@ test('decision influence and verified outcomes remain project-bound and non-cano
   assert.match(lineage, /new\.status<>'succeeded'/);
   assert.match(lineage, /context_hash=new\.context_sha256/);
   assert.match(lineage, /v_receipt_id,v_decision_type,v_decision_id,new\.id/);
+  assert.match(lineage, /context_status='available'/);
+  assert.match(lineage, /MEMORY_CONTEXT_RECEIPT_REQUIRED/);
+  assert.match(lineage, /when 'PASS' then 1/);
+  assert.match(lineage, /when 'FAIL' then -1/);
   assert.match(lineage, /pandora_verification_memory_outcome_v1/);
   assert.match(transport, /pandora-projectos-decision-lineage/);
   assert.match(transport, /projectos_memory_learning_hmac/);
