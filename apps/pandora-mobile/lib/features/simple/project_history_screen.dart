@@ -243,7 +243,9 @@ class _ProjectHistoryScreenState extends State<ProjectHistoryScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                ids.isEmpty ? 'Pandora retained this durable history record.' : 'Pandora retained the exact records behind this result so it can be independently traced.',
+                ids.isEmpty
+                    ? 'Pandora retained this durable history record.'
+                    : 'Pandora retained the exact records behind this result so it can be independently traced.',
                 style: pandoraV2Muted,
               ),
               if (proofLabels.isNotEmpty) ...[
@@ -432,15 +434,13 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
-    final exactIntent = item.isUserIntent
-        ? item.payloadText('intentText')
-        : null;
+    final exactIntent =
+        item.isUserIntent ? item.payloadText('intentText') : null;
     final proposalSummary = item.isProposal
         ? item.payloadText('businessSummary') ?? item.summary
         : null;
     final detail = exactIntent ?? proposalSummary ?? item.summary;
-    final canExpand =
-        item.isProposal ||
+    final canExpand = item.isProposal ||
         item.expandable ||
         detail.length > 260 ||
         item.evidenceAvailable;
@@ -449,8 +449,8 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
     final title = item.isProposal
         ? '${widget.projectName} proposal'
         : item.isBuild && item.buildJobId != null
-        ? 'Build · ${_shortId(item.buildJobId!)}'
-        : item.title;
+            ? 'Build · ${_shortId(item.buildJobId!)}'
+            : item.title;
     final collapsedLines = item.isProposal || item.isBuild ? 2 : 5;
     final facts = widget.buildFacts;
     return Container(
@@ -580,21 +580,21 @@ class _HistoryFact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-    decoration: BoxDecoration(
-      color: PandoraV2Colors.canvas,
-      borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: PandoraV2Colors.line),
-    ),
-    child: Text(
-      label,
-      style: const TextStyle(
-        color: PandoraV2Colors.muted,
-        fontSize: 11.5,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: PandoraV2Colors.canvas,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: PandoraV2Colors.line),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: PandoraV2Colors.muted,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
 }
 
 class ProjectHistoryBuildEvidenceScreen extends StatefulWidget {
@@ -619,7 +619,8 @@ class _ProjectHistoryBuildEvidenceScreenState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _stream ??= PandoraDependencies.of(context).projectExperienceRepository
+    _stream ??= PandoraDependencies.of(context)
+        .projectExperienceRepository
         ?.watchResilientBuildStream(
           projectId: widget.project.id,
           streamId: widget.streamId,
@@ -628,61 +629,63 @@ class _ProjectHistoryBuildEvidenceScreenState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: PandoraV2Colors.canvas,
-    appBar: AppBar(
-      backgroundColor: PandoraV2Colors.canvas,
-      foregroundColor: PandoraV2Colors.ink,
-      surfaceTintColor: Colors.transparent,
-      title: const Text('Build activity'),
-    ),
-    body: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: _stream == null
-            ? const PandoraV2InlineMessage(
-                title: 'Build activity unavailable',
-                message: 'Durable project history remains authoritative.',
-              )
-            : StreamBuilder<ProjectBuildStreamSnapshot>(
-                stream: _stream,
-                initialData: const ProjectBuildStreamSnapshot.empty(),
-                builder: (context, snapshot) {
-                  final value =
-                      snapshot.data ?? const ProjectBuildStreamSnapshot.empty();
-                  if (value.requiresReplay) {
-                    return const PandoraV2InlineMessage(
-                      title: 'Refreshing build evidence',
-                      message: 'Pandora is reconciling the durable stream.',
-                    );
-                  }
-                  if (value.events.isEmpty) {
-                    return const PandoraV2InlineMessage(
-                      title: 'Detailed activity expired',
-                      message: 'Pandora does not recreate expired events. The durable history item remains available.',
-                    );
-                  }
-                  try {
-                    final theatre =
-                        ProjectBuildStreamTheatreProjection.fromSnapshot(
+        backgroundColor: PandoraV2Colors.canvas,
+        appBar: AppBar(
+          backgroundColor: PandoraV2Colors.canvas,
+          foregroundColor: PandoraV2Colors.ink,
+          surfaceTintColor: Colors.transparent,
+          title: const Text('Build activity'),
+        ),
+        body: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: _stream == null
+                ? const PandoraV2InlineMessage(
+                    title: 'Build activity unavailable',
+                    message: 'Durable project history remains authoritative.',
+                  )
+                : StreamBuilder<ProjectBuildStreamSnapshot>(
+                    stream: _stream,
+                    initialData: const ProjectBuildStreamSnapshot.empty(),
+                    builder: (context, snapshot) {
+                      final value = snapshot.data ??
+                          const ProjectBuildStreamSnapshot.empty();
+                      if (value.requiresReplay) {
+                        return const PandoraV2InlineMessage(
+                          title: 'Refreshing build evidence',
+                          message: 'Pandora is reconciling the durable stream.',
+                        );
+                      }
+                      if (value.events.isEmpty) {
+                        return const PandoraV2InlineMessage(
+                          title: 'Detailed activity expired',
+                          message:
+                              'Pandora does not recreate expired events. The durable history item remains available.',
+                        );
+                      }
+                      try {
+                        final theatre =
+                            ProjectBuildStreamTheatreProjection.fromSnapshot(
                           streamId: widget.streamId,
                           snapshot: value,
                         );
-                    return SingleChildScrollView(
-                      child: LiveBuildTheatre(state: theatre),
-                    );
-                  } on FormatException {
-                    return const PandoraV2InlineMessage(
-                      title: 'Build evidence rejected',
-                      message: 'Pandora rejected mismatched build evidence instead of displaying it.',
-                      danger: true,
-                    );
-                  }
-                },
-              ),
-      ),
-    ),
-  );
+                        return SingleChildScrollView(
+                          child: LiveBuildTheatre(state: theatre),
+                        );
+                      } on FormatException {
+                        return const PandoraV2InlineMessage(
+                          title: 'Build evidence rejected',
+                          message:
+                              'Pandora rejected mismatched build evidence instead of displaying it.',
+                          danger: true,
+                        );
+                      }
+                    },
+                  ),
+          ),
+        ),
+      );
 }
 
 String _shortId(String value) {
