@@ -55,7 +55,7 @@ test('live source visibility is ephemeral and read-only to authenticated members
 });
 
 test('conversation preserves the long request without letting it dominate the build', () => {
-  assert.match(conversation, /maxLines: expanded \|\ !\isLong \? null : 4/);
+  assert.match(conversation, /maxLines: expanded \|\| !isLong \? null : 4/);
   assert.match(conversation, /Show full request/);
   assert.match(conversation, /Collapse request/);
   assert.match(conversation, /Reconnecting to the live build/);
