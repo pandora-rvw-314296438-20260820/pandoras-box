@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../core/analytics/owner_analytics.dart';
 import '../../core/data/project_experience_api.dart';
 import '../../core/models/project_journey_models.dart';
 import 'live_build_theatre/live_build_theatre.dart';
@@ -16,12 +19,14 @@ class ProjectBuildConversationScreen extends StatefulWidget {
     required this.originalIntent,
     required this.understanding,
     required this.buildStart,
+    this.buildClickedAt,
   });
 
   final CustomerProject project;
   final String originalIntent;
   final OwnerProjectUnderstanding understanding;
   final ProjectBuildStart buildStart;
+  final DateTime? buildClickedAt;
 
   @override
   State<ProjectBuildConversationScreen> createState() =>
@@ -32,6 +37,114 @@ class _ProjectBuildConversationScreenState
     extends State<ProjectBuildConversationScreen> {
   Stream<ProjectBuildStreamSnapshot>? _stream;
   bool _intentExpanded = false;
+  bool _wasReconnecting = false;
+  final Set<String> _capturedAnalytics = <String>{};
+
+  Duration? _elapsed(DateTime? occurredAt) {
+    final start = widget.buildClickedAt;
+    if (start == null || occurredAt == null || occurredAt.isBefore(start)) {
+      return null;
+    }
+    return occurredAt.difference(start);
+  }
+
+  void _captureMilestones(ProjectBuildStreamSnapshot snapshot) {
+    final events = List<ProjectBuildStreamEvent>.of(snapshot.events)
+      ..sort((left, right) => left.sequence.compareTo(right.sequence));
+
+    void captureOnce(
+      String key,
+      OwnerAnalyticsEvent kind, {
+      ProjectBuildStreamEvent? event,
+      int? count,
+      String? status,
+    }) {
+      if (!_capturedAnalytics.add(key)) return;
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          kind,
+          projectKey: widget.project.projectKey,
+          projectId: widget.project.id,
+          buildJobId: event?.buildJobId ??
+              snapshot.buildJobId ??
+              widget.buildStart.buildJobId,
+          streamId: widget.buildStart.streamId,
+          projectVersionId:
+              snapshot.projectVersionId ?? widget.buildStart.projectVersionId,
+          sequence: event?.sequence,
+          count: count,
+          status: status,
+          duration: _elapsed(event?.createdAt),
+        ),
+      );
+    }
+
+    if (events.isNotEmpty) {
+      captureOnce(
+        'first_stream_event',
+        OwnerAnalyticsEvent.firstStreamEvent,
+        event: events.first,
+      );
+    }
+
+    for (final event in events) {
+      switch (event.eventType) {
+        case 'code_chunk':
+          if ((event.contentChunk ?? '').isNotEmpty) {
+            captureOnce('first_code', OwnerAnalyticsEvent.firstCode, event: event);
+          }
+          break;
+        case 'file_completed':
+          captureOnce(
+            'file_complete:${event.sequence}',
+            OwnerAnalyticsEvent.fileComplete,
+            event: event,
+          );
+          break;
+        case 'generation_completed':
+          captureOnce(
+            'source_complete',
+            OwnerAnalyticsEvent.sourceComplete,
+            event: event,
+          );
+          break;
+        case 'preview_ready':
+          captureOnce(
+            'preview_ready',
+            OwnerAnalyticsEvent.previewReady,
+            event: event,
+          );
+          break;
+        case 'repair_started':
+          captureOnce(
+            'repair_started:${event.sequence}',
+            OwnerAnalyticsEvent.repairStarted,
+            event: event,
+          );
+          break;
+        case 'repair_completed':
+          captureOnce(
+            'repair_completed:${event.sequence}',
+            OwnerAnalyticsEvent.repairCompleted,
+            event: event,
+          );
+          break;
+      }
+    }
+
+    if (snapshot.historyGapDueToRetention) {
+      captureOnce('history_gap', OwnerAnalyticsEvent.historyGap);
+    }
+    if (snapshot.reconnecting && !_wasReconnecting) {
+      captureOnce(
+        'stream_reconnected:${snapshot.latestSequence}',
+        OwnerAnalyticsEvent.streamReconnected,
+        count: snapshot.latestSequence,
+        status: 'reconnecting',
+      );
+    }
+    _wasReconnecting = snapshot.reconnecting;
+  }
 
   @override
   void didChangeDependencies() {
@@ -99,6 +212,7 @@ class _ProjectBuildConversationScreenState
                         builder: (context, snapshot) {
                           final streamState = snapshot.data ??
                               const ProjectBuildStreamSnapshot.empty();
+                          _captureMilestones(streamState);
                           return _LiveBuildProjection(
                             streamId: widget.buildStart.streamId,
                             snapshot: streamState,
