@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../core/analytics/owner_analytics.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/data/project_experience_api.dart';
 import '../../core/models/project_journey_models.dart';
@@ -104,6 +105,13 @@ class _CreateProjectExperienceScreenState
         intentText: intent,
         intentKind: 'create',
         idempotencyKey: 'pandora-v2-initial-intent:${project.id}',
+      );
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          OwnerAnalyticsEvent.intentSent,
+          projectKey: project.projectKey,
+          projectId: project.id,
+        ),
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -231,6 +239,7 @@ class _ProjectUnderstandingScreenState
   OwnerProjectUnderstanding? _understanding;
   Timer? _timer;
   bool _building = false;
+  bool _proposalCaptured = false;
   String? _error;
 
   @override
@@ -255,6 +264,16 @@ class _ProjectUnderstandingScreenState
         expectedSourceIntentId: widget.sourceIntentId,
       );
       if (!mounted) return;
+      if (value.isReady && !_proposalCaptured) {
+        _proposalCaptured = true;
+        unawaited(
+          OwnerAnalytics.shared.capture(
+            OwnerAnalyticsEvent.proposalShown,
+            projectKey: widget.project.projectKey,
+            projectId: widget.project.id,
+          ),
+        );
+      }
       setState(() {
         _understanding = value;
         _error = null;
@@ -270,6 +289,14 @@ class _ProjectUnderstandingScreenState
     if (understanding == null || !understanding.isReady) return;
     final api = PandoraDependencies.of(context).projectExperienceRepository;
     if (api == null) return;
+    final clickedAt = DateTime.now().toUtc();
+    unawaited(
+      OwnerAnalytics.shared.capture(
+        OwnerAnalyticsEvent.buildClicked,
+        projectKey: widget.project.projectKey,
+        projectId: widget.project.id,
+      ),
+    );
     setState(() {
       _building = true;
       _error = null;
@@ -278,6 +305,18 @@ class _ProjectUnderstandingScreenState
       final start = await api.requestBuild(
         projectId: widget.project.id,
         idempotencyKey: _keys.create('pandora-v2-build:${widget.project.id}'),
+      );
+      unawaited(
+        OwnerAnalytics.shared.capture(
+          OwnerAnalyticsEvent.buildAdmitted,
+          projectKey: widget.project.projectKey,
+          projectId: widget.project.id,
+          buildJobId: start.buildJobId,
+          streamId: start.streamId,
+          projectVersionId: start.projectVersionId,
+          status: start.state,
+          duration: DateTime.now().toUtc().difference(clickedAt),
+        ),
       );
       if (!mounted) return;
       final project = widget.project.copyWith(
@@ -290,6 +329,7 @@ class _ProjectUnderstandingScreenState
             originalIntent: widget.originalIntent,
             understanding: understanding,
             buildStart: start,
+            buildClickedAt: clickedAt,
           ),
         ),
       );
