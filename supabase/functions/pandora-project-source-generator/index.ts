@@ -837,6 +837,7 @@ Deno.serve(async (req) => {
       : code === "INVALID_REQUEST" ? 400
       : code === "PROJECT_NOT_AVAILABLE" ? 404
       : code === "PROJECT_SPEC_NOT_READY" || code === "BUILD_AUTHORIZATION_FAILED" ? 409
+      : code === "VISIBLE_CREATION_CANARY_DISABLED" ? 403
       : 503;
     return response({ ok: false, state: status === 503 ? "waiting" : "blocked", error: { code } }, status);
   }
