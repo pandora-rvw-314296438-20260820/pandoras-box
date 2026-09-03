@@ -475,9 +475,14 @@ class _ProjectBuildExperienceV2ScreenState
 }
 
 class ProjectWorkspaceV2Screen extends StatefulWidget {
-  const ProjectWorkspaceV2Screen({super.key, required this.project});
+  const ProjectWorkspaceV2Screen({
+    super.key,
+    required this.project,
+    this.initialChange,
+  });
 
   final CustomerProject project;
+  final String? initialChange;
 
   @override
   State<ProjectWorkspaceV2Screen> createState() =>
@@ -501,6 +506,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _publishing = false;
   bool _undoing = false;
   bool _recentlyUpdated = false;
+  bool _initialChangeSubmitted = false;
   ProjectExactSourceDiff? _lastChangeDiff;
   StreamSubscription<ProjectBuildStreamSnapshot>? _liveBuildSubscription;
   Timer? _liveBuildRetryTimer;
@@ -592,6 +598,16 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
             'Pandora found something to resolve. Your current version is unchanged.';
       }
     });
+    final initialChange = widget.initialChange?.trim();
+    if (!_initialChangeSubmitted &&
+        initialChange != null &&
+        initialChange.length >= 4 &&
+        next.canChange) {
+      _initialChangeSubmitted = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_requestChange(initialChange));
+      });
+    }
     if (shouldHydrate) unawaited(_refresh());
     unawaited(_syncLiveBuildActivity(next.activeBuildJobId));
   }
