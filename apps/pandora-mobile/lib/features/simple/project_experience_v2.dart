@@ -13,6 +13,7 @@ import '../../core/models/project_journey_models.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/platform/pandora_preview_host.dart';
 import 'live_build_theatre/live_build_reducer.dart';
+import 'live_build_theatre/live_build_theatre.dart';
 import 'live_build_theatre/project_build_stream_theatre_projection.dart';
 import 'pandora_v2_ui.dart';
 import 'project_exact_source_diff.dart';
@@ -92,6 +93,11 @@ class _ProjectBuildExperienceV2ScreenState
   bool _openingPreview = false;
   bool _transitionedToWorkspace = false;
   DateTime? _flowStartedAt;
+  StreamSubscription<ProjectBuildStreamSnapshot>? _initialBuildSubscription;
+  String? _initialBuildJobId;
+  String? _initialBuildStreamId;
+  LiveBuildTheatreState? _initialBuildActivity;
+  bool _resolvingInitialBuild = false;
 
   static const _flowTimeout = Duration(minutes: 2);
 
@@ -108,6 +114,7 @@ class _ProjectBuildExperienceV2ScreenState
   @override
   void dispose() {
     _timer?.cancel();
+    _initialBuildSubscription?.cancel();
     super.dispose();
   }
 
@@ -166,6 +173,90 @@ class _ProjectBuildExperienceV2ScreenState
         DateTime.now().difference(startedAt) >= _flowTimeout;
   }
 
+  void _acceptInitialBuildSnapshot(
+    String streamId,
+    ProjectBuildStreamSnapshot snapshot,
+  ) {
+    if (!mounted ||
+        _initialBuildStreamId != streamId ||
+        snapshot.requiresReplay ||
+        snapshot.events.isEmpty) {
+      return;
+    }
+    try {
+      final activity = ProjectBuildStreamTheatreProjection.fromSnapshot(
+        streamId: streamId,
+        snapshot: snapshot,
+      );
+      setState(() => _initialBuildActivity = activity);
+    } on FormatException {
+      // Reject mismatched stream evidence instead of fabricating activity.
+    }
+  }
+
+  Future<void> _attachInitialBuildStream(
+    ProjectExperienceRepository experience,
+    String? rawStreamId, {
+    String? buildJobId,
+  }) async {
+    final streamId = rawStreamId?.trim();
+    if (streamId == null || streamId.isEmpty) return;
+    if (_initialBuildStreamId == streamId &&
+        _initialBuildSubscription != null) {
+      return;
+    }
+    await _initialBuildSubscription?.cancel();
+    _initialBuildSubscription = null;
+    if (!mounted) return;
+    setState(() {
+      _initialBuildStreamId = streamId;
+      _initialBuildJobId = buildJobId?.trim();
+      _initialBuildActivity = null;
+    });
+    _initialBuildSubscription = experience
+        .watchResilientBuildStream(
+      projectId: widget.project.id,
+      streamId: streamId,
+    )
+        .listen(
+      (snapshot) => _acceptInitialBuildSnapshot(streamId, snapshot),
+      onError: (_) {
+        // Runtime polling remains the fail-closed fallback while the
+        // resilient stream reconnects or becomes discoverable again.
+      },
+    );
+  }
+
+  Future<void> _syncInitialBuildActivity(
+    ProjectExperienceRepository experience,
+    String? rawBuildJobId,
+  ) async {
+    final buildJobId = rawBuildJobId?.trim();
+    if (buildJobId == null || buildJobId.isEmpty) return;
+    if (_initialBuildJobId == buildJobId &&
+        (_initialBuildSubscription != null || _resolvingInitialBuild)) {
+      return;
+    }
+    _resolvingInitialBuild = true;
+    try {
+      final streamId = await experience.findBuildStreamId(
+        projectId: widget.project.id,
+        buildJobId: buildJobId,
+      );
+      if (!mounted) return;
+      await _attachInitialBuildStream(
+        experience,
+        streamId,
+        buildJobId: buildJobId,
+      );
+    } catch (_) {
+      // The 2-second authoritative runtime refresh retries discovery without
+      // inventing progress or replacing the durable build state.
+    } finally {
+      _resolvingInitialBuild = false;
+    }
+  }
+
   Future<void> _refreshAndAdvance() async {
     if (_flowExpired) {
       _timer?.cancel();
@@ -195,15 +286,34 @@ class _ProjectBuildExperienceV2ScreenState
         _error = null;
       });
 
+      try {
+        final projection = await experience.loadExperience(widget.project.id);
+        if (mounted && _candidate == null) {
+          await _syncInitialBuildActivity(
+            experience,
+            projection.activeBuildJobId,
+          );
+        }
+      } catch (_) {
+        // Build admission below can attach the exact stream directly.
+      }
+
       final candidate = _candidate;
       if (candidate == null) {
         if (!_buildRequested) {
           _buildRequested = true;
           try {
-            await experience.requestBuild(
+            final start = await experience.requestBuild(
               projectId: widget.project.id,
               idempotencyKey: 'pandora-v2-build:${widget.project.id}',
             );
+            if (mounted) {
+              await _attachInitialBuildStream(
+                experience,
+                start.streamId,
+                buildJobId: start.buildJobId,
+              );
+            }
           } on ProjectExperienceException catch (error) {
             _buildRequested = false;
             if (mounted) setState(() => _error = error.message);
@@ -333,47 +443,56 @@ class _ProjectBuildExperienceV2ScreenState
     return 'Pandora is working while your project stays safe.';
   }
 
-  Widget _buildStageSurface() => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _stageTitle,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
+  Widget _buildStageSurface() {
+    final activity = _initialBuildActivity;
+    if (!_ready && activity != null && activity.latestSequence > 0) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(child: LiveBuildTheatre(state: activity)),
+      );
+    }
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _stageTitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.7,
+                  height: 1.08,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _stageMessage,
+                textAlign: TextAlign.center,
+                style: pandoraV2Muted,
+              ),
+              if (!_ready) ...[
+                const SizedBox(height: 24),
+                const SizedBox(
+                  width: 144,
+                  child: LinearProgressIndicator(
+                    minHeight: 2,
                     color: PandoraV2Colors.ink,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -.7,
-                    height: 1.08,
+                    backgroundColor: PandoraV2Colors.soft,
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  _stageMessage,
-                  textAlign: TextAlign.center,
-                  style: pandoraV2Muted,
-                ),
-                if (!_ready) ...[
-                  const SizedBox(height: 24),
-                  const SizedBox(
-                    width: 144,
-                    child: LinearProgressIndicator(
-                      minHeight: 2,
-                      color: PandoraV2Colors.ink,
-                      backgroundColor: PandoraV2Colors.soft,
-                    ),
-                  ),
-                ],
               ],
-            ),
+            ],
           ),
         ),
-      );
+      ),
+    );
+  }
 
   Widget _buildReadySurface() {
     final candidate = _candidate;
@@ -475,20 +594,27 @@ class _ProjectBuildExperienceV2ScreenState
 }
 
 class ProjectWorkspaceV2Screen extends StatefulWidget {
-  const ProjectWorkspaceV2Screen({super.key, required this.project});
+  const ProjectWorkspaceV2Screen({
+    super.key,
+    required this.project,
+    this.initialChange,
+  });
 
   final CustomerProject project;
+  final String? initialChange;
 
   @override
   State<ProjectWorkspaceV2Screen> createState() =>
       _ProjectWorkspaceV2ScreenState();
 }
 
-class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
+class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
+    with WidgetsBindingObserver {
   final _change = TextEditingController();
   ProjectRuntimeSnapshot? _snapshot;
   ProjectExperienceProjection? _projection;
   StreamSubscription<ProjectExperienceProjection>? _projectionSubscription;
+  Timer? _projectionRetryTimer;
   List<Map<String, Object?>>? _previewFiles;
   String? _previewVersionId;
   String? _error;
@@ -501,6 +627,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _publishing = false;
   bool _undoing = false;
   bool _recentlyUpdated = false;
+  bool _initialChangeSubmitted = false;
+  bool _initialChangeSubmitting = false;
+  String? _initialChangeIdempotencyKey;
   ProjectExactSourceDiff? _lastChangeDiff;
   StreamSubscription<ProjectBuildStreamSnapshot>? _liveBuildSubscription;
   Timer? _liveBuildRetryTimer;
@@ -518,6 +647,19 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   static const _previewRetryLimit = 6;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_resumeFromDurableState());
+    }
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_started) return;
@@ -528,12 +670,52 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _previewRetryTimer?.cancel();
+    _projectionRetryTimer?.cancel();
     _liveBuildRetryTimer?.cancel();
     _liveBuildSubscription?.cancel();
     _projectionSubscription?.cancel();
     _change.dispose();
     super.dispose();
+  }
+
+  Future<void> _resumeFromDurableState() async {
+    _previewRetryTimer?.cancel();
+    _projectionRetryTimer?.cancel();
+    _liveBuildRetryTimer?.cancel();
+    await _projectionSubscription?.cancel();
+    _projectionSubscription = null;
+    await _liveBuildSubscription?.cancel();
+    _liveBuildSubscription = null;
+    _resolvingLiveBuild = false;
+    if (!mounted) return;
+    await _startProjection();
+    if (!mounted) return;
+    await _refresh();
+  }
+
+  void _scheduleProjectionRetry() {
+    if (_projectionRetryTimer?.isActive == true) return;
+    _projectionRetryTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted && _projectionSubscription == null) {
+        unawaited(_startProjection());
+      }
+    });
+  }
+
+  Future<void> _recoverProjectionAfterError() async {
+    await _projectionSubscription?.cancel();
+    _projectionSubscription = null;
+    if (!mounted) return;
+    _scheduleProjectionRetry();
+  }
+
+  Future<void> _recoverLiveBuildAfterError(String buildJobId) async {
+    await _liveBuildSubscription?.cancel();
+    _liveBuildSubscription = null;
+    if (!mounted || _liveBuildJobId != buildJobId) return;
+    _scheduleLiveBuildRetry(buildJobId);
   }
 
   Future<void> _startProjection() async {
@@ -569,6 +751,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         setState(() {
           _error ??= 'Pandora cannot refresh this project state right now.';
         });
+        unawaited(_recoverProjectionAfterError());
       },
     );
   }
@@ -592,6 +775,20 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
             'Pandora found something to resolve. Your current version is unchanged.';
       }
     });
+    final initialChange = widget.initialChange?.trim();
+    if (!_initialChangeSubmitted &&
+        !_initialChangeSubmitting &&
+        initialChange != null &&
+        initialChange.length >= 4 &&
+        next.canChange) {
+      _initialChangeSubmitting = true;
+      final routedAttempt = DateTime.now().microsecondsSinceEpoch;
+      _initialChangeIdempotencyKey ??=
+          'pandora-v2-routed-change:${widget.project.id}:$routedAttempt';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_requestInitialChange(initialChange));
+      });
+    }
     if (shouldHydrate) unawaited(_refresh());
     unawaited(_syncLiveBuildActivity(next.activeBuildJobId));
   }
@@ -684,12 +881,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         streamId: normalizedStreamId,
       )
           .listen(
-        (snapshot) => _acceptLiveBuildSnapshot(
-          normalizedStreamId,
-          snapshot,
-        ),
+        (snapshot) => _acceptLiveBuildSnapshot(normalizedStreamId, snapshot),
         onError: (_) {
-          // The generic lifecycle capsule remains the fail-closed fallback.
+          unawaited(_recoverLiveBuildAfterError(buildJobId));
         },
       );
     } on ProjectExperienceException {
@@ -1040,7 +1234,20 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
   }
 
-  Future<void> _requestChange(String text) async {
+  Future<void> _requestInitialChange(String request) async {
+    if (_changing || _projection?.canChange != true) {
+      if (mounted) setState(() => _initialChangeSubmitting = false);
+      return;
+    }
+    await _requestChange(request, idempotencyKey: _initialChangeIdempotencyKey);
+    if (!mounted) return;
+    setState(() {
+      _initialChangeSubmitting = false;
+      if (_error == null && !_changing) _initialChangeSubmitted = true;
+    });
+  }
+
+  Future<void> _requestChange(String text, {String? idempotencyKey}) async {
     final request = text.trim();
     if (request.length < 4 || _changing || _projection?.canChange != true) {
       return;
@@ -1144,11 +1351,13 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           'Pandora needs a clearer change before it can continue.',
         );
       }
+      final changeAttempt = DateTime.now().microsecondsSinceEpoch;
+      final changeIdempotencyKey = idempotencyKey ??
+          'pandora-v2-change:${widget.project.id}:$changeAttempt';
       final intentId = await experience.submitChange(
         projectId: widget.project.id,
         changeText: actionRequest,
-        idempotencyKey:
-            'pandora-v2-change:${widget.project.id}:${DateTime.now().microsecondsSinceEpoch}',
+        idempotencyKey: changeIdempotencyKey,
       );
 
       OwnerProjectUnderstanding understanding =
