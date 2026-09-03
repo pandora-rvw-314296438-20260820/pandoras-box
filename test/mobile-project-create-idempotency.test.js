@@ -28,3 +28,15 @@ test('ambiguous create transport outcome tells the customer safe retry will resu
     true,
   );
 });
+
+
+test('build admission reuses one idempotency key until an admitted build is returned', () => {
+  assert.equal(source.includes('String? _buildIdempotencyKey;'), true);
+  assert.equal(source.includes('_buildIdempotencyKey ??='), true);
+  assert.equal(source.includes('idempotencyKey: _buildIdempotencyKey!'), true);
+  assert.equal(source.includes('_buildIdempotencyKey = null;'), true);
+  assert.equal(
+    source.includes('Keep the same admission key so retry cannot duplicate an already-admitted build.'),
+    true,
+  );
+});
