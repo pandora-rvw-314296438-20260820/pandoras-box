@@ -20,11 +20,9 @@ test('intelligence handoffs without an existing project enter the real create-un
   assert.equal(source.includes('initialIntent: handoff.request'), true);
 });
 
-test('legacy progress remains fallback-only instead of the primary new-build path', () => {
-  const realRoute = source.indexOf('if (dependencies.projectExperienceRepository != null)');
-  const legacyRoute = source.indexOf("_submissionKey ??= _keys.create('simple-intake')");
-  assert.ok(realRoute >= 0);
-  assert.ok(legacyRoute > realRoute);
+test('Ask Pandora never presents the static prototype as a real build result', () => {
+  assert.equal(source.includes("import 'build_preview_flow.dart';"), false);
+  assert.equal(source.includes('BuildProgressScreen('), false);
 });
 
 
