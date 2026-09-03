@@ -655,7 +655,7 @@ async function runGenerationInBackground(input: {
       .eq("build_job_id", input.buildJobId)
       .maybeSingle();
     const dispatchCount = Number(queue.data?.dispatch_count || 0);
-    const terminal = ["BUILD_TYPE_NOT_SUPPORTED", "PROJECT_SPEC_NOT_READY", "PROJECT_NOT_AVAILABLE"].includes(code) || dispatchCount >= 5;
+    const terminal = ["BUILD_TYPE_NOT_SUPPORTED", "PROJECT_SPEC_NOT_READY", "PROJECT_NOT_AVAILABLE", "VISIBLE_CREATION_CANARY_DISABLED"].includes(code) || dispatchCount >= 5;
 
     if (!queue.error && queue.data?.status === "dispatching") {
       await admin.from("pandora_source_generation_queue").update({
@@ -726,6 +726,12 @@ Deno.serve(async (req) => {
         projectVersionId: session.project_version_id,
       }, session.status === "failed" ? 409 : session.status === "completed" ? 200 : 202);
     }
+
+    const canary = await admin.rpc("pandora_visible_creation_canary_allowed_v1", {
+      p_user_id: auth.user.id,
+      p_project_id: projectId,
+    });
+    if (canary.error || canary.data !== true) throw new Error("VISIBLE_CREATION_CANARY_DISABLED");
 
     let { data: spec, error: specError } = await admin.from("pandora_project_specs")
       .select("id,organization_id,project_id,source_intent_id,project_type,business_summary,product_scope,data_scope,integration_scope,experience_scope,deployment_scope,acceptance_scope,content_sha256")
@@ -831,6 +837,7 @@ Deno.serve(async (req) => {
       : code === "INVALID_REQUEST" ? 400
       : code === "PROJECT_NOT_AVAILABLE" ? 404
       : code === "PROJECT_SPEC_NOT_READY" || code === "BUILD_AUTHORIZATION_FAILED" ? 409
+      : code === "VISIBLE_CREATION_CANARY_DISABLED" ? 403
       : 503;
     return response({ ok: false, state: status === 503 ? "waiting" : "blocked", error: { code } }, status);
   }
