@@ -727,7 +727,7 @@ Deno.serve(async (req) => {
       }, session.status === "failed" ? 409 : session.status === "completed" ? 200 : 202);
     }
 
-    let { data: spec, error: specError } = await admin.from("pandora_project_specs")
+    const canary = await admin.rpc("pandora_visible_creation_canary_allowed_v1", {\n      p_user_id: auth.user.id,\n      p_project_id: projectId,\n    });\n    if (canary.error || canary.data !== true) throw new Error("VISIBLE_CREATION_CANARY_DISABLED");\n\n    let { data: spec, error: specError } = await admin.from("pandora_project_specs")
       .select("id,organization_id,project_id,source_intent_id,project_type,business_summary,product_scope,data_scope,integration_scope,experience_scope,deployment_scope,acceptance_scope,content_sha256")
       .eq("organization_id", project.organization_id).eq("project_id", projectId).eq("status", "active")
       .order("version", { ascending: false }).limit(1).maybeSingle();
