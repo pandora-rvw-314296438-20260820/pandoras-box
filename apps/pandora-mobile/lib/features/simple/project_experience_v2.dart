@@ -1307,7 +1307,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         );
       }
       final changeAttempt = DateTime.now().microsecondsSinceEpoch;
-      final changeIdempotencyKey = idempotencyKey ??
+      final changeIdempotencyKey =
+          idempotencyKey ??
           'pandora-v2-change:${widget.project.id}:$changeAttempt';
       final intentId = await experience.submitChange(
         projectId: widget.project.id,
