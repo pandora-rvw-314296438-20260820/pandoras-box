@@ -728,8 +728,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         initialChange.length >= 4 &&
         next.canChange) {
       _initialChangeSubmitting = true;
+      final routedAttempt = DateTime.now().microsecondsSinceEpoch;
       _initialChangeIdempotencyKey ??=
-          'pandora-v2-routed-change:${widget.project.id}:${DateTime.now().microsecondsSinceEpoch}';
+          'pandora-v2-routed-change:${widget.project.id}:$routedAttempt';
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) unawaited(_requestInitialChange(initialChange));
       });
@@ -1305,11 +1306,13 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           'Pandora needs a clearer change before it can continue.',
         );
       }
+      final changeAttempt = DateTime.now().microsecondsSinceEpoch;
+      final changeIdempotencyKey = idempotencyKey ??
+          'pandora-v2-change:${widget.project.id}:$changeAttempt';
       final intentId = await experience.submitChange(
         projectId: widget.project.id,
         changeText: actionRequest,
-        idempotencyKey: idempotencyKey ??
-            'pandora-v2-change:${widget.project.id}:${DateTime.now().microsecondsSinceEpoch}',
+        idempotencyKey: changeIdempotencyKey,
       );
 
       OwnerProjectUnderstanding understanding =
