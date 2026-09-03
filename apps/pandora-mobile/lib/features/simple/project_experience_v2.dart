@@ -484,11 +484,13 @@ class ProjectWorkspaceV2Screen extends StatefulWidget {
       _ProjectWorkspaceV2ScreenState();
 }
 
-class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
+class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
+    with WidgetsBindingObserver {
   final _change = TextEditingController();
   ProjectRuntimeSnapshot? _snapshot;
   ProjectExperienceProjection? _projection;
   StreamSubscription<ProjectExperienceProjection>? _projectionSubscription;
+  Timer? _projectionRetryTimer;
   List<Map<String, Object?>>? _previewFiles;
   String? _previewVersionId;
   String? _error;
@@ -518,6 +520,19 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   static const _previewRetryLimit = 6;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_resumeFromDurableState());
+    }
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_started) return;
@@ -528,12 +543,52 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _previewRetryTimer?.cancel();
+    _projectionRetryTimer?.cancel();
     _liveBuildRetryTimer?.cancel();
     _liveBuildSubscription?.cancel();
     _projectionSubscription?.cancel();
     _change.dispose();
     super.dispose();
+  }
+
+  Future<void> _resumeFromDurableState() async {
+    _previewRetryTimer?.cancel();
+    _projectionRetryTimer?.cancel();
+    _liveBuildRetryTimer?.cancel();
+    await _projectionSubscription?.cancel();
+    _projectionSubscription = null;
+    await _liveBuildSubscription?.cancel();
+    _liveBuildSubscription = null;
+    _resolvingLiveBuild = false;
+    if (!mounted) return;
+    await _startProjection();
+    if (!mounted) return;
+    await _refresh();
+  }
+
+  void _scheduleProjectionRetry() {
+    if (_projectionRetryTimer?.isActive == true) return;
+    _projectionRetryTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted && _projectionSubscription == null) {
+        unawaited(_startProjection());
+      }
+    });
+  }
+
+  Future<void> _recoverProjectionAfterError() async {
+    await _projectionSubscription?.cancel();
+    _projectionSubscription = null;
+    if (!mounted) return;
+    _scheduleProjectionRetry();
+  }
+
+  Future<void> _recoverLiveBuildAfterError(String buildJobId) async {
+    await _liveBuildSubscription?.cancel();
+    _liveBuildSubscription = null;
+    if (!mounted || _liveBuildJobId != buildJobId) return;
+    _scheduleLiveBuildRetry(buildJobId);
   }
 
   Future<void> _startProjection() async {
@@ -569,6 +624,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         setState(() {
           _error ??= 'Pandora cannot refresh this project state right now.';
         });
+        unawaited(_recoverProjectionAfterError());
       },
     );
   }
@@ -689,7 +745,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
           snapshot,
         ),
         onError: (_) {
-          // The generic lifecycle capsule remains the fail-closed fallback.
+          unawaited(_recoverLiveBuildAfterError(buildJobId));
         },
       );
     } on ProjectExperienceException {
