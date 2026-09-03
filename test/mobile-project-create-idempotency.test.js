@@ -22,6 +22,11 @@ test('project creation reuses one idempotency key for the same intent until the 
 test('ambiguous create transport outcome tells the customer safe retry will resume instead of duplicate', () => {
   assert.equal(source.includes("import '../../core/network/pandora_api_error.dart';"), true);
   assert.equal(source.includes('on PandoraApiError catch (error)'), true);
+  assert.equal(
+    source.indexOf('on PandoraApiError catch (error)') <
+      source.indexOf('on PandoraRepositoryException catch (error)'),
+    true,
+  );
   assert.equal(source.includes('error.outcomeMayBeUnknown'), true);
   assert.equal(
     source.includes('Pandora will safely resume it instead of creating another project.'),
