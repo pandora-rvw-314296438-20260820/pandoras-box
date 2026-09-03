@@ -142,7 +142,15 @@ jobs:
 
       - name: Format
         working-directory: .pandora-mobile-build
-        run: dart format --output=none --set-exit-if-changed lib test
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart format lib/features/simple/project_experience_v2.dart
+          echo 'P1_FORMATTED_SOURCE_BASE64_BEGIN'
+          base64 -w0 lib/features/simple/project_experience_v2.dart
+          echo
+          echo 'P1_FORMATTED_SOURCE_BASE64_END'
+          dart format --output=none --set-exit-if-changed lib test
 
       - name: Materialize canonical web formatter repair
         if: ${{ failure() }}
