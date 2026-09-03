@@ -178,11 +178,11 @@ String _metricSummary(LiveBuildTheatreState state) {
   final reportedBytes = state.reportedSourceByteCount;
 
   if (state.locallyCompleteSourceMetrics) {
-    final reportedMetricsAgree =
-        (reportedFiles == null || reportedFiles == state.uniqueFileCount) &&
-        (reportedLines == null || reportedLines == state.sourceLineCount) &&
-        (reportedBytes == null || reportedBytes == state.sourceByteCount);
-    if (!reportedMetricsAgree) {
+    bool metricAgrees(int? reported, int actual) =>
+        reported == null || reported == actual;
+    if (!metricAgrees(reportedFiles, state.uniqueFileCount) ||
+        !metricAgrees(reportedLines, state.sourceLineCount) ||
+        !metricAgrees(reportedBytes, state.sourceByteCount)) {
       return 'Source summary unavailable';
     }
     return '${state.uniqueFileCount} files · ${state.sourceLineCount} lines · ${_formatBytes(state.sourceByteCount)} source';
