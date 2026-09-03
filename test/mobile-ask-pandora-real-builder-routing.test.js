@@ -40,5 +40,13 @@ const workspace = fs.readFileSync(
 test('workspace consumes an initial Ask Pandora change only after the authoritative projection allows change', () => {
   assert.equal(workspace.includes('final String? initialChange;'), true);
   assert.equal(workspace.includes('next.canChange'), true);
-  assert.equal(workspace.includes('unawaited(_requestChange(initialChange))'), true);
+  assert.equal(workspace.includes('unawaited(_requestInitialChange(initialChange))'), true);
+});
+
+test('routed initial changes retry safely with one stable admission key per workspace attempt', () => {
+  assert.equal(workspace.includes('bool _initialChangeSubmitting = false;'), true);
+  assert.equal(workspace.includes('String? _initialChangeIdempotencyKey;'), true);
+  assert.equal(workspace.includes('idempotencyKey: _initialChangeIdempotencyKey'), true);
+  assert.equal(workspace.includes('if (_error == null && !_changing) _initialChangeSubmitted = true;'), true);
+  assert.equal(workspace.includes('idempotencyKey: idempotencyKey ??'), true);
 });
