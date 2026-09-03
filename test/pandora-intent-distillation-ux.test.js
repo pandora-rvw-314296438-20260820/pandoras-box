@@ -48,8 +48,9 @@ test("understanding screen keeps the original long intent collapsed until reques
   assert.match(understandingSource, /Your original request/);
   assert.match(understandingSource, /Show full request/);
   assert.match(understandingSource, /Collapse request/);
-  assert.match(understandingSource, /if \(_showOriginalIntent\)/);
-  assert.match(understandingSource, /SelectableText\([\s\S]*widget\.originalIntent\.trim\(\)/);
+  assert.match(understandingSource, /if \(expanded\)/);
+  assert.match(understandingSource, /final originalIntent = widget\.originalIntent\.trim\(\);/);
+  assert.match(understandingSource, /SelectableText\([\s\S]*originalIntent/);
   assert.ok(
     understandingSource.indexOf("Your original request") < understandingSource.indexOf("label: 'Build it'"),
   );
