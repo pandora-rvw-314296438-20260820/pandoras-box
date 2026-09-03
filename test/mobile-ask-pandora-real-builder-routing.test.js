@@ -16,7 +16,7 @@ test('Ask Pandora routes new build intents into the real project experience when
 });
 
 test('intelligence handoffs without an existing project enter the real create-understand-build journey', () => {
-  assert.equal(source.includes('handoff.projectId == null'), true);
+  assert.equal(source.includes('handoffProjectId == null || handoffProjectId.isEmpty'), true);
   assert.equal(source.includes('initialIntent: handoff.request'), true);
 });
 
