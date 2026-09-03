@@ -135,7 +135,7 @@ class _CreateProjectExperienceScreenState
       );
     } on ProjectExperienceException catch (error) {
       if (mounted) setState(() => _error = error.message);
-    } on PandoraApiError catch (error) {
+    } on PandoraRepositoryException catch (error) {
       if (mounted) {
         setState(() {
           _error = error.outcomeMayBeUnknown
@@ -143,8 +143,6 @@ class _CreateProjectExperienceScreenState
               : error.message;
         });
       }
-    } on PandoraRepositoryException catch (error) {
-      if (mounted) setState(() => _error = error.message);
     } catch (_) {
       if (mounted) {
         setState(
