@@ -457,43 +457,43 @@ class _ProjectBuildExperienceV2ScreenState
       child: Padding(
         padding: const EdgeInsets.all(28),
         child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _stageTitle,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _stageTitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.7,
+                  height: 1.08,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _stageMessage,
+                textAlign: TextAlign.center,
+                style: pandoraV2Muted,
+              ),
+              if (!_ready) ...[
+                const SizedBox(height: 24),
+                const SizedBox(
+                  width: 144,
+                  child: LinearProgressIndicator(
+                    minHeight: 2,
                     color: PandoraV2Colors.ink,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -.7,
-                    height: 1.08,
+                    backgroundColor: PandoraV2Colors.soft,
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  _stageMessage,
-                  textAlign: TextAlign.center,
-                  style: pandoraV2Muted,
-                ),
-                if (!_ready) ...[
-                  const SizedBox(height: 24),
-                  const SizedBox(
-                    width: 144,
-                    child: LinearProgressIndicator(
-                      minHeight: 2,
-                      color: PandoraV2Colors.ink,
-                      backgroundColor: PandoraV2Colors.soft,
-                    ),
-                  ),
-                ],
               ],
-            ),
+            ],
           ),
         ),
-      );
+      ),
+    );
   }
 
   Widget _buildReadySurface() {
