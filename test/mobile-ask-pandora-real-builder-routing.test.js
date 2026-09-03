@@ -48,5 +48,6 @@ test('routed initial changes retry safely with one stable admission key per work
   assert.equal(workspace.includes('String? _initialChangeIdempotencyKey;'), true);
   assert.equal(workspace.includes('idempotencyKey: _initialChangeIdempotencyKey'), true);
   assert.equal(workspace.includes('if (_error == null && !_changing) _initialChangeSubmitted = true;'), true);
-  assert.equal(workspace.includes('idempotencyKey: idempotencyKey ??'), true);
+  assert.equal(workspace.includes('final changeIdempotencyKey = idempotencyKey ??'), true);
+  assert.equal(workspace.includes('idempotencyKey: changeIdempotencyKey'), true);
 });
