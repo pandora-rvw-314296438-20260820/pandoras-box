@@ -151,6 +151,13 @@ jobs:
           echo
           echo 'P1_FORMATTED_SOURCE_BASE64_END'
           dart format --output=none --set-exit-if-changed lib test
+      - name: Upload canonical P1 formatted source
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: p1-canonical-formatted-source
+          path: .pandora-mobile-build/lib/features/simple/project_experience_v2.dart
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Materialize canonical web formatter repair
         if: ${{ failure() }}
