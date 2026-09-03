@@ -727,7 +727,13 @@ Deno.serve(async (req) => {
       }, session.status === "failed" ? 409 : session.status === "completed" ? 200 : 202);
     }
 
-    const canary = await admin.rpc("pandora_visible_creation_canary_allowed_v1", {\n      p_user_id: auth.user.id,\n      p_project_id: projectId,\n    });\n    if (canary.error || canary.data !== true) throw new Error("VISIBLE_CREATION_CANARY_DISABLED");\n\n    let { data: spec, error: specError } = await admin.from("pandora_project_specs")
+    const canary = await admin.rpc("pandora_visible_creation_canary_allowed_v1", {
+      p_user_id: auth.user.id,
+      p_project_id: projectId,
+    });
+    if (canary.error || canary.data !== true) throw new Error("VISIBLE_CREATION_CANARY_DISABLED");
+
+    let { data: spec, error: specError } = await admin.from("pandora_project_specs")
       .select("id,organization_id,project_id,source_intent_id,project_type,business_summary,product_scope,data_scope,integration_scope,experience_scope,deployment_scope,acceptance_scope,content_sha256")
       .eq("organization_id", project.organization_id).eq("project_id", projectId).eq("status", "active")
       .order("version", { ascending: false }).limit(1).maybeSingle();
@@ -830,6 +836,7 @@ Deno.serve(async (req) => {
     const status = code === "SIGN_IN_REQUIRED" ? 401
       : code === "INVALID_REQUEST" ? 400
       : code === "PROJECT_NOT_AVAILABLE" ? 404
+      : code === "VISIBLE_CREATION_CANARY_DISABLED" ? 403
       : code === "PROJECT_SPEC_NOT_READY" || code === "BUILD_AUTHORIZATION_FAILED" ? 409
       : 503;
     return response({ ok: false, state: status === 503 ? "waiting" : "blocked", error: { code } }, status);
