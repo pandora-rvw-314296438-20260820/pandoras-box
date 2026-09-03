@@ -438,9 +438,8 @@ class _ProjectUnderstandingScreenState
                                 ),
                               ),
                               TextButton.icon(
-                                onPressed: () => setState(
-                                  () => _showOriginalIntent = !_showOriginalIntent,
-                                ),
+                                onPressed: () =>
+                                    setState(() => _showOriginalIntent = !_showOriginalIntent),
                                 icon: Icon(
                                   _showOriginalIntent
                                       ? Icons.expand_less_rounded
