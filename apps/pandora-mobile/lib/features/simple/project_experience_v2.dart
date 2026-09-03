@@ -709,8 +709,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (safety.candidateFailed) {
         _error = safety.failureMessage(backendMessage: next.safeFailureMessage);
       } else if (next.hasSafeFailure && _error == null) {
-        _error = next.safeFailureMessage ??
-            'Pandora found something to resolve. Your current version is unchanged.';
+        _error = next.safeFailureMessage ?? 'Pandora found something to resolve. Your current version is unchanged.';
       }
     });
     if (shouldHydrate) unawaited(_refresh());
