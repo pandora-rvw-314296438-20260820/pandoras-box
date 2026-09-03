@@ -74,3 +74,10 @@ test('canary cohort reliability and cost signals remain measurable without addin
   assert.ok(!analytics.includes("'email':"));
   assert.ok(!analytics.includes("'ip':"));
 });
+
+test('canary-disabled admission is terminal and cannot amplify queue retries', () => {
+  assert.match(
+    generator,
+    /\["BUILD_TYPE_NOT_SUPPORTED", "PROJECT_SPEC_NOT_READY", "PROJECT_NOT_AVAILABLE", "VISIBLE_CREATION_CANARY_DISABLED"\]\.includes\(code\)/,
+  );
+});
