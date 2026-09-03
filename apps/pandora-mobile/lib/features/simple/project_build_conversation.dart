@@ -11,6 +11,7 @@ import 'live_build_theatre/project_build_stream_theatre_projection.dart';
 import 'pandora_v2_ui.dart';
 import 'professional_build_plan.dart';
 import 'project_experience_v2.dart';
+import 'project_build_snapshot_render_coalescer.dart';
 
 class ProjectBuildConversationScreen extends StatefulWidget {
   const ProjectBuildConversationScreen({
@@ -190,12 +191,16 @@ class _ProjectBuildConversationScreenState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _stream ??= PandoraDependencies.of(context)
+    if (_stream != null) return;
+    final rawStream = PandoraDependencies.of(context)
         .projectExperienceRepository
         ?.watchResilientBuildStream(
           projectId: widget.project.id,
           streamId: widget.buildStart.streamId,
         );
+    _stream = rawStream == null
+        ? null
+        : coalesceProjectBuildSnapshotsForRendering(rawStream);
   }
 
   void _openProject() {
