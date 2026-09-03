@@ -53,6 +53,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     }
   }
 
+  Future<void> _create() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const CreateProjectExperienceScreen(),
+      ),
+    );
+    if (mounted) await _load();
+  }
+
   Future<void> _open(ProjectSummary project) async {
     if (_openingId != null) return;
     final runtime = PandoraDependencies.of(context).projectRuntime;
@@ -123,14 +132,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       backgroundColor: PandoraV2Colors.ink,
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const CreateProjectExperienceScreen(),
-                        ),
-                      );
-                      if (mounted) await _load();
-                    },
+                    onPressed: _create,
                     icon: const Icon(Icons.add_rounded),
                   ),
                 ],
@@ -158,11 +160,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   message:
                       'Start with the outcome you want. Pandora will choose the technical shape.',
                   actionLabel: 'Create',
-                  onAction: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const CreateProjectExperienceScreen(),
-                    ),
-                  ),
+                  onAction: _create,
                 )
               else
                 for (final project in _projects)
