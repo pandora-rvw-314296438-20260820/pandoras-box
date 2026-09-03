@@ -36,7 +36,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       setState(() {
         _projects = result.data;
         _loading = false;
-        _error = null;
+        _error = result.isCached
+            ? (result.degradedReason ??
+                'Pandora is showing the last safe project list while it reconnects.')
+            : null;
       });
     } on PandoraRepositoryException catch (error) {
       if (!mounted) return;
