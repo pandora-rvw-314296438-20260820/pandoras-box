@@ -452,7 +452,9 @@ class _ProjectUnderstandingScreenState
                                   size: 18,
                                 ),
                                 label: Text(
-                                  expanded ? 'Collapse request' : 'Show full request',
+                                  expanded
+                                      ? 'Collapse request'
+                                      : 'Show full request',
                                 ),
                               ),
                             ],
