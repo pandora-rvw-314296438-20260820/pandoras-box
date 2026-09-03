@@ -40,15 +40,21 @@ test("initial create intent atomically persists the model name and concise summa
   assert.match(migration, /private\.pandora_commit_compiled_project_spec_20260829/);
 });
 
-test("understanding screen does not render the raw long intent", () => {
+test("understanding screen keeps the original long intent collapsed until requested", () => {
   const understandingStart = createUi.indexOf("class ProjectUnderstandingScreen");
   assert.ok(understandingStart > 0);
   const understandingSource = createUi.slice(understandingStart);
-  assert.doesNotMatch(understandingSource, /intentText/);
-  assert.doesNotMatch(understandingSource, /widget\.intentText/);
+  assert.match(understandingSource, /bool _showOriginalIntent = false;/);
+  assert.match(understandingSource, /Your original request/);
+  assert.match(understandingSource, /Show full request/);
+  assert.match(understandingSource, /Collapse request/);
+  assert.match(understandingSource, /if \(_showOriginalIntent\)/);
+  assert.match(understandingSource, /SelectableText\([\s\S]*widget\.originalIntent\.trim\(\)/);
+  assert.ok(
+    understandingSource.indexOf("Your original request") < understandingSource.indexOf("label: 'Build it'"),
+  );
   assert.match(understandingSource, /PandoraProfessionalBuildPlan\(understanding: u!\)/);
   assert.match(understandingSource, /Ready to see it become real\?/);
-  assert.match(understandingSource, /starts writing the real code immediately/);
 });
 
 test("owner can rename the display project later without provider churn", () => {
