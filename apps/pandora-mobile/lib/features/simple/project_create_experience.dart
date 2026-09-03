@@ -255,6 +255,7 @@ class _ProjectUnderstandingScreenState
   Timer? _timer;
   bool _building = false;
   bool _proposalCaptured = false;
+  bool _showOriginalIntent = false;
   String? _buildIdempotencyKey;
   String? _error;
 
@@ -412,6 +413,64 @@ class _ProjectUnderstandingScreenState
                 ),
                 const SizedBox(height: 18),
                 PandoraProfessionalBuildPlan(understanding: u!),
+                if (widget.originalIntent.trim().isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: PandoraV2Colors.soft,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Your original request',
+                                  style: TextStyle(
+                                    color: PandoraV2Colors.ink,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () => setState(
+                                  () => _showOriginalIntent = !_showOriginalIntent,
+                                ),
+                                icon: Icon(
+                                  _showOriginalIntent
+                                      ? Icons.expand_less_rounded
+                                      : Icons.expand_more_rounded,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  _showOriginalIntent
+                                      ? 'Collapse request'
+                                      : 'Show full request',
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_showOriginalIntent) ...[
+                            const SizedBox(height: 8),
+                            SelectableText(
+                              widget.originalIntent.trim(),
+                              style: const TextStyle(
+                                color: PandoraV2Colors.ink,
+                                fontSize: 14,
+                                height: 1.45,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 22),
                 const Text(
                   'Ready to see it become real?',
