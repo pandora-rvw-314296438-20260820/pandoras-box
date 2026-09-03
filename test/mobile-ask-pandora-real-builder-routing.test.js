@@ -26,3 +26,21 @@ test('legacy progress remains fallback-only instead of the primary new-build pat
   assert.ok(realRoute >= 0);
   assert.ok(legacyRoute > realRoute);
 });
+
+
+test('existing-project intelligence handoffs enter the real workspace change engine', () => {
+  assert.equal(source.includes('final snapshot = await experience.runtime(handoffProjectId);'), true);
+  assert.equal(source.includes('ProjectWorkspaceV2Screen('), true);
+  assert.equal(source.includes('initialChange: handoff.request'), true);
+});
+
+const workspace = fs.readFileSync(
+  path.join(process.cwd(), 'apps/pandora-mobile/lib/features/simple/project_experience_v2.dart'),
+  'utf8',
+);
+
+test('workspace consumes an initial Ask Pandora change only after the authoritative projection allows change', () => {
+  assert.equal(workspace.includes('final String? initialChange;'), true);
+  assert.equal(workspace.includes('next.canChange'), true);
+  assert.equal(workspace.includes('unawaited(_requestChange(initialChange))'), true);
+});
