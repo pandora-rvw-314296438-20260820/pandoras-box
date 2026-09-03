@@ -300,6 +300,10 @@ class _ProjectUnderstandingScreenState
     }
   }
 
+  void _toggleOriginalIntent() {
+    setState(() => _showOriginalIntent = !_showOriginalIntent);
+  }
+
   Future<void> _build() async {
     if (_building) return;
     final understanding = _understanding;
@@ -386,6 +390,8 @@ class _ProjectUnderstandingScreenState
     final u = _understanding;
     final ready = u?.isReady ?? false;
     final projectName = u?.projectName ?? 'Understanding your project…';
+    final originalIntent = widget.originalIntent.trim();
+    final expanded = _showOriginalIntent;
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
       body: SafeArea(
@@ -413,7 +419,7 @@ class _ProjectUnderstandingScreenState
                 ),
                 const SizedBox(height: 18),
                 PandoraProfessionalBuildPlan(understanding: u!),
-                if (widget.originalIntent.trim().isNotEmpty) ...[
+                if (originalIntent.isNotEmpty) ...[
                   const SizedBox(height: 18),
                   DecoratedBox(
                     decoration: BoxDecoration(
@@ -438,25 +444,23 @@ class _ProjectUnderstandingScreenState
                                 ),
                               ),
                               TextButton.icon(
-                                onPressed: () => setState(
-                                  () => _showOriginalIntent = !_showOriginalIntent,
-                                ),
+                                onPressed: _toggleOriginalIntent,
                                 icon: Icon(
-                                  _showOriginalIntent
+                                  expanded
                                       ? Icons.expand_less_rounded
                                       : Icons.expand_more_rounded,
                                   size: 18,
                                 ),
                                 label: Text(
-                                  _showOriginalIntent ? 'Collapse request' : 'Show full request',
+                                  expanded ? 'Collapse request' : 'Show full request',
                                 ),
                               ),
                             ],
                           ),
-                          if (_showOriginalIntent) ...[
+                          if (expanded) ...[
                             const SizedBox(height: 8),
                             SelectableText(
-                              widget.originalIntent.trim(),
+                              originalIntent,
                               style: const TextStyle(
                                 color: PandoraV2Colors.ink,
                                 fontSize: 14,
