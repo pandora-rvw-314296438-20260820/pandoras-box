@@ -454,9 +454,9 @@ class _ProjectBuildExperienceV2ScreenState
       );
     }
     return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: ConstrainedBox(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 360),
             child: Column(
               mainAxisSize: MainAxisSize.min,
