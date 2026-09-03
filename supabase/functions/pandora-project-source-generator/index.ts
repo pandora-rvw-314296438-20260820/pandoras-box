@@ -655,7 +655,7 @@ async function runGenerationInBackground(input: {
       .eq("build_job_id", input.buildJobId)
       .maybeSingle();
     const dispatchCount = Number(queue.data?.dispatch_count || 0);
-    const terminal = ["BUILD_TYPE_NOT_SUPPORTED", "PROJECT_SPEC_NOT_READY", "PROJECT_NOT_AVAILABLE"].includes(code) || dispatchCount >= 5;
+    const terminal = ["BUILD_TYPE_NOT_SUPPORTED", "PROJECT_SPEC_NOT_READY", "PROJECT_NOT_AVAILABLE", "VISIBLE_CREATION_CANARY_DISABLED"].includes(code) || dispatchCount >= 5;
 
     if (!queue.error && queue.data?.status === "dispatching") {
       await admin.from("pandora_source_generation_queue").update({
