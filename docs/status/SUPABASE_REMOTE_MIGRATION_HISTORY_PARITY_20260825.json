@@ -1566,11 +1566,27 @@
             "originalSqlSha256": "e5452fc5fb31083f72579d4d3744acb733d5708bd09e311d7211759e68a77234",
             "originalStatementCount": 1,
             "canonicalExecutablePath": "supabase/migrations/20260902070000_pandora_source_privilege_hardening_v1.sql"
+        },
+        {
+            "name": "pandora_generated_intake_replay_semantic_hardening_v1",
+            "version": "20260903061730",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "cf43adc5a7a98e4bd1e460a7cd639718a5086555b4ea8ef97f85d7ff4186116d",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260903110000_pandora_generated_intake_replay_semantic_hardening_v1.sql"
+        },
+        {
+            "name": "pandora_primary_project_table_acl_hardening_v1",
+            "version": "20260903061741",
+            "replayMode": "history_receipt_noop",
+            "originalSqlSha256": "cccca0b41fed13b551df6eba018fcfb802d3641a7aa450d0a2f631097b306da3",
+            "originalStatementCount": 1,
+            "canonicalExecutablePath": "supabase/migrations/20260903111000_pandora_primary_project_table_acl_hardening_v1.sql"
         }
     ],
     "projectRef": "jcyqixttuebxqqfkjonq",
     "repository": "pandora-rvw-314296438-20260820/pandoras-box",
-    "generatedAt": "2026-09-02T07:20:08Z",
+    "generatedAt": "2026-09-03T06:22:00Z",
     "schemaVersion": 1,
-    "migrationCount": 221
+    "migrationCount": 223
 }
