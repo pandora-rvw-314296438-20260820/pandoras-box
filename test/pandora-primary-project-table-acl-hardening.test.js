@@ -4,7 +4,7 @@ const { join } = require('node:path');
 const test = require('node:test');
 
 const migration = readFileSync(
-  join(__dirname, '..', 'supabase', 'migrations', '20260903053000_pandora_primary_project_table_acl_hardening_v1.sql'),
+  join(__dirname, '..', 'supabase', 'migrations', '20260903111000_pandora_primary_project_table_acl_hardening_v1.sql'),
   'utf8',
 );
 
