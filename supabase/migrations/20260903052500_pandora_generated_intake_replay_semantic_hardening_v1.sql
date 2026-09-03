@@ -62,9 +62,9 @@ begin
     end if;
 
     if v_existing_version.source_payload ? 'generatedModelRunId' then
-      if v_existing_version.source_payload->>'generatedModelRunId'<>p_model_run_id::text
-        or v_existing_version.source_payload->>'generatedStoragePath'<>p_storage_path
-        or (v_existing_version.source_payload->>'generatedSourceByteSize')::bigint<>p_source_byte_size then
+      if v_existing_version.source_payload->>'generatedModelRunId' is distinct from p_model_run_id::text
+        or v_existing_version.source_payload->>'generatedStoragePath' is distinct from p_storage_path
+        or v_existing_version.source_payload->>'generatedSourceByteSize' is distinct from p_source_byte_size::text then
         raise exception 'BUILD_INTAKE_REPLAY_COLLISION' using errcode='23514';
       end if;
     else
