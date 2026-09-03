@@ -8,6 +8,7 @@ import '../../core/data/pandora_repository.dart';
 import '../../core/data/project_experience_api.dart';
 import '../../core/models/project_journey_models.dart';
 import '../../core/network/idempotency_key.dart';
+import '../../core/network/pandora_api_error.dart';
 import '../../core/platform/pandora_native_io.dart';
 import 'pandora_v2_ui.dart';
 import 'professional_build_plan.dart';
@@ -29,6 +30,8 @@ class _CreateProjectExperienceScreenState
   final _keys = IdempotencyKeyFactory();
   bool _submitting = false;
   String? _error;
+  String? _createIntent;
+  String? _createIdempotencyKey;
 
   @override
   void initState() {
@@ -89,6 +92,11 @@ class _CreateProjectExperienceScreenState
       setState(() => _error = 'Pandora cannot start a new project right now.');
       return;
     }
+    final createKey = _createIntent == intent && _createIdempotencyKey != null
+        ? _createIdempotencyKey!
+        : _keys.create('pandora-v2-project-create');
+    _createIntent = intent;
+    _createIdempotencyKey = createKey;
     setState(() {
       _submitting = true;
       _error = null;
@@ -98,7 +106,7 @@ class _CreateProjectExperienceScreenState
         name: _inferName(intent),
         buildKind: ProjectBuildKind.helpMeDecide,
         objective: intent,
-        idempotencyKey: _keys.create('pandora-v2-project-create'),
+        idempotencyKey: createKey,
       );
       final intentId = await experience.submitIntent(
         projectId: project.id,
@@ -113,6 +121,8 @@ class _CreateProjectExperienceScreenState
           projectId: project.id,
         ),
       );
+      _createIntent = null;
+      _createIdempotencyKey = null;
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
@@ -127,6 +137,14 @@ class _CreateProjectExperienceScreenState
       if (mounted) setState(() => _error = error.message);
     } on PandoraRepositoryException catch (error) {
       if (mounted) setState(() => _error = error.message);
+    } on PandoraApiError catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error.outcomeMayBeUnknown
+              ? '${error.message} Try again with the same request; Pandora will safely resume it instead of creating another project.'
+              : error.message;
+        });
+      }
     } catch (_) {
       if (mounted) {
         setState(
