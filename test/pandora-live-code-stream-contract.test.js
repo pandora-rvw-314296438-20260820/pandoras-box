@@ -38,7 +38,9 @@ test('live build theatre renders only real generated source chunks', () => {
   assert.equal(conversation.includes('scrollable: false,'), true);
   assert.equal(generator.includes('return typeof value === "string" ? value : "";'), true);
   assert.equal(generator.includes('parts.map((part) => text(rec(part).text))'), false);
-  assert.equal(createExperience.includes("idempotencyKey: _keys.create('pandora-v2-build:${widget.project.id}')"), true);
+  assert.equal(createExperience.includes("_buildIdempotencyKey ??="), true);
+  assert.equal(createExperience.includes("_keys.create('pandora-v2-build:${widget.project.id}')"), true);
+  assert.equal(createExperience.includes('idempotencyKey: _buildIdempotencyKey!'), true);
 });
 
 test('live source visibility is ephemeral and read-only to authenticated members', () => {
