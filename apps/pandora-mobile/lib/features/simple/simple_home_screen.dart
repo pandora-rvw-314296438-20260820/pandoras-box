@@ -73,11 +73,14 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
     }
   }
 
-  void _create(String value) => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => CreateProjectExperienceScreen(initialIntent: value),
-        ),
-      );
+  Future<void> _create(String value) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CreateProjectExperienceScreen(initialIntent: value),
+      ),
+    );
+    if (mounted) await _load();
+  }
 
   Future<void> _open(ProjectSummary project) async {
     if (_openingId != null) return;

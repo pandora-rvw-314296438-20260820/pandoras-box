@@ -36,7 +36,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       setState(() {
         _projects = result.data;
         _loading = false;
-        _error = null;
+        _error = result.isCached
+            ? (result.degradedReason ??
+                'Pandora is showing the last safe project list while it reconnects.')
+            : null;
       });
     } on PandoraRepositoryException catch (error) {
       if (!mounted) return;
@@ -51,6 +54,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         _error = 'Pandora could not load your work right now.';
       });
     }
+  }
+
+  Future<void> _create() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const CreateProjectExperienceScreen(),
+      ),
+    );
+    if (mounted) await _load();
   }
 
   Future<void> _open(ProjectSummary project) async {
@@ -123,14 +135,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       backgroundColor: PandoraV2Colors.ink,
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const CreateProjectExperienceScreen(),
-                        ),
-                      );
-                      if (mounted) await _load();
-                    },
+                    onPressed: _create,
                     icon: const Icon(Icons.add_rounded),
                   ),
                 ],
@@ -158,11 +163,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   message:
                       'Start with the outcome you want. Pandora will choose the technical shape.',
                   actionLabel: 'Create',
-                  onAction: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const CreateProjectExperienceScreen(),
-                    ),
-                  ),
+                  onAction: _create,
                 )
               else
                 for (final project in _projects)

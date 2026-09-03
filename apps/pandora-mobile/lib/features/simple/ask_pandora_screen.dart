@@ -6,8 +6,9 @@ import '../../core/data/pandora_repository.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
-import 'build_preview_flow.dart';
 import 'pandora_simple_ui.dart';
+import 'project_create_experience.dart';
+import 'project_experience_v2.dart';
 
 class AskPandoraScreen extends StatefulWidget {
   const AskPandoraScreen({
@@ -120,6 +121,25 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
       final dependencies = PandoraDependencies.of(context);
       final intelligence = dependencies.intelligence;
       if (intelligence == null) {
+        if (dependencies.projectExperienceRepository != null) {
+          if (!mounted) return;
+          setState(() {
+            _messages.add(_ChatMessage.user(objective));
+            _pendingMessage = null;
+            _objective.clear();
+            _attachment = null;
+            _imageAttachment = null;
+            _submissionKey = null;
+          });
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => CreateProjectExperienceScreen(
+                initialIntent: objective,
+              ),
+            ),
+          );
+          return;
+        }
         _submissionKey ??= _keys.create('simple-intake');
         final receipt = await dependencies.repository.ask(
           message: objective,
@@ -135,12 +155,6 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
           _imageAttachment = null;
           _submissionKey = null;
         });
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) =>
-                BuildProgressScreen(receipt: receipt, request: objective),
-          ),
-        );
         return;
       }
 
@@ -164,6 +178,36 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
 
       final handoff = turn.handoff;
       if (handoff == null) return;
+      final experience = dependencies.projectExperienceRepository;
+      final handoffProjectId = handoff.projectId?.trim();
+      if (experience != null &&
+          (handoffProjectId == null || handoffProjectId.isEmpty)) {
+        _submissionKey = null;
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => CreateProjectExperienceScreen(
+              initialIntent: handoff.request,
+            ),
+          ),
+        );
+        return;
+      }
+      if (experience != null &&
+          handoffProjectId != null &&
+          handoffProjectId.isNotEmpty) {
+        final snapshot = await experience.runtime(handoffProjectId);
+        if (!mounted) return;
+        _submissionKey = null;
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ProjectWorkspaceV2Screen(
+              project: snapshot.project,
+              initialChange: handoff.request,
+            ),
+          ),
+        );
+        return;
+      }
       _submissionKey ??= _keys.create('intelligence-handoff');
       final receipt = await dependencies.repository.ask(
         message: handoff.request,
@@ -172,12 +216,11 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
       );
       if (!mounted) return;
       setState(() => _submissionKey = null);
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) =>
-              BuildProgressScreen(receipt: receipt, request: objective),
-        ),
-      );
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage.pandora(receipt.reply));
+        });
+      }
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
       setState(() {
