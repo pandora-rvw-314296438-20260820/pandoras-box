@@ -438,8 +438,9 @@ class _ProjectUnderstandingScreenState
                                 ),
                               ),
                               TextButton.icon(
-                                onPressed: () =>
-                                    setState(() => _showOriginalIntent = !_showOriginalIntent),
+                                onPressed: () => setState(
+                                  () => _showOriginalIntent = !_showOriginalIntent,
+                                ),
                                 icon: Icon(
                                   _showOriginalIntent
                                       ? Icons.expand_less_rounded
@@ -447,9 +448,7 @@ class _ProjectUnderstandingScreenState
                                   size: 18,
                                 ),
                                 label: Text(
-                                  _showOriginalIntent
-                                      ? 'Collapse request'
-                                      : 'Show full request',
+                                  _showOriginalIntent ? 'Collapse request' : 'Show full request',
                                 ),
                               ),
                             ],
