@@ -15,10 +15,11 @@ test("complete reconstructed source metrics are authoritative and contradictions
   const reportedTriple = source.indexOf("reportedFiles != null && reportedLines != null && reportedBytes != null");
   assert.ok(completeBranch >= 0, "complete local metrics branch must exist");
   assert.ok(reportedTriple > completeBranch, "complete local metrics must be evaluated before reported totals");
-  assert.match(source, /reportedFiles == null \|\| reportedFiles == state\.uniqueFileCount/);
-  assert.match(source, /reportedLines == null \|\| reportedLines == state\.sourceLineCount/);
-  assert.match(source, /reportedBytes == null \|\| reportedBytes == state\.sourceByteCount/);
-  assert.match(source, /if \(!reportedMetricsAgree\) \{[\s\S]*return 'Source summary unavailable';/);
+  assert.match(source, /bool metricAgrees\(int\? reported, int actual\)/);
+  assert.match(source, /reported == null \|\| reported == actual/);
+  assert.match(source, /!metricAgrees\(reportedFiles, state\.uniqueFileCount\)/);
+  assert.match(source, /!metricAgrees\(reportedLines, state\.sourceLineCount\)/);
+  assert.match(source, /!metricAgrees\(reportedBytes, state\.sourceByteCount\)[\s\S]*return 'Source summary unavailable';/);
 });
 
 test("incomplete and retention-gap fallbacks remain available", () => {
