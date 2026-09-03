@@ -262,15 +262,14 @@ class _ProjectBuildExperienceV2ScreenState
       _timer?.cancel();
       if (mounted) {
         setState(
-          () => _error =
-              'This is taking longer than expected. Your request is saved; try again to resume from the current project state.',
+          () => _error = 'This is taking longer than expected. Your request is saved; try again to resume from the current project state.',
         );
       }
       return;
     }
     if (_refreshing) return;
-    final experience =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final experience = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (experience == null) {
       setState(
         () => _error = 'Pandora cannot continue this project right now.',
@@ -367,8 +366,7 @@ class _ProjectBuildExperienceV2ScreenState
             _previewRequested = false;
             if (mounted) {
               setState(
-                () => _error =
-                    'Pandora found something to resolve before your first version can open.',
+                () => _error = 'Pandora found something to resolve before your first version can open.',
               );
             }
           }
@@ -396,8 +394,8 @@ class _ProjectBuildExperienceV2ScreenState
     if (_openingPreview) return;
     final candidate = _candidate;
     if (candidate == null) return;
-    final experience =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final experience = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (experience == null) return;
     setState(() => _openingPreview = true);
     try {
@@ -448,9 +446,7 @@ class _ProjectBuildExperienceV2ScreenState
     if (!_ready && activity != null && activity.latestSequence > 0) {
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: LiveBuildTheatre(state: activity),
-        ),
+        child: SingleChildScrollView(child: LiveBuildTheatre(state: activity)),
       );
     }
     return Center(
@@ -500,8 +496,8 @@ class _ProjectBuildExperienceV2ScreenState
     final candidate = _candidate;
     final files =
         candidate != null && _localPreviewVersionId == candidate.versionId
-            ? _localPreviewFiles
-            : null;
+        ? _localPreviewFiles
+        : null;
     if (candidate == null || files == null || files.isEmpty) {
       return _buildStageSurface();
     }
@@ -517,82 +513,81 @@ class _ProjectBuildExperienceV2ScreenState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: PandoraV2Colors.canvas,
-        body: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: PandoraV2ObjectHeader(
-                  title: widget.project.name,
-                  subtitle: _ready ? 'Ready' : 'Working',
+    backgroundColor: PandoraV2Colors.canvas,
+    body: SafeArea(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: PandoraV2ObjectHeader(
+              title: widget.project.name,
+              subtitle: _ready ? 'Ready' : 'Working',
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: PandoraV2Colors.surface,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: PandoraV2Colors.line),
                 ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: PandoraV2Colors.surface,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: PandoraV2Colors.line),
-                    ),
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: _ready
-                              ? _buildReadySurface()
-                              : _buildStageSurface(),
-                        ),
-                        if (_ready)
-                          Positioned(
-                            right: 18,
-                            top: 18,
-                            child: IconButton.filled(
-                              tooltip: 'Open exact preview',
-                              onPressed:
-                                  _openingPreview ? null : _openExactPreview,
-                              style: IconButton.styleFrom(
-                                backgroundColor: PandoraV2Colors.ink,
-                                foregroundColor: Colors.white,
-                              ),
-                              icon: const Icon(Icons.open_in_full_rounded),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
-                child: Column(
+                child: Stack(
                   children: [
-                    if (_error != null) ...[
-                      PandoraV2InlineMessage(
-                        title: 'This needs another try',
-                        message: _error!,
-                        actionLabel: 'Try again',
-                        onAction: () {
-                          setState(() {
-                            _error = null;
-                            _previewRequested = false;
-                            _flowStartedAt = DateTime.now();
-                            if (_candidate == null) _buildRequested = false;
-                          });
-                          unawaited(_refreshAndAdvance());
-                        },
+                    Positioned.fill(
+                      child: _ready
+                          ? _buildReadySurface()
+                          : _buildStageSurface(),
+                    ),
+                    if (_ready)
+                      Positioned(
+                        right: 18,
+                        top: 18,
+                        child: IconButton.filled(
+                          tooltip: 'Open exact preview',
+                          onPressed: _openingPreview ? null : _openExactPreview,
+                          style: IconButton.styleFrom(
+                            backgroundColor: PandoraV2Colors.ink,
+                            foregroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.open_in_full_rounded),
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                    ],
                   ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      );
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+            child: Column(
+              children: [
+                if (_error != null) ...[
+                  PandoraV2InlineMessage(
+                    title: 'This needs another try',
+                    message: _error!,
+                    actionLabel: 'Try again',
+                    onAction: () {
+                      setState(() {
+                        _error = null;
+                        _previewRequested = false;
+                        _flowStartedAt = DateTime.now();
+                        if (_candidate == null) _buildRequested = false;
+                      });
+                      unawaited(_refreshAndAdvance());
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class ProjectWorkspaceV2Screen extends StatefulWidget {
@@ -666,8 +661,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   Future<void> _startProjection() async {
-    final repository =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final repository = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (repository == null) {
       if (!mounted) return;
       setState(() {
@@ -690,16 +685,17 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
 
     if (!mounted || _projectionSubscription != null) return;
-    _projectionSubscription =
-        repository.watchExperience(widget.project.id).listen(
-      _acceptProjection,
-      onError: (_) {
-        if (!mounted) return;
-        setState(() {
-          _error ??= 'Pandora cannot refresh this project state right now.';
-        });
-      },
-    );
+    _projectionSubscription = repository
+        .watchExperience(widget.project.id)
+        .listen(
+          _acceptProjection,
+          onError: (_) {
+            if (!mounted) return;
+            setState(() {
+              _error ??= 'Pandora cannot refresh this project state right now.';
+            });
+          },
+        );
   }
 
   void _acceptProjection(ProjectExperienceProjection next) {
@@ -717,8 +713,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (safety.candidateFailed) {
         _error = safety.failureMessage(backendMessage: next.safeFailureMessage);
       } else if (next.hasSafeFailure && _error == null) {
-        _error = next.safeFailureMessage ??
-            'Pandora found something to resolve. Your current version is unchanged.';
+        _error = next.safeFailureMessage ?? 'Pandora found something to resolve. Your current version is unchanged.';
       }
     });
     final initialChange = widget.initialChange?.trim();
@@ -804,8 +799,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
     if (_liveBuildSubscription != null || _resolvingLiveBuild) return;
 
-    final repository =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final repository = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (repository == null) return;
 
     _resolvingLiveBuild = true;
@@ -823,18 +818,16 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       setState(() => _liveBuildStreamId = normalizedStreamId);
       _liveBuildSubscription = repository
           .watchResilientBuildStream(
-        projectId: widget.project.id,
-        streamId: normalizedStreamId,
-      )
+            projectId: widget.project.id,
+            streamId: normalizedStreamId,
+          )
           .listen(
-        (snapshot) => _acceptLiveBuildSnapshot(
-          normalizedStreamId,
-          snapshot,
-        ),
-        onError: (_) {
-          // The generic lifecycle capsule remains the fail-closed fallback.
-        },
-      );
+            (snapshot) =>
+                _acceptLiveBuildSnapshot(normalizedStreamId, snapshot),
+            onError: (_) {
+              // The generic lifecycle capsule remains the fail-closed fallback.
+            },
+          );
     } on ProjectExperienceException {
       _scheduleLiveBuildRetry(buildJobId);
     } catch (_) {
@@ -977,8 +970,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   Future<List<Map<String, Object?>>?> _readExactPreviewVersion(
     String versionId,
   ) async {
-    final experience =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final experience = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (experience == null) return null;
     try {
       return await _loadExactPreviewFiles(
@@ -1031,8 +1024,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   Future<void> _refresh() async {
-    final experience =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final experience = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (experience == null) {
       if (!mounted) return;
       setState(() {
@@ -1066,12 +1059,14 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (!mounted) return;
 
       final exactPreviewReady = files != null && files.isNotEmpty;
-      final commitVisible = targetVersionId != null &&
+      final commitVisible =
+          targetVersionId != null &&
           safety.canCommitVisibleVersion(
             versionId: targetVersionId,
             exactPreviewReady: exactPreviewReady,
           );
-      final exactDiff = commitVisible &&
+      final exactDiff =
+          commitVisible &&
               targetVersionId == safety.roles.candidateVersionId &&
               files != null
           ? _exactDiffForCandidate(
@@ -1081,7 +1076,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
             )
           : null;
       final currentProjection = _projection;
-      final acceptProjection = currentProjection == null ||
+      final acceptProjection =
+          currentProjection == null ||
           projection.isNewerThan(currentProjection);
 
       setState(() {
@@ -1112,8 +1108,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
             backendMessage: projection.safeFailureMessage,
           );
         } else if (projection.hasSafeFailure) {
-          _error = projection.safeFailureMessage ??
-              'Pandora found something to resolve. Your current version is unchanged.';
+          _error = projection.safeFailureMessage ?? 'Pandora found something to resolve. Your current version is unchanged.';
         } else {
           _error = null;
         }
@@ -1137,8 +1132,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
 
   Future<void> _openExactPreview() async {
     if (_openingPreview) return;
-    final experience =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final experience = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (experience == null) return;
 
     setState(() => _openingPreview = true);
@@ -1188,10 +1183,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (mounted) setState(() => _initialChangeSubmitting = false);
       return;
     }
-    await _requestChange(
-      request,
-      idempotencyKey: _initialChangeIdempotencyKey,
-    );
+    await _requestChange(request, idempotencyKey: _initialChangeIdempotencyKey);
     if (!mounted) return;
     setState(() {
       _initialChangeSubmitting = false;
@@ -1199,16 +1191,13 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     });
   }
 
-  Future<void> _requestChange(
-    String text, {
-    String? idempotencyKey,
-  }) async {
+  Future<void> _requestChange(String text, {String? idempotencyKey}) async {
     final request = text.trim();
     if (request.length < 4 || _changing || _projection?.canChange != true) {
       return;
     }
-    final experience =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final experience = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (experience == null) {
       setState(() => _error = 'Pandora cannot save that change right now.');
       return;
@@ -1307,7 +1296,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         );
       }
       final changeAttempt = DateTime.now().microsecondsSinceEpoch;
-      final changeIdempotencyKey = idempotencyKey ??
+      final changeIdempotencyKey =
+          idempotencyKey ??
           'pandora-v2-change:${widget.project.id}:$changeAttempt';
       final intentId = await experience.submitChange(
         projectId: widget.project.id,
@@ -1361,10 +1351,10 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   Future<void> _watchExactChange(String? baseVersion) async {
-    final repository =
-        PandoraDependencies.of(context).projectExperienceRepository;
-    final experience =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final repository = PandoraDependencies.of(context)
+        .projectExperienceRepository;
+    final experience = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (repository == null || experience == null) {
       throw const ProjectExperienceException(
         'Pandora cannot check that change right now.',
@@ -1477,8 +1467,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   Future<void> _undoChange() async {
-    final experience =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final experience = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     final versionId = _projection?.candidateVersionId;
     if (experience == null || versionId == null || !_canUndo || _undoing) {
       return;
@@ -1507,8 +1497,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     } catch (_) {
       if (!mounted) return;
       setState(
-        () => _error =
-            'Pandora could not undo that change. Your current live result was not altered.',
+        () => _error = 'Pandora could not undo that change. Your current live result was not altered.',
       );
     } finally {
       if (mounted) setState(() => _undoing = false);
@@ -1764,8 +1753,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   Future<void> _refreshPublishReceipt() async {
-    final experience =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final experience = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (experience == null) return;
     try {
       final receipt = await experience.loadLatestPublishReceipt(
@@ -1779,8 +1768,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   Future<void> _watchPublishCompletion(String versionId) async {
-    final repository =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final repository = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (repository == null) {
       throw const ProjectExperienceException(
         'Pandora cannot confirm this publish right now.',
@@ -1813,8 +1802,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     if (!mounted) return;
     if (transition.hasSafeFailure) {
       throw ProjectExperienceException(
-        transition.safeFailureMessage ??
-            'Pandora found something to resolve before this version can go live.',
+        transition.safeFailureMessage ?? 'Pandora found something to resolve before this version can go live.',
       );
     }
     await _refreshPublishReceipt();
@@ -1824,8 +1812,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   }
 
   Future<void> _publish(String domain, String versionId) async {
-    final experience =
-        PandoraDependencies.of(context).projectExperienceRepository;
+    final experience = PandoraDependencies.of(context)
+        .projectExperienceRepository;
     if (experience == null || versionId.isEmpty || _publishing) return;
     setState(() {
       _publishing = true;
@@ -1900,8 +1888,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
         _selectionMode = false;
         _selectedPreviewTarget = null;
         _focusToken = null;
-        _error =
-            'Pandora cannot bind that selection to the exact preview. Select it again after the preview refreshes.';
+        _error = 'Pandora cannot bind that selection to the exact preview. Select it again after the preview refreshes.';
       });
       return;
     }
@@ -1997,8 +1984,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       progressPhase: _projectionProgressPhase,
       liveActivityLabel: _liveActivityLabel,
       liveActivityDetail: _liveActivityDetail,
-      onOpenLiveActivity:
-          _liveBuildStreamId == null ? null : _openLiveBuildActivity,
+      onOpenLiveActivity: _liveBuildStreamId == null
+          ? null
+          : _openLiveBuildActivity,
       recentlyUpdated: _recentlyUpdated,
       currentVersionVerified: _currentVersionVerified,
       changeDiff: _lastChangeDiff,
