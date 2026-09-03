@@ -7,6 +7,7 @@ import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
 import 'build_preview_flow.dart';
+import 'project_create_experience.dart';
 import 'pandora_simple_ui.dart';
 
 class AskPandoraScreen extends StatefulWidget {
@@ -120,6 +121,25 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
       final dependencies = PandoraDependencies.of(context);
       final intelligence = dependencies.intelligence;
       if (intelligence == null) {
+        if (dependencies.projectExperienceRepository != null) {
+          if (!mounted) return;
+          setState(() {
+            _messages.add(_ChatMessage.user(objective));
+            _pendingMessage = null;
+            _objective.clear();
+            _attachment = null;
+            _imageAttachment = null;
+            _submissionKey = null;
+          });
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => CreateProjectExperienceScreen(
+                initialIntent: objective,
+              ),
+            ),
+          );
+          return;
+        }
         _submissionKey ??= _keys.create('simple-intake');
         final receipt = await dependencies.repository.ask(
           message: objective,
@@ -164,6 +184,18 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
 
       final handoff = turn.handoff;
       if (handoff == null) return;
+      if (handoff.projectId == null &&
+          dependencies.projectExperienceRepository != null) {
+        _submissionKey = null;
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => CreateProjectExperienceScreen(
+              initialIntent: handoff.request,
+            ),
+          ),
+        );
+        return;
+      }
       _submissionKey ??= _keys.create('intelligence-handoff');
       final receipt = await dependencies.repository.ask(
         message: handoff.request,
