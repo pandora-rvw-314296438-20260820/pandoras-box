@@ -6,7 +6,6 @@ import '../../core/data/pandora_repository.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
-import 'build_preview_flow.dart';
 import 'project_create_experience.dart';
 import 'project_experience_v2.dart';
 import 'pandora_simple_ui.dart';
@@ -156,12 +155,6 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
           _imageAttachment = null;
           _submissionKey = null;
         });
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) =>
-                BuildProgressScreen(receipt: receipt, request: objective),
-          ),
-        );
         return;
       }
 
@@ -223,12 +216,11 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
       );
       if (!mounted) return;
       setState(() => _submissionKey = null);
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) =>
-              BuildProgressScreen(receipt: receipt, request: objective),
-        ),
-      );
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage.pandora(receipt.reply));
+        });
+      }
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
       setState(() {
