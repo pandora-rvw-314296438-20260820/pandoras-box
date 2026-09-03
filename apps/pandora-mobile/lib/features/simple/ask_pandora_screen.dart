@@ -6,9 +6,9 @@ import '../../core/data/pandora_repository.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
+import 'pandora_simple_ui.dart';
 import 'project_create_experience.dart';
 import 'project_experience_v2.dart';
-import 'pandora_simple_ui.dart';
 
 class AskPandoraScreen extends StatefulWidget {
   const AskPandoraScreen({
