@@ -258,6 +258,7 @@ class _ProjectUnderstandingScreenState
   Timer? _timer;
   bool _building = false;
   bool _proposalCaptured = false;
+  String? _buildIdempotencyKey;
   String? _error;
 
   @override
@@ -319,11 +320,14 @@ class _ProjectUnderstandingScreenState
       _building = true;
       _error = null;
     });
+    _buildIdempotencyKey ??=
+        _keys.create('pandora-v2-build:${widget.project.id}');
     try {
       final start = await api.requestBuild(
         projectId: widget.project.id,
-        idempotencyKey: _keys.create('pandora-v2-build:${widget.project.id}'),
+        idempotencyKey: _buildIdempotencyKey!,
       );
+      _buildIdempotencyKey = null;
       unawaited(
         OwnerAnalytics.shared.capture(
           OwnerAnalyticsEvent.buildAdmitted,
@@ -352,6 +356,7 @@ class _ProjectUnderstandingScreenState
         ),
       );
     } on ProjectExperienceException catch (error) {
+      // Keep the same admission key so retry cannot duplicate an already-admitted build.
       unawaited(
         OwnerAnalytics.shared.capture(
           OwnerAnalyticsEvent.buildAdmissionFailed,
