@@ -177,12 +177,19 @@ String _metricSummary(LiveBuildTheatreState state) {
   final reportedLines = state.reportedSourceLineCount;
   final reportedBytes = state.reportedSourceByteCount;
 
-  if (reportedFiles != null && reportedLines != null && reportedBytes != null) {
-    return '$reportedFiles files · $reportedLines lines · ${_formatBytes(reportedBytes)} source';
+  if (state.locallyCompleteSourceMetrics) {
+    bool metricAgrees(int? reported, int actual) =>
+        reported == null || reported == actual;
+    if (!metricAgrees(reportedFiles, state.uniqueFileCount) ||
+        !metricAgrees(reportedLines, state.sourceLineCount) ||
+        !metricAgrees(reportedBytes, state.sourceByteCount)) {
+      return 'Source summary unavailable';
+    }
+    return '${state.uniqueFileCount} files · ${state.sourceLineCount} lines · ${_formatBytes(state.sourceByteCount)} source';
   }
 
-  if (state.locallyCompleteSourceMetrics) {
-    return '${state.uniqueFileCount} files · ${state.sourceLineCount} lines · ${_formatBytes(state.sourceByteCount)} source';
+  if (reportedFiles != null && reportedLines != null && reportedBytes != null) {
+    return '$reportedFiles files · $reportedLines lines · ${_formatBytes(reportedBytes)} source';
   }
 
   if (reportedFiles != null) {
