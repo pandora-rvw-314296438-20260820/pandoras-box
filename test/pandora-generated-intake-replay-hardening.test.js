@@ -15,8 +15,8 @@ test('generated intake replay is provenance-bound and fails closed on collisions
   assert.match(migration, /v_existing_artifact\.content_sha256 is distinct from p_source_sha256/);
   assert.match(migration, /v_existing_artifact\.byte_size is distinct from p_source_byte_size/);
   assert.match(migration, /source_payload->>'buildAdapter'/);
-  assert.match(migration, /source_payload->>'generatedModelRunId'<>p_model_run_id::text/);
-  assert.match(migration, /source_payload->>'generatedStoragePath'<>p_storage_path/);
+  assert.match(migration, /source_payload->>'generatedModelRunId' is distinct from p_model_run_id::text/);
+  assert.match(migration, /source_payload->>'generatedStoragePath' is distinct from p_storage_path/);
   assert.match(migration, /generatedSourceByteSize/);
 });
 
