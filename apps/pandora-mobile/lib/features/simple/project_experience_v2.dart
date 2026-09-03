@@ -628,6 +628,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
   bool _undoing = false;
   bool _recentlyUpdated = false;
   bool _initialChangeSubmitted = false;
+  bool _initialChangeSubmitting = false;
+  String? _initialChangeIdempotencyKey;
   ProjectExactSourceDiff? _lastChangeDiff;
   StreamSubscription<ProjectBuildStreamSnapshot>? _liveBuildSubscription;
   Timer? _liveBuildRetryTimer;
@@ -715,17 +717,21 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       if (safety.candidateFailed) {
         _error = safety.failureMessage(backendMessage: next.safeFailureMessage);
       } else if (next.hasSafeFailure && _error == null) {
-        _error = next.safeFailureMessage ?? 'Pandora found something to resolve. Your current version is unchanged.';
+        _error = next.safeFailureMessage ??
+            'Pandora found something to resolve. Your current version is unchanged.';
       }
     });
     final initialChange = widget.initialChange?.trim();
     if (!_initialChangeSubmitted &&
+        !_initialChangeSubmitting &&
         initialChange != null &&
         initialChange.length >= 4 &&
         next.canChange) {
-      _initialChangeSubmitted = true;
+      _initialChangeSubmitting = true;
+      _initialChangeIdempotencyKey ??=
+          'pandora-v2-routed-change:${widget.project.id}:${DateTime.now().microsecondsSinceEpoch}';
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) unawaited(_requestChange(initialChange));
+        if (mounted) unawaited(_requestInitialChange(initialChange));
       });
     }
     if (shouldHydrate) unawaited(_refresh());
@@ -1176,7 +1182,26 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
     }
   }
 
-  Future<void> _requestChange(String text) async {
+  Future<void> _requestInitialChange(String request) async {
+    if (_changing || _projection?.canChange != true) {
+      if (mounted) setState(() => _initialChangeSubmitting = false);
+      return;
+    }
+    await _requestChange(
+      request,
+      idempotencyKey: _initialChangeIdempotencyKey,
+    );
+    if (!mounted) return;
+    setState(() {
+      _initialChangeSubmitting = false;
+      if (_error == null && !_changing) _initialChangeSubmitted = true;
+    });
+  }
+
+  Future<void> _requestChange(
+    String text, {
+    String? idempotencyKey,
+  }) async {
     final request = text.trim();
     if (request.length < 4 || _changing || _projection?.canChange != true) {
       return;
@@ -1283,7 +1308,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen> {
       final intentId = await experience.submitChange(
         projectId: widget.project.id,
         changeText: actionRequest,
-        idempotencyKey:
+        idempotencyKey: idempotencyKey ??
             'pandora-v2-change:${widget.project.id}:${DateTime.now().microsecondsSinceEpoch}',
       );
 
