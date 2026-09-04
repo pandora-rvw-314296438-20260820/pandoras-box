@@ -47,7 +47,7 @@ function request(signatureB64, now = new Date("2026-08-23T16:00:00.000Z")) {
     nonce: "review-0123456789abcdef",
     organizationId: "2270b266-59da-4c39-bfd9-9f8d08352af0",
     planId: "8ec3acda-4fb7-48b2-81f4-6885c005f561",
-    repository: "banataosystems/Pandoras-box",
+    repository: "pandora-rvw-314296438-20260820/pandoras-box",
     requestId: "661f0457-30af-4470-ad19-2d915e071716",
     reviewArtifactSha256: "a".repeat(64),
     reviewerId: "worker-reviewer-01",

@@ -46,7 +46,7 @@ async function fixture() {
     organizationId: configuration.organizationId,
     dispatchId: "a6402a8a-4cbb-4812-80be-640028c81c5b",
     planId: "8ec3acda-4fb7-48b2-81f4-6885c005f561",
-    repository: "banataosystems/Pandoras-box",
+    repository: "pandora-rvw-314296438-20260820/pandoras-box",
     exactSha: "0123456789abcdef0123456789abcdef01234567",
     jobClass: "node_regression",
     maxRuntimeSeconds: 1800,

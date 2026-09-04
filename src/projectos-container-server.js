@@ -184,10 +184,15 @@ function createProjectOsContainerApp(environment = process.env) {
     const publicDirectory = node_path_1.default.resolve(process.cwd(), 'public');
     const controlTowerDirectory = node_path_1.default.resolve(process.cwd(), 'apps/control-tower');
     const publicIndex = node_path_1.default.join(publicDirectory, 'index.html');
+    const pandoraWebIndex = node_path_1.default.join(publicDirectory, 'pandora-web', 'index.html');
     const controlTowerIndex = node_path_1.default.join(controlTowerDirectory, 'index.html');
     const consentPage = node_path_1.default.join(publicDirectory, 'oauth', 'consent.html');
     const consentScript = node_path_1.default.join(publicDirectory, 'oauth', 'consent.browser.js.txt');
-    const shellIndex = (0, node_fs_1.existsSync)(publicIndex) ? publicIndex : controlTowerIndex;
+    const shellIndex = (0, node_fs_1.existsSync)(pandoraWebIndex)
+        ? pandoraWebIndex
+        : (0, node_fs_1.existsSync)(publicIndex)
+            ? publicIndex
+            : controlTowerIndex;
     const memoryHealth = createCanonicalMemoryHealthProbe(environment);
     app.disable('x-powered-by');
     app.set('trust proxy', 1);

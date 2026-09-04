@@ -11,7 +11,7 @@ const {
   resolveVercelWorkloadToken,
 } = require("../runtime/vercel-workload-identity.js");
 
-const CANONICAL_REPOSITORY = "banataosystems/Pandoras-box";
+const CANONICAL_REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box";
 const WORKER_TOOL = "projectos.worker.verify";
 const ALLOWED_JOB_CLASSES = new Set([
   "node_regression",

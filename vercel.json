@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run build && bash scripts/build-vercel-pandora-web.sh",
   "framework": "express",
   "env": {
     "PANDORA_MEMORY_BASE_URL": "https://pandorasbox-memory.vercel.app",
@@ -43,7 +43,7 @@
     {"source": "/control-tower/projectos-status.json", "destination": "/api/operator/status"},
     {"source": "/control-tower/release.json", "destination": "/api/operator/status"},
     {"source": "/latest-updates", "destination": "/latest-updates.html"},
-    {"source": "/", "destination": "/control-tower/index.html"},
+    {"source": "/", "destination": "/pandora-web/index.html"},
     {"source": "/health", "destination": "/api/health"},
     {"source": "/mcp", "destination": "/api/mcp"},
     {"source": "/.well-known/oauth-protected-resource", "destination": "/api/mcp?metadata=root"},

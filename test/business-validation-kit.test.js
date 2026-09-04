@@ -64,7 +64,7 @@ function paidPilotEvidence() {
     capturedAt: '2026-08-23T15:59:45.000Z',
     expiresAt: '2026-08-23T16:05:00.000Z',
     source: {
-      repository: 'banataosystems/Pandoras-box',
+      repository: 'pandora-rvw-314296438-20260820/pandoras-box',
       branch: 'main',
       sha: sourceSha,
       treeSha: sourceTreeSha,

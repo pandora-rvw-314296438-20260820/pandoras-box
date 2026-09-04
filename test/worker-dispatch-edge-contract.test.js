@@ -36,7 +36,7 @@ function job() {
     organizationId: ORGANIZATION_ID,
     dispatchId: DISPATCH_ID,
     planId: PLAN_ID,
-    repository: "banataosystems/Pandoras-box",
+    repository: "pandora-rvw-314296438-20260820/pandoras-box",
     exactSha: "0123456789abcdef0123456789abcdef01234567",
     jobClass: "node_regression",
     maxRuntimeSeconds: 1800,
@@ -59,7 +59,7 @@ function result(jobDigest) {
     planId: PLAN_ID,
     workerId: WORKER_ID,
     jobDigest,
-    repository: "banataosystems/Pandoras-box",
+    repository: "pandora-rvw-314296438-20260820/pandoras-box",
     exactSha: "0123456789abcdef0123456789abcdef01234567",
     jobClass: "node_regression",
     outcome: "completed",
@@ -100,6 +100,10 @@ test("claim request is closed-schema, current, and bound to a worker audience", 
 test("job digest binds exact SHA, pinned images, no network, and no production mutation", async () => {
   const { jobDigest, validateJobPayload } = await contract();
   assert.equal(validateJobPayload(job()).audience, `pandora-worker:${WORKER_ID}`);
+  assert.throws(
+    () => validateJobPayload({ ...job(), repository: "banataosystems/Pandoras-box" }),
+    /INVALID_JOB_PAYLOAD/,
+  );
   const digest = await jobDigest(job());
   assert.match(digest, /^[0-9a-f]{64}$/);
   assert.throws(
