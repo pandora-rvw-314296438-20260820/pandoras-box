@@ -88,7 +88,7 @@ const ids = {
 
 const validPlan = {
   schemaVersion: 1,
-  repository: "pandora-rvw-314296438-20260820/pandoras-box",
+  repository: "banataosystems/Pandoras-box",
   exactSha: "1".repeat(40),
   jobClass: "node_regression",
   maxRuntimeSeconds: 300,

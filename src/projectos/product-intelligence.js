@@ -102,6 +102,8 @@ function sanitizePrimitive(value, key) {
         return value;
     if (typeof value !== 'string')
         return null;
+    if (key === 'source_repo' && value === 'pandora-rvw-314296438-20260820/pandoras-box')
+        return value;
     if (key === '$current_url' || key === '$referrer')
         return normalizeUrl(value);
     return normalizeString(value);

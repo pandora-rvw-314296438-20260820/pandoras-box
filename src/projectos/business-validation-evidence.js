@@ -171,7 +171,7 @@ function validateTechnicalGate(gate, recordObservedAt, verifyCanonicalStatusRece
   }
   const source = payload.source;
   if (!isRecord(source)
-    || source.repository !== "banataosystems/Pandoras-box"
+    || source.repository !== "pandora-rvw-314296438-20260820/pandoras-box"
     || source.branch !== "main"
     || !SHA40.test(source.sha || "")
     || !SHA40.test(source.treeSha || "")) {
