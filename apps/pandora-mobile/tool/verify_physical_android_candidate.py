@@ -6,10 +6,11 @@ from pathlib import Path
 from typing import Mapping, Sequence
 EXPECTED_PACKAGE = "com.banataosystems.pandora_mobile"
 FALSE_GATES = ("physical_device_verified","wifi_journey_verified","mobile_data_journey_verified","authenticated_owner_journey_verified","network_switch_verified","rollback_verified")
+SENSITIVE_PERMISSION_RE = re.compile(r"ACCESS_(?:FINE|COARSE|BACKGROUND)_LOCATION|READ_CONTACTS|WRITE_CONTACTS|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_|CAMERA|RECORD_AUDIO|BLUETOOTH_(?:SCAN|CONNECT|ADVERTISE)|QUERY_ALL_PACKAGES|REQUEST_INSTALL_PACKAGES|SYSTEM_ALERT_WINDOW", re.IGNORECASE)
 class VerificationError(RuntimeError): pass
 def sha256_file(path: Path) -> str:
     digest=hashlib.sha256()
-    with path.open("rb") as handle:
+    with path.open("bb") as handle:
         for chunk in iter(lambda: handle.read(1024*1024), b""): digest.update(chunk)
     return digest.hexdigest()
 def parse_manifest(path: Path) -> dict[str,str]:
@@ -33,14 +34,17 @@ def require_manifest_binding(manifest: Mapping[str,str], *, source_sha:str, apk_
         if manifest.get(key)!="false": raise VerificationError(f"CI manifest must leave {key}=false until external proof")
 def run_checked(command: Sequence[str])->str:
     try:
-        completed=subprocess.run(list(command),check=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+        completed=subprocess.run(list(command),check=True,output=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     except (OSError,subprocess.CalledProcessError) as error:
         output=getattr(error,"stdout",None) or str(error); raise VerificationError(f"command failed: {' '.join(command)}\n{output}") from error
     return completed.stdout
 def parse_badging(text:str)->tuple[str,str,str]:
-    package=re.search(r"package: name='([^']+)'",text); version_code=re.search(r"versionCode='([^']+)'",text); version_name=re.search(r"versionName='([^']+)'",text)
+    package=re.search(r'package: name='\([^']+\)'',text); version_code=re.search(r"versionCode='([^']+)'",text); version_name=re.search(r'versionName='([^']+)'",text)
     if not package or not version_code or not version_name: raise VerificationError("aapt badging is missing package/version identity")
     return package.group(1),version_name.group(1),version_code.group(1)
+def require_safe_permissions(permissions_text:str)->None:
+    match=SENSITIVE_PERMISSION_RE.search(permissions_text)
+    if match: raise VerificationError(f"unexpected sensitive Android permission detected: {match.group(0)}")
 def signer_is_debug(signing_text:str)->bool:
     lowered=signing_text.lower(); return "android debug" in lowered or "cn=android debug" in lowered
 def parse_signer_sha256(signing_text:str)->str:
@@ -78,12 +82,13 @@ def main()->int:
     if package_name!=EXPECTED_PACKAGE: raise VerificationError(f"unexpected Android package: {package_name}")
     expected_version_name=app_version.split("+",1)[0]; expected_version_code=app_version.split("+",1)[1] if "+" in app_version else ""
     if version_name!=expected_version_name or version_code!=expected_version_code: raise VerificationError("APK version identity does not match exact-source manifest")
+    require_safe_permissions(run_checked([args.aapt,"dump","permissions",str(args.apk)]))
     signing=run_checked([args.apksigner,"verify","--verbose","--print-certs",str(args.apk)]); debug_signer=signer_is_debug(signing)
     signer_sha256=parse_signer_sha256(signing)
     if args.require_production_signer:
         if debug_signer: raise VerificationError("production acceptance cannot use the Android debug signer")
         signer_sha256=require_expected_production_signer(signing,args.expected_signer_sha256)
-    evidence={"source_sha":args.expected_source_sha,"apk_sha256":apk_sha,"android_package":package_name,"version_name":version_name,"version_code":version_code,"debug_signer":debug_signer,"signer_sha256":signer_sha256,"manifest_bound":True,"device_smoke_verified":False,"physical_device_verified":False,"wifi_journey_verified":False,"mobile_data_journey_verified":False,"authenticated_owner_journey_verified":False,"network_switch_verified":False,"rollback_verified":False}
+    evidence={"source_sha":args.expected_source_sha,"apk_sha256":apk_sha,"android_package":package_name,"version_name":version_name,"version_code":version_code,"permissions_verified":True,"debug_signer":debug_signer,"signer_sha256":signer_sha256,"manifest_bound":True,"device_smoke_verified":False,"physical_device_verified":False,"wifi_journey_verified":False,"mobile_data_journey_verified":False,"authenticated_owner_journey_verified":False,"network_switch_verified":False,"rollback_verified":False}
     if args.smoke_device: evidence.update(smoke_device(args.adb,args.serial,args.apk,package_name))
     print(json.dumps(evidence,sort_keys=True)); return 0
 if __name__=="__main__":
