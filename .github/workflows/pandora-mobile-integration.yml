@@ -236,6 +236,7 @@ jobs:
             echo 'wifi_journey_verified=false'
             echo 'mobile_data_journey_verified=false'
             echo 'authenticated_owner_journey_verified=false'
+            echo 'network_switch_verified=false'  
             echo 'rollback_verified=false'
             echo "apk_sha256=$(sha256sum "$apk" | cut -d ' ' -f1)"
             echo "apk_size_bytes=$(stat -c '%s' "$apk")"
