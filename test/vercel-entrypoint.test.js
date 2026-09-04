@@ -39,19 +39,25 @@ function serverlessReferenceApp() {
   return app;
 }
 
-test("Vercel selects the callable source entrypoint instead of dist/http-server", () => {
+test("Vercel selects the callable source entrypoint and preserves governed web routing", () => {
   const packageJson = JSON.parse(readFileSync(path.join(projectRoot, "package.json"), "utf8"));
   const vercelConfig = JSON.parse(readFileSync(path.join(projectRoot, "vercel.json"), "utf8"));
   const ignored = readFileSync(path.join(projectRoot, ".vercelignore"), "utf8");
 
   assert.equal(packageJson.main, "vercel-entrypoint.js");
-  assert.equal(vercelConfig.buildCommand, "npm run build");
+  assert.equal(vercelConfig.buildCommand, "npm run build && bash scripts/build-vercel-pandora-web.sh");
   assert.equal(vercelConfig.framework, "express");
   assert.equal(vercelConfig.env.PANDORA_TRUSTED_EXTERNAL_REVIEW_APP_ID, undefined);
   assert.equal(
     vercelConfig.functions["api/operator.ts"].includeFiles,
     "{supabase/migrations/**,docs/status/**,SOURCE_AUTHORITY_POLICY.json}",
   );
+
+  const rewrites = new Map(vercelConfig.rewrites.map(({ source, destination }) => [source, destination]));
+  assert.equal(rewrites.get("/"), "/pandora-web/index.html");
+  assert.equal(rewrites.get("/health"), "/api/health");
+  assert.equal(rewrites.get("/control-tower"), "/control-tower/index.html");
+
   assert.equal(typeof entrypoint, "function");
   assert.match(ignored, /^dist\/$/m);
   assert.match(ignored, /^apps\/meta-business-mcp\/dist\/$/m);
