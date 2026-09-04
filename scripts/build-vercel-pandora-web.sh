@@ -28,7 +28,9 @@ curl --fail --silent --show-error --location \
 tar -xJf "$archive" -C "$WORK_ROOT"
 git config --global --add safe.directory "$FLUTTER_ROOT"
 export PATH="${FLUTTER_ROOT}/bin:${PATH}"
-flutter --version --machine | grep -Fq "\"frameworkVersion\":\"${FLUTTER_VERSION}\""
+flutter_machine="$(flutter --version --machine)"
+actual_flutter_version="$(printf '%s' "$flutter_machine" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const v=JSON.parse(d).frameworkVersion||"";process.stdout.write(v);});')"
+test "$actual_flutter_version" = "$FLUTTER_VERSION"
 
 mkdir -p "$BUILD_ROOT"
 cd "$BUILD_ROOT"
