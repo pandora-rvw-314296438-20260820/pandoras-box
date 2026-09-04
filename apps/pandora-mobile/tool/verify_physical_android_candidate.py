@@ -10,7 +10,7 @@ SENSITIVE_PERMISSION_RE = re.compile(r"ACCESS_(?:FINE|COARSE|BACKGROUND)_LOCATIO
 class VerificationError(RuntimeError): pass
 def sha256_file(path: Path) -> str:
     digest=hashlib.sha256()
-    with path.open("bb") as handle:
+    with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024*1024), b""): digest.update(chunk)
     return digest.hexdigest()
 def parse_manifest(path: Path) -> dict[str,str]:
@@ -34,12 +34,12 @@ def require_manifest_binding(manifest: Mapping[str,str], *, source_sha:str, apk_
         if manifest.get(key)!="false": raise VerificationError(f"CI manifest must leave {key}=false until external proof")
 def run_checked(command: Sequence[str])->str:
     try:
-        completed=subprocess.run(list(command),check=True,output=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+        completed=subprocess.run(list(command),check=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     except (OSError,subprocess.CalledProcessError) as error:
         output=getattr(error,"stdout",None) or str(error); raise VerificationError(f"command failed: {' '.join(command)}\n{output}") from error
     return completed.stdout
 def parse_badging(text:str)->tuple[str,str,str]:
-    package=re.search(r'package: name='\([^']+\)'',text); version_code=re.search(r"versionCode='([^']+)'",text); version_name=re.search(r'versionName='([^']+)'",text)
+    package=re.search(r"package: name='([^']+)'",text); version_code=re.search(r"versionCode='([^']+)'",text); version_name=re.search(r"versionName='([^']+)'",text)
     if not package or not version_code or not version_name: raise VerificationError("aapt badging is missing package/version identity")
     return package.group(1),version_name.group(1),version_code.group(1)
 def require_safe_permissions(permissions_text:str)->None:
