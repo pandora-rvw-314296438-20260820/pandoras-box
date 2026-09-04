@@ -44,7 +44,7 @@ cp "${OLDPWD}/apps/pandora-mobile/pubspec.lock" ./pubspec.lock
 cp "${OLDPWD}/apps/pandora-mobile/analysis_options.yaml" ./analysis_options.yaml
 cp pubspec.lock pubspec.lock.expected
 flutter pub get --enforce-lockfile >/dev/null
-cmp pubspec.lock.expected pubspec.lock
+node -e 'const fs=require("fs"); if(!fs.readFileSync("pubspec.lock.expected").equals(fs.readFileSync("pubspec.lock"))) process.exit(1);'
 flutter build web --release \
   --base-href /pandora-web/ \
   --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
