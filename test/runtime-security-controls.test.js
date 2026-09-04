@@ -331,8 +331,8 @@ test('provider mutation, allowlist, scope, and confirmation controls stay enforc
 
 test('high-impact destructive actions remain behind the separate break-glass gate', () => {
   const args = {
-    owner: 'banataosystems',
-    repo: 'Pandoras-box',
+    owner: 'pandora-rvw-314296438-20260820',
+    repo: 'pandoras-box',
     pathSegments: [],
     confirmation: 'DELETE pandora-rvw-314296438-20260820/pandoras-box',
   };

@@ -100,6 +100,10 @@ test("claim request is closed-schema, current, and bound to a worker audience", 
 test("job digest binds exact SHA, pinned images, no network, and no production mutation", async () => {
   const { jobDigest, validateJobPayload } = await contract();
   assert.equal(validateJobPayload(job()).audience, `pandora-worker:${WORKER_ID}`);
+  assert.throws(
+    () => validateJobPayload({ ...job(), repository: "banataosystems/Pandoras-box" }),
+    /INVALID_JOB_PAYLOAD/,
+  );
   const digest = await jobDigest(job());
   assert.match(digest, /^[0-9a-f]{64}$/);
   assert.throws(
