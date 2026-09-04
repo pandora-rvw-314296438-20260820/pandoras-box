@@ -32,6 +32,17 @@ class PhysicalAndroidCandidateVerifierTest(unittest.TestCase):
         self.assertTrue(verifier.signer_is_debug("Signer #1 certificate DN: CN=Android Debug,O=Android,C=US"))
         self.assertFalse(verifier.signer_is_debug("Signer #1 certificate DN: CN=Pandora Release,O=Banatao Systems"))
 
+
+    def test_production_signer_requires_expected_certificate_fingerprint(self):
+        actual="ab"*32
+        signing=f"Signer #1 certificate DN: CN=Pandora Release,O=Banatao Systems\nSigner #1 certificate SHA-256 digest: {actual}"
+        self.assertEqual(verifier.parse_signer_sha256(signing),actual)
+        with self.assertRaisesRegex(verifier.VerificationError,"requires --expected-signer-sha256"):
+            verifier.require_expected_production_signer(signing,None)
+        with self.assertRaisesRegex(verifier.VerificationError,"does not match"):
+            verifier.require_expected_production_signer(signing,"cd"*32)
+        self.assertEqual(verifier.require_expected_production_signer(signing,actual),actual)
+
     def test_adb_smoke_does_not_assert_full_physical_acceptance(self):
         outputs=iter(["device\n","ok\n","package:/data/app/base.apk\n","ok\n","123\n","ok\n","ok\n","456\n"])
         with patch.object(verifier,"run_checked",side_effect=lambda command: next(outputs)):
