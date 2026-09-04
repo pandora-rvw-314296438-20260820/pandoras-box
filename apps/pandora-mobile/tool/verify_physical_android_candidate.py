@@ -55,7 +55,7 @@ def smoke_device(adb:str,serial:str|None,apk:Path,package_name:str)->dict[str,bo
     if not run_checked([*prefix,"shell","pidof",package_name]).strip(): raise VerificationError("package did not remain launched after first start")
     run_checked([*prefix,"shell","am","force-stop",package_name]); run_checked(launch)
     if not run_checked([*prefix,"shell","pidof",package_name]).strip(): raise VerificationError("package did not relaunch after force-stop")
-    return {"adb_device_online":True,"install_verified":True,"launch_verified":True,"force_stop_relaunch_verified":True}
+    return {"adb_device_online":True,"install_verified":True,"launch_verified":True,"force_stop_relaunch_verified":True,"device_smoke_verified":True}
 def main()->int:
     parser=argparse.ArgumentParser(); parser.add_argument("--apk",required=True,type=Path); parser.add_argument("--manifest",required=True,type=Path); parser.add_argument("--expected-source-sha",required=True); parser.add_argument("--aapt",default="aapt"); parser.add_argument("--apksigner",default="apksigner"); parser.add_argument("--adb",default="adb"); parser.add_argument("--serial"); parser.add_argument("--smoke-device",action="store_true"); parser.add_argument("--require-production-signer",action="store_true"); args=parser.parse_args()
     if not args.apk.is_file() or not args.manifest.is_file(): raise VerificationError("APK and exact-source manifest must both exist")
@@ -67,8 +67,8 @@ def main()->int:
     if version_name!=expected_version_name or version_code!=expected_version_code: raise VerificationError("APK version identity does not match exact-source manifest")
     signing=run_checked([args.apksigner,"verify","--verbose","--print-certs",str(args.apk)]); debug_signer=signer_is_debug(signing)
     if args.require_production_signer and debug_signer: raise VerificationError("production acceptance cannot use the Android debug signer")
-    evidence={"source_sha":args.expected_source_sha,"apk_sha256":apk_sha,"android_package":package_name,"version_name":version_name,"version_code":version_code,"debug_signer":debug_signer,"manifest_bound":True,"physical_device_verified":False,"wifi_journey_verified":False,"mobile_data_journey_verified":False,"authenticated_owner_journey_verified":False,"network_switch_verified":False}
-    if args.smoke_device: evidence.update(smoke_device(args.adb,args.serial,args.apk,package_name)); evidence["physical_device_verified"]=True
+    evidence={"source_sha":args.expected_source_sha,"apk_sha256":apk_sha,"android_package":package_name,"version_name":version_name,"version_code":version_code,"debug_signer":debug_signer,"manifest_bound":True,"device_smoke_verified":False,"physical_device_verified":False,"wifi_journey_verified":False,"mobile_data_journey_verified":False,"authenticated_owner_journey_verified":False,"network_switch_verified":False,"rollback_verified":False}
+    if args.smoke_device: evidence.update(smoke_device(args.adb,args.serial,args.apk,package_name))
     print(json.dumps(evidence,sort_keys=True)); return 0
 if __name__=="__main__":
     try: raise SystemExit(main())
