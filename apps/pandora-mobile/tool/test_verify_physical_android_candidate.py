@@ -28,10 +28,16 @@ class PhysicalAndroidCandidateVerifierTest(unittest.TestCase):
         package,version_name,version_code=verifier.parse_badging("package: name='com.banataosystems.pandora_mobile' versionCode='8' versionName='0.4.0-rc.2'")
         self.assertEqual(package,verifier.EXPECTED_PACKAGE); self.assertEqual(version_name,"0.4.0-rc.2"); self.assertEqual(version_code,"8")
 
+    def test_permission_verifier_allows_expected_network_permission(self):
+        verifier.require_safe_permissions("uses-permission: name='android.permission.INTERNET'\n")
+
+    def test_permission_verifier_rejects_sensitive_permissions(self):
+        with self.assertRaisesRegex(verifier.VerificationError,"CAMERA"):
+            verifier.require_safe_permissions("uses-permission: name='android.permission.CAMERA'\n")
+
     def test_production_signer_detector_is_fail_closed_for_android_debug(self):
         self.assertTrue(verifier.signer_is_debug("Signer #1 certificate DN: CN=Android Debug,O=Android,C=US"))
         self.assertFalse(verifier.signer_is_debug("Signer #1 certificate DN: CN=Pandora Release,O=Banatao Systems"))
-
 
     def test_production_signer_requires_expected_certificate_fingerprint(self):
         actual="ab"*32
