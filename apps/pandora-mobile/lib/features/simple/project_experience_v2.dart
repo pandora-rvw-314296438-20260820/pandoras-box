@@ -79,7 +79,8 @@ class ProjectBuildExperienceV2Screen extends StatefulWidget {
 }
 
 class _ProjectBuildExperienceV2ScreenState
-    extends State<ProjectBuildExperienceV2Screen> with WidgetsBindingObserver {
+    extends State<ProjectBuildExperienceV2Screen>
+    with WidgetsBindingObserver {
   Timer? _timer;
   ProjectRuntimeSnapshot? _snapshot;
   ProjectPreviewResult? _previewResult;
