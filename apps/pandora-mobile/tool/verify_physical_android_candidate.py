@@ -46,7 +46,9 @@ def signer_is_debug(signing_text:str)->bool:
 def parse_signer_sha256(signing_text:str)->str:
     match=re.search(r"Signer #\d+ certificate SHA-256 digest:\s*([0-9a-fA-F:]{64,95})",signing_text)
     if not match: raise VerificationError("apksigner output is missing signer certificate SHA-256 digest")
-    return match.group(1).replace(":","").lower()
+    normalized=match.group(1).replace(":","").lower()
+    if not re.fullmatch(r"[0-9a-f]{64}",normalized): raise VerificationError,"apksigner certificate SHA-256 digest is malformed")
+    return normalized
 def require_expected_production_signer(signing_text:str, expected_sha256:str|None)->str:
     if not expected_sha256: raise VerificationError,"production signer acceptance requires --expected-signer-sha256")
     normalized=expected_sha256.replace(":","").lower()
@@ -58,14 +60,14 @@ def adb_prefix(adb:str,serial:str|None)->list[str]:
     return [adb,"-s",serial] if serial else [adb]
 def smoke_device(adb:str,serial:str|None,apk:Path,package_name:str)->dict[str,bool]:
     prefix=adb_prefix(adb,serial)
-    if run_checked([*prefix,"get-state"]).strip()!="device": raise VerificationError("adb target is not in device state")
+    if run_checked([*prefix,"get-state"]).strip()!="device": raise VerificationError,"adb target is not in device state")
     run_checked([*prefix,"install","-r",str(apk)])
     if not run_checked([*prefix,"shell","pm","path",package_name]).strip().startswith("package:"): raise VerificationError("installed package cannot be resolved on device")
     launch=[*prefix,"shell","monkey","-p",package_name,"-c","android.intent.category.LAUNCHER","1"]
     run_checked(launch)
     if not run_checked([*prefix,"shell","pidof",package_name]).strip(): raise VerificationError("package did not remain launched after first start")
     run_checked([*prefix,"shell","am","force-stop",package_name]); run_checked(launch)
-    if not run_checked([*prefix,"shell","pidof",package_name]).strip(): raise VerificationError("package did not relaunch after force-stop")
+    if not run_checked([*prefix,"shell","pidof",package_name]).strip(): raise VerificationError,"package did not relaunch after force-stop")
     return {"adb_device_online":True,"install_verified":True,"launch_verified":True,"force_stop_relaunch_verified":True,"device_smoke_verified":True}
 def main()->int:
     parser=argparse.ArgumentParser(); parser.add_argument("--apk",required=True,type=Path); parser.add_argument("--manifest",required=True,type=Path); parser.add_argument("--expected-source-sha",required=True); parser.add_argument("--aapt",default="aapt"); parser.add_argument("--apksigner",default="apksigner"); parser.add_argument("--adb",default="adb"); parser.add_argument("--serial"); parser.add_argument("--smoke-device",action="store_true"); parser.add_argument("--require-production-signer",action="store_true"); parser.add_argument("--expected-signer-sha256"); args=parser.parse_args()
@@ -73,7 +75,7 @@ def main()->int:
     manifest=parse_manifest(args.manifest); apk_sha=sha256_file(args.apk); app_version=manifest.get("app_version","")
     require_manifest_binding(manifest,source_sha=args.expected_source_sha,apk_sha256=apk_sha,package_name=EXPECTED_PACKAGE,app_version=app_version)
     package_name,version_name,version_code=parse_badging(run_checked([args.aapt,"dump","badging",str(args.apk)]))
-    if package_name!=EXPECTED_PACAGE : raise VerificationError(f"unexpected Android package: {package_name}")
+    if package_name!=EXPECTED_PACKAGE: raise VerificationError(f"unexpected Android package: {package_name}")
     expected_version_name=app_version.split("+",1)[0]; expected_version_code=app_version.split("+",1)[1] if "+" in app_version else ""
     if version_name!=expected_version_name or version_code!=expected_version_code: raise VerificationError,"APK version identity does not match exact-source manifest")
     signing=run_checked([args.apksigner,"verify","--verbose","--print-certs",str(args.apk)]); debug_signer=signer_is_debug(signing)
