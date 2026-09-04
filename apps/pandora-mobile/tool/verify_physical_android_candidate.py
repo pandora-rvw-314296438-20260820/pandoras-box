@@ -62,11 +62,18 @@ def require_expected_production_signer(signing_text:str, expected_sha256:str|Non
     return actual
 def adb_prefix(adb:str,serial:str|None)->list[str]:
     return [adb,"-s",serial] if serial else [adb]
-def smoke_device(adb:str,serial:str|None,apk:Path,package_name:str)->dict[str,bool]:
+def parse_installed_version(text:str)->tuple[str,str]:
+    version_name=re.search(r"(?m)^\s*versionName=([^\r\n]+)\s*$",text)
+    version_code=re.search(r"(?m)^\s*versionCode=(\d+)(?:\s|$)",text)
+    if not version_name or not version_code: raise VerificationError("installed package dumpsys is missing version identity")
+    return version_name.group(1).strip(),version_code.group(1)
+def smoke_device(adb:str,serial:str|None,apk:Path,package_name:str,expected_version_name:str,expected_version_code:str)->dict[str,bool]:
     prefix=adb_prefix(adb,serial)
     if run_checked([*prefix,"get-state"]).strip()!="device": raise VerificationError("adb target is not in device state")
     run_checked([*prefix,"install","-r",str(apk)])
     if not run_checked([*prefix,"shell","pm","path",package_name]).strip().startswith("package:"): raise VerificationError("installed package cannot be resolved on device")
+    installed_version_name,installed_version_code=parse_installed_version(run_checked([*prefix,"shell","dumpsys","package",package_name]))
+    if installed_version_name!=expected_version_name or installed_version_code!=expected_version_code: raise VerificationError("installed package version identity does not match exact APK candidate")
     launch=[*prefix,"shell","monkey","-p",package_name,"-c","android.intent.category.LAUNCHER","1"]
     run_checked(launch)
     if not run_checked([*prefix,"shell","pidof",package_name]).strip(): raise VerificationError("package did not remain launched after first start")
@@ -89,7 +96,7 @@ def main()->int:
         if debug_signer: raise VerificationError("production acceptance cannot use the Android debug signer")
         signer_sha256=require_expected_production_signer(signing,args.expected_signer_sha256)
     evidence={"source_sha":args.expected_source_sha,"apk_sha256":apk_sha,"android_package":package_name,"version_name":version_name,"version_code":version_code,"permissions_verified":True,"debug_signer":debug_signer,"signer_sha256":signer_sha256,"manifest_bound":True,"device_smoke_verified":False,"physical_device_verified":False,"wifi_journey_verified":False,"mobile_data_journey_verified":False,"authenticated_owner_journey_verified":False,"network_switch_verified":False,"rollback_verified":False}
-    if args.smoke_device: evidence.update(smoke_device(args.adb,args.serial,args.apk,package_name))
+    if args.smoke_device: evidence.update(smoke_device(args.adb,args.serial,args.apk,package_name,version_name,version_code))
     print(json.dumps(evidence,sort_keys=True)); return 0
 if __name__=="__main__":
     try: raise SystemExit(main())
