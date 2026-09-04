@@ -5,7 +5,7 @@ import argparse, hashlib, json, re, subprocess, sys
 from pathlib import Path
 from typing import Mapping, Sequence
 EXPECTED_PACKAGE = "com.banataosystems.pandora_mobile"
-FALSE_GATES = ("physical_device_verified","wifi_journey_verified","mobile_data_journey_verified","authenticated_owner_journey_verified","rollback_verified")
+FALSE_GATES = ("physical_device_verified","wifi_journey_verified","mobile_data_journey_verified","authenticated_owner_journey_verified","network_switch_verified","rollback_verified")
 class VerificationError(RuntimeError): pass
 def sha256_file(path: Path) -> str:
     digest=hashlib.sha256()
