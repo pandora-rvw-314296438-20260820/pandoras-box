@@ -8,7 +8,7 @@ const test = require("node:test");
 
 const migrationPath = path.join(
   process.cwd(),
-  "supabase/migrations/20260904015000_pandora_memory_edge_release_transport_v1.sql",
+  "supabase/migrations/20260904125641_pandora_memory_edge_release_transport_v1.sql",
 );
 const sql = fs.readFileSync(migrationPath, "utf8");
 
