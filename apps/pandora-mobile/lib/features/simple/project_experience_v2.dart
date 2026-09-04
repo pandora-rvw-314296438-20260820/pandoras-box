@@ -79,7 +79,8 @@ class ProjectBuildExperienceV2Screen extends StatefulWidget {
 }
 
 class _ProjectBuildExperienceV2ScreenState
-    extends State<ProjectBuildExperienceV2Screen> {
+    extends State<ProjectBuildExperienceV2Screen>
+    with WidgetsBindingObserver {
   Timer? _timer;
   ProjectRuntimeSnapshot? _snapshot;
   ProjectPreviewResult? _previewResult;
@@ -93,6 +94,7 @@ class _ProjectBuildExperienceV2ScreenState
   bool _openingPreview = false;
   bool _transitionedToWorkspace = false;
   DateTime? _flowStartedAt;
+  DateTime? _flowBackgroundedAt;
   StreamSubscription<ProjectBuildStreamSnapshot>? _initialBuildSubscription;
   String? _initialBuildJobId;
   String? _initialBuildStreamId;
@@ -100,6 +102,36 @@ class _ProjectBuildExperienceV2ScreenState
   bool _resolvingInitialBuild = false;
 
   static const _flowTimeout = Duration(minutes: 2);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final backgroundedAt = _flowBackgroundedAt;
+      if (backgroundedAt != null) {
+        final startedAt = _flowStartedAt;
+        if (startedAt != null) {
+          _flowStartedAt =
+              startedAt.add(DateTime.now().difference(backgroundedAt));
+        }
+        _flowBackgroundedAt = null;
+      }
+      _timer?.cancel();
+      unawaited(_refreshAndAdvance());
+      return;
+    }
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _flowBackgroundedAt ??= DateTime.now();
+      _timer?.cancel();
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -113,6 +145,7 @@ class _ProjectBuildExperienceV2ScreenState
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _initialBuildSubscription?.cancel();
     super.dispose();
@@ -258,6 +291,7 @@ class _ProjectBuildExperienceV2ScreenState
   }
 
   Future<void> _refreshAndAdvance() async {
+    if (_flowBackgroundedAt != null) return;
     if (_flowExpired) {
       _timer?.cancel();
       if (mounted) {
@@ -385,7 +419,10 @@ class _ProjectBuildExperienceV2ScreenState
       if (mounted && _ready) {
         _enterWorkspaceIfReady();
       }
-      if (mounted && !_ready && !_flowExpired) {
+      if (mounted &&
+          !_ready &&
+          !_flowExpired &&
+          _flowBackgroundedAt == null) {
         _timer?.cancel();
         _timer = Timer(const Duration(seconds: 2), _refreshAndAdvance);
       }
