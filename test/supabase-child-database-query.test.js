@@ -1762,7 +1762,7 @@ test("reservation response shape, cardinality, and every returned field fail clo
     provider: "wrong_provider",
     delivery_id: "0".repeat(64),
     event_type: "wrong_event",
-    repository: "banataosystems/Pandoras-box",
+    repository: "pandora-rvw-314296438-20260820/pandoras-box",
     external_created_at: "2026-08-24T12:00:00.000Z",
     payload_hash: "0".repeat(64),
     payload_redacted: { schemaVersion: "wrong" },

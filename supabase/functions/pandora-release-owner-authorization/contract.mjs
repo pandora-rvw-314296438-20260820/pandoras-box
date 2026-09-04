@@ -3,7 +3,7 @@ const SHA40 = /^[0-9a-f]{40}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const DEPLOYMENT_ID = /^dpl_[A-Za-z0-9]+$/;
 const REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
-const CANONICAL_REPOSITORY = "banataosystems/Pandoras-box";
+const CANONICAL_REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box";
 
 function isRecord(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);

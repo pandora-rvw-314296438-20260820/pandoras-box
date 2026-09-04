@@ -22,7 +22,7 @@ const releaseContract = JSON.parse(readFileSync(
   "utf8",
 ));
 
-const repository = "banataosystems/Pandoras-box";
+const repository = "pandora-rvw-314296438-20260820/pandoras-box";
 const targetHead = "a".repeat(40);
 const targetBase = "b".repeat(40);
 const targetTree = "c".repeat(40);

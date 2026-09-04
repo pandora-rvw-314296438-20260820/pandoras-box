@@ -175,7 +175,7 @@ test("Node and database share one fixed execution payload hash vector", async ()
   });
   assert.equal(
     hash,
-    "a485860ccddbb1df95caf9cff89d2202191f4c613224a5fa81e7ba9cd28537bc",
+    "c54926de0d4796cd926ceb82cf8fba69d19698695fc9f128b47a61953605f130",
   );
   assert.match(
     migration,
