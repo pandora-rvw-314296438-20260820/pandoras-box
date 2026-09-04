@@ -540,7 +540,7 @@ test('machine credentials are structurally operator-only and cannot become human
     tokenHash: createHash('sha256').update(token).digest('hex'),
     userId: USER_ID,
     organizationId: ORGANIZATION_ID,
-    repositoryFullName: 'banataosystems/Pandoras-box',
+    repositoryFullName: 'pandora-rvw-314296438-20260820/pandoras-box',
     expiresAt: '2099-01-01T00:00:00.000Z',
   };
   assert.equal(resolveProjectOsMachineCredential(token, USER_ID, [{ ...base, role: 'owner' }]), undefined);
