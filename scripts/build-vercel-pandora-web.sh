@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -27,7 +26,8 @@ curl --fail --silent --show-error --location \
   "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
   --output "$archive"
 tar -xJf "$archive" -C "$WORK_ROOT"
-git config --global --add safe.directory "$FLUTTER_ROOT"\nexport PATH="${FLUTTER_ROOT}/bin:${PATH}"
+git config --global --add safe.directory "$FLUTTER_ROOT"
+export PATH="${FLUTTER_ROOT}/bin:${PATH}"
 flutter --version --machine | grep -Fq "\"frameworkVersion\":\"${FLUTTER_VERSION}\""
 
 mkdir -p "$BUILD_ROOT"
