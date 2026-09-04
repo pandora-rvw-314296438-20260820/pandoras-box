@@ -179,7 +179,7 @@ test('non-OIDC mutation execution requires the durable ledger despite a valid st
   });
   const app = runtime(ledger, async (tool) => {
     executedTools.push(tool);
-    return { full_name: 'banataosystems/Pandoras-box' };
+    return { full_name: 'pandora-rvw-314296438-20260820/pandoras-box' };
   });
 
   await withServer(app, async (origin) => {
@@ -298,7 +298,7 @@ test('provider mutation, allowlist, scope, and confirmation controls stay enforc
     executeTool('github.create-issue', args, {
       github: {
         id: 'fixture', label: 'fixture', baseUrl: 'https://api.github.com', token: 'not-used',
-        allowMutations: false, allowedRepositories: ['banataosystems/Pandoras-box'], grantedScopes: ['issues:write'],
+        allowMutations: false, allowedRepositories: ['pandora-rvw-314296438-20260820/pandoras-box'], grantedScopes: ['issues:write'],
       },
     }),
     /mutations are disabled/i,
@@ -316,7 +316,7 @@ test('provider mutation, allowlist, scope, and confirmation controls stay enforc
     executeTool('github.create-issue', args, {
       github: {
         id: 'fixture', label: 'fixture', baseUrl: 'https://api.github.com', token: 'not-used',
-        allowMutations: true, allowedRepositories: ['banataosystems/Pandoras-box'], grantedScopes: [],
+        allowMutations: true, allowedRepositories: ['pandora-rvw-314296438-20260820/pandoras-box'], grantedScopes: [],
       },
     }),
     /missing required scope/i,
@@ -331,10 +331,10 @@ test('provider mutation, allowlist, scope, and confirmation controls stay enforc
 
 test('high-impact destructive actions remain behind the separate break-glass gate', () => {
   const args = {
-    owner: 'banataosystems',
-    repo: 'Pandoras-box',
+    owner: 'pandora-rvw-314296438-20260820',
+    repo: 'pandoras-box',
     pathSegments: [],
-    confirmation: 'DELETE banataosystems/Pandoras-box',
+    confirmation: 'DELETE pandora-rvw-314296438-20260820/pandoras-box',
   };
   assertManifestConfirmation('github.delete-repository-api', args);
   assert.throws(() => assertHighImpactPolicy('github.delete-repository-api', args, false), /disabled by default/);
@@ -355,7 +355,7 @@ test('Vercel OIDC GitHub control catalog outranks legacy GITHUB_TOKEN', async ()
     const calls = [];
     globalThis.fetch = async (url, options) => {
       calls.push({ url: String(url), options });
-      return new Response(JSON.stringify({ ok: true, accounts: [{ id: 'github-primary', label: 'GitHub Account — banataosystems', authMode: 'pat', token: 'governed-vault-token', allowMutations: true, baseUrl: 'https://api.github.com', login: 'banataosystems', allowedRepositories: ['banataosystems/Pandoras-box'], grantedScopes: ['identity:read'] }] }), { status: 200, headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ ok: true, accounts: [{ id: 'github-primary', label: 'GitHub Account — banataosystems', authMode: 'pat', token: 'governed-vault-token', allowMutations: true, baseUrl: 'https://api.github.com', login: 'banataosystems', allowedRepositories: ['pandora-rvw-314296438-20260820/pandoras-box'], grantedScopes: ['identity:read'] }] }), { status: 200, headers: { 'content-type': 'application/json' } });
     };
     const configuration = await buildToolConfiguration('github.get-me', { vercelOidcToken: 'v'.repeat(80) });
     assert.equal(calls.length, 1);
@@ -378,7 +378,7 @@ test('legacy GITHUB_TOKEN remains available without OIDC', async () => {
     process.env.GITHUB_TOKEN = 'legacy-environment-token';
     process.env.GITHUB_ALLOW_MUTATIONS = 'true';
     process.env.MCPMASTER_GITHUB_ACCOUNT_ID = 'github-primary';
-    process.env.GITHUB_ALLOWED_REPOSITORIES = 'banataosystems/Pandoras-box';
+    process.env.GITHUB_ALLOWED_REPOSITORIES = 'pandora-rvw-314296438-20260820/pandoras-box';
     process.env.GITHUB_GRANTED_SCOPES = 'identity:read';
     delete process.env.VERCEL_OIDC_TOKEN;
     const configuration = await buildToolConfiguration('github.get-me', {});

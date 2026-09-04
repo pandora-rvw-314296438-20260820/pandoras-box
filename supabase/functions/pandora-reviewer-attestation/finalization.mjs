@@ -33,7 +33,7 @@ function expectedBindings(request, attestation) {
     !SHA256.test(expected.workerEvidenceSha256) ||
     !SHA256.test(expected.reviewArtifactSha256) ||
     !SHA256.test(expected.signatureBasisSha256) ||
-    expected.repository !== "banataosystems/Pandoras-box" ||
+    expected.repository !== "pandora-rvw-314296438-20260820/pandoras-box" ||
     !SHA40.test(expected.exactSha) || !SHA40.test(expected.sourceTreeSha) ||
     !terminalStatus || !isRecord(attestation) ||
     attestation.dispatchId !== expected.dispatchId ||

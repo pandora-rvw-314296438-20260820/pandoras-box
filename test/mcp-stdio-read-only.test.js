@@ -65,7 +65,7 @@ test("stdio continues to execute registered read tools", async () => {
       },
       async execute(name, args, configuration) {
         calls.push({ stage: "execute", name, args, configuration });
-        return { full_name: "banataosystems/Pandoras-box" };
+        return { full_name: "pandora-rvw-314296438-20260820/pandoras-box" };
       },
     },
   );
@@ -81,6 +81,6 @@ test("stdio continues to execute registered read tools", async () => {
     },
   ]);
   assert.deepEqual(JSON.parse(response.content[0].text).result, {
-    full_name: "banataosystems/Pandoras-box",
+    full_name: "pandora-rvw-314296438-20260820/pandoras-box",
   });
 });
