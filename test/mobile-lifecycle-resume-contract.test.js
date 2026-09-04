@@ -56,3 +56,29 @@ test('Task65 retains existing duplicate-safe N+1 durable replay acceptance', () 
   assert.match(durableResume, /<int>\[3, 4, 5\]/);
   assert.match(durableResume, /must not duplicate already-observed events/);
 });
+
+
+test('Task124 initial Android build excludes background time and refreshes on resume', () => {
+  assert.match(
+    workspace,
+    /class _ProjectBuildExperienceV2ScreenState\s+extends State<ProjectBuildExperienceV2Screen>\s+with WidgetsBindingObserver/,
+  );
+  assert.match(
+    workspace,
+    /didChangeAppLifecycleState\(AppLifecycleState state\)[\s\S]*?state == AppLifecycleState\.resumed[\s\S]*?_flowStartedAt =[\s\S]*?startedAt\.add\(DateTime\.now\(\)\.difference\(backgroundedAt\)\)[\s\S]*?_timer\?\.cancel\(\);[\s\S]*?unawaited\(_refreshAndAdvance\(\)\)/,
+    'background duration must be excluded before authoritative resume refresh',
+  );
+  assert.match(
+    workspace,
+    /state == AppLifecycleState\.inactive[\s\S]*?state == AppLifecycleState\.paused[\s\S]*?state == AppLifecycleState\.detached[\s\S]*?_flowBackgroundedAt \?\?= DateTime\.now\(\);[\s\S]*?_timer\?\.cancel\(\)/,
+  );
+  assert.match(
+    workspace,
+    /Future<void> _refreshAndAdvance\(\) async \{[\s\S]*?if \(_flowBackgroundedAt != null\) return;/,
+    'backgrounded initial build must not poll or expire before resume',
+  );
+  assert.match(
+    workspace,
+    /void dispose\(\) \{[\s\S]*?WidgetsBinding\.instance\.removeObserver\(this\);/,
+  );
+});
