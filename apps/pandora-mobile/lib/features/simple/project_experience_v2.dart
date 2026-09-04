@@ -116,8 +116,9 @@ class _ProjectBuildExperienceV2ScreenState
       if (backgroundedAt != null) {
         final startedAt = _flowStartedAt;
         if (startedAt != null) {
-          _flowStartedAt =
-              startedAt.add(DateTime.now().difference(backgroundedAt));
+          _flowStartedAt = startedAt.add(
+            DateTime.now().difference(backgroundedAt),
+          );
         }
         _flowBackgroundedAt = null;
       }
