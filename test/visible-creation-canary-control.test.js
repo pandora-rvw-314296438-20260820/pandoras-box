@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const migration = fs.readFileSync('supabase/migrations/20260903082500_pandora_visible_creation_canary_control_v1.sql', 'utf8');
+const migration = fs.readFileSync('supabase/migrations/20260903131045_pandora_visible_creation_canary_control_v1.sql', 'utf8');
 const generator = fs.readFileSync('supabase/functions/pandora-project-source-generator/index.ts', 'utf8');
 
 test('Visible Creation canary defaults off and is service-role only', () => {
