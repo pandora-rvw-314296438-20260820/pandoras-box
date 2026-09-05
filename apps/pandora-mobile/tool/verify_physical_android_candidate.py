@@ -53,12 +53,14 @@ def require_safe_permissions(permissions_text:str)->None:
     if match: raise VerificationError(f"unexpected sensitive Android permission detected: {match.group(0)}")
 def signer_is_debug(signing_text:str)->bool:
     lowered=signing_text.lower(); return "android debug" in lowered or "cn=android debug" in lowered
-def parse_signer_sha256(signing_text:str)->str:
-    match=re.search(r"Signer #\d+ certificate SHA-256 digest:\s*([0-9a-fA-F:]{64,95})",signing_text)
-    if not match: raise VerificationError("apksigner output is missing signer certificate SHA-256 digest")
-    normalized=match.group(1).replace(":","").lower()
-    if not re.fullmatch(r"[0-9a-f]{64}",normalized): raise VerificationError("apksigner certificate SHA-256 digest is malformed")
+def parse_signer_sha256s(signing_text:str)->tuple[str,...]:
+    matches=re.findall(r"Signer #\d+ certificate SHA-256 digest:\s*([0-9a-fA-F:]{64,95})",signing_text)
+    if not matches: raise VerificationError("apksigner output is missing signer certificate SHA-256 digest")
+    normalized=tuple(value.replace(":","").lower() for value in matches)
+    if any(not re.fullmatch(r"[0-9a-f]{64}",value) for value in normalized): raise VerificationError("apksigner certificate SHA-256 digest is malformed")
     return normalized
+def parse_signer_sha256(signing_text:str)->str:
+    return parse_signer_sha256s(signing_text)[0]
 def require_modern_signature_scheme(signing_text:str)->None:
     v2=re.search(r"Verified using v2 scheme \(APK Signature Scheme v2\):\s*(true|false)",signing_text,re.IGNORECASE)
     v3=re.search(r"Verified using v3 scheme \(APK Signature Scheme v3\):\s*(true|false)",signing_text,re.IGNORECASE)
@@ -68,7 +70,9 @@ def require_expected_production_signer(signing_text:str, expected_sha256:str|Non
     if not expected_sha256: raise VerificationError("production signer acceptance requires --expected-signer-sha256")
     normalized=expected_sha256.replace(":","").lower()
     if not re.fullmatch(r"[0-9a-f]{64}",normalized): raise VerificationError("expected signer SHA-256 must be 64 hex characters")
-    actual=parse_signer_sha256(signing_text)
+    signers=parse_signer_sha256s(signing_text)
+    if len(signers)!=1: raise VerificationError("production acceptance requires exactly one APK signer")
+    actual=signers[0]
     if actual!=normalized: raise VerificationError("APK signer certificate SHA-256 does not match expected production signer")
     return actual
 def adb_prefix(adb:str,serial:str|None)->list[str]:
