@@ -43,9 +43,9 @@ verify_jwt = true
 [functions.pandora-release-owner-authorization]
 verify_jwt = true
 
-# A caller-supplied, externally issued one-shot authority JWT is verified by
-# the gateway and forwarded unchanged to PostgREST. The candidate runtime has
-# no minting credential; the DB binds and consumes the exact issuer/JTI/request.
+# A caller-supplied, externally issued one-shot authority JWT is verified by the
+# gateway and forwarded unchanged to PostgREST. The candidate runtime has no
+# minting credential; the DB binds and consumes the exact issuer/JTI/request.
 [functions.pandora-physical-android-attestation]
 verify_jwt = true
 
@@ -59,4 +59,8 @@ verify_jwt = false
 # This private workload endpoint validates a one-purpose Vault-backed key before
 # it may use the server-only service role for durable source convergence.
 [functions.pandora-source-convergence-worker]
+verify_jwt = false
+
+# Private Worker-D source readback validates the existing one-purpose source-worker key before service-role storage access.
+[functions.pandora-worker-d-source-readback]
 verify_jwt = false
