@@ -1,13 +1,1 @@
-do $$
-declare
-  v_def text;
-begin
-  select pg_get_functiondef('private.pandora_scheduled_model_worker_tick_v1(integer)'::regprocedure)
-    into v_def;
-  v_def := replace(v_def, '''max_completion_tokens'',4096', '''max_completion_tokens'',1024');
-  v_def := replace(v_def, '''stream'',false', '''reasoning_effort'',''low'',''stream'',false');
-  if position('''max_completion_tokens'',1024' in v_def) = 0 or position('''reasoning_effort'',''low''' in v_def) = 0 then
-    raise exception 'scheduled Kimi worker budget patch did not bind';
-  end if;
-  execute v_def;
-end $$;
+-- Pandora remote migration history receipt.\n-- Version: 20260902235940\n-- Name: tighten_scheduled_kimi_worker_budget_v2\n-- Original SQL SHA-256: b2edd50fe9d4dbb8d99652a9e2f152cd6f2615a42d11118ca247518c294e3410\n-- Original statement count: 1\n-- Replay mode: history_receipt_noop; provider history is represented without replaying already-applied, retired, duplicate, or dependency-unsafe executable SQL.\nselect 1;\n

@@ -35,20 +35,15 @@ const reconciledReplayResult = JSON.parse(
   ),
 );
 
-const remoteHistoryReceiptManifest = JSON.parse(
-  readFileSync(
-    join(
-      repositoryRoot,
-      'docs',
-      'status',
-      'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_20260825.json',
-    ),
-    'utf8',
-  ),
+const remoteHistoryReceiptManifests = [
+  'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_20260825.json',
+  'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_20260905.json',
+].map((filename) =>
+  JSON.parse(readFileSync(join(repositoryRoot, 'docs', 'status', filename), 'utf8')),
 );
 const remoteHistoryReceiptFiles = new Set(
-  remoteHistoryReceiptManifest.entries.map(
-    (entry) => `${entry.version}_${entry.name}.sql`,
+  remoteHistoryReceiptManifests.flatMap((manifestEntry) =>
+    manifestEntry.entries.map((entry) => `${entry.version}_${entry.name}.sql`),
   ),
 );
 

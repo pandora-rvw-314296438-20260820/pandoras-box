@@ -1,17 +1,1 @@
-do $$
-declare
-  v_def text;
-  v_old text := '''repository_full_name'', ''projectId'', ''project_id'', ''projectRef'',';
-  v_new text := '''repository_full_name'', ''projectKey'', ''project_key'', ''projectId'', ''project_id'', ''projectRef'',';
-begin
-  select pg_get_functiondef('private.projectos_legacy_node_context_json(jsonb)'::regprocedure) into v_def;
-  if position(v_new in v_def) > 0 then
-    return;
-  end if;
-  if position(v_old in v_def) = 0 then
-    raise exception 'projectos legacy context validator source shape changed; refusing blind patch';
-  end if;
-  v_def := replace(v_def, v_old, v_new);
-  execute v_def;
-end
-$$;
+-- Pandora remote migration history receipt.\n-- Version: 20260902024006\n-- Name: align_plan_context_project_identifiers\n-- Original SQL SHA-256: 7625ad0ffa2a2689528deb01c6ba937c55ea9d08f6842885dc40ef86ed62a9e6\n-- Original statement count: 1\n-- Replay mode: history_receipt_noop; provider history is represented without replaying already-applied, retired, duplicate, or dependency-unsafe executable SQL.\nselect 1;\n
