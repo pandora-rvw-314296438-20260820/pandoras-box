@@ -42,6 +42,11 @@ def parse_badging(text:str)->tuple[str,str,str]:
     package=re.search(r"package: name='([^']+)'",text); version_code=re.search(r"versionCode='([^']+)'",text); version_name=re.search(r"versionName='([^']+)'",text)
     if not package or not version_code or not version_name: raise VerificationError("aapt badging is missing package/version identity")
     return package.group(1),version_name.group(1),version_code.group(1)
+def require_production_badging(badging_text:str)->None:
+    if re.search(r"(?m)^application-debuggable(?:\s|$)",badging_text):
+        raise VerificationError("production acceptance cannot use a debuggable APK")
+    if re.search(r"(?m)^application-testOnly(?:\s|$)",badging_text):
+        raise VerificationError("production acceptance cannot use a testOnly APK")
 def require_safe_permissions(permissions_text:str)->None:
     match=SENSITIVE_PERMISSION_RE.search(permissions_text)
     if match: raise VerificationError(f"unexpected sensitive Android permission detected: {match.group(0)}")
@@ -85,10 +90,12 @@ def main()->int:
     if not args.apk.is_file() or not args.manifest.is_file(): raise VerificationError("APK and exact-source manifest must both exist")
     manifest=parse_manifest(args.manifest); apk_sha=sha256_file(args.apk); app_version=manifest.get("app_version","")
     require_manifest_binding(manifest,source_sha=args.expected_source_sha,apk_sha256=apk_sha,package_name=EXPECTED_PACKAGE,app_version=app_version)
-    package_name,version_name,version_code=parse_badging(run_checked([args.aapt,"dump","badging",str(args.apk)]))
+    badging=run_checked([args.aapt,"dump","badging",str(args.apk)])
+    package_name,version_name,version_code=parse_badging(badging)
     if package_name!=EXPECTED_PACKAGE: raise VerificationError(f"unexpected Android package: {package_name}")
     expected_version_name=app_version.split("+",1)[0]; expected_version_code=app_version.split("+",1)[1] if "+" in app_version else ""
     if version_name!=expected_version_name or version_code!=expected_version_code: raise VerificationError("APK version identity does not match exact-source manifest")
+    if args.require_production_signer: require_production_badging(badging)
     require_safe_permissions(run_checked([args.aapt,"dump","permissions",str(args.apk)]))
     signing=run_checked([args.apksigner,"verify","--verbose","--print-certs",str(args.apk)]); debug_signer=signer_is_debug(signing)
     signer_sha256=parse_signer_sha256(signing)
