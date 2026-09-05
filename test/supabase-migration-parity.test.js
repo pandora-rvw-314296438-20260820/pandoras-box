@@ -46,11 +46,35 @@ const remoteHistoryReceiptManifest = JSON.parse(
     'utf8',
   ),
 );
-const remoteHistoryReceiptFiles = new Set(
+const supplementalRemoteHistoryReceiptManifest = JSON.parse(
+  readFileSync(
+    join(
+      repositoryRoot,
+      'docs',
+      'status',
+      'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_20260905.json',
+    ),
+    'utf8',
+  ),
+);
+const legacyRemoteHistoryReceiptFiles = new Set(
   remoteHistoryReceiptManifest.entries.map(
     (entry) => `${entry.version}_${entry.name}.sql`,
   ),
 );
+const supplementalRemoteHistoryReceiptFiles = new Set(
+  supplementalRemoteHistoryReceiptManifest.entries.map(
+    (entry) => `${entry.version}_${entry.name}.sql`,
+  ),
+);
+const remoteHistoryReceiptManifests = [
+  remoteHistoryReceiptManifest,
+  supplementalRemoteHistoryReceiptManifest,
+];
+const remoteHistoryReceiptFiles = new Set([
+  ...legacyRemoteHistoryReceiptFiles,
+  ...supplementalRemoteHistoryReceiptFiles,
+]);
 
 function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
@@ -622,12 +646,12 @@ test('remote recovery migration receipts preserve provider history without repla
     remoteHistoryReceiptManifest.entries.length,
   );
   assert.equal(
-    remoteHistoryReceiptFiles.size,
+    legacyRemoteHistoryReceiptFiles.size,
     remoteHistoryReceiptManifest.migrationCount,
   );
 
   const receiptFiles = readdirSync(migrationRoot)
-    .filter((filename) => remoteHistoryReceiptFiles.has(filename))
+    .filter((filename) => legacyRemoteHistoryReceiptFiles.has(filename))
     .sort();
   const expectedReceiptFiles = remoteHistoryReceiptManifest.entries
     .map((entry) => `${entry.version}_${entry.name}.sql`)
@@ -647,6 +671,33 @@ test('remote recovery migration receipts preserve provider history without repla
     assert.match(entry.version, /^\d{14}$/);
     assert.match(entry.name, /^[a-z0-9_]+$/);
     assert.match(entry.originalSqlSha256, /^[0-9a-f]{64}$/);
+    assert.equal(entry.replayMode, 'history_receipt_noop');
+    assert.match(source, /^-- Pandora remote migration history receipt\./);
+    assert.match(source, new RegExp(`-- Version: ${entry.version}`));
+    assert.match(source, new RegExp(`-- Name: ${entry.name}`));
+    assert.match(source, new RegExp(entry.originalSqlSha256));
+    assert.deepEqual(executableLines, ['select 1;'], filename);
+    assert.doesNotMatch(
+      executableLines.join('\n'),
+      /(vault\.decrypted_secrets|extensions\.http|create\s+or\s+replace\s+function|grant\s+execute)/i,
+    );
+  }
+});
+
+test('2026-09-05 supplemental remote migration receipts are metadata-bound no-ops', () => {
+  assert.equal(supplementalRemoteHistoryReceiptManifest.entries.length, 15);
+  assert.equal(supplementalRemoteHistoryReceiptFiles.size, 15);
+  for (const entry of supplementalRemoteHistoryReceiptManifest.entries) {
+    const filename = `${entry.version}_${entry.name}.sql`;
+    const source = readFileSync(join(migrationRoot, filename), 'utf8');
+    const executableLines = source
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith('--'));
+    assert.match(entry.version, /^\d{14}$/);
+    assert.match(entry.name, /^[a-z0-9_]+$/);
+    assert.match(entry.originalSqlSha256, /^[0-9a-f]{64}$/);
+    assert.equal(entry.originalStatementCount, 1);
     assert.equal(entry.replayMode, 'history_receipt_noop');
     assert.match(source, /^-- Pandora remote migration history receipt\./);
     assert.match(source, new RegExp(`-- Version: ${entry.version}`));
