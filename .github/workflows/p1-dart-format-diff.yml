@@ -1,0 +1,29 @@
+name: P1 Dart format diff
+
+on:
+  push:
+    branches:
+      - chatgpt-p1/initial-builder-theatre-stream-20260903
+
+permissions:
+  contents: read
+
+jobs:
+  diff:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - name: Print exact formatter diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp apps/pandora-mobile/lib/features/simple/project_experience_v2.dart /tmp/original.dart
+          dart format apps/pandora-mobile/lib/features/simple/project_experience_v2.dart
+          diff -u /tmp/original.dart apps/pandora-mobile/lib/features/simple/project_experience_v2.dart || true
