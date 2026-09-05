@@ -1,4 +1,8 @@
--- Pandora Worker D static build durable-claim boundary repair.\n-- Phase 1 claims commit on one scheduler tick; Phase 2 external storage authorization/readback occurs only on a later tick.\n-- Existing authorization, source/version binding, lease, idempotency and Worker-E verification contracts are preserved.\n\nCREATE OR REPLACE FUNCTION private.pandora_worker_d_finalize_static_web_20260830(p_build_job_id uuid)
+-- Pandora Worker D static build durable-claim boundary repair.
+-- Phase 1 claims commit on one scheduler tick; Phase 2 external storage authorization/readback occurs only on a later tick.
+-- Existing authorization, source/version binding, lease, idempotency and Worker-E verification contracts are preserved.
+
+CREATE OR REPLACE FUNCTION private.pandora_worker_d_finalize_static_web_20260830(p_build_job_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -235,7 +239,9 @@ begin
   );
 end;
 $function$
-\n\nCREATE OR REPLACE FUNCTION private.pandora_converge_static_site_build_20260830(p_build_job_id uuid)
+
+
+CREATE OR REPLACE FUNCTION private.pandora_converge_static_site_build_20260830(p_build_job_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -251,7 +257,8 @@ declare
   v_state text;
   v_team text;
   v_key text;
-  v_verification jsonb;\n  v_worker_d jsonb;
+  v_verification jsonb;
+  v_worker_d jsonb;
   v_run_id uuid;
   v_now timestamptz;
 begin
@@ -359,4 +366,4 @@ begin
   return jsonb_build_object('buildJobId',v_job.id,'projectVersionId',v_version.id,'state','blocked','stage','verification','verificationRunId',v_verification->>'verificationRunId');
 end;
 $function$
-\n
+
