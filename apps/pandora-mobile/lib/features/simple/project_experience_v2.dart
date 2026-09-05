@@ -362,10 +362,10 @@ class _ProjectBuildExperienceV2ScreenState
             );
             if (refreshIsStale()) return;
             await _attachInitialBuildStream(
-                experience,
-                start.streamId,
-                buildJobId: start.buildJobId,
-              );
+              experience,
+              start.streamId,
+              buildJobId: start.buildJobId,
+            );
           } on ProjectExperienceException catch (error) {
             _buildRequested = false;
             if (mounted) setState(() => _error = error.message);
