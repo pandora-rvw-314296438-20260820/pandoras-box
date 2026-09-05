@@ -1,10 +1,23 @@
 -- Enable RLS on private operational tables after grant review.
--- Direct grants are restricted to postgres/service_role; no anon/authenticated grants exist.
-alter table private.vercel_public_git_bridge_targets enable row level security;
-alter table private.canonical_supabase_release_receipts enable row level security;
-alter table private.canonical_vercel_rehearsal_receipts enable row level security;
-alter table private.canonical_release_review_receipts enable row level security;
-alter table private.canonical_release_owner_authorizations enable row level security;
-alter table private.pandora_project_experience_drift_observations enable row level security;
-alter table private.pandora_github_webhook_deliveries enable row level security;
-alter table private.pandora_scheduled_model_worker_jobs enable row level security;
+-- Replay-safe because several historical table-creation migrations are ledger receipts.
+do $migration$
+declare
+  v_table text;
+begin
+  foreach v_table in array array[
+    'vercel_public_git_bridge_targets',
+    'canonical_supabase_release_receipts',
+    'canonical_vercel_rehearsal_receipts',
+    'canonical_release_review_receipts',
+    'canonical_release_owner_authorizations',
+    'pandora_project_experience_drift_observations',
+    'pandora_github_webhook_deliveries',
+    'pandora_scheduled_model_worker_jobs'
+  ]
+  loop
+    if to_regclass(format('private.%I',v_table)) is not null then
+      execute format('alter table private.%I enable row level security',v_table);
+    end if;
+  end loop;
+end
+$migration$;
