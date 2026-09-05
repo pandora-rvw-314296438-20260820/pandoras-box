@@ -64,7 +64,7 @@ test('Task124 initial Android build excludes background time and refreshes on re
   );
   assert.match(
     workspace,
-    /didChangeAppLifecycleState\(AppLifecycleState state\)[\s\S]*?state == AppLifecycleState\.resumed[\s\S]*?_flowStartedAt =[\s\S]*?startedAt\.add\(\s*DateTime\.now\(\)\.difference\(backgroundedAt\)\)[\s\S]*?_timer\?\.cancel\(\);[\s\S]*?_requestAuthoritativeRefresh\(\)/,
+    /didChangeAppLifecycleState\(AppLifecycleState state\)[\s\S]*?state == AppLifecycleState\.resumed[\s\S]*?_flowStartedAt =[\s\S]*?startedAt\.add\(\s*DateTime\.now\(\)\.difference\(backgroundedAt\),?\s*\)[\s\S]*?_timer\?\.cancel\(\);[\s\S]*?_requestAuthoritativeRefresh\(\)/,
     'background duration must be excluded before authoritative resume refresh',
   );
   assert.match(
