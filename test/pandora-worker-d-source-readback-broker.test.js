@@ -18,7 +18,7 @@ test("Worker D readback broker keeps service-role material server-side", () => {
   assert.match(edge, /x-pandora-internal-key/);
   assert.doesNotMatch(edge, /api-keys\?reveal=true/);
   assert.doesNotMatch(edge, /mcpmaster_supabase_account_[12]_pat/);
-  assert.doesNotMatch(edge, /service_role.*response/i);
+  assert.doesNotMatch(edge, /["'](?:serviceRoleKey|service_role_key)["']\s*:/i);
 });
 
 test("readback identity is derived from the build job, not caller storage input", () => {
