@@ -238,8 +238,7 @@ begin
     'finalization',v_finalized
   );
 end;
-$function$
-
+$function$;
 
 CREATE OR REPLACE FUNCTION private.pandora_converge_static_site_build_20260830(p_build_job_id uuid)
  RETURNS jsonb
@@ -365,6 +364,4 @@ begin
   update public.pandora_build_jobs set status='failed',current_stage='failed',completed_at=v_now,error_code='VERIFICATION_FAILED',public_error_summary='Pandora found something to resolve before this version can be published.',lease_owner=null,lease_token_sha256=null,lease_expires_at=null,updated_at=v_now where id=v_job.id and status not in ('succeeded','failed','cancelled');
   return jsonb_build_object('buildJobId',v_job.id,'projectVersionId',v_version.id,'state','blocked','stage','verification','verificationRunId',v_verification->>'verificationRunId');
 end;
-$function$
-
-;
+$function$;
