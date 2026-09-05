@@ -440,14 +440,14 @@ class _ProjectBuildExperienceV2ScreenState
       if (_refreshAfterInFlight && mounted && _flowBackgroundedAt == null) {
         _refreshAfterInFlight = false;
         unawaited(_refreshAndAdvance());
-        return;
-      }
-      if (mounted && _ready) {
-        _enterWorkspaceIfReady();
-      }
-      if (mounted && !_ready && !_flowExpired && _flowBackgroundedAt == null) {
-        _timer?.cancel();
-        _timer = Timer(const Duration(seconds: 2), _refreshAndAdvance);
+      } else {
+        if (mounted && _ready) {
+          _enterWorkspaceIfReady();
+        }
+        if (mounted && !_ready && !_flowExpired && _flowBackgroundedAt == null) {
+          _timer?.cancel();
+          _timer = Timer(const Duration(seconds: 2), _refreshAndAdvance);
+        }
       }
     }
   }
