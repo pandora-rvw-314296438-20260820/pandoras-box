@@ -48,8 +48,8 @@ Deno.serve(async (req) => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return response({ ok: false, state: "unavailable" }, 503);
 
   const admin = adminClient();
-  const internalKey = req.headers.get("x-pandora-worker-d-key")?.trim() || "";
-  const validated = await admin.rpc("pandora_validate_worker_d_readback_key_20260905", { p_token: internalKey });
+  const internalKey = req.headers.get("x-pandora-internal-key")?.trim() || "";
+  const validated = await admin.rpc("pandora_validate_source_worker_key_20260831", { p_token: internalKey });
   if (validated.error || validated.data !== true) return response({ ok: false, state: "rejected" }, 401);
 
   try {
