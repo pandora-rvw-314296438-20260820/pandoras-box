@@ -24,7 +24,8 @@ def parse_manifest(path: Path) -> dict[str,str]:
         values[key]=value.strip()
     return values
 def require_manifest_binding(manifest: Mapping[str,str], *, source_sha:str, source_tree:str, apk_sha256:str, package_name:str, app_version:str)->None:
-    if not re.fullmatch(r"[0-9a-f]{40}",source_sha): raise VerificationError("expected source SHA must be lowercase 40-hex")\n    if not re.fullmatch(r"[0-9a-f]{40}",source_tree): raise VerificationError("expected source tree must be lowercase 40-hex")
+    if not re.fullmatch(r"[0-9a-f]{40}",source_sha): raise VerificationError("expected source SHA must be lowercase 40-hex")
+    if not re.fullmatch(r"[0-9a-f]{40}",source_tree): raise VerificationError("expected source tree must be lowercase 40-hex")
     checks=(("source_sha",source_sha,"source SHA"),("source_tree",source_tree,"source tree"),("apk_sha256",apk_sha256,"APK SHA-256"),("android_package",package_name,"Android package"),("app_version",app_version,"app version"))
     for key,expected,label in checks:
         if manifest.get(key)!=expected: raise VerificationError(f"manifest {label} does not match candidate")
