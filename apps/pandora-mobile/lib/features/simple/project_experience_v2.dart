@@ -79,7 +79,7 @@ class ProjectBuildExperienceV2Screen extends StatefulWidget {
 }
 
 class _ProjectBuildExperienceV2ScreenState
-    extends State<ProjectBuildExperienceV2Screen> {
+    extends State<ProjectBuildExperienceV2Screen> with WidgetsBindingObserver {
   Timer? _timer;
   ProjectRuntimeSnapshot? _snapshot;
   ProjectPreviewResult? _previewResult;
@@ -93,13 +93,50 @@ class _ProjectBuildExperienceV2ScreenState
   bool _openingPreview = false;
   bool _transitionedToWorkspace = false;
   DateTime? _flowStartedAt;
+  DateTime? _flowBackgroundedAt;
   StreamSubscription<ProjectBuildStreamSnapshot>? _initialBuildSubscription;
   String? _initialBuildJobId;
   String? _initialBuildStreamId;
   LiveBuildTheatreState? _initialBuildActivity;
   bool _resolvingInitialBuild = false;
+  int _lifecycleGeneration = 0;
+  bool _refreshAfterInFlight = false;
 
   static const _flowTimeout = Duration(minutes: 2);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final backgroundedAt = _flowBackgroundedAt;
+      if (backgroundedAt != null) {
+        final startedAt = _flowStartedAt;
+        if (startedAt != null) {
+          _flowStartedAt = startedAt.add(
+            DateTime.now().difference(backgroundedAt),
+          );
+        }
+        _flowBackgroundedAt = null;
+      }
+      _timer?.cancel();
+      _requestAuthoritativeRefresh();
+      return;
+    }
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      if (_flowBackgroundedAt == null) {
+        _flowBackgroundedAt = DateTime.now();
+        _lifecycleGeneration += 1;
+      }
+      _timer?.cancel();
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -113,6 +150,7 @@ class _ProjectBuildExperienceV2ScreenState
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _initialBuildSubscription?.cancel();
     super.dispose();
@@ -257,7 +295,16 @@ class _ProjectBuildExperienceV2ScreenState
     }
   }
 
+  void _requestAuthoritativeRefresh() {
+    if (_refreshing) {
+      _refreshAfterInFlight = true;
+      return;
+    }
+    unawaited(_refreshAndAdvance());
+  }
+
   Future<void> _refreshAndAdvance() async {
+    if (_flowBackgroundedAt != null) return;
     if (_flowExpired) {
       _timer?.cancel();
       if (mounted) {
@@ -278,9 +325,14 @@ class _ProjectBuildExperienceV2ScreenState
       return;
     }
     _refreshing = true;
+    final lifecycleGeneration = _lifecycleGeneration;
+    bool refreshIsStale() =>
+        !mounted ||
+        _flowBackgroundedAt != null ||
+        lifecycleGeneration != _lifecycleGeneration;
     try {
       final snapshot = await experience.runtime(widget.project.id);
-      if (!mounted) return;
+      if (refreshIsStale()) return;
       setState(() {
         _snapshot = snapshot;
         _error = null;
@@ -288,7 +340,8 @@ class _ProjectBuildExperienceV2ScreenState
 
       try {
         final projection = await experience.loadExperience(widget.project.id);
-        if (mounted && _candidate == null) {
+        if (refreshIsStale()) return;
+        if (_candidate == null) {
           await _syncInitialBuildActivity(
             experience,
             projection.activeBuildJobId,
@@ -307,13 +360,12 @@ class _ProjectBuildExperienceV2ScreenState
               projectId: widget.project.id,
               idempotencyKey: 'pandora-v2-build:${widget.project.id}',
             );
-            if (mounted) {
-              await _attachInitialBuildStream(
-                experience,
-                start.streamId,
-                buildJobId: start.buildJobId,
-              );
-            }
+            if (refreshIsStale()) return;
+            await _attachInitialBuildStream(
+              experience,
+              start.streamId,
+              buildJobId: start.buildJobId,
+            );
           } on ProjectExperienceException catch (error) {
             _buildRequested = false;
             if (mounted) setState(() => _error = error.message);
@@ -329,6 +381,7 @@ class _ProjectBuildExperienceV2ScreenState
             idempotencyKey:
                 'pandora-v2-preview:${widget.project.id}:${candidate.versionId}',
           );
+          if (refreshIsStale()) return;
           List<Map<String, Object?>>? exactFiles;
           try {
             exactFiles = await _loadExactPreviewFiles(
@@ -336,10 +389,11 @@ class _ProjectBuildExperienceV2ScreenState
               projectId: widget.project.id,
               versionId: candidate.versionId,
             );
+            if (refreshIsStale()) return;
           } catch (_) {
             // The verified remote preview remains available if local hydration lags.
           }
-          if (mounted) {
+          if (!refreshIsStale()) {
             setState(() {
               _previewResult = result;
               if (exactFiles != null && exactFiles.isNotEmpty) {
@@ -356,6 +410,7 @@ class _ProjectBuildExperienceV2ScreenState
               projectId: widget.project.id,
               versionId: candidate.versionId,
             );
+            if (refreshIsStale()) return;
             if (mounted) {
               setState(() {
                 _localPreviewFiles = files;
@@ -375,19 +430,27 @@ class _ProjectBuildExperienceV2ScreenState
         }
       }
     } catch (_) {
-      if (mounted && _snapshot == null) {
+      if (!refreshIsStale() && _snapshot == null) {
         setState(
           () => _error = 'Pandora could not refresh this project right now.',
         );
       }
     } finally {
       _refreshing = false;
-      if (mounted && _ready) {
-        _enterWorkspaceIfReady();
-      }
-      if (mounted && !_ready && !_flowExpired) {
-        _timer?.cancel();
-        _timer = Timer(const Duration(seconds: 2), _refreshAndAdvance);
+      if (_refreshAfterInFlight && mounted && _flowBackgroundedAt == null) {
+        _refreshAfterInFlight = false;
+        unawaited(_refreshAndAdvance());
+      } else {
+        if (mounted && _ready) {
+          _enterWorkspaceIfReady();
+        }
+        if (mounted &&
+            !_ready &&
+            !_flowExpired &&
+            _flowBackgroundedAt == null) {
+          _timer?.cancel();
+          _timer = Timer(const Duration(seconds: 2), _refreshAndAdvance);
+        }
       }
     }
   }

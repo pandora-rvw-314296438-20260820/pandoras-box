@@ -56,3 +56,38 @@ test('Task65 retains existing duplicate-safe N+1 durable replay acceptance', () 
   assert.match(durableResume, /<int>\[3, 4, 5\]/);
   assert.match(durableResume, /must not duplicate already-observed events/);
 });
+
+test('Task124 initial Android build excludes background time and refreshes on resume', () => {
+  assert.match(
+    workspace,
+    /class _ProjectBuildExperienceV2ScreenState\s+extends State<ProjectBuildExperienceV2Screen>\s+with WidgetsBindingObserver/,
+  );
+  assert.match(
+    workspace,
+    /didChangeAppLifecycleState\(AppLifecycleState state\)[\s\S]*?state == AppLifecycleState\.resumed[\s\S]*?_flowStartedAt =[\s\S]*?startedAt\.add\(\s*DateTime\.now\(\)\.difference\(backgroundedAt\),?\s*\)[\s\S]*?_timer\?\.cancel\(\);[\s\S]*?_requestAuthoritativeRefresh\(\)/,
+    'background duration must be excluded before authoritative resume refresh',
+  );
+  assert.match(
+    workspace,
+    /state == AppLifecycleState\.inactive[\s\S]*?state == AppLifecycleState\.paused[\s\S]*?state == AppLifecycleState\.detached[\s\S]*?_flowBackgroundedAt = DateTime\.now\(\);[\s\S]*?_lifecycleGeneration \+= 1;[\s\S]*?_timer\?\.cancel\(\)/,
+  );
+  assert.match(
+    workspace,
+    /Future<void> _refreshAndAdvance\(\) async \{[\s\S]*?if \(_flowBackgroundedAt != null\) return;/,
+    'backgrounded initial build must not poll or expire before resume',
+  );
+  assert.match(
+    workspace,
+    /void _requestAuthoritativeRefresh\(\)[\s\S]*?if \(_refreshing\)[\s\S]*?_refreshAfterInFlight = true;[\s\S]*?unawaited\(_refreshAndAdvance\(\)\)/,
+    'resume must queue one authoritative refresh when an older request is still in flight',
+  );
+  assert.match(
+    workspace,
+    /final lifecycleGeneration = _lifecycleGeneration;[\s\S]*?refreshIsStale\(\)[\s\S]*?lifecycleGeneration != _lifecycleGeneration[\s\S]*?if \(refreshIsStale\(\)\) return;/,
+    'responses started before backgrounding must not mutate resumed UI state',
+  );
+  assert.match(
+    workspace,
+    /void dispose\(\) \{[\s\S]*?WidgetsBinding\.instance\.removeObserver\(this\);/,
+  );
+});
