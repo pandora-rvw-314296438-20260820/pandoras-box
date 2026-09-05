@@ -65,6 +65,66 @@ const ContextPackSchema = zod_1.z.object({
     created_at: TimestampSchema,
     updated_at: TimestampSchema,
 }).strip();
+const ContextPackV2ProjectSchema = zod_1.z.object({
+    id: IdSchema,
+    name: ShortTextSchema,
+    projectKey: zod_1.z.string().trim().regex(/^[a-z0-9][a-z0-9._-]{1,95}$/),
+}).strip();
+const ContextPackV2AuthorizationSchema = zod_1.z.object({
+    allowedRecordTypes: zod_1.z.array(zod_1.z.string().trim().min(1).max(96)).max(100),
+    canRead: zod_1.z.literal(true),
+    environment: zod_1.z.string().trim().min(1).max(80),
+    principalKey: zod_1.z.string().trim().min(1).max(200),
+}).strip();
+const ContextPackV2DegradationSchema = zod_1.z.object({
+    degraded: zod_1.z.boolean(),
+    legacyUnscopedPackUsed: zod_1.z.literal(false),
+    omittedCanonical: zod_1.z.number().int().min(0),
+    omittedConflicts: zod_1.z.number().int().min(0),
+    omittedDecisions: zod_1.z.number().int().min(0),
+    omittedNegative: zod_1.z.number().int().min(0),
+    omittedOpenLoops: zod_1.z.number().int().min(0),
+}).strip();
+const ContextPackV2FreshnessSchema = zod_1.z.object({
+    asOf: TimestampSchema,
+    latestCanonicalAt: TimestampSchema.nullable(),
+}).strip();
+const ContextPackV2CountsSchema = zod_1.z.object({
+    canonicalEligible: zod_1.z.number().int().min(0),
+    conflictEligible: zod_1.z.number().int().min(0),
+    decisionEligible: zod_1.z.number().int().min(0),
+    negativeEligible: zod_1.z.number().int().min(0),
+    openLoopEligible: zod_1.z.number().int().min(0),
+}).strip();
+const ContextPackV2CanonicalRecordSchema = zod_1.z.object({
+    id: IdSchema,
+    contentHash: zod_1.z.string().trim().regex(/^[a-f0-9]{64}$/),
+    correlationId: zod_1.z.string().trim().min(1).max(200),
+    effectiveAt: TimestampSchema.nullable(),
+    recordType: zod_1.z.string().trim().min(1).max(96),
+    summary: LongTextSchema,
+    title: ShortTextSchema,
+    updatedAt: TimestampSchema,
+}).strip();
+const ContextPackV2Schema = zod_1.z.object({
+    schemaVersion: zod_1.z.literal('2.0'),
+    status: zod_1.z.literal('available'),
+    namespace: NamespaceSchema,
+    project: ContextPackV2ProjectSchema,
+    authorization: ContextPackV2AuthorizationSchema,
+    canonicalMemory: zod_1.z.array(ContextPackV2CanonicalRecordSchema).max(50),
+    negativeKnowledge: zod_1.z.array(zod_1.z.unknown()).max(200),
+    decisions: zod_1.z.array(zod_1.z.unknown()).max(200),
+    openLoops: zod_1.z.array(zod_1.z.unknown()).max(200),
+    conflicts: zod_1.z.array(zod_1.z.unknown()).max(200),
+    counts: ContextPackV2CountsSchema,
+    precedence: zod_1.z.array(zod_1.z.string().trim().min(1).max(160)).max(20),
+    freshness: ContextPackV2FreshnessSchema,
+    degradation: ContextPackV2DegradationSchema,
+    contextSha256: zod_1.z.string().trim().regex(/^[a-f0-9]{64}$/),
+    byteSize: zod_1.z.number().int().min(0).max(12 * 1024),
+}).strip();
+const GovernedContextPackSchema = zod_1.z.union([ContextPackSchema, ContextPackV2Schema]);
 const RecentEventSchema = zod_1.z.object({
     id: IdSchema,
     source: zod_1.z.string().trim().min(1).max(160),
@@ -133,7 +193,7 @@ const SearchResponseSchema = zod_1.z.object({
     people_context: zod_1.z.array(ProfileSchema).max(50).default([]),
     risk_warnings: zod_1.z.array(RiskWarningSchema).max(100).default([]),
     open_loops: zod_1.z.array(OpenLoopSchema).max(50).default([]),
-    latest_context_pack: ContextPackSchema.nullable().optional(),
+    latest_context_pack: GovernedContextPackSchema.nullable().optional(),
     recent_events: zod_1.z.array(RecentEventSchema).max(50).default([]),
     semantic_matches: zod_1.z.array(SemanticMatchSchema).max(50).default([]),
     canonical_records: zod_1.z.array(CanonicalRecordSchema).max(50).optional(),
