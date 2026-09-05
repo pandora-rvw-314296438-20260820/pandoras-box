@@ -444,7 +444,10 @@ class _ProjectBuildExperienceV2ScreenState
         if (mounted && _ready) {
           _enterWorkspaceIfReady();
         }
-        if (mounted && !_ready && !_flowExpired && _flowBackgroundedAt == null) {
+        if (mounted &&
+            !_ready &&
+            !_flowExpired &&
+            _flowBackgroundedAt == null) {
           _timer?.cancel();
           _timer = Timer(const Duration(seconds: 2), _refreshAndAdvance);
         }
