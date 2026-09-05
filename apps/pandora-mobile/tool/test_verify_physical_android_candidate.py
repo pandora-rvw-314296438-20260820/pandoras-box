@@ -48,6 +48,9 @@ class PhysicalAndroidCandidateVerifierTest(unittest.TestCase):
         with self.assertRaisesRegex(verifier.VerificationError,"does not match"):
             verifier.require_expected_production_signer(signing,"cd"*32)
         self.assertEqual(verifier.require_expected_production_signer(signing,actual),actual)
+        multi_signing=signing+"\nSigner #2 certificate SHA-256 digest: "+("cd"*32)
+        with self.assertRaisesRegex(verifier.VerificationError,"exactly one APK signer"):
+            verifier.require_expected_production_signer(multi_signing,actual)
 
     def test_installed_version_parser_requires_both_fields(self):
         version_name,version_code=verifier.parse_installed_version("  versionCode=8 minSdk=24 targetSdk=36\n  versionName=0.4.0-rc.2\n")
