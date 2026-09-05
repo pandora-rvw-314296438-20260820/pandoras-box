@@ -646,12 +646,12 @@ test('remote recovery migration receipts preserve provider history without repla
     remoteHistoryReceiptManifest.entries.length,
   );
   assert.equal(
-    remoteHistoryReceiptFiles.size,
+    legacyRemoteHistoryReceiptFiles.size,
     remoteHistoryReceiptManifest.migrationCount,
   );
 
   const receiptFiles = readdirSync(migrationRoot)
-    .filter((filename) => remoteHistoryReceiptFiles.has(filename))
+    .filter((filename) => legacyRemoteHistoryReceiptFiles.has(filename))
     .sort();
   const expectedReceiptFiles = remoteHistoryReceiptManifest.entries
     .map((entry) => `${entry.version}_${entry.name}.sql`)
