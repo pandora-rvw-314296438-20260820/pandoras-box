@@ -58,6 +58,11 @@ def parse_signer_sha256(signing_text:str)->str:
     normalized=match.group(1).replace(":","").lower()
     if not re.fullmatch(r"[0-9a-f]{64}",normalized): raise VerificationError("apksigner certificate SHA-256 digest is malformed")
     return normalized
+def require_modern_signature_scheme(signing_text:str)->None:
+    v2=re.search(r"Verified using v2 scheme \(APK Signature Scheme v2\):\s*(true|false)",signing_text,re.IGNORECASE)
+    v3=re.search(r"Verified using v3 scheme \(APK Signature Scheme v3\):\s*(true|false)",signing_text,re.IGNORECASE)
+    if not v2 and not v3: raise VerificationError("apksigner output is missing v2/v3 signature-scheme verification")
+    if not any(match and match.group(1).lower()=="true" for match in (v2,v3)): raise VerificationError("production acceptance requires APK Signature Scheme v2 or v3")
 def require_expected_production_signer(signing_text:str, expected_sha256:str|None)->str:
     if not expected_sha256: raise VerificationError("production signer acceptance requires --expected-signer-sha256")
     normalized=expected_sha256.replace(":","").lower()
@@ -101,6 +106,7 @@ def main()->int:
     signer_sha256=parse_signer_sha256(signing)
     if args.require_production_signer:
         if debug_signer: raise VerificationError("production acceptance cannot use the Android debug signer")
+        require_modern_signature_scheme(signing)
         signer_sha256=require_expected_production_signer(signing,args.expected_signer_sha256)
     evidence={"source_sha":args.expected_source_sha,"apk_sha256":apk_sha,"android_package":package_name,"version_name":version_name,"version_code":version_code,"permissions_verified":True,"debug_signer":debug_signer,"signer_sha256":signer_sha256,"manifest_bound":True,"device_smoke_verified":False,"physical_device_verified":False,"wifi_journey_verified":False,"mobile_data_journey_verified":False,"authenticated_owner_journey_verified":False,"network_switch_verified":False,"rollback_verified":False}
     if args.smoke_device: evidence.update(smoke_device(args.adb,args.serial,args.apk,package_name,version_name,version_code))
