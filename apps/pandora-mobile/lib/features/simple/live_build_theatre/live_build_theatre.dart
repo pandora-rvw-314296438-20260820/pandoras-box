@@ -68,7 +68,7 @@ class LiveBuildTheatre extends StatelessWidget {
           if (state.historyGapDueToRetention) ...[
             const SizedBox(height: 8),
             const Text(
-              'Pandora reconnected to the same build. The durable build continued while you were away.',
+              'Some earlier live build activity is no longer available. Pandora is showing the saved build state and any source evidence that is still available.',
               style: TextStyle(
                 color: PandoraV2Colors.muted,
                 fontSize: 12.5,

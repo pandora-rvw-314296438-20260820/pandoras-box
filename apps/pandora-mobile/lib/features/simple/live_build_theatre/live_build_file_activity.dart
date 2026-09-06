@@ -197,7 +197,7 @@ String _metricSummary(LiveBuildTheatreState state) {
   }
 
   if (state.historyGapDueToRetention) {
-    return 'Build continued while you were away';
+    return 'Earlier live source activity unavailable';
   }
 
   return 'Source summary ready';
