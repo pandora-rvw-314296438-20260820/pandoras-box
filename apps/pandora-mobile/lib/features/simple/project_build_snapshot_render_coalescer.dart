@@ -20,7 +20,13 @@ Stream<ProjectBuildStreamSnapshot> coalesceProjectBuildSnapshotsForRendering(
   Stream<ProjectBuildStreamSnapshot> Function() sourceFactory, {
   Duration cadence = projectBuildRenderCadence,
 }) {
+  // This controller intentionally survives listener gaps; onCancel tears down
+  // the upstream source and onListen creates a fresh listener era.
+  // ignore: close_sinks
   late StreamController<ProjectBuildStreamSnapshot> controller;
+  // stopSource cancels the active subscription whenever the last UI listener
+  // detaches; the analyzer cannot prove that callback-owned lifecycle.
+  // ignore: cancel_subscriptions
   StreamSubscription<ProjectBuildStreamSnapshot>? subscription;
   Timer? timer;
   ProjectBuildStreamSnapshot? pending;
