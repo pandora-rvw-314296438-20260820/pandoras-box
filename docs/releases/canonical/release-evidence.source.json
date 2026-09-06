@@ -21,7 +21,7 @@
   "vercel": {
     "provider": "vercel",
     "projectId": "prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk",
-    "productionAlias": "https://pandoras-box-system.vercel.app",
+    "productionAlias": "https://mcpmaster.vercel.app",
     "productionDeployment": {
       "authority": "VERCEL_PROVIDER",
       "requiredCount": 1,
