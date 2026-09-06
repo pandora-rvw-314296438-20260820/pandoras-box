@@ -333,7 +333,7 @@ class _LiveBuildProjection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (snapshot.requiresReplay) {
-      return const _ConversationBuildNotice(
+      return _ConversationBuildNotice(
         title: experience?.statusLabel ?? 'Preparing',
         message: experience?.publicMessage ??
             'Pandora is reconnecting to the same build.',
@@ -342,7 +342,6 @@ class _LiveBuildProjection extends StatelessWidget {
 
     if (snapshot.events.isEmpty) {
       if (snapshot.historyGapDueToRetention || snapshot.latestSequence > 0) {
-        final stage = snapshot.buildStage?.replaceAll('_', ' ');
         return _ConversationBuildNotice(
           title: experience?.statusLabel ?? 'Build continuing',
           message: experience?.publicMessage ??
@@ -367,7 +366,11 @@ class _LiveBuildProjection extends StatelessWidget {
         children: [
           const _ConversationLabel(label: 'Pandora'),
           const SizedBox(height: 8),
-          LiveBuildTheatre(state: theatre),
+          LiveBuildTheatre(
+            state: theatre,
+            ownerStatusLabel: experience?.statusLabel,
+            ownerMessage: experience?.publicMessage,
+          ),
           if (execution.activity.isNotEmpty) ...[
             const SizedBox(height: 12),
             _BuildExecutionActivity(lines: execution.activity),
@@ -375,7 +378,7 @@ class _LiveBuildProjection extends StatelessWidget {
           if (disconnected || snapshot.reconnecting) ...[
             const SizedBox(height: 10),
             const Text(
-              'Reconnecting to the live build. The durable build continues independently and will reconcile from authoritative replay.',
+              'Reconnecting to the same build. Your project continues from its saved state.',
               style: TextStyle(
                 color: PandoraV2Colors.muted,
                 fontSize: 12.5,
@@ -383,7 +386,8 @@ class _LiveBuildProjection extends StatelessWidget {
               ),
             ),
           ],
-          if (theatre.previewReady) ...[
+          if ((experience?.state == ProjectExperienceState.review) ||
+              theatre.previewReady) ...[
             const SizedBox(height: 12),
             PandoraV2PrimaryAction(
               label: 'Open result',
@@ -397,7 +401,7 @@ class _LiveBuildProjection extends StatelessWidget {
       return const PandoraV2InlineMessage(
         title: 'Live build evidence unavailable',
         message:
-            'Pandora rejected an invalid live-build projection. The durable build remains authoritative.',
+            'Pandora could not display the latest build activity. Your saved project state is unchanged.',
         danger: true,
       );
     }
