@@ -55,6 +55,7 @@ class _CreateProjectExperienceScreenState
       }
       return;
     }
+    FocusManager.instance.primaryFocus?.unfocus();
     final experience =
         PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) {
@@ -108,7 +109,7 @@ class _CreateProjectExperienceScreenState
       if (mounted) {
         setState(() {
           _error = error.outcomeMayBeUnknown
-              ? '${error.message} Try again with the same request; Pandora will safely resume it instead of creating another project.'
+              ? 'Pandora could not confirm the response. Send the same request again; if the project was already created, Pandora will reopen that exact project instead of making another one.'
               : error.message;
         });
       }
@@ -187,7 +188,7 @@ class _CreateProjectExperienceScreenState
                 if (_error != null) ...[
                   const SizedBox(height: 18),
                   PandoraV2InlineMessage(
-                    title: 'Nothing has been published',
+                    title: 'Project not started',
                     message: _error!,
                     actionLabel: 'Dismiss',
                     onAction: () => setState(() => _error = null),
@@ -388,7 +389,7 @@ class _ProjectUnderstandingScreenState
                   ),
                 ),
                 const SizedBox(height: 18),
-                PandoraProfessionalBuildPlan(understanding: u!),
+                PandoraSimpleBuildPlan(understanding: u!),
                 if (originalIntent.isNotEmpty) ...[
                   const SizedBox(height: 18),
                   DecoratedBox(
