@@ -55,3 +55,19 @@ test("safety does not read historical integration health organization-wide", () 
   );
   assert.match(integrationQuery, /\.eq\("project_id", safetyProjectId\)/);
 });
+
+
+test("safety preserves stale and non-expiring evidence semantics", () => {
+  assert.match(
+    ownerApi,
+    /return staleAt > now && hasVerifiedSuccess \? "fresh" : "stale";/,
+  );
+  assert.match(
+    ownerApi,
+    /if \(!staleAfter\) return hasVerifiedSuccess \? "fresh" : "not_checked";/,
+  );
+  assert.match(
+    ownerApi,
+    /freshness: integrationFreshness\(item, now\)/,
+  );
+});
