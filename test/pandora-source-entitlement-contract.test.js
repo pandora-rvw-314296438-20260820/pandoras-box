@@ -33,10 +33,11 @@ test("preview content withholds durable source by default and materializes exact
   assert.match(preview,/injectHostedBase/);
   assert.match(preview,/HOSTED_PREVIEW_FETCH_FAILED/);
   assert.match(preview,/HOSTED_PREVIEW_REDIRECT_INVALID/);
-  assert.ok(preview.includes('html.replace(/<base\\\\b[^>]*>/gi'));
-  assert.ok(preview.includes('if(/<head\\\\b[^>]*>/i.test(stripped))'));
-  assert.ok(preview.includes('if(/<html\\\\b[^>]*>/i.test(stripped))'));
-  assert.ok(!preview.includes('/<head\\\\\\\\b'));
+  const wordBoundary = String.raw`\b`;
+  assert.ok(preview.includes(`html.replace(/<base${wordBoundary}[^>]*>/gi`));
+  assert.ok(preview.includes(`if(/<head${wordBoundary}[^>]*>/i.test(stripped))`));
+  assert.ok(preview.includes(`if(/<html${wordBoundary}[^>]*>/i.test(stripped))`));
+  assert.ok(!preview.includes(String.raw`/<head\\b`));
 
   assert.doesNotMatch(preview,/<iframe/);
   assert.doesNotMatch(preview,/frame-src https:/);
