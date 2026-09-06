@@ -303,7 +303,7 @@ test("required checks are an exact ordered set and cannot be marked passed in so
     authority: "TRUSTED_EXTERNAL_REVIEW_PROVIDER",
     producer: "pandora_main_gate_github_app",
     providerContext: "external-review",
-    appId: 4658204,
+    appId: 4785021,
     command: null,
     status: "pending_external_receipt",
     receipt: null,

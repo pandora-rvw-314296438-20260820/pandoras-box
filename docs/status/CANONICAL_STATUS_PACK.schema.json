@@ -480,7 +480,7 @@
                 "ok": { "const": true }, "triageInventoryCount": { "const": 41 }, "triageExactHeadMatches": { "const": true },
                 "exactIntegrationChecks": { "const": "success" }, "protectionHasExactCheckIdentities": { "const": true },
                 "protectedMainPolicyExact": { "const": true }, "trustedExternalReviewConfigured": { "const": true },
-                "trustedExternalReviewAppId": { "const": 4658204 },
+                "trustedExternalReviewAppId": { "const": 4785021 },
                 "trustedExternalReviewProviderContext": { "const": "external-review" },
                 "trustedExternalReviewVerified": { "const": true },
                 "sourceArtifactProviderReadback": { "type": "object", "properties": { "verified": { "const": true } } },
