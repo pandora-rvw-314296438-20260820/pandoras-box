@@ -9,7 +9,7 @@ const ownerApi = readFileSync(
   'utf8',
 );
 const migration = readFileSync(
-  join(root, 'supabase/migrations/20260906153000_pandora_meta_live_connection_verifier_v1.sql'),
+  join(root, 'supabase/migrations/20260906154250_pandora_meta_live_connection_verifier_v1.sql'),
   'utf8',
 );
 
