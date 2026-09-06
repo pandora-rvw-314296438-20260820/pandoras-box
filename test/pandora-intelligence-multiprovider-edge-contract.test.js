@@ -7,6 +7,7 @@ const root=path.resolve(__dirname,'..');
 const edge=fs.readFileSync(path.join(root,'supabase/functions/pandora-intelligence-chat/index.ts'),'utf8');
 const config=fs.readFileSync(path.join(root,'supabase/migrations/20260901202428_chat_c_kimi_runtime_provider_config_v1.sql'),'utf8');
 const routing=fs.readFileSync(path.join(root,'supabase/migrations/20260901202441_chat_c_edge_runtime_convergence_v1.sql'),'utf8');
+const failoverRollout=fs.readFileSync(path.join(root,'supabase/migrations/20260906145500_provider_auto_failover_v2.sql'),'utf8');
 const must=(text,needle)=>assert.ok(text.includes(needle),`missing contract marker: ${needle}`);
 const mustNot=(text,needle)=>assert.equal(text.includes(needle),false,`forbidden contract marker: ${needle}`);
 
@@ -31,7 +32,7 @@ test('provider choice is server-owned and Kimi defaults fail closed',()=>{
 });
 
 test('fallback and sticky recovery are bounded explicit and classified',()=>{
-  must(edge,'["provider_unavailable","timeout","rate_limited"]');
+  must(edge,'["provider_unavailable","timeout","rate_limited","quota_exhausted","unsupported_capability","provider_error","invalid_output"]');
   must(edge,'pandora_read_intelligence_thread_route_v1');
   must(edge,'pandora_claim_intelligence_thread_route_v1');
   must(edge,'pandora_recover_intelligence_thread_route_v1');
@@ -39,8 +40,12 @@ test('fallback and sticky recovery are bounded explicit and classified',()=>{
   must(edge,'fallbackUsed');
   must(edge,'.slice(0,4)');
   must(edge,'crossProviderEligible:true');
-  must(edge,'crossProviderEligible:false');
+  must(edge,'authentication_failed",false,false');
+  must(edge,'invalid_request",false,false');
+  must(edge,'quota_exhausted",false,true');
   must(edge,'crossesProvider&&rec(e).crossProviderEligible!==true');
+  must(failoverRollout,"('kimi','enabled','true',true,now())");
+  must(failoverRollout,"('kimi','fallback_enabled','true',true,now())");
 });
 
 test('routing state wrappers remain service-role only',()=>{

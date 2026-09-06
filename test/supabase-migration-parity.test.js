@@ -219,6 +219,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906140131_align_github_primary_connector_current_account.sql',
     '20260906142436_rebind_supabase_connections_to_pandora_projects_v2.sql',
     '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql',
+    '20260906145500_provider_auto_failover_v2.sql',
     '20260906150120_align_meta_connector_current_identity.sql',
     '20260906150551_supabase_auth_nonblocking_smtp_when_signup_disabled_v1.sql'
   ]);
@@ -422,6 +423,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906140131_align_github_primary_connector_current_account.sql',
     '20260906142436_rebind_supabase_connections_to_pandora_projects_v2.sql',
     '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql',
+    '20260906145500_provider_auto_failover_v2.sql',
     '20260906150120_align_meta_connector_current_identity.sql',
     '20260906150551_supabase_auth_nonblocking_smtp_when_signup_disabled_v1.sql'
   ]);
@@ -577,6 +579,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906140131_align_github_primary_connector_current_account.sql',
     '20260906142436_rebind_supabase_connections_to_pandora_projects_v2.sql',
     '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql',
+    '20260906145500_provider_auto_failover_v2.sql',
     '20260906150120_align_meta_connector_current_identity.sql',
     '20260906150551_supabase_auth_nonblocking_smtp_when_signup_disabled_v1.sql'
   ]);
