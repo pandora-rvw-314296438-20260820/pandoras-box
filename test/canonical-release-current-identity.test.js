@@ -36,7 +36,7 @@ test("current release contract uses the operational repository and production or
 });
 
 test("forward migration aligns live Vercel release checks without rewriting history", () => {
-  const migration = source("supabase/migrations/20260906164100_align_canonical_release_current_identity.sql");
+  const migration = source("supabase/migrations/20260906173325_align_canonical_release_current_identity.sql");
   assert.match(migration, /get_canonical_release_status_without_final_attestations/);
   assert.match(migration, /capture_canonical_vercel_rehearsal_receipt/);
   assert.match(migration, /pandora-rvw-314296438-20260820/);
