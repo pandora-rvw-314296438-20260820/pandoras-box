@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/owner_projection.dart';
+import '../../core/data/pandora_repository.dart';
 import '../../core/design/pandora_tokens.dart';
 import '../../core/models/pandora_models.dart';
+import '../../core/network/pandora_api_error.dart';
 import '../../core/state/screen_controller.dart';
 import '../../core/widgets/content_state.dart';
 import '../../core/widgets/freshness_label.dart';
@@ -37,6 +39,35 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
   void dispose() {
     _controller?.dispose();
     super.dispose();
+  }
+
+  Future<void> _testConnection(ConnectionSummary connection) async {
+    final repository = PandoraDependencies.of(context).repository;
+    final GovernedConnectionActionSource? connectionActions =
+        repository is GovernedConnectionActionSource
+            ? repository as GovernedConnectionActionSource
+            : null;
+    if (connectionActions == null) {
+      await _controller?.refresh();
+      return;
+    }
+    try {
+      await connectionActions.runConnectionAction(
+        connectionId: connection.id,
+        action: 'test',
+      );
+      if (!mounted) return;
+      await _controller?.refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${connection.name} verified through Pandora.')),
+      );
+    } on PandoraApiError catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    }
   }
 
   @override
@@ -156,7 +187,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                   for (var index = 0; index < items.length; index++) ...[
                     _ConnectionCard(
                       connection: items[index],
-                      onTest: controller.refresh,
+                      onTest: () => _testConnection(items[index]),
                       onAction: (action) => _openGovernedConnectionAction(
                         context,
                         items[index],
