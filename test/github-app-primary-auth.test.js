@@ -15,7 +15,10 @@ const migration = readFileSync(
 );
 
 test("owner GitHub connection verification is GitHub-App-primary", () => {
-  assert.match(ownerApi, /from "node:crypto"/);
+  assert.doesNotMatch(ownerApi, /from "node:crypto"/);
+  assert.doesNotMatch(ownerApi, /from "node:buffer"/);
+  assert.match(ownerApi, /crypto\.subtle\.importKey/);
+  assert.match(ownerApi, /crypto\.subtle\.sign/);
   assert.match(ownerApi, /pandora_get_github_app_runtime_material/);
   assert.match(ownerApi, /appId !== 4785021/);
   assert.match(ownerApi, /installationId !== 158056492/);
