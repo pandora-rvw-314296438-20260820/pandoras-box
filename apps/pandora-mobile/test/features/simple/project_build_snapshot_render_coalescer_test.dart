@@ -86,6 +86,7 @@ void main() {
     expect(output, hasLength(1));
     expect(output.single.latestSequence, 8);
   });
+
   test('supports concurrent listeners without re-listening to the source', () async {
     var sourceListenCount = 0;
     final source = Stream<ProjectBuildStreamSnapshot>.multi((controller) {
@@ -106,5 +107,4 @@ void main() {
     expect(results[0].single.latestSequence, 11);
     expect(results[1].single.latestSequence, 11);
   });
-
 }
