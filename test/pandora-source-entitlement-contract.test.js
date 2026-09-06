@@ -29,7 +29,7 @@ test("preview content withholds durable source by default and materializes exact
   assert.match(preview,/source_sha256/);
   assert.match(preview,/artifact_digest/);
   assert.match(preview,/HOSTED_PREVIEW_IDENTITY_MISMATCH/);
-  assert.match(preview,/await fetch\\(hostedUrl/);
+  assert.match(preview,/await fetch\(hostedUrl/);
   assert.match(preview,/injectHostedBase/);
   assert.match(preview,/HOSTED_PREVIEW_FETCH_FAILED/);
   assert.match(preview,/HOSTED_PREVIEW_REDIRECT_INVALID/);
