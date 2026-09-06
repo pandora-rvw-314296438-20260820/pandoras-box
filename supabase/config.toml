@@ -57,10 +57,7 @@ verify_jwt = false
 
 
 # This private workload endpoint validates a one-purpose Vault-backed key before
-# it may use the server-only service role for durable source convergence.
+# it may use the server-only service role for durable source convergence and
+# exact Worker-D source readback through the shared buildJobId route.
 [functions.pandora-source-convergence-worker]
-verify_jwt = false
-
-# Private Worker-D source readback validates the existing one-purpose source-worker key before service-role storage access.
-[functions.pandora-worker-d-source-readback]
 verify_jwt = false
