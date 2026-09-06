@@ -215,7 +215,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906070922_plp_canonical_pandora_management_v1.sql',
     '20260906072000_pandora_worker_d_runtime_artifact_storage_broker_v1.sql',
     '20260906073500_pandora_exactly_once_project_creation_v1.sql',
-    '20260906124742_github_app_primary_runtime.sql'
+    '20260906124742_github_app_primary_runtime.sql',
+    '20260906140131_align_github_primary_connector_current_account.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -413,7 +414,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906070922_plp_canonical_pandora_management_v1.sql',
     '20260906072000_pandora_worker_d_runtime_artifact_storage_broker_v1.sql',
     '20260906073500_pandora_exactly_once_project_creation_v1.sql',
-    '20260906124742_github_app_primary_runtime.sql'
+    '20260906124742_github_app_primary_runtime.sql',
+    '20260906140131_align_github_primary_connector_current_account.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -563,7 +565,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906070922_plp_canonical_pandora_management_v1.sql',
     '20260906072000_pandora_worker_d_runtime_artifact_storage_broker_v1.sql',
     '20260906073500_pandora_exactly_once_project_creation_v1.sql',
-    '20260906124742_github_app_primary_runtime.sql'
+    '20260906124742_github_app_primary_runtime.sql',
+    '20260906140131_align_github_primary_connector_current_account.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(

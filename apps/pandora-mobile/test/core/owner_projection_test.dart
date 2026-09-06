@@ -120,13 +120,13 @@ void main() {
     });
 
     test(
-      'legacy GitHub account is quarantined from current connection truth',
+      'recovery-era GitHub account is quarantined from current connection truth',
       () {
         final connection = _connection(
           state: 'connected',
           status: 'Connected',
           name: 'GitHub Account — banataosystems',
-          purpose: 'Legacy GitHub account',
+          purpose: 'Code, issues, and proposed changes',
         );
         expect(
           resolveOwnerConnectionState(connection),
@@ -136,12 +136,12 @@ void main() {
     );
 
     test(
-      'canonical GitHub account label is not treated as legacy by name alone',
+      'current GitHub account label is not treated as legacy',
       () {
         final connection = _connection(
           state: 'connected',
           status: 'Connected',
-          name: 'GitHub Account — banataosystems',
+          name: 'GitHub Account — pandora-rvw-314296438-20260820',
           purpose: 'Code, issues, and proposed changes',
         );
         expect(isLegacyConnection(connection), isFalse);
