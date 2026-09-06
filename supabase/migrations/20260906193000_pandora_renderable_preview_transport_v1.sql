@@ -45,8 +45,8 @@ begin
     v_def:=replace(v_def,v_old,v_new);
   end if;
 
-  v_old := 'v_token:=split_part(regexp_replace(v_dep.url,''^https://jcyqixttuebxqqfkjonq[.]supabase[.]co/functions/v1/pandora-preview-host/'',''''), ''/'', 1);';
-  v_new := 'v_token:=split_part(regexp_replace(v_dep.url,''^https://mcpmaster[.]vercel[.]app/preview/'',''''), ''/'', 1);';
+  v_old := '^https://jcyqixttuebxqqfkjonq[.]supabase[.]co/functions/v1/pandora-preview-host/';
+  v_new := '^https://mcpmaster[.]vercel[.]app/preview/';
   if position(v_new in v_def)=0 then
     if position(v_old in v_def)=0 then
       raise exception 'PREVIEW_VERIFY_TOKEN_ANCHOR_MISSING' using errcode='55000';
@@ -204,20 +204,11 @@ begin
     'private.pandora_worker_e_verify_supabase_production_20260831(uuid,uuid)'::regprocedure
   ) into v_def;
 
-  v_old := 'v_dep.url !~ ''^https://jcyqixttuebxqqfkjonq[.]supabase[.]co/functions/v1/pandora-preview-host/[0-9a-f]{64}/index[.]html$''';
-  v_new := 'v_dep.url !~ ''^https://mcpmaster[.]vercel[.]app/preview/[0-9a-f]{64}/index[.]html$''';
-  if position('mcpmaster[.]vercel[.]app/preview' in v_def)=0 then
-    if position(v_old in v_def)=0 then
-      raise exception 'PRODUCTION_VERIFY_URL_ANCHOR_MISSING' using errcode='55000';
-    end if;
-    v_def:=replace(v_def,v_old,v_new);
-  end if;
-
-  v_old := 'v_token:=split_part(regexp_replace(v_dep.url,''^https://jcyqixttuebxqqfkjonq[.]supabase[.]co/functions/v1/pandora-preview-host/'',''''), ''/'', 1);';
-  v_new := 'v_token:=split_part(regexp_replace(v_dep.url,''^https://mcpmaster[.]vercel[.]app/preview/'',''''), ''/'', 1);';
+  v_old := '^https://jcyqixttuebxqqfkjonq[.]supabase[.]co/functions/v1/pandora-preview-host/';
+  v_new := '^https://mcpmaster[.]vercel[.]app/preview/';
   if position(v_new in v_def)=0 then
     if position(v_old in v_def)=0 then
-      raise exception 'PRODUCTION_VERIFY_TOKEN_ANCHOR_MISSING' using errcode='55000';
+      raise exception 'PRODUCTION_VERIFY_URL_ANCHOR_MISSING' using errcode='55000';
     end if;
     v_def:=replace(v_def,v_old,v_new);
   end if;
