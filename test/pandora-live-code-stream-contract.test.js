@@ -30,8 +30,10 @@ test('live build theatre renders only real generated source chunks', () => {
   assert.match(projection, /sequence: event\.sequence/);
   assert.match(projection, /historyGapDueToRetention: snapshot\.historyGapDueToRetention/);
   assert.match(conversation, /ProjectBuildStreamTheatreProjection\.fromSnapshot/);
-  assert.match(conversation, /LiveBuildTheatre\(state: theatre\)/);
-  assert.match(conversation, /Source will appear only after real source bytes arrive\./);
+  assert.match(conversation, /LiveBuildTheatre\([\s\S]*state: theatre/);
+  assert.match(conversation, /ownerStatusLabel: experience\?\.statusLabel/);
+  assert.match(conversation, /ownerMessage: experience\?\.publicMessage/);
+  assert.match(conversation, /Pandora is preparing the working result\./);
   assert.match(theatre, /if \(state\.hasVisibleRealSource\)/);
   assert.doesNotMatch(conversation, /LinearProgressIndicator/);
   assert.doesNotMatch(conversation, /progress_percent|progressPercent|% complete/i);
@@ -60,6 +62,7 @@ test('conversation preserves the long request without letting it dominate the bu
   assert.match(conversation, /maxLines: expanded \|\| !isLong \? null : 4/);
   assert.match(conversation, /Show full request/);
   assert.match(conversation, /Collapse request/);
-  assert.match(conversation, /Reconnecting to the live build/);
-  assert.match(conversation, /Expired source is not recreated/);
+  assert.match(conversation, /Reconnecting to the same build/);
+  assert.match(conversation, /continues from its saved state/);
+  assert.doesNotMatch(conversation, /Expired source is not recreated|Current durable stage/);
 });

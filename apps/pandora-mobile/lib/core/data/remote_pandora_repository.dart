@@ -11,7 +11,9 @@ class RemotePandoraRepository
     implements
         PandoraRepository,
         AuthorizationInvalidationSource,
-        AuthenticatedIdentityBoundary {
+        AuthenticatedIdentityBoundary,
+        GovernedConnectionActionSource,
+        UserConnectAuthorizationSource {
   RemotePandoraRepository({
     required PandoraApiClient client,
     ReadOnlyMemoryCache? cache,
@@ -149,6 +151,113 @@ class RemotePandoraRepository
       }
       rethrow;
     }
+  }
+
+  @override
+  Future<IntakeReceipt> runConnectionAction({
+    required String connectionId,
+    required String action,
+    String? idempotencyKey,
+  }) async {
+    final connection = _requiredIdentifier(connectionId, 'connectionId');
+    final requestedAction =
+        _requiredIdentifier(action, 'connectionAction').toLowerCase();
+    final response = await _postJson(
+      pathSegments: <String>[
+        'connections',
+        connection,
+        'actions',
+        requestedAction,
+      ],
+      operation: 'connection.action.submit',
+      routeTemplate: '/connections/:id/actions/:action',
+      idempotencyKey:
+          idempotencyKey ?? _idempotencyKeys.create('connection-action'),
+      body: const <String, Object?>{'clientMode': 'simple'},
+    );
+    return _parse(response, '/connections/:id/actions/:action', () {
+      final json = _requiredMap(response, '/connections/:id/actions/:action');
+      return IntakeReceipt.fromJson(json, requestId: response.requestId);
+    }, mutationOutcomeMayBeUnknown: true);
+  }
+
+  @override
+  Future<UserConnectStatus> userConnectStatus() async {
+    final response = await _getJson(
+      pathSegments: const <String>['connect', 'pandoras-box', 'status'],
+      operation: 'connect.user.status',
+      routeTemplate: '/connect/pandoras-box/status',
+    );
+    return _parse(response, '/connect/pandoras-box/status', () {
+      final json = _requiredMap(response, '/connect/pandoras-box/status');
+      if (json['ok'] != true) {
+        throw _contractError(
+          response,
+          'CONNECT_USER_STATUS_INVALID',
+          'Pandora could not verify your connected account.',
+        );
+      }
+      final connected = json['connected'] == true;
+      final authorizationRequired = json['authorizationRequired'] == true;
+      if (connected == authorizationRequired) {
+        throw _contractError(
+          response,
+          'CONNECT_USER_STATUS_INVALID',
+          'Pandora returned an inconsistent connection state.',
+        );
+      }
+      final provider = json['provider'] is Map
+          ? Map<Object?, Object?>.from(json['provider'] as Map)
+          : const <Object?, Object?>{};
+      return UserConnectStatus(
+        connected: connected,
+        authorizationRequired: authorizationRequired,
+        connector: json['connector'] is String &&
+                (json['connector'] as String).trim().isNotEmpty
+            ? (json['connector'] as String).trim()
+            : 'pandoras-box',
+        emailVerified: provider['emailVerified'] == true,
+      );
+    });
+  }
+
+  @override
+  Future<UserConnectAuthorization> startUserConnectAuthorization() async {
+    final response = await _postJson(
+      pathSegments: const <String>['connect', 'pandoras-box', 'authorize'],
+      operation: 'connect.user.authorize',
+      routeTemplate: '/connect/pandoras-box/authorize',
+      body: const <String, Object?>{},
+    );
+    return _parse(response, '/connect/pandoras-box/authorize', () {
+      final json = _requiredMap(response, '/connect/pandoras-box/authorize');
+      if (json['ok'] != true || json['authorizationUrl'] is! String) {
+        throw _contractError(
+          response,
+          'CONNECT_USER_AUTHORIZATION_INVALID',
+          'Pandora could not start secure account authorization.',
+        );
+      }
+      final uri = Uri.tryParse((json['authorizationUrl'] as String).trim());
+      if (uri == null ||
+          uri.scheme != 'https' ||
+          uri.host.isEmpty ||
+          uri.userInfo.isNotEmpty ||
+          uri.fragment.isNotEmpty) {
+        throw _contractError(
+          response,
+          'CONNECT_USER_AUTHORIZATION_INVALID',
+          'Pandora returned an unsafe authorization address.',
+        );
+      }
+      return UserConnectAuthorization(
+        authorizationUrl: uri,
+        connector: json['connector'] is String &&
+                (json['connector'] as String).trim().isNotEmpty
+            ? (json['connector'] as String).trim()
+            : 'pandoras-box',
+      );
+    }, mutationOutcomeMayBeUnknown: true);
   }
 
   @override

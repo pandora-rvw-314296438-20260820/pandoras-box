@@ -1,32 +1,31 @@
-import { readdir, readFile } from 'node:fs/promises';
-import path from 'node:path';
+import { readdir } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
-async function relativeFiles(root, current = root) {
-  const entries = await readdir(current, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const target = path.join(current, entry.name);
-    if (entry.isDirectory()) files.push(...await relativeFiles(root, target));
-    else if (entry.isFile()) files.push(path.relative(root, target));
-  }
-  return files;
-}
-
+const execFileAsync = promisify(execFile);
 const canonical = 'apps/control-tower';
-const mirror = 'public/control-tower';
-const canonicalFiles = (await relativeFiles(canonical)).sort();
-const mirrorFiles = (await relativeFiles(mirror)).sort();
 
-if (JSON.stringify(canonicalFiles) !== JSON.stringify(mirrorFiles)) {
-  throw new Error('Control Tower canonical/public file lists are not synchronized');
+const canonicalFiles = await readdir(canonical, { recursive: true });
+if (!canonicalFiles.length) {
+  throw new Error('Canonical Control Tower source is empty.');
 }
 
-for (const relative of canonicalFiles) {
-  const [left, right] = await Promise.all([
-    readFile(path.join(canonical, relative)),
-    readFile(path.join(mirror, relative)),
-  ]);
-  if (!left.equals(right)) throw new Error(`Control Tower mirror mismatch: ${relative}`);
+const { stdout } = await execFileAsync(
+  'git',
+  ['ls-files', '--', 'public/control-tower'],
+  { encoding: 'utf8' },
+);
+const trackedMirror = stdout
+  .split(/\r?\n/)
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+if (trackedMirror.length) {
+  throw new Error(
+    `Generated Control Tower output must not be committed: ${trackedMirror.join(', ')}`,
+  );
 }
 
-console.log(`Control Tower mirrors synchronized: ${canonicalFiles.length}/${canonicalFiles.length}`);
+console.log(
+  `Control Tower has one tracked authority: ${canonical} (${canonicalFiles.length} entries)`,
+);

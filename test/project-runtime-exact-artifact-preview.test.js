@@ -6,6 +6,10 @@ const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
 
 const source = readFileSync(join(__dirname, "..", "supabase", "functions", "pandora-project-runtime", "index.ts"), "utf8");
+const errorsSource = readFileSync(
+  join(__dirname, "..", "supabase", "functions", "pandora-project-runtime", "runtime-errors.ts"),
+  "utf8",
+);
 
 function block(start, end) {
   const a = source.indexOf(start);
@@ -42,7 +46,7 @@ test("artifact loader binds the durable root artifact, private Storage bytes, pr
 
 test("provider READY maps only to ready_for_verification and ambiguous create is reconciled by operation metadata", () => {
   const preview = block("async function createPreview", "async function publishProject");
-  const provider = block("async function findVercelDeploymentByOperation", "async function createProject");
+  const provider = block("async function findVercelDeploymentByOperation", "type DomainFacts");
   assert.match(provider, /pandoraOperationId/);
   assert.match(provider, /\/v6\/deployments\?projectId=/);
   assert.match(provider, /PREVIEW_RECONCILIATION_REQUIRED/);
@@ -54,10 +58,11 @@ test("provider READY maps only to ready_for_verification and ambiguous create is
 });
 
 test("deterministic Vercel deployment quota exhaustion stays retryable instead of becoming ambiguous", () => {
-  const provider = block("async function createVercelDeployment", "async function createProject");
+  const provider = block("async function createVercelDeployment", "type DomainFacts");
   assert.match(source, /VERCEL_DEPLOYMENT_QUOTA_EXHAUSTED/);
   assert.match(provider, /error\.message === "VERCEL_DEPLOYMENT_QUOTA_EXHAUSTED"/);
-  assert.match(source, /Preview capacity is temporarily full/);
+  assert.match(errorsSource, /Preview capacity is temporarily full/);
+  assert.match(errorsSource, /"preview",\s*"provider",\s*true/);
 });
 
 test("preview API requires an explicit request body and exact version lineage", () => {

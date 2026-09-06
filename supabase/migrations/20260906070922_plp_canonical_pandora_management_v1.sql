@@ -30,6 +30,9 @@ begin
   where id=v_project_id
   for update;
 
+  -- Clean-replay databases do not contain this portfolio project. Treat the
+  -- migration as an instance-specific reconciliation receipt there; on the
+  -- canonical control plane the exact project identity must match below.
   if v_org_id is null then
     return;
   end if;
@@ -37,6 +40,9 @@ begin
     raise exception 'PLP_REPOSITORY_IDENTITY_UNEXPECTED' using errcode='23514';
   end if;
 
+  -- The canonical GitHub connector remains Vault-backed. Replace only the
+  -- legacy PLP operational target; historical identity is retained on the
+  -- project record below rather than remaining mutation-authorized.
   select coalesce(jsonb_agg(to_jsonb(value) order by value),'[]'::jsonb)
     into v_allowed
   from (
@@ -121,6 +127,8 @@ begin
     ) returning id into v_repo_resource_id;
   end if;
 
+  -- Provision a fresh runtime inside the current live Vercel team through
+  -- Pandora's Worker F Vault broker. The removed legacy project is not reused.
   v_vercel := private.pandora_provision_customer_vercel_project_20260901(v_project_name,v_project_id);
   v_vercel_project_id := coalesce(v_vercel->>'id','');
   v_vercel_project_name := coalesce(v_vercel->>'name','');

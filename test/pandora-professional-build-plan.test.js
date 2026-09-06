@@ -50,11 +50,13 @@ test("professional plan presents an attractive but truthful product proposal", (
 });
 
 test("the proposal is shown before build and preserved in conversation history", () => {
-  assert.match(createUi, /PandoraProfessionalBuildPlan\(understanding: u!\)/);
+  assert.match(createUi, /PandoraSimpleBuildPlan\(understanding: u!\)/);
   assert.match(createUi, /Ready to see it become real\?/);
   assert.match(createUi, /starts writing the real code immediately/);
   assert.doesNotMatch(createUi, /requirements\.take\(4\)/);
-  assert.match(conversation, /PandoraProfessionalBuildPlan\([\s\S]*understanding: widget\.understanding,[\s\S]*showDeliveryPromise: false/);
+  assert.match(conversation, /PandoraSimpleBuildPlan\([\s\S]*understanding: widget\.understanding,[\s\S]*showDeliveryPromise: false/);
+  assert.match(plan, /View plan/);
+  assert.match(plan, /PandoraProfessionalBuildPlan\(/);
   assert.doesNotMatch(conversation, /class _PandoraProposal extends StatelessWidget/);
 });
 

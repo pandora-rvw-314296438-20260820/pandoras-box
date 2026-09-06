@@ -3,6 +3,10 @@ const fs = require('node:fs');
 const test = require('node:test');
 
 const source = fs.readFileSync('supabase/functions/pandora-project-runtime/index.ts', 'utf8');
+const errorsSource = fs.readFileSync(
+  'supabase/functions/pandora-project-runtime/runtime-errors.ts',
+  'utf8',
+);
 
 function block(startMarker, endMarker) {
   const start = source.indexOf(startMarker);
@@ -37,5 +41,6 @@ test('missing provider project is a fail-closed trust conflict', () => {
   assert.match(request, /status === 404/);
   assert.match(request, /\.test\(path\)/);
   assert.match(request, /VERCEL_PROJECT_NOT_FOUND/);
-  assert.match(source, /"VERCEL_PROJECT_NOT_FOUND", "VERCEL_PROJECT_IDENTITY_MISMATCH"/);
+  assert.match(errorsSource, /"VERCEL_PROJECT_NOT_FOUND"/);
+  assert.match(errorsSource, /"VERCEL_PROJECT_IDENTITY_MISMATCH"/);
 });

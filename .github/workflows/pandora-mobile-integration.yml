@@ -150,10 +150,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dart format lib/features/simple/project_experience_v2.dart
-          git diff --no-index -- \
-            ../apps/pandora-mobile/lib/features/simple/project_experience_v2.dart \
-            lib/features/simple/project_experience_v2.dart || true
+          for file in \
+            lib/features/simple/project_experience_v2.dart \
+            lib/features/simple/project_build_conversation.dart
+          do
+            dart format "$file"
+            git diff --no-index -- "../apps/pandora-mobile/$file" "$file" || true
+          done
 
       - name: Materialize canonical web formatter repair
         if: ${{ failure() }}
