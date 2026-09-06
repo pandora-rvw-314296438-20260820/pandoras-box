@@ -184,7 +184,7 @@ test("owner API and mobile project detail are wired to the operational workspace
   );
 
   assert.match(ownerApi, /loadOperationalWorkspace/);
-  assert.match(ownerApi, /\/projects\\\/\[\^\/\]\+\\\/imports\\\/preview/);
+  assert.ok(ownerApi.includes("^\\/projects\\/[^/]+\\/imports\\/preview$"));
   assert.match(ownerApi, /resolveOperationalConflict/);
   assert.match(ownerApi, /operationalAttentionCount/);
   assert.match(models, /class OperationalWorkspace/);
