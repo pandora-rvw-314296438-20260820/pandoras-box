@@ -166,6 +166,9 @@ export async function previewExternalImport({ projectId, sourceProvider, objects
   const normalized = normalizeImportObjects(objects);
   const safeObjects = await Promise.all(normalized.map(redactedImportObject));
   safeObjects.sort((a, b) => `${a.kind}|${a.externalId}|${a.targetRef || ""}`.localeCompare(`${b.kind}|${b.externalId}|${b.targetRef || ""}`));
+  safeObjects.forEach((item, index) => {
+    item.index = index;
+  });
   const fingerprint = await sha256({ schemaVersion: 1, projectId: text(projectId), sourceProvider: provider, objects: safeObjects });
   const current = mappings.map(normalizeMapping);
   const creates = [];
