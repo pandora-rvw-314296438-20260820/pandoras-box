@@ -19,6 +19,12 @@ import {
   normalizeWorkerCommand,
   reconcileOwnerWorkerCommand,
 } from "./command-pipeline.mjs";
+import {
+  loadOperationalWorkspace,
+  operationalAttentionCount,
+  resolveOperationalConflict,
+  stageOperationalImport,
+} from "./operational-workspace.mjs";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -567,18 +573,23 @@ async function loadDomainSummaries(context: UserContext, projectItems: unknown[]
 }
 
 async function home(context: UserContext) {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
   const [
     projectItems,
     approvalItems,
     activityItems,
     connectionItems,
     safetyItem,
+    operationalAttention,
   ] = await Promise.all([
     loadProjectSummaries(context),
     approvals(context, 10),
     activity(context, 5),
     connections(context),
     safety(context),
+    operationalAttentionCount(admin, context.organizationId),
   ]);
   const domainItems = await loadDomainSummaries(context, projectItems);
   const blocked = projectItems.filter((item) =>
@@ -588,7 +599,7 @@ async function home(context: UserContext) {
     connectionItems.filter((item) =>
       item.state === "problem" || item.state === "needs_permission"
     ).length;
-  const needsAttention = blocked + connectionProblems;
+  const needsAttention = blocked + connectionProblems + operationalAttention;
   const notChecked =
     projectItems.some((item) => item.dataFreshness !== "fresh") ||
     connectionItems.some((item) => item.state === "not_checked") ||
@@ -629,6 +640,7 @@ async function home(context: UserContext) {
       activeProjects:
         projectItems.filter((item) => item.plainStatus === "active").length,
       needsAttention,
+      operationalAttention,
     },
     topProjects: projectItems.slice(0, 3),
     domains: domainItems,
@@ -687,6 +699,14 @@ async function project(context: UserContext, identifier: string) {
     throw new Error("BACKEND_READ_FAILED");
   }
   const evidenceRows = (evidence.data || []) as JsonRecord[];
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const operations = await loadOperationalWorkspace(
+    admin,
+    context.organizationId,
+    String(projectRow.id),
+  );
   return {
     ...projectSummary({
       ...projectRow,
@@ -704,6 +724,7 @@ async function project(context: UserContext, identifier: string) {
       .map(releaseSummary)
       .slice(0, 10),
     currentState: projection.data?.projection || null,
+    operations,
   };
 }
 
@@ -2101,6 +2122,22 @@ Deno.serve(async (req: Request) => {
     if (req.method === "GET" && route === "/projects") {
       return send(await projects(context));
     }
+    if (req.method === "GET" && /^\/projects\/[^/]+\/operations$/.test(route)) {
+      const projectRecord = await resolveMemoryProject(
+        context,
+        decodeURIComponent(route.split("/")[2]),
+      );
+      const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      return send(
+        await loadOperationalWorkspace(
+          admin,
+          context.organizationId,
+          textValue(projectRecord?.id),
+        ),
+      );
+    }
     if (req.method === "GET" && /^\/projects\/[^/]+$/.test(route)) {
       return send(
         await project(context, decodeURIComponent(route.split("/")[2])),
@@ -2184,6 +2221,52 @@ Deno.serve(async (req: Request) => {
         throw new Error("VERCEL_CONNECT_AUTHORIZATION_BODY_NOT_ALLOWED");
       }
       return send(await ownerConnectBridge(context, "authorize"));
+    }
+    if (
+      req.method === "POST" &&
+      /^\/projects\/[^/]+\/imports\/preview$/.test(route)
+    ) {
+      const projectRecord = await resolveMemoryProject(
+        context,
+        decodeURIComponent(route.split("/")[2]),
+      );
+      const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      return send(
+        await stageOperationalImport(
+          admin,
+          context.organizationId,
+          textValue(projectRecord?.id),
+          context.userId,
+          await bodyJson(req),
+        ),
+        201,
+      );
+    }
+    if (
+      req.method === "POST" &&
+      /^\/projects\/[^/]+\/conflicts\/[^/]+\/resolve$/.test(route)
+    ) {
+      if (context.aal !== "aal2") throw new Error("AAL2_REQUIRED");
+      const segments = route.split("/");
+      const projectRecord = await resolveMemoryProject(
+        context,
+        decodeURIComponent(segments[2]),
+      );
+      const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      return send(
+        await resolveOperationalConflict(
+          admin,
+          context.organizationId,
+          textValue(projectRecord?.id),
+          context.userId,
+          decodeURIComponent(segments[4]),
+          await bodyJson(req),
+        ),
+      );
     }
     if (req.method === "POST" && route === "/memory/search") {
       const body = await bodyJson(req);
@@ -2314,6 +2397,10 @@ Deno.serve(async (req: Request) => {
         "INVALID_WORKER_REVIEW_REQUEST",
         "INVALID_WORKER_REVIEW_ROUTE",
         "INVALID_WORKER_PLAN_ID",
+        "INVALID_OPERATIONAL_PROVIDER",
+        "INVALID_OPERATIONAL_RESOURCE_TYPE",
+        "INVALID_OPERATIONAL_IMPORT",
+        "INVALID_OPERATIONAL_RESOLUTION",
         "PROJECT_REQUIRED",
         "VERCEL_CONNECT_AUTHORIZATION_BODY_NOT_ALLOWED",
         "BODY_TOO_LARGE",
@@ -2332,6 +2419,7 @@ Deno.serve(async (req: Request) => {
         "APPROVAL_NOT_FOUND",
         "CONNECTION_NOT_FOUND",
         "CONNECTION_ACTION_NOT_FOUND",
+        "OPERATIONAL_CONFLICT_NOT_FOUND",
       ].includes(code)
     ) {
       return reject(404, code, "Pandora could not find that item.");
