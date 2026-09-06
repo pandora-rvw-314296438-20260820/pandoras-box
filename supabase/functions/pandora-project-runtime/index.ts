@@ -553,31 +553,56 @@ async function createVercelDeployment(provider: { id: string; name: string }, bu
   return latest;
 }
 
-async function createProject(context: UserContext, body: JsonRecord) {
+async function createProject(
+  context: UserContext,
+  body: JsonRecord,
+  idempotencyKey: string,
+) {
   const name = textValue(body.name);
   const objective = textValue(body.objective);
   const kind = buildKind(body.buildKind);
   if (name.length < 2 || name.length > 100) throw new Error("INVALID_PROJECT_NAME");
   if (objective.length < 10 || objective.length > 50000) throw new Error("INVALID_OBJECTIVE");
+  if (idempotencyKey.length < 8 || idempotencyKey.length > 200) {
+    throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+  }
 
-  const projectKey = `${slugify(name)}-${crypto.randomUUID().slice(0, 8)}`;
-  const now = new Date().toISOString();
-  const config = {
-    customerJourney: {
-      buildKind: kind,
-      stage: "understanding",
-      runtimeStatus: "not_configured",
-      createdFrom: "simple_mode",
-      updatedAt: now,
+  const requestSha256 = await sha256Hex(JSON.stringify({
+    name,
+    objective,
+    buildKind: kind,
+  }));
+  const { data, error } = await serviceClient().rpc(
+    "pandora_create_customer_project_v1",
+    {
+      p_organization_id: context.organizationId,
+      p_requester_id: context.userId,
+      p_idempotency_key: idempotencyKey,
+      p_request_sha256: requestSha256,
+      p_name: name,
+      p_objective: objective,
+      p_build_kind: kind,
     },
-  };
-  const { data, error } = await serviceClient().from("projectos_projects")
-    .insert({ organization_id: context.organizationId, project_key: projectKey, name, workspace_path: `projectos/projects/${projectKey}`, status: "active", objective, roadmap_version: "2.0.0", config, created_by: context.userId })
-    .select("id, project_key, name, objective, status, config, created_at, updated_at").single();
-  if (error || !data) throw new Error("BACKEND_WRITE_FAILED");
-  const createdProject = asRecord(data);
-  const provider = await ensureVercelProject(context, createdProject);
-  return projectResponse({ ...createdProject, config: provider.config });
+  );
+  if (error) {
+    if (error.message?.includes("PROJECT_CREATE_IDEMPOTENCY_COLLISION")) {
+      throw new Error("PROJECT_CREATE_IDEMPOTENCY_COLLISION");
+    }
+    if (error.message?.includes("PROJECT_CREATE_NOT_ALLOWED")) {
+      throw new Error("ORGANIZATION_ACCESS_REQUIRED");
+    }
+    throw new Error("BACKEND_WRITE_FAILED");
+  }
+  const result = asRecord(data);
+  const project = asRecord(result.project);
+  if (!textValue(project.id) || !textValue(project.project_key)) {
+    throw new Error("BACKEND_WRITE_FAILED");
+  }
+
+  // Provider provisioning is intentionally not part of conceptual project
+  // creation. Preview/build admission provisions external runtime resources
+  // idempotently when there is an exact source version to run.
+  return projectResponse(project);
 }
 
 
@@ -1533,7 +1558,18 @@ Deno.serve(async (req: Request) => {
     const context = await authenticate(req);
     await enforceRateLimit(context, req.method);
     const route = routePath(new URL(req.url).pathname);
-    if (req.method === "POST" && route === "/projects") return jsonResponse({ project: await createProject(context, await bodyJson(req)) }, 201, requestId, origin);
+    if (req.method === "POST" && route === "/projects") {
+      const idempotencyKey = textValue(req.headers.get("idempotency-key"));
+      if (idempotencyKey.length < 8 || idempotencyKey.length > 200) {
+        throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+      }
+      return jsonResponse(
+        { project: await createProject(context, await bodyJson(req), idempotencyKey) },
+        201,
+        requestId,
+        origin,
+      );
+    }
     const runtimeMatch = route.match(/^\/projects\/([^/]+)\/runtime$/);
     if (req.method === "GET" && runtimeMatch) return jsonResponse(await runtimeSummary(context, decodeURIComponent(runtimeMatch[1])), 200, requestId, origin);
     const previewMatch = route.match(/^\/projects\/([^/]+)\/previews$/);
@@ -1549,8 +1585,8 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ code: "PROJECT_RUNTIME_ROUTE_NOT_FOUND", plainMessage: "That project action is not available yet.", requestId }, 404, requestId, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
-    const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "INVALID_DOMAIN", "VERSION_REQUIRED", "INVALID_PRODUCTION_PRECONDITION", "EXACT_VERSION_REQUIRED", "ARTIFACT_FILE_BASE64_INVALID", "ARTIFACT_FILE_BASE64_NON_CANONICAL", "ARTIFACT_FILE_PATH_INVALID", "ARTIFACT_BUNDLE_JSON_INVALID", "ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED", "ARTIFACT_BUNDLE_FILES_INVALID", "INVALID_DOMAIN_REQUEST", "INVALID_ROLLBACK_REQUEST", "INVALID_UNDO_REQUEST"]);
-    const conflicts = new Set(["PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED", "VERCEL_PROJECT_NOT_FOUND", "VERCEL_PROJECT_IDENTITY_MISMATCH", "ARTIFACT_LINEAGE_INCOMPLETE", "ARTIFACT_NOT_FOUND", "ARTIFACT_DIGEST_MISMATCH", "ARTIFACT_STORAGE_INVALID", "ARTIFACT_STORAGE_READ_FAILED", "ARTIFACT_KIND_NOT_DEPLOYABLE", "ARTIFACT_PROVENANCE_MISMATCH", "ARTIFACT_BUNDLE_SIZE_INVALID", "ARTIFACT_BUNDLE_DIGEST_MISMATCH", "ARTIFACT_BUNDLE_LINEAGE_MISMATCH", "ARTIFACT_FILES_NOT_CANONICAL", "ARTIFACT_FILE_ENCODING_UNSUPPORTED", "ARTIFACT_FILE_TOO_LARGE", "ARTIFACT_FILES_TOTAL_TOO_LARGE", "ARTIFACT_FILE_DIGEST_MISMATCH", "ARTIFACT_FILE_SIZE_MISMATCH", "ARTIFACT_ENTRYPOINT_MISSING", "DOMAIN_DEPLOYMENT_REQUIRED", "DOMAIN_NOT_FOUND", "ROLLBACK_TARGET_NOT_ELIGIBLE", "ROLLBACK_TARGET_NOT_VERIFIED", "SUPABASE_FALLBACK_DOMAIN_UNAVAILABLE", "PRODUCTION_PROVIDER_UNSUPPORTED"]);
+    const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "IDEMPOTENCY_KEY_REQUIRED", "INVALID_DOMAIN", "VERSION_REQUIRED", "INVALID_PRODUCTION_PRECONDITION", "EXACT_VERSION_REQUIRED", "ARTIFACT_FILE_BASE64_INVALID", "ARTIFACT_FILE_BASE64_NON_CANONICAL", "ARTIFACT_FILE_PATH_INVALID", "ARTIFACT_BUNDLE_JSON_INVALID", "ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED", "ARTIFACT_BUNDLE_FILES_INVALID", "INVALID_DOMAIN_REQUEST", "INVALID_ROLLBACK_REQUEST", "INVALID_UNDO_REQUEST"]);
+    const conflicts = new Set(["PROJECT_CREATE_IDEMPOTENCY_COLLISION", "PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED", "VERCEL_PROJECT_NOT_FOUND", "VERCEL_PROJECT_IDENTITY_MISMATCH", "ARTIFACT_LINEAGE_INCOMPLETE", "ARTIFACT_NOT_FOUND", "ARTIFACT_DIGEST_MISMATCH", "ARTIFACT_STORAGE_INVALID", "ARTIFACT_STORAGE_READ_FAILED", "ARTIFACT_KIND_NOT_DEPLOYABLE", "ARTIFACT_PROVENANCE_MISMATCH", "ARTIFACT_BUNDLE_SIZE_INVALID", "ARTIFACT_BUNDLE_DIGEST_MISMATCH", "ARTIFACT_BUNDLE_LINEAGE_MISMATCH", "ARTIFACT_FILES_NOT_CANONICAL", "ARTIFACT_FILE_ENCODING_UNSUPPORTED", "ARTIFACT_FILE_TOO_LARGE", "ARTIFACT_FILES_TOTAL_TOO_LARGE", "ARTIFACT_FILE_DIGEST_MISMATCH", "ARTIFACT_FILE_SIZE_MISMATCH", "ARTIFACT_ENTRYPOINT_MISSING", "DOMAIN_DEPLOYMENT_REQUIRED", "DOMAIN_NOT_FOUND", "ROLLBACK_TARGET_NOT_ELIGIBLE", "ROLLBACK_TARGET_NOT_VERIFIED", "SUPABASE_FALLBACK_DOMAIN_UNAVAILABLE", "PRODUCTION_PROVIDER_UNSUPPORTED"]);
     if (code === "SIGN_IN_REQUIRED") return jsonResponse({ code, plainMessage: "Please sign in again.", requestId }, 401, requestId, origin);
     if (["ORGANIZATION_ACCESS_REQUIRED", "OWNER_ROLE_REQUIRED", "ROLLBACK_OWNER_REQUIRED", "ROLLBACK_AUTHORIZATION_FAILED"].includes(code)) return jsonResponse({ code, plainMessage: "You do not have permission to roll back this production project.", requestId }, 403, requestId, origin);
     if (code === "ORGANIZATION_SELECTION_REQUIRED") return jsonResponse({ code, plainMessage: "Choose which organization you want to use.", requestId }, 409, requestId, origin);
