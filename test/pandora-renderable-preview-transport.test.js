@@ -8,6 +8,14 @@ const migration = readFileSync(
   'supabase/migrations/20260906193000_pandora_renderable_preview_transport_v1.sql',
   'utf8',
 );
+const convergenceMigration = readFileSync(
+  'supabase/migrations/20260906201500_pandora_renderable_preview_reverification_convergence_v2.sql',
+  'utf8',
+);
+const reverifyFinalizerMigration = readFileSync(
+  'supabase/migrations/20260906201600_pandora_renderable_preview_reverification_finalizer_v1.sql',
+  'utf8',
+);
 
 test('Vercel preview proxy preserves capability authority but serves renderable HTML', () => {
   assert.match(api, /pandora-preview-host/);
@@ -46,4 +54,21 @@ test('verification replay is transport-bound and cannot reuse the old PASS', () 
   assert.match(migration, /supabase-static-production-renderable-v3/);
   assert.match(migration, /v_base:=private\.pandora_worker_e_verify_supabase_preview_20260830/);
   assert.match(migration, /SUPABASE_PREVIEW_BASE_VERIFICATION_MISSING/);
+});
+
+test('succeeded builds do not bypass pending render-transport re-verification', () => {
+  assert.match(convergenceMigration, /pandora_converge_static_site_build_v2_20260830/);
+  assert.match(convergenceMigration, /pending_dep\.verification_state=''ready_for_verification''/);
+  assert.match(convergenceMigration, /pending_dep\.status=''ready_for_verification''/);
+  assert.match(convergenceMigration, /pending_dep\.provider=''supabase_preview''/);
+  assert.match(convergenceMigration, /RENDERABLE_PREVIEW_REVERIFY_GUARD_ANCHOR_MISSING/);
+});
+
+test('renderable preview re-verification safely finalizes current and historical previews', () => {
+  assert.match(reverifyFinalizerMigration, /pandora_finalize_renderable_preview_reverification_20260906/);
+  assert.match(reverifyFinalizerMigration, /pandora_worker_e_verify_supabase_preview_v2_20260830/);
+  assert.match(reverifyFinalizerMigration, /RENDERABLE_PREVIEW_REVERIFY_PROOF_INVALID/);
+  assert.match(reverifyFinalizerMigration, /current_deployment_id=v_dep\.id/);
+  assert.match(reverifyFinalizerMigration, /v_current:=found/);
+  assert.match(reverifyFinalizerMigration, /previewVerificationState','verified/);
 });
