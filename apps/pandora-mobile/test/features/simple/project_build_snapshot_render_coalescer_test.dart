@@ -88,13 +88,11 @@ void main() {
   });
   test('supports concurrent listeners without re-listening to the source', () async {
     var sourceListenCount = 0;
-    final source = Stream<ProjectBuildStreamSnapshot>.multi(
-      (controller) {
-        sourceListenCount += 1;
-        controller.add(snapshot(11));
-        controller.close();
-      },
-    );
+    final source = Stream<ProjectBuildStreamSnapshot>.multi((controller) {
+      sourceListenCount += 1;
+      controller.add(snapshot(11));
+      controller.close();
+    });
 
     final shared = coalesceProjectBuildSnapshotsForRendering(
       source,
