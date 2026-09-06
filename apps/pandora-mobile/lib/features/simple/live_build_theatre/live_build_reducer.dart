@@ -247,12 +247,19 @@ class LiveBuildTheatreReducer {
           );
           break;
         case LiveBuildEventKind.buildJobCreated:
-          stage = LiveBuildStage.building;
+          // Admission creates durable identity; it does not prove execution.
+          stage = LiveBuildStage.starting;
           break;
         case LiveBuildEventKind.jobState:
         case LiveBuildEventKind.buildStep:
-          stage = _stageFromPayload(event.safePayload, fallback: stage);
           final status = _payloadText(event.safePayload, 'status');
+          if (status == 'queued' || status == 'claimed') {
+            // A queued/claimed lease can still have started_at == null. Never
+            // present it as active build work until runtime reports execution.
+            stage = LiveBuildStage.starting;
+          } else {
+            stage = _stageFromPayload(event.safePayload, fallback: stage);
+          }
           if (status == 'failed') {
             failed = true;
             stage = LiveBuildStage.problem;
