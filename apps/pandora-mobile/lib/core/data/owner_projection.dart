@@ -132,6 +132,7 @@ bool isLegacyConnection(ConnectionSummary connection) {
   final words = '${connection.name} ${connection.purpose}'.toLowerCase();
   if (!words.contains('github')) return false;
   return words.contains('mbanatao') ||
+      words.contains('banataosystems') ||
       words.contains('legacy') ||
       words.contains('retired') ||
       words.contains('suspended') ||
