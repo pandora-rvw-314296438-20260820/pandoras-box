@@ -183,6 +183,50 @@ test("object 360 derives provider, runtime, domain, and staged conflicts", async
 });
 
 
+test("mobile conflict resolution preserves AAL2 and plan-first boundaries", () => {
+  const root = path.resolve(__dirname, "..");
+  const repositoryContract = fs.readFileSync(
+    path.join(root, "apps/pandora-mobile/lib/core/data/pandora_repository.dart"),
+    "utf8",
+  );
+  const remoteRepository = fs.readFileSync(
+    path.join(root, "apps/pandora-mobile/lib/core/data/remote_pandora_repository.dart"),
+    "utf8",
+  );
+  const auth = fs.readFileSync(
+    path.join(root, "apps/pandora-mobile/lib/core/security/pandora_auth.dart"),
+    "utf8",
+  );
+  const projectDetail = fs.readFileSync(
+    path.join(root, "apps/pandora-mobile/lib/features/projects/project_detail_screen.dart"),
+    "utf8",
+  );
+  const ownerApi = fs.readFileSync(
+    path.join(root, "supabase/functions/pandora-owner-api/index.ts"),
+    "utf8",
+  );
+
+  assert.match(repositoryContract, /OperationalConflictResolutionSource/);
+  assert.match(remoteRepository, /operational-conflict\.resolve/);
+  assert.match(
+    remoteRepository,
+    /externalMutationExecuted'] != false/,
+  );
+  assert.match(auth, /ExtraIdentityVerificationSource/);
+  assert.match(auth, /mfa\.listFactors\(\)/);
+  assert.match(auth, /mfa\.challengeAndVerify/);
+  assert.match(projectDetail, /Resolve conflict/);
+  assert.match(projectDetail, /AAL2_REQUIRED/);
+  assert.match(projectDetail, /verifiedExtraIdentityFactors/);
+  assert.match(projectDetail, /verifyExtraIdentity/);
+  assert.match(projectDetail, /await widget\.onRefresh\(\)/);
+  assert.match(
+    ownerApi,
+    /context\.aal !== "aal2"\) throw new Error\("AAL2_REQUIRED"\)/,
+  );
+  assert.match(ownerApi, /resolveOperationalConflict/);
+});
+
 test("owner API and mobile project detail are wired to the operational workspace", () => {
   const root = path.resolve(__dirname, "..");
   const ownerApi = fs.readFileSync(
