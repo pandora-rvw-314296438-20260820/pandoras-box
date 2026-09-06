@@ -41,3 +41,22 @@ test('stream lifecycle is bounded and exact preview safety is preserved', () => 
   assert.doesNotMatch(initial, /Timer\.periodic/);
   assert.doesNotMatch(initial, /progress\s*[:=]\s*[0-9]+/i);
 });
+
+
+test('request intent cannot claim active execution before stream evidence', () => {
+  assert.match(
+    initial,
+    /if \(_buildRequested\) return updating \? 'Starting your change' : 'Starting';/,
+  );
+  assert.doesNotMatch(
+    initial,
+    /if \(_buildRequested\) return updating \? 'Building your change' : 'Building';/,
+  );
+  assert.match(initial, /String get _ownerHeaderStatus/);
+  assert.match(initial, /case LiveBuildStage\.starting:[\s\S]*return 'Starting';/);
+  assert.match(
+    initial,
+    /case LiveBuildStage\.building:[\s\S]*return 'Working';/,
+  );
+  assert.match(initial, /subtitle: _ownerHeaderStatus/);
+});

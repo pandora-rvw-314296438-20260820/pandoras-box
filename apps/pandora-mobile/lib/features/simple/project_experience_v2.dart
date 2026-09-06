@@ -519,7 +519,7 @@ class _ProjectBuildExperienceV2ScreenState
     if (_ready) return updating ? 'Updated' : 'Ready';
     if (_candidate != null) return 'Preparing your preview';
     if (_snapshot?.verification?.state == 'checking') return 'Checking';
-    if (_buildRequested) return updating ? 'Building your change' : 'Building';
+    if (_buildRequested) return updating ? 'Starting your change' : 'Starting';
     return 'Preparing';
   }
 
@@ -532,6 +532,32 @@ class _ProjectBuildExperienceV2ScreenState
       return 'Preparing the exact version you just built.';
     }
     return 'Pandora is working while your project stays safe.';
+  }
+
+  String get _ownerHeaderStatus {
+    if (_error != null) return 'Needs you';
+    if (_ready) return 'Ready';
+    final activity = _initialBuildActivity;
+    if (activity != null) {
+      switch (activity.stage) {
+        case LiveBuildStage.starting:
+          return 'Starting';
+        case LiveBuildStage.writing:
+        case LiveBuildStage.sourceReady:
+        case LiveBuildStage.building:
+        case LiveBuildStage.checking:
+        case LiveBuildStage.correcting:
+          return 'Working';
+        case LiveBuildStage.previewReady:
+        case LiveBuildStage.completed:
+          return 'Ready';
+        case LiveBuildStage.needsYou:
+        case LiveBuildStage.problem:
+          return 'Needs you';
+      }
+    }
+    if (_candidate != null) return 'Preparing';
+    return _buildRequested ? 'Starting' : 'Preparing';
   }
 
   Widget _buildStageSurface() {
@@ -617,11 +643,7 @@ class _ProjectBuildExperienceV2ScreenState
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: PandoraV2ObjectHeader(
                   title: widget.project.name,
-                  subtitle: _error != null
-                      ? 'Needs you'
-                      : _ready
-                          ? 'Ready'
-                          : 'Working',
+                  subtitle: _ownerHeaderStatus,
                 ),
               ),
               Expanded(
