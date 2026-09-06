@@ -152,9 +152,7 @@ jobs:
           set -euo pipefail
           for file in \
             lib/features/simple/project_experience_v2.dart \
-            lib/features/simple/project_build_conversation.dart \
-            lib/core/models/pandora_models.dart \
-            lib/features/projects/project_detail_screen.dart
+            lib/features/simple/project_build_conversation.dart
           do
             dart format "$file"
             git diff --no-index -- "../apps/pandora-mobile/$file" "$file" || true
