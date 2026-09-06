@@ -6,21 +6,31 @@ const Duration projectBuildRenderCadence = Duration(milliseconds: 16);
 
 /// Coalesces only customer rendering cadence for cumulative build snapshots.
 ///
-/// The resilient stream remains authoritative and unchanged. During a burst,
-/// the latest exact snapshot wins for the next render tick. Replay, reconnect,
-/// retention-gap and terminal/error snapshots bypass the cadence so trust and
-/// intervention state are never delayed behind cosmetic rendering work.
+/// [sourceFactory] must create a fresh resilient source for each listener era.
+/// This keeps the render stream safe when Flutter detaches and later reattaches
+/// a StreamBuilder: the previous single-subscription source is cancelled, and a
+/// new authoritative resilient stream is opened instead of listening twice to
+/// the same Dart stream.
+///
+/// During a burst, the latest exact snapshot wins for the next render tick.
+/// Replay, reconnect, retention-gap and terminal/error snapshots bypass the
+/// cadence so trust and intervention state are never delayed behind cosmetic
+/// rendering work.
 Stream<ProjectBuildStreamSnapshot> coalesceProjectBuildSnapshotsForRendering(
-  Stream<ProjectBuildStreamSnapshot> source, {
+  Stream<ProjectBuildStreamSnapshot> Function() sourceFactory, {
   Duration cadence = projectBuildRenderCadence,
 }) {
-  if (cadence <= Duration.zero) return source;
-
+  // This controller intentionally survives listener gaps; onCancel tears down
+  // the upstream source and onListen creates a fresh listener era.
+  // ignore: close_sinks
   late StreamController<ProjectBuildStreamSnapshot> controller;
+  // stopSource cancels the active subscription whenever the last UI listener
+  // detaches; the analyzer cannot prove that callback-owned lifecycle.
+  // ignore: cancel_subscriptions
   StreamSubscription<ProjectBuildStreamSnapshot>? subscription;
   Timer? timer;
   ProjectBuildStreamSnapshot? pending;
-  var closed = false;
+  var sourceGeneration = 0;
 
   bool requiresImmediateRender(ProjectBuildStreamSnapshot snapshot) {
     final status = snapshot.buildStatus?.trim().toLowerCase();
@@ -38,48 +48,78 @@ Stream<ProjectBuildStreamSnapshot> coalesceProjectBuildSnapshotsForRendering(
   void flush() {
     timer?.cancel();
     timer = null;
-    if (closed) return;
     final next = pending;
     pending = null;
-    if (next != null && !controller.isClosed) controller.add(next);
+    if (next != null && !controller.isClosed && controller.hasListener) {
+      controller.add(next);
+    }
   }
 
-  controller = StreamController<ProjectBuildStreamSnapshot>(
-    sync: true,
-    onListen: () {
+  void schedule(ProjectBuildStreamSnapshot snapshot) {
+    pending = snapshot;
+    if (requiresImmediateRender(snapshot) || cadence <= Duration.zero) {
+      flush();
+      return;
+    }
+    timer ??= Timer(cadence, flush);
+  }
+
+  void startSource() {
+    if (controller.isClosed || subscription != null) return;
+    final generation = ++sourceGeneration;
+    try {
+      final source = sourceFactory();
       subscription = source.listen(
         (snapshot) {
-          if (closed) return;
-          pending = snapshot;
-          if (requiresImmediateRender(snapshot)) {
-            flush();
-            return;
-          }
-          timer ??= Timer(cadence, flush);
+          if (generation != sourceGeneration || controller.isClosed) return;
+          schedule(snapshot);
         },
         onError: (Object error, StackTrace stackTrace) {
+          if (generation != sourceGeneration || controller.isClosed) return;
           flush();
-          if (!closed && !controller.isClosed) {
+          if (controller.hasListener) {
             controller.addError(error, stackTrace);
           }
         },
         onDone: () {
+          if (generation != sourceGeneration || controller.isClosed) return;
           flush();
-          closed = true;
-          if (!controller.isClosed) controller.close();
+          subscription = null;
+          if (controller.hasListener) {
+            // A resilient source should reconnect internally. If it completes,
+            // reopen from durable replay while this surface remains mounted.
+            startSource();
+          }
         },
+        cancelOnError: false,
       );
-    },
-    onPause: () => subscription?.pause(),
-    onResume: () => subscription?.resume(),
-    onCancel: () async {
-      closed = true;
-      timer?.cancel();
-      timer = null;
-      pending = null;
-      await subscription?.cancel();
-    },
+    } catch (error, stackTrace) {
+      subscription = null;
+      scheduleMicrotask(() {
+        if (generation == sourceGeneration &&
+            !controller.isClosed &&
+            controller.hasListener) {
+          controller.addError(error, stackTrace);
+        }
+      });
+    }
+  }
+
+  void stopSource() {
+    sourceGeneration += 1;
+    timer?.cancel();
+    timer = null;
+    pending = null;
+    final current = subscription;
+    subscription = null;
+    if (current != null) unawaited(current.cancel());
+  }
+
+  controller = StreamController<ProjectBuildStreamSnapshot>.broadcast(
+    sync: true,
+    onListen: startSource,
+    onCancel: stopSource,
   );
 
-  return controller.stream.asBroadcastStream();
+  return controller.stream;
 }
