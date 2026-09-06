@@ -66,6 +66,14 @@ test('V2 Build Theatre does not expose the raw project objective', () => {
   assert.doesNotMatch(buildScreen, /widget\.project\.objective/);
 });
 
+test('V2 Build Theatre stops stale owner activity after a terminal failure', () => {
+  const buildScreen = experienceV2.split('class ProjectWorkspaceV2Screen')[0];
+  assert.match(buildScreen, /if \(_error != null\) return 'Stopped';/);
+  assert.match(buildScreen, /if \(_error == null &&[\s\S]*activity\.latestSequence > 0\)/);
+  assert.match(buildScreen, /_initialBuildActivity = null;[\s\S]*_initialBuildJobId = null;[\s\S]*_initialBuildStreamId = null;/);
+  assert.match(buildScreen, /subtitle: _error != null[\s\S]*\? 'Needs you'/);
+});
+
 test('Build Theatre projection rejects stale superseded build ownership', () => {
   assert.match(theatreGuard, /from public\.pandora_build_jobs newer/);
   assert.match(theatreGuard, /newer\.created_at > new\.created_at/);
