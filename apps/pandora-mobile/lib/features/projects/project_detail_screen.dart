@@ -5,6 +5,7 @@ import '../../core/data/owner_projection.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/design/pandora_tokens.dart';
 import '../../core/models/pandora_models.dart';
+import '../../core/network/pandora_api_error.dart';
 import '../../core/security/pandora_auth.dart';
 import '../../core/state/screen_controller.dart';
 import '../../core/widgets/content_state.dart';
@@ -503,7 +504,10 @@ class _OperationalConflictRowState extends State<_OperationalConflictRow> {
 
   Future<bool> _completeExtraIdentity() async {
     final auth = PandoraDependencies.of(context).auth;
-    if (auth is! ExtraIdentityVerificationSource) {
+    final verification = auth is ExtraIdentityVerificationSource
+        ? auth as ExtraIdentityVerificationSource
+        : null;
+    if (verification == null) {
       setState(() {
         _disabledReason =
             'Extra identity verification is not available on this client.';
@@ -511,7 +515,7 @@ class _OperationalConflictRowState extends State<_OperationalConflictRow> {
       return false;
     }
 
-    final factors = await auth.verifiedExtraIdentityFactors();
+    final factors = await verification.verifiedExtraIdentityFactors();
     if (!mounted) return false;
     if (factors.isEmpty) {
       setState(() {
@@ -530,7 +534,7 @@ class _OperationalConflictRowState extends State<_OperationalConflictRow> {
 
     final input = await _showExtraIdentityDialog(context, factors);
     if (input == null || !mounted) return false;
-    await auth.verifyExtraIdentity(
+    await verification.verifyExtraIdentity(
       factorId: input.factorId,
       code: input.code,
     );
@@ -551,7 +555,10 @@ class _OperationalConflictRowState extends State<_OperationalConflictRow> {
   Future<void> _resolve() async {
     if (_busy || !widget.conflict.resolvable) return;
     final repository = PandoraDependencies.of(context).repository;
-    if (repository is! OperationalConflictResolutionSource) {
+    final resolver = repository is OperationalConflictResolutionSource
+        ? repository as OperationalConflictResolutionSource
+        : null;
+    if (resolver == null) {
       setState(() {
         _disabledReason =
             'Conflict resolution is unavailable on this Pandora client.';
@@ -572,12 +579,12 @@ class _OperationalConflictRowState extends State<_OperationalConflictRow> {
     try {
       OperationalConflictResolutionResult result;
       try {
-        result = await _submit(repository, draft);
+        result = await _submit(resolver, draft);
       } on PandoraRepositoryException catch (error) {
         if (error.code != 'AAL2_REQUIRED') rethrow;
         final verified = await _completeExtraIdentity();
         if (!verified || !mounted) return;
-        result = await _submit(repository, draft);
+        result = await _submit(resolver, draft);
       }
       if (!mounted) return;
       final planFirst = result.executionMode == 'plan_first';
