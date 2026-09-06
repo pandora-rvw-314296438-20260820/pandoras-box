@@ -8,6 +8,7 @@ import '../../core/models/pandora_models.dart';
 import 'pandora_v2_ui.dart';
 import 'project_create_experience.dart';
 import 'project_experience_v2.dart';
+import 'project_intent_presentation.dart';
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
@@ -170,8 +171,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   PandoraV2ObjectWindow(
                     title: project.name,
                     subtitle: _state(project),
-                    detail:
-                        project.purpose.trim().isEmpty ? null : project.purpose,
+                    detail: projectPurposeForDisplay(project.purpose).isEmpty
+                        ? null
+                        : projectPurposeForDisplay(project.purpose),
                     onTap:
                         _openingId == project.id ? null : () => _open(project),
                     trailing: _openingId == project.id

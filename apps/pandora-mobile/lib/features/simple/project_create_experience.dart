@@ -12,6 +12,7 @@ import '../../core/platform/pandora_native_io.dart';
 import 'pandora_v2_ui.dart';
 import 'professional_build_plan.dart';
 import 'project_build_conversation.dart';
+import 'project_intent_presentation.dart';
 
 class CreateProjectExperienceScreen extends StatefulWidget {
   const CreateProjectExperienceScreen({super.key, this.initialIntent});
@@ -44,37 +45,6 @@ class _CreateProjectExperienceScreenState
     super.dispose();
   }
 
-  String _inferName(String text) {
-    final plain = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-    final forIndex = plain.toLowerCase().lastIndexOf(' for ');
-    if (forIndex >= 0) {
-      var candidate = plain.substring(forIndex + 5);
-      candidate = candidate
-          .split(
-            RegExp(r'[,.;]|\bwhere\b|\bthat\b|\bwith\b', caseSensitive: false),
-          )
-          .first
-          .trim();
-      final words = candidate
-          .split(' ')
-          .where((word) => word.isNotEmpty)
-          .take(5)
-          .toList();
-      if (words.isNotEmpty) return words.join(' ');
-    }
-    var candidate = plain.replaceFirst(
-      RegExp(
-        r'^(please\s+)?(build|create|make|design|develop)\s+(me\s+)?',
-        caseSensitive: false,
-      ),
-      '',
-    );
-    candidate = candidate.split(RegExp(r'[,.;]')).first.trim();
-    final words =
-        candidate.split(' ').where((word) => word.isNotEmpty).take(5).toList();
-    return words.isEmpty ? 'New project' : words.join(' ');
-  }
-
   Future<void> _submit(String text) async {
     final intent = text.trim();
     if (intent.length < 10 || _submitting) {
@@ -102,9 +72,9 @@ class _CreateProjectExperienceScreenState
     });
     try {
       final project = await experience.createProject(
-        name: _inferName(intent),
+        name: deriveProjectDisplayName(intent),
         buildKind: ProjectBuildKind.helpMeDecide,
-        objective: intent,
+        objective: deriveProjectStoredObjective(intent),
         idempotencyKey: createKey,
       );
       final intentId = await experience.submitIntent(

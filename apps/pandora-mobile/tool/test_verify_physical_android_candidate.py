@@ -9,15 +9,15 @@ class PhysicalAndroidCandidateVerifierTest(unittest.TestCase):
     def test_manifest_binding_requires_external_gates_to_remain_false(self):
         with tempfile.TemporaryDirectory() as tmp:
             apk=Path(tmp)/"candidate.apk"; apk.write_bytes(b"pandora"); digest=hashlib.sha256(b"pandora").hexdigest()
-            manifest={"source_sha":"a"*40,"source_tree":"b"*40,"apk_sha256":digest,"android_package":verifier.EXPECTED_PACKAGE,"app_version":"0.4.0-rc.2+8","artifact_class":"validation-candidate","production_release":"false","physical_device_verified":"false","wifi_journey_verified":"false","mobile_data_journey_verified":"false","authenticated_owner_journey_verified":"false","network_switch_verified":"false","rollback_verified":"false"}
-            verifier.require_manifest_binding(manifest,source_sha="a"*40,source_tree="b"*40,apk_sha256=digest,package_name=verifier.EXPECTED_PACKAGE,app_version="0.4.0-rc.2+8")
+            manifest={"source_sha":"a"*40,"source_tree":"b"*40,"apk_sha256":digest,"android_package":verifier.EXPECTED_PACKAGE,"app_version":"0.4.0-rc.3+9","artifact_class":"validation-candidate","production_release":"false","physical_device_verified":"false","wifi_journey_verified":"false","mobile_data_journey_verified":"false","authenticated_owner_journey_verified":"false","network_switch_verified":"false","rollback_verified":"false"}
+            verifier.require_manifest_binding(manifest,source_sha="a"*40,source_tree="b"*40,apk_sha256=digest,package_name=verifier.EXPECTED_PACKAGE,app_version="0.4.0-rc.3+9")
             manifest["physical_device_verified"]="true"
             with self.assertRaisesRegex(verifier.VerificationError,"physical_device_verified=false"):
-                verifier.require_manifest_binding(manifest,source_sha="a"*40,source_tree="b"*40,apk_sha256=digest,package_name=verifier.EXPECTED_PACKAGE,app_version="0.4.0-rc.2+8")
+                verifier.require_manifest_binding(manifest,source_sha="a"*40,source_tree="b"*40,apk_sha256=digest,package_name=verifier.EXPECTED_PACKAGE,app_version="0.4.0-rc.3+9")
             manifest["physical_device_verified"]="false"
             manifest["network_switch_verified"]="true"
             with self.assertRaisesRegex(verifier.VerificationError,"network_switch_verified=false"):
-                verifier.require_manifest_binding(manifest,source_sha="a"*40,source_tree="b"*40,apk_sha256=digest,package_name=verifier.EXPECTED_PACKAGE,app_version="0.4.0-rc.2+8")
+                verifier.require_manifest_binding(manifest,source_sha="a"*40,source_tree="b"*40,apk_sha256=digest,package_name=verifier.EXPECTED_PACKAGE,app_version="0.4.0-rc.3+9")
 
     def test_parse_manifest_rejects_duplicate_keys(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -25,8 +25,8 @@ class PhysicalAndroidCandidateVerifierTest(unittest.TestCase):
             with self.assertRaisesRegex(verifier.VerificationError,"duplicate"): verifier.parse_manifest(path)
 
     def test_badging_parser_binds_package_and_version(self):
-        package,version_name,version_code=verifier.parse_badging("package: name='com.banataosystems.pandora_mobile' versionCode='8' versionName='0.4.0-rc.2'")
-        self.assertEqual(package,verifier.EXPECTED_PACKAGE); self.assertEqual(version_name,"0.4.0-rc.2"); self.assertEqual(version_code,"8")
+        package,version_name,version_code=verifier.parse_badging("package: name='com.banataosystems.pandora_mobile' versionCode='8' versionName='0.4.0-rc.3'")
+        self.assertEqual(package,verifier.EXPECTED_PACKAGE); self.assertEqual(version_name,"0.4.0-rc.3"); self.assertEqual(version_code,"8")
 
     def test_permission_verifier_allows_expected_network_permission(self):
         verifier.require_safe_permissions("uses-permission: name='android.permission.INTERNET'\n")
@@ -53,21 +53,21 @@ class PhysicalAndroidCandidateVerifierTest(unittest.TestCase):
             verifier.require_expected_production_signer(multi_signing,actual)
 
     def test_installed_version_parser_requires_both_fields(self):
-        version_name,version_code=verifier.parse_installed_version("  versionCode=8 minSdk=24 targetSdk=36\n  versionName=0.4.0-rc.2\n")
-        self.assertEqual(version_name,"0.4.0-rc.2"); self.assertEqual(version_code,"8")
+        version_name,version_code=verifier.parse_installed_version("  versionCode=8 minSdk=24 targetSdk=36\n  versionName=0.4.0-rc.3\n")
+        self.assertEqual(version_name,"0.4.0-rc.3"); self.assertEqual(version_code,"8")
         with self.assertRaisesRegex(verifier.VerificationError,"missing version identity"):
-            verifier.parse_installed_version("versionName=0.4.0-rc.2\n")
+            verifier.parse_installed_version("versionName=0.4.0-rc.3\n")
 
     def test_adb_smoke_rejects_installed_version_mismatch(self):
-        outputs=iter(["device\n","ok\n","package:/data/app/base.apk\n","  versionCode=7 minSdk=24\n  versionName=0.4.0-rc.2\n"])
+        outputs=iter(["device\n","ok\n","package:/data/app/base.apk\n","  versionCode=7 minSdk=24\n  versionName=0.4.0-rc.3\n"])
         with patch.object(verifier,"run_checked",side_effect=lambda command: next(outputs)):
             with self.assertRaisesRegex(verifier.VerificationError,"installed package version identity"):
-                verifier.smoke_device("adb",None,Path("candidate.apk"),verifier.EXPECTED_PACKAGE,"0.4.0-rc.2","8")
+                verifier.smoke_device("adb",None,Path("candidate.apk"),verifier.EXPECTED_PACKAGE,"0.4.0-rc.3","8")
 
     def test_adb_smoke_does_not_assert_full_physical_acceptance(self):
-        outputs=iter(["device\n","ok\n","package:/data/app/base.apk\n","  versionCode=8 minSdk=24 targetSdk=36\n  versionName=0.4.0-rc.2\n","ok\n","123\n","ok\n","ok\n","456\n"])
+        outputs=iter(["device\n","ok\n","package:/data/app/base.apk\n","  versionCode=8 minSdk=24 targetSdk=36\n  versionName=0.4.0-rc.3\n","ok\n","123\n","ok\n","ok\n","456\n"])
         with patch.object(verifier,"run_checked",side_effect=lambda command: next(outputs)):
-            evidence=verifier.smoke_device("adb",None,Path("candidate.apk"),verifier.EXPECTED_PACKAGE,"0.4.0-rc.2","8")
+            evidence=verifier.smoke_device("adb",None,Path("candidate.apk"),verifier.EXPECTED_PACKAGE,"0.4.0-rc.3","8")
         self.assertTrue(evidence["device_smoke_verified"])
         self.assertNotIn("physical_device_verified",evidence)
         self.assertNotIn("wifi_journey_verified",evidence)
@@ -78,10 +78,10 @@ class PhysicalAndroidCandidateVerifierTest(unittest.TestCase):
 
     def test_manifest_binding_requires_exact_source_tree(self):
         digest="cd"*32
-        manifest={"source_sha":"a"*40,"source_tree":"b"*40,"apk_sha256":digest,"android_package":verifier.EXPECTED_PACKAGE,"app_version":"0.4.0-rc.2+8","artifact_class":"validation-candidate","production_release":"false","physical_device_verified":"false","wifi_journey_verified":"false","mobile_data_journey_verified":"false","authenticated_owner_journey_verified":"false","network_switch_verified":"false","rollback_verified":"false"}
+        manifest={"source_sha":"a"*40,"source_tree":"b"*40,"apk_sha256":digest,"android_package":verifier.EXPECTED_PACKAGE,"app_version":"0.4.0-rc.3+9","artifact_class":"validation-candidate","production_release":"false","physical_device_verified":"false","wifi_journey_verified":"false","mobile_data_journey_verified":"false","authenticated_owner_journey_verified":"false","network_switch_verified":"false","rollback_verified":"false"}
         with self.assertRaisesRegex(verifier.VerificationError,"source tree does not match"):
-            verifier.require_manifest_binding(manifest,source_sha="a"*40,source_tree="c"*40,apk_sha256=digest,package_name=verifier.EXPECTED_PACKAGE,app_version="0.4.0-rc.2+8")
+            verifier.require_manifest_binding(manifest,source_sha="a"*40,source_tree="c"*40,apk_sha256=digest,package_name=verifier.EXPECTED_PACKAGE,app_version="0.4.0-rc.3+9")
         with self.assertRaisesRegex(verifier.VerificationError,"expected source tree"):
-            verifier.require_manifest_binding(manifest,source_sha="a"*40,source_tree="BAD",apk_sha256=digest,package_name=verifier.EXPECTED_PACKAGE,app_version="0.4.0-rc.2+8")
+            verifier.require_manifest_binding(manifest,source_sha="a"*40,source_tree="BAD",apk_sha256=digest,package_name=verifier.EXPECTED_PACKAGE,app_version="0.4.0-rc.3+9")
 
 if __name__=="__main__": unittest.main()

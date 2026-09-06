@@ -338,8 +338,9 @@ class _ProjectBuildExperienceV2ScreenState
         _error = null;
       });
 
+      ProjectExperienceProjection? projection;
       try {
-        final projection = await experience.loadExperience(widget.project.id);
+        projection = await experience.loadExperience(widget.project.id);
         if (refreshIsStale()) return;
         if (_candidate == null) {
           await _syncInitialBuildActivity(
@@ -352,6 +353,25 @@ class _ProjectBuildExperienceV2ScreenState
       }
 
       final candidate = _candidate;
+      if (candidate == null &&
+          _buildRequested &&
+          projection?.hasSafeFailure == true) {
+        final safety = ProjectCandidateSafety.fromProjection(
+          projection!,
+          visibleCurrentVersionId: _localPreviewVersionId,
+        );
+        _timer?.cancel();
+        await _initialBuildSubscription?.cancel();
+        _initialBuildSubscription = null;
+        if (!refreshIsStale()) {
+          setState(() {
+            _error = safety.failureMessage(
+              backendMessage: projection!.safeFailureMessage,
+            );
+          });
+        }
+        return;
+      }
       if (candidate == null) {
         if (!_buildRequested) {
           _buildRequested = true;
@@ -447,7 +467,8 @@ class _ProjectBuildExperienceV2ScreenState
         if (mounted &&
             !_ready &&
             !_flowExpired &&
-            _flowBackgroundedAt == null) {
+            _flowBackgroundedAt == null &&
+            _error == null) {
           _timer?.cancel();
           _timer = Timer(const Duration(seconds: 2), _refreshAndAdvance);
         }

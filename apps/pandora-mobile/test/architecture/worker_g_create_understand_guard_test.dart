@@ -18,7 +18,8 @@ void main() {
         'Describe the result in your own words. Pandora will choose the technical shape.',
       ),
     );
-    expect(source, contains('name: _inferName(intent)'));
+    expect(source, contains('name: deriveProjectDisplayName(intent)'));
+    expect(source, contains('objective: deriveProjectStoredObjective(intent)'));
     expect(source, contains('buildKind: ProjectBuildKind.helpMeDecide'));
     expect(source, contains('submitIntent('));
     expect(
