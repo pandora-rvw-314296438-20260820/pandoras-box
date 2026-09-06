@@ -446,6 +446,209 @@ class EvidenceItem {
   }
 }
 
+class OperationalMapping {
+  const OperationalMapping({
+    required this.id,
+    required this.provider,
+    required this.resourceType,
+    required this.externalId,
+    required this.bindingState,
+    this.externalName,
+    this.environment,
+    this.canonicalUrl,
+    this.verifiedAt,
+  });
+
+  final String id;
+  final String provider;
+  final String resourceType;
+  final String externalId;
+  final String bindingState;
+  final String? externalName;
+  final String? environment;
+  final String? canonicalUrl;
+  final DateTime? verifiedAt;
+
+  bool get verified => bindingState.toLowerCase() == 'verified';
+
+  factory OperationalMapping.fromJson(Object? value) {
+    final json = asJsonMap(value);
+    return OperationalMapping(
+      id: jsonText(json['id']),
+      provider: humanizeToken(json['provider'], fallback: 'Provider'),
+      resourceType:
+          humanizeToken(json['resourceType'], fallback: 'Resource'),
+      externalId: jsonText(json['externalId']),
+      bindingState:
+          humanizeToken(json['bindingState'], fallback: 'Not checked'),
+      externalName: _nullableText(json['externalName']),
+      environment: _nullableText(json['environment']),
+      canonicalUrl: _nullableText(json['canonicalUrl']),
+      verifiedAt: jsonDateTime(json['verifiedAt']),
+    );
+  }
+}
+
+class OperationalConflict {
+  const OperationalConflict({
+    required this.id,
+    required this.kind,
+    required this.severity,
+    required this.title,
+    required this.summary,
+    required this.recommendation,
+    required this.source,
+    required this.resolvable,
+  });
+
+  final String id;
+  final String kind;
+  final String severity;
+  final String title;
+  final String summary;
+  final String recommendation;
+  final String source;
+  final bool resolvable;
+
+  factory OperationalConflict.fromJson(Object? value) {
+    final json = asJsonMap(value);
+    return OperationalConflict(
+      id: jsonText(json['id']),
+      kind: humanizeToken(json['kind'], fallback: 'Operational conflict'),
+      severity: humanizeToken(json['severity'], fallback: 'Not checked'),
+      title: jsonText(json['title'], fallback: 'System mapping needs review'),
+      summary: jsonText(
+        json['summary'],
+        fallback: 'Pandora found conflicting operational state.',
+      ),
+      recommendation: jsonText(
+        json['recommendation'],
+        fallback: 'Review exact provider and canonical identities.',
+      ),
+      source: humanizeToken(json['source'], fallback: 'Pandora'),
+      resolvable: jsonBool(json['resolvable']),
+    );
+  }
+}
+
+class OperationalImportPreview {
+  const OperationalImportPreview({
+    required this.id,
+    required this.fingerprint,
+    required this.provider,
+    required this.status,
+    required this.objectCount,
+    required this.createCount,
+    required this.updateCount,
+    required this.noopCount,
+    required this.conflictCount,
+    required this.executionReady,
+    this.observedAt,
+  });
+
+  final String id;
+  final String fingerprint;
+  final String provider;
+  final String status;
+  final int objectCount;
+  final int createCount;
+  final int updateCount;
+  final int noopCount;
+  final int conflictCount;
+  final bool executionReady;
+  final DateTime? observedAt;
+
+  factory OperationalImportPreview.fromJson(Object? value) {
+    final json = asJsonMap(value);
+    return OperationalImportPreview(
+      id: jsonText(json['id']),
+      fingerprint: jsonText(json['fingerprint']),
+      provider: humanizeToken(json['provider'], fallback: 'Provider'),
+      status: humanizeToken(json['status'], fallback: 'Not checked'),
+      objectCount: strictJsonInt(json['objectCount']) ?? 0,
+      createCount: strictJsonInt(json['createCount']) ?? 0,
+      updateCount: strictJsonInt(json['updateCount']) ?? 0,
+      noopCount: strictJsonInt(json['noopCount']) ?? 0,
+      conflictCount: strictJsonInt(json['conflictCount']) ?? 0,
+      executionReady: jsonBool(json['executionReady']),
+      observedAt: jsonDateTime(json['observedAt']),
+    );
+  }
+}
+
+class OperationalWorkspace {
+  const OperationalWorkspace({
+    required this.mappings,
+    required this.conflicts,
+    required this.imports,
+    required this.mappingCount,
+    required this.verifiedMappingCount,
+    required this.conflictCount,
+    required this.highConflictCount,
+    required this.stagedImportCount,
+    required this.needsYou,
+  });
+
+  const OperationalWorkspace.empty()
+      : mappings = const <OperationalMapping>[],
+        conflicts = const <OperationalConflict>[],
+        imports = const <OperationalImportPreview>[],
+        mappingCount = 0,
+        verifiedMappingCount = 0,
+        conflictCount = 0,
+        highConflictCount = 0,
+        stagedImportCount = 0,
+        needsYou = false;
+
+  final List<OperationalMapping> mappings;
+  final List<OperationalConflict> conflicts;
+  final List<OperationalImportPreview> imports;
+  final int mappingCount;
+  final int verifiedMappingCount;
+  final int conflictCount;
+  final int highConflictCount;
+  final int stagedImportCount;
+  final bool needsYou;
+
+  bool get hasData =>
+      mappingCount > 0 || conflictCount > 0 || stagedImportCount > 0;
+
+  factory OperationalWorkspace.fromJson(Object? value) {
+    final json = asJsonMap(value);
+    if (json.isEmpty) return const OperationalWorkspace.empty();
+    final summary = asJsonMap(json['summary']);
+    final mappings = asJsonList(json['mappings'])
+        .map(OperationalMapping.fromJson)
+        .toList(growable: false);
+    final conflicts = asJsonList(json['conflicts'])
+        .map(OperationalConflict.fromJson)
+        .toList(growable: false);
+    final imports = asJsonList(json['imports'])
+        .map(OperationalImportPreview.fromJson)
+        .toList(growable: false);
+    return OperationalWorkspace(
+      mappings: mappings,
+      conflicts: conflicts,
+      imports: imports,
+      mappingCount: strictJsonInt(summary['mappingCount']) ?? mappings.length,
+      verifiedMappingCount:
+          strictJsonInt(summary['verifiedMappingCount']) ??
+              mappings.where((item) => item.verified).length,
+      conflictCount:
+          strictJsonInt(summary['conflictCount']) ?? conflicts.length,
+      highConflictCount: strictJsonInt(summary['highConflictCount']) ??
+          conflicts
+              .where((item) =>
+                  item.severity.toLowerCase() == 'high' ||
+                  item.severity.toLowerCase() == 'critical')
+              .length,
+      stagedImportCount:
+          strictJsonInt(summary['stagedImportCount']) ?? imports.length,
+      needsYou: jsonBool(summary['needsYou']),
+    );
+  }
+}
+
 class ProjectDetail {
   const ProjectDetail({
     required this.summary,
@@ -454,6 +657,7 @@ class ProjectDetail {
     required this.evidence,
     this.objective,
     this.roadmapVersion,
+    this.operations = const OperationalWorkspace.empty(),
   });
 
   final ProjectSummary summary;
@@ -462,6 +666,7 @@ class ProjectDetail {
   final List<ProjectPhase> phases;
   final List<ProjectTask> tasks;
   final List<EvidenceItem> evidence;
+  final OperationalWorkspace operations;
 
   factory ProjectDetail.fromJson(Object? value) {
     final json = asJsonMap(value);
@@ -478,6 +683,7 @@ class ProjectDetail {
       evidence: asJsonList(json['evidence'])
           .map(EvidenceItem.fromJson)
           .toList(growable: false),
+      operations: OperationalWorkspace.fromJson(json['operations']),
     );
   }
 }
