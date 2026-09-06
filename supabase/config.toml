@@ -8,77 +8,77 @@
 # that fails at the current function-count ceiling.
 
 [functions.pandora-owner-api]
-enabled = false
 verify_jwt = true
+enabled = false
 
 [functions.pandora-project-runtime]
-enabled = false
 verify_jwt = true
+enabled = false
 
 [functions.pandora-intelligence-chat]
-enabled = false
 verify_jwt = true
+enabled = false
 
 [functions.pandora-project-spec-compiler]
-enabled = false
 verify_jwt = true
+enabled = false
 
 [functions.pandora-project-source-generator]
-enabled = false
 verify_jwt = true
+enabled = false
 
 [functions.pandora-user-admin]
-enabled = false
 verify_jwt = true
+enabled = false
 
 # This private workload endpoint validates Vercel OIDC itself before it can use
 # the server-only service role. Supabase's user-JWT gateway must not consume the
 # workload bearer first.
 [functions.mcpmaster-supabase-control]
-enabled = false
 verify_jwt = false
+enabled = false
 
 # A caller-supplied, externally issued one-shot worker JWT is verified by the
 # gateway and forwarded unchanged to PostgREST. The candidate runtime has no
 # service role, worker issuer key, or control-envelope signing key.
 [functions.pandora-worker-dispatch]
-enabled = false
 verify_jwt = true
+enabled = false
 
 # Supabase verifies the externally issued reviewer JWT before any rate-limit or
 # identity work; the exact Authorization bearer is forwarded to PostgREST.
 [functions.pandora-reviewer-attestation]
-enabled = false
 verify_jwt = true
+enabled = false
 
 # The release-review endpoint uses the same Authorization-only external
 # authority boundary; custom unverified authority headers are forbidden.
 [functions.pandora-release-review-attestation]
-enabled = false
 verify_jwt = true
+enabled = false
 
 # The gateway and function both validate the Supabase user JWT; the RPC also
 # binds auth.uid(), active owner membership, and the AAL2 claim.
 [functions.pandora-release-owner-authorization]
-enabled = false
 verify_jwt = true
+enabled = false
 
 # A caller-supplied, externally issued one-shot authority JWT is verified by the
 # gateway and forwarded unchanged to PostgREST. The candidate runtime has no
 # minting credential; the DB binds and consumes the exact issuer/JTI/request.
 [functions.pandora-physical-android-attestation]
-enabled = false
 verify_jwt = true
+enabled = false
 
 # Vercel authenticates this provider callback with x-vercel-signature; the
 # service validates the exact raw body against the signing secret kept in Vault.
 [functions.pandora-vercel-runtime-webhook]
-enabled = false
 verify_jwt = false
+enabled = false
 
 # This private workload endpoint validates a one-purpose Vault-backed key before
 # it may use the server-only service role for durable source convergence and
 # exact Worker-D source readback through the shared buildJobId route.
 [functions.pandora-source-convergence-worker]
-enabled = false
 verify_jwt = false
+enabled = false
