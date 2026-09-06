@@ -603,8 +603,7 @@ class _OperationalConflictRowState extends State<_OperationalConflictRow> {
           error.kind == PandoraApiErrorKind.notFound;
       if (error.code == 'AAL2_REQUIRED') {
         setState(() {
-          _disabledReason =
-              'Extra identity verification is still required.';
+          _disabledReason = 'Extra identity verification is still required.';
         });
       }
       if (reconcile || error.code == 'AAL2_REQUIRED') {
