@@ -16,6 +16,13 @@ const runtimePath = join(
   'pandora-project-runtime',
   'index.ts',
 );
+const createPath = join(
+  process.cwd(),
+  'supabase',
+  'functions',
+  'pandora-project-runtime',
+  'project-create.ts',
+);
 
 async function makeDb() {
   const { PGlite } = await import('@electric-sql/pglite');
@@ -151,13 +158,14 @@ test('same create key with different request hash fails closed', async () => {
 });
 
 test('project runtime consumes the idempotency header and does not provision Vercel during create', async () => {
-  const source = await readFile(runtimePath, 'utf8');
-  const createStart = source.indexOf('async function createProject(');
-  const createEnd = source.indexOf('\n\ntype DomainFacts', createStart);
-  const createSource = source.slice(createStart, createEnd);
+  const [runtime, createSource] = await Promise.all([
+    readFile(runtimePath, 'utf8'),
+    readFile(createPath, 'utf8'),
+  ]);
 
   assert.match(createSource, /pandora_create_customer_project_v1/);
   assert.match(createSource, /p_idempotency_key: idempotencyKey/);
   assert.doesNotMatch(createSource, /ensureVercelProject/);
-  assert.match(source, /req\.headers\.get\("idempotency-key"\)/);
+  assert.match(runtime, /req\.headers\.get\("idempotency-key"\)/);
+  assert.match(runtime, /createCustomerProject/);
 });
