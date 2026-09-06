@@ -219,6 +219,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906140131_align_github_primary_connector_current_account.sql',
     '20260906142436_rebind_supabase_connections_to_pandora_projects_v2.sql',
     '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql',
+    '20260906145500_provider_auto_failover_v2.sql',
     '20260906150120_align_meta_connector_current_identity.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
@@ -421,6 +422,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906140131_align_github_primary_connector_current_account.sql',
     '20260906142436_rebind_supabase_connections_to_pandora_projects_v2.sql',
     '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql',
+    '20260906145500_provider_auto_failover_v2.sql',
     '20260906150120_align_meta_connector_current_identity.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
@@ -575,6 +577,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906140131_align_github_primary_connector_current_account.sql',
     '20260906142436_rebind_supabase_connections_to_pandora_projects_v2.sql',
     '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql',
+    '20260906145500_provider_auto_failover_v2.sql',
     '20260906150120_align_meta_connector_current_identity.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
