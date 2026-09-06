@@ -978,6 +978,31 @@ async function verifyVercelConnection(
   if (updateError) throw new Error("CONNECTION_TEST_FAILED");
 }
 
+async function verifyMetaConnection(
+  context: UserContext,
+  connectionId: string,
+) {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await admin.rpc(
+    "pandora_verify_meta_connection_20260906",
+    {
+      p_organization_id: context.organizationId,
+      p_installation_id: connectionId,
+    },
+  );
+  const result = asRecord(data);
+  if (
+    error ||
+    result.ok !== true ||
+    textValue(result.provider).toLowerCase() !== "meta" ||
+    textValue(result.status) !== "ACTIVE_HEALTHY"
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+}
+
 async function connectionAction(
   context: UserContext,
   connectionId: string,
@@ -1015,6 +1040,8 @@ async function connectionAction(
       await verifySupabaseConnection(context, connectionId);
     } else if (normalizedProvider === "vercel") {
       await verifyVercelConnection(context, connectionId);
+    } else if (normalizedProvider === "meta") {
+      await verifyMetaConnection(context, connectionId);
     }
   }
   const requests: Record<GovernedConnectionAction, string> = {
