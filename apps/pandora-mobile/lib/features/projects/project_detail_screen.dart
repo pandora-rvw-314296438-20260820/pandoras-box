@@ -417,8 +417,7 @@ class _OperationalWorkspaceCard extends StatelessWidget {
                       index < workspace.mappings.length;
                       index++) ...[
                     _OperationalMappingRow(mapping: workspace.mappings[index]),
-                    if (index != workspace.mappings.length - 1)
-                      const Divider(),
+                    if (index != workspace.mappings.length - 1) const Divider(),
                   ],
                 ],
               ),
@@ -445,8 +444,7 @@ class _OperationalWorkspaceCard extends StatelessWidget {
                       index < workspace.imports.length;
                       index++) ...[
                     _OperationalImportRow(item: workspace.imports[index]),
-                    if (index != workspace.imports.length - 1)
-                      const Divider(),
+                    if (index != workspace.imports.length - 1) const Divider(),
                   ],
                 ],
               ),
