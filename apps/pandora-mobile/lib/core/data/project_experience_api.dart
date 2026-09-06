@@ -8,6 +8,7 @@ import '../models/project_conversation_history.dart';
 import '../models/project_source_models.dart';
 import '../network/idempotency_key.dart';
 import 'project_build_stream_cursor_store.dart';
+import 'restartable_broadcast_stream.dart';
 
 class ProjectExperienceApi {
   ProjectExperienceApi({
@@ -446,6 +447,18 @@ class ProjectExperienceApi {
   }
 
   Stream<ProjectBuildStreamSnapshot> watchResilientBuildStream({
+    required String projectId,
+    required String streamId,
+  }) {
+    return restartableBroadcastStream<ProjectBuildStreamSnapshot>(
+      () => _watchResilientBuildStreamEra(
+        projectId: projectId,
+        streamId: streamId,
+      ),
+    );
+  }
+
+  Stream<ProjectBuildStreamSnapshot> _watchResilientBuildStreamEra({
     required String projectId,
     required String streamId,
   }) {
