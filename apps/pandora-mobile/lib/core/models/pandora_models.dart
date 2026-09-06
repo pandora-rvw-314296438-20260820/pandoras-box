@@ -470,6 +470,8 @@ class OperationalMapping {
   final DateTime? verifiedAt;
 
   bool get verified => bindingState.toLowerCase() == 'verified';
+  bool get notRequired => bindingState.toLowerCase() == 'not required';
+  bool get needsAttention => !verified && !notRequired;
 
   factory OperationalMapping.fromJson(Object? value) {
     final json = asJsonMap(value);
