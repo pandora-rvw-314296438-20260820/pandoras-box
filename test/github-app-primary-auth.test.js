@@ -8,7 +8,7 @@ const ownerApi = readFileSync(
 );
 const migration = readFileSync(
   new URL(
-    "../supabase/migrations/20260906193000_github_app_primary_runtime.sql",
+    "../supabase/migrations/20260906124742_github_app_primary_runtime.sql",
     import.meta.url,
   ),
   "utf8",
