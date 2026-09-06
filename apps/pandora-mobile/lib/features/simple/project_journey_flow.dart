@@ -59,11 +59,14 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _orbit;
   Timer? _refreshTimer;
+  bool _lifecycleResumed = true;
+  int _lifecycleGeneration = 0;
   bool _started = false;
   bool _buildRequestStarted = false;
   DateTime? _lastBuildRequestAt;
   bool _previewRequestStarted = false;
   bool _refreshing = false;
+  Completer<void>? _refreshCompletion;
   ProjectRuntimeSnapshot? _snapshot;
   ProjectPreviewResult? _previewResult;
   ProjectRuntimeCandidate? _localPreviewCandidate;
@@ -84,6 +87,9 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    _lifecycleResumed =
+        lifecycleState == null || lifecycleState == AppLifecycleState.resumed;
     _orbit = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
@@ -100,9 +106,14 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      unawaited(_refreshDurableTruth());
+    _lifecycleGeneration += 1;
+    _lifecycleResumed = state == AppLifecycleState.resumed;
+    if (!_lifecycleResumed) {
+      _refreshTimer?.cancel();
+      _refreshTimer = null;
+      return;
     }
+    unawaited(_resumeBuild(requestPreviewIfNeeded: true));
   }
 
   @override
@@ -115,11 +126,21 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
 
   Future<void> _resumeBuild({required bool requestPreviewIfNeeded}) async {
     _refreshTimer?.cancel();
+    if (!_lifecycleResumed) return;
+    final generation = _lifecycleGeneration;
     if (mounted) {
       setState(() => _error = null);
     }
-    final snapshot = await _refreshDurableTruth(showBlockingError: true);
-    if (!mounted || snapshot == null) return;
+    final snapshot = await _refreshDurableTruth(
+      showBlockingError: true,
+      lifecycleGeneration: generation,
+    );
+    if (!mounted ||
+        !_lifecycleResumed ||
+        generation != _lifecycleGeneration ||
+        snapshot == null) {
+      return;
+    }
 
     if (requestPreviewIfNeeded) {
       _advanceBuild(snapshot);
@@ -129,8 +150,24 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
 
   Future<ProjectRuntimeSnapshot?> _refreshDurableTruth({
     bool showBlockingError = false,
+    int? lifecycleGeneration,
   }) async {
-    if (_refreshing) return _snapshot;
+    if (lifecycleGeneration != null &&
+        (!_lifecycleResumed || lifecycleGeneration != _lifecycleGeneration)) {
+      return null;
+    }
+    if (_refreshing) {
+      if (lifecycleGeneration == null) return _snapshot;
+      final pendingRefresh = _refreshCompletion;
+      if (pendingRefresh != null) {
+        await pendingRefresh.future;
+      }
+      if (!mounted ||
+          !_lifecycleResumed ||
+          lifecycleGeneration != _lifecycleGeneration) {
+        return null;
+      }
+    }
     final experience =
         PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) {
@@ -143,9 +180,16 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     }
 
     _refreshing = true;
+    final refreshCompletion = Completer<void>();
+    _refreshCompletion = refreshCompletion;
     try {
       final snapshot = await experience.runtime(widget.project.id);
-      if (!mounted) return snapshot;
+      if (!mounted ||
+          (lifecycleGeneration != null &&
+              (!_lifecycleResumed ||
+                  lifecycleGeneration != _lifecycleGeneration))) {
+        return null;
+      }
       setState(() {
         _snapshot = snapshot;
         _lastCheckedAt = DateTime.now();
@@ -153,7 +197,12 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
       });
       return snapshot;
     } on PandoraRepositoryException {
-      if (!mounted) return null;
+      if (!mounted ||
+          (lifecycleGeneration != null &&
+              (!_lifecycleResumed ||
+                  lifecycleGeneration != _lifecycleGeneration))) {
+        return null;
+      }
       if (showBlockingError || _snapshot == null) {
         setState(
           () => _error = 'Pandora could not refresh this build right now.',
@@ -161,7 +210,12 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
       }
       return null;
     } catch (_) {
-      if (!mounted) return null;
+      if (!mounted ||
+          (lifecycleGeneration != null &&
+              (!_lifecycleResumed ||
+                  lifecycleGeneration != _lifecycleGeneration))) {
+        return null;
+      }
       if (showBlockingError || _snapshot == null) {
         setState(
           () => _error = 'Pandora could not refresh this build right now.',
@@ -170,6 +224,12 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
       return null;
     } finally {
       _refreshing = false;
+      if (!refreshCompletion.isCompleted) {
+        refreshCompletion.complete();
+      }
+      if (identical(_refreshCompletion, refreshCompletion)) {
+        _refreshCompletion = null;
+      }
     }
   }
 
@@ -374,11 +434,24 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
 
   void _scheduleRefresh() {
     _refreshTimer?.cancel();
-    if (_hasRenderablePreview) return;
+    if (!_lifecycleResumed || _hasRenderablePreview) return;
+    final generation = _lifecycleGeneration;
     _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!mounted ||
+          !_lifecycleResumed ||
+          generation != _lifecycleGeneration) {
+        _refreshTimer?.cancel();
+        _refreshTimer = null;
+        return;
+      }
       unawaited(
-        _refreshDurableTruth().then((snapshot) {
-          if (snapshot != null && mounted) _advanceBuild(snapshot);
+        _refreshDurableTruth(lifecycleGeneration: generation).then((snapshot) {
+          if (snapshot != null &&
+              mounted &&
+              _lifecycleResumed &&
+              generation == _lifecycleGeneration) {
+            _advanceBuild(snapshot);
+          }
         }),
       );
     });
