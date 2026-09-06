@@ -11,3 +11,4 @@ __pycache__/
 .env.*
 !.env.example
 .dart_tool/
+public/control-tower/

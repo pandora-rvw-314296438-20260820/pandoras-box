@@ -54,7 +54,7 @@ void main() {
     expect(projection.state, ProjectExperienceState.live);
     expect(projection.isLive, isTrue);
     expect(projection.isUpdating, isTrue);
-    expect(projection.statusLabel, 'Live · updating');
+    expect(projection.statusLabel, 'Building');
   });
 
   test('unknown future lifecycle state fails owner actions closed', () {
@@ -68,7 +68,7 @@ void main() {
     expect(projection.canUndo, isFalse);
     expect(projection.canPublish, isFalse);
     expect(projection.canRollback, isFalse);
-    expect(projection.statusLabel, 'Working');
+    expect(projection.statusLabel, 'Preparing');
   });
 
   test('transition sequence and timestamp define monotonic freshness', () {

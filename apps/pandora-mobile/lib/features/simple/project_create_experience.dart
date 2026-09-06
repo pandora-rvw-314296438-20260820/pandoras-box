@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/analytics/owner_analytics.dart';
 import '../../core/data/pandora_repository.dart';
+import '../../core/data/project_creation_attempt_store.dart';
 import '../../core/data/project_experience_api.dart';
 import '../../core/models/project_journey_models.dart';
 import '../../core/network/idempotency_key.dart';
@@ -28,6 +29,8 @@ class _CreateProjectExperienceScreenState
     extends State<CreateProjectExperienceScreen> {
   late final TextEditingController _intent;
   final _keys = IdempotencyKeyFactory();
+  final ProjectCreationAttemptStore _creationAttempts =
+      const SharedPreferencesProjectCreationAttemptStore();
   bool _submitting = false;
   String? _error;
   String? _createIntent;
@@ -55,22 +58,30 @@ class _CreateProjectExperienceScreenState
       }
       return;
     }
+    FocusManager.instance.primaryFocus?.unfocus();
     final experience =
         PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) {
       setState(() => _error = 'Pandora cannot start a new project right now.');
       return;
     }
-    final createKey = _createIntent == intent && _createIdempotencyKey != null
-        ? _createIdempotencyKey!
-        : _keys.create('pandora-v2-project-create');
-    _createIntent = intent;
-    _createIdempotencyKey = createKey;
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
+      final persistedKey = await _creationAttempts.idempotencyKeyFor(intent);
+      if (!mounted) return;
+      final createKey = _createIntent == intent && _createIdempotencyKey != null
+          ? _createIdempotencyKey!
+          : persistedKey ?? _keys.create('pandora-v2-project-create');
+      _createIntent = intent;
+      _createIdempotencyKey = createKey;
+      await _creationAttempts.save(
+        intent: intent,
+        idempotencyKey: createKey,
+      );
+      if (!mounted) return;
       final project = await experience.createProject(
         name: deriveProjectDisplayName(intent),
         buildKind: ProjectBuildKind.helpMeDecide,
@@ -90,6 +101,10 @@ class _CreateProjectExperienceScreenState
           projectId: project.id,
         ),
       );
+      await _creationAttempts.clear(
+        intent: intent,
+        idempotencyKey: createKey,
+      );
       _createIntent = null;
       _createIdempotencyKey = null;
       if (!mounted) return;
@@ -108,7 +123,7 @@ class _CreateProjectExperienceScreenState
       if (mounted) {
         setState(() {
           _error = error.outcomeMayBeUnknown
-              ? '${error.message} Try again with the same request; Pandora will safely resume it instead of creating another project.'
+              ? 'Pandora could not confirm the response. Send the same request again; if the project was already created, Pandora will reopen that exact project instead of making another one.'
               : error.message;
         });
       }
@@ -187,7 +202,7 @@ class _CreateProjectExperienceScreenState
                 if (_error != null) ...[
                   const SizedBox(height: 18),
                   PandoraV2InlineMessage(
-                    title: 'Nothing has been published',
+                    title: 'Project not started',
                     message: _error!,
                     actionLabel: 'Dismiss',
                     onAction: () => setState(() => _error = null),
@@ -388,7 +403,7 @@ class _ProjectUnderstandingScreenState
                   ),
                 ),
                 const SizedBox(height: 18),
-                PandoraProfessionalBuildPlan(understanding: u!),
+                PandoraSimpleBuildPlan(understanding: u!),
                 if (originalIntent.isNotEmpty) ...[
                   const SizedBox(height: 18),
                   DecoratedBox(

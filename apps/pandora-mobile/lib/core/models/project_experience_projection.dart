@@ -198,27 +198,42 @@ class ProjectExperienceProjection {
       safeFailureCode != null || safeFailureMessage != null;
 
   String get statusLabel {
+    if (needsYou) return 'Needs You';
+    if (hasSafeFailure) return 'Problem';
+
+    switch (buildPhase) {
+      case 'understanding':
+        return 'Preparing';
+      case 'building':
+      case 'connecting':
+        return 'Building';
+      case 'checking':
+      case 'previewing':
+      case 'publishing':
+        return 'Checking';
+      case 'needs_you':
+        return 'Needs You';
+      case 'rolling_back':
+        return 'Checking';
+    }
+
     switch (state) {
       case ProjectExperienceState.start:
-        return 'Starting';
       case ProjectExperienceState.understand:
-        return 'Understanding';
-      case ProjectExperienceState.build:
-        return 'Building';
-      case ProjectExperienceState.live:
-        return isUpdating ? 'Live · updating' : 'Live';
       case ProjectExperienceState.focus:
-        return 'Focused';
       case ProjectExperienceState.change:
-        return 'Designing';
+        return 'Preparing';
+      case ProjectExperienceState.build:
       case ProjectExperienceState.rebuild:
-        return 'Updating';
+        return 'Building';
       case ProjectExperienceState.review:
         return 'Ready';
+      case ProjectExperienceState.live:
+        return isUpdating ? 'Building' : 'Live';
       case ProjectExperienceState.publish:
-        return 'Publishing';
+        return 'Checking';
       case ProjectExperienceState.unknown:
-        return 'Working';
+        return 'Preparing';
     }
   }
 

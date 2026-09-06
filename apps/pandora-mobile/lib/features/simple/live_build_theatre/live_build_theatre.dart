@@ -10,10 +10,14 @@ class LiveBuildTheatre extends StatelessWidget {
     super.key,
     required this.state,
     this.onFollowChanged,
+    this.ownerStatusLabel,
+    this.ownerMessage,
   });
 
   final LiveBuildTheatreState state;
   final ValueChanged<bool>? onFollowChanged;
+  final String? ownerStatusLabel;
+  final String? ownerMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +41,7 @@ class LiveBuildTheatre extends StatelessWidget {
               const SizedBox(width: 9),
               Expanded(
                 child: Text(
-                  state.statusLabel,
+                  ownerStatusLabel ?? state.statusLabel,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -50,10 +54,21 @@ class LiveBuildTheatre extends StatelessWidget {
               ),
             ],
           ),
+          if (ownerMessage != null && ownerMessage!.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              ownerMessage!,
+              style: const TextStyle(
+                color: PandoraV2Colors.muted,
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
+          ],
           if (state.historyGapDueToRetention) ...[
             const SizedBox(height: 8),
             const Text(
-              'Build continued while you were away.',
+              'Pandora reconnected to the same build. The durable build continued while you were away.',
               style: TextStyle(
                 color: PandoraV2Colors.muted,
                 fontSize: 12.5,

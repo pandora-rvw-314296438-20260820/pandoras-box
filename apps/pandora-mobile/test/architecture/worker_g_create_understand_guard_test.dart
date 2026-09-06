@@ -30,7 +30,7 @@ void main() {
     );
     expect(
       source,
-      contains('PandoraProfessionalBuildPlan(understanding: u!)'),
+      contains('PandoraSimpleBuildPlan(understanding: u!)'),
     );
     expect(source, contains("label: 'Build it'"));
     expect(source, contains('ProjectBuildConversationScreen('));

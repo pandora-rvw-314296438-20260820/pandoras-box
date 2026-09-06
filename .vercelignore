@@ -3,3 +3,8 @@ dist/
 apps/meta-business-mcp/dist/
 packages/shared-security/dist/
 coverage/
+recovery/
+recovered/
+docs/recovery/
+docs/supabase/recovery/
+verification-fixtures/

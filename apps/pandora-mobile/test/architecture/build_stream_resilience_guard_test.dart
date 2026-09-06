@@ -52,9 +52,11 @@ void main() {
 
     expect(api, contains('historyGapDueToRetention'));
     expect(api, contains('oldestRetainedSequence'));
-    expect(conversation, contains('Build continued while you were away'));
-    expect(conversation, contains('Reconnecting to the live build'));
-    expect(conversation, contains('snapshot.buildStage'));
+    expect(conversation, contains('Pandora reconnected to the same build'));
+    expect(conversation, contains('Reconnecting to the same build'));
+    expect(conversation, contains('saved state'));
+    expect(conversation, isNot(contains('Current durable stage')));
+    expect(conversation, isNot(contains('Expired source is not recreated')));
     expect(conversation, isNot(contains('fake code')));
   });
 }
