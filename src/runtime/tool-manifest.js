@@ -42,13 +42,13 @@ const entries = [
     manifest('supabase.list-organizations', 'supabase', 'read', false, 'account', ['organizations:read']),
     manifest('supabase.list-projects', 'supabase', 'read', false, 'organization', ['projects:read']),
     manifest('supabase.get-project', 'supabase', 'read', false, 'project', ['projects:read']),
-    manifest('supabase.query-database', 'supabase', 'write', true, 'project', ['projects:read', 'projects:write']),
     manifest('supabase.get-auth-security-config', 'supabase', 'read', false, 'project', ['auth:read']),
     manifest('supabase.enable-leaked-password-protection', 'supabase', 'write', true, 'project', ['auth:read', 'auth:write']),
     manifest('supabase.pause-project', 'supabase', 'destructive', true, 'project', ['projects:write']),
     manifest('supabase.restore-project', 'supabase', 'write', true, 'project', ['projects:write']),
     manifest('supabase.read-project-api', 'supabase', 'read', false, 'project', ['projects:read'], { confirmationKind: 'supabase-project-api' }),
     manifest('supabase.write-project-api', 'supabase', 'write', true, 'project', ['projects:write'], { confirmationKind: 'supabase-project-api', highImpactCapable: true }),
+    manifest('supabase.database-query', 'supabase', 'write', true, 'project', ['projects:read', 'projects:write'], { confirmationKind: 'supabase-database-query' }),
     // These are ProjectOS connector-policy scopes. Passing them does not prove
     // that the downstream Supabase token has effective DB/environment access;
     // every provider response remains authoritative and fail-closed.
@@ -106,6 +106,22 @@ function expectedConfirmation(toolName, args) {
         case 'supabase-project-api': {
             const projectRef = typeof args.projectRef === 'string' ? args.projectRef : undefined;
             return method && projectRef ? `${method} PROJECT ${projectRef}${suffix}` : undefined;
+        }
+        case 'supabase-database-query': {
+            const projectRef = typeof args.projectRef === 'string' ? args.projectRef : undefined;
+            const sql = typeof args.sql === 'string' ? args.sql : undefined;
+            const parameters = Array.isArray(args.parameters) ? args.parameters : undefined;
+            const readOnly = typeof args.readOnly === 'boolean' ? args.readOnly : undefined;
+            const bodySha256 = typeof args.bodySha256 === 'string' ? args.bodySha256 : undefined;
+            if (!projectRef || sql === undefined || !parameters || readOnly === undefined || !bodySha256)
+                return undefined;
+            const serializedBody = JSON.stringify({ query: sql, parameters, read_only: readOnly });
+            const computedBodySha256 = (0, crypto_1.createHash)('sha256')
+                .update(serializedBody, 'utf8')
+                .digest('hex');
+            return bodySha256 === computedBodySha256
+                ? `POST DATABASE ${projectRef} READ_ONLY ${readOnly ? 'true' : 'false'} BODY_SHA256 ${bodySha256}`
+                : undefined;
         }
         case 'supabase-child-database-query': {
             const parentProjectRef = typeof args.parentProjectRef === 'string'

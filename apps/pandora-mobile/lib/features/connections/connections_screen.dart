@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/owner_projection.dart';
+import '../../core/data/pandora_repository.dart';
 import '../../core/design/pandora_tokens.dart';
 import '../../core/models/pandora_models.dart';
+import '../../core/network/pandora_api_error.dart';
 import '../../core/state/screen_controller.dart';
 import '../../core/widgets/content_state.dart';
 import '../../core/widgets/freshness_label.dart';
@@ -22,6 +27,8 @@ class ConnectionsScreen extends StatefulWidget {
 
 class _ConnectionsScreenState extends State<ConnectionsScreen> {
   ScreenController<List<ConnectionSummary>>? _controller;
+  UserConnectStatus? _userConnectStatus;
+  bool _userConnectBusy = false;
 
   @override
   void didChangeDependencies() {
@@ -31,12 +38,114 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
     _controller = ScreenController<List<ConnectionSummary>>(
       () => repository.connections(allowCached: true),
     )..load();
+    unawaited(_refreshUserConnectStatus(silent: true));
+  }
+
+  Future<void> _refreshUserConnectStatus({bool silent = false}) async {
+    final repository = PandoraDependencies.of(context).repository;
+    final UserConnectAuthorizationSource? connectSource =
+        repository is UserConnectAuthorizationSource
+            ? repository as UserConnectAuthorizationSource
+            : null;
+    if (connectSource == null) return;
+    if (mounted) setState(() => _userConnectBusy = true);
+    try {
+      final status = await connectSource.userConnectStatus();
+      if (!mounted) return;
+      setState(() => _userConnectStatus = status);
+      if (!silent) {
+        final message = status.connected
+            ? 'Vercel user access is authorized through Pandora.'
+            : 'Vercel user access needs your permission.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    } on PandoraApiError catch (error) {
+      if (!mounted || silent) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } finally {
+      if (mounted) setState(() => _userConnectBusy = false);
+    }
+  }
+
+  Future<void> _authorizeUserConnect() async {
+    final repository = PandoraDependencies.of(context).repository;
+    final UserConnectAuthorizationSource? connectSource =
+        repository is UserConnectAuthorizationSource
+            ? repository as UserConnectAuthorizationSource
+            : null;
+    if (connectSource == null) return;
+    if (mounted) setState(() => _userConnectBusy = true);
+    try {
+      final authorization = await connectSource.startUserConnectAuthorization();
+      final launched = await launchUrl(
+        authorization.authorizationUrl,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!mounted) return;
+      if (!launched) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Pandora could not open the secure authorization page.',
+            ),
+          ),
+        );
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Finish authorization in the secure page, then return here and check user access.',
+          ),
+        ),
+      );
+    } on PandoraApiError catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } finally {
+      if (mounted) setState(() => _userConnectBusy = false);
+    }
   }
 
   @override
   void dispose() {
     _controller?.dispose();
     super.dispose();
+  }
+
+  Future<void> _testConnection(ConnectionSummary connection) async {
+    final repository = PandoraDependencies.of(context).repository;
+    final GovernedConnectionActionSource? connectionActions =
+        repository is GovernedConnectionActionSource
+            ? repository as GovernedConnectionActionSource
+            : null;
+    if (connectionActions == null) {
+      await _controller?.refresh();
+      return;
+    }
+    try {
+      await connectionActions.runConnectionAction(
+        connectionId: connection.id,
+        action: 'test',
+      );
+      if (!mounted) return;
+      await _controller?.refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${connection.name} verified through Pandora.')),
+      );
+    } on PandoraApiError catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    }
   }
 
   @override
@@ -156,7 +265,22 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                   for (var index = 0; index < items.length; index++) ...[
                     _ConnectionCard(
                       connection: items[index],
-                      onTest: controller.refresh,
+                      userConnectStatus:
+                          items[index].name.toLowerCase().contains('vercel')
+                              ? _userConnectStatus
+                              : null,
+                      userConnectBusy:
+                          items[index].name.toLowerCase().contains('vercel') &&
+                              _userConnectBusy,
+                      onCheckUserAccess:
+                          items[index].name.toLowerCase().contains('vercel')
+                              ? () => _refreshUserConnectStatus()
+                              : null,
+                      onAuthorize:
+                          items[index].name.toLowerCase().contains('vercel')
+                              ? _authorizeUserConnect
+                              : null,
+                      onTest: () => _testConnection(items[index]),
                       onAction: (action) => _openGovernedConnectionAction(
                         context,
                         items[index],
@@ -179,38 +303,53 @@ class _ConnectionCard extends StatelessWidget {
     required this.connection,
     required this.onTest,
     required this.onAction,
+    this.userConnectStatus,
+    this.userConnectBusy = false,
+    this.onCheckUserAccess,
+    this.onAuthorize,
   });
 
   final ConnectionSummary connection;
   final VoidCallback onTest;
   final ValueChanged<String> onAction;
+  final UserConnectStatus? userConnectStatus;
+  final bool userConnectBusy;
+  final VoidCallback? onCheckUserAccess;
+  final VoidCallback? onAuthorize;
 
   @override
   Widget build(BuildContext context) {
     final ownerState = resolveOwnerConnectionState(connection);
     final needsReconnect = ownerState == OwnerConnectionState.needsAttention ||
         ownerState == OwnerConnectionState.stale;
-    final primaryAction = ownerState == OwnerConnectionState.legacy
-        ? 'Review'
-        : ownerState == OwnerConnectionState.capabilityUnverified
-            ? 'Verify'
-            : !connection.canRead
-                ? 'Connect'
-                : needsReconnect
-                    ? 'Reconnect'
-                    : 'Manage';
+    final userAuthorizationRequired =
+        userConnectStatus?.authorizationRequired == true;
+    final primaryAction = userAuthorizationRequired
+        ? 'Authorize'
+        : ownerState == OwnerConnectionState.legacy
+            ? 'Review'
+            : ownerState == OwnerConnectionState.capabilityUnverified
+                ? 'Verify'
+                : !connection.canRead
+                    ? 'Connect'
+                    : needsReconnect
+                        ? 'Reconnect'
+                        : 'Manage';
     return PandoraSurface(
       title: connection.name,
       subtitle: connection.purpose,
       leading: Icon(providerIconFor(connection.name)),
-      trailing: StatusBadge(
-        label: ownerState.label,
-        tone: ownerState == OwnerConnectionState.verified
-            ? PandoraStatusTone.verified
-            : ownerState == OwnerConnectionState.legacy
-                ? PandoraStatusTone.neutral
-                : PandoraStatusTone.attention,
-        compact: true,
+      trailing: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 152),
+        child: StatusBadge(
+          label: ownerState.label,
+          tone: ownerState == OwnerConnectionState.verified
+              ? PandoraStatusTone.verified
+              : ownerState == OwnerConnectionState.legacy
+                  ? PandoraStatusTone.neutral
+                  : PandoraStatusTone.attention,
+          compact: true,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,6 +368,27 @@ class _ConnectionCard extends StatelessWidget {
           ),
           const SizedBox(height: PandoraSpacing.sm),
           FreshnessLabel(freshness: connection.freshness),
+          if (onCheckUserAccess != null) ...[
+            const SizedBox(height: PandoraSpacing.sm),
+            OwnerSignal(
+              label: 'Pandora user access',
+              value: userConnectBusy
+                  ? 'Checking securely…'
+                  : userConnectStatus?.connected == true
+                      ? 'Authorized'
+                      : userAuthorizationRequired
+                          ? 'Needs your permission'
+                          : 'Not checked yet',
+              icon: userConnectStatus?.connected == true
+                  ? Icons.verified_user_outlined
+                  : Icons.person_outline_rounded,
+              tone: userConnectStatus?.connected == true
+                  ? PandoraStatusTone.verified
+                  : userAuthorizationRequired
+                      ? PandoraStatusTone.attention
+                      : PandoraStatusTone.neutral,
+            ),
+          ],
           const SizedBox(height: PandoraSpacing.md),
           Wrap(
             spacing: PandoraSpacing.xs,
@@ -240,20 +400,32 @@ class _ConnectionCard extends StatelessWidget {
                 label: const Text('Test now'),
               ),
               FilledButton.icon(
-                onPressed: () => onAction(primaryAction),
+                onPressed: userConnectBusy
+                    ? null
+                    : primaryAction == 'Authorize'
+                        ? onAuthorize
+                        : () => onAction(primaryAction),
                 icon: Icon(
-                  primaryAction == 'Connect'
-                      ? Icons.add_link_rounded
-                      : primaryAction == 'Reconnect'
-                          ? Icons.sync_rounded
-                          : primaryAction == 'Verify'
-                              ? Icons.fact_check_outlined
-                              : primaryAction == 'Review'
-                                  ? Icons.history_rounded
-                                  : Icons.tune_rounded,
+                  primaryAction == 'Authorize'
+                      ? Icons.open_in_new_rounded
+                      : primaryAction == 'Connect'
+                          ? Icons.add_link_rounded
+                          : primaryAction == 'Reconnect'
+                              ? Icons.sync_rounded
+                              : primaryAction == 'Verify'
+                                  ? Icons.fact_check_outlined
+                                  : primaryAction == 'Review'
+                                      ? Icons.history_rounded
+                                      : Icons.tune_rounded,
                 ),
                 label: Text(primaryAction),
               ),
+              if (onCheckUserAccess != null)
+                TextButton.icon(
+                  onPressed: userConnectBusy ? null : onCheckUserAccess,
+                  icon: const Icon(Icons.person_search_outlined),
+                  label: const Text('Check user access'),
+                ),
               if (connection.canRead)
                 TextButton.icon(
                   onPressed: () => onAction('Disconnect'),

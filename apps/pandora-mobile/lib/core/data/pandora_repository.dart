@@ -200,6 +200,44 @@ class SafetyOverview {
       };
 }
 
+abstract interface class GovernedConnectionActionSource {
+  Future<IntakeReceipt> runConnectionAction({
+    required String connectionId,
+    required String action,
+    String? idempotencyKey,
+  });
+}
+
+class UserConnectStatus {
+  const UserConnectStatus({
+    required this.connected,
+    required this.authorizationRequired,
+    required this.connector,
+    required this.emailVerified,
+  });
+
+  final bool connected;
+  final bool authorizationRequired;
+  final String connector;
+  final bool emailVerified;
+}
+
+class UserConnectAuthorization {
+  const UserConnectAuthorization({
+    required this.authorizationUrl,
+    required this.connector,
+  });
+
+  final Uri authorizationUrl;
+  final String connector;
+}
+
+abstract interface class UserConnectAuthorizationSource {
+  Future<UserConnectStatus> userConnectStatus();
+
+  Future<UserConnectAuthorization> startUserConnectAuthorization();
+}
+
 abstract interface class PandoraRepository {
   Future<RepositorySnapshot<HomeSummary>> home();
 

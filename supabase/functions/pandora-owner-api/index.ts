@@ -26,6 +26,9 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ALLOWED_ORIGINS = parseAllowedOrigins(
   Deno.env.get("PANDORA_ALLOWED_ORIGINS"),
 );
+const MCPMASTER_CONNECT_ORIGIN = "https://mcpmaster.vercel.app";
+const MCPMASTER_CONNECT_PATH = "/api/operator/connect/pandoras-box";
+const CONNECT_BRIDGE_MAX_RESPONSE_BYTES = 64 * 1024;
 
 const CORS_BASE_HEADERS = {
   "access-control-allow-headers":
@@ -427,7 +430,7 @@ async function loadProjectSummaries(context: UserContext) {
   });
 }
 
-function connectionSummary(value: unknown, healthRows: JsonRecord[] = []) {
+function connectionSummary(value: unknown) {
   const connection = asRecord(value);
   const provider = textValue(connection.provider, "Service");
   const status = textValue(connection.status, "not_checked").toLowerCase();
@@ -437,23 +440,10 @@ function connectionSummary(value: unknown, healthRows: JsonRecord[] = []) {
     lastCheckedAt && Number.isFinite(Date.parse(lastCheckedAt)) &&
       now - Date.parse(lastCheckedAt) <= 15 * 60 * 1000,
   );
-  const matchingHealth = healthRows.filter((row) =>
-    textValue(row.provider).toLowerCase() === provider.toLowerCase()
-  );
-  const healthFresh = matchingHealth.every((row) => {
-    const staleAfter = textValue(row.stale_after);
-    return Boolean(staleAfter && Date.parse(staleAfter) > now);
-  });
-  const healthProblem = matchingHealth.some((row) =>
-    ["error", "failed", "degraded"].includes(
-      textValue(row.status).toLowerCase(),
-    )
-  );
-  const problem = ["error", "failed", "degraded"].includes(status) ||
-    healthProblem;
+  const problem = ["error", "failed", "degraded"].includes(status);
   const ready = ["active", "connected", "healthy", "ready"].includes(
     status,
-  ) && connectorFresh && healthFresh && !problem;
+  ) && connectorFresh && !problem;
   const off = ["disabled", "disconnected", "revoked", "off"].includes(status);
   const state = ready
     ? "ready"
@@ -719,23 +709,247 @@ async function project(context: UserContext, identifier: string) {
 async function connections(
   context: UserContext,
 ): Promise<ReturnType<typeof connectionSummary>[]> {
-  const [connectionsResult, healthResult] = await Promise.all([
-    context.client.from("connector_installations")
-      .select(
-        "id, provider, display_name, status, scopes, last_health_check_at, updated_at",
-      )
-      .eq("organization_id", context.organizationId).order("provider"),
-    context.client.from("projectos_integration_health")
-      .select("provider, status, last_success_at, stale_after, updated_at")
-      .eq("organization_id", context.organizationId),
-  ]);
-  if (connectionsResult.error || healthResult.error) {
+  const connectionsResult = await context.client.from("connector_installations")
+    .select(
+      "id, provider, display_name, status, scopes, last_health_check_at, updated_at",
+    )
+    .eq("organization_id", context.organizationId).order("provider");
+  if (connectionsResult.error) {
     throw new Error("BACKEND_READ_FAILED");
   }
-  const healthRows = (healthResult.data || []) as JsonRecord[];
   return (connectionsResult.data || []).map((item: JsonRecord) =>
-    connectionSummary(item, healthRows)
+    connectionSummary(item)
   );
+}
+
+function base64UrlBytes(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function base64UrlText(value: string) {
+  return base64UrlBytes(new TextEncoder().encode(value));
+}
+
+function concatBytes(...parts: Uint8Array[]) {
+  const output = new Uint8Array(
+    parts.reduce((total, part) => total + part.length, 0),
+  );
+  let offset = 0;
+  for (const part of parts) {
+    output.set(part, offset);
+    offset += part.length;
+  }
+  return output;
+}
+
+function derLength(length: number) {
+  if (length < 0x80) return new Uint8Array([length]);
+  const bytes: number[] = [];
+  let remaining = length;
+  while (remaining > 0) {
+    bytes.unshift(remaining & 0xff);
+    remaining >>>= 8;
+  }
+  return new Uint8Array([0x80 | bytes.length, ...bytes]);
+}
+
+function derWrap(tag: number, body: Uint8Array) {
+  return concatBytes(new Uint8Array([tag]), derLength(body.length), body);
+}
+
+function pemDer(privateKeyPem: string) {
+  const base64 = privateKeyPem
+    .replace(/-----BEGIN [^-]+-----/g, "")
+    .replace(/-----END [^-]+-----/g, "")
+    .replace(/\s+/g, "");
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function pkcs1ToPkcs8(pkcs1: Uint8Array) {
+  const version = new Uint8Array([0x02, 0x01, 0x00]);
+  const rsaAlgorithmIdentifier = new Uint8Array([
+    0x30, 0x0d,
+    0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01,
+    0x05, 0x00,
+  ]);
+  const privateKey = derWrap(0x04, pkcs1);
+  return derWrap(
+    0x30,
+    concatBytes(version, rsaAlgorithmIdentifier, privateKey),
+  );
+}
+
+async function githubAppJwt(appId: number, privateKeyPem: string) {
+  const decoded = pemDer(privateKeyPem);
+  const keyData = privateKeyPem.includes("BEGIN RSA PRIVATE KEY")
+    ? pkcs1ToPkcs8(decoded)
+    : decoded;
+  const privateKey = await crypto.subtle.importKey(
+    "pkcs8",
+    keyData,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64UrlText(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const payload = base64UrlText(JSON.stringify({
+    iat: now - 30,
+    exp: now + 540,
+    iss: appId,
+  }));
+  const signingInput = `${header}.${payload}`;
+  const signature = new Uint8Array(await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    privateKey,
+    new TextEncoder().encode(signingInput),
+  ));
+  return `${signingInput}.${base64UrlBytes(signature)}`;
+}
+
+async function githubInstallationToken(admin: UntypedSupabaseClient) {
+  const { data, error } = await admin.rpc(
+    "pandora_get_github_app_runtime_material",
+  );
+  if (error) throw new Error("CONNECTION_TEST_FAILED");
+  const material = asRecord(data);
+  const appId = Number(material.appId);
+  const installationId = Number(material.installationId);
+  const privateKeyPem = textValue(material.privateKeyPem);
+  if (
+    !Number.isInteger(appId) || appId !== 4785021 ||
+    !Number.isInteger(installationId) || installationId !== 158056492 ||
+    !privateKeyPem.includes("PRIVATE KEY")
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  const appJwt = await githubAppJwt(appId, privateKeyPem);
+  const response = await fetch(
+    `https://api.github.com/app/installations/${installationId}/access_tokens`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${appJwt}`,
+        "content-type": "application/json",
+        "user-agent": "Pandora-GitHub-App/1.0",
+        "x-github-api-version": "2022-11-28",
+      },
+      body: "{}",
+      redirect: "error",
+    },
+  );
+  const payload = asRecord(await response.json().catch(() => ({})));
+  const token = textValue(payload.token);
+  if (response.status !== 201 || !token) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+  return token;
+}
+
+async function verifyGithubConnection(
+  context: UserContext,
+  connectionId: string,
+) {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const token = await githubInstallationToken(admin);
+  const response = await fetch(
+    `https://api.github.com/repos/${CANONICAL_REPOSITORY}`,
+    {
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${token}`,
+        "user-agent": "Pandora-GitHub-App/1.0",
+        "x-github-api-version": "2022-11-28",
+      },
+      redirect: "error",
+    },
+  );
+  const repository = asRecord(await response.json().catch(() => ({})));
+  if (
+    response.status !== 200 ||
+    textValue(repository.full_name) !== CANONICAL_REPOSITORY
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  const checkedAt = new Date().toISOString();
+  const { error: updateError } = await admin.from("connector_installations")
+    .update({ last_health_check_at: checkedAt })
+    .eq("organization_id", context.organizationId)
+    .eq("id", connectionId)
+    .eq("provider", "github");
+  if (updateError) throw new Error("CONNECTION_TEST_FAILED");
+}
+
+async function verifyVercelConnection(
+  context: UserContext,
+  connectionId: string,
+) {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const [teamResult, projectResult] = await Promise.all([
+    admin.from("pandora_runtime_provider_configs")
+      .select("config_value")
+      .eq("provider", "vercel")
+      .eq("config_key", "team_id")
+      .eq("active", true)
+      .maybeSingle(),
+    admin.from("pandora_runtime_provider_configs")
+      .select("config_value")
+      .eq("provider", "vercel")
+      .eq("config_key", "mcpmaster_project_id")
+      .eq("active", true)
+      .maybeSingle(),
+  ]);
+  if (teamResult.error || projectResult.error) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+  const teamId = textValue(asRecord(teamResult.data).config_value);
+  const projectId = textValue(asRecord(projectResult.data).config_value);
+  if (
+    !/^team_[A-Za-z0-9]+$/.test(teamId) ||
+    !/^prj_[A-Za-z0-9]+$/.test(projectId)
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  const { data, error } = await admin.rpc(
+    "pandora_worker_f_vercel_request_20260829",
+    {
+      p_method: "GET",
+      p_path: `/v9/projects/${projectId}?teamId=${teamId}`,
+      p_body: null,
+    },
+  );
+  const result = asRecord(data);
+  const project = asRecord(result.body);
+  if (
+    error ||
+    Number(result.status) !== 200 ||
+    textValue(project.id) !== projectId
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  const checkedAt = new Date().toISOString();
+  const { error: updateError } = await admin.from("connector_installations")
+    .update({ last_health_check_at: checkedAt })
+    .eq("organization_id", context.organizationId)
+    .eq("id", connectionId)
+    .eq("provider", "vercel");
+  if (updateError) throw new Error("CONNECTION_TEST_FAILED");
 }
 
 async function connectionAction(
@@ -767,6 +981,14 @@ async function connectionAction(
   }
 
   const provider = textValue(asRecord(item.advanced).provider, item.name);
+  if (action === "test") {
+    const normalizedProvider = provider.toLowerCase();
+    if (normalizedProvider === "github") {
+      await verifyGithubConnection(context, connectionId);
+    } else if (normalizedProvider === "vercel") {
+      await verifyVercelConnection(context, connectionId);
+    }
+  }
   const requests: Record<GovernedConnectionAction, string> = {
     connect:
       `Prepare to finish connecting ${provider}. Verify the owner-approved account, requested permissions, and rollback before changing access.`,
@@ -1196,6 +1418,142 @@ async function completeConnectedServicesRead(
       completion: asRecord(completion),
     },
   };
+}
+
+
+type OwnerConnectBridgeAction = "status" | "authorize";
+
+function connectAuthorizationUrl(value: unknown): string {
+  const raw = textValue(value);
+  if (!raw) throw new Error("VERCEL_CONNECT_AUTHORIZATION_FAILED");
+  try {
+    const url = new URL(raw);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.hash
+    ) {
+      throw new Error("invalid authorization URL");
+    }
+    return url.toString();
+  } catch {
+    throw new Error("VERCEL_CONNECT_AUTHORIZATION_FAILED");
+  }
+}
+
+async function ownerConnectBridge(
+  context: UserContext,
+  action: OwnerConnectBridgeAction,
+) {
+  if (context.isAnonymous) throw new Error("PERMANENT_ACCOUNT_REQUIRED");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const result = await fetch(
+      MCPMASTER_CONNECT_ORIGIN + MCPMASTER_CONNECT_PATH + "/" + action,
+      {
+        method: action === "status" ? "GET" : "POST",
+        headers: {
+          authorization: context.authorization,
+          accept: "application/json",
+          ...(action === "authorize"
+            ? { "content-type": "application/json" }
+            : {}),
+        },
+        ...(action === "authorize" ? { body: "{}" } : {}),
+        redirect: "error",
+        signal: controller.signal,
+      },
+    );
+    const declared = Number(result.headers.get("content-length") || "0");
+    if (
+      Number.isFinite(declared) &&
+      declared > CONNECT_BRIDGE_MAX_RESPONSE_BYTES
+    ) {
+      throw new Error("VERCEL_CONNECT_RESPONSE_INVALID");
+    }
+    const raw = await result.text();
+    if (
+      new TextEncoder().encode(raw).byteLength >
+        CONNECT_BRIDGE_MAX_RESPONSE_BYTES
+    ) {
+      throw new Error("VERCEL_CONNECT_RESPONSE_INVALID");
+    }
+    let decoded: JsonRecord;
+    try {
+      decoded = asRecord(JSON.parse(raw));
+    } catch {
+      throw new Error("VERCEL_CONNECT_RESPONSE_INVALID");
+    }
+
+    if (action === "status") {
+      const subject = asRecord(decoded.subject);
+      if (
+        result.ok &&
+        decoded.ok === true &&
+        decoded.connected === true &&
+        textValue(subject.id) === context.userId
+      ) {
+        return {
+          ok: true,
+          connected: true,
+          authorizationRequired: false,
+          connector: textValue(
+            decoded.connector,
+            "mcpmaster.vercel.app/pandoras-box",
+          ),
+          provider: {
+            emailVerified: asRecord(decoded.provider).emailVerified === true,
+          },
+        };
+      }
+      const error = asRecord(decoded.error);
+      if (
+        result.status === 409 &&
+        decoded.connected === false &&
+        textValue(error.code) === "VERCEL_CONNECT_USER_NOT_READY"
+      ) {
+        return {
+          ok: true,
+          connected: false,
+          authorizationRequired: true,
+          connector: "mcpmaster.vercel.app/pandoras-box",
+        };
+      }
+      throw new Error("VERCEL_CONNECT_STATUS_FAILED");
+    }
+
+    if (result.ok && decoded.ok === true) {
+      return {
+        ok: true,
+        connector: textValue(
+          decoded.connector,
+          "mcpmaster.vercel.app/pandoras-box",
+        ),
+        authorizationUrl: connectAuthorizationUrl(decoded.authorizationUrl),
+      };
+    }
+    throw new Error("VERCEL_CONNECT_AUTHORIZATION_FAILED");
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      [
+        "VERCEL_CONNECT_RESPONSE_INVALID",
+        "VERCEL_CONNECT_STATUS_FAILED",
+        "VERCEL_CONNECT_AUTHORIZATION_FAILED",
+      ].includes(error.message)
+    ) {
+      throw error;
+    }
+    throw new Error(
+      action === "status"
+        ? "VERCEL_CONNECT_STATUS_FAILED"
+        : "VERCEL_CONNECT_AUTHORIZATION_FAILED",
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function createOwnerWorkerAdapter(context: UserContext) {
@@ -1652,6 +2010,12 @@ Deno.serve(async (req: Request) => {
     if (req.method === "GET" && route === "/connections") {
       return send(await connections(context));
     }
+    if (
+      req.method === "GET" &&
+      route === "/connect/pandoras-box/status"
+    ) {
+      return send(await ownerConnectBridge(context, "status"));
+    }
     if (req.method === "GET" && route === "/memory") {
       return send(
         await memory(
@@ -1711,6 +2075,16 @@ Deno.serve(async (req: Request) => {
         ),
         202,
       );
+    }
+    if (
+      req.method === "POST" &&
+      route === "/connect/pandoras-box/authorize"
+    ) {
+      const body = await bodyJson(req);
+      if (Object.keys(body).length > 0) {
+        throw new Error("VERCEL_CONNECT_AUTHORIZATION_BODY_NOT_ALLOWED");
+      }
+      return send(await ownerConnectBridge(context, "authorize"));
     }
     if (req.method === "POST" && route === "/memory/search") {
       const body = await bodyJson(req);
@@ -1842,6 +2216,7 @@ Deno.serve(async (req: Request) => {
         "INVALID_WORKER_REVIEW_ROUTE",
         "INVALID_WORKER_PLAN_ID",
         "PROJECT_REQUIRED",
+        "VERCEL_CONNECT_AUTHORIZATION_BODY_NOT_ALLOWED",
         "BODY_TOO_LARGE",
       ]
         .includes(code)
@@ -1891,6 +2266,26 @@ Deno.serve(async (req: Request) => {
         409,
         code,
         "That connection action is not available in its current state.",
+      );
+    }
+    if (code === "CONNECTION_TEST_FAILED") {
+      return reject(
+        503,
+        code,
+        "Pandora could not verify that connection right now.",
+      );
+    }
+    if (
+      [
+        "VERCEL_CONNECT_RESPONSE_INVALID",
+        "VERCEL_CONNECT_STATUS_FAILED",
+        "VERCEL_CONNECT_AUTHORIZATION_FAILED",
+      ].includes(code)
+    ) {
+      return reject(
+        503,
+        code,
+        "Pandora could not complete the secure connection check right now.",
       );
     }
     if (code === "WORKER_REVIEW_FINALIZATION_AMBIGUOUS") {

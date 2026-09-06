@@ -7,7 +7,6 @@ const crypto_1 = require("node:crypto");
 const MANAGEMENT_API_ORIGIN = 'https://api.supabase.com/v1';
 const DEFAULT_TIMEOUT_MS = 10000;
 const DEFAULT_MAX_RESPONSE_BYTES = 1000000;
-const DATABASE_QUERY_MAX_BYTES = 64 * 1024;
 const AccountConfigurationSchema = zod_1.z.object({
     id: zod_1.z.string().regex(/^[a-z][a-z0-9_-]{1,63}$/),
     label: zod_1.z.string().min(1).max(160),
@@ -76,12 +75,12 @@ const MutationArgsSchema = ProjectArgsSchema.extend({
     confirmation: zod_1.z.string().min(1),
 });
 const DatabaseQueryArgsSchema = ProjectArgsSchema.extend({
-    sql: zod_1.z.string().min(1).max(DATABASE_QUERY_MAX_BYTES)
-        .refine((value) => Buffer.byteLength(value, 'utf8') <= DATABASE_QUERY_MAX_BYTES, 'SQL query exceeds the UTF-8 byte limit'),
+    sql: zod_1.z.string().min(1).max(32768),
+    parameters: zod_1.z.array(zod_1.z.unknown()).max(64).default([]),
     readOnly: zod_1.z.boolean(),
-    bodySha256: zod_1.z.string().regex(/^[a-f0-9]{64}$/),
+    bodySha256: zod_1.z.string().regex(/^[0-9a-f]{64}$/),
     confirmation: zod_1.z.string().min(1),
-}).strict();
+});
 function normalizeProject(project) {
     return {
         id: project.id,
@@ -195,27 +194,22 @@ class SupabaseMCPServer {
         await this.request(account, `/projects/${encodeURIComponent(projectRef)}/restore`, 'POST');
         return { accountId, projectRef, status: 'restore-requested' };
     }
-    async queryDatabase(accountId, projectRef, sql, readOnly, bodySha256, confirmation) {
+    async databaseQuery(accountId, projectRef, sql, parameters, readOnly, bodySha256, confirmation) {
         const account = this.account(accountId);
         this.assertMutationAllowed(account);
         await this.ensureProjectAllowed(account, projectRef);
-        const body = { query: sql, read_only: readOnly };
-        const computedBodySha256 = (0, crypto_1.createHash)('sha256')
-            .update(JSON.stringify(body), 'utf8')
-            .digest('hex');
-        if (bodySha256 !== computedBodySha256) {
-            throw new SupabaseManagementError(`Database query bodySha256 must exactly equal ${computedBodySha256}`, 400);
+        const body = { query: sql, parameters, read_only: readOnly };
+        const serialized = JSON.stringify(body);
+        if (Buffer.byteLength(serialized, 'utf8') > 65536) {
+            throw new SupabaseManagementError('Supabase database query body is too large', 413);
         }
-        this.assertConfirmation(
-            confirmation,
-            `DATABASE QUERY ${projectRef} READ_ONLY ${readOnly ? 'true' : 'false'} BODY_SHA256 ${computedBodySha256}`,
-        );
-        return this.request(
-            account,
-            `/projects/${encodeURIComponent(projectRef)}/database/query`,
-            'POST',
-            body,
-        );
+        const computedBodySha256 = (0, crypto_1.createHash)('sha256').update(serialized, 'utf8').digest('hex');
+        if (bodySha256 !== computedBodySha256) {
+            throw new SupabaseManagementError('Supabase database query body hash mismatch', 400);
+        }
+        this.assertConfirmation(confirmation, `POST DATABASE ${projectRef} READ_ONLY ${readOnly ? 'true' : 'false'} BODY_SHA256 ${bodySha256}`);
+        const result = await this.request(account, `/projects/${encodeURIComponent(projectRef)}/database/query`, 'POST', body);
+        return { accountId, projectRef, readOnly, bodySha256, result };
     }
     account(accountId) {
         const account = this.config.accounts.find((candidate) => candidate.id === accountId);
@@ -277,7 +271,7 @@ class SupabaseMCPServer {
                     'Content-Type': 'application/json',
                     'User-Agent': 'MCPMaster-Supabase-Control/1.0',
                 },
-                body: body === undefined ? undefined : JSON.stringify(body),
+                ...(body === undefined ? {} : { body: JSON.stringify(body) }),
                 signal: controller.signal,
                 redirect: 'error',
             });
@@ -357,20 +351,20 @@ exports.supabaseTools = {
             required: ['accountId', 'projectRef'],
         },
     },
-    'supabase.query-database': {
-        description: 'Run one exact body-hash-bound SQL request against an allowlisted Supabase project; every call is approval-gated and the provider enforces database permissions',
+    'supabase.database-query': {
+        description: 'Run one exact approval-gated SQL query against an explicitly allowlisted Supabase project; the body hash binds SQL, parameters, and read_only mode',
         parameters: {
             type: 'object',
-            additionalProperties: false,
             properties: {
                 accountId: { type: 'string', description: 'Configured MCPMaster Supabase account ID' },
-                projectRef: { type: 'string', pattern: '^[a-z0-9]{20}$', description: 'Exact allowlisted Supabase project ref' },
-                sql: { type: 'string', minLength: 1, maxLength: DATABASE_QUERY_MAX_BYTES, description: 'Exact SQL bytes sent to the Supabase database query endpoint' },
-                readOnly: { type: 'boolean', description: 'Provider read_only flag; false permits mutations only after owner/admin approval' },
-                bodySha256: { type: 'string', pattern: '^[a-f0-9]{64}$', description: 'SHA-256 of exact UTF-8 JSON body with query and read_only fields' },
-                confirmation: { type: 'string', description: 'DATABASE QUERY projectRef READ_ONLY true|false BODY_SHA256 bodySha256' },
+                projectRef: { type: 'string', description: 'Exact 20-character Supabase project ref' },
+                sql: { type: 'string', description: 'Exact SQL text, maximum 32 KiB' },
+                parameters: { type: 'array', description: 'Bound SQL parameters, maximum 64 values' },
+                readOnly: { type: 'boolean', description: 'Whether Supabase must mechanically enforce read_only mode' },
+                bodySha256: { type: 'string', description: 'SHA-256 of JSON.stringify({query:sql,parameters,read_only:readOnly})' },
+                confirmation: { type: 'string', description: 'Exact database-query confirmation generated from project, read_only mode, and body hash' },
             },
-            required: ['accountId', 'projectRef', 'sql', 'readOnly', 'bodySha256', 'confirmation'],
+            required: ['accountId', 'projectRef', 'sql', 'parameters', 'readOnly', 'bodySha256', 'confirmation'],
         },
     },
     'supabase.pause-project': {
@@ -415,16 +409,9 @@ async function executeSupabaseTool(tool, args, configuration, fetchFn) {
             const input = ProjectArgsSchema.parse(args);
             return supabase.getProject(input.accountId, input.projectRef);
         }
-        case 'supabase.query-database': {
+        case 'supabase.database-query': {
             const input = DatabaseQueryArgsSchema.parse(args);
-            return supabase.queryDatabase(
-                input.accountId,
-                input.projectRef,
-                input.sql,
-                input.readOnly,
-                input.bodySha256,
-                input.confirmation,
-            );
+            return supabase.databaseQuery(input.accountId, input.projectRef, input.sql, input.parameters, input.readOnly, input.bodySha256, input.confirmation);
         }
         case 'supabase.pause-project': {
             const input = MutationArgsSchema.parse(args);

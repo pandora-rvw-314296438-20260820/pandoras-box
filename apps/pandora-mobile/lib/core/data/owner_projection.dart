@@ -130,9 +130,12 @@ int connectionAttentionRank(ConnectionSummary connection) =>
 
 bool isLegacyConnection(ConnectionSummary connection) {
   final words = '${connection.name} ${connection.purpose}'.toLowerCase();
-  final github = words.contains('github');
-  return github &&
-      (words.contains('banataosystems') || words.contains('mbanatao'));
+  if (!words.contains('github')) return false;
+  return words.contains('mbanatao') ||
+      words.contains('legacy') ||
+      words.contains('retired') ||
+      words.contains('suspended') ||
+      words.contains('no longer used');
 }
 
 OwnerConnectionState resolveOwnerConnectionState(ConnectionSummary connection) {
