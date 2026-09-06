@@ -1288,10 +1288,39 @@ async function memory(
   };
 }
 
+function integrationFreshness(value: unknown, now: number) {
+  const item = asRecord(value);
+  const staleAfter = textValue(item.stale_after);
+  const lastSuccessAt = textValue(item.last_success_at);
+  const hasVerifiedSuccess = Boolean(
+    lastSuccessAt && Number.isFinite(Date.parse(lastSuccessAt)),
+  );
+  if (!staleAfter) return hasVerifiedSuccess ? "fresh" : "not_checked";
+  const staleAt = Date.parse(staleAfter);
+  if (!Number.isFinite(staleAt)) return "not_checked";
+  return staleAt > now && hasVerifiedSuccess ? "fresh" : "stale";
+}
+
+async function canonicalSafetyProjectId(context: UserContext) {
+  const { data, error } = await context.client.from("projectos_projects")
+    .select("id")
+    .eq("organization_id", context.organizationId)
+    .eq("repository", CANONICAL_REPOSITORY)
+    .neq("status", "archived")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error("BACKEND_READ_FAILED");
+  const projectId = textValue(asRecord(data).id);
+  if (!projectId) throw new Error("CANONICAL_PROJECT_NOT_FOUND");
+  return projectId;
+}
+
 async function safety(context: UserContext) {
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+  const safetyProjectId = await canonicalSafetyProjectId(context);
   const [policy, health, audit] = await Promise.all([
     context.client.from("projectos_policies").select("*").eq(
       "organization_id",
@@ -1300,7 +1329,9 @@ async function safety(context: UserContext) {
     context.client.from("projectos_integration_health").select(
       "project_id, provider, status, last_event_at, last_success_at, stale_after, details, updated_at",
     )
-      .eq("organization_id", context.organizationId).order("provider"),
+      .eq("organization_id", context.organizationId)
+      .eq("project_id", safetyProjectId)
+      .order("provider"),
     admin.rpc("verify_execution_audit_chain", {
       p_organization_id: context.organizationId,
     }),
@@ -1319,12 +1350,9 @@ async function safety(context: UserContext) {
       )
     );
   const allFresh = healthRows.length > 0 && healthRows.every((item) => {
-    const staleAfter = textValue(item.stale_after);
-    const lastSuccessAt = textValue(item.last_success_at);
-    return Boolean(
-      staleAfter && Date.parse(staleAfter) > now && lastSuccessAt &&
-        Number.isFinite(Date.parse(lastSuccessAt)),
-    );
+    const status = textValue(item.status).toLowerCase();
+    return status === "not_configured" ||
+      integrationFreshness(item, now) === "fresh";
   });
   const requiredPolicyEnabled = policyRecord.mandatory_control_layer === true &&
     policyRecord.require_owner_release_approval === true;
@@ -1337,10 +1365,7 @@ async function safety(context: UserContext) {
     policy: policy.data,
     integrations: healthRows.map((item) => ({
       ...item,
-      freshness: textValue(item.stale_after) &&
-          Date.parse(textValue(item.stale_after)) > now
-        ? "fresh"
-        : "not_checked",
+      freshness: integrationFreshness(item, now),
     })),
     auditIntegrity,
     mfaRequiredForApproval: false,
