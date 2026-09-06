@@ -192,15 +192,16 @@ class _ProjectBuildConversationScreenState
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_stream != null) return;
-    final rawStream = PandoraDependencies.of(context)
-        .projectExperienceRepository
-        ?.watchResilientBuildStream(
-          projectId: widget.project.id,
-          streamId: widget.buildStart.streamId,
-        );
-    _stream = rawStream == null
+    final repository =
+        PandoraDependencies.of(context).projectExperienceRepository;
+    _stream = repository == null
         ? null
-        : coalesceProjectBuildSnapshotsForRendering(rawStream);
+        : coalesceProjectBuildSnapshotsForRendering(
+            () => repository.watchResilientBuildStream(
+              projectId: widget.project.id,
+              streamId: widget.buildStart.streamId,
+            ),
+          );
   }
 
   void _openProject() {
