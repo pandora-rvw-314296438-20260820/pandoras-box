@@ -221,7 +221,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql',
     '20260906145500_provider_auto_failover_v2.sql',
     '20260906150120_align_meta_connector_current_identity.sql',
-    '20260906150551_supabase_auth_nonblocking_smtp_when_signup_disabled_v1.sql'
+    '20260906150551_supabase_auth_nonblocking_smtp_when_signup_disabled_v1.sql',
+    '20260906153000_pandora_meta_live_connection_verifier_v1.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -425,7 +426,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql',
     '20260906145500_provider_auto_failover_v2.sql',
     '20260906150120_align_meta_connector_current_identity.sql',
-    '20260906150551_supabase_auth_nonblocking_smtp_when_signup_disabled_v1.sql'
+    '20260906150551_supabase_auth_nonblocking_smtp_when_signup_disabled_v1.sql',
+    '20260906153000_pandora_meta_live_connection_verifier_v1.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -581,7 +583,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql',
     '20260906145500_provider_auto_failover_v2.sql',
     '20260906150120_align_meta_connector_current_identity.sql',
-    '20260906150551_supabase_auth_nonblocking_smtp_when_signup_disabled_v1.sql'
+    '20260906150551_supabase_auth_nonblocking_smtp_when_signup_disabled_v1.sql',
+    '20260906153000_pandora_meta_live_connection_verifier_v1.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
