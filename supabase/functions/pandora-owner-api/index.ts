@@ -892,6 +892,32 @@ async function verifyGithubConnection(
   if (updateError) throw new Error("CONNECTION_TEST_FAILED");
 }
 
+
+async function verifySupabaseConnection(
+  context: UserContext,
+  connectionId: string,
+) {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await admin.rpc(
+    "pandora_verify_supabase_project_connection_20260906",
+    {
+      p_organization_id: context.organizationId,
+      p_installation_id: connectionId,
+    },
+  );
+  const result = asRecord(data);
+  if (
+    error ||
+    result.ok !== true ||
+    textValue(result.provider).toLowerCase() !== "supabase" ||
+    textValue(result.status) !== "ACTIVE_HEALTHY"
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+}
+
 async function verifyVercelConnection(
   context: UserContext,
   connectionId: string,
@@ -985,6 +1011,8 @@ async function connectionAction(
     const normalizedProvider = provider.toLowerCase();
     if (normalizedProvider === "github") {
       await verifyGithubConnection(context, connectionId);
+    } else if (normalizedProvider === "supabase") {
+      await verifySupabaseConnection(context, connectionId);
     } else if (normalizedProvider === "vercel") {
       await verifyVercelConnection(context, connectionId);
     }
