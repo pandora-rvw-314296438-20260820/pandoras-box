@@ -3,6 +3,7 @@ const test = require("node:test");
 const express = require("express");
 
 const { createOperatorApiApp } = require("../dist/operator/api.js");
+const { VercelConnectUserError } = require("../dist/operator/vercel-connect-user.js");
 
 const USER_ID = "e5f5744e-554b-4f92-aad2-3f58ae6a33ad";
 const ORGANIZATION_ID = "2270b266-59da-4c39-bfd9-9f8d08352af0";
@@ -199,11 +200,11 @@ test("operator Connect status exposes authorization path but not token on first-
   const broker = {
     connector: "mcpmaster.vercel.app/pandoras-box",
     async probe() {
-      const error = new Error("authorization required");
-      error.name = "VercelConnectUserError";
-      error.code = "VERCEL_CONNECT_USER_NOT_READY";
-      error.status = 409;
-      throw error;
+      throw new VercelConnectUserError(
+        "VERCEL_CONNECT_USER_NOT_READY",
+        "authorization required",
+        409,
+      );
     },
   };
 
@@ -211,6 +212,13 @@ test("operator Connect status exposes authorization path but not token on first-
     const response = await fetch(origin + "/connect/pandoras-box/status", {
       headers: { authorization: "Bearer " + ACCESS_TOKEN },
     });
-    assert.equal(response.status, 503);
+    assert.equal(response.status, 409);
+    const body = await response.json();
+    assert.equal(body.connected, false);
+    assert.equal(
+      body.authorizationPath,
+      "/api/operator/connect/pandoras-box/authorize",
+    );
+    assert.equal("token" in body, false);
   });
 });
