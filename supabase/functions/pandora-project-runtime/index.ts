@@ -1184,6 +1184,408 @@ async function createPreview(context: UserContext, identifier: string, body: Jso
     deployment = await createVercelDeployment(provider, bundle, versionId, operationKey, authorizationRef);
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
+    if (code === "PREVIEW_RECONCILIATION_REQUIRED") {
+      await admin.from("pandora_runtime_operations").update({ status: "uncertain", ambiguous: true, normalized_error: { code: "reconciliation_required" }, updated_at: new Date().toISOString() }).eq("id", operationId);
+    } else {
+      await admin.from("pandora_runtime_operations").update({ status: "failed", ambiguous: false, normalized_error: { code }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
+    }
+    throw error;
+  }
+
+  const providerDeploymentId = textValue(deployment.id ?? deployment.uid);
+  if (!providerDeploymentId) throw new Error("VERCEL_DEPLOYMENT_INVALID");
+  const rawUrl = textValue(deployment.url);
+  const previewUrl = rawUrl ? `https://${rawUrl.replace(/^https?:\/\//, "")}` : null;
+  const providerState = textValue(deployment.readyState ?? deployment.status, "QUEUED").toUpperCase();
+  const terminalFailure = new Set(["ERROR", "CANCELED"]).has(providerState);
+  const ready = providerState === "READY";
+  const status = ready ? "ready_for_verification" : terminalFailure ? "failed" : providerState.toLowerCase();
+  const verificationState = ready ? "ready_for_verification" : terminalFailure ? "failed" : "not_verified";
+  const now = new Date().toISOString();
+  const { data: deploymentRow, error: deploymentError } = await admin.from("pandora_project_deployments")
+    .insert({
+      organization_id: context.organizationId, project_id: projectId, version_id: versionId, provider: "vercel", environment: "preview",
+      provider_project_id: provider.id, provider_deployment_id: providerDeploymentId, url: previewUrl, status, source_sha256: bundle.sourceDigest,
+      artifact_digest: bundle.artifactDigest, source_commit_sha: bundle.sourceCommit, authorization_ref: authorizationRef, idempotency_key: operationKey,
+      provider_state: providerState, immutable_url: previewUrl, last_provider_check_at: now, ready_at: ready ? now : null, failed_at: terminalFailure ? now : null,
+      verification_state: verificationState,
+      metadata: { providerName: provider.name, pandoraOperationId: operationKey, rootArtifactVersionId: textValue(bundle.version.root_artifact_version_id), projectSpecId: bundle.projectSpecId, buildJobId: bundle.buildJobId },
+    })
+    .select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, verification_state, created_at").single();
+  if (deploymentError || !deploymentRow) throw new Error("BACKEND_WRITE_FAILED");
+
+  const environmentStatus = terminalFailure ? "failed" : ready ? "ready" : "provisioning";
+  const { error: environmentError } = await admin.from("pandora_runtime_environments").upsert({
+    organization_id: context.organizationId, project_id: projectId, environment: "preview", provider: "vercel", provider_project_id: provider.id,
+    status: environmentStatus, current_version_id: versionId, current_deployment_id: deploymentRow.id, verification_state: verificationState, last_reconciled_at: now, updated_at: now,
+  }, { onConflict: "project_id,environment" });
+  if (environmentError) throw new Error("BACKEND_WRITE_FAILED");
+
+  const nextLifecycle = terminalFailure ? "rejected" : "verification_pending";
+  const { error: versionUpdateError } = await admin.from("pandora_project_versions").update({ lifecycle_status: nextLifecycle }).eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", versionId);
+  if (versionUpdateError) throw new Error("BACKEND_WRITE_FAILED");
+
+  const config = asRecord(project.config);
+  const journey = asRecord(config.customerJourney);
+  const nextConfig = { ...config, customerJourney: { ...journey, stage: ready ? "preview_ready" : terminalFailure ? "needs_attention" : "building", runtimeStatus: ready ? "verifying" : terminalFailure ? "failed" : "working", previewUrl, previewVersionId: versionId, previewDeploymentId: providerDeploymentId, previewVerificationState: verificationState, runtimeUpdatedAt: now } };
+  const { error: projectError } = await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
+  if (projectError) throw new Error("BACKEND_WRITE_FAILED");
+  await admin.from("pandora_runtime_operations").update({ status: terminalFailure ? "failed" : "succeeded", ambiguous: false, provider_resource_id: providerDeploymentId, result_facts: { projectVersionId: versionId, providerDeploymentId, artifactDigest: bundle.artifactDigest, sourceCommit: bundle.sourceCommit, verificationState }, finished_at: now, last_reconciled_at: now, updated_at: now }).eq("id", operationId);
+  return { project: projectResponse({ ...project, config: nextConfig }), version: bundle.version, deployment: deploymentRow, previewUrl, verificationState };
+}
+
+async function publishProject(context: UserContext, identifier: string, body: JsonRecord) {
+  let project = await projectByIdentifier(context, identifier);
+  const projectId = textValue(project.id);
+  const requestedVersion = textValue(body.versionId);
+  if (!requestedVersion) throw new Error("VERSION_REQUIRED");
+  if (!Object.prototype.hasOwnProperty.call(body, "expectedProductionVersionId")) throw new Error("PRODUCTION_PRECONDITION_REQUIRED");
+  const expectedProductionVersionId = body.expectedProductionVersionId == null ? null : textValue(body.expectedProductionVersionId);
+  if (body.expectedProductionVersionId != null && !expectedProductionVersionId) throw new Error("INVALID_PRODUCTION_PRECONDITION");
+  if (!SUPABASE_SERVICE_ROLE_KEY) throw new Error("RUNTIME_BROKER_NOT_CONFIGURED");
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+
+  const { data: versionData, error: versionError } = await admin.from("pandora_project_versions")
+    .select("id, source_sha256, project_spec_id, build_job_id, source_kind, source_ref, source_commit, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, verification_run_id, lifecycle_status, created_at")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", requestedVersion).maybeSingle();
+  if (versionError) throw new Error("BACKEND_READ_FAILED");
+  if (!versionData) throw new Error("PREVIEW_REQUIRED");
+  const version = asRecord(versionData);
+  const sourceDigest = textValue(version.source_sha256).toLowerCase();
+  const projectSpecId = textValue(version.project_spec_id);
+  const buildJobId = textValue(version.build_job_id);
+  const { sourceKind, sourceRef, sourceCommit } = projectSourceIdentity(requestedVersion, version.source_kind, version.source_ref, version.source_commit);
+  const artifactDigest = textValue(version.artifact_digest_sha256).toLowerCase();
+  if (!SHA256_RE.test(sourceDigest) || !UUID_RE.test(projectSpecId) || !UUID_RE.test(buildJobId) || !SHA256_RE.test(artifactDigest)) throw new Error("VERIFICATION_REQUIRED");
+
+  const { data: previewData, error: previewError } = await admin.from("pandora_project_deployments")
+    .select("id, version_id, provider, provider_project_id, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview").eq("version_id", requestedVersion)
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (previewError) throw new Error("BACKEND_READ_FAILED");
+  if (!previewData) throw new Error("PREVIEW_REQUIRED");
+  const preview = asRecord(previewData);
+  const previewDeploymentId = textValue(preview.provider_deployment_id);
+  const previewStatus = textValue(preview.status).toLowerCase();
+  if (!previewDeploymentId || !new Set(["ready", "ready_for_verification"]).has(previewStatus)) throw new Error("PREVIEW_NOT_READY");
+  if (textValue(preview.source_sha256) !== sourceDigest) throw new Error("VERSION_SOURCE_MISMATCH");
+  if (textValue(preview.artifact_digest) && textValue(preview.artifact_digest) !== artifactDigest) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
+  if ((textValue(preview.source_commit_sha) || null) !== sourceCommit) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
+
+  let verificationQuery = admin.from("pandora_verification_runs")
+    .select("id, project_spec_id, project_version_id, build_job_id, source_kind, source_ref, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, status, completed_at, created_at")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("project_version_id", requestedVersion);
+  const boundVerificationId = textValue(version.verification_run_id);
+  verificationQuery = boundVerificationId
+    ? verificationQuery.eq("id", boundVerificationId)
+    : verificationQuery.order("completed_at", { ascending: false, nullsFirst: false }).limit(1);
+  const { data: verificationData, error: verificationError } = await verificationQuery.maybeSingle();
+  if (verificationError) throw new Error("BACKEND_READ_FAILED");
+  if (!verificationData) throw new Error("VERIFICATION_REQUIRED");
+  const verification = asRecord(verificationData);
+  if (textValue(verification.status).toUpperCase() !== "PASS") throw new Error("VERIFICATION_REQUIRED");
+  if (textValue(verification.target_environment) !== "preview") throw new Error("VERIFICATION_IDENTITY_MISMATCH");
+  if (textValue(verification.project_spec_id) !== projectSpecId || textValue(verification.project_version_id) !== requestedVersion ||
+      textValue(verification.build_job_id) !== buildJobId || textValue(verification.source_kind) !== sourceKind || textValue(verification.source_ref) !== sourceRef ||
+      (textValue(verification.source_commit) || null) !== sourceCommit || textValue(verification.source_digest) !== sourceDigest || textValue(verification.artifact_digest) !== artifactDigest ||
+      textValue(verification.migration_set_digest) !== textValue(version.migration_set_digest_sha256) ||
+      textValue(verification.runtime_target_digest) !== textValue(version.runtime_target_digest_sha256) ||
+      textValue(verification.preview_deployment_id) !== previewDeploymentId) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
+  const completedAt = Date.parse(textValue(verification.completed_at));
+  const versionCreatedAt = Date.parse(textValue(version.created_at));
+  const previewCreatedAt = Date.parse(textValue(preview.created_at));
+  if (!Number.isFinite(completedAt) || !Number.isFinite(versionCreatedAt) || !Number.isFinite(previewCreatedAt) || completedAt < Math.max(versionCreatedAt, previewCreatedAt)) throw new Error("VERIFICATION_STALE");
+
+  const { data: currentEnvironment, error: environmentError } = await admin.from("pandora_runtime_environments")
+    .select("id, current_version_id, current_deployment_id").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").maybeSingle();
+  if (environmentError) throw new Error("BACKEND_READ_FAILED");
+  const { data: latestProduction, error: productionReadError } = await admin.from("pandora_project_deployments")
+    .select("id, version_id, provider_deployment_id, url, status, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId)
+    .eq("environment", "production").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (productionReadError) throw new Error("BACKEND_READ_FAILED");
+  const currentVersionId = currentEnvironment?.current_version_id == null ? (latestProduction?.version_id == null ? null : textValue(latestProduction.version_id)) : textValue(currentEnvironment.current_version_id);
+  if (currentVersionId !== expectedProductionVersionId) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+
+  const domain = normalizeDomain(body.domain);
+  const previewProvider = textValue(preview.provider).toLowerCase();
+  if (previewProvider === "supabase_preview") {
+    if (domain) throw new Error("SUPABASE_FALLBACK_DOMAIN_UNAVAILABLE");
+    const { data: fallbackData, error: fallbackError } = await admin.rpc("pandora_publish_supabase_fallback_20260831", {
+      p_project_id: projectId,
+      p_version_id: requestedVersion,
+      p_requested_by: context.userId,
+      p_expected_production_version_id: expectedProductionVersionId,
+    });
+    if (fallbackError) throw new Error("SUPABASE_PRODUCTION_FALLBACK_FAILED");
+    const fallback = asRecord(fallbackData);
+    const snapshot = await runtimeSummary(context, projectId);
+    return {
+      project: snapshot.project,
+      production: snapshot.production,
+      domain: snapshot.domain,
+      liveUrl: asRecord(snapshot.project).liveUrl ?? null,
+      productionCandidateUrl: asRecord(snapshot.production).url ?? null,
+      domainVerified: asRecord(snapshot.domain).verified === true,
+      verificationState: textValue(fallback.state) === "live" ? "live_verified" : "ready_for_verification",
+      provider: "supabase_static",
+      state: textValue(fallback.state, "working"),
+    };
+  }
+  if (previewProvider !== "vercel") throw new Error("PRODUCTION_PROVIDER_UNSUPPORTED");
+
+  const provider = await ensureVercelProject(context, project);
+  project = { ...project, config: provider.config };
+  const providerProjectId = textValue(preview.provider_project_id) || provider.id;
+  if (providerProjectId !== provider.id) throw new Error("PROVIDER_LINEAGE_MISMATCH");
+  const operationKey = await sha256Hex(["publish_version", context.organizationId, projectId, requestedVersion, textValue(verification.id), expectedProductionVersionId ?? "empty", domain ?? "no-domain"].join("|"));
+  const operationRecord = { idempotency_key: operationKey, action: "publish_version", organization_id: context.organizationId, project_id: projectId, project_version_id: requestedVersion, environment: "production", provider: "vercel", authorization_ref: `owner:${context.userId}`, verification_ref: textValue(verification.id), provider_project_id: provider.id, status: "claimed" };
+  let operationId = "";
+  const { data: claimed, error: claimError } = await admin.from("pandora_runtime_operations").insert(operationRecord).select("id").single();
+  if (claimError) {
+    if (claimError.code !== "23505") throw new Error("PUBLISH_CLAIM_FAILED");
+    const { data: existingOperation, error: existingError } = await admin.from("pandora_runtime_operations")
+      .select("id, status, result_facts").eq("provider", "vercel").eq("idempotency_key", operationKey).maybeSingle();
+    if (existingError || !existingOperation) throw new Error("PUBLISH_CLAIM_FAILED");
+    const existingStatus = textValue(existingOperation.status);
+    if (existingStatus === "succeeded") {
+      const snapshot = await runtimeSummary(context, projectId);
+      if (textValue(asRecord(snapshot.production).version_id) !== requestedVersion) throw new Error("PUBLISH_RECONCILIATION_REQUIRED");
+      return { project: snapshot.project, production: snapshot.production, domain: snapshot.domain, liveUrl: asRecord(snapshot.project).liveUrl ?? null, domainVerified: asRecord(snapshot.domain).verified === true };
+    }
+    if (existingStatus === "uncertain") throw new Error("PUBLISH_RECONCILIATION_REQUIRED");
+    if (new Set(["claimed", "running"]).has(existingStatus)) throw new Error("PUBLISH_IN_PROGRESS");
+    const { data: reclaimed, error: reclaimError } = await admin.from("pandora_runtime_operations")
+      .update({ status: "claimed", ambiguous: false, normalized_error: {}, result_facts: {}, claimed_at: new Date().toISOString(), started_at: null, finished_at: null, updated_at: new Date().toISOString() })
+      .eq("id", existingOperation.id).eq("status", "failed").select("id").maybeSingle();
+    if (reclaimError || !reclaimed) throw new Error("PUBLISH_CLAIM_FAILED");
+    operationId = textValue(reclaimed.id);
+  } else operationId = textValue(claimed.id);
+  await admin.from("pandora_runtime_operations").update({ status: "running", started_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
+
+  let providerMutationStarted = false;
+  try {
+    const beforePromotion = await vercelRequest(`/v13/deployments/${encodeURIComponent(previewDeploymentId)}`, { method: "GET" }, [200]);
+    if (textValue(beforePromotion.id ?? beforePromotion.uid) !== previewDeploymentId) throw new Error("PROVIDER_LINEAGE_MISMATCH");
+    if (textValue(beforePromotion.readyState ?? beforePromotion.status).toUpperCase() !== "READY") throw new Error("PREVIEW_NOT_READY");
+    if (textValue(beforePromotion.target).toLowerCase() === "production") throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+    providerMutationStarted = true;
+    try {
+      await vercelRequest(`/v10/projects/${encodeURIComponent(provider.id)}/promote/${encodeURIComponent(previewDeploymentId)}`, {
+        method: "POST", body: JSON.stringify({ meta: { pandoraProjectVersionId: requestedVersion, pandoraVerificationRunId: textValue(verification.id) } }),
+      }, [200, 201]);
+    } catch (promotionError) {
+      const reconciled = await vercelRequest(`/v13/deployments/${encodeURIComponent(previewDeploymentId)}`, { method: "GET" }, [200]);
+      if (textValue(reconciled.target).toLowerCase() !== "production") throw promotionError;
+    }
+    const deployment = await vercelRequest(`/v13/deployments/${encodeURIComponent(previewDeploymentId)}`, { method: "GET" }, [200]);
+    if (textValue(deployment.id ?? deployment.uid) !== previewDeploymentId || textValue(deployment.target).toLowerCase() !== "production" || textValue(deployment.readyState ?? deployment.status).toUpperCase() !== "READY") throw new Error("PRODUCTION_PROMOTION_NOT_CONFIRMED");
+    const providerState = textValue(deployment.readyState ?? deployment.status, "pending");
+    const rawUrl = textValue(deployment.url) || textValue(preview.url);
+    const deploymentUrl = rawUrl ? `https://${rawUrl.replace(/^https?:\/\//, "")}` : null;
+    const status = providerState.toLowerCase();
+
+    const { data: productionRow, error: productionError } = await admin.from("pandora_project_deployments").insert({
+      organization_id: context.organizationId, project_id: projectId, version_id: requestedVersion, provider: "vercel", environment: "production",
+      provider_project_id: provider.id, provider_deployment_id: previewDeploymentId, url: deploymentUrl, status, source_sha256: sourceDigest,
+      promoted_from_id: preview.id, artifact_digest: artifactDigest, source_commit_sha: sourceCommit, verification_ref: textValue(verification.id), verification_state: "ready_for_verification",
+      provider_state: providerState, immutable_url: deploymentUrl, metadata: { providerName: provider.name, promotionOnly: true, previewVerificationRunId: textValue(verification.id), productionVerificationRunId: null, sourceKind, sourceRef },
+    }).select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, verification_state, created_at").single();
+    if (productionError || !productionRow) throw new Error("BACKEND_WRITE_FAILED");
+
+    if (currentEnvironment) {
+      let environmentUpdate = admin.from("pandora_runtime_environments")
+        .update({ current_version_id: requestedVersion, current_deployment_id: productionRow.id, status: "ready", verification_state: "ready_for_verification", last_reconciled_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("id", currentEnvironment.id);
+      environmentUpdate = expectedProductionVersionId == null ? environmentUpdate.is("current_version_id", null) : environmentUpdate.eq("current_version_id", expectedProductionVersionId);
+      const { data: updatedEnvironment, error: environmentUpdateError } = await environmentUpdate.select("id").maybeSingle();
+      if (environmentUpdateError || !updatedEnvironment) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+    } else {
+      const { error: environmentInsertError } = await admin.from("pandora_runtime_environments").insert({ organization_id: context.organizationId, project_id: projectId, environment: "production", provider: "vercel", provider_project_id: provider.id, status: "ready", current_version_id: requestedVersion, current_deployment_id: productionRow.id, verification_state: "ready_for_verification", last_reconciled_at: new Date().toISOString() });
+      if (environmentInsertError) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+    }
+
+    if (currentVersionId) await admin.from("pandora_project_versions").update({ rollback_eligible: true }).eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", currentVersionId);
+    const { error: versionPromoteError } = await admin.from("pandora_project_versions")
+      .update({ lifecycle_status: "production_candidate", promoted_at: new Date().toISOString(), rollback_eligible: true, verification_run_id: textValue(verification.id) })
+      .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", requestedVersion);
+    if (versionPromoteError) throw new Error("BACKEND_WRITE_FAILED");
+
+    let domainRow: JsonRecord | null = null;
+    let domainStatus: string | null = null;
+    let domainVerified = false;
+    if (domain) {
+      const { data: existingDomain, error: existingDomainError } = await admin.from("pandora_project_domains").select("id, domain, status, verified, primary_domain, verification, updated_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("domain", domain).maybeSingle();
+      if (existingDomainError) throw new Error("BACKEND_READ_FAILED");
+      const providerDomain = existingDomain ? asRecord(existingDomain) : await vercelRequest(`/v10/projects/${encodeURIComponent(provider.id)}/domains`, { method: "POST", body: JSON.stringify({ name: domain }) }, [200, 201]);
+      domainVerified = providerDomain.verified === true;
+      domainStatus = domainVerified ? "verified" : "verification_required";
+      const { error: clearPrimaryError } = await admin.from("pandora_project_domains").update({ primary_domain: false, updated_at: new Date().toISOString() }).eq("organization_id", context.organizationId).eq("project_id", projectId).eq("primary_domain", true).neq("domain", domain);
+      if (clearPrimaryError) throw new Error("BACKEND_WRITE_FAILED");
+      const { data: savedDomain, error: domainError } = await admin.from("pandora_project_domains")
+        .upsert({ organization_id: context.organizationId, project_id: projectId, provider: "vercel", environment: "production", provider_project_id: provider.id, domain, status: domainStatus, verified: domainVerified, primary_domain: true, verification: Array.isArray(providerDomain.verification) ? providerDomain.verification : [], ownership_verified: domainVerified, updated_at: new Date().toISOString() }, { onConflict: "project_id,domain" })
+        .select("id, domain, status, verified, primary_domain, verification, updated_at").single();
+      if (domainError || !savedDomain) throw new Error("BACKEND_WRITE_FAILED");
+      domainRow = asRecord(savedDomain);
+    }
+
+    const config = asRecord(project.config);
+    const journey = asRecord(config.customerJourney);
+    const productionCandidateUrl = domain && domainVerified ? `https://${domain}` : deploymentUrl;
+    const previousLiveUrl = textValue(journey.liveUrl) || null;
+    const nextConfig = { ...config, customerJourney: { ...journey, stage: "publishing", runtimeStatus: "verifying", liveUrl: previousLiveUrl, productionCandidateUrl, productionDeploymentId: previewDeploymentId, publishedVersionId: requestedVersion, requestedDomain: domain, domainStatus, productionVerificationState: "ready_for_verification", runtimeUpdatedAt: new Date().toISOString() } };
+    const { error: projectError } = await admin.from("projectos_projects").update({ config: nextConfig, updated_at: new Date().toISOString() }).eq("organization_id", context.organizationId).eq("id", projectId);
+    if (projectError) throw new Error("BACKEND_WRITE_FAILED");
+    await admin.from("pandora_runtime_operations").update({ status: "succeeded", ambiguous: false, provider_resource_id: previewDeploymentId, result_facts: { projectVersionId: requestedVersion, providerDeploymentId: previewDeploymentId, previewVerificationRunId: textValue(verification.id), promotedFromDeploymentId: previewDeploymentId, sourceKind, sourceRef, verificationState: "ready_for_verification" }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
+    return { project: projectResponse({ ...project, config: nextConfig }), production: productionRow, domain: domainRow, liveUrl: previousLiveUrl, productionCandidateUrl, domainVerified, verificationState: "ready_for_verification" };
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
+    if (providerMutationStarted) {
+      await admin.from("pandora_runtime_operations").update({ status: "uncertain", ambiguous: true, normalized_error: { code: "reconciliation_required" }, updated_at: new Date().toISOString() }).eq("id", operationId);
+      throw new Error("PUBLISH_RECONCILIATION_REQUIRED");
+    } else {
+      await admin.from("pandora_runtime_operations").update({ status: "failed", ambiguous: false, normalized_error: { code }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
+    }
+    throw error;
+  }
+}
+
+async function finalizeProductionVerification(context: UserContext, identifier: string, body: JsonRecord) {
+  const project = await projectByIdentifier(context, identifier);
+  const projectId = textValue(project.id);
+  const requestedVersion = textValue(body.versionId);
+  const verificationRunId = textValue(body.verificationRunId);
+  if (!requestedVersion) throw new Error("VERSION_REQUIRED");
+  if (!verificationRunId) throw new Error("VERIFICATION_REQUIRED");
+  const admin = serviceClient();
+
+  const { data: environmentData, error: environmentError } = await admin.from("pandora_runtime_environments")
+    .select("id, current_version_id, current_deployment_id, verification_state")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").maybeSingle();
+  if (environmentError) throw new Error("BACKEND_READ_FAILED");
+  const environment = asRecord(environmentData);
+  if (textValue(environment.current_version_id) !== requestedVersion || textValue(environment.verification_state) !== "ready_for_verification") throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+  const productionRowId = textValue(environment.current_deployment_id);
+  if (!productionRowId) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+
+  const { data: deploymentData, error: deploymentError } = await admin.from("pandora_project_deployments")
+    .select("id, version_id, provider_project_id, provider_deployment_id, url, verification_state, created_at, metadata")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").eq("id", productionRowId).eq("version_id", requestedVersion).maybeSingle();
+  if (deploymentError) throw new Error("BACKEND_READ_FAILED");
+  if (!deploymentData) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+  const deployment = asRecord(deploymentData);
+  if (textValue(deployment.verification_state) !== "ready_for_verification") throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+  const providerProjectId = textValue(deployment.provider_project_id);
+  const providerDeploymentId = textValue(deployment.provider_deployment_id);
+  if (!providerProjectId || !providerDeploymentId) throw new Error("PROVIDER_LINEAGE_MISMATCH");
+
+  const { data: versionData, error: versionError } = await admin.from("pandora_project_versions")
+    .select("id, project_spec_id, build_job_id, source_kind, source_ref, source_commit, source_sha256, artifact_digest_sha256, migration_set_digest_sha256, runtime_target_digest_sha256, created_at")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", requestedVersion).maybeSingle();
+  if (versionError) throw new Error("BACKEND_READ_FAILED");
+  if (!versionData) throw new Error("VERIFICATION_REQUIRED");
+  const version = asRecord(versionData);
+
+  const { data: verificationData, error: verificationError } = await admin.from("pandora_verification_runs")
+    .select("id, project_spec_id, project_version_id, build_job_id, source_kind, source_ref, source_commit, source_digest, artifact_digest, migration_set_digest, runtime_target_digest, preview_deployment_id, target_environment, required_check_profile, status, completed_at")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("project_version_id", requestedVersion).eq("id", verificationRunId).maybeSingle();
+  if (verificationError) throw new Error("BACKEND_READ_FAILED");
+  if (!verificationData) throw new Error("VERIFICATION_REQUIRED");
+  const verification = asRecord(verificationData);
+  if (textValue(verification.status).toUpperCase() !== "PASS" || textValue(verification.target_environment) !== "production" || textValue(verification.required_check_profile) !== "production_release") throw new Error("VERIFICATION_REQUIRED");
+  const versionSource = projectSourceIdentity(requestedVersion, version.source_kind, version.source_ref, version.source_commit);
+  const verificationSource = projectSourceIdentity(requestedVersion, verification.source_kind, verification.source_ref, verification.source_commit);
+  if (textValue(verification.project_spec_id) !== textValue(version.project_spec_id) || textValue(verification.project_version_id) !== requestedVersion ||
+      textValue(verification.build_job_id) !== textValue(version.build_job_id) || verificationSource.sourceKind !== versionSource.sourceKind || verificationSource.sourceRef !== versionSource.sourceRef || verificationSource.sourceCommit !== versionSource.sourceCommit ||
+      textValue(verification.source_digest) !== textValue(version.source_sha256) || textValue(verification.artifact_digest) !== textValue(version.artifact_digest_sha256) ||
+      textValue(verification.migration_set_digest) !== textValue(version.migration_set_digest_sha256) || textValue(verification.runtime_target_digest) !== textValue(version.runtime_target_digest_sha256) ||
+      textValue(verification.preview_deployment_id) !== providerDeploymentId) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
+  const completedAt = Date.parse(textValue(verification.completed_at));
+  const deploymentCreatedAt = Date.parse(textValue(deployment.created_at));
+  if (!Number.isFinite(completedAt) || !Number.isFinite(deploymentCreatedAt) || completedAt < deploymentCreatedAt) throw new Error("VERIFICATION_STALE");
+
+  const metadata = asRecord(deployment.metadata);
+  const now = new Date().toISOString();
+  const { data: deploymentUpdated, error: deploymentUpdateError } = await admin.from("pandora_project_deployments")
+    .update({ verification_state: "live_verified", verification_ref: verificationRunId, metadata: { ...metadata, productionVerificationRunId: verificationRunId, sourceKind: versionSource.sourceKind, sourceRef: versionSource.sourceRef }, last_provider_check_at: now, updated_at: now })
+    .eq("id", productionRowId).eq("verification_state", "ready_for_verification").select("id").maybeSingle();
+  if (deploymentUpdateError || !deploymentUpdated) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+  const { data: environmentUpdated, error: environmentUpdateError } = await admin.from("pandora_runtime_environments")
+    .update({ verification_state: "live_verified", status: "ready", last_reconciled_at: now, updated_at: now })
+    .eq("id", environment.id).eq("current_version_id", requestedVersion).eq("current_deployment_id", productionRowId).eq("verification_state", "ready_for_verification").select("id").maybeSingle();
+  if (environmentUpdateError || !environmentUpdated) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+  const { data: versionUpdated, error: versionUpdateError } = await admin.from("pandora_project_versions")
+    .update({ lifecycle_status: "live", rollback_eligible: true, verification_run_id: verificationRunId })
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", requestedVersion).eq("lifecycle_status", "production_candidate").select("id").maybeSingle();
+  if (versionUpdateError || !versionUpdated) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+
+  const { data: domainData, error: domainError } = await admin.from("pandora_project_domains")
+    .select("domain, ownership_verified, dns_configured, tls_ready, routing_ready, runtime_healthy")
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").eq("primary_domain", true).limit(1).maybeSingle();
+  if (domainError) throw new Error("BACKEND_READ_FAILED");
+  const domain = asRecord(domainData);
+  const domainReady = domain.ownership_verified === true && domain.dns_configured === true && domain.tls_ready === true && domain.routing_ready === true && domain.runtime_healthy === true;
+  const config = asRecord(project.config);
+  const journey = asRecord(config.customerJourney);
+  const deploymentUrl = textValue(deployment.url) || null;
+  const defaultDomain = textValue(journey.vercelDefaultDomain, textValue(journey.vercelProjectName) ? `${textValue(journey.vercelProjectName)}.vercel.app` : "");
+  let defaultDomainStatus = textValue(journey.vercelDefaultDomainStatus, defaultDomain ? "reserved" : "");
+  let liveUrl = domainReady && textValue(domain.domain) ? `https://${textValue(domain.domain)}` : deploymentUrl;
+  if (!domainReady && defaultDomain) {
+    try {
+      const providerProject = await vercelRequest(`/v9/projects/${encodeURIComponent(providerProjectId)}`, { method: "GET" }, [200]);
+      const productionTarget = asRecord(asRecord(providerProject.targets).production);
+      if (textValue(productionTarget.id) === providerDeploymentId) {
+        liveUrl = `https://${defaultDomain}`;
+        defaultDomainStatus = "live_verified";
+      }
+    } catch {
+      // Keep the exact verified deployment URL if Vercel project-alias readback is unavailable.
+    }
+  }
+  const nextConfig = { ...config, customerJourney: { ...journey, vercelDefaultDomain: defaultDomain || null, vercelDefaultDomainStatus: defaultDomainStatus || null, stage: "live", runtimeStatus: "ready", liveUrl, productionCandidateUrl: null, productionVerificationState: "live_verified", productionVerificationRunId: verificationRunId, runtimeUpdatedAt: now } };
+  const { error: projectError } = await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
+  if (projectError) throw new Error("BACKEND_WRITE_FAILED");
+  return { project: projectResponse({ ...project, config: nextConfig }), production: { ...deploymentData, verification_state: "live_verified" }, liveUrl, verificationRunId };
+}
+
+Deno.serve(async (req: Request) => {
+  const requestId = crypto.randomUUID();
+  const origin = allowedOrigin(req);
+  if (origin === "") return jsonResponse({ code: "ORIGIN_NOT_ALLOWED", plainMessage: "That app is not allowed to use this service.", requestId }, 403, requestId);
+  if (req.method === "OPTIONS") return jsonResponse(null, 204, requestId, origin);
+  if (!["GET", "POST"].includes(req.method)) return jsonResponse({ code: "METHOD_NOT_ALLOWED", plainMessage: "That action is not available.", requestId }, 405, requestId, origin);
+
+  try {
+    const context = await authenticate(req);
+    await enforceRateLimit(context, req.method);
+    const route = routePath(new URL(req.url).pathname);
+    if (req.method === "POST" && route === "/projects") {
+      const idempotencyKey = textValue(req.headers.get("idempotency-key"));
+      if (idempotencyKey.length < 8 || idempotencyKey.length > 200) {
+        throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+      }
+      return jsonResponse(
+        { project: await createProject(context, await bodyJson(req), idempotencyKey) },
+        201,
+        requestId,
+        origin,
+      );
+    }
+    const runtimeMatch = route.match(/^\/projects\/([^/]+)\/runtime$/);
+    if (req.method === "GET" && runtimeMatch) return jsonResponse(await runtimeSummary(context, decodeURIComponent(runtimeMatch[1])), 200, requestId, origin);
+    const previewMatch = route.match(/^\/projects\/([^/]+)\/previews$/);
+    if (req.method === "POST" && previewMatch) return jsonResponse(await createPreview(context, decodeURIComponent(previewMatch[1]), await bodyJson(req)), 201, requestId, origin);
+    const undoMatch = route.match(/^\/projects\/([^/]+)\/undo$/);
+    if (req.method === "POST" && undoMatch) return jsonResponse(await undoProject(context, decodeURIComponent(undoMatch[1]), await bodyJson(req)), 200, requestId, origin);
+    const rollbackMatch = route.match(/^\/projects\/([^/]+)\/rollback$/);
+    if (req.method === "POST" && rollbackMatch) return jsonResponse(await rollbackProject(context, decodeURIComponent(rollbackMatch[1]), await bodyJson(req)), 200, requestId, origin);
+    const publishMatch = route.match(/^\/projects\/([^/]+)\/publish$/);
+    if (req.method === "POST" && publishMatch) return jsonResponse(await publishProject(context, decodeURIComponent(publishMatch[1]), await bodyJson(req)), 201, requestId, origin);
+    const productionVerificationMatch = route.match(/^\/projects\/([^/]+)\/production-verification$/);
+    if (req.method === "POST" && productionVerificationMatch) return jsonResponse(await finalizeProductionVerification(context, decodeURIComponent(productionVerificationMatch[1]), await bodyJson(req)), 200, requestId, origin);
+    return jsonResponse({ code: "PROJECT_RUNTIME_ROUTE_NOT_FOUND", plainMessage: "That project action is not available yet.", requestId }, 404, requestId, origin);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
     const publicError = classifyProjectRuntimeError(code);
     if (publicError.log) {
       console.error(JSON.stringify({ requestId, code }));
