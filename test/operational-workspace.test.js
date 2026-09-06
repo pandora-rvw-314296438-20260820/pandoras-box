@@ -119,6 +119,21 @@ test("explicit target updates are staged only for a verified matching resource",
   }]);
 });
 
+test("not-required resources stay out of the attention queue", async () => {
+  const { deriveOperationalConflicts } = await workspaceModule;
+  const conflicts = deriveOperationalConflicts({
+    mappings: [{
+      id: "optional-map",
+      provider: "meta",
+      resourceType: "page",
+      externalId: "page_optional",
+      bindingState: "not_required",
+    }],
+  });
+
+  assert.deepEqual(conflicts, []);
+});
+
 test("object 360 derives provider, runtime, domain, and staged conflicts", async () => {
   const { deriveOperationalConflicts } = await workspaceModule;
   const conflicts = deriveOperationalConflicts({
