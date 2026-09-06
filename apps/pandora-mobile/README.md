@@ -1,7 +1,7 @@
 # Pandora Mobile
 
 Pandora Mobile is the authenticated Flutter owner and admin control surface for
-Pandora / MCPMaster. Its canonical source is `banataosystems/Pandoras-box`.
+Pandora / MCPMaster. Its canonical source is `pandora-rvw-314296438-20260820/pandoras-box`.
 
 ## Runtime boundary
 

@@ -5,6 +5,8 @@ import '../../core/data/owner_projection.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/design/pandora_tokens.dart';
 import '../../core/models/pandora_models.dart';
+import '../../core/network/pandora_api_error.dart';
+import '../../core/security/pandora_auth.dart';
 import '../../core/state/screen_controller.dart';
 import '../../core/widgets/content_state.dart';
 import '../../core/widgets/freshness_label.dart';
@@ -88,7 +90,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                     ),
                     const SizedBox(height: PandoraSpacing.md),
                   ],
-                  _DetailContent(detail: detail),
+                  _DetailContent(
+                    detail: detail,
+                    projectId: widget.project.id,
+                    onRefresh: controller.refresh,
+                  ),
                 ],
               );
             },
@@ -166,9 +172,15 @@ class _ProjectSnapshot extends StatelessWidget {
 }
 
 class _DetailContent extends StatelessWidget {
-  const _DetailContent({required this.detail});
+  const _DetailContent({
+    required this.detail,
+    required this.projectId,
+    required this.onRefresh,
+  });
 
   final ProjectDetail detail;
+  final String projectId;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -271,6 +283,14 @@ class _DetailContent extends StatelessWidget {
             ],
           ),
         ),
+        if (detail.operations.hasData) ...[
+          const SizedBox(height: PandoraSpacing.md),
+          _OperationalWorkspaceCard(
+            workspace: detail.operations,
+            projectId: projectId,
+            onRefresh: onRefresh,
+          ),
+        ],
         if (inProgress.isNotEmpty) ...[
           const SizedBox(height: PandoraSpacing.md),
           _TaskSection(
@@ -334,6 +354,666 @@ class _DetailContent extends StatelessWidget {
       ],
     );
   }
+}
+
+class _OperationalWorkspaceCard extends StatelessWidget {
+  const _OperationalWorkspaceCard({
+    required this.workspace,
+    required this.projectId,
+    required this.onRefresh,
+  });
+
+  final OperationalWorkspace workspace;
+  final String projectId;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final mappingAttention =
+        workspace.mappings.where((item) => item.needsAttention).length;
+    final mappingTone = mappingAttention > 0
+        ? PandoraStatusTone.attention
+        : workspace.mappingCount > 0
+            ? PandoraStatusTone.verified
+            : PandoraStatusTone.neutral;
+    final conflictTone = workspace.highConflictCount > 0
+        ? PandoraStatusTone.critical
+        : workspace.conflictCount > 0
+            ? PandoraStatusTone.attention
+            : PandoraStatusTone.verified;
+
+    return PandoraSurface(
+      title: 'System map',
+      subtitle:
+          'One view of this project across connected services and imported state.',
+      trailing: workspace.needsYou
+          ? const StatusBadge(
+              label: 'Needs you',
+              tone: PandoraStatusTone.attention,
+              compact: true,
+            )
+          : const StatusBadge(
+              label: 'Mapped',
+              tone: PandoraStatusTone.verified,
+              compact: true,
+            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OwnerMetricGrid(
+            metrics: [
+              OwnerMetric(
+                label: 'Mappings',
+                value: '${workspace.mappingCount}',
+                icon: Icons.hub_outlined,
+                tone: mappingTone,
+              ),
+              OwnerMetric(
+                label: 'Conflicts',
+                value: '${workspace.conflictCount}',
+                icon: Icons.compare_arrows_rounded,
+                tone: conflictTone,
+              ),
+              OwnerMetric(
+                label: 'Staged imports',
+                value: '${workspace.stagedImportCount}',
+                icon: Icons.inventory_2_outlined,
+                tone: workspace.stagedImportCount > 0
+                    ? PandoraStatusTone.informative
+                    : PandoraStatusTone.neutral,
+              ),
+            ],
+          ),
+          if (workspace.conflicts.isNotEmpty) ...[
+            const SizedBox(height: PandoraSpacing.md),
+            const OwnerSectionHeading(
+              title: 'Conflicts',
+              subtitle:
+                  'Pandora will not guess when provider truth and the project record disagree.',
+            ),
+            const SizedBox(height: PandoraSpacing.sm),
+            for (var index = 0;
+                index < workspace.conflicts.length;
+                index++) ...[
+              _OperationalConflictRow(
+                conflict: workspace.conflicts[index],
+                projectId: projectId,
+                onRefresh: onRefresh,
+              ),
+              if (index != workspace.conflicts.length - 1)
+                const SizedBox(height: PandoraSpacing.sm),
+            ],
+          ],
+          if (workspace.mappings.isNotEmpty) ...[
+            const SizedBox(height: PandoraSpacing.md),
+            Card(
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
+              child: ExpansionTile(
+                initiallyExpanded: workspace.conflicts.isEmpty,
+                title: const Text('Connected resources'),
+                subtitle: Text(
+                  '${workspace.verifiedMappingCount} of ${workspace.mappingCount} verified',
+                ),
+                childrenPadding: const EdgeInsets.fromLTRB(
+                  PandoraSpacing.md,
+                  0,
+                  PandoraSpacing.md,
+                  PandoraSpacing.sm,
+                ),
+                children: [
+                  for (var index = 0;
+                      index < workspace.mappings.length;
+                      index++) ...[
+                    _OperationalMappingRow(mapping: workspace.mappings[index]),
+                    if (index != workspace.mappings.length - 1) const Divider(),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          if (workspace.imports.isNotEmpty) ...[
+            const SizedBox(height: PandoraSpacing.md),
+            Card(
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
+              child: ExpansionTile(
+                title: const Text('Staged imports'),
+                subtitle: const Text(
+                  'Dry-run evidence only. External systems are unchanged until governed execution.',
+                ),
+                childrenPadding: const EdgeInsets.fromLTRB(
+                  PandoraSpacing.md,
+                  0,
+                  PandoraSpacing.md,
+                  PandoraSpacing.sm,
+                ),
+                children: [
+                  for (var index = 0;
+                      index < workspace.imports.length;
+                      index++) ...[
+                    _OperationalImportRow(item: workspace.imports[index]),
+                    if (index != workspace.imports.length - 1) const Divider(),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _OperationalConflictRow extends StatefulWidget {
+  const _OperationalConflictRow({
+    required this.conflict,
+    required this.projectId,
+    required this.onRefresh,
+  });
+
+  final OperationalConflict conflict;
+  final String projectId;
+  final Future<void> Function() onRefresh;
+
+  @override
+  State<_OperationalConflictRow> createState() =>
+      _OperationalConflictRowState();
+}
+
+class _OperationalConflictRowState extends State<_OperationalConflictRow> {
+  bool _busy = false;
+  String? _disabledReason;
+
+  Future<bool> _completeExtraIdentity() async {
+    final auth = PandoraDependencies.of(context).auth;
+    final verification = auth is ExtraIdentityVerificationSource
+        ? auth as ExtraIdentityVerificationSource
+        : null;
+    if (verification == null) {
+      setState(() {
+        _disabledReason =
+            'Extra identity verification is not available on this client.';
+      });
+      return false;
+    }
+
+    final factors = await verification.verifiedExtraIdentityFactors();
+    if (!mounted) return false;
+    if (factors.isEmpty) {
+      setState(() {
+        _disabledReason =
+            'No verified authenticator is enrolled for this account.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Set up an authenticator for this account before resolving protected conflicts.',
+          ),
+        ),
+      );
+      return false;
+    }
+
+    final input = await _showExtraIdentityDialog(context, factors);
+    if (input == null || !mounted) return false;
+    await verification.verifyExtraIdentity(
+      factorId: input.factorId,
+      code: input.code,
+    );
+    return mounted;
+  }
+
+  Future<OperationalConflictResolutionResult> _submit(
+    OperationalConflictResolutionSource source,
+    _ConflictResolutionDraft draft,
+  ) =>
+      source.resolveOperationalConflict(
+        projectId: widget.projectId,
+        conflictId: widget.conflict.id,
+        resolution: draft.resolution,
+        rationale: draft.rationale,
+      );
+
+  Future<void> _resolve() async {
+    if (_busy || !widget.conflict.resolvable) return;
+    final repository = PandoraDependencies.of(context).repository;
+    final resolver = repository is OperationalConflictResolutionSource
+        ? repository as OperationalConflictResolutionSource
+        : null;
+    if (resolver == null) {
+      setState(() {
+        _disabledReason =
+            'Conflict resolution is unavailable on this Pandora client.';
+      });
+      return;
+    }
+
+    final draft = await _showConflictResolutionDialog(
+      context,
+      widget.conflict,
+    );
+    if (draft == null || !mounted) return;
+
+    setState(() {
+      _busy = true;
+      _disabledReason = null;
+    });
+    try {
+      OperationalConflictResolutionResult result;
+      try {
+        result = await _submit(resolver, draft);
+      } on PandoraRepositoryException catch (error) {
+        if (error.code != 'AAL2_REQUIRED') rethrow;
+        final verified = await _completeExtraIdentity();
+        if (!verified || !mounted) return;
+        result = await _submit(resolver, draft);
+      }
+      if (!mounted) return;
+      final planFirst = result.executionMode == 'plan_first';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            planFirst
+                ? 'Decision recorded. Any protected provider change remains plan-first.'
+                : 'Resolution recorded. No external system was changed.',
+          ),
+        ),
+      );
+      await widget.onRefresh();
+    } on PandoraAuthFailure catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } on PandoraRepositoryException catch (error) {
+      if (!mounted) return;
+      final reconcile = error.outcomeMayBeUnknown ||
+          error.kind == PandoraApiErrorKind.conflict ||
+          error.kind == PandoraApiErrorKind.notFound;
+      if (error.code == 'AAL2_REQUIRED') {
+        setState(() {
+          _disabledReason = 'Extra identity verification is still required.';
+        });
+      }
+      if (reconcile || error.code == 'AAL2_REQUIRED') {
+        await widget.onRefresh();
+        if (!mounted) return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            reconcile
+                ? 'Pandora refreshed the project because the decision outcome may have changed.'
+                : error.message,
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(PandoraSpacing.md),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.conflict.title,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                const SizedBox(width: PandoraSpacing.sm),
+                StatusBadge(
+                  label: widget.conflict.severity,
+                  tone: _operationalSeverityTone(widget.conflict.severity),
+                  compact: true,
+                ),
+              ],
+            ),
+            const SizedBox(height: PandoraSpacing.xs),
+            Text(widget.conflict.summary),
+            const SizedBox(height: PandoraSpacing.sm),
+            OwnerSignal(
+              label: 'Recommended next action',
+              value: widget.conflict.recommendation,
+              icon: Icons.route_outlined,
+              tone: PandoraStatusTone.informative,
+            ),
+            if (widget.conflict.resolvable) ...[
+              const SizedBox(height: PandoraSpacing.sm),
+              FilledButton.icon(
+                onPressed: _busy ? null : _resolve,
+                icon: _busy
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.verified_user_outlined),
+                label: Text(_busy ? 'Recording decision…' : 'Resolve conflict'),
+              ),
+              const SizedBox(height: PandoraSpacing.xs),
+              Text(
+                _disabledReason ??
+                    'Protected resolution requires extra identity verification. External provider changes remain plan-first.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ],
+        ),
+      );
+}
+
+class _ConflictResolutionDraft {
+  const _ConflictResolutionDraft({
+    required this.resolution,
+    required this.rationale,
+  });
+
+  final String resolution;
+  final String rationale;
+}
+
+class _ExtraIdentityDraft {
+  const _ExtraIdentityDraft({
+    required this.factorId,
+    required this.code,
+  });
+
+  final String factorId;
+  final String code;
+}
+
+Future<_ConflictResolutionDraft?> _showConflictResolutionDialog(
+  BuildContext context,
+  OperationalConflict conflict,
+) async {
+  final rationale = TextEditingController();
+  var resolution = 'keep_canonical';
+  String? errorText;
+  final result = await showDialog<_ConflictResolutionDraft>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: const Text('Resolve this conflict?'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(conflict.summary),
+              const SizedBox(height: PandoraSpacing.md),
+              DropdownButtonFormField<String>(
+                initialValue: resolution,
+                decoration: const InputDecoration(
+                  labelText: 'Decision',
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'keep_canonical',
+                    child: Text('Keep Pandora’s canonical record'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'use_provider_truth',
+                    child: Text('Use current provider truth'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'remap',
+                    child: Text('Prepare a remap'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'ignore',
+                    child: Text('Ignore this imported conflict'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setDialogState(() => resolution = value);
+                  }
+                },
+              ),
+              const SizedBox(height: PandoraSpacing.md),
+              TextField(
+                controller: rationale,
+                minLines: 2,
+                maxLines: 4,
+                maxLength: 2000,
+                decoration: InputDecoration(
+                  labelText: 'Reason',
+                  hintText: 'Why is this the correct project truth?',
+                  errorText: errorText,
+                ),
+              ),
+              const Text(
+                'This records your decision first. It does not directly mutate a provider.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final reason = rationale.text.trim();
+              if (reason.length < 3) {
+                setDialogState(() {
+                  errorText = 'Add a short reason for the audit trail.';
+                });
+                return;
+              }
+              Navigator.of(dialogContext).pop(
+                _ConflictResolutionDraft(
+                  resolution: resolution,
+                  rationale: reason,
+                ),
+              );
+            },
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    ),
+  );
+  rationale.dispose();
+  return result;
+}
+
+Future<_ExtraIdentityDraft?> _showExtraIdentityDialog(
+  BuildContext context,
+  List<ExtraIdentityFactor> factors,
+) async {
+  final code = TextEditingController();
+  var factorId = factors.first.id;
+  String? errorText;
+  final result = await showDialog<_ExtraIdentityDraft>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: const Text('Verify your identity'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (factors.length > 1) ...[
+              DropdownButtonFormField<String>(
+                initialValue: factorId,
+                decoration: const InputDecoration(labelText: 'Authenticator'),
+                items: [
+                  for (final factor in factors)
+                    DropdownMenuItem(
+                      value: factor.id,
+                      child: Text(factor.label),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setDialogState(() => factorId = value);
+                  }
+                },
+              ),
+              const SizedBox(height: PandoraSpacing.md),
+            ],
+            TextField(
+              controller: code,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              maxLength: 8,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'Authenticator code',
+                errorText: errorText,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = code.text.trim();
+              if (!RegExp(r'^[0-9]{6,8}$').hasMatch(value)) {
+                setDialogState(() {
+                  errorText = 'Enter the current authenticator code.';
+                });
+                return;
+              }
+              Navigator.of(dialogContext).pop(
+                _ExtraIdentityDraft(factorId: factorId, code: value),
+              );
+            },
+            child: const Text('Verify'),
+          ),
+        ],
+      ),
+    ),
+  );
+  code.dispose();
+  return result;
+}
+
+class _OperationalMappingRow extends StatelessWidget {
+  const _OperationalMappingRow({required this.mapping});
+
+  final OperationalMapping mapping;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.sm),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(providerIconFor(mapping.provider), size: 20),
+            const SizedBox(width: PandoraSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    mapping.externalName ??
+                        '${mapping.provider} ${mapping.resourceType}',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: PandoraSpacing.xxs),
+                  Text(
+                    [
+                      mapping.provider,
+                      mapping.resourceType,
+                      if (mapping.environment != null) mapping.environment!,
+                    ].join(' · '),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (mapping.externalId.isNotEmpty) ...[
+                    const SizedBox(height: PandoraSpacing.xxs),
+                    SelectableText(
+                      mapping.externalId,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: PandoraSpacing.sm),
+            StatusBadge(
+              label: mapping.bindingState,
+              tone: mapping.verified
+                  ? PandoraStatusTone.verified
+                  : mapping.notRequired
+                      ? PandoraStatusTone.neutral
+                      : PandoraStatusTone.attention,
+              compact: true,
+            ),
+          ],
+        ),
+      );
+}
+
+class _OperationalImportRow extends StatelessWidget {
+  const _OperationalImportRow({required this.item});
+
+  final OperationalImportPreview item;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.sm),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.inventory_2_outlined, size: 20),
+            const SizedBox(width: PandoraSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${item.provider} · ${item.objectCount} object${item.objectCount == 1 ? '' : 's'}',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: PandoraSpacing.xxs),
+                  Text(
+                    '${item.createCount} new · ${item.updateCount} changed · ${item.noopCount} unchanged · ${item.conflictCount} conflicts',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: PandoraSpacing.sm),
+            StatusBadge(
+              label: item.executionReady ? 'Ready for review' : 'Review needed',
+              tone: item.executionReady
+                  ? PandoraStatusTone.verified
+                  : PandoraStatusTone.attention,
+              compact: true,
+            ),
+          ],
+        ),
+      );
+}
+
+PandoraStatusTone _operationalSeverityTone(String value) {
+  final normalized = value.toLowerCase();
+  if (normalized.contains('critical') || normalized.contains('high')) {
+    return PandoraStatusTone.critical;
+  }
+  if (normalized.contains('medium')) return PandoraStatusTone.attention;
+  return PandoraStatusTone.neutral;
 }
 
 class _TaskSection extends StatelessWidget {

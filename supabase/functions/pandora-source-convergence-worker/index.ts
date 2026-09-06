@@ -787,21 +787,11 @@ async function persistWorkerDRuntimeBundle(
     throw new Error("BUILD_LEASE_INVALID");
   }
 
-  const stepResult = await admin.from("pandora_build_job_steps")
-    .select("id,organization_id,project_id,build_job_id,step_kind,status,result_sha256")
-    .eq("id", buildStepId)
-    .eq("build_job_id", buildJobId)
-    .eq("organization_id", job.organization_id)
-    .eq("project_id", job.project_id)
-    .maybeSingle();
-  if (
-    stepResult.error || !stepResult.data || stepResult.data.step_kind !== "build" ||
-    stepResult.data.status !== "succeeded" ||
-    text(stepResult.data.result_sha256).toLowerCase() !== actualSha256
-  ) {
-    throw new Error("BUILD_STEP_INVALID");
-  }
-
+  // The database caller has already validated the succeeded Worker-D step
+  // inside the transaction invoking this broker. A separate Edge transaction
+  // cannot observe that uncommitted row, so re-reading it here rejects valid
+  // first-time finalization. The database finalizer verifies buildStepId again
+  // before binding the returned storage receipt.
   const versionResult = await admin.from("pandora_project_versions")
     .select("id,organization_id,project_id,project_spec_id,build_job_id,lifecycle_status,source_kind,source_ref,source_commit")
     .eq("id", job.target_project_version_id)

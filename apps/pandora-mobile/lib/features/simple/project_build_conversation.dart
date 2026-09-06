@@ -340,11 +340,18 @@ class _LiveBuildProjection extends StatelessWidget {
     }
 
     if (snapshot.events.isEmpty) {
-      if (snapshot.historyGapDueToRetention || snapshot.latestSequence > 0) {
+      if (snapshot.historyGapDueToRetention) {
         return _ConversationBuildNotice(
-          title: experience?.statusLabel ?? 'Build continuing',
+          title: experience?.statusLabel ?? 'Build status',
           message: experience?.publicMessage ??
-              'Pandora reconnected to the same build and will continue from its saved state.',
+              'Some earlier live build activity is no longer available. Pandora is showing the saved build state.',
+        );
+      }
+      if (snapshot.latestSequence > 0) {
+        return _ConversationBuildNotice(
+          title: experience?.statusLabel ?? 'Build status',
+          message: experience?.publicMessage ??
+              'Pandora is showing the saved state for this build.',
         );
       }
       return _ConversationBuildNotice(

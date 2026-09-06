@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "kind": "canonical_release_evidence_requirements",
-  "repository": "banataosystems/Pandoras-box",
+  "repository": "pandora-rvw-314296438-20260820/pandoras-box",
   "releaseDecision": "not_ready",
   "sourceAuthority": {
     "authority": "SOURCE_CONTROLLED",

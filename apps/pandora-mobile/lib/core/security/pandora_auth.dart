@@ -46,6 +46,22 @@ class PandoraSession {
   final String userId;
 }
 
+class ExtraIdentityFactor {
+  const ExtraIdentityFactor({required this.id, required this.label});
+
+  final String id;
+  final String label;
+}
+
+abstract interface class ExtraIdentityVerificationSource {
+  Future<List<ExtraIdentityFactor>> verifiedExtraIdentityFactors();
+
+  Future<void> verifyExtraIdentity({
+    required String factorId,
+    required String code,
+  });
+}
+
 abstract interface class PandoraAuth {
   PandoraSession? get currentSession;
 
@@ -58,7 +74,8 @@ abstract interface class PandoraAuth {
   Future<void> signOut();
 }
 
-class SupabasePandoraAuth implements PandoraAuth {
+class SupabasePandoraAuth
+    implements PandoraAuth, ExtraIdentityVerificationSource {
   SupabasePandoraAuth(this._client);
 
   final SupabaseClient _client;
@@ -98,6 +115,73 @@ class SupabasePandoraAuth implements PandoraAuth {
     } catch (_) {
       throw const PandoraAuthFailure(
         'Pandora could not request a password reset. Check your connection and try again.',
+      );
+    }
+  }
+
+  @override
+  Future<List<ExtraIdentityFactor>> verifiedExtraIdentityFactors() async {
+    try {
+      final dynamic response = await _client.auth.mfa.listFactors();
+      final dynamic rawTotp = response.totp;
+      final factors = rawTotp is List ? rawTotp : const <dynamic>[];
+      final result = <ExtraIdentityFactor>[];
+      for (final dynamic factor in factors) {
+        final id = '${factor.id}'.trim();
+        final status = '${factor.status}'.toLowerCase();
+        if (id.isEmpty || !status.contains('verified')) continue;
+        var label = 'Authenticator';
+        try {
+          final candidate = '${factor.friendlyName}'.trim();
+          if (candidate.isNotEmpty && candidate.toLowerCase() != 'null') {
+            label = candidate;
+          }
+        } catch (_) {
+          // Friendly names are optional provider metadata.
+        }
+        result.add(ExtraIdentityFactor(id: id, label: label));
+      }
+      return List<ExtraIdentityFactor>.unmodifiable(result);
+    } on AuthException catch (_) {
+      throw const PandoraAuthFailure(
+        'Pandora could not verify your extra identity methods.',
+      );
+    } catch (_) {
+      throw const PandoraAuthFailure(
+        'Pandora could not verify your extra identity methods.',
+      );
+    }
+  }
+
+  @override
+  Future<void> verifyExtraIdentity({
+    required String factorId,
+    required String code,
+  }) async {
+    final normalizedFactorId = factorId.trim();
+    final normalizedCode = code.trim();
+    final validCodeLength =
+        normalizedCode.length >= 6 && normalizedCode.length <= 8;
+    final numericCodeOnly =
+        RegExp(r'^[0-9]+').matchAsPrefix(normalizedCode)?.group(0) ==
+            normalizedCode;
+    if (normalizedFactorId.isEmpty || !validCodeLength || !numericCodeOnly) {
+      throw const PandoraAuthFailure(
+        'Enter the current code from your authenticator app.',
+      );
+    }
+    try {
+      await _client.auth.mfa.challengeAndVerify(
+        factorId: normalizedFactorId,
+        code: normalizedCode,
+      );
+    } on AuthException catch (_) {
+      throw const PandoraAuthFailure(
+        'That authenticator code was not accepted.',
+      );
+    } catch (_) {
+      throw const PandoraAuthFailure(
+        'Pandora could not complete the extra identity check.',
       );
     }
   }

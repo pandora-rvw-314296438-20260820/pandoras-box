@@ -24,6 +24,7 @@ test("complete reconstructed source metrics are authoritative and contradictions
 
 test("incomplete and retention-gap fallbacks remain available", () => {
   assert.match(source, /return '\$reportedFiles files';/);
-  assert.match(source, /if \(state\.historyGapDueToRetention\) \{[\s\S]*Build continued while you were away/);
+  assert.match(source, /if \(state\.historyGapDueToRetention\) \{[\s\S]*Earlier live source activity unavailable/);
+  assert.doesNotMatch(source, /while you were away/i);
   assert.match(source, /return 'Source summary ready';/);
 });

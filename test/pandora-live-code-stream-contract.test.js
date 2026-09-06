@@ -64,5 +64,8 @@ test('conversation preserves the long request without letting it dominate the bu
   assert.match(conversation, /Collapse request/);
   assert.match(conversation, /Reconnecting to the same build/);
   assert.match(conversation, /continues from its saved state/);
+  assert.match(conversation, /Some earlier live build activity is no longer available/);
+  assert.doesNotMatch(conversation, /while you were away/i);
+  assert.doesNotMatch(theatre, /while you were away/i);
   assert.doesNotMatch(conversation, /Expired source is not recreated|Current durable stage/);
 });
