@@ -7,7 +7,7 @@ const edge = fs.readFileSync(
   "utf8",
 );
 const migration = fs.readFileSync(
-  "supabase/migrations/20260906063000_pandora_worker_d_runtime_artifact_storage_broker_v1.sql",
+  "supabase/migrations/20260906072000_pandora_worker_d_runtime_artifact_storage_broker_v1.sql",
   "utf8",
 );
 
