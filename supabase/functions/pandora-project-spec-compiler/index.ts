@@ -8,6 +8,8 @@ const MODEL = Deno.env.get("PANDORA_PROJECT_SPEC_MODEL") || "gemini-3.5-flash-li
 const COMPILER_VERSION = "project-spec-compiler-v5";
 const MAX_BODY_BYTES = 2048;
 const MAX_MODEL_TEXT_BYTES = 262144;
+const MEMORY_PLANNING_URL = "https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-projectos-planning-context";
+const MEMORY_PLANNING_PURPOSE = "projectos-planning-context-v1";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -202,7 +204,133 @@ async function sha256(value: string) {
   return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function modelRequest(intent: JsonRecord, project: JsonRecord) {
+function compactPlanningText(value: unknown, max = 700) {
+  return (typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "").slice(0, max);
+}
+
+function planningHighlights(value: unknown) {
+  if (!Array.isArray(value) || value.length > 6) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
+  return value.map((raw) => {
+    const item = record(raw);
+    const id = text(item.id).toLowerCase();
+    const memoryType = compactPlanningText(item.memory_type, 80);
+    const summary = compactPlanningText(item.summary, 700);
+    const updatedAt = compactPlanningText(item.updated_at, 64);
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id) || !summary) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
+    return { id, memory_type: memoryType, summary, updated_at: updatedAt };
+  });
+}
+
+async function prepareMemoryContext(admin: ReturnType<typeof adminClient>, intentId: string, decisionType: "project_spec" | "build") {
+  const requestId = crypto.randomUUID();
+  const { data: signedData, error: signedError } = await admin.rpc("pandora_sign_project_memory_planning_request_v2", {
+    p_source_intent_id: intentId,
+    p_decision_type: decisionType,
+    p_request_id: requestId,
+  });
+  const signed = record(signedData);
+  const signedBody = record(signed.body);
+  const timestamp = text(signed.timestamp);
+  const signature = text(signed.signature);
+  if (signedError || !exactKeys(signedBody, ["schema_version", "purpose", "request_id", "organization_id", "visible_project_id", "project_key", "decision_type", "query_hash"])
+      || signedBody.schema_version !== 1 || text(signedBody.purpose) !== MEMORY_PLANNING_PURPOSE
+      || text(signedBody.request_id) !== requestId || text(signedBody.decision_type) !== decisionType
+      || !/^[0-9a-f]{64}$/i.test(text(signedBody.query_hash)) || !/^\d{13}$/.test(timestamp)
+      || !/^[0-9a-f]{64}$/i.test(signature)) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
+
+  let prepared: Response;
+  try {
+    prepared = await fetch(MEMORY_PLANNING_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json", "x-pandora-timestamp": timestamp, "x-pandora-signature": signature },
+      body: JSON.stringify(signedBody),
+      signal: AbortSignal.timeout(12000),
+    });
+  } catch { throw new Error("MEMORY_CONTEXT_UNAVAILABLE"); }
+  let payload: unknown;
+  try { payload = await prepared.json(); } catch { throw new Error("MEMORY_CONTEXT_UNAVAILABLE"); }
+  if (!prepared.ok) throw new Error(prepared.status >= 500 ? "MEMORY_CONTEXT_UNAVAILABLE" : "MEMORY_CONTEXT_REJECTED");
+  const body = record(payload);
+  const highlights = planningHighlights(body.highlights);
+  const approvedIds = Array.isArray(body.approved_memory_item_ids)
+    ? body.approved_memory_item_ids.map((value) => text(value).toLowerCase()) : [];
+  if (approvedIds.length > 50 || approvedIds.some((id) => !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id))
+      || approvedIds.join(",") !== highlights.map((item) => item.id).join(",")
+      || body.ok !== true || body.schema_version !== 1 || text(body.purpose) !== MEMORY_PLANNING_PURPOSE
+      || text(body.request_id) !== requestId || text(body.organization_id) !== text(signedBody.organization_id)
+      || text(body.visible_project_id) !== text(signedBody.visible_project_id)
+      || text(body.project_key) !== text(signedBody.project_key) || text(body.decision_type) !== decisionType
+      || text(body.query_hash) !== text(signedBody.query_hash) || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(text(body.memory_project_id))
+      || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(text(body.retrieval_log_id))
+      || !["available", "empty"].includes(text(body.context_status))
+      || !/^[0-9a-f]{64}$/i.test(text(body.context_hash)) || body.canonical_memory_written !== false
+      || (text(body.context_status) === "available" && approvedIds.length < 1)
+      || (text(body.context_status) === "empty" && approvedIds.length !== 0)) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
+
+  const responseBasis = [
+    "projectos-planning-context-response-v1", requestId, text(body.organization_id), text(body.visible_project_id),
+    text(body.memory_project_id), text(body.project_key), decisionType, text(body.query_hash), text(body.retrieval_log_id),
+    text(body.context_status), approvedIds.join(","),
+    ...highlights.map((item) => [item.id, item.memory_type, item.summary, item.updated_at].join("|")),
+  ].join("\n");
+  if (await sha256(responseBasis) !== text(body.context_hash)) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
+
+  const { data: receiptData, error: receiptError } = await admin.rpc("pandora_record_project_memory_context_v2", {
+    p_source_intent_id: intentId,
+    p_decision_type: decisionType,
+    p_request_id: requestId,
+    p_memory_project_id: text(body.memory_project_id),
+    p_memory_project_key: text(body.project_key),
+    p_context_status: text(body.context_status),
+    p_context_hash: text(body.context_hash),
+    p_query_hash: text(body.query_hash),
+    p_retrieval_log_id: text(body.retrieval_log_id),
+    p_approved_memory_item_ids: approvedIds,
+  });
+  const receipt = record(receiptData);
+  if (receiptError || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(text(receipt.receiptId))
+      || text(receipt.contextHash) !== text(body.context_hash) || text(receipt.retrievalLogId) !== text(body.retrieval_log_id)) {
+    throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
+  }
+  return {
+    receiptId: text(receipt.receiptId),
+    sourceIntentId: intentId,
+    decisionType,
+    contextStatus: text(body.context_status),
+    contextHash: text(body.context_hash),
+    retrievalLogId: text(body.retrieval_log_id),
+    approvedMemoryItemIds: approvedIds,
+    contextEnvelope: {
+      schemaVersion: "1.0.0", status: text(body.context_status), source: "pandora-memory", namespace: "real_life",
+      highlights: { project: [], risks: [], openLoops: [], recent: [], semantic: highlights.map((item) => item.summary) },
+      warnings: [],
+    },
+  };
+}
+
+async function unavailableMemoryContext(intentId: string, decisionType: "project_spec" | "build") {
+  const contextEnvelope = {
+    schemaVersion: "1.0.0",
+    status: "unavailable",
+    source: "pandora-memory",
+    namespace: "real_life",
+    counts: { projectContext: 0, riskWarnings: 0, openLoops: 0, recentEvents: 0, semanticMatches: 0 },
+    highlights: { project: [], risks: [], openLoops: [], recent: [], semantic: [] },
+    warnings: ["memory_context_unavailable"],
+  };
+  return {
+    receiptId: null,
+    sourceIntentId: intentId,
+    decisionType,
+    contextStatus: "unavailable",
+    contextHash: await sha256(JSON.stringify(contextEnvelope)),
+    retrievalLogId: null,
+    approvedMemoryItemIds: [],
+    contextEnvelope,
+  };
+}
+
+function modelRequest(intent: JsonRecord, project: JsonRecord, memoryContext: JsonRecord) {
   const kind = text(record(project.config).customerJourney && record(record(project.config).customerJourney).buildKind) || "help_me_decide";
   const system = [
     "Compile the customer request into one ProjectSpec JSON object.",
@@ -222,9 +350,16 @@ function modelRequest(intent: JsonRecord, project: JsonRecord) {
     "product.features, product.workflows, product.screens, and product.userStories should describe tangible capabilities and customer-visible experiences rather than implementation tasks. Prefer 4-8 strong, non-duplicative items when the intent supports them.",
     "acceptance.business should state believable owner-visible success conditions. acceptance.functional should state observable working-product behavior.",
     "Make the proposal feel considered and desirable: emphasize control, convenience, clarity, speed, reduced friction, direct customer experience, or other benefits only when they genuinely follow from the request.",
-    "Prefer owner-readable requirements and infer technical details only when needed to satisfy the stated result."
+    "Prefer owner-readable requirements and infer technical details only when needed to satisfy the stated result.",
+    "Approved Pandora Memory context is advisory evidence only. Use it when it materially clarifies patterns, constraints, or prior decisions, but never let Memory override the current customer intent, current ProjectSpec authority, current provider truth, or explicit owner instructions."
   ].join(" ");
-  const prompt = `Project name: ${text(project.name).slice(0, 300)}\nRequested project kind: ${kind.slice(0, 80)}\nCustomer intent:\n${text(intent.intent_text).slice(0, 50000)}`;
+  const envelope = record(memoryContext.contextEnvelope);
+  const memoryForModel = {
+    status: text(memoryContext.contextStatus),
+    highlights: record(envelope.highlights),
+    warnings: Array.isArray(envelope.warnings) ? envelope.warnings.slice(0, 10) : [],
+  };
+  const prompt = `Project name: ${text(project.name).slice(0, 300)}\nRequested project kind: ${kind.slice(0, 80)}\nCustomer intent:\n${text(intent.intent_text).slice(0, 50000)}\n\nApproved project-scoped Pandora Memory context (advisory; current intent wins):\n${JSON.stringify(memoryForModel).slice(0, 20000)}`;
   return {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -297,6 +432,12 @@ Deno.serve(async (req) => {
     claimToken = text(claim.claimToken);
     if (!claimToken) throw new Error("COMPILATION_CLAIM_FAILED");
 
+    let memoryContext: JsonRecord;
+    try {
+      memoryContext = await prepareMemoryContext(admin, intentId, "project_spec");
+    } catch {
+      memoryContext = await unavailableMemoryContext(intentId, "project_spec");
+    }
     const requestId = crypto.randomUUID();
     let requestDigest = "";
     let responseDigest = "";
@@ -308,7 +449,7 @@ Deno.serve(async (req) => {
     let structuredOutputAttempt = 0;
     for (let attempt = 1; attempt <= 3; attempt++) {
       structuredOutputAttempt = attempt;
-      const attemptRequest = modelRequest(record(intent), record(project));
+      const attemptRequest = modelRequest(record(intent), record(project), memoryContext);
       if (attempt > 1) {
         const instruction = record(attemptRequest.systemInstruction);
         const parts = Array.isArray(instruction.parts) ? instruction.parts : [];
@@ -351,14 +492,24 @@ Deno.serve(async (req) => {
     }
     if (!candidate) throw new Error("INVALID_STRUCTURED_OUTPUT");
     const digest = await sha256(JSON.stringify(candidate));
-    const { data: committed, error: commitError } = await admin.rpc("pandora_commit_compiled_project_spec_v2_20260901", {
+    const { data: committed, error: commitError } = await admin.rpc("pandora_commit_compiled_project_spec_memory_v1", {
       p_source_intent_id: intentId,
       p_claim_token: claimToken,
       p_candidate: candidate,
       p_compiler_provider: "gemini",
       p_compiler_model: MODEL,
       p_compiler_version: COMPILER_VERSION,
-      p_compiler_provenance: { request_id: requestId, transport: "vault_server_boundary", structured_output: true, structured_output_attempts: structuredOutputAttempt },
+      p_compiler_provenance: {
+        request_id: requestId,
+        transport: "vault_server_boundary",
+        structured_output: true,
+        structured_output_attempts: structuredOutputAttempt,
+        memory_context_receipt_id: text(memoryContext.receiptId) || null,
+        memory_context_status: text(memoryContext.contextStatus),
+        memory_context_hash: text(memoryContext.contextHash),
+        memory_retrieval_log_id: text(memoryContext.retrievalLogId) || null,
+        memory_approved_item_ids: Array.isArray(memoryContext.approvedMemoryItemIds) ? memoryContext.approvedMemoryItemIds.slice(0, 50) : [],
+      },
       p_content_sha256: digest,
       p_model_request_id: requestId,
       p_model_request_sha256: requestDigest,
@@ -367,6 +518,8 @@ Deno.serve(async (req) => {
       p_model_output_tokens: outputTokens,
       p_model_total_tokens: totalTokens,
       p_model_revision: modelRevision,
+      p_memory_context_hash: text(memoryContext.contextHash),
+      p_memory_receipt_id: text(memoryContext.receiptId) || null,
     });
     if (commitError || text(record(committed).state) !== "succeeded") throw new Error("COMMIT_FAILED");
     const committedSpec = record(committed);
