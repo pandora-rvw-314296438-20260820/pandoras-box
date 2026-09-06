@@ -66,4 +66,4 @@ void main() {
     expect(kotlin, contains('if (!isSafePreviewPath(path)'));
     expect(kotlin, contains('if (!files.containsKey("index.html"))'));
   });
-}\n
+}
