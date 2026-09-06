@@ -364,7 +364,17 @@ exports.supabaseTools = {
             additionalProperties: false,
             properties: {
                 accountId: { type: 'string', description: 'Configured MCPMaster Supabase account ID' },
-                projectRef: { type: 'string', pattern: '^[a-z0-9]{20}
+                projectRef: { type: 'string', pattern: '^[a-z0-9]{20}$', description: 'Exact allowlisted Supabase project ref' },
+                sql: { type: 'string', minLength: 1, maxLength: DATABASE_QUERY_MAX_BYTES, description: 'Exact SQL bytes sent to the Supabase database query endpoint' },
+                readOnly: { type: 'boolean', description: 'Provider read_only flag; false permits mutations only after owner/admin approval' },
+                bodySha256: { type: 'string', pattern: '^[a-f0-9]{64}$', description: 'SHA-256 of exact UTF-8 JSON body with query and read_only fields' },
+                confirmation: { type: 'string', description: 'DATABASE QUERY projectRef READ_ONLY true|false BODY_SHA256 bodySha256' },
+            },
+            required: ['accountId', 'projectRef', 'sql', 'readOnly', 'bodySha256', 'confirmation'],
+        },
+    },
+    'supabase.pause-project': {
+        description: 'Pause one exact Supabase project; requires MCPMaster approval and account mutation enablement',
         parameters: {
             type: 'object',
             properties: {
@@ -415,124 +425,6 @@ async function executeSupabaseTool(tool, args, configuration, fetchFn) {
                 input.bodySha256,
                 input.confirmation,
             );
-        }
-        case 'supabase.pause-project': {
-            const input = MutationArgsSchema.parse(args);
-            return supabase.pauseProject(input.accountId, input.projectRef, input.confirmation);
-        }
-        case 'supabase.restore-project': {
-            const input = MutationArgsSchema.parse(args);
-            return supabase.restoreProject(input.accountId, input.projectRef, input.confirmation);
-        }
-        default:
-            throw new SupabaseManagementError(`Unknown Supabase tool: ${tool}`, 404);
-    }
-}
-//# sourceMappingURL=supabase.js.map
-, description: 'Exact allowlisted Supabase project ref' },
-                sql: { type: 'string', minLength: 1, maxLength: DATABASE_QUERY_MAX_BYTES, description: 'Exact SQL bytes sent to the Supabase database query endpoint' },
-                readOnly: { type: 'boolean', description: 'Provider read_only flag; false permits mutations only after owner/admin approval' },
-                bodySha256: { type: 'string', pattern: '^[a-f0-9]{64}
-        parameters: {
-            type: 'object',
-            properties: {
-                accountId: { type: 'string', description: 'Configured MCPMaster Supabase account ID' },
-                projectRef: { type: 'string', description: 'Exact 20-character Supabase project ref' },
-                confirmation: { type: 'string', description: 'Must exactly equal PAUSE <projectRef>' },
-            },
-            required: ['accountId', 'projectRef', 'confirmation'],
-        },
-    },
-    'supabase.restore-project': {
-        description: 'Restore one exact paused Supabase project; requires MCPMaster approval and account mutation enablement',
-        parameters: {
-            type: 'object',
-            properties: {
-                accountId: { type: 'string', description: 'Configured MCPMaster Supabase account ID' },
-                projectRef: { type: 'string', description: 'Exact 20-character Supabase project ref' },
-                confirmation: { type: 'string', description: 'Must exactly equal RESTORE <projectRef>' },
-            },
-            required: ['accountId', 'projectRef', 'confirmation'],
-        },
-    },
-};
-async function executeSupabaseTool(tool, args, configuration, fetchFn) {
-    const supabase = new SupabaseMCPServer(configuration, fetchFn);
-    switch (tool) {
-        case 'supabase.list-accounts':
-            return supabase.listAccounts();
-        case 'supabase.list-organizations': {
-            const input = AccountArgsSchema.parse(args);
-            return supabase.listOrganizations(input.accountId);
-        }
-        case 'supabase.list-projects': {
-            const input = ListProjectsArgsSchema.parse(args);
-            return supabase.listProjects(input.accountId, input.organizationSlug);
-        }
-        case 'supabase.get-project': {
-            const input = ProjectArgsSchema.parse(args);
-            return supabase.getProject(input.accountId, input.projectRef);
-        }
-        case 'supabase.pause-project': {
-            const input = MutationArgsSchema.parse(args);
-            return supabase.pauseProject(input.accountId, input.projectRef, input.confirmation);
-        }
-        case 'supabase.restore-project': {
-            const input = MutationArgsSchema.parse(args);
-            return supabase.restoreProject(input.accountId, input.projectRef, input.confirmation);
-        }
-        default:
-            throw new SupabaseManagementError(`Unknown Supabase tool: ${tool}`, 404);
-    }
-}
-//# sourceMappingURL=supabase.js.map
-, description: 'SHA-256 of exact UTF-8 JSON body {"query":sql,"read_only":readOnly}' },
-                confirmation: { type: 'string', description: 'DATABASE QUERY projectRef READ_ONLY true|false BODY_SHA256 bodySha256' },
-            },
-            required: ['accountId', 'projectRef', 'sql', 'readOnly', 'bodySha256', 'confirmation'],
-        },
-    },
-    'supabase.pause-project': {
-        description: 'Pause one exact Supabase project; requires MCPMaster approval and account mutation enablement',
-        parameters: {
-            type: 'object',
-            properties: {
-                accountId: { type: 'string', description: 'Configured MCPMaster Supabase account ID' },
-                projectRef: { type: 'string', description: 'Exact 20-character Supabase project ref' },
-                confirmation: { type: 'string', description: 'Must exactly equal PAUSE <projectRef>' },
-            },
-            required: ['accountId', 'projectRef', 'confirmation'],
-        },
-    },
-    'supabase.restore-project': {
-        description: 'Restore one exact paused Supabase project; requires MCPMaster approval and account mutation enablement',
-        parameters: {
-            type: 'object',
-            properties: {
-                accountId: { type: 'string', description: 'Configured MCPMaster Supabase account ID' },
-                projectRef: { type: 'string', description: 'Exact 20-character Supabase project ref' },
-                confirmation: { type: 'string', description: 'Must exactly equal RESTORE <projectRef>' },
-            },
-            required: ['accountId', 'projectRef', 'confirmation'],
-        },
-    },
-};
-async function executeSupabaseTool(tool, args, configuration, fetchFn) {
-    const supabase = new SupabaseMCPServer(configuration, fetchFn);
-    switch (tool) {
-        case 'supabase.list-accounts':
-            return supabase.listAccounts();
-        case 'supabase.list-organizations': {
-            const input = AccountArgsSchema.parse(args);
-            return supabase.listOrganizations(input.accountId);
-        }
-        case 'supabase.list-projects': {
-            const input = ListProjectsArgsSchema.parse(args);
-            return supabase.listProjects(input.accountId, input.organizationSlug);
-        }
-        case 'supabase.get-project': {
-            const input = ProjectArgsSchema.parse(args);
-            return supabase.getProject(input.accountId, input.projectRef);
         }
         case 'supabase.pause-project': {
             const input = MutationArgsSchema.parse(args);
