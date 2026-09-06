@@ -88,8 +88,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     final lifecycleState = WidgetsBinding.instance.lifecycleState;
-    _lifecycleResumed = lifecycleState == null ||
-        lifecycleState == AppLifecycleState.resumed;
+    _lifecycleResumed =
+        lifecycleState == null || lifecycleState == AppLifecycleState.resumed;
     _orbit = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
