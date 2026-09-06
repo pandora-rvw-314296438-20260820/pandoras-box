@@ -138,7 +138,7 @@ successful push-to-`main` `Exact source / Flutter / Android` job. The status
 provider freshly reads the GitHub artifact ID and `sha256:` digest, its workflow
 run and attempt, the run's source tree, and the exact job/check-suite identity.
 The physical receipts must repeat the artifact locator/digest and APK SHA-256,
-name `https://mcpmaster.vercel.app` as the production origin, bind the immutable
+name `https://pandoras-box-system.vercel.app` as the production origin, bind the immutable
 rollback-restoration receipt SHA-256 and its provider-observed completion time,
 and be observed after that restoration readback. A deleted, expired, renamed,
 wrong-run, wrong-tree, wrong-check, or digest-mismatched artifact fails closed.
