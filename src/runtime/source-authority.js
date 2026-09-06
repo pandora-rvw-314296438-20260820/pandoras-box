@@ -12,6 +12,7 @@ const path_1 = require("node:path");
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const PROJECT_KEY = /^[a-z0-9][a-z0-9._-]{0,79}$/;
 const POLICY_PATH = (0, path_1.resolve)(__dirname, '..', '..', 'SOURCE_AUTHORITY_POLICY.json');
+const TEMPORARY_MEMORY_BOOTSTRAP_KEYS = new Set(['pandoras-box-memory', 'plp-boracay']);
 
 function loadPolicy() {
     const parsed = JSON.parse((0, fs_1.readFileSync)(POLICY_PATH, 'utf8'));
@@ -48,6 +49,7 @@ function memoryProjectKeyForProjectOsIntake(projectKey) {
         : undefined;
     return normalized === exports.sourceAuthorityPolicy.canonical.vercel_project_name
         || normalized === canonicalRepositoryKey
+        || TEMPORARY_MEMORY_BOOTSTRAP_KEYS.has(normalized)
         ? canonicalMemoryProjectKey()
         : normalized;
 }
