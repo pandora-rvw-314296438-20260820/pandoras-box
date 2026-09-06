@@ -3,6 +3,102 @@ import 'package:flutter/material.dart';
 import '../../core/data/project_experience_api.dart';
 import 'pandora_v2_ui.dart';
 
+class PandoraSimpleBuildPlan extends StatefulWidget {
+  const PandoraSimpleBuildPlan({
+    super.key,
+    required this.understanding,
+    this.showDeliveryPromise = true,
+  });
+
+  final OwnerProjectUnderstanding understanding;
+  final bool showDeliveryPromise;
+
+  @override
+  State<PandoraSimpleBuildPlan> createState() => _PandoraSimpleBuildPlanState();
+}
+
+class _PandoraSimpleBuildPlanState extends State<PandoraSimpleBuildPlan> {
+  bool _expanded = false;
+
+  String get _summary =>
+      widget.understanding.productPromise ??
+      widget.understanding.intentSummary ??
+      widget.understanding.businessSummary ??
+      'Pandora is ready to build the first working version.';
+
+  @override
+  Widget build(BuildContext context) {
+    if (_expanded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PandoraProfessionalBuildPlan(
+            understanding: widget.understanding,
+            showDeliveryPromise: widget.showDeliveryPromise,
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => setState(() => _expanded = false),
+              icon: const Icon(Icons.expand_less_rounded),
+              label: const Text('Hide plan'),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+      decoration: BoxDecoration(
+        color: PandoraV2Colors.surface,
+        border: Border.all(color: PandoraV2Colors.line),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'READY TO BUILD',
+            style: TextStyle(
+              color: PandoraV2Colors.muted,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.05,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _summary,
+            style: const TextStyle(
+              color: PandoraV2Colors.ink,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+              letterSpacing: -.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Pandora will create the working result, check it, and show it to you before anything goes live.',
+            style: TextStyle(
+              color: PandoraV2Colors.muted,
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 4),
+          TextButton.icon(
+            onPressed: () => setState(() => _expanded = true),
+            icon: const Icon(Icons.expand_more_rounded),
+            label: const Text('View plan'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class PandoraProfessionalBuildPlan extends StatelessWidget {
   const PandoraProfessionalBuildPlan({
     super.key,

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "sourceDirectory": "supabase/migrations",
+  "purpose": "Classify source migrations without rewriting immutable provider history.",
+  "classifications": [
+    {
+      "id": "provider_receipt",
+      "description": "History-only or replay-receipt file for an already-live provider migration.",
+      "contentMarkers": [
+        "history-only",
+        "Canonical executable authority:",
+        "Replay mode: history_receipt_noop"
+      ]
+    },
+    {
+      "id": "historical_control",
+      "description": "Temporary, recovery, probe, or retirement control retained for provenance.",
+      "filenamePattern": "(?:temporary|remove_temporary|retire_|recovery|probe)"
+    },
+    {
+      "id": "executable_authority",
+      "description": "Default executable source authority.",
+      "default": true
+    }
+  ],
+  "invariants": [
+    "Every migration is classified exactly once.",
+    "Receipt references must point at an existing source file.",
+    "Historical controls remain source history and are not silently deleted."
+  ]
+}

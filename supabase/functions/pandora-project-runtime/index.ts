@@ -3,28 +3,24 @@ import {
   createClient,
   type SupabaseClient,
 } from "jsr:@supabase/supabase-js@2.57.2";
+import { createCustomerProject } from "./project-create.ts";
+import {
+  asRecord,
+  type JsonRecord,
+  sha256Hex,
+  textValue,
+} from "./runtime-common.ts";
+import { classifyProjectRuntimeError } from "./runtime-errors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-
-const BUILD_KINDS = new Set([
-  "website",
-  "web_app",
-  "mobile_app",
-  "internal_tool",
-  "automation",
-  "api_backend",
-  "full_system",
-  "help_me_decide",
-]);
 
 const DEFAULT_ORIGINS = new Set([
   "https://pandoras-box-system.vercel.app",
   "https://mcpmaster.vercel.app",
 ]);
 
-type JsonRecord = Record<string, unknown>;
 type DbClient = SupabaseClient<any, "public", "public", any, any>;
 type UserContext = {
   userId: string;
@@ -32,16 +28,6 @@ type UserContext = {
   role: string;
   client: DbClient;
 };
-
-function asRecord(value: unknown): JsonRecord {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as JsonRecord
-    : {};
-}
-
-function textValue(value: unknown, fallback = "") {
-  return typeof value === "string" && value.trim() ? value.trim() : fallback;
-}
 
 function jsonResponse(
   body: unknown,
@@ -159,12 +145,6 @@ function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 42) || "project";
 }
 
-function buildKind(value: unknown) {
-  const kind = textValue(value).toLowerCase();
-  if (!BUILD_KINDS.has(kind)) throw new Error("INVALID_BUILD_KIND");
-  return kind;
-}
-
 function normalizeDomain(value: unknown) {
   const raw = textValue(value).toLowerCase();
   if (!raw) return null;
@@ -173,11 +153,6 @@ function normalizeDomain(value: unknown) {
     throw new Error("INVALID_DOMAIN");
   }
   return stripped;
-}
-
-async function sha256Hex(value: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function serviceClient() {
@@ -551,33 +526,6 @@ async function createVercelDeployment(provider: { id: string; name: string }, bu
   }
   if (Object.keys(asRecord(latest.meta)).length) assertPreviewProviderLineage(latest, bundle, textValue(bundle.version.project_id), versionId, operationId);
   return latest;
-}
-
-async function createProject(context: UserContext, body: JsonRecord) {
-  const name = textValue(body.name);
-  const objective = textValue(body.objective);
-  const kind = buildKind(body.buildKind);
-  if (name.length < 2 || name.length > 100) throw new Error("INVALID_PROJECT_NAME");
-  if (objective.length < 10 || objective.length > 50000) throw new Error("INVALID_OBJECTIVE");
-
-  const projectKey = `${slugify(name)}-${crypto.randomUUID().slice(0, 8)}`;
-  const now = new Date().toISOString();
-  const config = {
-    customerJourney: {
-      buildKind: kind,
-      stage: "understanding",
-      runtimeStatus: "not_configured",
-      createdFrom: "simple_mode",
-      updatedAt: now,
-    },
-  };
-  const { data, error } = await serviceClient().from("projectos_projects")
-    .insert({ organization_id: context.organizationId, project_key: projectKey, name, workspace_path: `projectos/projects/${projectKey}`, status: "active", objective, roadmap_version: "2.0.0", config, created_by: context.userId })
-    .select("id, project_key, name, objective, status, config, created_at, updated_at").single();
-  if (error || !data) throw new Error("BACKEND_WRITE_FAILED");
-  const createdProject = asRecord(data);
-  const provider = await ensureVercelProject(context, createdProject);
-  return projectResponse({ ...createdProject, config: provider.config });
 }
 
 
@@ -1533,7 +1481,30 @@ Deno.serve(async (req: Request) => {
     const context = await authenticate(req);
     await enforceRateLimit(context, req.method);
     const route = routePath(new URL(req.url).pathname);
-    if (req.method === "POST" && route === "/projects") return jsonResponse({ project: await createProject(context, await bodyJson(req)) }, 201, requestId, origin);
+    if (req.method === "POST" && route === "/projects") {
+      const idempotencyKey = textValue(req.headers.get("idempotency-key"));
+      if (idempotencyKey.length < 8 || idempotencyKey.length > 200) {
+        throw new Error("IDEMPOTENCY_KEY_REQUIRED");
+      }
+      return jsonResponse(
+        {
+          project: projectResponse(
+            await createCustomerProject(
+              serviceClient(),
+              {
+                userId: context.userId,
+                organizationId: context.organizationId,
+              },
+              await bodyJson(req),
+              idempotencyKey,
+            ),
+          ),
+        },
+        201,
+        requestId,
+        origin,
+      );
+    }
     const runtimeMatch = route.match(/^\/projects\/([^/]+)\/runtime$/);
     if (req.method === "GET" && runtimeMatch) return jsonResponse(await runtimeSummary(context, decodeURIComponent(runtimeMatch[1])), 200, requestId, origin);
     const previewMatch = route.match(/^\/projects\/([^/]+)\/previews$/);
@@ -1549,33 +1520,23 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ code: "PROJECT_RUNTIME_ROUTE_NOT_FOUND", plainMessage: "That project action is not available yet.", requestId }, 404, requestId, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
-    const invalid = new Set(["INVALID_JSON", "BODY_TOO_LARGE", "INVALID_PROJECT_NAME", "INVALID_OBJECTIVE", "INVALID_BUILD_KIND", "INVALID_DOMAIN", "VERSION_REQUIRED", "INVALID_PRODUCTION_PRECONDITION", "EXACT_VERSION_REQUIRED", "ARTIFACT_FILE_BASE64_INVALID", "ARTIFACT_FILE_BASE64_NON_CANONICAL", "ARTIFACT_FILE_PATH_INVALID", "ARTIFACT_BUNDLE_JSON_INVALID", "ARTIFACT_BUNDLE_SCHEMA_UNSUPPORTED", "ARTIFACT_BUNDLE_FILES_INVALID", "INVALID_DOMAIN_REQUEST", "INVALID_ROLLBACK_REQUEST", "INVALID_UNDO_REQUEST"]);
-    const conflicts = new Set(["PREVIEW_REQUIRED", "PREVIEW_NOT_READY", "VERSION_SOURCE_INVALID", "VERSION_SOURCE_MISMATCH", "PRODUCTION_PRECONDITION_REQUIRED", "PRODUCTION_PRECONDITION_MISMATCH", "VERIFICATION_REQUIRED", "VERIFICATION_IDENTITY_MISMATCH", "VERIFICATION_STALE", "PROVIDER_LINEAGE_MISMATCH", "PRODUCTION_PROMOTION_NOT_CONFIRMED", "VERCEL_CONFLICT", "VERCEL_DOMAIN_REJECTED", "VERCEL_PROJECT_NOT_FOUND", "VERCEL_PROJECT_IDENTITY_MISMATCH", "ARTIFACT_LINEAGE_INCOMPLETE", "ARTIFACT_NOT_FOUND", "ARTIFACT_DIGEST_MISMATCH", "ARTIFACT_STORAGE_INVALID", "ARTIFACT_STORAGE_READ_FAILED", "ARTIFACT_KIND_NOT_DEPLOYABLE", "ARTIFACT_PROVENANCE_MISMATCH", "ARTIFACT_BUNDLE_SIZE_INVALID", "ARTIFACT_BUNDLE_DIGEST_MISMATCH", "ARTIFACT_BUNDLE_LINEAGE_MISMATCH", "ARTIFACT_FILES_NOT_CANONICAL", "ARTIFACT_FILE_ENCODING_UNSUPPORTED", "ARTIFACT_FILE_TOO_LARGE", "ARTIFACT_FILES_TOTAL_TOO_LARGE", "ARTIFACT_FILE_DIGEST_MISMATCH", "ARTIFACT_FILE_SIZE_MISMATCH", "ARTIFACT_ENTRYPOINT_MISSING", "DOMAIN_DEPLOYMENT_REQUIRED", "DOMAIN_NOT_FOUND", "ROLLBACK_TARGET_NOT_ELIGIBLE", "ROLLBACK_TARGET_NOT_VERIFIED", "SUPABASE_FALLBACK_DOMAIN_UNAVAILABLE", "PRODUCTION_PROVIDER_UNSUPPORTED"]);
-    if (code === "SIGN_IN_REQUIRED") return jsonResponse({ code, plainMessage: "Please sign in again.", requestId }, 401, requestId, origin);
-    if (["ORGANIZATION_ACCESS_REQUIRED", "OWNER_ROLE_REQUIRED", "ROLLBACK_OWNER_REQUIRED", "ROLLBACK_AUTHORIZATION_FAILED"].includes(code)) return jsonResponse({ code, plainMessage: "You do not have permission to roll back this production project.", requestId }, 403, requestId, origin);
-    if (code === "ORGANIZATION_SELECTION_REQUIRED") return jsonResponse({ code, plainMessage: "Choose which organization you want to use.", requestId }, 409, requestId, origin);
-    if (code === "RATE_LIMITED") return jsonResponse({ code, plainMessage: "Please wait a moment before trying again.", requestId }, 429, requestId, origin);
-    if (code === "VERCEL_DEPLOYMENT_QUOTA_EXHAUSTED") return jsonResponse({ code, plainMessage: "Preview capacity is temporarily full. Pandora can retry when Vercel resets the daily deployment allowance.", requestId }, 503, requestId, origin);
-    if (invalid.has(code)) return jsonResponse({ code, plainMessage: "Check that project information and try again.", requestId }, 400, requestId, origin);
-    if (code === "PROJECT_NOT_FOUND") return jsonResponse({ code, plainMessage: "Pandora could not find that project.", requestId }, 404, requestId, origin);
-    if (code === "DOMAIN_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already attaching that domain.", requestId }, 409, requestId, origin);
-    if (code === "DOMAIN_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming the domain with Vercel. Do not attach it again yet.", requestId }, 409, requestId, origin);
-    if (code === "UNDO_REQUIRES_ROLLBACK") return jsonResponse({ code, plainMessage: "That version is already live. Use the governed rollback action instead of Undo.", requestId }, 409, requestId, origin);
-    if (["UNDO_NOT_AVAILABLE", "UNDO_PRECONDITION_MISMATCH", "UNDO_PARENT_NOT_VERIFIED", "UNDO_PARENT_PREVIEW_UNAVAILABLE"].includes(code)) return jsonResponse({ code, plainMessage: "That change cannot be undone from the current project state.", requestId }, 409, requestId, origin);
-    if (code === "ROLLBACK_APPROVAL_REQUIRED") return jsonResponse({ code, plainMessage: "This production rollback needs your approval in Needs You before Pandora can continue.", requestId }, 409, requestId, origin);
-    if (code === "ROLLBACK_DENIED") return jsonResponse({ code, plainMessage: "This production rollback was not approved.", requestId }, 409, requestId, origin);
-    if (code === "ROLLBACK_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already rolling back this project.", requestId }, 409, requestId, origin);
-    if (code === "ROLLBACK_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming the production rollback. Do not roll back again yet.", requestId }, 409, requestId, origin);
-    if (code === "ROLLBACK_AUTHORIZATION_COLLISION") return jsonResponse({ code, plainMessage: "That rollback request conflicts with an earlier authorization. Create a new rollback request.", requestId }, 409, requestId, origin);
-    if (code === "ROLLBACK_PROVIDER_UNSUPPORTED") return jsonResponse({ code, plainMessage: "This production provider does not support governed rollback yet.", requestId }, 409, requestId, origin);
-    if (code === "ROLLBACK_VERIFICATION_FAILED") return jsonResponse({ code, plainMessage: "Pandora refused to make the rollback live because independent verification failed.", requestId }, 409, requestId, origin);
-    if (code === "PREVIEW_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already creating this exact preview.", requestId }, 409, requestId, origin);
-    if (code === "PREVIEW_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming whether that preview was created. Do not create it again yet.", requestId }, 409, requestId, origin);
-    if (code === "PUBLISH_IN_PROGRESS") return jsonResponse({ code, plainMessage: "Pandora is already publishing this version.", requestId }, 409, requestId, origin);
-    if (code === "PUBLISH_RECONCILIATION_REQUIRED") return jsonResponse({ code, plainMessage: "Pandora is confirming whether that publish completed. Do not publish again yet.", requestId }, 409, requestId, origin);
-    if (conflicts.has(code)) return jsonResponse({ code, plainMessage: "That project cannot be published in its current state.", requestId }, 409, requestId, origin);
-    if (["RUNTIME_BROKER_NOT_CONFIGURED", "VERCEL_NOT_CONFIGURED", "PUBLISH_CLAIM_FAILED", "PREVIEW_CLAIM_FAILED", "DOMAIN_CLAIM_FAILED", "ROLLBACK_CLAIM_FAILED", "ROLLBACK_EXECUTION_FAILED", "SUPABASE_PRODUCTION_FALLBACK_FAILED"].includes(code)) return jsonResponse({ code, plainMessage: "Project publishing is temporarily unavailable.", requestId }, 503, requestId, origin);
-    console.error(JSON.stringify({ requestId, code }));
-    return jsonResponse({ code: "PROJECT_RUNTIME_UNAVAILABLE", plainMessage: "Pandora cannot reach the project runtime right now.", requestId }, 503, requestId, origin);
+    const publicError = classifyProjectRuntimeError(code);
+    if (publicError.log) {
+      console.error(JSON.stringify({ requestId, code }));
+    }
+    return jsonResponse(
+      {
+        code: publicError.responseCode,
+        plainMessage: publicError.plainMessage,
+        operation: publicError.operation,
+        phase: publicError.phase,
+        retryable: publicError.retryable,
+        outcomeKnown: publicError.outcomeKnown,
+        requestId,
+      },
+      publicError.status,
+      requestId,
+      origin,
+    );
   }
 });
