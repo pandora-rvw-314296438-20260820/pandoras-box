@@ -62,9 +62,9 @@ begin
            '      from unnest(v_runtime.headers) h where lower((h).field)=''content-security-policy'' limit 1;'||chr(10)||
            '      v_runtime_ok:=v_runtime.status between 200 and 399'||chr(10)||
            '        and v_runtime_content_type like ''text/html%'''||chr(10)||
-           '        and position(''sandbox'' in v_runtime_csp)>0'||chr(10)||
-           '        and position(''allow-scripts'' in v_runtime_csp)>0'||chr(10)||
-           '        and position(''allow-same-origin'' in v_runtime_csp)=0;'||chr(10)||
+           '        and strpos(v_runtime_csp,''sandbox'')>0'||chr(10)||
+           '        and strpos(v_runtime_csp,''allow-scripts'')>0'||chr(10)||
+           '        and strpos(v_runtime_csp,''allow-same-origin'')=0;'||chr(10)||
            '      v_runtime_body:=left(coalesce(v_runtime.content,''''),1048576);';
   if position('v_runtime_content_type like ''text/html%''' in v_def)=0 then
     if position(v_old in v_def)=0 then
@@ -159,9 +159,9 @@ begin
            '  select lower(coalesce((h).value,'''')) into v_runtime_csp'||chr(10)||
            '  from unnest(v_runtime.headers) h where lower((h).field)=''content-security-policy'' limit 1;'||chr(10)||
            '  if v_runtime_content_type not like ''text/html%'''||chr(10)||
-           '     or position(''sandbox'' in v_runtime_csp)=0'||chr(10)||
-           '     or position(''allow-scripts'' in v_runtime_csp)=0'||chr(10)||
-           '     or position(''allow-same-origin'' in v_runtime_csp)>0 then'||chr(10)||
+           '     or strpos(v_runtime_csp,''sandbox'')=0'||chr(10)||
+           '     or strpos(v_runtime_csp,''allow-scripts'')=0'||chr(10)||
+           '     or strpos(v_runtime_csp,''allow-same-origin'')>0 then'||chr(10)||
            '    return jsonb_build_object(''ok'',false,''reason'',''runtime_not_renderable'',''httpStatus'',v_runtime.status,''contentType'',v_runtime_content_type);'||chr(10)||
            '  end if;'||chr(10)||
            '  v_body:=left(coalesce(v_runtime.content,''''),1048576);';
@@ -233,9 +233,9 @@ begin
            '    from unnest(v_runtime.headers) h where lower((h).field)=''content-security-policy'' limit 1;'||chr(10)||
            '    v_runtime_ok:=v_runtime.status between 200 and 399'||chr(10)||
            '      and v_runtime_content_type like ''text/html%'''||chr(10)||
-           '      and position(''sandbox'' in v_runtime_csp)>0'||chr(10)||
-           '      and position(''allow-scripts'' in v_runtime_csp)>0'||chr(10)||
-           '      and position(''allow-same-origin'' in v_runtime_csp)=0;'||chr(10)||
+           '      and strpos(v_runtime_csp,''sandbox'')>0'||chr(10)||
+           '      and strpos(v_runtime_csp,''allow-scripts'')>0'||chr(10)||
+           '      and strpos(v_runtime_csp,''allow-same-origin'')=0;'||chr(10)||
            '    v_runtime_body:=left(coalesce(v_runtime.content,''''),1048576);';
   if position('v_runtime_content_type like ''text/html%''' in v_def)=0 then
     if position(v_old in v_def)=0 then
