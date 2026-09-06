@@ -69,6 +69,27 @@ function portableSql(filename, source) {
     assert.equal(occurrences, 1, `${filename}: extension substitution drift`);
     transformed = transformed.replace(statement, `-- PGLITE PROVIDER STUB: ${statement}`);
   }
+  if (
+    filename ===
+    '20260906142436_rebind_supabase_connections_to_pandora_projects_v2.sql'
+  ) {
+    const strictInto =
+      'into strict v_org_id, v_project_ref, v_expected_name, v_token';
+    const occurrences = transformed.split(strictInto).length - 1;
+    assert.equal(
+      occurrences,
+      1,
+      `${filename}: PGlite STRICT portability substitution drift`,
+    );
+    // PGlite raises P0002 while compiling this provider-bound verifier even
+    // though PostgreSQL defers the STRICT query until function execution.
+    // Production source remains byte-for-byte unchanged; replay relaxes only
+    // that compile-time quirk and the verifier still fails closed when called.
+    transformed = transformed.replace(
+      strictInto,
+      'into v_org_id, v_project_ref, v_expected_name, v_token',
+    );
+  }
   // PGlite does not fully emulate PostgreSQL pg_get_functiondef() rewrites.
   // Normalize authority literals only inside replayed function definitions so
   // active behavior matches production while historical rows and source bytes
