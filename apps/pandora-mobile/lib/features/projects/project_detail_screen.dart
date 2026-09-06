@@ -324,11 +324,12 @@ class _OperationalWorkspaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mappingTone = workspace.mappingCount > 0 &&
-            workspace.mappingCount == workspace.verifiedMappingCount
-        ? PandoraStatusTone.verified
+    final mappingAttention =
+        workspace.mappings.where((item) => item.needsAttention).length;
+    final mappingTone = mappingAttention > 0
+        ? PandoraStatusTone.attention
         : workspace.mappingCount > 0
-            ? PandoraStatusTone.attention
+            ? PandoraStatusTone.verified
             : PandoraStatusTone.neutral;
     final conflictTone = workspace.highConflictCount > 0
         ? PandoraStatusTone.critical
@@ -557,7 +558,9 @@ class _OperationalMappingRow extends StatelessWidget {
               label: mapping.bindingState,
               tone: mapping.verified
                   ? PandoraStatusTone.verified
-                  : PandoraStatusTone.attention,
+                  : mapping.notRequired
+                      ? PandoraStatusTone.neutral
+                      : PandoraStatusTone.attention,
               compact: true,
             ),
           ],
