@@ -200,6 +200,14 @@ class SafetyOverview {
       };
 }
 
+abstract interface class GovernedConnectionActionSource {
+  Future<IntakeReceipt> runConnectionAction({
+    required String connectionId,
+    required String action,
+    String? idempotencyKey,
+  });
+}
+
 abstract interface class PandoraRepository {
   Future<RepositorySnapshot<HomeSummary>> home();
 
