@@ -74,6 +74,19 @@ async function jsonBody(response) {
   }
 }
 
+function vercelErrorCode(payload) {
+  if (typeof payload?.code === "string") return payload.code;
+  if (
+    payload?.error
+    && typeof payload.error === "object"
+    && !Array.isArray(payload.error)
+    && typeof payload.error.code === "string"
+  ) {
+    return payload.error.code;
+  }
+  return "";
+}
+
 class VercelConnectUserBroker {
   constructor({
     connector = DEFAULT_CONNECTOR,
@@ -145,10 +158,11 @@ class VercelConnectUserBroker {
       vercelOidcToken,
     );
     if (!response.ok) {
-      if (response.status >= 400 && response.status < 500) {
+      const errorCode = vercelErrorCode(payload);
+      if (errorCode === "user_authorization_required") {
         throw new VercelConnectUserError(
           "VERCEL_CONNECT_USER_NOT_READY",
-          "This Pandora user does not have a usable Vercel Connect token yet.",
+          "This Pandora user has not authorized the Vercel Connect provider yet.",
           409,
         );
       }
