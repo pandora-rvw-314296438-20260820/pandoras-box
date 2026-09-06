@@ -55,7 +55,7 @@ test("understanding screen keeps the original long intent collapsed until reques
   assert.ok(
     understandingSource.indexOf("Your original request") < understandingSource.indexOf("label: 'Build it'"),
   );
-  assert.match(understandingSource, /PandoraProfessionalBuildPlan\(understanding: u!\)/);
+  assert.match(understandingSource, /PandoraSimpleBuildPlan\(understanding: u!\)/);
   assert.match(understandingSource, /Ready to see it become real\?/);
 });
 
