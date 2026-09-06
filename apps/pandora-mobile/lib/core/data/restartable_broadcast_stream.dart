@@ -10,6 +10,9 @@ Stream<T> restartableBroadcastStream<T>(
   Stream<T> Function() sourceFactory, {
   bool sync = true,
 }) {
+  // Intentionally kept open across zero-listener eras so a later Flutter
+  // reattachment can start a fresh authoritative source.
+  // ignore: close_sinks
   late StreamController<T> controller;
   StreamSubscription<T>? subscription;
   var generation = 0;
