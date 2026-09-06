@@ -11,7 +11,8 @@ class RemotePandoraRepository
     implements
         PandoraRepository,
         AuthorizationInvalidationSource,
-        AuthenticatedIdentityBoundary {
+        AuthenticatedIdentityBoundary,
+        GovernedConnectionActionSource {
   RemotePandoraRepository({
     required PandoraApiClient client,
     ReadOnlyMemoryCache? cache,
@@ -149,6 +150,35 @@ class RemotePandoraRepository
       }
       rethrow;
     }
+  }
+
+  @override
+  Future<IntakeReceipt> runConnectionAction({
+    required String connectionId,
+    required String action,
+    String? idempotencyKey,
+  }) async {
+    final connection = _requiredIdentifier(connectionId, 'connectionId');
+    final requestedAction =
+        _requiredIdentifier(action, 'connectionAction').toLowerCase();
+    final response = await _postJson(
+      pathSegments: <String>[
+        'connections',
+        connection,
+        'actions',
+        requestedAction,
+      ],
+      operation: 'connection.action.submit',
+      routeTemplate: '/connections/:id/actions/:action',
+      idempotencyKey:
+          idempotencyKey ?? _idempotencyKeys.create('connection-action'),
+      body: const <String, Object?>{'clientMode': 'simple'},
+    );
+    return _parse(response, '/connections/:id/actions/:action', () {
+      final json =
+          _requiredMap(response, '/connections/:id/actions/:action');
+      return IntakeReceipt.fromJson(json, requestId: response.requestId);
+    }, mutationOutcomeMayBeUnknown: true);
   }
 
   @override
