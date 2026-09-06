@@ -23,9 +23,9 @@ No hard constraint is bypassed by preference, traffic weight, exploration, histo
 
 ## Fallback boundary
 
-Cross-provider fallback is allowed only for normalized retryable `provider_unavailable`, `timeout`, and `rate_limited` failures. Authentication, authorization/configuration, invalid request, capability, structured-output/schema, budget and generic programmer/provider errors do not silently downgrade to a different provider.
+Cross-provider fallback is allowed for explicitly normalized provider-side failures marked cross-provider eligible: `provider_unavailable`, `timeout`, `rate_limited`, `quota_exhausted`, `unsupported_capability`, `invalid_output`, and sanitized `provider_error`. Quota exhaustion is intentionally cross-provider eligible even when same-provider retry is not. Authentication/authorization, invalid client requests, secret/configuration failures, Pandora policy denials, and other unclassified failures remain fail-closed and cannot silently move to another provider.
 
-The router carries provider/model attempt history and obeys the request attempt budget. Already-attempted provider/model pairs are excluded so Gemini↔Kimi loops cannot recur. Same-provider HTTP retry/backoff remains transport-owned.
+The router carries provider/model attempt history and obeys the request attempt budget. Already-attempted provider/model pairs are excluded so Gemini↔Kimi loops cannot recur. The first alternate provider is placed ahead of lower-priority same-provider model downgrades, so a provider outage or exhausted credit pool fails over promptly. Same-provider HTTP retry/backoff remains transport-owned.
 
 ## Session continuity and recovery
 
@@ -55,4 +55,4 @@ Persistence of model-run telemetry remains Chat D-owned.
 
 ## Production state
 
-This implementation is mechanism-only. Kimi traffic weight, global exploration and adaptive production routing remain disabled until the evaluation, verification and controlled-canary gates are satisfied and Chat F performs production convergence.
+The September 6 failover convergence enables Kimi as an eligible fallback provider while leaving preference weights, global exploration, and adaptive routing controls unchanged. Gemini remains the default when no task-specific preference is configured; Kimi is automatically attempted when the active provider fails with an eligible provider-side condition, and the same mechanism supports Kimi→Gemini recovery.
