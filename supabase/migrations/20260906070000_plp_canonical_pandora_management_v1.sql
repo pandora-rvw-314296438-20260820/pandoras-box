@@ -30,8 +30,11 @@ begin
   where id=v_project_id
   for update;
 
+  -- Clean-replay databases do not contain this portfolio project. Treat the
+  -- migration as an instance-specific reconciliation receipt there; on the
+  -- canonical control plane the exact project identity must match below.
   if v_org_id is null then
-    raise exception 'PLP_PROJECT_NOT_FOUND' using errcode='P0002';
+    return;
   end if;
   if v_current_repo not in (v_old_repo,v_new_repo) then
     raise exception 'PLP_REPOSITORY_IDENTITY_UNEXPECTED' using errcode='23514';
