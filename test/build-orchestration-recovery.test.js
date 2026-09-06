@@ -81,7 +81,7 @@ test('V2 Build Theatre stops stale owner activity after a terminal failure', () 
 test('default owner history summarizes pasted project source', () => {
   assert.match(historyScreen, /looksLikeProjectSource\(exactIntent\)/);
   assert.match(historyScreen, /projectPurposeForDisplay\(exactIntent\)/);
-  assert.match(historyScreen, /sourceIntent && _expanded[\s\S]*\? exactIntent!/);
+  assert.match(historyScreen, /sourceIntent && _expanded[\s\S]*\? exactIntent/);
 });
 
 test('Build Theatre projection rejects stale superseded build ownership', () => {
