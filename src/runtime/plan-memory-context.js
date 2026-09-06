@@ -225,7 +225,16 @@ class PandoraPlanMemoryContextProvider {
                 highlights,
                 warnings: warningList(search.warnings),
             };
-            return { envelope, contextHash: hashPlanMemoryContextEnvelope(envelope) };
+            return {
+                envelope,
+                contextHash: hashPlanMemoryContextEnvelope(envelope),
+                memoryProjectId: typeof search.project_id === 'string' ? search.project_id : null,
+                memoryProjectKey: typeof search.project_key === 'string' ? search.project_key : projectKey,
+                retrievalLogId: typeof search.retrieval_log_id === 'string' ? search.retrieval_log_id : null,
+                approvedMemoryItemIds: Array.isArray(search.approved_memory_item_ids)
+                    ? search.approved_memory_item_ids.slice(0, 50)
+                    : [],
+            };
         }
         catch (error) {
             return createUnavailablePlanMemoryContext(input, error, now);
