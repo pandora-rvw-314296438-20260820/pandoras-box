@@ -66,6 +66,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
   DateTime? _lastBuildRequestAt;
   bool _previewRequestStarted = false;
   bool _refreshing = false;
+  Completer<void>? _refreshCompletion;
   ProjectRuntimeSnapshot? _snapshot;
   ProjectPreviewResult? _previewResult;
   ProjectRuntimeCandidate? _localPreviewCandidate;
@@ -155,7 +156,18 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
         (!_lifecycleResumed || lifecycleGeneration != _lifecycleGeneration)) {
       return null;
     }
-    if (_refreshing) return _snapshot;
+    if (_refreshing) {
+      if (lifecycleGeneration == null) return _snapshot;
+      final pendingRefresh = _refreshCompletion;
+      if (pendingRefresh != null) {
+        await pendingRefresh.future;
+      }
+      if (!mounted ||
+          !_lifecycleResumed ||
+          lifecycleGeneration != _lifecycleGeneration) {
+        return null;
+      }
+    }
     final experience =
         PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) {
@@ -168,6 +180,8 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     }
 
     _refreshing = true;
+    final refreshCompletion = Completer<void>();
+    _refreshCompletion = refreshCompletion;
     try {
       final snapshot = await experience.runtime(widget.project.id);
       if (!mounted ||
@@ -210,6 +224,12 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
       return null;
     } finally {
       _refreshing = false;
+      if (!refreshCompletion.isCompleted) {
+        refreshCompletion.complete();
+      }
+      if (identical(_refreshCompletion, refreshCompletion)) {
+        _refreshCompletion = null;
+      }
     }
   }
 
