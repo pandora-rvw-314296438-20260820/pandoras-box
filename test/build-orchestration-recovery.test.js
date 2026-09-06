@@ -6,6 +6,10 @@ const experienceV2 = fs.readFileSync(
   'apps/pandora-mobile/lib/features/simple/project_experience_v2.dart',
   'utf8',
 );
+const historyScreen = fs.readFileSync(
+  'apps/pandora-mobile/lib/features/simple/project_history_screen.dart',
+  'utf8',
+);
 const theatreGuard = fs.readFileSync(
   'supabase/migrations/20260830155431_pandora_build_theatre_latest_job_guard_v1.sql',
   'utf8',
@@ -72,6 +76,12 @@ test('V2 Build Theatre stops stale owner activity after a terminal failure', () 
   assert.match(buildScreen, /if \(_error == null &&[\s\S]*activity\.latestSequence > 0\)/);
   assert.match(buildScreen, /_initialBuildActivity = null;[\s\S]*_initialBuildJobId = null;[\s\S]*_initialBuildStreamId = null;/);
   assert.match(buildScreen, /subtitle: _error != null[\s\S]*\? 'Needs you'/);
+});
+
+test('default owner history summarizes pasted project source', () => {
+  assert.match(historyScreen, /looksLikeProjectSource\(exactIntent\)/);
+  assert.match(historyScreen, /projectPurposeForDisplay\(exactIntent\)/);
+  assert.match(historyScreen, /sourceIntent && _expanded[\s\S]*\? exactIntent!/);
 });
 
 test('Build Theatre projection rejects stale superseded build ownership', () => {
