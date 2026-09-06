@@ -66,6 +66,26 @@ test("owner API exposes only bounded Connect status and authorize routes", () =>
   assert.match(ownerApi, /CONNECT_BRIDGE_MAX_RESPONSE_BYTES = 64 \* 1024/);
 });
 
+test("connection capability is account-scoped, not poisoned by project health", () => {
+  const summary = between(
+    ownerApi,
+    "function connectionSummary(",
+    "function approvalSummary(",
+  );
+  assert.match(summary, /connectorFresh/);
+  assert.doesNotMatch(
+    summary,
+    /projectos_integration_health|healthRows|healthProblem|healthFresh/,
+  );
+
+  const read = between(
+    ownerApi,
+    "async function connections(",
+    "function base64UrlBytes(",
+  );
+  assert.doesNotMatch(read, /projectos_integration_health/);
+});
+
 test("Vercel connection test uses the Vault-backed broker and no provider token", () => {
   const verifyStart = ownerApi.indexOf("async function verifyVercelConnection");
   const actionStart = ownerApi.indexOf("async function connectionAction", verifyStart);
