@@ -40,7 +40,7 @@ test("current release contract follows the authoritative operating identity", ()
 });
 
 test("forward migration aligns live release functions to canonical production origin", () => {
-  const migration = source("supabase/migrations/20260906180000_align_canonical_release_production_origin.sql");
+  const migration = source("supabase/migrations/20260906180221_align_canonical_release_production_origin.sql");
   assert.match(migration, /capture_canonical_physical_android_receipt/);
   assert.match(migration, /capture_canonical_vercel_rehearsal_receipt/);
   assert.match(migration, /get_canonical_release_status_without_final_attestations/);
