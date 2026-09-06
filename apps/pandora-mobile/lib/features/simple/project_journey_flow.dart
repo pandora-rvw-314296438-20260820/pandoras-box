@@ -130,7 +130,10 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     if (mounted) {
       setState(() => _error = null);
     }
-    final snapshot = await _refreshDurableTruth(showBlockingError: true);
+    final snapshot = await _refreshDurableTruth(
+      showBlockingError: true,
+      lifecycleGeneration: generation,
+    );
     if (!mounted ||
         !_lifecycleResumed ||
         generation != _lifecycleGeneration ||
@@ -146,7 +149,12 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
 
   Future<ProjectRuntimeSnapshot?> _refreshDurableTruth({
     bool showBlockingError = false,
+    int? lifecycleGeneration,
   }) async {
+    if (lifecycleGeneration != null &&
+        (!_lifecycleResumed || lifecycleGeneration != _lifecycleGeneration)) {
+      return null;
+    }
     if (_refreshing) return _snapshot;
     final experience =
         PandoraDependencies.of(context).projectExperienceRepository;
@@ -162,7 +170,12 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
     _refreshing = true;
     try {
       final snapshot = await experience.runtime(widget.project.id);
-      if (!mounted) return snapshot;
+      if (!mounted ||
+          (lifecycleGeneration != null &&
+              (!_lifecycleResumed ||
+                  lifecycleGeneration != _lifecycleGeneration))) {
+        return null;
+      }
       setState(() {
         _snapshot = snapshot;
         _lastCheckedAt = DateTime.now();
@@ -402,7 +415,7 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
         return;
       }
       unawaited(
-        _refreshDurableTruth().then((snapshot) {
+        _refreshDurableTruth(lifecycleGeneration: generation).then((snapshot) {
           if (snapshot != null &&
               mounted &&
               _lifecycleResumed &&
