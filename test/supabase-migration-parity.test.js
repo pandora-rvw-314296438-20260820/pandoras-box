@@ -218,7 +218,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906124742_github_app_primary_runtime.sql',
     '20260906140131_align_github_primary_connector_current_account.sql',
     '20260906142436_rebind_supabase_connections_to_pandora_projects_v2.sql',
-    '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql'
+    '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql',
+    '20260906150551_supabase_auth_nonblocking_smtp_when_signup_disabled_v1.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -419,7 +420,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906124742_github_app_primary_runtime.sql',
     '20260906140131_align_github_primary_connector_current_account.sql',
     '20260906142436_rebind_supabase_connections_to_pandora_projects_v2.sql',
-    '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql'
+    '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql',
+    '20260906150551_supabase_auth_nonblocking_smtp_when_signup_disabled_v1.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -572,7 +574,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906124742_github_app_primary_runtime.sql',
     '20260906140131_align_github_primary_connector_current_account.sql',
     '20260906142436_rebind_supabase_connections_to_pandora_projects_v2.sql',
-    '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql'
+    '20260906142555_expose_supabase_connection_verifier_to_owner_api_v1.sql',
+    '20260906150551_supabase_auth_nonblocking_smtp_when_signup_disabled_v1.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
