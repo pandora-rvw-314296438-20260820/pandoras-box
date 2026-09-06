@@ -134,6 +134,23 @@ void main() {
         );
       },
     );
+
+    test(
+      'canonical GitHub account label is not treated as legacy by name alone',
+      () {
+        final connection = _connection(
+          state: 'connected',
+          status: 'Connected',
+          name: 'GitHub Account — banataosystems',
+          purpose: 'Code, issues, and proposed changes',
+        );
+        expect(isLegacyConnection(connection), isFalse);
+        expect(
+          resolveOwnerConnectionState(connection),
+          OwnerConnectionState.verified,
+        );
+      },
+    );
   });
 
   test('proof summary is compact and names the first missing stage', () {

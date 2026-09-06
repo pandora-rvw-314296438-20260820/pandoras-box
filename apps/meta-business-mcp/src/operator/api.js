@@ -7,6 +7,7 @@ exports.createOperatorApiApp = createOperatorApiApp;
 const node_crypto_1 = require("node:crypto");
 const node_path_1 = __importDefault(require("node:path"));
 const express_1 = __importDefault(require("express"));
+const vercel_connect_user_1 = require("./vercel-connect-user.js");
 const OPERATOR_ROLES = new Set(['owner', 'admin', 'operator']);
 const APPROVER_ROLES = new Set(['owner', 'admin']);
 const EXECUTOR_ROLES = new Set(['owner', 'admin']);
@@ -187,6 +188,10 @@ function createOperatorApiApp(options) {
         rateLimitRequests: options.requestsPerMinute,
         rateLimitWindowMs: 60000,
     });
+    const connectUserBroker = options.connectUserBroker ?? new vercel_connect_user_1.VercelConnectUserBroker({
+        connector: "mcpmaster.vercel.app/pandoras-box",
+        providerUserinfoUrl: new URL("/auth/v1/oauth/userinfo", options.supabaseUrl).toString(),
+    });
     router.use(createOperatorRateLimiter(options.requestsPerMinute));
     router.get('/auth/config', (request, response) => {
         if (!operatorOriginAllowed(request, options.allowedOrigins)) {
@@ -221,6 +226,104 @@ function createOperatorApiApp(options) {
                 role: current?.membership.role,
             },
         });
+    });
+    router.use('/connect/pandoras-box', (request, response, next) => {
+        const current = actor(response);
+        const requiredScope = 'projectos:read';
+        if (!current || !oauthScopeAllowed(current, requiredScope)) {
+            noStore(response);
+            response.setHeader('WWW-Authenticate', 'Bearer error="insufficient_scope", scope="projectos:read"');
+            response.status(403).json({
+                ok: false,
+                connected: false,
+                error: {
+                    code: 'OPERATOR_SCOPE_REQUIRED',
+                    message: 'OAuth scope projectos:read is required for Vercel Connect.',
+                },
+            });
+            return;
+        }
+        next();
+    });
+    router.get('/connect/pandoras-box/status', async (request, response) => {
+        const current = actor(response);
+        noStore(response);
+        try {
+            const result = await connectUserBroker.probe({
+                userId: current.identity.userId,
+                vercelOidcToken: request.__canonicalVercelOidcToken,
+            });
+            response.json({
+                ok: true,
+                connected: true,
+                connector: connectUserBroker.connector,
+                subject: { id: result.subjectId },
+                provider: { emailVerified: result.emailVerified === true },
+            });
+        }
+        catch (error) {
+            const known = error instanceof vercel_connect_user_1.VercelConnectUserError;
+            const status = known && Number.isInteger(error.status) ? error.status : 503;
+            response.status(status).json({
+                ok: false,
+                connected: false,
+                error: {
+                    code: known ? error.code : 'VERCEL_CONNECT_UNAVAILABLE',
+                    message: known
+                        ? error.message
+                        : 'Pandora could not verify the Vercel Connect user token.',
+                },
+                ...(status === 409
+                    ? { authorizationPath: '/api/operator/connect/pandoras-box/authorize' }
+                    : {}),
+            });
+        }
+    });
+    router.post('/connect/pandoras-box/authorize', async (request, response) => {
+        const current = actor(response);
+        noStore(response);
+        if (request.body && typeof request.body === 'object' && Object.keys(request.body).length > 0) {
+            response.status(400).json({
+                ok: false,
+                error: {
+                    code: 'VERCEL_CONNECT_AUTHORIZATION_BODY_NOT_ALLOWED',
+                    message: 'Vercel Connect authorization is derived from the authenticated Pandora user.',
+                },
+            });
+            return;
+        }
+        try {
+            const requestOrigin = request.header('origin');
+            let returnOrigin = options.allowedOrigins[0];
+            if (requestOrigin) {
+                const parsedOrigin = new URL(requestOrigin).origin;
+                if (options.allowedOrigins.includes(parsedOrigin))
+                    returnOrigin = parsedOrigin;
+            }
+            const authorization = await connectUserBroker.startAuthorization({
+                userId: current.identity.userId,
+                vercelOidcToken: request.__canonicalVercelOidcToken,
+                returnUrl: new URL('/?connect=pandoras-box', returnOrigin).toString(),
+            });
+            response.json({
+                ok: true,
+                connector: connectUserBroker.connector,
+                authorizationUrl: authorization.url,
+            });
+        }
+        catch (error) {
+            const known = error instanceof vercel_connect_user_1.VercelConnectUserError;
+            const status = known && Number.isInteger(error.status) ? error.status : 503;
+            response.status(status).json({
+                ok: false,
+                error: {
+                    code: known ? error.code : 'VERCEL_CONNECT_AUTHORIZATION_UNAVAILABLE',
+                    message: known
+                        ? error.message
+                        : 'Pandora could not start Vercel Connect authorization.',
+                },
+            });
+        }
     });
     router.use((request, response, next) => {
         const current = actor(response);
