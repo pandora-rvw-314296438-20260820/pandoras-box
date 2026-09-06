@@ -43,10 +43,10 @@ void main() {
       kotlin,
       contains('webView.loadUrl("https://pandora.local/index.html")'),
     );
+    const navigationGuard =
+        'return uri.scheme != "https" || uri.host != "pandora.local"';
     expect(
-      RegExp(
-        r'return uri\.scheme != "https" \|\| uri\.host != "pandora\.local"',
-      ).allMatches(kotlin).length,
+      kotlin.split(navigationGuard).length - 1,
       greaterThanOrEqualTo(2),
       reason: 'Both exact-preview WebViews must block foreign HTTPS navigation',
     );
