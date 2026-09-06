@@ -26,7 +26,7 @@ begin
   );
 end;
 $function$
-
+;
 
 revoke all on function public.pandora_get_github_app_runtime_material() from public, anon, authenticated;
 grant execute on function public.pandora_get_github_app_runtime_material() to service_role;
