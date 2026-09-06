@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/analytics/owner_analytics.dart';
 import '../../core/data/project_experience_api.dart';
+import '../../core/models/project_experience_projection.dart';
 import '../../core/models/project_journey_models.dart';
 import 'live_build_theatre/live_build_theatre.dart';
 import 'live_build_theatre/project_build_stream_theatre_projection.dart';
@@ -37,6 +38,8 @@ class ProjectBuildConversationScreen extends StatefulWidget {
 class _ProjectBuildConversationScreenState
     extends State<ProjectBuildConversationScreen> {
   Stream<ProjectBuildStreamSnapshot>? _stream;
+  Stream<ProjectExperienceProjection>? _experienceStream;
+  bool _autoOpenedResult = false;
   bool _intentExpanded = false;
   bool _wasReconnecting = false;
   final Set<String> _capturedAnalytics = <String>{};
@@ -191,17 +194,30 @@ class _ProjectBuildConversationScreenState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_stream != null) return;
+    if (_stream != null && _experienceStream != null) return;
     final repository =
         PandoraDependencies.of(context).projectExperienceRepository;
-    _stream = repository == null
-        ? null
-        : coalesceProjectBuildSnapshotsForRendering(
-            () => repository.watchResilientBuildStream(
-              projectId: widget.project.id,
-              streamId: widget.buildStart.streamId,
-            ),
-          );
+    if (repository == null) return;
+    _stream ??= coalesceProjectBuildSnapshotsForRendering(
+      () => repository.watchResilientBuildStream(
+        projectId: widget.project.id,
+        streamId: widget.buildStart.streamId,
+      ),
+    );
+    _experienceStream ??= repository.watchExperience(widget.project.id);
+  }
+
+  void _maybeAutoOpenResult(ProjectExperienceProjection projection) {
+    if (_autoOpenedResult || !mounted) return;
+    final resultReady =
+        projection.state == ProjectExperienceState.review &&
+        (projection.currentVersionId != null ||
+            projection.candidateVersionId != null);
+    if (!resultReady) return;
+    _autoOpenedResult = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openProject();
+    });
   }
 
   void _openProject() {
@@ -215,6 +231,7 @@ class _ProjectBuildConversationScreenState
   @override
   Widget build(BuildContext context) {
     final stream = _stream;
+    final experienceStream = _experienceStream;
 
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
@@ -240,7 +257,7 @@ class _ProjectBuildConversationScreenState
                     const SizedBox(height: 24),
                     const _ConversationLabel(label: 'Pandora'),
                     const SizedBox(height: 8),
-                    PandoraProfessionalBuildPlan(
+                    PandoraSimpleBuildPlan(
                       understanding: widget.understanding,
                       showDeliveryPromise: false,
                     ),
@@ -260,11 +277,29 @@ class _ProjectBuildConversationScreenState
                           final streamState = snapshot.data ??
                               const ProjectBuildStreamSnapshot.empty();
                           _captureMilestones(streamState);
-                          return _LiveBuildProjection(
-                            streamId: widget.buildStart.streamId,
-                            snapshot: streamState,
-                            disconnected: snapshot.hasError,
-                            onOpenProject: _openProject,
+                          if (experienceStream == null) {
+                            return _LiveBuildProjection(
+                              streamId: widget.buildStart.streamId,
+                              snapshot: streamState,
+                              disconnected: snapshot.hasError,
+                              onOpenProject: _openProject,
+                            );
+                          }
+                          return StreamBuilder<ProjectExperienceProjection>(
+                            stream: experienceStream,
+                            builder: (context, experienceSnapshot) {
+                              final experience = experienceSnapshot.data;
+                              if (experience != null) {
+                                _maybeAutoOpenResult(experience);
+                              }
+                              return _LiveBuildProjection(
+                                streamId: widget.buildStart.streamId,
+                                snapshot: streamState,
+                                disconnected: snapshot.hasError,
+                                onOpenProject: _openProject,
+                                experience: experience,
+                              );
+                            },
                           );
                         },
                       ),
@@ -286,19 +321,22 @@ class _LiveBuildProjection extends StatelessWidget {
     required this.snapshot,
     required this.disconnected,
     required this.onOpenProject,
+    this.experience,
   });
 
   final String streamId;
   final ProjectBuildStreamSnapshot snapshot;
   final bool disconnected;
   final VoidCallback onOpenProject;
+  final ProjectExperienceProjection? experience;
 
   @override
   Widget build(BuildContext context) {
     if (snapshot.requiresReplay) {
       return const _ConversationBuildNotice(
-        title: 'Refreshing live build evidence',
-        message: 'Pandora is reconciling the authoritative build sequence.',
+        title: experience?.statusLabel ?? 'Preparing',
+        message: experience?.publicMessage ??
+            'Pandora is reconnecting to the same build.',
       );
     }
 
@@ -306,15 +344,15 @@ class _LiveBuildProjection extends StatelessWidget {
       if (snapshot.historyGapDueToRetention || snapshot.latestSequence > 0) {
         final stage = snapshot.buildStage?.replaceAll('_', ' ');
         return _ConversationBuildNotice(
-          title: 'Build continued while you were away',
-          message: stage == null || stage.isEmpty
-              ? 'Expired source is not recreated. Current durable build state remains authoritative.'
-              : 'Current durable stage: $stage. Expired source is not recreated.',
+          title: experience?.statusLabel ?? 'Build continuing',
+          message: experience?.publicMessage ??
+              'Pandora reconnected to the same build and will continue from its saved state.',
         );
       }
-      return const _ConversationBuildNotice(
-        title: 'Connecting to the live build',
-        message: 'Source will appear only after real source bytes arrive.',
+      return _ConversationBuildNotice(
+        title: experience?.statusLabel ?? 'Preparing',
+        message: experience?.publicMessage ??
+            'Pandora is preparing the working result.',
       );
     }
 
