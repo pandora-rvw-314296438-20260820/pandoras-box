@@ -183,7 +183,12 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
       });
       return snapshot;
     } on PandoraRepositoryException {
-      if (!mounted) return null;
+      if (!mounted ||
+          (lifecycleGeneration != null &&
+              (!_lifecycleResumed ||
+                  lifecycleGeneration != _lifecycleGeneration))) {
+        return null;
+      }
       if (showBlockingError || _snapshot == null) {
         setState(
           () => _error = 'Pandora could not refresh this build right now.',
@@ -191,7 +196,12 @@ class _ProjectBuildTheatreScreenState extends State<ProjectBuildTheatreScreen>
       }
       return null;
     } catch (_) {
-      if (!mounted) return null;
+      if (!mounted ||
+          (lifecycleGeneration != null &&
+              (!_lifecycleResumed ||
+                  lifecycleGeneration != _lifecycleGeneration))) {
+        return null;
+      }
       if (showBlockingError || _snapshot == null) {
         setState(
           () => _error = 'Pandora could not refresh this build right now.',
