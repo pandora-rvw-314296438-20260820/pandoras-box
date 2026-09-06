@@ -66,8 +66,4 @@ void main() {
     expect(kotlin, contains('if (!isSafePreviewPath(path)'));
     expect(kotlin, contains('if (!files.containsKey("index.html"))'));
   });
-}
-
-
-// Navigation trust boundary regression: both Android exact-preview WebViews must
-// reject foreign HTTPS origins and remain bound to pandora.local.
+}\n
