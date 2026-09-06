@@ -33,90 +33,33 @@
     {
       "source": "/:path*",
       "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "no-referrer"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
-        },
-        {
-          "key": "X-DNS-Prefetch-Control",
-          "value": "off"
-        }
+        {"key": "X-Content-Type-Options", "value": "nosniff"},
+        {"key": "X-Frame-Options", "value": "DENY"},
+        {"key": "Referrer-Policy", "value": "no-referrer"},
+        {"key": "Permissions-Policy", "value": "camera=(), geolocation=(), microphone=(), payment=(), usb=()"},
+        {"key": "X-DNS-Prefetch-Control", "value": "off"}
       ]
     },
     {
       "source": "/api/:path*",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "private, no-store, max-age=0"
-        },
-        {
-          "key": "CDN-Cache-Control",
-          "value": "no-store"
-        }
+        {"key": "Cache-Control", "value": "private, no-store, max-age=0"},
+        {"key": "CDN-Cache-Control", "value": "no-store"}
       ]
     }
   ],
   "rewrites": [
-    {
-      "source": "/preview/:token/:path*",
-      "destination": "/api/preview?token=:token&path=:path*"
-    },
-    {
-      "source": "/control-tower/projectos-status.json",
-      "destination": "/api/operator/status"
-    },
-    {
-      "source": "/control-tower/release.json",
-      "destination": "/api/operator/status"
-    },
-    {
-      "source": "/latest-updates",
-      "destination": "/latest-updates.html"
-    },
-    {
-      "source": "/",
-      "destination": "/pandora-web/index.html"
-    },
-    {
-      "source": "/health",
-      "destination": "/api/health"
-    },
-    {
-      "source": "/mcp",
-      "destination": "/api/mcp"
-    },
-    {
-      "source": "/.well-known/oauth-protected-resource",
-      "destination": "/api/mcp?metadata=root"
-    },
-    {
-      "source": "/.well-known/oauth-protected-resource/mcp",
-      "destination": "/api/mcp?metadata=mcp"
-    },
-    {
-      "source": "/oauth/consent",
-      "destination": "/api/oauth-consent?asset=html"
-    },
-    {
-      "source": "/oauth/consent.js",
-      "destination": "/api/oauth-consent?asset=js"
-    },
-    {
-      "source": "/api/operator/:path*",
-      "destination": "/api/operator"
-    }
+    {"source": "/preview/:token/:path*", "destination": "/api/preview?token=:token&path=:path*"},
+    {"source": "/control-tower/projectos-status.json", "destination": "/api/operator/status"},
+    {"source": "/control-tower/release.json", "destination": "/api/operator/status"},
+    {"source": "/latest-updates", "destination": "/latest-updates.html"},
+    {"source": "/", "destination": "/pandora-web/index.html"},
+    {"source": "/health", "destination": "/api/health"},
+    {"source": "/mcp", "destination": "/api/mcp"},
+    {"source": "/.well-known/oauth-protected-resource", "destination": "/api/mcp?metadata=root"},
+    {"source": "/.well-known/oauth-protected-resource/mcp", "destination": "/api/mcp?metadata=mcp"},
+    {"source": "/oauth/consent", "destination": "/api/oauth-consent?asset=html"},
+    {"source": "/oauth/consent.js", "destination": "/api/oauth-consent?asset=js"},
+    {"source": "/api/operator/:path*", "destination": "/api/operator"}
   ]
 }
