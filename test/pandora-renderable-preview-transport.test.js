@@ -17,7 +17,23 @@ const reverifyFinalizerMigration = readFileSync(
   'utf8',
 );
 const previewMemoryMigration = readFileSync(
-  'supabase/migrations/20260906202500_pandora_preview_memory_reverification_idempotency_v1.sql',
+  'supabase/migrations/20260906203622_pandora_preview_memory_reverification_idempotency_v1.sql',
+  'utf8',
+);
+const previewCapabilityRotationMigration = readFileSync(
+  'supabase/migrations/20260906204103_pandora_preview_capability_rotation_v1.sql',
+  'utf8',
+);
+const productionReverifyMigration = readFileSync(
+  'supabase/migrations/20260906204458_pandora_renderable_production_reverification_finalizer_v1.sql',
+  'utf8',
+);
+const lifecyclePreservationMigration = readFileSync(
+  'supabase/migrations/20260906204653_pandora_renderable_reverification_lifecycle_preservation_v1.sql',
+  'utf8',
+);
+const receiptBackfillMigration = readFileSync(
+  'supabase/migrations/20260906204932_pandora_legacy_publish_receipt_reverification_backfill_v1.sql',
   'utf8',
 );
 
@@ -83,4 +99,37 @@ test('preview memory evidence remains immutable across transport re-verification
   assert.match(previewMemoryMigration, /if exists \(/);
   assert.match(previewMemoryMigration, /return new;/);
   assert.match(previewMemoryMigration, /enqueue_visible_creation_memory_evidence/);
+});
+
+test('expired preview capability rotation preserves exact lineage and forces re-verification', () => {
+  assert.match(previewCapabilityRotationMigration, /pandora_rotate_expiring_supabase_preview_capability_20260906/);
+  assert.match(previewCapabilityRotationMigration, /previewCapabilityHash/);
+  assert.match(previewCapabilityRotationMigration, /previewCapabilityExpiresAt/);
+  assert.match(previewCapabilityRotationMigration, /v_old_expires > v_now \+ interval '1 day'/);
+  assert.match(previewCapabilityRotationMigration, /current_deployment_id=v_dep\.id/);
+  assert.match(previewCapabilityRotationMigration, /verification_state='ready_for_verification'/);
+});
+
+test('production transport re-verification requires exact current production lineage', () => {
+  assert.match(productionReverifyMigration, /pandora_finalize_renderable_production_reverification_20260906/);
+  assert.match(productionReverifyMigration, /current_deployment_id=v_dep\.id/);
+  assert.match(productionReverifyMigration, /pandora_worker_e_verify_supabase_production_20260831/);
+  assert.match(productionReverifyMigration, /RENDERABLE_PRODUCTION_REVERIFY_PROOF_INVALID/);
+  assert.match(productionReverifyMigration, /verification_state='live_verified'/);
+});
+
+test('preview re-verification preserves production lifecycle and production reverify restores live', () => {
+  assert.match(lifecyclePreservationMigration, /pe\.current_version_id=v_ver\.id/);
+  assert.match(lifecyclePreservationMigration, /lifecycle_status not in \(''live'',''verified''\)/);
+  assert.match(lifecyclePreservationMigration, /lifecycle_status=''live''/);
+});
+
+test('legacy publish receipt backfill requires promoted preview and fresh PASS proof', () => {
+  assert.match(receiptBackfillMigration, /pandora_backfill_missing_publish_receipt_for_reverification_20260906/);
+  assert.match(receiptBackfillMigration, /v_dep\.promoted_from_id/);
+  assert.match(receiptBackfillMigration, /target_environment='preview'/);
+  assert.match(receiptBackfillMigration, /required_check_profile='static_site'/);
+  assert.match(receiptBackfillMigration, /source_digest=v_ver\.source_sha256/);
+  assert.match(receiptBackfillMigration, /artifact_digest=v_ver\.artifact_digest_sha256/);
+  assert.match(receiptBackfillMigration, /awaiting_production_verification/);
 });

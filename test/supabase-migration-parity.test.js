@@ -233,7 +233,11 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906193000_pandora_renderable_preview_transport_v1.sql',
     '20260906202137_pandora_renderable_preview_reverification_convergence_v2.sql',
     '20260906202142_pandora_renderable_preview_reverification_finalizer_v1.sql',
-    '20260906202500_pandora_preview_memory_reverification_idempotency_v1.sql'
+    '20260906203622_pandora_preview_memory_reverification_idempotency_v1.sql',
+    '20260906204103_pandora_preview_capability_rotation_v1.sql',
+    '20260906204458_pandora_renderable_production_reverification_finalizer_v1.sql',
+    '20260906204653_pandora_renderable_reverification_lifecycle_preservation_v1.sql',
+    '20260906204932_pandora_legacy_publish_receipt_reverification_backfill_v1.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -449,7 +453,11 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906193000_pandora_renderable_preview_transport_v1.sql',
     '20260906202137_pandora_renderable_preview_reverification_convergence_v2.sql',
     '20260906202142_pandora_renderable_preview_reverification_finalizer_v1.sql',
-    '20260906202500_pandora_preview_memory_reverification_idempotency_v1.sql'
+    '20260906203622_pandora_preview_memory_reverification_idempotency_v1.sql',
+    '20260906204103_pandora_preview_capability_rotation_v1.sql',
+    '20260906204458_pandora_renderable_production_reverification_finalizer_v1.sql',
+    '20260906204653_pandora_renderable_reverification_lifecycle_preservation_v1.sql',
+    '20260906204932_pandora_legacy_publish_receipt_reverification_backfill_v1.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -617,7 +625,11 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906193000_pandora_renderable_preview_transport_v1.sql',
     '20260906202137_pandora_renderable_preview_reverification_convergence_v2.sql',
     '20260906202142_pandora_renderable_preview_reverification_finalizer_v1.sql',
-    '20260906202500_pandora_preview_memory_reverification_idempotency_v1.sql'
+    '20260906203622_pandora_preview_memory_reverification_idempotency_v1.sql',
+    '20260906204103_pandora_preview_capability_rotation_v1.sql',
+    '20260906204458_pandora_renderable_production_reverification_finalizer_v1.sql',
+    '20260906204653_pandora_renderable_reverification_lifecycle_preservation_v1.sql',
+    '20260906204932_pandora_legacy_publish_receipt_reverification_backfill_v1.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
