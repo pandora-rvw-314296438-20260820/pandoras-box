@@ -5,12 +5,16 @@ const test = require('node:test');
 
 const execFileAsync = promisify(execFile);
 
-test('canonical and public Control Tower assets are byte synchronized', async () => {
-  const { stdout } = await execFileAsync(process.execPath, ['scripts/verify-frontend-mirrors.mjs']);
-  assert.match(stdout, /mirrors synchronized/);
+test('Control Tower has one tracked canonical source and generated public output', async () => {
+  const { stdout } = await execFileAsync(process.execPath, [
+    'scripts/verify-frontend-mirrors.mjs',
+  ]);
+  assert.match(stdout, /one tracked authority/);
 });
 
 test('all browser JavaScript passes syntax checks', async () => {
-  const { stdout } = await execFileAsync(process.execPath, ['scripts/check-browser-syntax.mjs']);
+  const { stdout } = await execFileAsync(process.execPath, [
+    'scripts/check-browser-syntax.mjs',
+  ]);
   assert.match(stdout, /Browser syntax checks passed/);
 });
