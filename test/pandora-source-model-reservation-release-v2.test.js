@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const sql = readFileSync(
   new URL(
-    '../supabase/migrations/20260906093000_pandora_source_model_reservation_release_v2.sql',
+    '../supabase/migrations/20260906020756_pandora_source_model_reservation_release_v2.sql',
     import.meta.url,
   ),
   'utf8',
