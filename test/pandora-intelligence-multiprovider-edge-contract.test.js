@@ -8,14 +8,16 @@ const edge=fs.readFileSync(path.join(root,'supabase/functions/pandora-intelligen
 const config=fs.readFileSync(path.join(root,'supabase/migrations/20260901202428_chat_c_kimi_runtime_provider_config_v1.sql'),'utf8');
 const routing=fs.readFileSync(path.join(root,'supabase/migrations/20260901202441_chat_c_edge_runtime_convergence_v1.sql'),'utf8');
 const failoverRollout=fs.readFileSync(path.join(root,'supabase/migrations/20260906145500_provider_auto_failover_v2.sql'),'utf8');
+const openaiRollout=fs.readFileSync(path.join(root,'supabase/migrations/20260906154900_openai_provider_failover_v3.sql'),'utf8');
 const must=(text,needle)=>assert.ok(text.includes(needle),`missing contract marker: ${needle}`);
 const mustNot=(text,needle)=>assert.equal(text.includes(needle),false,`forbidden contract marker: ${needle}`);
 
-test('Ask Pandora wires Kimi only through trusted service RPC and preserves Gemini',()=>{
+test('Ask Pandora wires Gemini Kimi and OpenAI only through trusted service RPCs',()=>{
   must(edge,'pandora_kimi_chat_request_v1');
+  must(edge,'pandora_openai_chat_request_v1');
   must(edge,'pandora_worker_b_gemini_request_20260829');
   must(edge,'pandora_runtime_provider_configs');
-  for(const forbidden of ['api.moonshot.ai','moonshot_api_key','kimi_api_key'])mustNot(edge,forbidden);
+  for(const forbidden of ['api.moonshot.ai','api.openai.com','moonshot_api_key','kimi_api_key','openai_key','openai_api_key'])mustNot(edge,forbidden);
   must(edge,'stream:false');
   must(edge,'req.signal.aborted');
   must(edge,'REQUEST_CANCELLED');
@@ -38,7 +40,7 @@ test('fallback and sticky recovery are bounded explicit and classified',()=>{
   must(edge,'pandora_recover_intelligence_thread_route_v1');
   must(edge,'recoveryEpoch');
   must(edge,'fallbackUsed');
-  must(edge,'.slice(0,4)');
+  must(edge,'.slice(0,6)');
   must(edge,'crossProviderEligible:true');
   must(edge,'authentication_failed",false,false');
   must(edge,'invalid_request",false,false');
@@ -46,6 +48,12 @@ test('fallback and sticky recovery are bounded explicit and classified',()=>{
   must(edge,'crossesProvider&&rec(e).crossProviderEligible!==true');
   must(failoverRollout,"('kimi','enabled','true',true,now())");
   must(failoverRollout,"('kimi','fallback_enabled','true',true,now())");
+  must(openaiRollout,"('openai','enabled','true',true,now())");
+  must(openaiRollout,"('openai','fallback_enabled','true',true,now())");
+  must(openaiRollout,"('openai','default_model','gpt-5.6-terra',true,now())");
+  must(openaiRollout,"where name='openai_key'");
+  must(openaiRollout,"https://api.openai.com/v1/chat/completions");
+  must(openaiRollout,"grant execute on function public.pandora_openai_chat_request_v1(text,jsonb) to service_role");
 });
 
 test('routing state wrappers remain service-role only',()=>{
@@ -56,7 +64,7 @@ test('routing state wrappers remain service-role only',()=>{
   }
 });
 
-test('Kimi and Gemini share owner trust gates and customer response stays provider-blind',()=>{
+test('Gemini Kimi and OpenAI share owner trust gates and customer response stays provider-blind',()=>{
   must(edge,'auth.getUser()');
   must(edge,'memberships');
   must(edge,'["owner","admin"]');
