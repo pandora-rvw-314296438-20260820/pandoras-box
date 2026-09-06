@@ -254,6 +254,10 @@ class _DetailContent extends StatelessWidget {
             ],
           ),
         ),
+        if (detail.operations.hasData) ...[
+          const SizedBox(height: PandoraSpacing.md),
+          _OperationalWorkspaceCard(workspace: detail.operations),
+        ],
         if (inProgress.isNotEmpty) ...[
           const SizedBox(height: PandoraSpacing.md),
           _TaskSection(title: 'Working', tasks: inProgress),
@@ -311,6 +315,305 @@ class _DetailContent extends StatelessWidget {
       ],
     );
   }
+}
+
+class _OperationalWorkspaceCard extends StatelessWidget {
+  const _OperationalWorkspaceCard({required this.workspace});
+
+  final OperationalWorkspace workspace;
+
+  @override
+  Widget build(BuildContext context) {
+    final mappingTone = workspace.mappingCount > 0 &&
+            workspace.mappingCount == workspace.verifiedMappingCount
+        ? PandoraStatusTone.verified
+        : workspace.mappingCount > 0
+            ? PandoraStatusTone.attention
+            : PandoraStatusTone.neutral;
+    final conflictTone = workspace.highConflictCount > 0
+        ? PandoraStatusTone.critical
+        : workspace.conflictCount > 0
+            ? PandoraStatusTone.attention
+            : PandoraStatusTone.verified;
+
+    return PandoraSurface(
+      title: 'System map',
+      subtitle:
+          'One view of this project across connected services and imported state.',
+      trailing: workspace.needsYou
+          ? const StatusBadge(
+              label: 'Needs you',
+              tone: PandoraStatusTone.attention,
+              compact: true,
+            )
+          : const StatusBadge(
+              label: 'Mapped',
+              tone: PandoraStatusTone.verified,
+              compact: true,
+            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OwnerMetricGrid(
+            metrics: [
+              OwnerMetric(
+                label: 'Mappings',
+                value: '${workspace.mappingCount}',
+                icon: Icons.hub_outlined,
+                tone: mappingTone,
+              ),
+              OwnerMetric(
+                label: 'Conflicts',
+                value: '${workspace.conflictCount}',
+                icon: Icons.compare_arrows_rounded,
+                tone: conflictTone,
+              ),
+              OwnerMetric(
+                label: 'Staged imports',
+                value: '${workspace.stagedImportCount}',
+                icon: Icons.inventory_2_outlined,
+                tone: workspace.stagedImportCount > 0
+                    ? PandoraStatusTone.informative
+                    : PandoraStatusTone.neutral,
+              ),
+            ],
+          ),
+          if (workspace.conflicts.isNotEmpty) ...[
+            const SizedBox(height: PandoraSpacing.md),
+            const OwnerSectionHeading(
+              title: 'Conflicts',
+              subtitle:
+                  'Pandora will not guess when provider truth and the project record disagree.',
+            ),
+            const SizedBox(height: PandoraSpacing.sm),
+            for (var index = 0;
+                index < workspace.conflicts.length;
+                index++) ...[
+              _OperationalConflictRow(conflict: workspace.conflicts[index]),
+              if (index != workspace.conflicts.length - 1)
+                const SizedBox(height: PandoraSpacing.sm),
+            ],
+          ],
+          if (workspace.mappings.isNotEmpty) ...[
+            const SizedBox(height: PandoraSpacing.md),
+            Card(
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
+              child: ExpansionTile(
+                initiallyExpanded: workspace.conflicts.isEmpty,
+                title: const Text('Connected resources'),
+                subtitle: Text(
+                  '${workspace.verifiedMappingCount} of ${workspace.mappingCount} verified',
+                ),
+                childrenPadding: const EdgeInsets.fromLTRB(
+                  PandoraSpacing.md,
+                  0,
+                  PandoraSpacing.md,
+                  PandoraSpacing.sm,
+                ),
+                children: [
+                  for (var index = 0;
+                      index < workspace.mappings.length;
+                      index++) ...[
+                    _OperationalMappingRow(mapping: workspace.mappings[index]),
+                    if (index != workspace.mappings.length - 1)
+                      const Divider(),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          if (workspace.imports.isNotEmpty) ...[
+            const SizedBox(height: PandoraSpacing.md),
+            Card(
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
+              child: ExpansionTile(
+                title: const Text('Staged imports'),
+                subtitle: const Text(
+                  'Dry-run evidence only. External systems are unchanged until governed execution.',
+                ),
+                childrenPadding: const EdgeInsets.fromLTRB(
+                  PandoraSpacing.md,
+                  0,
+                  PandoraSpacing.md,
+                  PandoraSpacing.sm,
+                ),
+                children: [
+                  for (var index = 0;
+                      index < workspace.imports.length;
+                      index++) ...[
+                    _OperationalImportRow(item: workspace.imports[index]),
+                    if (index != workspace.imports.length - 1)
+                      const Divider(),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _OperationalConflictRow extends StatelessWidget {
+  const _OperationalConflictRow({required this.conflict});
+
+  final OperationalConflict conflict;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(PandoraSpacing.md),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    conflict.title,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                const SizedBox(width: PandoraSpacing.sm),
+                StatusBadge(
+                  label: conflict.severity,
+                  tone: _operationalSeverityTone(conflict.severity),
+                  compact: true,
+                ),
+              ],
+            ),
+            const SizedBox(height: PandoraSpacing.xs),
+            Text(conflict.summary),
+            const SizedBox(height: PandoraSpacing.sm),
+            OwnerSignal(
+              label: 'Recommended next action',
+              value: conflict.recommendation,
+              icon: Icons.route_outlined,
+              tone: PandoraStatusTone.informative,
+            ),
+            if (conflict.resolvable) ...[
+              const SizedBox(height: PandoraSpacing.xs),
+              const Text(
+                'A protected resolution is available after extra identity verification.',
+              ),
+            ],
+          ],
+        ),
+      );
+}
+
+class _OperationalMappingRow extends StatelessWidget {
+  const _OperationalMappingRow({required this.mapping});
+
+  final OperationalMapping mapping;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.sm),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(providerIconFor(mapping.provider), size: 20),
+            const SizedBox(width: PandoraSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    mapping.externalName ??
+                        '${mapping.provider} ${mapping.resourceType}',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: PandoraSpacing.xxs),
+                  Text(
+                    [
+                      mapping.provider,
+                      mapping.resourceType,
+                      if (mapping.environment != null) mapping.environment!,
+                    ].join(' · '),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (mapping.externalId.isNotEmpty) ...[
+                    const SizedBox(height: PandoraSpacing.xxs),
+                    SelectableText(
+                      mapping.externalId,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: PandoraSpacing.sm),
+            StatusBadge(
+              label: mapping.bindingState,
+              tone: mapping.verified
+                  ? PandoraStatusTone.verified
+                  : PandoraStatusTone.attention,
+              compact: true,
+            ),
+          ],
+        ),
+      );
+}
+
+class _OperationalImportRow extends StatelessWidget {
+  const _OperationalImportRow({required this.item});
+
+  final OperationalImportPreview item;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.sm),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.inventory_2_outlined, size: 20),
+            const SizedBox(width: PandoraSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${item.provider} · ${item.objectCount} object${item.objectCount == 1 ? '' : 's'}',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: PandoraSpacing.xxs),
+                  Text(
+                    '${item.createCount} new · ${item.updateCount} changed · ${item.noopCount} unchanged · ${item.conflictCount} conflicts',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: PandoraSpacing.sm),
+            StatusBadge(
+              label: item.executionReady ? 'Ready for review' : 'Review needed',
+              tone: item.executionReady
+                  ? PandoraStatusTone.verified
+                  : PandoraStatusTone.attention,
+              compact: true,
+            ),
+          ],
+        ),
+      );
+}
+
+PandoraStatusTone _operationalSeverityTone(String value) {
+  final normalized = value.toLowerCase();
+  if (normalized.contains('critical') || normalized.contains('high')) {
+    return PandoraStatusTone.critical;
+  }
+  if (normalized.contains('medium')) return PandoraStatusTone.attention;
+  return PandoraStatusTone.neutral;
 }
 
 class _TaskSection extends StatelessWidget {
