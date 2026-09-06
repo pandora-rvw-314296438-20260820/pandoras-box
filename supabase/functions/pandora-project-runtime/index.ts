@@ -3,29 +3,24 @@ import {
   createClient,
   type SupabaseClient,
 } from "jsr:@supabase/supabase-js@2.57.2";
+import { createCustomerProject } from "./project-create.ts";
+import {
+  asRecord,
+  type JsonRecord,
+  sha256Hex,
+  textValue,
+} from "./runtime-common.ts";
 import { classifyProjectRuntimeError } from "./runtime-errors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-const BUILD_KINDS = new Set([
-  "website",
-  "web_app",
-  "mobile_app",
-  "internal_tool",
-  "automation",
-  "api_backend",
-  "full_system",
-  "help_me_decide",
-]);
-
 const DEFAULT_ORIGINS = new Set([
   "https://pandoras-box-system.vercel.app",
   "https://mcpmaster.vercel.app",
 ]);
 
-type JsonRecord = Record<string, unknown>;
 type DbClient = SupabaseClient<any, "public", "public", any, any>;
 type UserContext = {
   userId: string;
@@ -33,16 +28,6 @@ type UserContext = {
   role: string;
   client: DbClient;
 };
-
-function asRecord(value: unknown): JsonRecord {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as JsonRecord
-    : {};
-}
-
-function textValue(value: unknown, fallback = "") {
-  return typeof value === "string" && value.trim() ? value.trim() : fallback;
-}
 
 function jsonResponse(
   body: unknown,
@@ -160,12 +145,6 @@ function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 42) || "project";
 }
 
-function buildKind(value: unknown) {
-  const kind = textValue(value).toLowerCase();
-  if (!BUILD_KINDS.has(kind)) throw new Error("INVALID_BUILD_KIND");
-  return kind;
-}
-
 function normalizeDomain(value: unknown) {
   const raw = textValue(value).toLowerCase();
   if (!raw) return null;
@@ -174,11 +153,6 @@ function normalizeDomain(value: unknown) {
     throw new Error("INVALID_DOMAIN");
   }
   return stripped;
-}
-
-async function sha256Hex(value: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function serviceClient() {
@@ -552,58 +526,6 @@ async function createVercelDeployment(provider: { id: string; name: string }, bu
   }
   if (Object.keys(asRecord(latest.meta)).length) assertPreviewProviderLineage(latest, bundle, textValue(bundle.version.project_id), versionId, operationId);
   return latest;
-}
-
-async function createProject(
-  context: UserContext,
-  body: JsonRecord,
-  idempotencyKey: string,
-) {
-  const name = textValue(body.name);
-  const objective = textValue(body.objective);
-  const kind = buildKind(body.buildKind);
-  if (name.length < 2 || name.length > 100) throw new Error("INVALID_PROJECT_NAME");
-  if (objective.length < 10 || objective.length > 50000) throw new Error("INVALID_OBJECTIVE");
-  if (idempotencyKey.length < 8 || idempotencyKey.length > 200) {
-    throw new Error("IDEMPOTENCY_KEY_REQUIRED");
-  }
-
-  const requestSha256 = await sha256Hex(JSON.stringify({
-    name,
-    objective,
-    buildKind: kind,
-  }));
-  const { data, error } = await serviceClient().rpc(
-    "pandora_create_customer_project_v1",
-    {
-      p_organization_id: context.organizationId,
-      p_requester_id: context.userId,
-      p_idempotency_key: idempotencyKey,
-      p_request_sha256: requestSha256,
-      p_name: name,
-      p_objective: objective,
-      p_build_kind: kind,
-    },
-  );
-  if (error) {
-    if (error.message?.includes("PROJECT_CREATE_IDEMPOTENCY_COLLISION")) {
-      throw new Error("PROJECT_CREATE_IDEMPOTENCY_COLLISION");
-    }
-    if (error.message?.includes("PROJECT_CREATE_NOT_ALLOWED")) {
-      throw new Error("ORGANIZATION_ACCESS_REQUIRED");
-    }
-    throw new Error("BACKEND_WRITE_FAILED");
-  }
-  const result = asRecord(data);
-  const project = asRecord(result.project);
-  if (!textValue(project.id) || !textValue(project.project_key)) {
-    throw new Error("BACKEND_WRITE_FAILED");
-  }
-
-  // Provider provisioning is intentionally not part of conceptual project
-  // creation. Preview/build admission provisions external runtime resources
-  // idempotently when there is an exact source version to run.
-  return projectResponse(project);
 }
 
 
@@ -1565,7 +1487,19 @@ Deno.serve(async (req: Request) => {
         throw new Error("IDEMPOTENCY_KEY_REQUIRED");
       }
       return jsonResponse(
-        { project: await createProject(context, await bodyJson(req), idempotencyKey) },
+        {
+          project: projectResponse(
+            await createCustomerProject(
+              serviceClient(),
+              {
+                userId: context.userId,
+                organizationId: context.organizationId,
+              },
+              await bodyJson(req),
+              idempotencyKey,
+            ),
+          ),
+        },
         201,
         requestId,
         origin,
