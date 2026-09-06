@@ -365,6 +365,9 @@ class _ProjectBuildExperienceV2ScreenState
         _initialBuildSubscription = null;
         if (!refreshIsStale()) {
           setState(() {
+            _initialBuildActivity = null;
+            _initialBuildJobId = null;
+            _initialBuildStreamId = null;
             _error = safety.failureMessage(
               backendMessage: projection!.safeFailureMessage,
             );
@@ -511,6 +514,7 @@ class _ProjectBuildExperienceV2ScreenState
   }
 
   String get _stageTitle {
+    if (_error != null) return 'Stopped';
     final updating = widget.baseVersionId?.trim().isNotEmpty == true;
     if (_ready) return updating ? 'Updated' : 'Ready';
     if (_candidate != null) return 'Preparing your preview';
@@ -520,6 +524,9 @@ class _ProjectBuildExperienceV2ScreenState
   }
 
   String get _stageMessage {
+    if (_error != null) {
+      return 'Your current project is safe. Review what happened below, then try again.';
+    }
     if (_ready) return 'Your exact project is ready to experience.';
     if (_candidate != null) {
       return 'Preparing the exact version you just built.';
@@ -529,7 +536,10 @@ class _ProjectBuildExperienceV2ScreenState
 
   Widget _buildStageSurface() {
     final activity = _initialBuildActivity;
-    if (!_ready && activity != null && activity.latestSequence > 0) {
+    if (_error == null &&
+        !_ready &&
+        activity != null &&
+        activity.latestSequence > 0) {
       return Padding(
         padding: const EdgeInsets.all(16),
         child: SingleChildScrollView(child: LiveBuildTheatre(state: activity)),
@@ -607,7 +617,11 @@ class _ProjectBuildExperienceV2ScreenState
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: PandoraV2ObjectHeader(
                   title: widget.project.name,
-                  subtitle: _ready ? 'Ready' : 'Working',
+                  subtitle: _error != null
+                      ? 'Needs you'
+                      : _ready
+                          ? 'Ready'
+                          : 'Working',
                 ),
               ),
               Expanded(
