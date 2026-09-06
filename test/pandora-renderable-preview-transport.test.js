@@ -9,11 +9,15 @@ const migration = readFileSync(
   'utf8',
 );
 const convergenceMigration = readFileSync(
-  'supabase/migrations/20260906201500_pandora_renderable_preview_reverification_convergence_v2.sql',
+  'supabase/migrations/20260906202137_pandora_renderable_preview_reverification_convergence_v2.sql',
   'utf8',
 );
 const reverifyFinalizerMigration = readFileSync(
-  'supabase/migrations/20260906201600_pandora_renderable_preview_reverification_finalizer_v1.sql',
+  'supabase/migrations/20260906202142_pandora_renderable_preview_reverification_finalizer_v1.sql',
+  'utf8',
+);
+const previewMemoryMigration = readFileSync(
+  'supabase/migrations/20260906202500_pandora_preview_memory_reverification_idempotency_v1.sql',
   'utf8',
 );
 
@@ -71,4 +75,12 @@ test('renderable preview re-verification safely finalizes current and historical
   assert.match(reverifyFinalizerMigration, /current_deployment_id=v_dep\.id/);
   assert.match(reverifyFinalizerMigration, /v_current:=found/);
   assert.match(reverifyFinalizerMigration, /previewVerificationState','verified/);
+});
+
+test('preview memory evidence remains immutable across transport re-verification', () => {
+  assert.match(previewMemoryMigration, /visible:verified_preview:/);
+  assert.match(previewMemoryMigration, /private\.execution_learning_outbox/);
+  assert.match(previewMemoryMigration, /if exists \(/);
+  assert.match(previewMemoryMigration, /return new;/);
+  assert.match(previewMemoryMigration, /enqueue_visible_creation_memory_evidence/);
 });
