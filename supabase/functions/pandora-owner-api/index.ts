@@ -322,9 +322,12 @@ function projectSummary(value: unknown) {
   );
   const staleAfter = textValue(project.projection_stale_after);
   const computedAt = textValue(project.projection_computed_at);
-  const dataFreshness = staleAfter && Date.parse(staleAfter) > Date.now()
+  const staleAfterMs = staleAfter ? Date.parse(staleAfter) : Number.NaN;
+  const dataFreshness = !staleAfter || !Number.isFinite(staleAfterMs)
+    ? "not_checked"
+    : staleAfterMs > Date.now()
     ? "fresh"
-    : "not_checked";
+    : "stale";
   return {
     id: textValue(project.key ?? project.project_key ?? project.id),
     name: textValue(project.name, "Unnamed project"),
@@ -336,9 +339,14 @@ function projectSummary(value: unknown) {
     progressPercent: Number.isFinite(progress) ? progress : null,
     progressVerified: Number.isFinite(progress) && dataFreshness === "fresh",
     plainStatus: textValue(project.status, "Not verified yet"),
-    whatIsStoppingUs: textValue(blockedTask?.title) || null,
-    whatIWillDoNext: textValue(nextTask.title) || null,
-    repository: textValue(project.repository) || null,
+    whatIsStoppingUs: dataFreshness === "fresh"
+      ? textValue(blockedTask?.title) || null
+      : null,
+    whatIWillDoNext: dataFreshness === "fresh"
+      ? textValue(nextTask.title) || null
+      : null,
+    repository: textValue(project.repository ?? projectionProject.repository) ||
+      null,
     dataFreshness,
     lastVerifiedAt: computedAt || (project.lastReconciledAt ??
       project.last_reconciled_at ?? projection.observedThrough ?? null),
