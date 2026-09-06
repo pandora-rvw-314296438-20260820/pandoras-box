@@ -37,6 +37,14 @@ test("free-form intake no longer claims planning before a planner exists", () =>
   assert.match(ownerApi, /A governed planner route is required before anything can run/);
 });
 
+test("owner project summaries fail closed when projection truth is stale", () => {
+  assert.match(ownerApi, /const staleAfterMs = staleAfter \? Date\.parse\(staleAfter\) : Number\.NaN/);
+  assert.match(ownerApi, /: "stale";/);
+  assert.match(ownerApi, /whatIsStoppingUs: dataFreshness === "fresh"/);
+  assert.match(ownerApi, /whatIWillDoNext: dataFreshness === "fresh"/);
+  assert.match(ownerApi, /project\.repository \?\? projectionProject\.repository/);
+});
+
 test("owner read completion is service-role-only, scoped, idempotent and hash-linked", () => {
   assert.match(migration, /private\.assert_control_service_role\(\)/);
   assert.match(migration, /p_operation <> 'connected_services_health'/);

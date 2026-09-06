@@ -539,6 +539,7 @@ String _recommendedNextAction(
 }) {
   if (meaningfulPriority != null) return meaningfulPriority.action;
   for (final project in projects) {
+    if (!project.freshness.isFresh) continue;
     final nextAction = project.nextAction?.trim();
     if (nextAction != null && nextAction.isNotEmpty) {
       return '${canonicalOwnerProjectLabel(project)}: $nextAction';
@@ -554,8 +555,9 @@ int _compareProjectAttention(ProjectSummary left, ProjectSummary right) {
         OwnerProjectState.blocked => 1,
         OwnerProjectState.executing => 2,
         OwnerProjectState.monitoring => 3,
-        OwnerProjectState.idle => 4,
-        OwnerProjectState.archived => 5,
+        OwnerProjectState.unverified => 4,
+        OwnerProjectState.idle => 5,
+        OwnerProjectState.archived => 6,
       };
   final scoreDifference = score(left).compareTo(score(right));
   if (scoreDifference != 0) return scoreDifference;

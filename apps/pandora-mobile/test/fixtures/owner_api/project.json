@@ -10,6 +10,9 @@
   "lastVerifiedAt": "2026-08-14T01:00:00Z",
   "objective": "Make owner operations calm and safe on a phone.",
   "roadmapVersion": "fixture-v1",
+  "proofStages": {
+    "documented": "not_checked"
+  },
   "phases": [
     {
       "phase_key": "foundation",

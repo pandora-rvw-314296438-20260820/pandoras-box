@@ -139,15 +139,20 @@ class _ProjectSnapshot extends StatelessWidget {
     return OwnerBriefingHero(
       eyebrow: 'Current project truth',
       title: state.label,
-      message: summary.nextAction ??
-          (summary.phase == 'Phase not verified'
-              ? 'No verified next autonomous action is recorded yet.'
-              : summary.phase),
+      message: state == OwnerProjectState.unverified
+          ? 'Pandora has recorded project history, but no fresh verification confirms what is running now.'
+          : state == OwnerProjectState.archived
+              ? 'This project is retained as historical evidence and is not active work.'
+              : summary.nextAction ??
+                  (summary.phase == 'Phase not verified'
+                      ? 'No verified next autonomous action is recorded yet.'
+                      : summary.phase),
       icon: switch (state) {
         OwnerProjectState.ownerActionRequired => Icons.priority_high_rounded,
         OwnerProjectState.blocked => Icons.block_rounded,
         OwnerProjectState.executing => Icons.play_circle_outline_rounded,
         OwnerProjectState.monitoring => Icons.radar_rounded,
+        OwnerProjectState.unverified => Icons.history_toggle_off_rounded,
         OwnerProjectState.idle => Icons.pause_circle_outline_rounded,
         OwnerProjectState.archived => Icons.archive_outlined,
       },
@@ -156,6 +161,7 @@ class _ProjectSnapshot extends StatelessWidget {
         OwnerProjectState.blocked => PandoraStatusTone.critical,
         OwnerProjectState.executing => PandoraStatusTone.informative,
         OwnerProjectState.monitoring => PandoraStatusTone.informative,
+        OwnerProjectState.unverified => PandoraStatusTone.neutral,
         OwnerProjectState.idle => PandoraStatusTone.neutral,
         OwnerProjectState.archived => PandoraStatusTone.neutral,
       },
@@ -179,6 +185,7 @@ class _DetailContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tasks = detail.tasks;
+    final isFresh = detail.summary.freshness.isFresh;
     final done =
         tasks.where((item) => item.state == ProjectTaskState.complete).toList();
     final blocked =
@@ -206,7 +213,17 @@ class _DetailContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _ProjectSnapshot(summary: detail.summary, tasks: tasks),
-        if (detail.summary.blocker != null) ...[
+        if (!isFresh) ...[
+          const SizedBox(height: PandoraSpacing.sm),
+          const OwnerSignal(
+            label: 'Status not verified',
+            value:
+                'Task states below are recorded history until Pandora refreshes this project.',
+            icon: Icons.history_rounded,
+            tone: PandoraStatusTone.neutral,
+          ),
+        ],
+        if (isFresh && detail.summary.blocker != null) ...[
           const SizedBox(height: PandoraSpacing.sm),
           OwnerSignal(
             label: 'Blocked by',
@@ -217,7 +234,7 @@ class _DetailContent extends StatelessWidget {
         ],
         const SizedBox(height: PandoraSpacing.md),
         OwnerMetricGrid(
-          title: 'Work state',
+          title: isFresh ? 'Work state' : 'Recorded work',
           metrics: [
             OwnerMetric(
               label: 'Done',
@@ -226,18 +243,18 @@ class _DetailContent extends StatelessWidget {
               tone: PandoraStatusTone.verified,
             ),
             OwnerMetric(
-              label: 'Working',
+              label: isFresh ? 'Working' : 'Recorded active',
               value: '${inProgress.length}',
               icon: Icons.autorenew_rounded,
-              tone: inProgress.isEmpty
+              tone: !isFresh || inProgress.isEmpty
                   ? PandoraStatusTone.neutral
                   : PandoraStatusTone.informative,
             ),
             OwnerMetric(
-              label: 'Blocked',
+              label: isFresh ? 'Blocked' : 'Recorded blocked',
               value: '${blocked.length}',
               icon: Icons.block_rounded,
-              tone: blocked.isEmpty
+              tone: !isFresh || blocked.isEmpty
                   ? PandoraStatusTone.neutral
                   : PandoraStatusTone.critical,
             ),
@@ -276,11 +293,17 @@ class _DetailContent extends StatelessWidget {
         ],
         if (inProgress.isNotEmpty) ...[
           const SizedBox(height: PandoraSpacing.md),
-          _TaskSection(title: 'Working', tasks: inProgress),
+          _TaskSection(
+            title: isFresh ? 'Working' : 'Recorded active',
+            tasks: inProgress,
+          ),
         ],
         if (blocked.isNotEmpty) ...[
           const SizedBox(height: PandoraSpacing.md),
-          _TaskSection(title: 'Blocked', tasks: blocked),
+          _TaskSection(
+            title: isFresh ? 'Blocked' : 'Recorded blocked',
+            tasks: blocked,
+          ),
         ],
         if (done.isNotEmpty) ...[
           const SizedBox(height: PandoraSpacing.md),
@@ -314,9 +337,9 @@ class _DetailContent extends StatelessWidget {
         PandoraSurface(
           title: 'Evidence',
           subtitle:
-              '${detail.evidence.length} active evidence item${detail.evidence.length == 1 ? '' : 's'}',
+              '${detail.evidence.length} recorded evidence item${detail.evidence.length == 1 ? '' : 's'}',
           child: detail.evidence.isEmpty
-              ? const Text('No active evidence was returned.')
+              ? const Text('No evidence history was returned.')
               : Column(
                   children: [
                     for (var index = 0;

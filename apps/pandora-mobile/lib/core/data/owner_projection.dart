@@ -5,6 +5,7 @@ enum OwnerProjectState {
   blocked,
   executing,
   monitoring,
+  unverified,
   idle,
   archived,
 }
@@ -15,6 +16,7 @@ extension OwnerProjectStateLabel on OwnerProjectState {
         OwnerProjectState.blocked => 'Blocked',
         OwnerProjectState.executing => 'Working now',
         OwnerProjectState.monitoring => 'Monitoring',
+        OwnerProjectState.unverified => 'Status not verified',
         OwnerProjectState.idle => 'Idle',
         OwnerProjectState.archived => 'Archived',
       };
@@ -177,6 +179,15 @@ OwnerProjectState resolveOwnerProjectState(
 }) {
   final status = project.status.toLowerCase();
   final taskList = tasks.toList(growable: false);
+
+  if (status.contains('archived') ||
+      status.contains('cancelled') ||
+      status.contains('retired')) {
+    return OwnerProjectState.archived;
+  }
+  if (!project.freshness.isFresh) {
+    return OwnerProjectState.unverified;
+  }
   if (hasOwnerApproval ||
       taskList.any((task) => task.state == ProjectTaskState.waitingApproval)) {
     return OwnerProjectState.ownerActionRequired;
@@ -198,14 +209,9 @@ OwnerProjectState resolveOwnerProjectState(
       status.contains('working')) {
     return OwnerProjectState.executing;
   }
-  if (status.contains('archived') ||
-      status.contains('cancelled') ||
-      status.contains('retired')) {
-    return OwnerProjectState.archived;
-  }
   if (status.contains('monitoring') ||
-      (project.freshness.isFresh &&
-          (status.contains('active') || status.contains('healthy')))) {
+      status.contains('active') ||
+      status.contains('healthy')) {
     return OwnerProjectState.monitoring;
   }
   return OwnerProjectState.idle;
@@ -252,6 +258,13 @@ String compactProofSummary(ProjectSummary project) {
     EvidenceStage.deployed,
     EvidenceStage.productionVerified,
   ];
+  final hasExplicitProofState = project.evidenceStages.any(
+    (status) => status.stage != null && status.rawState.trim().isNotEmpty,
+  );
+  if (!hasExplicitProofState) {
+    return 'Proof stages not verified';
+  }
+
   final verified = ordered
       .where(
         (stage) => project.evidenceState(stage) == EvidenceClaimState.verified,
@@ -271,6 +284,12 @@ String compactProofSummary(ProjectSummary project) {
 }
 
 bool isOwnerVisibleProject(ProjectSummary project) {
+  final repository = project.repository?.trim().toLowerCase() ?? '';
+  if (repository.startsWith('mbanatao/') ||
+      repository == 'banataosystems/pandoras-box' ||
+      repository == 'banataosystems/pandoras-box-memory') {
+    return false;
+  }
   final words = '${project.name} ${project.purpose} ${project.repository ?? ''}'
       .toLowerCase();
   const internalMarkers = <String>[

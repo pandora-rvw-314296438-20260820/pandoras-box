@@ -5,7 +5,7 @@ import 'package:pandora_mobile/core/models/pandora_models.dart';
 void main() {
   group('owner project truth resolver', () {
     test(
-      'uses owner action > blocked > executing > monitoring > idle > archived',
+      'uses owner action > blocked > executing > monitoring > unverified > idle > archived',
       () {
         final blockedProject = _project(
           status: 'active',
@@ -40,10 +40,18 @@ void main() {
           resolveOwnerProjectState(
             _project(status: 'active', freshness: FreshnessState.stale),
           ),
-          OwnerProjectState.idle,
+          OwnerProjectState.unverified,
         );
         expect(
-          resolveOwnerProjectState(_project(status: 'archived')),
+          resolveOwnerProjectState(
+            _project(status: 'active', freshness: FreshnessState.notChecked),
+          ),
+          OwnerProjectState.unverified,
+        );
+        expect(
+          resolveOwnerProjectState(
+            _project(status: 'archived', freshness: FreshnessState.stale),
+          ),
           OwnerProjectState.archived,
         );
       },
@@ -52,6 +60,23 @@ void main() {
     test('phase not verified never becomes the primary owner state', () {
       final project = _project(status: 'active', phase: 'Phase not verified');
       expect(resolveOwnerProjectState(project), OwnerProjectState.monitoring);
+    });
+
+    test('stale task records cannot claim current work or owner action', () {
+      final project = _project(
+        status: 'active',
+        freshness: FreshnessState.stale,
+      );
+      expect(
+        resolveOwnerProjectState(
+          project,
+          tasks: [
+            _task(ProjectTaskState.inProgress),
+            _task(ProjectTaskState.waitingApproval),
+          ],
+        ),
+        OwnerProjectState.unverified,
+      );
     });
   });
 
@@ -153,6 +178,13 @@ void main() {
     );
   });
 
+  test(
+    'missing proof-stage payload is reported as unverified, not missing',
+    () {
+      expect(compactProofSummary(_project()), 'Proof stages not verified');
+    },
+  );
+
   test('proof summary is compact and names the first missing stage', () {
     final project = _project(
       evidence: const [
@@ -181,6 +213,21 @@ void main() {
         isFalse,
       );
       expect(isOwnerVisibleProject(_project(name: "Pandora's Box")), isTrue);
+      expect(
+        isOwnerVisibleProject(
+          _project(name: 'Memory', repository: 'mbanatao/Memory'),
+        ),
+        isFalse,
+      );
+      expect(
+        isOwnerVisibleProject(
+          _project(
+            name: 'pandoras-box-memory',
+            repository: 'banataosystems/pandoras-box-memory',
+          ),
+        ),
+        isFalse,
+      );
     },
   );
 }
@@ -192,6 +239,7 @@ ProjectSummary _project({
   String? blocker,
   FreshnessState freshness = FreshnessState.fresh,
   List<EvidenceStageStatus> evidence = const [],
+  String? repository,
 }) =>
     ProjectSummary(
       id: 'pandoras-box',
@@ -203,6 +251,7 @@ ProjectSummary _project({
       freshness: FreshnessInfo(state: freshness),
       evidenceStages: evidence,
       blocker: blocker,
+      repository: repository,
     );
 
 ProjectTask _task(ProjectTaskState state) => ProjectTask(
