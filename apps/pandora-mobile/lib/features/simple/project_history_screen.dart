@@ -10,6 +10,7 @@ import '../../core/models/project_journey_models.dart';
 import 'live_build_theatre/live_build_theatre.dart';
 import 'live_build_theatre/project_build_stream_theatre_projection.dart';
 import 'pandora_v2_ui.dart';
+import 'project_intent_presentation.dart';
 
 class ProjectHistoryScreen extends StatefulWidget {
   const ProjectHistoryScreen({super.key, required this.project});
@@ -447,11 +448,18 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
     final item = widget.item;
     final exactIntent =
         item.isUserIntent ? item.payloadText('intentText') : null;
+    final sourceIntent =
+        exactIntent != null && looksLikeProjectSource(exactIntent);
     final proposalSummary = item.isProposal
         ? item.payloadText('businessSummary') ?? item.summary
         : null;
-    final detail = exactIntent ?? proposalSummary ?? item.summary;
-    final canExpand = item.isProposal ||
+    final ownerIntent =
+        exactIntent == null ? null : projectPurposeForDisplay(exactIntent);
+    final detail = sourceIntent && _expanded
+        ? exactIntent
+        : ownerIntent ?? proposalSummary ?? item.summary;
+    final canExpand = sourceIntent ||
+        item.isProposal ||
         item.expandable ||
         detail.length > 260 ||
         item.evidenceAvailable;
