@@ -84,7 +84,7 @@ export function deriveOperationalConflicts({ mappings = [], runtimes = [], domai
   const conflicts = [];
   const normalizedMappings = mappings.map(normalizeMapping);
   for (const mapping of normalizedMappings) {
-    if (mapping.bindingState === "verified") continue;
+    if (mapping.bindingState === "verified" || mapping.bindingState === "not_required") continue;
     const severe = new Set(["missing", "quarantined"]).has(mapping.bindingState);
     conflicts.push({
       id: `derived:mapping:${mapping.id || mapping.provider + ":" + mapping.resourceType + ":" + mapping.externalId}`,
@@ -358,7 +358,7 @@ export async function resolveOperationalConflict(admin, organizationId, projectI
 export async function operationalAttentionCount(admin, organizationId) {
   const [conflicts, degraded] = await Promise.all([
     admin.from("projectos_evidence").select("id").eq("organization_id", organizationId).eq("evidence_type", CONFLICT_EVIDENCE_TYPE).eq("status", "blocked").is("invalidated_at", null).limit(500),
-    admin.from("projectos_project_resources").select("id").eq("organization_id", organizationId).neq("binding_state", "verified").limit(500),
+    admin.from("projectos_project_resources").select("id").eq("organization_id", organizationId).in("binding_state", ["degraded", "missing", "quarantined"]).limit(500),
   ]);
   if (conflicts.error || degraded.error) throw new Error("BACKEND_READ_FAILED");
   return (conflicts.data || []).length + (degraded.data || []).length;
