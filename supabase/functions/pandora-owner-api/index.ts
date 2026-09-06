@@ -26,6 +26,9 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ALLOWED_ORIGINS = parseAllowedOrigins(
   Deno.env.get("PANDORA_ALLOWED_ORIGINS"),
 );
+const MCPMASTER_CONNECT_ORIGIN = "https://mcpmaster.vercel.app";
+const MCPMASTER_CONNECT_PATH = "/api/operator/connect/pandoras-box";
+const CONNECT_BRIDGE_MAX_RESPONSE_BYTES = 64 * 1024;
 
 const CORS_BASE_HEADERS = {
   "access-control-allow-headers":
@@ -1371,6 +1374,142 @@ async function completeConnectedServicesRead(
   };
 }
 
+
+type OwnerConnectBridgeAction = "status" | "authorize";
+
+function connectAuthorizationUrl(value: unknown): string {
+  const raw = textValue(value);
+  if (!raw) throw new Error("VERCEL_CONNECT_AUTHORIZATION_FAILED");
+  try {
+    const url = new URL(raw);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.hash
+    ) {
+      throw new Error("invalid authorization URL");
+    }
+    return url.toString();
+  } catch {
+    throw new Error("VERCEL_CONNECT_AUTHORIZATION_FAILED");
+  }
+}
+
+async function ownerConnectBridge(
+  context: UserContext,
+  action: OwnerConnectBridgeAction,
+) {
+  if (context.isAnonymous) throw new Error("PERMANENT_ACCOUNT_REQUIRED");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const result = await fetch(
+      MCPMASTER_CONNECT_ORIGIN + MCPMASTER_CONNECT_PATH + "/" + action,
+      {
+        method: action === "status" ? "GET" : "POST",
+        headers: {
+          authorization: context.authorization,
+          accept: "application/json",
+          ...(action === "authorize"
+            ? { "content-type": "application/json" }
+            : {}),
+        },
+        ...(action === "authorize" ? { body: "{}" } : {}),
+        redirect: "error",
+        signal: controller.signal,
+      },
+    );
+    const declared = Number(result.headers.get("content-length") || "0");
+    if (
+      Number.isFinite(declared) &&
+      declared > CONNECT_BRIDGE_MAX_RESPONSE_BYTES
+    ) {
+      throw new Error("VERCEL_CONNECT_RESPONSE_INVALID");
+    }
+    const raw = await result.text();
+    if (
+      new TextEncoder().encode(raw).byteLength >
+        CONNECT_BRIDGE_MAX_RESPONSE_BYTES
+    ) {
+      throw new Error("VERCEL_CONNECT_RESPONSE_INVALID");
+    }
+    let decoded: JsonRecord;
+    try {
+      decoded = asRecord(JSON.parse(raw));
+    } catch {
+      throw new Error("VERCEL_CONNECT_RESPONSE_INVALID");
+    }
+
+    if (action === "status") {
+      const subject = asRecord(decoded.subject);
+      if (
+        result.ok &&
+        decoded.ok === true &&
+        decoded.connected === true &&
+        textValue(subject.id) === context.userId
+      ) {
+        return {
+          ok: true,
+          connected: true,
+          authorizationRequired: false,
+          connector: textValue(
+            decoded.connector,
+            "mcpmaster.vercel.app/pandoras-box",
+          ),
+          provider: {
+            emailVerified: asRecord(decoded.provider).emailVerified === true,
+          },
+        };
+      }
+      const error = asRecord(decoded.error);
+      if (
+        result.status === 409 &&
+        decoded.connected === false &&
+        textValue(error.code) === "VERCEL_CONNECT_USER_NOT_READY"
+      ) {
+        return {
+          ok: true,
+          connected: false,
+          authorizationRequired: true,
+          connector: "mcpmaster.vercel.app/pandoras-box",
+        };
+      }
+      throw new Error("VERCEL_CONNECT_STATUS_FAILED");
+    }
+
+    if (result.ok && decoded.ok === true) {
+      return {
+        ok: true,
+        connector: textValue(
+          decoded.connector,
+          "mcpmaster.vercel.app/pandoras-box",
+        ),
+        authorizationUrl: connectAuthorizationUrl(decoded.authorizationUrl),
+      };
+    }
+    throw new Error("VERCEL_CONNECT_AUTHORIZATION_FAILED");
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      [
+        "VERCEL_CONNECT_RESPONSE_INVALID",
+        "VERCEL_CONNECT_STATUS_FAILED",
+        "VERCEL_CONNECT_AUTHORIZATION_FAILED",
+      ].includes(error.message)
+    ) {
+      throw error;
+    }
+    throw new Error(
+      action === "status"
+        ? "VERCEL_CONNECT_STATUS_FAILED"
+        : "VERCEL_CONNECT_AUTHORIZATION_FAILED",
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function createOwnerWorkerAdapter(context: UserContext) {
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -1825,6 +1964,12 @@ Deno.serve(async (req: Request) => {
     if (req.method === "GET" && route === "/connections") {
       return send(await connections(context));
     }
+    if (
+      req.method === "GET" &&
+      route === "/connect/pandoras-box/status"
+    ) {
+      return send(await ownerConnectBridge(context, "status"));
+    }
     if (req.method === "GET" && route === "/memory") {
       return send(
         await memory(
@@ -1884,6 +2029,16 @@ Deno.serve(async (req: Request) => {
         ),
         202,
       );
+    }
+    if (
+      req.method === "POST" &&
+      route === "/connect/pandoras-box/authorize"
+    ) {
+      const body = await bodyJson(req);
+      if (Object.keys(body).length > 0) {
+        throw new Error("VERCEL_CONNECT_AUTHORIZATION_BODY_NOT_ALLOWED");
+      }
+      return send(await ownerConnectBridge(context, "authorize"));
     }
     if (req.method === "POST" && route === "/memory/search") {
       const body = await bodyJson(req);
@@ -2015,6 +2170,7 @@ Deno.serve(async (req: Request) => {
         "INVALID_WORKER_REVIEW_ROUTE",
         "INVALID_WORKER_PLAN_ID",
         "PROJECT_REQUIRED",
+        "VERCEL_CONNECT_AUTHORIZATION_BODY_NOT_ALLOWED",
         "BODY_TOO_LARGE",
       ]
         .includes(code)
@@ -2071,6 +2227,19 @@ Deno.serve(async (req: Request) => {
         503,
         code,
         "Pandora could not verify that connection right now.",
+      );
+    }
+    if (
+      [
+        "VERCEL_CONNECT_RESPONSE_INVALID",
+        "VERCEL_CONNECT_STATUS_FAILED",
+        "VERCEL_CONNECT_AUTHORIZATION_FAILED",
+      ].includes(code)
+    ) {
+      return reject(
+        503,
+        code,
+        "Pandora could not complete the secure connection check right now.",
       );
     }
     if (code === "WORKER_REVIEW_FINALIZATION_AMBIGUOUS") {
