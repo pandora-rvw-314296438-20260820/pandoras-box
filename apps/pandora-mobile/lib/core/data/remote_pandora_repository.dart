@@ -175,8 +175,7 @@ class RemotePandoraRepository
       body: const <String, Object?>{'clientMode': 'simple'},
     );
     return _parse(response, '/connections/:id/actions/:action', () {
-      final json =
-          _requiredMap(response, '/connections/:id/actions/:action');
+      final json = _requiredMap(response, '/connections/:id/actions/:action');
       return IntakeReceipt.fromJson(json, requestId: response.requestId);
     }, mutationOutcomeMayBeUnknown: true);
   }
