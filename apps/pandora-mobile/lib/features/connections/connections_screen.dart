@@ -43,10 +43,14 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
 
   Future<void> _refreshUserConnectStatus({bool silent = false}) async {
     final repository = PandoraDependencies.of(context).repository;
-    if (repository is! UserConnectAuthorizationSource) return;
+    final UserConnectAuthorizationSource? connectSource =
+        repository is UserConnectAuthorizationSource
+            ? repository as UserConnectAuthorizationSource
+            : null;
+    if (connectSource == null) return;
     if (mounted) setState(() => _userConnectBusy = true);
     try {
-      final status = await repository.userConnectStatus();
+      final status = await connectSource.userConnectStatus();
       if (!mounted) return;
       setState(() => _userConnectStatus = status);
       if (!silent) {
@@ -69,10 +73,14 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
 
   Future<void> _authorizeUserConnect() async {
     final repository = PandoraDependencies.of(context).repository;
-    if (repository is! UserConnectAuthorizationSource) return;
+    final UserConnectAuthorizationSource? connectSource =
+        repository is UserConnectAuthorizationSource
+            ? repository as UserConnectAuthorizationSource
+            : null;
+    if (connectSource == null) return;
     if (mounted) setState(() => _userConnectBusy = true);
     try {
-      final authorization = await repository.startUserConnectAuthorization();
+      final authorization = await connectSource.startUserConnectAuthorization();
       final launched = await launchUrl(
         authorization.authorizationUrl,
         mode: LaunchMode.externalApplication,
