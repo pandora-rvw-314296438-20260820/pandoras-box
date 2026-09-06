@@ -36,6 +36,14 @@ const receiptBackfillMigration = readFileSync(
   'supabase/migrations/20260906204932_pandora_legacy_publish_receipt_reverification_backfill_v1.sql',
   'utf8',
 );
+const staticAcceptanceMigration = readFileSync(
+  'supabase/migrations/20260906221927_pandora_static_preview_acceptance_v3.sql',
+  'utf8',
+);
+const failedPreviewRetryMigration = readFileSync(
+  'supabase/migrations/20260906222048_pandora_failed_preview_verification_retry_v1.sql',
+  'utf8',
+);
 
 test('Vercel preview proxy preserves capability authority but serves renderable HTML', () => {
   assert.match(api, /pandora-preview-host/);
@@ -132,4 +140,26 @@ test('legacy publish receipt backfill requires promoted preview and fresh PASS p
   assert.match(receiptBackfillMigration, /source_digest=v_ver\.source_sha256/);
   assert.match(receiptBackfillMigration, /artifact_digest=v_ver\.artifact_digest_sha256/);
   assert.match(receiptBackfillMigration, /awaiting_production_verification/);
+});
+
+test('static preview acceptance verifies observable identity and interaction wiring', () => {
+  assert.match(staticAcceptanceMigration, /pandora_static_preview_acceptance_v3/);
+  assert.match(staticAcceptanceMigration, /regexp_matches\(v_body,'href=/);
+  assert.match(staticAcceptanceMigration, /regexp_matches\(v_body,'onclick=/);
+  assert.match(staticAcceptanceMigration, /static_site_acceptance_v3/);
+  assert.match(staticAcceptanceMigration, /jsonb_array_length\(p_acceptance_scope->'functional'\)>0/);
+  assert.doesNotMatch(
+    staticAcceptanceMigration,
+    /position\(lower\(left\(v_spec\.business_summary,80\)\) in lower\(v_runtime_body\)\)/,
+  );
+});
+
+test('failed preview verification retry is narrow and recovers only a fresh PASS', () => {
+  assert.match(failedPreviewRetryMigration, /pandora_retry_failed_preview_verification_20260906/);
+  assert.match(failedPreviewRetryMigration, /v_dep\.status<>'failed'/);
+  assert.match(failedPreviewRetryMigration, /v_job\.error_code<>'VERIFICATION_FAILED'/);
+  assert.match(failedPreviewRetryMigration, /status='FAIL'/);
+  assert.match(failedPreviewRetryMigration, /pandora_worker_e_verify_supabase_preview_v2_20260830/);
+  assert.match(failedPreviewRetryMigration, /pandora_recover_verified_static_build_20260830/);
+  assert.match(failedPreviewRetryMigration, /upper\(coalesce\(v_result->>'status',''\)\)<>'PASS'/);
 });
