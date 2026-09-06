@@ -65,23 +65,23 @@ class _CreateProjectExperienceScreenState
       setState(() => _error = 'Pandora cannot start a new project right now.');
       return;
     }
-    final persistedKey = await _creationAttempts.idempotencyKeyFor(intent);
-    if (!mounted) return;
-    final createKey = _createIntent == intent && _createIdempotencyKey != null
-        ? _createIdempotencyKey!
-        : persistedKey ?? _keys.create('pandora-v2-project-create');
-    _createIntent = intent;
-    _createIdempotencyKey = createKey;
-    await _creationAttempts.save(
-      intent: intent,
-      idempotencyKey: createKey,
-    );
-    if (!mounted) return;
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
+      final persistedKey = await _creationAttempts.idempotencyKeyFor(intent);
+      if (!mounted) return;
+      final createKey = _createIntent == intent && _createIdempotencyKey != null
+          ? _createIdempotencyKey!
+          : persistedKey ?? _keys.create('pandora-v2-project-create');
+      _createIntent = intent;
+      _createIdempotencyKey = createKey;
+      await _creationAttempts.save(
+        intent: intent,
+        idempotencyKey: createKey,
+      );
+      if (!mounted) return;
       final project = await experience.createProject(
         name: deriveProjectDisplayName(intent),
         buildKind: ProjectBuildKind.helpMeDecide,
