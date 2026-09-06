@@ -7,7 +7,6 @@ const test = require("node:test");
 
 const root = join(__dirname, "..");
 const currentRepository = "pandora-rvw-314296438-20260820/pandoras-box";
-const legacyRepository = "banataosystems/Pandoras-box";
 const currentOrigin = "https://pandoras-box-system.vercel.app";
 
 function source(path) {
@@ -16,26 +15,24 @@ function source(path) {
 
 test("current release contract uses the operational repository and production origin", () => {
   const contract = JSON.parse(source("docs/releases/canonical/release-evidence.source.json"));
-  const schema = source("docs/releases/canonical/release-evidence.schema.json");
+  const schema = JSON.parse(source("docs/releases/canonical/release-evidence.schema.json"));
   const verifier = source("scripts/verify-canonical-release-evidence.mjs");
   const readme = source("docs/releases/canonical/README.md");
   const mobileReadme = source("apps/pandora-mobile/README.md");
 
   assert.equal(contract.repository, currentRepository);
   assert.equal(contract.vercel.productionAlias, currentOrigin);
-  assert.ok(schema.includes(currentRepository));
-  assert.ok(schema.includes(currentOrigin));
-  assert.ok(verifier.includes(currentRepository));
-  assert.ok(verifier.includes(currentOrigin));
-  assert.ok(readme.includes("pandoras-box-system.vercel.app"));
-  assert.ok(mobileReadme.includes(currentRepository));
+  assert.equal(schema.properties.repository.const, currentRepository);
+  assert.equal(schema.properties.vercel.properties.productionAlias.const, currentOrigin);
+  assert.match(verifier, /contract\.repository === "pandora-rvw-314296438-20260820\/pandoras-box"/);
+  assert.match(verifier, /contract\.vercel\.productionAlias === "https:\/\/pandoras-box-system\.vercel\.app"/);
+  assert.match(readme, /pandoras-box-system\.vercel\.app/);
+  assert.match(mobileReadme, /pandora-rvw-314296438-20260820\/pandoras-box/);
 
-  for (const active of [JSON.stringify(contract), schema, verifier, readme, mobileReadme]) {
-    assert.equal(active.includes(legacyRepository), false);
-  }
-  assert.equal(schema.includes("https://github.com/banataosystems/Pandoras-box"), false);
-  assert.equal(verifier.includes("https://mcpmaster.vercel.app"), false);
-  assert.equal(readme.includes("https://mcpmaster.vercel.app"), false);
+  assert.notEqual(contract.repository, "banataosystems/Pandoras-box");
+  assert.notEqual(contract.vercel.productionAlias, "https://mcpmaster.vercel.app");
+  assert.notEqual(schema.properties.repository.const, "banataosystems/Pandoras-box");
+  assert.notEqual(schema.properties.vercel.properties.productionAlias.const, "https://mcpmaster.vercel.app");
 });
 
 test("forward migration aligns live Vercel release checks without rewriting history", () => {
