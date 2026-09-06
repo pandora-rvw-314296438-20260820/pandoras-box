@@ -90,8 +90,11 @@ test("Vercel Connect 4xx token response becomes an authorization-required state"
   const broker = new VercelConnectUserBroker({
     providerUserinfoUrl: "https://example.supabase.co/auth/v1/oauth/userinfo",
     fetchImpl: async () =>
-      jsonResponse(401, {
-        error: "authorization_required",
+      jsonResponse(422, {
+        error: {
+          code: "user_authorization_required",
+          message: "User authorization is required",
+        },
       }),
   });
 
@@ -101,6 +104,24 @@ test("Vercel Connect 4xx token response becomes an authorization-required state"
       error instanceof VercelConnectUserError
       && error.code === "VERCEL_CONNECT_USER_NOT_READY"
       && error.status === 409,
+  );
+});
+
+test("generic Vercel authentication failures do not become consent states", async () => {
+  const broker = new VercelConnectUserBroker({
+    providerUserinfoUrl: "https://example.supabase.co/auth/v1/oauth/userinfo",
+    fetchImpl: async () =>
+      jsonResponse(401, {
+        error: { code: "unauthorized", message: "Not authorized" },
+      }),
+  });
+
+  await assert.rejects(
+    broker.probe({ userId: USER_ID, vercelOidcToken: PLATFORM_TOKEN }),
+    (error) =>
+      error instanceof VercelConnectUserError
+      && error.code === "VERCEL_CONNECT_TOKEN_UNAVAILABLE"
+      && error.status === 503,
   );
 });
 
