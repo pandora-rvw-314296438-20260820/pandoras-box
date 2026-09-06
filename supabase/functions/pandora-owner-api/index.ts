@@ -462,6 +462,7 @@ function connectionSummary(value: unknown) {
     gmail: "Owner-authorized email workflows",
     posthog: "Product usage and reliability signals",
     resend: "System email delivery",
+    meta: "Facebook Page and Meta Business access",
   };
   const scopes = Array.isArray(connection.scopes)
     ? connection.scopes.map(String)
@@ -993,9 +994,27 @@ async function verifyMetaConnection(
     },
   );
   const result = asRecord(data);
+  if (error) throw new Error("CONNECTION_TEST_FAILED");
+
+  if (result.ok !== true) {
+    const reason = textValue(result.reason);
+    if (
+      [
+        "credential_missing",
+        "credential_unavailable",
+        "credential_reference_invalid",
+        "provider_rejected",
+      ].includes(reason)
+    ) {
+      throw new Error("META_AUTHORIZATION_REQUIRED");
+    }
+    if (reason === "page_identity_mismatch") {
+      throw new Error("META_CONNECTION_IDENTITY_MISMATCH");
+    }
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
   if (
-    error ||
-    result.ok !== true ||
     textValue(result.provider).toLowerCase() !== "meta" ||
     textValue(result.status) !== "ACTIVE_HEALTHY"
   ) {
@@ -2346,6 +2365,20 @@ Deno.serve(async (req: Request) => {
         409,
         code,
         "That connection action is not available in its current state.",
+      );
+    }
+    if (code === "META_AUTHORIZATION_REQUIRED") {
+      return reject(
+        409,
+        code,
+        "Meta access is not authorized yet. Connect the approved Meta account before testing this Page.",
+      );
+    }
+    if (code === "META_CONNECTION_IDENTITY_MISMATCH") {
+      return reject(
+        409,
+        code,
+        "The Meta authorization does not match the configured Page. Pandora left the connection unchanged.",
       );
     }
     if (code === "CONNECTION_TEST_FAILED") {

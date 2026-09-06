@@ -41,3 +41,31 @@ test('Meta verifier never returns credential material and does not claim App own
   assert.match(returnBlock, /appOwnershipVerified/);
   assert.match(returnBlock, /app_ownership_verified/);
 });
+
+
+test('owner Meta connection explains purpose and authorization blockers precisely', () => {
+  assert.match(
+    ownerApi,
+    /meta: "Facebook Page and Meta Business access"/,
+  );
+  assert.match(
+    ownerApi,
+    /credential_missing[\s\S]{0,320}META_AUTHORIZATION_REQUIRED/,
+  );
+  assert.match(
+    ownerApi,
+    /provider_rejected[\s\S]{0,320}META_AUTHORIZATION_REQUIRED/,
+  );
+  assert.match(
+    ownerApi,
+    /page_identity_mismatch[\s\S]{0,220}META_CONNECTION_IDENTITY_MISMATCH/,
+  );
+  assert.match(
+    ownerApi,
+    /Meta access is not authorized yet\. Connect the approved Meta account before testing this Page\./,
+  );
+  assert.match(
+    ownerApi,
+    /The Meta authorization does not match the configured Page\. Pandora left the connection unchanged\./,
+  );
+});
