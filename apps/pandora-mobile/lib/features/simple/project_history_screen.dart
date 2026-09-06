@@ -456,7 +456,7 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
     final ownerIntent =
         exactIntent == null ? null : projectPurposeForDisplay(exactIntent);
     final detail = sourceIntent && _expanded
-        ? exactIntent!
+        ? exactIntent
         : ownerIntent ?? proposalSummary ?? item.summary;
     final canExpand = sourceIntent ||
         item.isProposal ||
