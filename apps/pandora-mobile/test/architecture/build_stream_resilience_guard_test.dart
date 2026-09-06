@@ -15,6 +15,11 @@ void main() {
     expect(api, contains(".order('sequence')"));
     expect(api, contains('left.sequence.compareTo(right.sequence)'));
     expect(api, contains('watchResilientBuildStream'));
+    expect(
+      api,
+      contains('return restartableBroadcastStream<ProjectBuildStreamSnapshot>('),
+    );
+    expect(api, contains('_watchResilientBuildStreamEra('));
     expect(api, contains('snapshot.requiresReplay'));
     expect(repository, contains('watchResilientBuildStream'));
     expect(api, isNot(contains(".order('id')")));
