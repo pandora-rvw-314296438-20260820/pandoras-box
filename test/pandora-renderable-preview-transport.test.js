@@ -44,6 +44,14 @@ const failedPreviewRetryMigration = readFileSync(
   'supabase/migrations/20260906222048_pandora_failed_preview_verification_retry_v1.sql',
   'utf8',
 );
+const ownerApiDuplicateReceipt = readFileSync(
+  'supabase/migrations/20260906224812_pandora_owner_api_exact_source_bundle_v1.sql',
+  'utf8',
+);
+const acceptanceV4Migration = readFileSync(
+  'supabase/migrations/20260906224847_pandora_static_preview_acceptance_v4_vercel_retry.sql',
+  'utf8',
+);
 
 test('Vercel preview proxy preserves capability authority but serves renderable HTML', () => {
   assert.match(api, /pandora-preview-host/);
@@ -162,4 +170,39 @@ test('failed preview verification retry is narrow and recovers only a fresh PASS
   assert.match(failedPreviewRetryMigration, /pandora_worker_e_verify_supabase_preview_v2_20260830/);
   assert.match(failedPreviewRetryMigration, /pandora_recover_verified_static_build_20260830/);
   assert.match(failedPreviewRetryMigration, /upper\(coalesce\(v_result->>'status',''\)\)<>'PASS'/);
+});
+
+test('duplicate owner API provider history is a source no-op receipt', () => {
+  const executable = ownerApiDuplicateReceipt
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('--'));
+  assert.deepEqual(executable, ['select 1;']);
+  assert.match(ownerApiDuplicateReceipt, /20260907063000_pandora_owner_api_exact_source_bundle_v1\.sql/);
+});
+
+test('acceptance v4 handles generic working names without weakening structure checks', () => {
+  assert.match(acceptanceV4Migration, /pandora_static_preview_acceptance_v4/);
+  assert.match(acceptanceV4Migration, /'decoration'/);
+  assert.match(acceptanceV4Migration, /<title/);
+  assert.match(acceptanceV4Migration, /<h1/);
+  assert.match(acceptanceV4Migration, /404\[\[:space:\]\]\+not/);
+  assert.match(acceptanceV4Migration, /regexp_matches\(v_body,'href=/);
+  assert.match(acceptanceV4Migration, /regexp_matches\(v_body,'onclick=/);
+});
+
+test('Vercel Worker E uses current Supabase access and replay-safe acceptance v4', () => {
+  assert.match(acceptanceV4Migration, /where name in \(''Supabase_access''/);
+  assert.match(acceptanceV4Migration, /pandora_worker_e_verify_runtime_20260829/);
+  assert.match(acceptanceV4Migration, /static_site_acceptance_v4/);
+  assert.match(acceptanceV4Migration, /production_release_acceptance_v4/);
+});
+
+test('Vercel failed verification retry requires exact current failed build and fresh PASS', () => {
+  assert.match(acceptanceV4Migration, /pandora_retry_failed_vercel_preview_verification_20260906/);
+  assert.match(acceptanceV4Migration, /v_dep\.provider<>'vercel'/);
+  assert.match(acceptanceV4Migration, /v_job\.error_code<>'VERIFICATION_FAILED'/);
+  assert.match(acceptanceV4Migration, /status='FAIL'/);
+  assert.match(acceptanceV4Migration, /pandora_worker_e_verify_runtime_20260829/);
+  assert.match(acceptanceV4Migration, /pandora_recover_verified_static_build_20260830/);
 });
