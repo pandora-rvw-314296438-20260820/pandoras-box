@@ -208,6 +208,31 @@ abstract interface class GovernedConnectionActionSource {
   });
 }
 
+class OperationalConflictResolutionResult {
+  const OperationalConflictResolutionResult({
+    required this.conflictId,
+    required this.resolution,
+    required this.externalMutationExecuted,
+    required this.executionMode,
+    this.decisionId,
+  });
+
+  final String conflictId;
+  final String resolution;
+  final bool externalMutationExecuted;
+  final String executionMode;
+  final String? decisionId;
+}
+
+abstract interface class OperationalConflictResolutionSource {
+  Future<OperationalConflictResolutionResult> resolveOperationalConflict({
+    required String projectId,
+    required String conflictId,
+    required String resolution,
+    required String rationale,
+  });
+}
+
 class UserConnectStatus {
   const UserConnectStatus({
     required this.connected,
