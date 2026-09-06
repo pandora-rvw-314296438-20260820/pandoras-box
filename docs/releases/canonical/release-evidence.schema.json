@@ -64,7 +64,7 @@
       "properties": {
         "provider": { "const": "vercel" },
         "projectId": { "const": "prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk" },
-        "productionAlias": { "const": "https://pandoras-box-system.vercel.app" },
+        "productionAlias": { "const": "https://mcpmaster.vercel.app" },
         "productionDeployment": { "$ref": "#/$defs/productionDeployment" },
         "rollbackDeployment": { "$ref": "#/$defs/rollbackDeployment" }
       }
