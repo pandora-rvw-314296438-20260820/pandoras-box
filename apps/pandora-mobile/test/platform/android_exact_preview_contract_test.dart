@@ -35,9 +35,18 @@ void main() {
         reason: 'Missing exact-preview MIME mapping ${entry.key}',
       );
     }
-    expect(kotlin, contains('else -> declared.ifBlank { "application/octet-stream" }'));
-    expect(kotlin, contains('webView.loadUrl("https://pandora.local/index.html")'));
-    expect(kotlin, contains('uri.scheme != "https" || uri.host != "pandora.local"'));
+    expect(
+      kotlin,
+      contains('else -> declared.ifBlank { "application/octet-stream" }'),
+    );
+    expect(
+      kotlin,
+      contains('webView.loadUrl("https://pandora.local/index.html")'),
+    );
+    expect(
+      kotlin,
+      contains('uri.scheme != "https" || uri.host != "pandora.local"'),
+    );
   });
 
   test('Android exact preview keeps the WebView trust boundary closed', () {
@@ -46,7 +55,10 @@ void main() {
 
     expect(kotlin, contains('allowFileAccess = false'));
     expect(kotlin, contains('allowContentAccess = false'));
-    expect(kotlin, contains('mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW'));
+    expect(
+      kotlin,
+      contains('mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW'),
+    );
     expect(kotlin, isNot(contains('addJavascriptInterface')));
     expect(kotlin, contains('if (!isSafePreviewPath(path)'));
     expect(kotlin, contains('if (!files.containsKey("index.html"))'));
