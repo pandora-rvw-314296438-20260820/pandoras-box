@@ -33,18 +33,6 @@ begin
     'private.pandora_worker_e_verify_supabase_preview_20260830(uuid,uuid)'::regprocedure
   ) into v_def;
 
-  if position('v_runtime_content_type text' in v_def)=0 then
-    v_old := '  v_runtime extensions.http_response;'||chr(10)||'  v_runtime_ok boolean:=false;';
-    v_new := '  v_runtime extensions.http_response;'||chr(10)||
-             '  v_runtime_content_type text:='''''';'||chr(10)||
-             '  v_runtime_csp text:='''''';'||chr(10)||
-             '  v_runtime_ok boolean:=false;';
-    if position(v_old in v_def)=0 then
-      raise exception 'PREVIEW_VERIFY_DECLARATION_ANCHOR_MISSING' using errcode='55000';
-    end if;
-    v_def:=replace(v_def,v_old,v_new);
-  end if;
-
   v_old := '^https://jcyqixttuebxqqfkjonq[.]supabase[.]co/functions/v1/pandora-preview-host/';
   v_new := '^https://mcpmaster[.]vercel[.]app/preview/';
   if position(v_new in v_def)=0 then
@@ -56,17 +44,14 @@ begin
 
   v_old := '      v_runtime_ok:=v_runtime.status between 200 and 399;'||chr(10)||
            '      v_runtime_body:=left(coalesce(v_runtime.content,''''),1048576);';
-  v_new := '      select lower(coalesce((h).value,'''')) into v_runtime_content_type'||chr(10)||
-           '      from unnest(v_runtime.headers) h where lower((h).field)=''content-type'' limit 1;'||chr(10)||
-           '      select lower(coalesce((h).value,'''')) into v_runtime_csp'||chr(10)||
-           '      from unnest(v_runtime.headers) h where lower((h).field)=''content-security-policy'' limit 1;'||chr(10)||
-           '      v_runtime_ok:=v_runtime.status between 200 and 399'||chr(10)||
-           '        and v_runtime_content_type like ''text/html%'''||chr(10)||
-           '        and strpos(v_runtime_csp,''sandbox'')>0'||chr(10)||
-           '        and strpos(v_runtime_csp,''allow-scripts'')>0'||chr(10)||
-           '        and strpos(v_runtime_csp,''allow-same-origin'')=0;'||chr(10)||
+  v_new := '      v_runtime_ok:=v_runtime.status between 200 and 399'||chr(10)||
+           '        and exists(select 1 from unnest(v_runtime.headers) h where lower((h).field)=''content-type'' and lower((h).value) like ''text/html%'')'||chr(10)||
+           '        and exists(select 1 from unnest(v_runtime.headers) h where lower((h).field)=''content-security-policy'''||chr(10)||
+           '          and strpos(lower((h).value),''sandbox'')>0'||chr(10)||
+           '          and strpos(lower((h).value),''allow-scripts'')>0'||chr(10)||
+           '          and strpos(lower((h).value),''allow-same-origin'')=0);'||chr(10)||
            '      v_runtime_body:=left(coalesce(v_runtime.content,''''),1048576);';
-  if position('v_runtime_content_type like ''text/html%''' in v_def)=0 then
+  if position('lower((h).value) like ''text/html%''' in v_def)=0 then
     if position(v_old in v_def)=0 then
       raise exception 'PREVIEW_VERIFY_RUNTIME_ANCHOR_MISSING' using errcode='55000';
     end if;
@@ -78,15 +63,6 @@ begin
   if position('static_site_renderable_v2' in v_def)=0 then
     if position(v_old in v_def)=0 then
       raise exception 'PREVIEW_VERIFY_IDENTITY_ANCHOR_MISSING' using errcode='55000';
-    end if;
-    v_def:=replace(v_def,v_old,v_new);
-  end if;
-
-  v_old := 'jsonb_build_object(''httpStatus'',v_runtime.status,''runtimeBodySha256'',v_runtime_digest,''previewProvider'',''supabase_preview'')';
-  v_new := 'jsonb_build_object(''httpStatus'',v_runtime.status,''runtimeBodySha256'',v_runtime_digest,''previewProvider'',''supabase_preview'',''contentType'',v_runtime_content_type,''contentSecurityPolicy'',v_runtime_csp)';
-  if position('''contentType'',v_runtime_content_type' in v_def)=0 then
-    if position(v_old in v_def)=0 then
-      raise exception 'PREVIEW_VERIFY_EVIDENCE_ANCHOR_MISSING' using errcode='55000';
     end if;
     v_def:=replace(v_def,v_old,v_new);
   end if;
@@ -132,37 +108,22 @@ begin
     'private.pandora_evaluate_supabase_preview_acceptance_v2_20260830(uuid)'::regprocedure
   ) into v_def;
 
-  v_old := 'v_dep.url !~ ''^https://jcyqixttuebxqqfkjonq[.]supabase[.]co/functions/v1/pandora-preview-host/[0-9a-f]{64}/index[.]html$''';
-  v_new := 'v_dep.url !~ ''^https://mcpmaster[.]vercel[.]app/preview/[0-9a-f]{64}/index[.]html$''';
-  if position('mcpmaster[.]vercel[.]app/preview' in v_def)=0 then
+  v_old := '^https://jcyqixttuebxqqfkjonq[.]supabase[.]co/functions/v1/pandora-preview-host/';
+  v_new := '^https://mcpmaster[.]vercel[.]app/preview/';
+  if position(v_new in v_def)=0 then
     if position(v_old in v_def)=0 then
       raise exception 'PREVIEW_ACCEPTANCE_URL_ANCHOR_MISSING' using errcode='55000';
     end if;
     v_def:=replace(v_def,v_old,v_new);
   end if;
 
-  if position('v_runtime_content_type text' in v_def)=0 then
-    v_old := '  v_runtime extensions.http_response;'||chr(10)||'  v_body text := '''';';
-    v_new := '  v_runtime extensions.http_response;'||chr(10)||
-             '  v_runtime_content_type text := '''';'||chr(10)||
-             '  v_runtime_csp text := '''';'||chr(10)||
-             '  v_body text := '''';';
-    if position(v_old in v_def)=0 then
-      raise exception 'PREVIEW_ACCEPTANCE_DECLARATION_ANCHOR_MISSING' using errcode='55000';
-    end if;
-    v_def:=replace(v_def,v_old,v_new);
-  end if;
-
   v_old := '  v_body:=left(coalesce(v_runtime.content,''''),1048576);';
-  v_new := '  select lower(coalesce((h).value,'''')) into v_runtime_content_type'||chr(10)||
-           '  from unnest(v_runtime.headers) h where lower((h).field)=''content-type'' limit 1;'||chr(10)||
-           '  select lower(coalesce((h).value,'''')) into v_runtime_csp'||chr(10)||
-           '  from unnest(v_runtime.headers) h where lower((h).field)=''content-security-policy'' limit 1;'||chr(10)||
-           '  if v_runtime_content_type not like ''text/html%'''||chr(10)||
-           '     or strpos(v_runtime_csp,''sandbox'')=0'||chr(10)||
-           '     or strpos(v_runtime_csp,''allow-scripts'')=0'||chr(10)||
-           '     or strpos(v_runtime_csp,''allow-same-origin'')>0 then'||chr(10)||
-           '    return jsonb_build_object(''ok'',false,''reason'',''runtime_not_renderable'',''httpStatus'',v_runtime.status,''contentType'',v_runtime_content_type);'||chr(10)||
+  v_new := '  if not exists(select 1 from unnest(v_runtime.headers) h where lower((h).field)=''content-type'' and lower((h).value) like ''text/html%'')'||chr(10)||
+           '     or not exists(select 1 from unnest(v_runtime.headers) h where lower((h).field)=''content-security-policy'''||chr(10)||
+           '       and strpos(lower((h).value),''sandbox'')>0'||chr(10)||
+           '       and strpos(lower((h).value),''allow-scripts'')>0'||chr(10)||
+           '       and strpos(lower((h).value),''allow-same-origin'')=0) then'||chr(10)||
+           '    return jsonb_build_object(''ok'',false,''reason'',''runtime_not_renderable'',''httpStatus'',v_runtime.status);'||chr(10)||
            '  end if;'||chr(10)||
            '  v_body:=left(coalesce(v_runtime.content,''''),1048576);';
   if position('runtime_not_renderable' in v_def)=0 then
@@ -213,31 +174,16 @@ begin
     v_def:=replace(v_def,v_old,v_new);
   end if;
 
-  if position('v_runtime_content_type text' in v_def)=0 then
-    v_old := '  v_runtime extensions.http_response;'||chr(10)||'  v_runtime_body text := '''';';
-    v_new := '  v_runtime extensions.http_response;'||chr(10)||
-             '  v_runtime_content_type text := '''';'||chr(10)||
-             '  v_runtime_csp text := '''';'||chr(10)||
-             '  v_runtime_body text := '''';';
-    if position(v_old in v_def)=0 then
-      raise exception 'PRODUCTION_VERIFY_DECLARATION_ANCHOR_MISSING' using errcode='55000';
-    end if;
-    v_def:=replace(v_def,v_old,v_new);
-  end if;
-
   v_old := '    v_runtime_ok:=v_runtime.status between 200 and 399;'||chr(10)||
            '    v_runtime_body:=left(coalesce(v_runtime.content,''''),1048576);';
-  v_new := '    select lower(coalesce((h).value,'''')) into v_runtime_content_type'||chr(10)||
-           '    from unnest(v_runtime.headers) h where lower((h).field)=''content-type'' limit 1;'||chr(10)||
-           '    select lower(coalesce((h).value,'''')) into v_runtime_csp'||chr(10)||
-           '    from unnest(v_runtime.headers) h where lower((h).field)=''content-security-policy'' limit 1;'||chr(10)||
-           '    v_runtime_ok:=v_runtime.status between 200 and 399'||chr(10)||
-           '      and v_runtime_content_type like ''text/html%'''||chr(10)||
-           '      and strpos(v_runtime_csp,''sandbox'')>0'||chr(10)||
-           '      and strpos(v_runtime_csp,''allow-scripts'')>0'||chr(10)||
-           '      and strpos(v_runtime_csp,''allow-same-origin'')=0;'||chr(10)||
+  v_new := '    v_runtime_ok:=v_runtime.status between 200 and 399'||chr(10)||
+           '      and exists(select 1 from unnest(v_runtime.headers) h where lower((h).field)=''content-type'' and lower((h).value) like ''text/html%'')'||chr(10)||
+           '      and exists(select 1 from unnest(v_runtime.headers) h where lower((h).field)=''content-security-policy'''||chr(10)||
+           '        and strpos(lower((h).value),''sandbox'')>0'||chr(10)||
+           '        and strpos(lower((h).value),''allow-scripts'')>0'||chr(10)||
+           '        and strpos(lower((h).value),''allow-same-origin'')=0);'||chr(10)||
            '    v_runtime_body:=left(coalesce(v_runtime.content,''''),1048576);';
-  if position('v_runtime_content_type like ''text/html%''' in v_def)=0 then
+  if position('lower((h).value) like ''text/html%''' in v_def)=0 then
     if position(v_old in v_def)=0 then
       raise exception 'PRODUCTION_VERIFY_RUNTIME_ANCHOR_MISSING' using errcode='55000';
     end if;

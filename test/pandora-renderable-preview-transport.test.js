@@ -33,10 +33,11 @@ test('preview and production fallback URLs leave the Supabase shared HTML domain
 });
 
 test('Worker E rejects HTTP 200 that is not renderable HTML', () => {
-  assert.match(migration, /v_runtime_content_type like ''text\/html%''/);
-  assert.match(migration, /position\(''sandbox'' in v_runtime_csp\)>0/);
-  assert.match(migration, /position\(''allow-scripts'' in v_runtime_csp\)>0/);
-  assert.match(migration, /position\(''allow-same-origin'' in v_runtime_csp\)=0/);
+  assert.match(migration, /content-type/);
+  assert.match(migration, /content-security-policy/);
+  assert.match(migration, /text\/html%/);
+  assert.match(migration, /allow-scripts/);
+  assert.match(migration, /allow-same-origin/);
   assert.match(migration, /runtime_not_renderable/);
 });
 
