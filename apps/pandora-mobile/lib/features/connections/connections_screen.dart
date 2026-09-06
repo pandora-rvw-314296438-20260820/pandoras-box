@@ -339,14 +339,17 @@ class _ConnectionCard extends StatelessWidget {
       title: connection.name,
       subtitle: connection.purpose,
       leading: Icon(providerIconFor(connection.name)),
-      trailing: StatusBadge(
-        label: ownerState.label,
-        tone: ownerState == OwnerConnectionState.verified
-            ? PandoraStatusTone.verified
-            : ownerState == OwnerConnectionState.legacy
-                ? PandoraStatusTone.neutral
-                : PandoraStatusTone.attention,
-        compact: true,
+      trailing: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 152),
+        child: StatusBadge(
+          label: ownerState.label,
+          tone: ownerState == OwnerConnectionState.verified
+              ? PandoraStatusTone.verified
+              : ownerState == OwnerConnectionState.legacy
+                  ? PandoraStatusTone.neutral
+                  : PandoraStatusTone.attention,
+          compact: true,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

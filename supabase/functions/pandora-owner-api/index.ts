@@ -430,7 +430,7 @@ async function loadProjectSummaries(context: UserContext) {
   });
 }
 
-function connectionSummary(value: unknown, healthRows: JsonRecord[] = []) {
+function connectionSummary(value: unknown) {
   const connection = asRecord(value);
   const provider = textValue(connection.provider, "Service");
   const status = textValue(connection.status, "not_checked").toLowerCase();
@@ -440,23 +440,10 @@ function connectionSummary(value: unknown, healthRows: JsonRecord[] = []) {
     lastCheckedAt && Number.isFinite(Date.parse(lastCheckedAt)) &&
       now - Date.parse(lastCheckedAt) <= 15 * 60 * 1000,
   );
-  const matchingHealth = healthRows.filter((row) =>
-    textValue(row.provider).toLowerCase() === provider.toLowerCase()
-  );
-  const healthFresh = matchingHealth.every((row) => {
-    const staleAfter = textValue(row.stale_after);
-    return Boolean(staleAfter && Date.parse(staleAfter) > now);
-  });
-  const healthProblem = matchingHealth.some((row) =>
-    ["error", "failed", "degraded"].includes(
-      textValue(row.status).toLowerCase(),
-    )
-  );
-  const problem = ["error", "failed", "degraded"].includes(status) ||
-    healthProblem;
+  const problem = ["error", "failed", "degraded"].includes(status);
   const ready = ["active", "connected", "healthy", "ready"].includes(
     status,
-  ) && connectorFresh && healthFresh && !problem;
+  ) && connectorFresh && !problem;
   const off = ["disabled", "disconnected", "revoked", "off"].includes(status);
   const state = ready
     ? "ready"
@@ -722,22 +709,16 @@ async function project(context: UserContext, identifier: string) {
 async function connections(
   context: UserContext,
 ): Promise<ReturnType<typeof connectionSummary>[]> {
-  const [connectionsResult, healthResult] = await Promise.all([
-    context.client.from("connector_installations")
-      .select(
-        "id, provider, display_name, status, scopes, last_health_check_at, updated_at",
-      )
-      .eq("organization_id", context.organizationId).order("provider"),
-    context.client.from("projectos_integration_health")
-      .select("provider, status, last_success_at, stale_after, updated_at")
-      .eq("organization_id", context.organizationId),
-  ]);
-  if (connectionsResult.error || healthResult.error) {
+  const connectionsResult = await context.client.from("connector_installations")
+    .select(
+      "id, provider, display_name, status, scopes, last_health_check_at, updated_at",
+    )
+    .eq("organization_id", context.organizationId).order("provider");
+  if (connectionsResult.error) {
     throw new Error("BACKEND_READ_FAILED");
   }
-  const healthRows = (healthResult.data || []) as JsonRecord[];
   return (connectionsResult.data || []).map((item: JsonRecord) =>
-    connectionSummary(item, healthRows)
+    connectionSummary(item)
   );
 }
 
@@ -911,6 +892,66 @@ async function verifyGithubConnection(
   if (updateError) throw new Error("CONNECTION_TEST_FAILED");
 }
 
+async function verifyVercelConnection(
+  context: UserContext,
+  connectionId: string,
+) {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const [teamResult, projectResult] = await Promise.all([
+    admin.from("pandora_runtime_provider_configs")
+      .select("config_value")
+      .eq("provider", "vercel")
+      .eq("config_key", "team_id")
+      .eq("active", true)
+      .maybeSingle(),
+    admin.from("pandora_runtime_provider_configs")
+      .select("config_value")
+      .eq("provider", "vercel")
+      .eq("config_key", "mcpmaster_project_id")
+      .eq("active", true)
+      .maybeSingle(),
+  ]);
+  if (teamResult.error || projectResult.error) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+  const teamId = textValue(asRecord(teamResult.data).config_value);
+  const projectId = textValue(asRecord(projectResult.data).config_value);
+  if (
+    !/^team_[A-Za-z0-9]+$/.test(teamId) ||
+    !/^prj_[A-Za-z0-9]+$/.test(projectId)
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  const { data, error } = await admin.rpc(
+    "pandora_worker_f_vercel_request_20260829",
+    {
+      p_method: "GET",
+      p_path: `/v9/projects/${projectId}?teamId=${teamId}`,
+      p_body: null,
+    },
+  );
+  const result = asRecord(data);
+  const project = asRecord(result.body);
+  if (
+    error ||
+    Number(result.status) !== 200 ||
+    textValue(project.id) !== projectId
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  const checkedAt = new Date().toISOString();
+  const { error: updateError } = await admin.from("connector_installations")
+    .update({ last_health_check_at: checkedAt })
+    .eq("organization_id", context.organizationId)
+    .eq("id", connectionId)
+    .eq("provider", "vercel");
+  if (updateError) throw new Error("CONNECTION_TEST_FAILED");
+}
+
 async function connectionAction(
   context: UserContext,
   connectionId: string,
@@ -940,8 +981,13 @@ async function connectionAction(
   }
 
   const provider = textValue(asRecord(item.advanced).provider, item.name);
-  if (action === "test" && provider.toLowerCase() === "github") {
-    await verifyGithubConnection(context, connectionId);
+  if (action === "test") {
+    const normalizedProvider = provider.toLowerCase();
+    if (normalizedProvider === "github") {
+      await verifyGithubConnection(context, connectionId);
+    } else if (normalizedProvider === "vercel") {
+      await verifyVercelConnection(context, connectionId);
+    }
   }
   const requests: Record<GovernedConnectionAction, string> = {
     connect:

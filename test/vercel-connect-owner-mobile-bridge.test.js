@@ -66,6 +66,49 @@ test("owner API exposes only bounded Connect status and authorize routes", () =>
   assert.match(ownerApi, /CONNECT_BRIDGE_MAX_RESPONSE_BYTES = 64 \* 1024/);
 });
 
+test("connection capability is account-scoped, not poisoned by project health", () => {
+  const summary = between(
+    ownerApi,
+    "function connectionSummary(",
+    "function approvalSummary(",
+  );
+  assert.match(summary, /connectorFresh/);
+  assert.doesNotMatch(
+    summary,
+    /projectos_integration_health|healthRows|healthProblem|healthFresh/,
+  );
+
+  const read = between(
+    ownerApi,
+    "async function connections(",
+    "function base64UrlBytes(",
+  );
+  assert.doesNotMatch(read, /projectos_integration_health/);
+});
+
+test("Vercel connection test uses the Vault-backed broker and no provider token", () => {
+  const verifyStart = ownerApi.indexOf("async function verifyVercelConnection");
+  const actionStart = ownerApi.indexOf("async function connectionAction", verifyStart);
+  assert.notEqual(verifyStart, -1);
+  assert.notEqual(actionStart, -1);
+  const verifyBlock = ownerApi.slice(verifyStart, actionStart);
+  assert.match(verifyBlock, /pandora_worker_f_vercel_request_20260829/);
+  assert.match(verifyBlock, /mcpmaster_project_id/);
+  assert.match(verifyBlock, /config_key", "team_id"/);
+  assert.doesNotMatch(
+    verifyBlock,
+    /PANDORA_VERCEL_TOKEN|VERCEL_TOKEN|api\.vercel\.com/,
+  );
+
+  const actionBlock = between(
+    ownerApi,
+    "async function connectionAction(",
+    "async function approvals(",
+  );
+  assert.match(actionBlock, /normalizedProvider === "vercel"/);
+  assert.match(actionBlock, /verifyVercelConnection\(context, connectionId\)/);
+});
+
 test("mobile keeps the single Supabase owner API transport for Connect", () => {
   assert.match(mobileContract, /UserConnectAuthorizationSource/);
   assert.match(
