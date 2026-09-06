@@ -1999,6 +1999,12 @@ async function acceptIntake(
   };
 }
 
+function createOperationalAdminClient() {
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 async function decide(
   context: UserContext,
   approvalId: string,
@@ -2127,9 +2133,7 @@ Deno.serve(async (req: Request) => {
         context,
         decodeURIComponent(route.split("/")[2]),
       );
-      const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
+      const admin = createOperationalAdminClient();
       return send(
         await loadOperationalWorkspace(
           admin,
@@ -2230,9 +2234,7 @@ Deno.serve(async (req: Request) => {
         context,
         decodeURIComponent(route.split("/")[2]),
       );
-      const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
+      const admin = createOperationalAdminClient();
       return send(
         await stageOperationalImport(
           admin,
@@ -2254,9 +2256,7 @@ Deno.serve(async (req: Request) => {
         context,
         decodeURIComponent(segments[2]),
       );
-      const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
+      const admin = createOperationalAdminClient();
       return send(
         await resolveOperationalConflict(
           admin,
