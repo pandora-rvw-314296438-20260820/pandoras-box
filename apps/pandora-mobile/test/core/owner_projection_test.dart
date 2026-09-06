@@ -178,9 +178,12 @@ void main() {
     );
   });
 
-  test('missing proof-stage payload is reported as unverified, not missing', () {
-    expect(compactProofSummary(_project()), 'Proof stages not verified');
-  });
+  test(
+    'missing proof-stage payload is reported as unverified, not missing',
+    () {
+      expect(compactProofSummary(_project()), 'Proof stages not verified');
+    },
+  );
 
   test('proof summary is compact and names the first missing stage', () {
     final project = _project(
