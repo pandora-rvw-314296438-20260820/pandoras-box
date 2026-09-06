@@ -10,6 +10,10 @@ const migration = fs.readFileSync(
   "supabase/migrations/20260906072000_pandora_worker_d_runtime_artifact_storage_broker_v1.sql",
   "utf8",
 );
+const ledgerMigration = fs.readFileSync(
+  "supabase/migrations/20260829177000_pandora_runtime_bundle_ledger_state_fix_v1.sql",
+  "utf8",
+);
 
 test("Worker D runtime persistence stays inside the existing service-role Edge boundary", () => {
   assert.match(edge, /SUPABASE_SERVICE_ROLE_KEY/);
@@ -22,13 +26,23 @@ test("Worker D runtime persistence stays inside the existing service-role Edge b
   assert.match(edge, /x-pandora-runtime-byte-size/);
   assert.match(edge, /pandora-worker-d-static-web/);
   assert.match(edge, /lease_expires_at/);
-  assert.match(edge, /pandora_build_job_steps/);
-  assert.match(edge, /result_sha256/);
+  const runtimePersist = edge.slice(
+    edge.indexOf("async function persistWorkerDRuntimeBundle"),
+    edge.indexOf("Deno.serve"),
+  );
+  assert.doesNotMatch(runtimePersist, /pandora_build_job_steps/);
+  assert.match(runtimePersist, /buildStepId/);
   assert.match(edge, /pandora\.runtime-bundle\.v1/);
   assert.match(edge, /admin\.storage\.from\(BUCKET\)\.upload/);
   assert.match(edge, /admin\.storage\.from\(BUCKET\)\.download/);
   assert.doesNotMatch(edge, /api-keys\?reveal=true/);
   assert.doesNotMatch(edge, /mcpmaster_supabase_account_[12]_pat/);
+});
+
+test("runtime finalizer owns build-step validation before crossing the Edge transaction boundary", () => {
+  assert.match(ledgerMigration, /select \* into v_step from public\.pandora_build_job_steps/);
+  assert.match(ledgerMigration, /v_step\.status<>'succeeded'/);
+  assert.match(ledgerMigration, /v_step\.build_job_id<>v_job\.id/);
 });
 
 test("runtime finalizer migration removes Management PAT discovery and verifies exact broker receipt", () => {
