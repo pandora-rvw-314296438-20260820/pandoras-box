@@ -478,8 +478,7 @@ class OperationalMapping {
     return OperationalMapping(
       id: jsonText(json['id']),
       provider: humanizeToken(json['provider'], fallback: 'Provider'),
-      resourceType:
-          humanizeToken(json['resourceType'], fallback: 'Resource'),
+      resourceType: humanizeToken(json['resourceType'], fallback: 'Resource'),
       externalId: jsonText(json['externalId']),
       bindingState:
           humanizeToken(json['bindingState'], fallback: 'Not checked'),
@@ -633,9 +632,8 @@ class OperationalWorkspace {
       conflicts: conflicts,
       imports: imports,
       mappingCount: strictJsonInt(summary['mappingCount']) ?? mappings.length,
-      verifiedMappingCount:
-          strictJsonInt(summary['verifiedMappingCount']) ??
-              mappings.where((item) => item.verified).length,
+      verifiedMappingCount: strictJsonInt(summary['verifiedMappingCount']) ??
+          mappings.where((item) => item.verified).length,
       conflictCount:
           strictJsonInt(summary['conflictCount']) ?? conflicts.length,
       highConflictCount: strictJsonInt(summary['highConflictCount']) ??
