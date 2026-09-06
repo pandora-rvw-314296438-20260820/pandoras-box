@@ -62,8 +62,8 @@ class PandoraSurface extends StatelessWidget {
         ? null
         : LayoutBuilder(
             builder: (context, constraints) {
-              final compact = constraints.maxWidth.isFinite &&
-                  constraints.maxWidth < 420;
+              final compact =
+                  constraints.maxWidth.isFinite && constraints.maxWidth < 420;
               if (trailing == null) return titleBlock();
               if (compact) {
                 return Column(
