@@ -31,11 +31,10 @@ void main() {
   test('coalesces a high-rate burst to the latest exact snapshot', () async {
     final input = StreamController<ProjectBuildStreamSnapshot>(sync: true);
     final output = <ProjectBuildStreamSnapshot>[];
-    final done = Completer<void>();
     final subscription = coalesceProjectBuildSnapshotsForRendering(
-      input.stream,
+      () => input.stream,
       cadence: const Duration(milliseconds: 10),
-    ).listen(output.add, onDone: done.complete);
+    ).listen(output.add);
 
     for (var sequence = 1; sequence <= 100; sequence += 1) {
       input.add(snapshot(sequence));
@@ -45,16 +44,15 @@ void main() {
     expect(output, hasLength(1));
     expect(output.single.latestSequence, 100);
 
-    await input.close();
-    await done.future;
     await subscription.cancel();
+    await input.close();
   });
 
   test('control and terminal snapshots bypass render cadence', () async {
     final input = StreamController<ProjectBuildStreamSnapshot>(sync: true);
     final output = <ProjectBuildStreamSnapshot>[];
     final subscription = coalesceProjectBuildSnapshotsForRendering(
-      input.stream,
+      () => input.stream,
       cadence: const Duration(seconds: 1),
     ).listen(output.add);
 
@@ -65,49 +63,106 @@ void main() {
     expect(output.map((value) => value.latestSequence), <int>[2, 2]);
     expect(output.last.publicErrorCode, 'FAILED');
 
-    await input.close();
     await subscription.cancel();
+    await input.close();
   });
 
-  test('stream completion flushes the latest pending snapshot', () async {
-    final input = StreamController<ProjectBuildStreamSnapshot>(sync: true);
-    final output = <ProjectBuildStreamSnapshot>[];
-    final done = Completer<void>();
-    coalesceProjectBuildSnapshotsForRendering(
-      input.stream,
-      cadence: const Duration(seconds: 1),
-    ).listen(output.add, onDone: done.complete);
+  test('stream completion flushes and reopens a resilient source', () async {
+    final sources = <StreamController<ProjectBuildStreamSnapshot>>[];
 
-    input.add(snapshot(7));
-    input.add(snapshot(8));
-    await input.close();
-    await done.future;
+    Stream<ProjectBuildStreamSnapshot> sourceFactory() {
+      final source = StreamController<ProjectBuildStreamSnapshot>(sync: true);
+      sources.add(source);
+      return source.stream;
+    }
+
+    final output = <ProjectBuildStreamSnapshot>[];
+    final subscription = coalesceProjectBuildSnapshotsForRendering(
+      sourceFactory,
+      cadence: const Duration(seconds: 1),
+    ).listen(output.add);
+
+    sources.single.add(snapshot(7));
+    sources.single.add(snapshot(8));
+    await sources.single.close();
+    await Future<void>.delayed(Duration.zero);
 
     expect(output, hasLength(1));
     expect(output.single.latestSequence, 8);
+    expect(sources, hasLength(2));
+
+    sources.last.add(snapshot(9, reconnecting: true));
+    expect(output.last.latestSequence, 9);
+
+    await subscription.cancel();
+    await sources.last.close();
   });
 
   test(
-    'supports concurrent listeners without re-listening to the source',
+    'supports concurrent listeners with one authoritative source subscription',
     () async {
       var sourceListenCount = 0;
-      final source = Stream<ProjectBuildStreamSnapshot>.multi((controller) {
-        sourceListenCount += 1;
-        controller.add(snapshot(11));
-        controller.close();
-      });
-
+      final input = StreamController<ProjectBuildStreamSnapshot>(
+        sync: true,
+        onListen: () => sourceListenCount += 1,
+      );
       final shared = coalesceProjectBuildSnapshotsForRendering(
-        source,
+        () => input.stream,
         cadence: const Duration(milliseconds: 1),
       );
-      final first = shared.toList();
-      final second = shared.toList();
+      final first = <ProjectBuildStreamSnapshot>[];
+      final second = <ProjectBuildStreamSnapshot>[];
+      final firstSubscription = shared.listen(first.add);
+      final secondSubscription = shared.listen(second.add);
 
-      final results = await Future.wait([first, second]);
+      input.add(snapshot(11, reconnecting: true));
+
       expect(sourceListenCount, 1);
-      expect(results[0].single.latestSequence, 11);
-      expect(results[1].single.latestSequence, 11);
+      expect(first.single.latestSequence, 11);
+      expect(second.single.latestSequence, 11);
+
+      await firstSubscription.cancel();
+      await secondSubscription.cancel();
+      await input.close();
+    },
+  );
+
+  test(
+    'listener replacement opens a fresh source instead of re-listening to a cancelled single-subscription stream',
+    () async {
+      var sourceFactoryCalls = 0;
+      final sources = <StreamController<ProjectBuildStreamSnapshot>>[];
+
+      Stream<ProjectBuildStreamSnapshot> sourceFactory() {
+        sourceFactoryCalls += 1;
+        final source = StreamController<ProjectBuildStreamSnapshot>(sync: true);
+        sources.add(source);
+        return source.stream;
+      }
+
+      final shared = coalesceProjectBuildSnapshotsForRendering(
+        sourceFactory,
+        cadence: const Duration(milliseconds: 1),
+      );
+
+      final firstOutput = <ProjectBuildStreamSnapshot>[];
+      final first = shared.listen(firstOutput.add);
+      sources.single.add(snapshot(21, reconnecting: true));
+      expect(firstOutput.single.latestSequence, 21);
+
+      await first.cancel();
+      expect(sourceFactoryCalls, 1);
+
+      final secondOutput = <ProjectBuildStreamSnapshot>[];
+      final second = shared.listen(secondOutput.add);
+      expect(sourceFactoryCalls, 2);
+      expect(sources, hasLength(2));
+
+      sources.last.add(snapshot(22, reconnecting: true));
+      expect(secondOutput.single.latestSequence, 22);
+
+      await second.cancel();
+      await Future.wait(sources.map((source) => source.close()));
     },
   );
 }
