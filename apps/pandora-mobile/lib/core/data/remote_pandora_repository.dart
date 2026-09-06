@@ -13,6 +13,7 @@ class RemotePandoraRepository
         AuthorizationInvalidationSource,
         AuthenticatedIdentityBoundary,
         GovernedConnectionActionSource,
+        OperationalConflictResolutionSource,
         UserConnectAuthorizationSource {
   RemotePandoraRepository({
     required PandoraApiClient client,
@@ -179,6 +180,91 @@ class RemotePandoraRepository
       final json = _requiredMap(response, '/connections/:id/actions/:action');
       return IntakeReceipt.fromJson(json, requestId: response.requestId);
     }, mutationOutcomeMayBeUnknown: true);
+  }
+
+  @override
+  Future<OperationalConflictResolutionResult> resolveOperationalConflict({
+    required String projectId,
+    required String conflictId,
+    required String resolution,
+    required String rationale,
+  }) async {
+    final project = _requiredIdentifier(projectId, 'projectId');
+    final conflict = _requiredIdentifier(conflictId, 'conflictId');
+    final normalizedResolution = resolution.trim().toLowerCase();
+    const allowedResolutions = <String>{
+      'keep_canonical',
+      'use_provider_truth',
+      'remap',
+      'ignore',
+    };
+    if (!allowedResolutions.contains(normalizedResolution)) {
+      throw const PandoraApiError(
+        kind: PandoraApiErrorKind.invalidRequest,
+        message: 'Choose a valid conflict resolution.',
+        code: 'INVALID_OPERATIONAL_RESOLUTION',
+      );
+    }
+    final reason = _boundedText(
+      rationale,
+      name: 'resolution rationale',
+      maximum: 2000,
+      allowEmpty: false,
+    );
+    if (reason.length < 3) {
+      throw const PandoraApiError(
+        kind: PandoraApiErrorKind.invalidRequest,
+        message: 'Explain the reason for this resolution.',
+        code: 'INVALID_OPERATIONAL_RESOLUTION',
+      );
+    }
+
+    final response = await _postJson(
+      pathSegments: <String>[
+        'projects',
+        project,
+        'conflicts',
+        conflict,
+        'resolve',
+      ],
+      operation: 'operational-conflict.resolve',
+      routeTemplate: '/projects/:id/conflicts/:conflictId/resolve',
+      body: <String, Object?>{
+        'resolution': normalizedResolution,
+        'rationale': reason,
+        'clientMode': 'simple',
+      },
+    );
+    return _parse(
+      response,
+      '/projects/:id/conflicts/:conflictId/resolve',
+      () {
+        final json = _requiredMap(
+          response,
+          '/projects/:id/conflicts/:conflictId/resolve',
+        );
+        if (json['conflictId'] != conflict ||
+            json['resolution'] != normalizedResolution ||
+            json['externalMutationExecuted'] != false) {
+          throw _contractError(
+            response,
+            'OPERATIONAL_RESOLUTION_RESPONSE_INVALID',
+            'Pandora could not safely confirm that conflict decision.',
+          );
+        }
+        final decision = asJsonMap(json['decision']);
+        return OperationalConflictResolutionResult(
+          conflictId: conflict,
+          resolution: normalizedResolution,
+          externalMutationExecuted: false,
+          executionMode: jsonText(json['executionMode'], fallback: 'plan_first'),
+          decisionId: jsonText(decision['id']).isEmpty
+              ? null
+              : jsonText(decision['id']),
+        );
+      },
+      mutationOutcomeMayBeUnknown: true,
+    );
   }
 
   @override
