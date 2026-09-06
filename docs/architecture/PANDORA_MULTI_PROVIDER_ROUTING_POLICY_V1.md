@@ -25,7 +25,7 @@ No hard constraint is bypassed by preference, traffic weight, exploration, histo
 
 Cross-provider fallback is allowed for explicitly normalized provider-side failures marked cross-provider eligible: `provider_unavailable`, `timeout`, `rate_limited`, `quota_exhausted`, `unsupported_capability`, `invalid_output`, and sanitized `provider_error`. Quota exhaustion is intentionally cross-provider eligible even when same-provider retry is not. Authentication/authorization, invalid client requests, secret/configuration failures, Pandora policy denials, and other unclassified failures remain fail-closed and cannot silently move to another provider.
 
-The router carries provider/model attempt history and obeys the request attempt budget. Already-attempted provider/model pairs are excluded so Gemini↔Kimi loops cannot recur. The first alternate provider is placed ahead of lower-priority same-provider model downgrades, so a provider outage or exhausted credit pool fails over promptly. Same-provider HTTP retry/backoff remains transport-owned.
+The router carries provider/model attempt history and obeys the request attempt budget. Already-attempted provider/model pairs are excluded so Gemini/Kimi/OpenAI loops cannot recur. The router prioritizes cross-provider diversity before lower-priority same-provider model downgrades, so a provider outage or exhausted credit pool fails over promptly. Same-provider HTTP retry/backoff remains transport-owned.
 
 ## Session continuity and recovery
 
@@ -55,4 +55,4 @@ Persistence of model-run telemetry remains Chat D-owned.
 
 ## Production state
 
-The September 6 failover convergence enables Kimi as an eligible fallback provider while leaving preference weights, global exploration, and adaptive routing controls unchanged. Gemini remains the default when no task-specific preference is configured; Kimi is automatically attempted when the active provider fails with an eligible provider-side condition, and the same mechanism supports Kimi→Gemini recovery.
+The September 6 v3 convergence enables Kimi and OpenAI as eligible fallback providers while leaving preference weights, global exploration, and adaptive routing controls unchanged. Gemini remains the default when no task-specific preference is configured. The live fallback order prioritizes Gemini, then Kimi, then OpenAI GPT-5.6 Terra, followed by remaining eligible same-provider model downgrades. Sticky threads can recover across all three providers when the active provider fails with an eligible provider-side condition. OpenAI credentials remain Vault-only behind a fixed-host service-role transport.
