@@ -2,6 +2,8 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const workspaceModule = import("../supabase/functions/pandora-owner-api/operational-workspace.mjs");
 
@@ -163,4 +165,30 @@ test("object 360 derives provider, runtime, domain, and staged conflicts", async
   assert.ok(conflicts.some((item) => item.kind === "runtime_binding_mismatch"));
   assert.ok(conflicts.some((item) => item.kind === "domain_not_verified"));
   assert.ok(conflicts.some((item) => item.source === "staged_import"));
+});
+
+
+test("owner API and mobile project detail are wired to the operational workspace", () => {
+  const root = path.resolve(__dirname, "..");
+  const ownerApi = fs.readFileSync(
+    path.join(root, "supabase/functions/pandora-owner-api/index.ts"),
+    "utf8",
+  );
+  const models = fs.readFileSync(
+    path.join(root, "apps/pandora-mobile/lib/core/models/pandora_models.dart"),
+    "utf8",
+  );
+  const projectDetail = fs.readFileSync(
+    path.join(root, "apps/pandora-mobile/lib/features/projects/project_detail_screen.dart"),
+    "utf8",
+  );
+
+  assert.match(ownerApi, /loadOperationalWorkspace/);
+  assert.match(ownerApi, /\/projects\\\/\[\^\/\]\+\\\/imports\\\/preview/);
+  assert.match(ownerApi, /resolveOperationalConflict/);
+  assert.match(ownerApi, /operationalAttentionCount/);
+  assert.match(models, /class OperationalWorkspace/);
+  assert.match(models, /operations: OperationalWorkspace\.fromJson/);
+  assert.match(projectDetail, /title: 'System map'/);
+  assert.match(projectDetail, /Pandora will not guess when provider truth/);
 });
