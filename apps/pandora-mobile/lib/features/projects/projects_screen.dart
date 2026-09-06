@@ -330,8 +330,9 @@ int _compareProjectAttention(ProjectSummary left, ProjectSummary right) {
         OwnerProjectState.blocked => 1,
         OwnerProjectState.executing => 2,
         OwnerProjectState.monitoring => 3,
-        OwnerProjectState.idle => 4,
-        OwnerProjectState.archived => 5,
+        OwnerProjectState.unverified => 4,
+        OwnerProjectState.idle => 5,
+        OwnerProjectState.archived => 6,
       };
   final difference = score(left).compareTo(score(right));
   if (difference != 0) return difference;
