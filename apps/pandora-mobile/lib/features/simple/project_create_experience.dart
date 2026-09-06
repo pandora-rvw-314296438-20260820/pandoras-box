@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/analytics/owner_analytics.dart';
 import '../../core/data/pandora_repository.dart';
+import '../../core/data/project_creation_attempt_store.dart';
 import '../../core/data/project_experience_api.dart';
 import '../../core/models/project_journey_models.dart';
 import '../../core/network/idempotency_key.dart';
@@ -28,6 +29,8 @@ class _CreateProjectExperienceScreenState
     extends State<CreateProjectExperienceScreen> {
   late final TextEditingController _intent;
   final _keys = IdempotencyKeyFactory();
+  final ProjectCreationAttemptStore _creationAttempts =
+      const SharedPreferencesProjectCreationAttemptStore();
   bool _submitting = false;
   String? _error;
   String? _createIntent;
@@ -62,11 +65,18 @@ class _CreateProjectExperienceScreenState
       setState(() => _error = 'Pandora cannot start a new project right now.');
       return;
     }
+    final persistedKey = await _creationAttempts.idempotencyKeyFor(intent);
+    if (!mounted) return;
     final createKey = _createIntent == intent && _createIdempotencyKey != null
         ? _createIdempotencyKey!
-        : _keys.create('pandora-v2-project-create');
+        : persistedKey ?? _keys.create('pandora-v2-project-create');
     _createIntent = intent;
     _createIdempotencyKey = createKey;
+    await _creationAttempts.save(
+      intent: intent,
+      idempotencyKey: createKey,
+    );
+    if (!mounted) return;
     setState(() {
       _submitting = true;
       _error = null;
@@ -90,6 +100,10 @@ class _CreateProjectExperienceScreenState
           projectKey: project.projectKey,
           projectId: project.id,
         ),
+      );
+      await _creationAttempts.clear(
+        intent: intent,
+        idempotencyKey: createKey,
       );
       _createIntent = null;
       _createIdempotencyKey = null;
