@@ -336,10 +336,15 @@ class _DetailContent extends StatelessWidget {
         const SizedBox(height: PandoraSpacing.md),
         PandoraSurface(
           title: 'Evidence',
-          subtitle:
-              '${detail.evidence.length} recorded evidence item${detail.evidence.length == 1 ? '' : 's'}',
+          subtitle: isFresh
+              ? '${detail.evidence.length} active evidence item${detail.evidence.length == 1 ? '' : 's'}'
+              : '${detail.evidence.length} recorded evidence item${detail.evidence.length == 1 ? '' : 's'}',
           child: detail.evidence.isEmpty
-              ? const Text('No evidence history was returned.')
+              ? Text(
+                  isFresh
+                      ? 'No active evidence was returned.'
+                      : 'No evidence history was returned.',
+                )
               : Column(
                   children: [
                     for (var index = 0;
