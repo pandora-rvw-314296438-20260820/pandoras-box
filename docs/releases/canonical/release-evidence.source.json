@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "kind": "canonical_release_evidence_requirements",
-  "repository": "banataosystems/Pandoras-box",
+  "repository": "pandora-rvw-314296438-20260820/pandoras-box",
   "releaseDecision": "not_ready",
   "sourceAuthority": {
     "authority": "SOURCE_CONTROLLED",
@@ -21,7 +21,7 @@
   "vercel": {
     "provider": "vercel",
     "projectId": "prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk",
-    "productionAlias": "https://mcpmaster.vercel.app",
+    "productionAlias": "https://pandoras-box-system.vercel.app",
     "productionDeployment": {
       "authority": "VERCEL_PROVIDER",
       "requiredCount": 1,
