@@ -280,7 +280,7 @@ export function validateSourceContract(contract) {
   );
   assert(contract.vercel.provider === "vercel", "Vercel provider is invalid");
   assert(contract.vercel.projectId === "prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk", "Vercel project is invalid");
-  assert(contract.vercel.productionAlias === "https://pandoras-box-system.vercel.app", "production alias is invalid");
+  assert(contract.vercel.productionAlias === "https://mcpmaster.vercel.app", "production alias is invalid");
 
   assertExactKeys(
     contract.vercel.productionDeployment,
