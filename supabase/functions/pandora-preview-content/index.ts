@@ -25,10 +25,10 @@ function exactHttpsUrl(value: unknown) { const raw=text(value); let parsed:URL; 
 function htmlEscape(value:string){return value.replaceAll("&","&amp;").replaceAll('"',"&quot;").replaceAll("<","&lt;").replaceAll(">","&gt;");}
 function base64Bytes(bytes:Uint8Array){let binary="";for(const b of bytes) binary+=String.fromCharCode(b);return btoa(binary);}
 function injectHostedBase(html:string,hostedUrl:string){
-  const stripped=html.replace(/<base\\b[^>]*>/gi,"");
+  const stripped=html.replace(/<base\b[^>]*>/gi,"");
   const base='<base href="'+htmlEscape(hostedUrl)+'">';
-  if(/<head\\b[^>]*>/i.test(stripped)) return stripped.replace(/<head\\b[^>]*>/i,(match)=>match+base);
-  if(/<html\\b[^>]*>/i.test(stripped)) return stripped.replace(/<html\\b[^>]*>/i,(match)=>match+'<head>'+base+'</head>');
+  if(/<head\b[^>]*>/i.test(stripped)) return stripped.replace(/<head\b[^>]*>/i,(match)=>match+base);
+  if(/<html\b[^>]*>/i.test(stripped)) return stripped.replace(/<html\b[^>]*>/i,(match)=>match+'<head>'+base+'</head>');
   return '<!doctype html><html><head>'+base+'</head><body>'+stripped+'</body></html>';
 }
 
