@@ -257,7 +257,8 @@ class RemotePandoraRepository
           conflictId: conflict,
           resolution: normalizedResolution,
           externalMutationExecuted: false,
-          executionMode: jsonText(json['executionMode'], fallback: 'plan_first'),
+          executionMode:
+              jsonText(json['executionMode'], fallback: 'plan_first'),
           decisionId: jsonText(decision['id']).isEmpty
               ? null
               : jsonText(decision['id']),
