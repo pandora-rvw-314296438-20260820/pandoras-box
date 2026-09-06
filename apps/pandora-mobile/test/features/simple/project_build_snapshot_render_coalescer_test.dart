@@ -86,4 +86,27 @@ void main() {
     expect(output, hasLength(1));
     expect(output.single.latestSequence, 8);
   });
+  test('supports concurrent listeners without re-listening to the source', () async {
+    var sourceListenCount = 0;
+    final source = Stream<ProjectBuildStreamSnapshot>.multi(
+      (controller) {
+        sourceListenCount += 1;
+        controller.add(snapshot(11));
+        controller.close();
+      },
+    );
+
+    final shared = coalesceProjectBuildSnapshotsForRendering(
+      source,
+      cadence: const Duration(milliseconds: 1),
+    );
+    final first = shared.toList();
+    final second = shared.toList();
+
+    final results = await Future.wait([first, second]);
+    expect(sourceListenCount, 1);
+    expect(results[0].single.latestSequence, 11);
+    expect(results[1].single.latestSequence, 11);
+  });
+
 }
