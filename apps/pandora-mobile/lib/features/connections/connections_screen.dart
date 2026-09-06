@@ -44,7 +44,9 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
   Future<void> _testConnection(ConnectionSummary connection) async {
     final repository = PandoraDependencies.of(context).repository;
     final GovernedConnectionActionSource? connectionActions =
-        repository is GovernedConnectionActionSource ? repository : null;
+        repository is GovernedConnectionActionSource
+            ? repository as GovernedConnectionActionSource
+            : null;
     if (connectionActions == null) {
       await _controller?.refresh();
       return;
