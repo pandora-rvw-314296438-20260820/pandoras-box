@@ -738,6 +738,139 @@ async function connections(
   );
 }
 
+function base64UrlBytes(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function base64UrlText(value: string) {
+  return base64UrlBytes(new TextEncoder().encode(value));
+}
+
+function concatBytes(...parts: Uint8Array[]) {
+  const output = new Uint8Array(
+    parts.reduce((total, part) => total + part.length, 0),
+  );
+  let offset = 0;
+  for (const part of parts) {
+    output.set(part, offset);
+    offset += part.length;
+  }
+  return output;
+}
+
+function derLength(length: number) {
+  if (length < 0x80) return new Uint8Array([length]);
+  const bytes: number[] = [];
+  let remaining = length;
+  while (remaining > 0) {
+    bytes.unshift(remaining & 0xff);
+    remaining >>>= 8;
+  }
+  return new Uint8Array([0x80 | bytes.length, ...bytes]);
+}
+
+function derWrap(tag: number, body: Uint8Array) {
+  return concatBytes(new Uint8Array([tag]), derLength(body.length), body);
+}
+
+function pemDer(privateKeyPem: string) {
+  const base64 = privateKeyPem
+    .replace(/-----BEGIN [^-]+-----/g, "")
+    .replace(/-----END [^-]+-----/g, "")
+    .replace(/\s+/g, "");
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function pkcs1ToPkcs8(pkcs1: Uint8Array) {
+  const version = new Uint8Array([0x02, 0x01, 0x00]);
+  const rsaAlgorithmIdentifier = new Uint8Array([
+    0x30, 0x0d,
+    0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01,
+    0x05, 0x00,
+  ]);
+  const privateKey = derWrap(0x04, pkcs1);
+  return derWrap(
+    0x30,
+    concatBytes(version, rsaAlgorithmIdentifier, privateKey),
+  );
+}
+
+async function githubAppJwt(appId: number, privateKeyPem: string) {
+  const decoded = pemDer(privateKeyPem);
+  const keyData = privateKeyPem.includes("BEGIN RSA PRIVATE KEY")
+    ? pkcs1ToPkcs8(decoded)
+    : decoded;
+  const privateKey = await crypto.subtle.importKey(
+    "pkcs8",
+    keyData,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64UrlText(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const payload = base64UrlText(JSON.stringify({
+    iat: now - 30,
+    exp: now + 540,
+    iss: appId,
+  }));
+  const signingInput = `${header}.${payload}`;
+  const signature = new Uint8Array(await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    privateKey,
+    new TextEncoder().encode(signingInput),
+  ));
+  return `${signingInput}.${base64UrlBytes(signature)}`;
+}
+
+async function githubInstallationToken(admin: UntypedSupabaseClient) {
+  const { data, error } = await admin.rpc(
+    "pandora_get_github_app_runtime_material",
+  );
+  if (error) throw new Error("CONNECTION_TEST_FAILED");
+  const material = asRecord(data);
+  const appId = Number(material.appId);
+  const installationId = Number(material.installationId);
+  const privateKeyPem = textValue(material.privateKeyPem);
+  if (
+    !Number.isInteger(appId) || appId !== 4785021 ||
+    !Number.isInteger(installationId) || installationId !== 158056492 ||
+    !privateKeyPem.includes("PRIVATE KEY")
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  const appJwt = await githubAppJwt(appId, privateKeyPem);
+  const response = await fetch(
+    `https://api.github.com/app/installations/${installationId}/access_tokens`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${appJwt}`,
+        "content-type": "application/json",
+        "user-agent": "Pandora-GitHub-App/1.0",
+        "x-github-api-version": "2022-11-28",
+      },
+      body: "{}",
+      redirect: "error",
+    },
+  );
+  const payload = asRecord(await response.json().catch(() => ({})));
+  const token = textValue(payload.token);
+  if (response.status !== 201 || !token) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+  return token;
+}
+
 async function verifyGithubConnection(
   context: UserContext,
   connectionId: string,
@@ -745,20 +878,24 @@ async function verifyGithubConnection(
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data, error } = await admin.rpc("probe_github_connector", {
-    p_organization_id: context.organizationId,
-    p_installation_id: connectionId,
-  });
-  if (error) throw new Error("CONNECTION_TEST_FAILED");
-
-  const probe = asRecord(data);
-  const repositories = Array.isArray(probe.repositories)
-    ? probe.repositories.map(asRecord)
-    : [];
-  const canonicalVisible = repositories.some((repository) =>
-    textValue(repository.fullName) === CANONICAL_REPOSITORY
+  const token = await githubInstallationToken(admin);
+  const response = await fetch(
+    `https://api.github.com/repos/${CANONICAL_REPOSITORY}`,
+    {
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${token}`,
+        "user-agent": "Pandora-GitHub-App/1.0",
+        "x-github-api-version": "2022-11-28",
+      },
+      redirect: "error",
+    },
   );
-  if (probe.ok !== true || !canonicalVisible) {
+  const repository = asRecord(await response.json().catch(() => ({})));
+  if (
+    response.status !== 200 ||
+    textValue(repository.full_name) !== CANONICAL_REPOSITORY
+  ) {
     throw new Error("CONNECTION_TEST_FAILED");
   }
 
