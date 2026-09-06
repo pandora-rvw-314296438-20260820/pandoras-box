@@ -10,6 +10,7 @@ const SHA256_RE = /^[0-9a-f]{64}$/;
 const MAX_BUNDLE_BYTES = 25 * 1024 * 1024;
 const MAX_MOBILE_BYTES = 12 * 1024 * 1024;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_HOSTED_HTML_BYTES = 2 * 1024 * 1024;
 
 type JsonRecord = Record<string, unknown>;
 function asRecord(value: unknown): JsonRecord { return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : {}; }
@@ -23,6 +24,13 @@ function json(body:unknown,status=200,requestId?:string){return new Response(JSO
 function exactHttpsUrl(value: unknown) { const raw=text(value); let parsed:URL; try{parsed=new URL(raw);}catch{throw new Error("HOSTED_PREVIEW_URL_INVALID");} if(parsed.protocol!=="https:"||!parsed.hostname||parsed.username||parsed.password) throw new Error("HOSTED_PREVIEW_URL_INVALID"); return parsed.toString(); }
 function htmlEscape(value:string){return value.replaceAll("&","&amp;").replaceAll('"',"&quot;").replaceAll("<","&lt;").replaceAll(">","&gt;");}
 function base64Bytes(bytes:Uint8Array){let binary="";for(const b of bytes) binary+=String.fromCharCode(b);return btoa(binary);}
+function injectHostedBase(html:string,hostedUrl:string){
+  const stripped=html.replace(/<base\\b[^>]*>/gi,"");
+  const base='<base href="'+htmlEscape(hostedUrl)+'">';
+  if(/<head\\b[^>]*>/i.test(stripped)) return stripped.replace(/<head\\b[^>]*>/i,(match)=>match+base);
+  if(/<html\\b[^>]*>/i.test(stripped)) return stripped.replace(/<html\\b[^>]*>/i,(match)=>match+'<head>'+base+'</head>');
+  return '<!doctype html><html><head>'+base+'</head><body>'+stripped+'</body></html>';
+}
 
 async function recordAudit(admin:ReturnType<typeof serviceClient>, args:JsonRecord, required:boolean){
   const {error}=await admin.rpc("pandora_record_source_access_audit_service_v1",args);
@@ -66,8 +74,20 @@ Deno.serve(async(req:Request)=>{
       if(deploymentError||!deployment) throw new Error("HOSTED_PREVIEW_NOT_READY");
       if(text(deployment.source_sha256).toLowerCase()!==sourceSha||text(deployment.artifact_digest).toLowerCase()!==artifactDigest) throw new Error("HOSTED_PREVIEW_IDENTITY_MISMATCH");
       const hostedUrl=exactHttpsUrl(text(deployment.immutable_url)||text(deployment.url));
-      const wrapper=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src https:; style-src 'unsafe-inline'"><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;background:#fff;overflow:hidden}</style></head><body><iframe title="Pandora exact hosted preview" src="${htmlEscape(hostedUrl)}" sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"></iframe></body></html>`;
-      const wrapperBytes=new TextEncoder().encode(wrapper),wrapperDigest=await sha256Hex(wrapperBytes);
+      const hostedResponse=await fetch(hostedUrl,{method:"GET",redirect:"follow",headers:{"accept":"text/html,application/xhtml+xml"}});
+      if(!hostedResponse.ok) throw new Error("HOSTED_PREVIEW_FETCH_FAILED");
+      const hostedContentType=(hostedResponse.headers.get("content-type")||"").toLowerCase();
+      if(!hostedContentType.includes("text/html")&&!hostedContentType.includes("application/xhtml+xml")) throw new Error("HOSTED_PREVIEW_CONTENT_TYPE_INVALID");
+      const finalHostedUrl=exactHttpsUrl(hostedResponse.url||hostedUrl);
+      if(new URL(finalHostedUrl).hostname!==new URL(hostedUrl).hostname) throw new Error("HOSTED_PREVIEW_REDIRECT_INVALID");
+      const hostedBytes=new Uint8Array(await hostedResponse.arrayBuffer());
+      if(hostedBytes.byteLength<1||hostedBytes.byteLength>MAX_HOSTED_HTML_BYTES) throw new Error("HOSTED_PREVIEW_HTML_SIZE_INVALID");
+      let hostedHtml:string;
+      try{hostedHtml=new TextDecoder("utf-8",{fatal:true}).decode(hostedBytes);}catch{throw new Error("HOSTED_PREVIEW_HTML_INVALID");}
+      const materializedHtml=injectHostedBase(hostedHtml,finalHostedUrl);
+      const wrapperBytes=new TextEncoder().encode(materializedHtml);
+      if(wrapperBytes.byteLength>MAX_HOSTED_HTML_BYTES) throw new Error("HOSTED_PREVIEW_HTML_SIZE_INVALID");
+      const wrapperDigest=await sha256Hex(wrapperBytes);
       await recordAudit(admin,{p_organization_id:organizationId,p_project_id:projectId,p_user_id:authData.user.id,p_entitlement_id:null,p_capability:"read",p_action:"preview.source_withheld",p_resource_ref:versionId,p_allowed:false,p_reason:decisionReason,p_request_id:requestId,p_metadata:{deploymentId:deployment.id,hostedPreview:true,sourceSha256:sourceSha,artifactDigest}},false);
       return json({kind:"pandora.mobile-preview-bundle.v1",projectId,versionId,artifactDigest,totalBytes:wrapperBytes.byteLength,sourceIncluded:false,sourceEntitled:false,hostedPreview:{deploymentId:deployment.id,url:hostedUrl,sourceSha256:sourceSha,artifactDigest},files:[{file:"index.html",mimeType:"text/html",dataBase64:base64Bytes(wrapperBytes),byteSize:wrapperBytes.byteLength,sha256:wrapperDigest}]},200,requestId);
     }
