@@ -81,7 +81,9 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
       if (!launched) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Pandora could not open the secure authorization page.'),
+            content: Text(
+              'Pandora could not open the secure authorization page.',
+            ),
           ),
         );
         return;
