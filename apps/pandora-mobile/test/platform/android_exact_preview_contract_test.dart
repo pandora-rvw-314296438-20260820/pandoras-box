@@ -44,8 +44,11 @@ void main() {
       contains('webView.loadUrl("https://pandora.local/index.html")'),
     );
     expect(
-      kotlin,
-      contains('uri.scheme != "https" || uri.host != "pandora.local"'),
+      RegExp(
+        r'return uri\.scheme != "https" \|\| uri\.host != "pandora\.local"',
+      ).allMatches(kotlin).length,
+      greaterThanOrEqualTo(2),
+      reason: 'Both exact-preview WebViews must block foreign HTTPS navigation',
     );
   });
 
@@ -64,3 +67,7 @@ void main() {
     expect(kotlin, contains('if (!files.containsKey("index.html"))'));
   });
 }
+
+
+// Navigation trust boundary regression: both Android exact-preview WebViews must
+// reject foreign HTTPS origins and remain bound to pandora.local.
