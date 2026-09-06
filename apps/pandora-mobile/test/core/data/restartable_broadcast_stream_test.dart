@@ -57,7 +57,9 @@ void main() {
       await tester.pumpWidget(host(mounted: false));
       await tester.pump();
       for (final source in sources) {
-        await source.close();
+        // A canceled single-subscription controller may not deliver a later
+        // done event, so its close Future is not test completion authority.
+        unawaited(source.close());
       }
     },
   );
