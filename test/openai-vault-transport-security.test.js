@@ -5,6 +5,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..');
 const migration=fs.readFileSync(path.join(root,'supabase/migrations/20260906154900_openai_provider_failover_v3.sql'),'utf8');
+const creditFix=fs.readFileSync(path.join(root,'supabase/migrations/20260906161000_openai_credit_balance_exhausted_classification_v4.sql'),'utf8');
 
 test('OpenAI transport is fixed-host Vault-backed and service-role only',()=>{
   assert.match(migration,/where name='openai_key'/);
@@ -32,4 +33,12 @@ test('OpenAI provider is enabled only through server-owned runtime config',()=>{
   assert.match(migration,/\('openai','fallback_enabled','true',true,now\(\)\)/);
   assert.match(migration,/\('openai','default_model','gpt-5\.6-terra',true,now\(\)\)/);
   assert.match(migration,/provider-auto-failover-v3/);
+});
+
+
+test('OpenAI credit balance exhaustion skips same-provider retry',()=>{
+  assert.match(creditFix,/credit_balance_exhausted/);
+  assert.match(creditFix,/quota_exhausted/);
+  assert.match(creditFix,/v_retryable := false/);
+  assert.match(creditFix,/grant execute on function private\.pandora_openai_error_class_v1\(integer,text\)[\s\S]*to service_role/);
 });
