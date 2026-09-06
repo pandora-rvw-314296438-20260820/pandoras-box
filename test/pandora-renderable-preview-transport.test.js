@@ -147,7 +147,7 @@ test('static preview acceptance verifies observable identity and interaction wir
   assert.match(staticAcceptanceMigration, /regexp_matches\(v_body,'href=/);
   assert.match(staticAcceptanceMigration, /regexp_matches\(v_body,'onclick=/);
   assert.match(staticAcceptanceMigration, /static_site_acceptance_v3/);
-  assert.match(staticAcceptanceMigration, /jsonb_array_length\(p_acceptance_scope->'functional'\)>0/);
+  assert.match(staticAcceptanceMigration, /jsonb_array_length\(p_acceptance_scope->'functional'\)=0/);
   assert.doesNotMatch(
     staticAcceptanceMigration,
     /position\(lower\(left\(v_spec\.business_summary,80\)\) in lower\(v_runtime_body\)\)/,
