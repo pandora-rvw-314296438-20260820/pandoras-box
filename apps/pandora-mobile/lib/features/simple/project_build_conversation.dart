@@ -209,8 +209,7 @@ class _ProjectBuildConversationScreenState
 
   void _maybeAutoOpenResult(ProjectExperienceProjection projection) {
     if (_autoOpenedResult || !mounted) return;
-    final resultReady =
-        projection.state == ProjectExperienceState.review &&
+    final resultReady = projection.state == ProjectExperienceState.review &&
         (projection.currentVersionId != null ||
             projection.candidateVersionId != null);
     if (!resultReady) return;
