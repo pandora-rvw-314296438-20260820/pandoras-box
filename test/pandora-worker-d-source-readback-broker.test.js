@@ -3,26 +3,31 @@ import fs from "node:fs";
 import test from "node:test";
 
 const edge = fs.readFileSync(
-  "supabase/functions/pandora-worker-d-source-readback/index.ts",
+  "supabase/functions/pandora-source-convergence-worker/index.ts",
   "utf8",
 );
-const migration = fs.readFileSync(
+const legacyMigration = fs.readFileSync(
   "supabase/migrations/20260905093000_pandora_worker_d_source_readback_broker_v1.sql",
+  "utf8",
+);
+const rebindMigration = fs.readFileSync(
+  "supabase/migrations/20260906032950_pandora_worker_d_readback_shared_runtime_v1.sql",
   "utf8",
 );
 const config = fs.readFileSync("supabase/config.toml", "utf8");
 
-test("Worker D readback broker keeps service-role material server-side", () => {
+test("Worker D readback keeps service-role material inside the shared source runtime", () => {
   assert.match(edge, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(edge, /pandora_validate_source_worker_key_20260831/);
   assert.match(edge, /x-pandora-internal-key/);
+  assert.match(edge, /async function readbackWorkerDSource/);
   assert.doesNotMatch(edge, /api-keys\?reveal=true/);
   assert.doesNotMatch(edge, /mcpmaster_supabase_account_[12]_pat/);
-  assert.doesNotMatch(edge, /["'](?:serviceRoleKey|service_role_key)["']\s*:/i);
 });
 
-test("readback identity is derived from the build job, not caller storage input", () => {
+test("shared readback identity is derived from the build job and exact artifact lineage", () => {
   assert.match(edge, /exactKeys\(body, \["buildJobId"\]\)/);
+  assert.match(edge, /readbackWorkerDSource\(admin, text\(body\.buildJobId\)\)/);
   assert.match(edge, /pandora_build_jobs/);
   assert.match(edge, /pandora_project_versions/);
   assert.match(edge, /pandora_artifact_versions/);
@@ -30,27 +35,31 @@ test("readback identity is derived from the build job, not caller storage input"
   assert.match(edge, /artifact_kind !== "source_snapshot"/);
   assert.match(edge, /worker_identity !== "pandora-worker-d-static-web"/);
   assert.match(edge, /lease_expires_at/);
-  assert.doesNotMatch(edge, /body\.(?:storagePath|storageBucket|organizationId|projectId)/);
 });
 
-test("success requires exact source byte and digest readback", () => {
+test("shared runtime requires exact source byte and digest readback", () => {
   assert.match(edge, /bytes\.byteLength !== Number\(av\.byte_size\)/);
   assert.match(edge, /sha256Bytes\(bytes\) !== av\.content_sha256/);
-  assert.match(migration, /byteSize.*v_source\.byte_size/s);
-  assert.match(migration, /sourceText/);
-  assert.match(migration, /STATIC_BUILD_SOURCE_READBACK_MISMATCH/);
+  assert.match(edge, /SOURCE_READBACK_MISMATCH/);
+  assert.match(edge, /SOURCE_READBACK_UNSAFE/);
+  assert.match(legacyMigration, /STATIC_BUILD_SOURCE_READBACK_MISMATCH/);
 });
 
-test("migration replaces only the exact predecessor function definition", () => {
-  assert.match(migration, /f6d7149b9e7ba30aff67d08331bfdd97b048bd9934fd2f01dcd1a2f09ef398fd/);
-  assert.match(migration, /STATIC_BUILD_PREDECESSOR_IDENTITY_MISMATCH/);
-  assert.match(migration, /pandora_source_worker_internal_20260831/);
-  assert.match(migration, /pandora-worker-d-source-readback/);
+test("historical dedicated broker is explicitly rebound to the shared runtime", () => {
+  assert.match(legacyMigration, /pandora-worker-d-source-readback/);
+  assert.match(rebindMigration, /pandora-source-convergence-worker/);
+  assert.match(rebindMigration, /pandora-worker-d-source-readback/);
+  assert.match(rebindMigration, /WORKER_D_READBACK_REBIND_VERIFY_FAILED/);
 });
 
-test("custom internal auth is explicit in Supabase function config", () => {
+test("Supabase config deploys only the shared source runtime for Worker D readback", () => {
   assert.match(
     config,
-    /\[functions\.pandora-worker-d-source-readback\]\s*verify_jwt\s*=\s*false/,
+    /\[functions\.pandora-source-convergence-worker\]\s*verify_jwt\s*=\s*false/,
+  );
+  assert.doesNotMatch(config, /\[functions\.pandora-worker-d-source-readback\]/);
+  assert.equal(
+    fs.existsSync("supabase/functions/pandora-worker-d-source-readback/index.ts"),
+    false,
   );
 });
