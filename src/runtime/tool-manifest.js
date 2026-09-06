@@ -42,6 +42,7 @@ const entries = [
     manifest('supabase.list-organizations', 'supabase', 'read', false, 'account', ['organizations:read']),
     manifest('supabase.list-projects', 'supabase', 'read', false, 'organization', ['projects:read']),
     manifest('supabase.get-project', 'supabase', 'read', false, 'project', ['projects:read']),
+    manifest('supabase.query-database', 'supabase', 'write', true, 'project', ['projects:read', 'projects:write']),
     manifest('supabase.get-auth-security-config', 'supabase', 'read', false, 'project', ['auth:read']),
     manifest('supabase.enable-leaked-password-protection', 'supabase', 'write', true, 'project', ['auth:read', 'auth:write']),
     manifest('supabase.pause-project', 'supabase', 'destructive', true, 'project', ['projects:write']),
