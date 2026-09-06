@@ -226,7 +226,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906154900_openai_provider_failover_v3.sql',
     '20260906161000_openai_credit_balance_exhausted_classification_v4.sql',
     '20260906173325_align_canonical_release_current_identity.sql',
-    '20260906180000_align_canonical_release_production_origin.sql'
+    '20260906180221_align_canonical_release_production_origin.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -435,7 +435,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906154900_openai_provider_failover_v3.sql',
     '20260906161000_openai_credit_balance_exhausted_classification_v4.sql',
     '20260906173325_align_canonical_release_current_identity.sql',
-    '20260906180000_align_canonical_release_production_origin.sql'
+    '20260906180221_align_canonical_release_production_origin.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -596,7 +596,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906154900_openai_provider_failover_v3.sql',
     '20260906161000_openai_credit_balance_exhausted_classification_v4.sql',
     '20260906173325_align_canonical_release_current_identity.sql',
-    '20260906180000_align_canonical_release_production_origin.sql'
+    '20260906180221_align_canonical_release_production_origin.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
