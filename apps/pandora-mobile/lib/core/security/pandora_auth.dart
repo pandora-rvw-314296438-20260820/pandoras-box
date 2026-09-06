@@ -160,8 +160,11 @@ class SupabasePandoraAuth
   }) async {
     final normalizedFactorId = factorId.trim();
     final normalizedCode = code.trim();
-    if (normalizedFactorId.isEmpty || !RegExp(r'^[0-9]{6,8}
-).hasMatch(normalizedCode)) {
+    final validCodeLength =
+        normalizedCode.length >= 6 && normalizedCode.length <= 8;
+    final numericCodeOnly = RegExp(r'^[0-9]+').matchAsPrefix(normalizedCode)?.group(0) ==
+        normalizedCode;
+    if (normalizedFactorId.isEmpty || !validCodeLength || !numericCodeOnly) {
       throw const PandoraAuthFailure(
         'Enter the current code from your authenticator app.',
       );
