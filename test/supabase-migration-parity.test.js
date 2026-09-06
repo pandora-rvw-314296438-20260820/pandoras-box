@@ -209,7 +209,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906031143_pandora_build_execution_deadline_phase_v2.sql',
     '20260906032950_pandora_worker_d_readback_shared_runtime_v1.sql',
     '20260906034034_pandora_build_theatre_preexecution_truth_v1.sql',
-    '20260906034111_pandora_build_theatre_preexecution_truth_backfill_v1.sql'
+    '20260906034111_pandora_build_theatre_preexecution_truth_backfill_v1.sql',
+    '20260906050000_pandora_declared_edge_release_allowlist_v1.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -401,7 +402,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906031143_pandora_build_execution_deadline_phase_v2.sql',
     '20260906032950_pandora_worker_d_readback_shared_runtime_v1.sql',
     '20260906034034_pandora_build_theatre_preexecution_truth_v1.sql',
-    '20260906034111_pandora_build_theatre_preexecution_truth_backfill_v1.sql'
+    '20260906034111_pandora_build_theatre_preexecution_truth_backfill_v1.sql',
+    '20260906050000_pandora_declared_edge_release_allowlist_v1.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -545,7 +547,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906031143_pandora_build_execution_deadline_phase_v2.sql',
     '20260906032950_pandora_worker_d_readback_shared_runtime_v1.sql',
     '20260906034034_pandora_build_theatre_preexecution_truth_v1.sql',
-    '20260906034111_pandora_build_theatre_preexecution_truth_backfill_v1.sql'
+    '20260906034111_pandora_build_theatre_preexecution_truth_backfill_v1.sql',
+    '20260906050000_pandora_declared_edge_release_allowlist_v1.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
