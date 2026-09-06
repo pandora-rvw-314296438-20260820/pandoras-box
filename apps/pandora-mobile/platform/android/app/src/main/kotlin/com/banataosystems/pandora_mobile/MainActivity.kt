@@ -26,6 +26,36 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.Locale
 
+private fun normalizedPreviewMimeType(path: String, declared: String): String {
+    val extension = path.substringAfterLast('.', "").lowercase(Locale.ROOT)
+    return when (extension) {
+        "html", "htm" -> "text/html"
+        "css" -> "text/css"
+        "js", "mjs" -> "application/javascript"
+        "json", "map" -> "application/json"
+        "svg" -> "image/svg+xml"
+        "png" -> "image/png"
+        "jpg", "jpeg" -> "image/jpeg"
+        "gif" -> "image/gif"
+        "webp" -> "image/webp"
+        "ico" -> "image/x-icon"
+        "woff" -> "font/woff"
+        "woff2" -> "font/woff2"
+        "ttf" -> "font/ttf"
+        "otf" -> "font/otf"
+        else -> declared.ifBlank { "application/octet-stream" }
+    }
+}
+
+private fun previewTextEncoding(mimeType: String): String? =
+    if (
+        mimeType.startsWith("text/") ||
+        mimeType.contains("javascript") ||
+        mimeType.contains("json") ||
+        mimeType.contains("xml") ||
+        mimeType.contains("svg")
+    ) "UTF-8" else null
+
 class MainActivity : FlutterActivity() {
     private val channelName = "pandora/native_io"
     private val speechRequest = 3101
@@ -163,14 +193,9 @@ class MainActivity : FlutterActivity() {
                 if (resolved == null) {
                     return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream("Not found".toByteArray()))
                 }
-                val encoding = if (
-                    resolved.mimeType.startsWith("text/") ||
-                    resolved.mimeType.contains("javascript") ||
-                    resolved.mimeType.contains("json") ||
-                    resolved.mimeType.contains("xml") ||
-                    resolved.mimeType.contains("svg")
-                ) "UTF-8" else null
-                return WebResourceResponse(resolved.mimeType, encoding, ByteArrayInputStream(resolved.bytes))
+                val responseMimeType = normalizedPreviewMimeType(requested, resolved.mimeType)
+                val encoding = previewTextEncoding(responseMimeType)
+                return WebResourceResponse(responseMimeType, encoding, ByteArrayInputStream(resolved.bytes))
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -533,19 +558,10 @@ private class PandoraExactPreviewView(
                         ByteArrayInputStream("Not found".toByteArray())
                     )
                 }
-                val encoding = if (
-                    resolved.mimeType.startsWith("text/") ||
-                    resolved.mimeType.contains("javascript") ||
-                    resolved.mimeType.contains("json") ||
-                    resolved.mimeType.contains("xml") ||
-                    resolved.mimeType.contains("svg")
-                ) {
-                    "UTF-8"
-                } else {
-                    null
-                }
+                val responseMimeType = normalizedPreviewMimeType(requested, resolved.mimeType)
+                val encoding = previewTextEncoding(responseMimeType)
                 return WebResourceResponse(
-                    resolved.mimeType,
+                    responseMimeType,
                     encoding,
                     ByteArrayInputStream(resolved.bytes)
                 )
