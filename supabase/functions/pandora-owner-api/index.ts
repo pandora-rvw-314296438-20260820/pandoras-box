@@ -738,6 +738,39 @@ async function connections(
   );
 }
 
+async function verifyGithubConnection(
+  context: UserContext,
+  connectionId: string,
+) {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await admin.rpc("probe_github_connector", {
+    p_organization_id: context.organizationId,
+    p_installation_id: connectionId,
+  });
+  if (error) throw new Error("CONNECTION_TEST_FAILED");
+
+  const probe = asRecord(data);
+  const repositories = Array.isArray(probe.repositories)
+    ? probe.repositories.map(asRecord)
+    : [];
+  const canonicalVisible = repositories.some((repository) =>
+    textValue(repository.fullName) === CANONICAL_REPOSITORY
+  );
+  if (probe.ok !== true || !canonicalVisible) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  const checkedAt = new Date().toISOString();
+  const { error: updateError } = await admin.from("connector_installations")
+    .update({ last_health_check_at: checkedAt })
+    .eq("organization_id", context.organizationId)
+    .eq("id", connectionId)
+    .eq("provider", "github");
+  if (updateError) throw new Error("CONNECTION_TEST_FAILED");
+}
+
 async function connectionAction(
   context: UserContext,
   connectionId: string,
@@ -767,6 +800,9 @@ async function connectionAction(
   }
 
   const provider = textValue(asRecord(item.advanced).provider, item.name);
+  if (action === "test" && provider.toLowerCase() === "github") {
+    await verifyGithubConnection(context, connectionId);
+  }
   const requests: Record<GovernedConnectionAction, string> = {
     connect:
       `Prepare to finish connecting ${provider}. Verify the owner-approved account, requested permissions, and rollback before changing access.`,
@@ -1891,6 +1927,13 @@ Deno.serve(async (req: Request) => {
         409,
         code,
         "That connection action is not available in its current state.",
+      );
+    }
+    if (code === "CONNECTION_TEST_FAILED") {
+      return reject(
+        503,
+        code,
+        "Pandora could not verify that connection right now.",
       );
     }
     if (code === "WORKER_REVIEW_FINALIZATION_AMBIGUOUS") {
