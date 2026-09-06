@@ -18,7 +18,7 @@ test("durable source entitlement is explicit and never implied by membership",()
   assert.match(migration,/revoke all on public\.pandora_source_entitlements from public, anon, authenticated/);
 });
 
-test("preview content withholds durable source by default and uses exact hosted identity",()=>{
+test("preview content withholds durable source by default and materializes exact hosted HTML without framing",()=>{
   const decision = preview.indexOf('pandora_get_source_entitlement_v1');
   const hosted = preview.indexOf('preview.source_withheld');
   const download = preview.indexOf('.download(text(artifactVersion.storage_path))');
@@ -29,6 +29,12 @@ test("preview content withholds durable source by default and uses exact hosted 
   assert.match(preview,/source_sha256/);
   assert.match(preview,/artifact_digest/);
   assert.match(preview,/HOSTED_PREVIEW_IDENTITY_MISMATCH/);
+  assert.match(preview,/await fetch\\(hostedUrl/);
+  assert.match(preview,/injectHostedBase/);
+  assert.match(preview,/HOSTED_PREVIEW_FETCH_FAILED/);
+  assert.match(preview,/HOSTED_PREVIEW_REDIRECT_INVALID/);
+  assert.doesNotMatch(preview,/<iframe/);
+  assert.doesNotMatch(preview,/frame-src https:/);
   assert.doesNotMatch(preview,/createSignedUrl|signedURL|signedUrl/);
 });
 
