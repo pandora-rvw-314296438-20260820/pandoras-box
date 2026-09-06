@@ -200,7 +200,7 @@ class MainActivity : FlutterActivity() {
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return true
-                return uri.scheme != "https"
+                return uri.scheme != "https" || uri.host != "pandora.local"
             }
         }
         root.addView(
