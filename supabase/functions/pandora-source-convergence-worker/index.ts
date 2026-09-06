@@ -9,6 +9,8 @@ const MAX_FILES = 120;
 const MAX_FILE_BYTES = 512 * 1024;
 const MAX_SOURCE_BYTES = 4 * 1024 * 1024;
 const MAX_READBACK_SOURCE_BYTES = 25 * 1024 * 1024;
+const MAX_RUNTIME_BUNDLE_BYTES = 25 * 1024 * 1024;
+const RUNTIME_BUNDLE_MEDIA_TYPE = "application/vnd.pandora.runtime-bundle+json";
 const MAX_BASE_CONTEXT_BYTES = 120 * 1024;
 const MIN_STATIC_INDEX_BYTES = 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -744,6 +746,164 @@ async function readbackWorkerDSource(
   };
 }
 
+
+async function persistWorkerDRuntimeBundle(
+  admin: ReturnType<typeof adminClient>,
+  req: Request,
+  runtimeText: string,
+) {
+  const buildJobId = req.headers.get("x-pandora-build-job-id")?.trim() || "";
+  const buildStepId = req.headers.get("x-pandora-build-step-id")?.trim() || "";
+  const expectedSha256 = req.headers.get("x-pandora-runtime-sha256")?.trim().toLowerCase() || "";
+  const expectedByteSize = Number(req.headers.get("x-pandora-runtime-byte-size") || "-1");
+  if (
+    !UUID.test(buildJobId) || !UUID.test(buildStepId) || !SHA256.test(expectedSha256) ||
+    !Number.isSafeInteger(expectedByteSize) || expectedByteSize < 2 ||
+    expectedByteSize > MAX_RUNTIME_BUNDLE_BYTES
+  ) {
+    throw new Error("RUNTIME_PERSIST_REQUEST_INVALID");
+  }
+
+  const runtimeBytes = new TextEncoder().encode(runtimeText);
+  if (runtimeBytes.byteLength !== expectedByteSize || runtimeBytes.byteLength > MAX_RUNTIME_BUNDLE_BYTES) {
+    throw new Error("RUNTIME_PERSIST_SIZE_MISMATCH");
+  }
+  const actualSha256 = await sha256Bytes(runtimeBytes);
+  if (actualSha256 !== expectedSha256) throw new Error("RUNTIME_PERSIST_DIGEST_MISMATCH");
+
+  const jobResult = await admin.from("pandora_build_jobs")
+    .select("id,organization_id,project_id,project_spec_id,target_project_version_id,status,worker_identity,lease_owner,lease_token_sha256,lease_expires_at")
+    .eq("id", buildJobId).maybeSingle();
+  if (jobResult.error || !jobResult.data) throw new Error("BUILD_JOB_NOT_FOUND");
+  const job = jobResult.data;
+  if (
+    !["claimed", "running", "waiting_verification"].includes(String(job.status)) ||
+    job.worker_identity !== "pandora-worker-d-static-web" ||
+    job.lease_owner !== "pandora-worker-d-static-web" ||
+    !SHA256.test(text(job.lease_token_sha256)) ||
+    !job.lease_expires_at || Date.parse(String(job.lease_expires_at)) <= Date.now() ||
+    !UUID.test(text(job.target_project_version_id))
+  ) {
+    throw new Error("BUILD_LEASE_INVALID");
+  }
+
+  const stepResult = await admin.from("pandora_build_job_steps")
+    .select("id,organization_id,project_id,build_job_id,step_kind,status,result_sha256")
+    .eq("id", buildStepId)
+    .eq("build_job_id", buildJobId)
+    .eq("organization_id", job.organization_id)
+    .eq("project_id", job.project_id)
+    .maybeSingle();
+  if (
+    stepResult.error || !stepResult.data || stepResult.data.step_kind !== "build" ||
+    stepResult.data.status !== "succeeded" ||
+    text(stepResult.data.result_sha256).toLowerCase() !== actualSha256
+  ) {
+    throw new Error("BUILD_STEP_INVALID");
+  }
+
+  const versionResult = await admin.from("pandora_project_versions")
+    .select("id,organization_id,project_id,project_spec_id,build_job_id,lifecycle_status,source_kind,source_ref,source_commit")
+    .eq("id", job.target_project_version_id)
+    .eq("organization_id", job.organization_id)
+    .eq("project_id", job.project_id)
+    .eq("project_spec_id", job.project_spec_id)
+    .eq("build_job_id", buildJobId)
+    .maybeSingle();
+  if (versionResult.error || !versionResult.data) throw new Error("BUILD_VERSION_INVALID");
+  const version = versionResult.data;
+  if (!["draft", "built", "verification_pending", "verified", "preview_ready"].includes(String(version.lifecycle_status))) {
+    throw new Error("BUILD_VERSION_INVALID");
+  }
+
+  let runtime: JsonRecord;
+  try {
+    runtime = rec(JSON.parse(runtimeText));
+  } catch {
+    throw new Error("RUNTIME_BUNDLE_INVALID");
+  }
+  if (
+    runtime.kind !== "pandora.runtime-bundle.v1" || runtime.schemaVersion !== 1 ||
+    text(runtime.projectVersionId) !== version.id || text(runtime.buildJobId) !== buildJobId ||
+    text(runtime.sourceKind) !== text(version.source_kind) ||
+    text(runtime.sourceRef) !== text(version.source_ref) ||
+    (runtime.sourceCommit === null ? null : text(runtime.sourceCommit)) !==
+      (version.source_commit === null ? null : text(version.source_commit)) ||
+    !Array.isArray(runtime.files) || runtime.files.length < 1 || runtime.files.length > MAX_FILES
+  ) {
+    throw new Error("RUNTIME_BUNDLE_INVALID");
+  }
+
+  let previousPath = "";
+  let totalDecoded = 0;
+  let hasIndex = false;
+  for (const value of runtime.files) {
+    const row = rec(value);
+    if (!exactKeys(row, ["file", "data", "encoding", "sha256", "byteSize"])) {
+      throw new Error("RUNTIME_FILE_INVALID");
+    }
+    const path = text(row.file);
+    const sha = text(row.sha256).toLowerCase();
+    const byteSize = Number(row.byteSize);
+    if (
+      !SAFE_PATH.test(path) || path.length > 512 || row.encoding !== "base64" ||
+      !SHA256.test(sha) || !Number.isSafeInteger(byteSize) || byteSize < 1 ||
+      (previousPath && previousPath >= path)
+    ) {
+      throw new Error("RUNTIME_FILE_INVALID");
+    }
+    previousPath = path;
+    if (path === "index.html") hasIndex = true;
+    let decoded: Uint8Array;
+    try {
+      decoded = decodeBase64(text(row.data));
+    } catch {
+      throw new Error("RUNTIME_FILE_INVALID");
+    }
+    if (decoded.byteLength !== byteSize || decoded.byteLength > 10 * 1024 * 1024) {
+      throw new Error("RUNTIME_FILE_INVALID");
+    }
+    totalDecoded += decoded.byteLength;
+    if (totalDecoded > MAX_READBACK_SOURCE_BYTES || await sha256Bytes(decoded) !== sha) {
+      throw new Error("RUNTIME_FILE_INVALID");
+    }
+  }
+  if (!hasIndex) throw new Error("RUNTIME_ENTRYPOINT_MISSING");
+
+  const storagePath = "runtime/" + version.project_id + "/" + version.id + "/" + actualSha256 + ".json";
+  const uploaded = await admin.storage.from(BUCKET).upload(
+    storagePath,
+    runtimeBytes,
+    { contentType: "application/json", upsert: false },
+  );
+  if (uploaded.error && !/already exists|duplicate/i.test(uploaded.error.message || "")) {
+    throw new Error("RUNTIME_STORAGE_UPLOAD_FAILED");
+  }
+
+  const downloaded = await admin.storage.from(BUCKET).download(storagePath);
+  if (downloaded.error || !downloaded.data) throw new Error("RUNTIME_STORAGE_READBACK_FAILED");
+  const readbackBytes = new Uint8Array(await downloaded.data.arrayBuffer());
+  if (
+    readbackBytes.byteLength !== runtimeBytes.byteLength ||
+    await sha256Bytes(readbackBytes) !== actualSha256
+  ) {
+    throw new Error("RUNTIME_STORAGE_READBACK_MISMATCH");
+  }
+
+  return {
+    ok: true,
+    state: "runtime_persisted",
+    buildJobId,
+    buildStepId,
+    projectVersionId: version.id,
+    sha256: actualSha256,
+    byteSize: runtimeBytes.byteLength,
+    storageProvider: "supabase_storage",
+    storageBucket: BUCKET,
+    storagePath,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return response({ ok: false, state: "rejected" }, 405);
@@ -760,6 +920,24 @@ Deno.serve(async (req) => {
   );
   if (validated.error || validated.data !== true) {
     return response({ ok: false, state: "rejected" }, 401);
+  }
+
+  const contentType = (req.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase();
+  if (contentType === RUNTIME_BUNDLE_MEDIA_TYPE) {
+    try {
+      const runtimeText = await req.text();
+      if (new TextEncoder().encode(runtimeText).byteLength > MAX_RUNTIME_BUNDLE_BYTES) {
+        return response({ ok: false, state: "failed", error: { code: "RUNTIME_BUNDLE_TOO_LARGE" } }, 413);
+      }
+      return response(await persistWorkerDRuntimeBundle(admin, req, runtimeText), 200);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "RUNTIME_PERSIST_FAILED";
+      const status = code === "BUILD_JOB_NOT_FOUND" ? 404 :
+        ["BUILD_LEASE_INVALID", "BUILD_STEP_INVALID", "BUILD_VERSION_INVALID", "RUNTIME_PERSIST_REQUEST_INVALID",
+          "RUNTIME_PERSIST_SIZE_MISMATCH", "RUNTIME_PERSIST_DIGEST_MISMATCH", "RUNTIME_BUNDLE_INVALID",
+          "RUNTIME_FILE_INVALID", "RUNTIME_ENTRYPOINT_MISSING"].includes(code) ? 409 : 503;
+      return response({ ok: false, state: "failed", error: { code: code.slice(0, 120) } }, status);
+    }
   }
 
   let queueId = "";
