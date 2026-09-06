@@ -287,7 +287,7 @@ test("candidate-controlled workflows cannot produce the trusted external-review 
     authority: "TRUSTED_EXTERNAL_REVIEW_PROVIDER",
     producer: "pandora_main_gate_github_app",
     providerContext: "external-review",
-    appId: 4658204,
+    appId: 4785021,
     command: null,
     status: "pending_external_receipt",
     receipt: null,

@@ -3,7 +3,7 @@
 const { createHash } = require("node:crypto");
 
 const CANONICAL_REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box";
-const TRUSTED_EXTERNAL_REVIEW_APP_ID = 4658204;
+const TRUSTED_EXTERNAL_REVIEW_APP_ID = 4785021;
 const TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT = "external-review";
 const PROOF_STAGES = Object.freeze([
   "documented",

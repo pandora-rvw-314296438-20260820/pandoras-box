@@ -218,7 +218,7 @@
         "authority": { "const": "TRUSTED_EXTERNAL_REVIEW_PROVIDER" },
         "producer": { "const": "pandora_main_gate_github_app" },
         "providerContext": { "const": "external-review" },
-        "appId": { "const": 4658204 },
+        "appId": { "const": 4785021 },
         "command": { "type": "null" },
         "status": { "$ref": "#/$defs/pendingStatus" },
         "receipt": { "$ref": "#/$defs/nullReceipt" }

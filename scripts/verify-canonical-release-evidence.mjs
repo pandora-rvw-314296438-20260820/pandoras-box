@@ -26,7 +26,7 @@ export const REQUIRED_CHECKS = Object.freeze([
     authority: "TRUSTED_EXTERNAL_REVIEW_PROVIDER",
     producer: "pandora_main_gate_github_app",
     providerContext: "external-review",
-    appId: 4658204,
+    appId: 4785021,
     command: null,
   }),
   Object.freeze({
@@ -482,7 +482,7 @@ export function validateSchemaContract(schema) {
     "schema must pin the external-review provider context",
   );
   assert(
-    schema.$defs?.externalReviewCheck?.properties?.appId?.const === 4658204,
+    schema.$defs?.externalReviewCheck?.properties?.appId?.const === 4785021,
     "schema must pin the external-review GitHub App",
   );
   assert(
