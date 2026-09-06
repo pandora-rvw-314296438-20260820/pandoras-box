@@ -26,6 +26,8 @@ void main() {
       contains('if (!_lifecycleResumed || _hasRenderablePreview) return;'),
     );
     expect(source, contains('final generation = _lifecycleGeneration;'));
+    expect(source, contains('Completer<void>? _refreshCompletion;'));
+    expect(source, contains('await pendingRefresh.future;'));
     expect(
       source,
       contains('generation != _lifecycleGeneration'),
