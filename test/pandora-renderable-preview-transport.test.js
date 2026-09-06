@@ -12,6 +12,10 @@ const convergenceMigration = readFileSync(
   'supabase/migrations/20260906201500_pandora_renderable_preview_reverification_convergence_v2.sql',
   'utf8',
 );
+const reverifyFinalizerMigration = readFileSync(
+  'supabase/migrations/20260906201600_pandora_renderable_preview_reverification_finalizer_v1.sql',
+  'utf8',
+);
 
 test('Vercel preview proxy preserves capability authority but serves renderable HTML', () => {
   assert.match(api, /pandora-preview-host/);
@@ -58,4 +62,13 @@ test('succeeded builds do not bypass pending render-transport re-verification', 
   assert.match(convergenceMigration, /pending_dep\.status=''ready_for_verification''/);
   assert.match(convergenceMigration, /pending_dep\.provider=''supabase_preview''/);
   assert.match(convergenceMigration, /RENDERABLE_PREVIEW_REVERIFY_GUARD_ANCHOR_MISSING/);
+});
+
+test('renderable preview re-verification safely finalizes current and historical previews', () => {
+  assert.match(reverifyFinalizerMigration, /pandora_finalize_renderable_preview_reverification_20260906/);
+  assert.match(reverifyFinalizerMigration, /pandora_worker_e_verify_supabase_preview_v2_20260830/);
+  assert.match(reverifyFinalizerMigration, /RENDERABLE_PREVIEW_REVERIFY_PROOF_INVALID/);
+  assert.match(reverifyFinalizerMigration, /current_deployment_id=v_dep\.id/);
+  assert.match(reverifyFinalizerMigration, /v_current:=found/);
+  assert.match(reverifyFinalizerMigration, /previewVerificationState','verified/);
 });
