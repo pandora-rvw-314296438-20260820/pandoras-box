@@ -43,7 +43,11 @@ function memoryProjectKeyForProjectOsIntake(projectKey) {
     const normalized = projectKey.trim().toLowerCase();
     if (!PROJECT_KEY.test(normalized))
         throw new Error(`ProjectOS project key is invalid: ${projectKey}`);
+    const canonicalRepositoryKey = typeof exports.sourceAuthorityPolicy.canonical.source_repository === 'string'
+        ? exports.sourceAuthorityPolicy.canonical.source_repository.trim().toLowerCase().split('/').pop()
+        : undefined;
     return normalized === exports.sourceAuthorityPolicy.canonical.vercel_project_name
+        || normalized === canonicalRepositoryKey
         ? canonicalMemoryProjectKey()
         : normalized;
 }
