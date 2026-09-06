@@ -236,7 +236,7 @@ export function validateSourceContract(contract) {
   assertExactKeys(contract, ROOT_KEYS, "$contract");
   assert(contract.schemaVersion === "1.0.0", "schemaVersion must be 1.0.0");
   assert(contract.kind === "canonical_release_evidence_requirements", "kind is invalid");
-  assert(contract.repository === "banataosystems/Pandoras-box", "repository is invalid");
+  assert(contract.repository === "pandora-rvw-314296438-20260820/pandoras-box", "repository is invalid");
   assert(contract.releaseDecision === "not_ready", "source releaseDecision must be not_ready");
 
   assertExactKeys(
@@ -280,7 +280,7 @@ export function validateSourceContract(contract) {
   );
   assert(contract.vercel.provider === "vercel", "Vercel provider is invalid");
   assert(contract.vercel.projectId === "prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk", "Vercel project is invalid");
-  assert(contract.vercel.productionAlias === "https://mcpmaster.vercel.app", "production alias is invalid");
+  assert(contract.vercel.productionAlias === "https://pandoras-box-system.vercel.app", "production alias is invalid");
 
   assertExactKeys(
     contract.vercel.productionDeployment,
