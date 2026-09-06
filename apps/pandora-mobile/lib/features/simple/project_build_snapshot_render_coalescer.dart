@@ -81,5 +81,5 @@ Stream<ProjectBuildStreamSnapshot> coalesceProjectBuildSnapshotsForRendering(
     },
   );
 
-  return controller.stream;
+  return controller.stream.asBroadcastStream();
 }
