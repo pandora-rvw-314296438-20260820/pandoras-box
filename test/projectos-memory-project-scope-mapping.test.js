@@ -14,6 +14,10 @@ test("ProjectOS control identity maps only to canonical Memory project scope", (
   assert.equal(controlProjectKey, "mcpmaster");
   assert.equal(canonicalMemoryProjectKey(), "mcpmaster-pandoras-box");
   assert.equal(memoryProjectKeyForProjectOsIntake(controlProjectKey), "mcpmaster-pandoras-box");
+
+  const repositoryProjectKey = sourceAuthorityPolicy.canonical.source_repository.split("/").at(-1);
+  assert.equal(repositoryProjectKey, "pandoras-box");
+  assert.equal(memoryProjectKeyForProjectOsIntake(repositoryProjectKey), "mcpmaster-pandoras-box");
 });
 
 test("explicit legitimate Memory scopes remain exact", () => {
