@@ -1,4 +1,6 @@
 import "jsr:@supabase/functions-js@2.4.5/edge-runtime.d.ts";
+import { Buffer } from "node:buffer";
+import { createPrivateKey, createSign } from "node:crypto";
 import {
   createClient,
   type SupabaseClient,
@@ -738,6 +740,70 @@ async function connections(
   );
 }
 
+function base64Url(value: string | Uint8Array) {
+  const bytes = typeof value === "string"
+    ? new TextEncoder().encode(value)
+    : value;
+  return Buffer.from(bytes).toString("base64url");
+}
+
+function githubAppJwt(appId: number, privateKeyPem: string) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64Url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const payload = base64Url(JSON.stringify({
+    iat: now - 30,
+    exp: now + 540,
+    iss: appId,
+  }));
+  const signingInput = `${header}.${payload}`;
+  const signer = createSign("RSA-SHA256");
+  signer.update(signingInput);
+  signer.end();
+  const signature = signer.sign(createPrivateKey(privateKeyPem));
+  return `${signingInput}.${base64Url(signature)}`;
+}
+
+async function githubInstallationToken(admin: UntypedSupabaseClient) {
+  const { data, error } = await admin.rpc(
+    "pandora_get_github_app_runtime_material",
+  );
+  if (error) throw new Error("CONNECTION_TEST_FAILED");
+  const material = asRecord(data);
+  const appId = Number(material.appId);
+  const installationId = Number(material.installationId);
+  const privateKeyPem = textValue(material.privateKeyPem);
+  if (
+    !Number.isInteger(appId) || appId !== 4785021 ||
+    !Number.isInteger(installationId) || installationId !== 158056492 ||
+    !privateKeyPem.includes("PRIVATE KEY")
+  ) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+
+  const appJwt = githubAppJwt(appId, privateKeyPem);
+  const response = await fetch(
+    `https://api.github.com/app/installations/${installationId}/access_tokens`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${appJwt}`,
+        "content-type": "application/json",
+        "user-agent": "Pandora-GitHub-App/1.0",
+        "x-github-api-version": "2022-11-28",
+      },
+      body: "{}",
+      redirect: "error",
+    },
+  );
+  const payload = asRecord(await response.json().catch(() => ({})));
+  const token = textValue(payload.token);
+  if (response.status !== 201 || !token) {
+    throw new Error("CONNECTION_TEST_FAILED");
+  }
+  return token;
+}
+
 async function verifyGithubConnection(
   context: UserContext,
   connectionId: string,
@@ -745,20 +811,24 @@ async function verifyGithubConnection(
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data, error } = await admin.rpc("probe_github_connector", {
-    p_organization_id: context.organizationId,
-    p_installation_id: connectionId,
-  });
-  if (error) throw new Error("CONNECTION_TEST_FAILED");
-
-  const probe = asRecord(data);
-  const repositories = Array.isArray(probe.repositories)
-    ? probe.repositories.map(asRecord)
-    : [];
-  const canonicalVisible = repositories.some((repository) =>
-    textValue(repository.fullName) === CANONICAL_REPOSITORY
+  const token = await githubInstallationToken(admin);
+  const response = await fetch(
+    `https://api.github.com/repos/${CANONICAL_REPOSITORY}`,
+    {
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${token}`,
+        "user-agent": "Pandora-GitHub-App/1.0",
+        "x-github-api-version": "2022-11-28",
+      },
+      redirect: "error",
+    },
   );
-  if (probe.ok !== true || !canonicalVisible) {
+  const repository = asRecord(await response.json().catch(() => ({})));
+  if (
+    response.status !== 200 ||
+    textValue(repository.full_name) !== CANONICAL_REPOSITORY
+  ) {
     throw new Error("CONNECTION_TEST_FAILED");
   }
 
