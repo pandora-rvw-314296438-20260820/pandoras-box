@@ -1260,6 +1260,19 @@ async function memory(
   };
 }
 
+function integrationFreshness(value: unknown, now: number) {
+  const item = asRecord(value);
+  const staleAfter = textValue(item.stale_after);
+  const lastSuccessAt = textValue(item.last_success_at);
+  const hasVerifiedSuccess = Boolean(
+    lastSuccessAt && Number.isFinite(Date.parse(lastSuccessAt)),
+  );
+  if (!staleAfter) return hasVerifiedSuccess ? "fresh" : "not_checked";
+  const staleAt = Date.parse(staleAfter);
+  if (!Number.isFinite(staleAt)) return "not_checked";
+  return staleAt > now && hasVerifiedSuccess ? "fresh" : "stale";
+}
+
 async function canonicalSafetyProjectId(context: UserContext) {
   const { data, error } = await context.client.from("projectos_projects")
     .select("id")
@@ -1309,12 +1322,9 @@ async function safety(context: UserContext) {
       )
     );
   const allFresh = healthRows.length > 0 && healthRows.every((item) => {
-    const staleAfter = textValue(item.stale_after);
-    const lastSuccessAt = textValue(item.last_success_at);
-    return Boolean(
-      staleAfter && Date.parse(staleAfter) > now && lastSuccessAt &&
-        Number.isFinite(Date.parse(lastSuccessAt)),
-    );
+    const status = textValue(item.status).toLowerCase();
+    return status === "not_configured" ||
+      integrationFreshness(item, now) === "fresh";
   });
   const requiredPolicyEnabled = policyRecord.mandatory_control_layer === true &&
     policyRecord.require_owner_release_approval === true;
@@ -1327,10 +1337,7 @@ async function safety(context: UserContext) {
     policy: policy.data,
     integrations: healthRows.map((item) => ({
       ...item,
-      freshness: textValue(item.stale_after) &&
-          Date.parse(textValue(item.stale_after)) > now
-        ? "fresh"
-        : "not_checked",
+      freshness: integrationFreshness(item, now),
     })),
     auditIntegrity,
     mfaRequiredForApproval: false,
