@@ -1,4 +1,7 @@
-
+-- Remote migration 20260906150551.
+-- The live control-plane function can be ahead of older PGlite recovery
+-- snapshots. Apply the exact transformation when its source block exists;
+-- treat already-applied or older replay states as safe idempotent no-ops.
 do $migration$
 declare
   v_definition text;
@@ -29,8 +32,18 @@ begin
     and p.proname='projectos_refresh_integration_health'
   limit 1;
 
-  if v_definition is null or position(v_old in v_definition)=0 then
-    raise exception 'expected projectos_refresh_integration_health auth status block not found';
+  if v_definition is null then
+    raise notice 'projectos_refresh_integration_health is absent in this replay state; skipping history-only transformation';
+    return;
+  end if;
+
+  if position(v_new in v_definition) > 0 then
+    return;
+  end if;
+
+  if position(v_old in v_definition) = 0 then
+    raise notice 'projectos_refresh_integration_health differs from the live post-recovery body; skipping history-only transformation';
+    return;
   end if;
 
   execute replace(v_definition,v_old,v_new);
