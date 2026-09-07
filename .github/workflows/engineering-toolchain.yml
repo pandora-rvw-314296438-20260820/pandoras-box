@@ -1,0 +1,111 @@
+name: Engineering toolchain
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "biome.json"
+      - "playwright.config.mjs"
+      - "scripts/verify-engineering-toolchain.mjs"
+      - "test/e2e/**"
+      - "docs/development/ENGINEERING_TOOLCHAIN.md"
+      - ".github/workflows/engineering-toolchain.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  project-tools:
+    name: Project toolchain smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install pinned dependencies
+        run: npm ci
+
+      - name: Verify project and provider CLIs
+        run: npm run tooling:verify
+
+      - name: Verify MCP contract with Inspector
+        run: npm run mcp:inspect
+
+      - name: Run scoped Biome gate
+        run: npm run quality:biome
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright smoke
+        run: npm run test:e2e:smoke
+
+      - name: Knip report
+        continue-on-error: true
+        run: npm run quality:dead-code
+
+  workflow-lint:
+    name: actionlint and ShellCheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install actionlint and ShellCheck
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Verify versions
+        run: |
+          actionlint -version
+          shellcheck --version
+
+      - name: Lint GitHub Actions
+        run: actionlint -color
+
+  secret-scan:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository history
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  vulnerability-scan:
+    name: Trivy filesystem
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan dependencies, config, and secrets
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
