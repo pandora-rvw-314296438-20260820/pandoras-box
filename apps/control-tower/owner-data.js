@@ -39,8 +39,12 @@ const initialMode = PROFESSIONAL_ROUTES.has(initialRoute)
     ? 'professional'
     : 'simple';
 
+const initialResolvedRoute = initialMode === 'professional' && initialRoute === 'home' && !window.location.hash
+  ? 'professional-home'
+  : initialRoute;
+
 const state = {
-  route: initialRoute,
+  route: initialResolvedRoute,
   mode: initialMode,
   projection: null,
   health: null,
