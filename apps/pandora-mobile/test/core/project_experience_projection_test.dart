@@ -11,6 +11,8 @@ Map<String, Object?> projectionJson({
   bool canPublish = true,
   bool canRollback = true,
   String updatedAt = '2026-08-31T07:00:00Z',
+  String? productionVersionId = '33333333-3333-4333-8333-333333333333',
+  String? productionDeploymentId = '55555555-5555-4555-8555-555555555555',
 }) =>
     <String, Object?>{
       'organization_id': '11111111-1111-4111-8111-111111111111',
@@ -23,8 +25,8 @@ Map<String, Object?> projectionJson({
       'candidate_version_id': '44444444-4444-4444-8444-444444444444',
       'candidate_preview_deployment_id': null,
       'candidate_verification_state': 'not_started',
-      'production_version_id': '33333333-3333-4333-8333-333333333333',
-      'production_deployment_id': '55555555-5555-4555-8555-555555555555',
+      'production_version_id': productionVersionId,
+      'production_deployment_id': productionDeploymentId,
       'active_build_job_id': activeBuildJobId,
       'build_phase': activeBuildJobId == null ? null : 'building',
       'public_message': 'Your project is live.',
@@ -55,6 +57,20 @@ void main() {
     expect(projection.isLive, isTrue);
     expect(projection.isUpdating, isTrue);
     expect(projection.statusLabel, 'Building');
+  });
+
+  test('verified preview is Ready until production deployment exists', () {
+    final projection = ProjectExperienceProjection.fromJson(
+      projectionJson(
+        productionVersionId: null,
+        productionDeploymentId: null,
+      ),
+    );
+
+    expect(projection.state, ProjectExperienceState.live);
+    expect(projection.isLive, isFalse);
+    expect(projection.currentVerified, isTrue);
+    expect(projection.statusLabel, 'Ready');
   });
 
   test('unknown future lifecycle state fails owner actions closed', () {

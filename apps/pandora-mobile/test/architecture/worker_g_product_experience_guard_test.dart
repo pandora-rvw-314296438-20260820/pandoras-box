@@ -49,11 +49,16 @@ void main() {
     expect(source, contains('openPreviewBundle'));
     expect(source, contains('submitChange('));
     expect(source, contains('projectExperienceRepository'));
-    expect(source, contains('_projection?.canPublish == true'));
+    expect(source, contains('projection.canPublish != true'));
+    expect(source, contains('String? get _publishVersionId'));
     expect(source, isNot(contains('.projectRuntime;')));
     expect(source, isNot(contains('.projectExperience;')));
     expect(source, isNot(contains('.projectExperienceProjection;')));
-    expect(source, contains('_projection?.candidateVersionId != null'));
+    expect(source, contains('projection.currentVerified'));
+    expect(
+      source,
+      contains('projection.productionVersionId != currentVersionId'),
+    );
     expect(source, contains('projection.productionVersionId == versionId'));
     expect(source, contains('ProjectWorkspaceV2View('));
     expect(source, isNot(contains('PandoraV2IntentSurface(')));
@@ -62,6 +67,11 @@ void main() {
     expect(view, contains("'Building'"));
     expect(view, contains("'Checking'"));
     expect(view, contains("'Verified change'"));
+    expect(view, contains("Key('workspace-publish-action')"));
+    expect(
+      view,
+      contains("child: Text(publishing ? 'Publishing…' : 'Publish')"),
+    );
     expect(source, contains('_tryIntelligenceTurn'));
     expect(source, contains('_flowTimeout'));
     expect(source, contains('_previewRetryLimit'));

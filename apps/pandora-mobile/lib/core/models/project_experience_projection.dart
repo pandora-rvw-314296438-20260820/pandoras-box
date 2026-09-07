@@ -229,7 +229,9 @@ class ProjectExperienceProjection {
       case ProjectExperienceState.review:
         return 'Ready';
       case ProjectExperienceState.live:
-        return isUpdating ? 'Building' : 'Live';
+        if (isUpdating) return 'Building';
+        if (isLive) return 'Live';
+        return currentVerified ? 'Ready' : 'Working';
       case ProjectExperienceState.publish:
         return 'Checking';
       case ProjectExperienceState.unknown:
