@@ -74,6 +74,7 @@ test('Publish has an explicit confirmation step before exact runtime mutation', 
   assert.ok(workspace.includes("action: 'prepare-workspace-publish'"));
   assert.ok(workspace.includes("'confirm-workspace-publish'"));
   assert.ok(app.includes("performWorkspaceMutation('publish')"));
+  assert.ok(app.includes("expectedProductionVersionId: item.runtime?.production?.versionId ?? null"));
   assert.ok(app.indexOf('prepare-workspace-publish') < app.indexOf('confirm-workspace-publish'));
 });
 
