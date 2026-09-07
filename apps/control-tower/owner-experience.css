@@ -1131,3 +1131,13 @@
   .professional-nav button strong { font-size: 12px; }
   .professional-mode .owner-main { width: min(100%, 1440px); }
 }
+
+
+.owner-workspace-focus-unavailable {
+  padding: 10px 14px;
+  border-top: 1px solid var(--owner-line);
+  color: var(--owner-subtle);
+  background: var(--owner-surface-soft);
+  font-size: 10px;
+  line-height: 1.45;
+}
