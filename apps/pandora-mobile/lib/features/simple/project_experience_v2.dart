@@ -1165,6 +1165,38 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
     return PandoraV2Colors.muted;
   }
 
+  String? _liveUrlFrom(ProjectRuntimeSnapshot? snapshot) {
+    final projectUrl = _safeHttps(snapshot?.project.liveUrl);
+    if (projectUrl != null) return projectUrl;
+    return _safeHttps(snapshot?.production?.url);
+  }
+
+  String? get _liveUrl => _liveUrlFrom(_snapshot);
+
+  String? get _liveHost {
+    final url = _liveUrl;
+    if (url == null) return null;
+    final host = Uri.tryParse(url)?.host.trim() ?? '';
+    return host.isEmpty ? null : host;
+  }
+
+  Map<String, Object?>? _withLiveDestination(
+    Map<String, Object?>? receipt,
+    ProjectRuntimeSnapshot snapshot,
+  ) {
+    if (receipt == null) return null;
+    final liveUrl = _liveUrlFrom(snapshot);
+    final host = liveUrl == null ? null : Uri.tryParse(liveUrl)?.host.trim();
+    return <String, Object?>{
+      ...receipt,
+      if (liveUrl != null) 'liveUrl': liveUrl,
+      if (host != null && host.isNotEmpty) 'liveHost': host,
+      if (snapshot.domain != null) 'domain': snapshot.domain!.domain,
+      if (snapshot.domain != null)
+        'domainVerified': snapshot.domain!.verified,
+    };
+  }
+
   Future<List<Map<String, Object?>>?> _readExactPreviewVersion(
     String versionId,
   ) async {
@@ -1240,6 +1272,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
         publishReceipt = await experience.loadLatestPublishReceipt(
           projectId: widget.project.id,
         );
+        publishReceipt = _withLiveDestination(publishReceipt, snapshot);
       } catch (_) {
         // Receipt history is supplemental to the authoritative project canvas.
       }
@@ -1907,8 +1940,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
             const SizedBox(height: 8),
             Text(
               snapshot?.production == null
-                  ? 'Pandora will publish the exact version you just reviewed.'
-                  : 'Your current live version stays in history while this reviewed version becomes public.',
+                  ? 'Pandora will publish the exact version you just reviewed. The exact public address will be shown here after verification.'
+                  : 'Your current live version stays in history while this reviewed version becomes public. The exact public address will be shown after verification.',
               style: pandoraV2Muted,
             ),
             const SizedBox(height: 22),
@@ -1953,14 +1986,113 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
         PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) return;
     try {
+      final snapshot = await experience.runtime(widget.project.id);
       final receipt = await experience.loadLatestPublishReceipt(
         projectId: widget.project.id,
       );
       if (!mounted) return;
-      setState(() => _publishReceipt = receipt);
+      setState(() {
+        _snapshot = snapshot;
+        _publishReceipt = _withLiveDestination(receipt, snapshot);
+      });
     } catch (_) {
       // Receipt history is supplemental to the authoritative lifecycle projection.
     }
+  }
+
+  Future<void> _openLiveSite() async {
+    final liveUrl = _liveUrl;
+    if (liveUrl != null &&
+        await PandoraNativeIo.openExternalUrl(liveUrl)) {
+      return;
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Pandora could not open the live site right now.'),
+      ),
+    );
+  }
+
+  Future<void> _showPublishedConfirmation() async {
+    final liveUrl = _liveUrl;
+    final liveHost = _liveHost;
+    if (liveUrl == null || liveHost == null || !mounted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Published, but Pandora could not read the public address yet.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: PandoraV2Colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: PandoraV2Colors.success,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Published',
+                    style: TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Text('Live at', style: pandoraV2Muted),
+              const SizedBox(height: 4),
+              SelectableText(
+                liveHost,
+                key: const Key('published-live-host'),
+                style: const TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 18),
+              PandoraV2PrimaryAction(
+                label: 'Open site',
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_openLiveSite());
+                },
+              ),
+              const SizedBox(height: 6),
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  child: const Text('Done'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _watchPublishCompletion(String versionId) async {
@@ -2004,8 +2136,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
     }
     await _refreshPublishReceipt();
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Live.')));
+    await _showPublishedConfirmation();
   }
 
   Future<void> _publish(String domain, String versionId) async {
@@ -2030,8 +2161,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
           projection?.productionVersionId == versionId) {
         await _refreshPublishReceipt();
         if (!mounted) return;
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Live.')));
+        await _showPublishedConfirmation();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -2187,6 +2317,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
       liveActivityDetail: _liveActivityDetail,
       onOpenLiveActivity:
           _liveBuildStreamId == null ? null : _openLiveBuildActivity,
+      liveUrl: _liveUrl,
+      liveHost: _liveHost,
+      onOpenLiveSite: _openLiveSite,
       recentlyUpdated: _recentlyUpdated,
       currentVersionVerified: _currentVersionVerified,
       changeDiff: _lastChangeDiff,
