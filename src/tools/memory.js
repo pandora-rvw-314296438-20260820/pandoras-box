@@ -9,6 +9,9 @@ const memory_evidence_intake_1 = require("./memory-evidence-intake");
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_MAX_RESPONSE_BYTES = 500000;
 const DEFAULT_CANONICAL_MAX_AGE_MS = 86_400_000;
+const SAFE_READ_MAX_ATTEMPTS = 3;
+const SAFE_READ_BACKOFF_MS = [125, 350];
+const MAX_RETRY_AFTER_MS = 2_000;
 const NamespaceSchema = zod_1.z.enum(['real_life', 'au']);
 const ProjectKeySchema = zod_1.z.string().trim().regex(/^[a-z0-9][a-z0-9._-]{1,95}$/);
 const RuntimeConfigurationSchema = zod_1.z.object({
@@ -58,6 +61,29 @@ function normalizeHttpsOrigin(value) {
         throw new PandoraMemoryError('Pandora Memory origin must be an HTTPS origin without credentials, path, query, or fragment');
     }
     return url.origin;
+}
+function retryableReadStatus(status) {
+    return status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+function retryAfterMs(response) {
+    const raw = response.headers?.get?.('retry-after')?.trim();
+    if (!raw)
+        return null;
+    if (/^\d+$/.test(raw))
+        return Math.min(Number(raw) * 1000, MAX_RETRY_AFTER_MS);
+    const parsed = Date.parse(raw);
+    if (!Number.isFinite(parsed))
+        return null;
+    return Math.min(Math.max(parsed - Date.now(), 0), MAX_RETRY_AFTER_MS);
+}
+function retryDelayMs(attempt, response) {
+    const retryAfter = response ? retryAfterMs(response) : null;
+    if (retryAfter !== null)
+        return retryAfter;
+    return SAFE_READ_BACKOFF_MS[Math.min(attempt - 1, SAFE_READ_BACKOFF_MS.length - 1)] ?? 0;
+}
+function sleep(ms) {
+    return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
 }
 function declaredResponseLength(response) {
     const raw = response.headers?.get('content-length')?.trim();
@@ -166,46 +192,70 @@ class PandoraMemoryMCPServer {
         return input.includeProposed ? context : { ...context, proposed: [] };
     }
     async request(path, method, body) {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs);
-        try {
-            const response = await this.fetchFn(`${this.config.baseUrl}${path}`, {
-                method,
-                headers: {
-                    'X-Pandora-Vercel-OIDC': this.config.oidcToken,
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'MCPMaster-Pandora-Memory/2.1',
-                },
-                body: body ? JSON.stringify(body) : undefined,
-                signal: controller.signal,
-                redirect: 'error',
-            });
-            const text = await readBoundedResponseBody(response, this.config.maxResponseBytes);
-            if (!response.ok) {
-                throw new PandoraMemoryError(`Pandora Memory request failed with ${response.status}`, response.status);
-            }
-            if (!text.trim()) {
-                throw new PandoraMemoryError('Pandora Memory returned an empty response');
-            }
+        // This transport is used only by health/search reads. Evidence-candidate
+        // mutations use the separate intake adapter and are never blind-retried.
+        const deadline = Date.now() + this.config.timeoutMs;
+        let lastFailure = null;
+        for (let attempt = 1; attempt <= SAFE_READ_MAX_ATTEMPTS; attempt += 1) {
+            const remainingMs = deadline - Date.now();
+            if (remainingMs <= 0)
+                break;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), remainingMs);
             try {
-                return JSON.parse(text);
+                const response = await this.fetchFn(`${this.config.baseUrl}${path}`, {
+                    method,
+                    headers: {
+                        'X-Pandora-Vercel-OIDC': this.config.oidcToken,
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'User-Agent': 'MCPMaster-Pandora-Memory/2.2',
+                    },
+                    body: body ? JSON.stringify(body) : undefined,
+                    signal: controller.signal,
+                    redirect: 'error',
+                });
+                const text = await readBoundedResponseBody(response, this.config.maxResponseBytes);
+                if (!response.ok) {
+                    const failure = new PandoraMemoryError(`Pandora Memory request failed with ${response.status}`, response.status);
+                    if (!retryableReadStatus(response.status) || attempt >= SAFE_READ_MAX_ATTEMPTS)
+                        throw failure;
+                    lastFailure = failure;
+                    const delayMs = retryDelayMs(attempt, response);
+                    if (delayMs >= deadline - Date.now())
+                        throw failure;
+                    await sleep(delayMs);
+                    continue;
+                }
+                if (!text.trim()) {
+                    throw new PandoraMemoryError('Pandora Memory returned an empty response');
+                }
+                try {
+                    return JSON.parse(text);
+                }
+                catch {
+                    throw new PandoraMemoryError('Pandora Memory returned invalid JSON');
+                }
             }
-            catch {
-                throw new PandoraMemoryError('Pandora Memory returned invalid JSON');
+            catch (error) {
+                if (error instanceof PandoraMemoryError)
+                    throw error;
+                const failure = error instanceof Error && error.name === 'AbortError'
+                    ? new PandoraMemoryError('Pandora Memory request timed out')
+                    : new PandoraMemoryError(`Pandora Memory request failed: ${error instanceof Error ? error.message : 'unknown error'}`);
+                lastFailure = failure;
+                if (attempt >= SAFE_READ_MAX_ATTEMPTS)
+                    throw failure;
+                const delayMs = retryDelayMs(attempt);
+                if (delayMs >= deadline - Date.now())
+                    throw failure;
+                await sleep(delayMs);
+            }
+            finally {
+                clearTimeout(timeout);
             }
         }
-        catch (error) {
-            if (error instanceof PandoraMemoryError)
-                throw error;
-            if (error instanceof Error && error.name === 'AbortError') {
-                throw new PandoraMemoryError('Pandora Memory request timed out');
-            }
-            throw new PandoraMemoryError(`Pandora Memory request failed: ${error instanceof Error ? error.message : 'unknown error'}`);
-        }
-        finally {
-            clearTimeout(timeout);
-        }
+        throw lastFailure || new PandoraMemoryError('Pandora Memory request timed out');
     }
 }
 exports.PandoraMemoryMCPServer = PandoraMemoryMCPServer;
