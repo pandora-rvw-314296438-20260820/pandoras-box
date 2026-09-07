@@ -1,5 +1,37 @@
 const nativeFetch = window.fetch.bind(window);
 const ALLOWED_EDGE_FUNCTIONS = new Set(['pandora-intelligence-chat']);
+const EDGE_ROUTE_POLICIES = Object.freeze({
+  'pandora-owner-api': Object.freeze({
+    GET: Object.freeze([
+      /^projects$/,
+      /^projects\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
+    ]),
+  }),
+  'pandora-project-runtime': Object.freeze({
+    GET: Object.freeze([
+      /^projects\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}\/runtime$/,
+    ]),
+    POST: Object.freeze([
+      /^projects\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}\/(?:undo|publish)$/,
+    ]),
+  }),
+});
+const PROJECT_PROJECTION_COLUMNS = Object.freeze({
+  pandora_project_experience_projection: [
+    'project_id','experience_state','current_version_id','current_preview_deployment_id',
+    'current_verified','candidate_version_id','candidate_preview_deployment_id',
+    'candidate_verification_state','production_version_id','production_deployment_id',
+    'active_build_job_id','build_phase','public_message','needs_you','retry_available',
+    'can_focus','can_change','can_undo','can_publish','can_rollback',
+    'verification_summary','change_summary','safe_failure_code','safe_failure_message',
+    'last_transition_at','updated_at',
+  ].join(','),
+  pandora_build_theatre_projection: [
+    'project_id','build_job_id','project_version_id','owner_state','owner_stage',
+    'progress_percent','public_message','preview_url','live_url','needs_you',
+    'retry_available','last_event_at','updated_at',
+  ].join(','),
+});
 
 const authState = {
   config: null,
@@ -189,6 +221,67 @@ async function ensureSession() {
   return authState.accessToken;
 }
 
+async function edgeRequest(functionName, pathSegments = [], options = {}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  const route = pathSegments.map((segment) => String(segment)).join('/');
+  const policy = EDGE_ROUTE_POLICIES[functionName]?.[method];
+  if (!Array.isArray(policy) || !policy.some((pattern) => pattern.test(route))) {
+    throw new Error('This Pandora route is not available from the owner web surface');
+  }
+  const config = await loadConfig();
+  await ensureSession();
+  const suffix = pathSegments.length
+    ? `/${pathSegments.map((segment) => encodeURIComponent(String(segment))).join('/')}`
+    : '';
+  const response = await nativeFetch(
+    `${config.supabaseUrl}/functions/v1/${encodeURIComponent(functionName)}${suffix}`,
+    {
+      method,
+      redirect: 'error',
+      headers: {
+        apikey: config.supabasePublishableKey,
+        authorization: `Bearer ${authState.accessToken}`,
+        accept: 'application/json',
+        ...(options.body === undefined ? {} : { 'content-type': 'application/json' }),
+        'x-organization-id': config.organizationId,
+      },
+      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+    },
+  );
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.ok === false) {
+    throw new Error(payload?.plainMessage || payload?.message || payload?.error?.message || 'Pandora is temporarily unavailable');
+  }
+  return payload;
+}
+
+async function readProjectProjection(tableName, projectId) {
+  const select = PROJECT_PROJECTION_COLUMNS[tableName];
+  if (!select || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(String(projectId || ''))) {
+    throw new Error('Pandora rejected an invalid project projection request');
+  }
+  const config = await loadConfig();
+  await ensureSession();
+  const url = new URL(`${config.supabaseUrl}/rest/v1/${tableName}`);
+  url.searchParams.set('select', select);
+  url.searchParams.set('project_id', `eq.${projectId}`);
+  url.searchParams.set('limit', '1');
+  const response = await nativeFetch(url, {
+    method: 'GET',
+    redirect: 'error',
+    headers: {
+      apikey: config.supabasePublishableKey,
+      authorization: `Bearer ${authState.accessToken}`,
+      accept: 'application/json',
+    },
+  });
+  const rows = await response.json().catch(() => []);
+  if (!response.ok || !Array.isArray(rows)) {
+    throw new Error('Pandora could not read the project experience safely');
+  }
+  return rows[0] || null;
+}
+
 async function invokeFunction(functionName, body = {}) {
   if (!ALLOWED_EDGE_FUNCTIONS.has(functionName)) {
     throw new Error('This Pandora function is not available from the owner web surface');
@@ -251,6 +344,8 @@ window.fetch = async function authenticatedOperatorFetch(input, init = {}) {
 
 window.MCPMasterAuth = Object.freeze({
   ensureSession,
+  edgeRequest,
+  readProjectProjection,
   invokeFunction,
   signOut,
   session: sessionSnapshot,
