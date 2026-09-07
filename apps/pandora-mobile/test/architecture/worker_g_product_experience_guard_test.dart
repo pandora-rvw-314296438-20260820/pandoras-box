@@ -65,7 +65,10 @@ void main() {
     expect(view, contains("'Checking'"));
     expect(view, contains("'Verified change'"));
     expect(view, contains("Key('workspace-publish-action')"));
-    expect(view, contains("child: Text(publishing ? 'Publishing…' : 'Publish')"));
+    expect(
+      view,
+      contains("child: Text(publishing ? 'Publishing…' : 'Publish')"),
+    );
     expect(source, contains('_tryIntelligenceTurn'));
     expect(source, contains('_flowTimeout'));
     expect(source, contains('_previewRetryLimit'));
