@@ -55,6 +55,16 @@ function jsonResponse(payload) {
   };
 }
 
+function jsonStatusResponse(status, payload = { ok: false }) {
+  const text = JSON.stringify(payload);
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: { get: () => null },
+    text: async () => text,
+  };
+}
+
 test("memory.search requires an explicit project key before network access", async () => {
   let calls = 0;
   await assert.rejects(
@@ -88,6 +98,39 @@ test("memory.search forwards the exact project key to the bridge", async () => {
   );
   assert.equal(requestBody.project_key, PROJECT_KEY);
   assert.equal(requestBody.projectKey, undefined);
+});
+
+test("memory.search retries a transient 502 before succeeding", async () => {
+  let calls = 0;
+  const result = await executeMemoryTool(
+    "memory.search",
+    { namespace: "real_life", projectKey: PROJECT_KEY, query: "current state" },
+    CONFIG,
+    async () => {
+      calls += 1;
+      if (calls === 1) return jsonStatusResponse(502, { ok: false, error: "upstream_unavailable" });
+      return jsonResponse(memoryPayload());
+    },
+  );
+  assert.equal(calls, 2);
+  assert.equal(result.ok, true);
+});
+
+test("memory.search does not retry non-transient authorization failures", async () => {
+  let calls = 0;
+  await assert.rejects(
+    () => executeMemoryTool(
+      "memory.search",
+      { namespace: "real_life", projectKey: PROJECT_KEY, query: "current state" },
+      CONFIG,
+      async () => {
+        calls += 1;
+        return jsonStatusResponse(401, { ok: false, error: "unauthorized" });
+      },
+    ),
+    (error) => error?.name === "PandoraMemoryError" && error?.status === 401,
+  );
+  assert.equal(calls, 1);
 });
 
 test("memory.canonicalContext preserves the exact project scope", async () => {
