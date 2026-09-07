@@ -13,7 +13,7 @@ test('web publish truth is projection driven and never equates provider return w
   assert.match(data, /mutationPhase: null/);
   assert.match(workspace, /label: 'Publishing'/);
   assert.match(workspace, /label: 'Checking'/);
-  assert.match(app, /item\.mutationPhase = 'publishing'/);
+  assert.match(app, /item\.mutationPhase = kind === 'publish' \? 'publishing' : 'working'/);
   assert.match(app, /item\.mutationPhase = 'checking'/);
   assert.match(app, /waitForPublishResolution/);
   assert.match(app, /return 'live'/);
