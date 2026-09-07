@@ -52,7 +52,7 @@ jobs:
             "scripts": {
               "verify": "node scripts/verify-engineering-toolchain.mjs",
               "mcp:inspect": "mcp-inspector --cli node ../src/mcp-stdio.js --method tools/list --format json",
-              "quality:biome": "biome check scripts/verify-engineering-toolchain.mjs playwright.config.mjs test/e2e/toolchain-smoke.spec.mjs",
+              "quality:biome": "biome lint scripts/verify-engineering-toolchain.mjs playwright.config.mjs test/e2e/toolchain-smoke.spec.mjs",
               "playwright:install": "playwright install --with-deps chromium",
               "test:e2e:smoke": "playwright test test/e2e/toolchain-smoke.spec.mjs --config playwright.config.mjs",
               "quality:dead-code": "knip --reporter compact",
