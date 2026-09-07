@@ -32,6 +32,9 @@ test('Build Theatre and change controls expose bounded in-place update targets',
   assert.match(workspace, /data-workspace-change-submit/);
   assert.match(app, /querySelector\('\[data-workspace-theatre-message\]'\)/);
   assert.match(app, /querySelectorAll\('\[data-workspace-theatre-stages\]'\)/);
+  assert.match(app, /const projectionFresh = item\.changing !== true/);
+  assert.match(app, /projectionFresh && theatre\.public_message/);
+  assert.match(app, /projectionFresh && theatre\.updated_at/);
 });
 
 test('automatic project refresh stays lightweight while a change is active', () => {
