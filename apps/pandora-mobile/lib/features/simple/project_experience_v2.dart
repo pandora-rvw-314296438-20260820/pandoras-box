@@ -763,6 +763,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
   Timer? _previewRetryTimer;
   String? _previewRetryVersionId;
   int _previewRetryCount = 0;
+  Future<void>? _refreshTask;
+  bool _refreshAgain = false;
 
   static const _previewRetryLimit = 6;
 
@@ -784,8 +786,13 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
-    unawaited(_startProjection());
-    unawaited(_refresh());
+    unawaited(_initializeWorkspace());
+  }
+
+  Future<void> _initializeWorkspace() async {
+    await _startProjection(hydrateInitial: false);
+    if (!mounted) return;
+    await _refresh();
   }
 
   @override
@@ -810,7 +817,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
     _liveBuildSubscription = null;
     _resolvingLiveBuild = false;
     if (!mounted) return;
-    await _startProjection();
+    await _startProjection(hydrateInitial: false);
     if (!mounted) return;
     await _refresh();
   }
@@ -838,7 +845,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
     _scheduleLiveBuildRetry(buildJobId);
   }
 
-  Future<void> _startProjection() async {
+  Future<void> _startProjection({bool hydrateInitial = true}) async {
     final repository =
         PandoraDependencies.of(context).projectExperienceRepository;
     if (repository == null) {
@@ -853,7 +860,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
     try {
       final initial = await repository.loadExperience(widget.project.id);
       if (!mounted) return;
-      _acceptProjection(initial);
+      _acceptProjection(initial, hydrate: hydrateInitial);
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -876,7 +883,10 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
     );
   }
 
-  void _acceptProjection(ProjectExperienceProjection next) {
+  void _acceptProjection(
+    ProjectExperienceProjection next, {
+    bool hydrate = true,
+  }) {
     if (!mounted) return;
     final current = _projection;
     if (current != null && !next.isNewerThan(current)) return;
@@ -909,7 +919,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
         if (mounted) unawaited(_requestInitialChange(initialChange));
       });
     }
-    if (shouldHydrate) unawaited(_refresh());
+    if (hydrate && shouldHydrate) unawaited(_refresh());
     unawaited(_syncLiveBuildActivity(next.activeBuildJobId));
   }
 
@@ -1306,6 +1316,43 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
   }
 
   Future<void> _refresh() async {
+    final active = _refreshTask;
+    if (active != null) {
+      _refreshAgain = true;
+      await active;
+      return;
+    }
+
+    late final Future<void> task;
+    task = _runRefreshLoop().whenComplete(() {
+      if (identical(_refreshTask, task)) {
+        _refreshTask = null;
+      }
+    });
+    _refreshTask = task;
+    await task;
+  }
+
+  Future<void> _runRefreshLoop() async {
+    do {
+      _refreshAgain = false;
+      await _refreshOnce();
+    } while (mounted && _refreshAgain);
+  }
+
+  Future<Map<String, Object?>?> _readLatestPublishReceipt(
+    ProjectExperienceRepository experience,
+  ) async {
+    try {
+      return await experience.loadLatestPublishReceipt(
+        projectId: widget.project.id,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _refreshOnce() async {
     final experience =
         PandoraDependencies.of(context).projectExperienceRepository;
     if (experience == null) {
@@ -1317,17 +1364,14 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
       return;
     }
     try {
-      final snapshot = await experience.runtime(widget.project.id);
-      final projection = await experience.loadExperience(widget.project.id);
-      Map<String, Object?>? publishReceipt;
-      try {
-        publishReceipt = await experience.loadLatestPublishReceipt(
-          projectId: widget.project.id,
-        );
-        publishReceipt = _withLiveDestination(publishReceipt, snapshot);
-      } catch (_) {
-        // Receipt history is supplemental to the authoritative project canvas.
-      }
+      final snapshotFuture = experience.runtime(widget.project.id);
+      final projectionFuture = experience.loadExperience(widget.project.id);
+      final publishReceiptFuture = _readLatestPublishReceipt(experience);
+
+      final snapshot = await snapshotFuture;
+      final projection = await projectionFuture;
+      var publishReceipt = await publishReceiptFuture;
+      publishReceipt = _withLiveDestination(publishReceipt, snapshot);
       if (!mounted) return;
 
       final safety = ProjectCandidateSafety.fromProjection(
