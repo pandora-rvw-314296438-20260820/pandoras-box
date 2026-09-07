@@ -4,7 +4,7 @@ This repository pins the engineering tools used to verify Pandora changes. Provi
 
 ## Project-scoped tools
 
-The root devDependencies pin:
+The isolated `tooling/` package pins:
 
 - MCP Inspector
 - Playwright Test
