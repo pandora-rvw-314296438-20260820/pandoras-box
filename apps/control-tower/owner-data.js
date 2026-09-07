@@ -78,6 +78,7 @@ const state = {
   professionalData: {
     loading: false,
     error: null,
+    errors: {},
     loadedAt: null,
     projects: [],
     deployments: [],
