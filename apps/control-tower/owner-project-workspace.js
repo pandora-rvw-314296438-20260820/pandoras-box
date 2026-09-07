@@ -86,7 +86,8 @@ function focusCapablePreviewUrl() {
   if (!preview) return null;
   const url = new URL(preview);
   const proxyPath = /^\/preview\/[0-9a-f]{64}\/index\.html$/i.test(url.pathname);
-  if (url.origin !== window.location.origin || !proxyPath) return null;
+  const trustedOrigins = new Set([window.location.origin, 'https://mcpmaster.vercel.app']);
+  if (!trustedOrigins.has(url.origin) || !proxyPath) return null;
   url.searchParams.set('focus', '1');
   return url.toString();
 }
