@@ -185,14 +185,36 @@ function sleep(ms) {
 function updateWorkspaceProgressDom() {
   const item = state.projectWorkspace;
   const theatre = item.theatre || {};
-  const stage = String(theatre.owner_stage || item.changePhase || '').toLowerCase();
+  const theatreStage = String(theatre.owner_stage || '').toLowerCase();
+  const stage = String(
+    item.changing === true
+      ? (item.changePhase || theatreStage)
+      : (theatreStage || item.changePhase || '')
+  ).toLowerCase();
+  const theatreCard = document.querySelector('.owner-workspace-theatre');
+  if (theatreCard) theatreCard.classList.toggle('owner-workspace-unavailable', !item.theatre && item.changing !== true);
+
+  const phaseMessages = {
+    understanding: 'Pandora is understanding your change.',
+    designing: 'Pandora is preparing the exact change.',
+    building: 'Pandora is building the new version.',
+    connecting: 'Pandora is connecting the new version.',
+    checking: 'Pandora is checking the new version.',
+    fixing: 'Pandora is repairing the new version.',
+    preparing_preview: 'Pandora is preparing the verified preview.',
+    preview_ready: 'The verified preview is ready.',
+  };
   const message = document.querySelector('[data-workspace-theatre-message]');
-  if (message && theatre.public_message) message.textContent = String(theatre.public_message);
+  if (message) {
+    message.textContent = theatre.public_message
+      || (item.changing ? phaseMessages[stage] || 'Pandora is working on this change.' : 'No active build projection');
+  }
 
   const progress = Number(theatre.progress_percent);
+  const progressFresh = item.changing !== true || !item.changePhase || theatreStage === String(item.changePhase).toLowerCase();
   const progressNode = document.querySelector('[data-workspace-theatre-progress]');
   if (progressNode) {
-    if (Number.isFinite(progress)) {
+    if (Number.isFinite(progress) && progressFresh) {
       const boundedProgress = Math.max(0, Math.min(100, progress));
       progressNode.hidden = false;
       progressNode.textContent = boundedProgress + '%';
@@ -213,7 +235,11 @@ function updateWorkspaceProgressDom() {
   if (current) current.textContent = stage ? stage.replaceAll('_', ' ') : 'unavailable';
 
   const updated = document.querySelector('[data-workspace-theatre-updated]');
-  if (updated) updated.textContent = theatre.updated_at ? 'Updated ' + timeAgo(theatre.updated_at) : 'Update time unavailable';
+  if (updated) {
+    updated.textContent = theatre.updated_at
+      ? 'Updated ' + timeAgo(theatre.updated_at)
+      : (item.changing ? 'Waiting for current build activity' : 'Waiting for build activity');
+  }
 
   const textarea = document.querySelector('[data-project-change-message]');
   if (textarea) textarea.disabled = item.changing === true || item.experience?.can_change !== true;
