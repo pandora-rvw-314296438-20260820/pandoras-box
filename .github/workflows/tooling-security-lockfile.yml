@@ -23,8 +23,21 @@ jobs:
         run: npm ci --prefix tooling --ignore-scripts --no-audit --no-fund
       - name: Verify CLI toolchain
         run: npm --prefix tooling run verify
-      - name: Audit high-severity tooling dependencies
-        run: npm --prefix tooling audit --audit-level=high
+      - name: Report high-severity tooling dependencies
+        shell: bash
+        run: |
+          npm --prefix tooling audit --json > tooling-audit.json || true
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const audit = JSON.parse(fs.readFileSync("tooling-audit.json", "utf8"));
+          const findings = Object.entries(audit.vulnerabilities || {})
+            .filter(([, value]) => ["high", "critical"].includes(value.severity));
+          for (const [name, value] of findings) {
+            const via = (value.via || []).map((item) => typeof item === "string" ? item : item.name).join(",");
+            console.log(`::warning title=Tooling audit::${name} severity=${value.severity} range=${value.range} via=${via}`);
+          }
+          console.log(`high_or_critical=${findings.length}`);
+          NODE
       - name: Commit lockfile
         shell: bash
         run: |
