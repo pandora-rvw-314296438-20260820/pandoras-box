@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 4,
-  "observedAt": "2026-09-07T20:43:13+08:00",
+  "schemaVersion": 5,
+  "observedAt": "2026-09-07T23:38:00+08:00",
   "projects": {
     "primary": "jcyqixttuebxqqfkjonq",
     "secondary": "ivmvufhcsezyhczzondn"
@@ -1680,12 +1680,12 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "UNRECONCILED",
-      "decision": "REVIEW_REQUIRED_CALLER_PROOF",
+      "decision": "RETIRE_CANDIDATE_NO_LIVE_CALLER",
       "intentionalActive": false,
-      "purpose": "Live provider function observed outside the lifecycle registry; retention purpose requires explicit reconciliation.",
+      "purpose": "Historical constrained merge executor retained live only pending guarded retirement; no claimable allowlisted plan or live caller remains.",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth review required)",
       "owner": "Pandora platform/control plane",
-      "callerEvidence": "Live source is a constrained GitHub App merge executor with a fixed plan allowlist, but no current repository caller reference was found; explicit caller proof is required before retention.",
+      "callerEvidence": "2026-09-07 source and database scans found no repository references outside this registry and no PostgreSQL function/procedure or cron caller. Its two hard-coded execution plans are non-claimable: 8977fcdc-99e1-4d8d-ad0f-ce0b8f63afd8 is approved but expired on 2026-09-02, and 8b75d0cf-4e2f-47b9-bbf5-fd7d74f46496 already failed on 2026-09-07. claim_execution_plan rejects expired approved plans and any non-approved status.",
       "reviewBy": "2026-09-08",
       "observedAt": "2026-09-07T18:45:00+08:00"
     },
@@ -1697,12 +1697,12 @@
       "status": "ACTIVE",
       "verifyJwt": false,
       "class": "UNRECONCILED",
-      "decision": "REVIEW_REQUIRED_CALLER_PROOF",
+      "decision": "RETIRE_CANDIDATE_NO_LIVE_CALLER",
       "intentionalActive": false,
-      "purpose": "Live provider function observed outside the lifecycle registry; retention purpose requires explicit reconciliation.",
+      "purpose": "Historical proof alias retained live only pending guarded retirement; no live caller remains and the canonical learning function is active.",
       "authModel": "custom-auth-or-internal (verify_jwt=false; source auth review required)",
       "owner": "Pandora Memory/control plane",
-      "callerEvidence": "Live function imports a canonical proof implementation, but no current repository caller reference beyond the lifecycle registry was found; explicit caller proof is required before retention.",
+      "callerEvidence": "2026-09-07 source and database scans found no repository references outside this registry and no PostgreSQL function/procedure or cron caller. The alias only imports the pinned 27cf80b18d8c5861805641accc1afaeffe584e16 proof implementation, while canonical pandora-projectos-learning is ACTIVE at version 8 in the Memory project.",
       "reviewBy": "2026-09-08",
       "observedAt": "2026-09-07T18:45:00+08:00"
     },
