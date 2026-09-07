@@ -1,6 +1,6 @@
 const BRAND_MARK = 'https://raw.githubusercontent.com/mbanatao/Battle/c3594e4721097714118a3e1a6854e9836410b00a/public/brand/banatao/red-apple-mark-96.png';
 const API_BASE = '/api/operator';
-const ROUTES = new Set(['home', 'projects', 'ask', 'needs', 'business', 'approvals', 'activity', 'more']);
+const ROUTES = new Set(['home', 'projects', 'project', 'ask', 'needs', 'business', 'approvals', 'activity', 'more']);
 const COMPLETE_STATES = new Set(['complete', 'completed', 'merged', 'released', 'production_verified']);
 const ACTIVE_STATES = new Set(['active', 'in-progress', 'in_progress', 'building', 'reviewing', 'testing', 'queued-qualification', 'partial']);
 
@@ -44,6 +44,8 @@ const state = {
   ask: {
     message: '',
     threadId: null,
+    projectId: null,
+    projectName: '',
     reply: '',
     intent: '',
     confidence: null,
@@ -52,6 +54,22 @@ const state = {
     handoff: null,
     sending: false,
     error: null,
+  },
+  projectWorkspace: {
+    sourceId: null,
+    source: null,
+    ownerSummary: null,
+    detail: null,
+    runtime: null,
+    experience: null,
+    theatre: null,
+    view: 'current',
+    changeMessage: '',
+    loading: false,
+    mutating: false,
+    confirmAction: null,
+    error: null,
+    loadedAt: null,
   },
   theme: localStorage.getItem('pandoras-owner-theme') || 'dark',
 };
@@ -70,6 +88,15 @@ function esc(value) {
 function routeFromLocation() {
   const route = window.location.hash.replace(/^#\/?/, '').split('/')[0];
   return ROUTES.has(route) ? route : 'home';
+}
+
+function routeResourceFromLocation() {
+  const [, resource = ''] = window.location.hash.replace(/^#\/?/, '').split('/');
+  try {
+    return decodeURIComponent(resource);
+  } catch {
+    return '';
+  }
 }
 
 function normalizeStatus(value) {
@@ -275,5 +302,5 @@ function readiness(candidate) {
 
 
 window.PandorasOwnerData = Object.freeze({
-  BRAND_MARK, API_BASE, ROUTES, icons, state, app, rerender, esc, routeFromLocation, normalizeStatus, isComplete, isActive, isBlocked, cleanName, projectName, projectInitials, formatPhase, timeAgo, formatExpiry, formatTool, projectForPlan, projectForEvent, eventMessage, eventKind, deriveProjects, readiness
+  BRAND_MARK, API_BASE, ROUTES, icons, state, app, rerender, esc, routeFromLocation, routeResourceFromLocation, normalizeStatus, isComplete, isActive, isBlocked, cleanName, projectName, projectInitials, formatPhase, timeAgo, formatExpiry, formatTool, projectForPlan, projectForEvent, eventMessage, eventKind, deriveProjects, readiness
 });
