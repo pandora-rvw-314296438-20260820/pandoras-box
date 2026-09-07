@@ -954,6 +954,10 @@ window.addEventListener('mcpmaster-auth-changed', (event) => {
     state.connections = [];
     state.plans = [];
     state.logs = [];
+    state.library = {
+      loading: false, loadedAt: null, generatedAt: null,
+      artifacts: [], releases: [], error: null,
+    };
   } else {
     refreshLiveStatus();
   }
