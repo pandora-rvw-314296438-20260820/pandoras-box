@@ -74,11 +74,12 @@ test('post-retirement registry separates live provider inventory from retirement
   }
 });
 
-test('Edge retirement broker excludes retained and unresolved candidates', () => {
+test('Edge retirement broker excludes retained and not-yet-brokered candidates', () => {
   const protectedEntries = registry.functions.filter((entry) =>
     [
       'RETAIN_EVIDENCE_PENDING_OWNER_RECONCILIATION',
       'REVIEW_REQUIRED_CALLER_PROOF',
+      'RETIRE_CANDIDATE_NO_LIVE_CALLER',
     ].includes(entry.decision),
   );
 
