@@ -241,8 +241,12 @@ function createProjectChangeExecutor(options) {
             intentId = text(oneRow(inserted)?.id).toLowerCase();
         } catch (error) {
             if (!(error instanceof rest_client_1.SupabaseRestError) || error.code !== "23505") throw new ProjectChangeError("PROJECT_CHANGE_UNAVAILABLE", 503, "Pandora could not save that change request.");
-            const existing = oneRow(await client.requestJson(`/rest/v1/pandora_project_intents?select=id&organization_id=eq.${q(organizationId)}&project_id=eq.${q(projectId)}&idempotency_key=eq.${q(idempotencyKey)}&limit=1`));
-            intentId = text(existing?.id).toLowerCase();
+            try {
+                const existing = oneRow(await client.requestJson(`/rest/v1/pandora_project_intents?select=id&organization_id=eq.${q(organizationId)}&project_id=eq.${q(projectId)}&idempotency_key=eq.${q(idempotencyKey)}&limit=1`));
+                intentId = text(existing?.id).toLowerCase();
+            } catch {
+                throw new ProjectChangeError("PROJECT_CHANGE_UNAVAILABLE", 503, "Pandora could not confirm that change request.");
+            }
         }
         if (!UUID_RE.test(intentId)) throw new ProjectChangeError("PROJECT_CHANGE_UNAVAILABLE", 503, "Pandora could not establish the durable change identity.");
 
