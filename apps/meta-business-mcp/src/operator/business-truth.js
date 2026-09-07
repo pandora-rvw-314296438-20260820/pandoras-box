@@ -15,6 +15,11 @@ function currency(value){
   const v=text(value,3).toUpperCase();
   return /^[A-Z]{3}$/.test(v)?v:"USD";
 }
+function addMicros(current,value){
+  if(current==null||value==null) return null;
+  const next=current+value;
+  return Number.isSafeInteger(next)&&next>=0 ? next : null;
+}
 function projectBucket(map,projectId,project){
   if(!map.has(projectId)){
     map.set(projectId,{
@@ -102,14 +107,23 @@ function createBusinessTruthExecutor(options){
       const internal=billed!=null&&billed>0?billed:estimated!=null&&estimated>0?estimated:null;
       const confidence=billed!=null&&billed>0?"actual":estimated!=null&&estimated>0?"estimated":"unknown";
       bucket.entryCount+=1;
-      if(internal==null) bucket.unknownCostCount+=1; else bucket.knownInternalCostMicros+=internal;
+      if(internal==null) bucket.unknownCostCount+=1;
+      else {
+        bucket.knownInternalCostMicros=addMicros(bucket.knownInternalCostMicros,internal);
+        if(bucket.knownInternalCostMicros==null) bucket.unknownCostCount+=1;
+      }
       if(confidence==="actual") bucket.actualCount+=1;
       if(confidence==="estimated") bucket.estimatedCount+=1;
-      bucket.customerChargeMicros+=charged??0; bucket.creditMicros+=credits??0;
+      bucket.customerChargeMicros=addMicros(bucket.customerChargeMicros,charged??0);
+      bucket.creditMicros=addMicros(bucket.creditMicros,credits??0);
       const category=text(row.cost_category,80)||"other";
       const existing=bucket.byCategory[category]||{entryCount:0,knownInternalCostMicros:0,unknownCostCount:0};
       existing.entryCount+=1;
-      if(internal==null) existing.unknownCostCount+=1; else existing.knownInternalCostMicros+=internal;
+      if(internal==null) existing.unknownCostCount+=1;
+      else {
+        existing.knownInternalCostMicros=addMicros(existing.knownInternalCostMicros,internal);
+        if(existing.knownInternalCostMicros==null) existing.unknownCostCount+=1;
+      }
       bucket.byCategory[category]=existing;
     }
 
@@ -121,7 +135,10 @@ function createBusinessTruthExecutor(options){
       const spent=micros(row.spent_micros),reserved=micros(row.reserved_micros);
       if(hard==null||spent==null||reserved==null) continue;
       const committed=spent+reserved;
-      bucket.limitCount+=1; bucket.hardLimitMicros+=hard; bucket.spentMicros+=spent; bucket.reservedMicros+=reserved;
+      bucket.limitCount+=1;
+      bucket.hardLimitMicros=addMicros(bucket.hardLimitMicros,hard);
+      bucket.spentMicros=addMicros(bucket.spentMicros,spent);
+      bucket.reservedMicros=addMicros(bucket.reservedMicros,reserved);
       if(text(row.status,40)==="exhausted"||committed>=hard) bucket.exhaustedCount+=1;
       if(warning!=null&&warning>0&&committed>=warning) bucket.nearLimitCount+=1;
     }
@@ -133,12 +150,13 @@ function createBusinessTruthExecutor(options){
       outcomeState:"not_measured",
       economics:[...project.economicsByCurrency.values()].map((e)=>({
         ...e,
-        totalInternalCostMicros:e.unknownCostCount===0?e.knownInternalCostMicros:null,
-        netCustomerChargeMicros:Math.max(0,e.customerChargeMicros-e.creditMicros),
+        totalInternalCostMicros:e.unknownCostCount===0&&e.knownInternalCostMicros!=null?e.knownInternalCostMicros:null,
+        netCustomerChargeMicros:e.customerChargeMicros==null||e.creditMicros==null?null:Math.max(0,e.customerChargeMicros-e.creditMicros),
         confidence:e.unknownCostCount>0?"unknown":e.estimatedCount>0?"estimated":e.actualCount>0?"actual":"unknown",
       })),
       budgets:[...project.budgetsByCurrency.values()].map((b)=>({
-        ...b,remainingMicros:Math.max(0,b.hardLimitMicros-b.spentMicros-b.reservedMicros),
+        ...b,remainingMicros:b.hardLimitMicros==null||b.spentMicros==null||b.reservedMicros==null
+          ? null : Math.max(0,b.hardLimitMicros-b.spentMicros-b.reservedMicros),
       })),
     })).sort((a,b)=>a.projectName.localeCompare(b.projectName)).slice(0,100);
 
