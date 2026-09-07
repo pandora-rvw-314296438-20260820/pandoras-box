@@ -84,7 +84,9 @@ test('Tell Pandora carries the exact runtime project UUID through governed chang
   assert.ok(app.includes('idempotencyKey: item.changeRequestKey'));
   assert.ok(app.includes('...(item.focusToken ? { focusToken: item.focusToken } : {})'));
   assert.ok(app.includes('nextVersion !== baselineVersion'));
-  assert.ok(app.includes("verification === 'passed' || experience.current_verified === true"));
+  assert.ok(app.includes("nextVersion === candidateVersion && verification === 'passed'"));
+  assert.ok(app.includes('nextVersion === currentVersion && experience.current_verified === true'));
+  assert.ok(app.includes('previewIdentity?.versionId'));
 });
 
 test('Current, Live, and History are first-class workspace views', () => {
