@@ -866,6 +866,7 @@ app.addEventListener('click', async (event) => {
     state.connections = [];
     state.plans = [];
     state.logs = [];
+    state.business = { data: null, loading: false, error: null, loadedAt: null };
     state.error = { code: 'SIGNED_OUT', message: 'Sign in again to view protected live information.' };
     state.ask = {
       message: '', threadId: null, projectId: null, projectName: '', reply: '', intent: '', confidence: null,
@@ -954,6 +955,7 @@ window.addEventListener('mcpmaster-auth-changed', (event) => {
     state.connections = [];
     state.plans = [];
     state.logs = [];
+    state.business = { data: null, loading: false, error: null, loadedAt: null };
     state.library = {
       loading: false, loadedAt: null, generatedAt: null,
       artifacts: [], releases: [], error: null,

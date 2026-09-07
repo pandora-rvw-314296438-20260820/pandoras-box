@@ -38,9 +38,13 @@ test('owner decisions converge into Needs You while legacy admin screens remain 
   assert.match(ownerExperience, /Consequential decisions only/);
 });
 
-test('Business refuses to invent commercial truth', () => {
-  assert.match(ownerExperience, /Business data is not connected to this owner view yet/);
-  assert.match(ownerExperience, /will not invent revenue, ROI, adoption, retention, cost, or customer outcomes/);
+test('Business renders bounded facts without inventing commercial outcomes', () => {
+  assert.match(ownerExperience, /state\.business/);
+  assert.match(ownerExperience, /pandora-owner-business-v1/);
+  assert.match(ownerExperience, /Recorded spend by currency/);
+  assert.match(ownerExperience, /No cross-currency totals/);
+  assert.match(ownerExperience, /Revenue, ROI, adoption, retention, and customer outcomes remain unavailable/);
+  assert.doesNotMatch(ownerExperience, /Business data is not connected to this owner view yet/);
 });
 
 test('web control plane design preserves verified Live semantics and Admin safety', () => {

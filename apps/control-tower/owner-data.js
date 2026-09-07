@@ -54,6 +54,12 @@ const state = {
   logs: [],
   chain: null,
   metrics: null,
+  business: {
+    data: null,
+    loading: false,
+    error: null,
+    loadedAt: null,
+  },
   session: window.MCPMasterAuth?.session?.() || {},
   loading: true,
   refreshing: false,

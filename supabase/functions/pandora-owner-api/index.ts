@@ -580,6 +580,203 @@ async function loadDomainSummaries(context: UserContext, projectItems: unknown[]
   }).filter((item) => item.id && item.domain);
 }
 
+
+const BUSINESS_PROJECT_LIMIT = 500;
+const BUSINESS_ROW_LIMIT = 5000;
+
+function microsValue(value: unknown) {
+  const text = String(value ?? "0").trim();
+  if (!/^[0-9]+$/.test(text)) throw new Error("BUSINESS_DATA_INVALID");
+  return BigInt(text);
+}
+
+function microsText(value: bigint) {
+  return value.toString();
+}
+
+async function business(context: UserContext) {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const [projectsResult, objectivesResult, budgetsResult, costsResult] = await Promise.all([
+    admin.from("projectos_projects")
+      .select("id,project_key,name,status,repository,updated_at", { count: "exact" })
+      .eq("organization_id", context.organizationId)
+      .neq("status", "archived")
+      .order("updated_at", { ascending: false })
+      .limit(BUSINESS_PROJECT_LIMIT),
+    admin.from("pandora_project_business_objectives")
+      .select("project_id,objective,desired_outcome,success_metric,baseline,target,created_at", { count: "exact" })
+      .eq("organization_id", context.organizationId)
+      .order("created_at", { ascending: false })
+      .limit(BUSINESS_ROW_LIMIT),
+    admin.from("pandora_budget_limits")
+      .select("project_id,currency,warning_limit_micros,hard_limit_micros,reserved_micros,spent_micros,status", { count: "exact" })
+      .eq("organization_id", context.organizationId)
+      .order("updated_at", { ascending: false })
+      .limit(BUSINESS_ROW_LIMIT),
+    admin.from("pandora_cost_entries")
+      .select("project_id,currency,estimated_cost_micros,billed_cost_micros,charged_cost_micros,credit_micros,occurred_at", { count: "exact" })
+      .eq("organization_id", context.organizationId)
+      .order("occurred_at", { ascending: false })
+      .limit(BUSINESS_ROW_LIMIT),
+  ]);
+  if (projectsResult.error || objectivesResult.error || budgetsResult.error || costsResult.error) {
+    throw new Error("BACKEND_READ_FAILED");
+  }
+
+  const projectCount = projectsResult.count ?? 0;
+  const objectiveCount = objectivesResult.count ?? 0;
+  const budgetCount = budgetsResult.count ?? 0;
+  const costEntryCount = costsResult.count ?? 0;
+  const projectsComplete = projectCount <= BUSINESS_PROJECT_LIMIT;
+  const objectivesComplete = objectiveCount <= BUSINESS_ROW_LIMIT;
+  const budgetsComplete = budgetCount <= BUSINESS_ROW_LIMIT;
+  const costsComplete = costEntryCount <= BUSINESS_ROW_LIMIT;
+
+  const projects = projectsComplete ? (projectsResult.data || []) as JsonRecord[] : [];
+  const objectives = objectivesComplete ? (objectivesResult.data || []) as JsonRecord[] : [];
+  const budgets = budgetsComplete ? (budgetsResult.data || []) as JsonRecord[] : [];
+  const costs = costsComplete ? (costsResult.data || []) as JsonRecord[] : [];
+
+  const latestObjective = new Map<string, JsonRecord>();
+  for (const row of objectives) {
+    const projectId = textValue(row.project_id);
+    if (projectId && !latestObjective.has(projectId)) latestObjective.set(projectId, row);
+  }
+
+  type CostBucket = { estimated: bigint; billed: bigint; charged: bigint; credits: bigint; entries: number; latestAt: string | null };
+  type BudgetBucket = { hard: bigint; warning: bigint; spent: bigint; reserved: bigint; active: number; exhausted: number; closed: number };
+  const portfolioCosts = new Map<string, CostBucket>();
+  const portfolioBudgets = new Map<string, BudgetBucket>();
+  const projectCosts = new Map<string, Map<string, CostBucket>>();
+  const projectBudgets = new Map<string, Map<string, BudgetBucket>>();
+
+  const costBucket = (map: Map<string, CostBucket>, currency: string) => {
+    const existing = map.get(currency);
+    if (existing) return existing;
+    const created: CostBucket = { estimated: 0n, billed: 0n, charged: 0n, credits: 0n, entries: 0, latestAt: null };
+    map.set(currency, created);
+    return created;
+  };
+  const budgetBucket = (map: Map<string, BudgetBucket>, currency: string) => {
+    const existing = map.get(currency);
+    if (existing) return existing;
+    const created: BudgetBucket = { hard: 0n, warning: 0n, spent: 0n, reserved: 0n, active: 0, exhausted: 0, closed: 0 };
+    map.set(currency, created);
+    return created;
+  };
+
+  for (const row of costs) {
+    const projectId = textValue(row.project_id);
+    const currency = textValue(row.currency, "USD").toUpperCase();
+    if (!projectId || !/^[A-Z]{3}$/.test(currency)) throw new Error("BUSINESS_DATA_INVALID");
+    const projectMap = projectCosts.get(projectId) || new Map<string, CostBucket>();
+    projectCosts.set(projectId, projectMap);
+    for (const bucket of [costBucket(portfolioCosts, currency), costBucket(projectMap, currency)]) {
+      bucket.estimated += microsValue(row.estimated_cost_micros);
+      bucket.billed += microsValue(row.billed_cost_micros);
+      bucket.charged += microsValue(row.charged_cost_micros);
+      bucket.credits += microsValue(row.credit_micros);
+      bucket.entries += 1;
+      const observedAt = textValue(row.occurred_at);
+      if (observedAt && (!bucket.latestAt || observedAt > bucket.latestAt)) bucket.latestAt = observedAt;
+    }
+  }
+
+  for (const row of budgets) {
+    const projectId = textValue(row.project_id);
+    const currency = textValue(row.currency, "USD").toUpperCase();
+    const status = textValue(row.status, "active");
+    if (!projectId || !/^[A-Z]{3}$/.test(currency) || !["active","exhausted","closed"].includes(status)) {
+      throw new Error("BUSINESS_DATA_INVALID");
+    }
+    const projectMap = projectBudgets.get(projectId) || new Map<string, BudgetBucket>();
+    projectBudgets.set(projectId, projectMap);
+    for (const bucket of [budgetBucket(portfolioBudgets, currency), budgetBucket(projectMap, currency)]) {
+      bucket.hard += microsValue(row.hard_limit_micros);
+      bucket.warning += microsValue(row.warning_limit_micros);
+      bucket.spent += microsValue(row.spent_micros);
+      bucket.reserved += microsValue(row.reserved_micros);
+      if (status === "active") bucket.active += 1;
+      else if (status === "exhausted") bucket.exhausted += 1;
+      else bucket.closed += 1;
+    }
+  }
+
+  const costRows = (map: Map<string, CostBucket>) => [...map.entries()].sort(([a],[b]) => a.localeCompare(b)).map(([currency, bucket]) => ({
+    currency,
+    estimatedMicros: microsText(bucket.estimated),
+    billedMicros: microsText(bucket.billed),
+    chargedMicros: microsText(bucket.charged),
+    creditMicros: microsText(bucket.credits),
+    entryCount: bucket.entries,
+    latestAt: bucket.latestAt,
+  }));
+  const budgetRows = (map: Map<string, BudgetBucket>) => [...map.entries()].sort(([a],[b]) => a.localeCompare(b)).map(([currency, bucket]) => ({
+    currency,
+    hardLimitMicros: microsText(bucket.hard),
+    warningLimitMicros: microsText(bucket.warning),
+    spentMicros: microsText(bucket.spent),
+    reservedMicros: microsText(bucket.reserved),
+    activeCount: bucket.active,
+    exhaustedCount: bucket.exhausted,
+    closedCount: bucket.closed,
+  }));
+
+  const projectItems = projects.map((project) => {
+    const projectId = textValue(project.id);
+    const objective = latestObjective.get(projectId);
+    return {
+      projectId,
+      projectKey: textValue(project.project_key),
+      name: textValue(project.name, "Project"),
+      status: textValue(project.status, "unknown"),
+      repository: textValue(project.repository) || null,
+      objective: objective ? {
+        objective: textValue(objective.objective),
+        desiredOutcome: textValue(objective.desired_outcome) || null,
+        successMetric: textValue(objective.success_metric) || null,
+        baseline: textValue(objective.baseline) || null,
+        target: textValue(objective.target) || null,
+        recordedAt: objective.created_at ?? null,
+      } : null,
+      costs: costsComplete ? costRows(projectCosts.get(projectId) || new Map()) : [],
+      budgets: budgetsComplete ? budgetRows(projectBudgets.get(projectId) || new Map()) : [],
+    };
+  });
+
+  return {
+    contractVersion: "pandora-owner-business-v1",
+    observedAt: new Date().toISOString(),
+    completeness: {
+      projects: projectsComplete,
+      objectives: objectivesComplete,
+      budgets: budgetsComplete,
+      costs: costsComplete,
+    },
+    counts: {
+      projects: projectCount,
+      objectives: objectiveCount,
+      projectsWithObjectives: objectivesComplete ? latestObjective.size : null,
+      budgetLimits: budgetCount,
+      costEntries: costEntryCount,
+    },
+    costs: costsComplete ? costRows(portfolioCosts) : [],
+    budgets: budgetsComplete ? budgetRows(portfolioBudgets) : [],
+    projects: projectItems,
+    unavailable: {
+      revenue: true,
+      roi: true,
+      adoption: true,
+      retention: true,
+      customerOutcomes: true,
+      reason: "No bounded first-party measurement source is part of this owner Business contract yet.",
+    },
+  };
+}
+
 async function home(context: UserContext) {
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -2135,6 +2332,9 @@ Deno.serve(async (req: Request) => {
     }
     if (req.method === "GET" && route === "/projects") {
       return send(await projects(context));
+    }
+    if (req.method === "GET" && route === "/business") {
+      return send(await business(context));
     }
     if (req.method === "GET" && /^\/projects\/[^/]+\/operations$/.test(route)) {
       const projectRecord = await resolveMemoryProject(

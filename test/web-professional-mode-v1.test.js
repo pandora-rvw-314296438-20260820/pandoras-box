@@ -83,9 +83,13 @@ test('Professional Library consumes only the bounded operator Library index', ()
   assert.ok(professional.includes('does not expose storage paths, raw provenance, source payloads, deployment URLs, provider deployment IDs or artifact bytes'));
 });
 
-test('Business remains unavailable rather than fabricated', () => {
-  assert.ok(professional.includes('Authoritative business analytics are not connected to this web mode yet'));
-  assert.ok(professional.includes('Pandora will not invent revenue, cost, retention, adoption, ROI'));
+test('Professional Business consumes the shared bounded owner contract', () => {
+  assert.match(professional, /state\.business/);
+  assert.match(professional, /pandora-owner-business-v1/);
+  assert.ok(professional.includes('No cross-currency totals'));
+  assert.ok(professional.includes('Commercial outcomes are not inferred'));
+  assert.ok(professional.includes('Revenue, ROI, adoption, retention, and customer outcomes remain explicitly unavailable'));
+  assert.doesNotMatch(professional, /Authoritative business analytics are not connected to this web mode yet/);
 });
 
 test('Connect exposes posture but explicitly keeps credentials out of the browser', () => {
