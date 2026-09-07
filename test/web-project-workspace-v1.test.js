@@ -57,7 +57,7 @@ test('Build Theatre is projection-driven and cannot independently declare Live',
 test('Ready and Publish require canonical experience permission plus runtime publish eligibility', () => {
   assert.ok(workspace.includes('experience.can_publish === true && item.runtime?.verification?.publishEligible === true'));
   assert.ok(workspace.includes('experience.can_publish === true && item.runtime?.verification?.publishEligible === true && Boolean(candidateId)'));
-  assert.ok(app.includes('expectedProductionVersionId: item.runtime?.production?.version_id ?? null'));
+  assert.ok(app.includes('expectedProductionVersionId: item.runtime?.production?.versionId ?? null'));
 });
 
 test('Undo is exact-version gated and confirmation precedes mutation', () => {
@@ -74,6 +74,7 @@ test('Publish has an explicit confirmation step before exact runtime mutation', 
   assert.ok(workspace.includes("action: 'prepare-workspace-publish'"));
   assert.ok(workspace.includes("'confirm-workspace-publish'"));
   assert.ok(app.includes("performWorkspaceMutation('publish')"));
+  assert.ok(app.includes("expectedProductionVersionId: item.runtime?.production?.versionId ?? null"));
   assert.ok(app.indexOf('prepare-workspace-publish') < app.indexOf('confirm-workspace-publish'));
 });
 
