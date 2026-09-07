@@ -37,6 +37,7 @@ test('project change is owner-admin and projectos execute scoped',()=>{
   assert.match(api,/projects\\/\\[0-9a-f-\\]\\+\\/change/);
   assert.match(api,/projectos:execute/);
   assert.match(api,/EXECUTOR_ROLE_REQUIRED/);
+  assert.match(api,/express_1\.default\.json\(\{ limit: '32kb', strict: true \}\)/);
   assert.match(change,/Only an owner or admin may change a project/);
 });
 test('durable change lineage is intent to exact active spec to governed build admission',()=>{
@@ -52,6 +53,7 @@ test('old preview remains visible until exact verified candidate is hydrated',()
   assert.match(app,/candidate_verification_state/);
   assert.match(app,/previewBundle\?\.versionId === candidate/);
   assert.match(app,/Your previous verified result remains current/);
+  assert.match(app,/Never discard the last exact verified preview/);
   assert.match(workspace,/data-owner-preview-host/);
   assert.match(workspace,/Focus object/);
 });

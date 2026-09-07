@@ -68,11 +68,11 @@ async function hydrateExactWorkspacePreview(item, projectId, experience) {
     item.previewArtifactDigest = String(bundle.artifactDigest).toLowerCase();
     if (versionChanged) window.PandorasOwnerPreviewFocus?.clear?.();
   } catch {
-    if (item.previewVersionId !== versionId) {
+    // Never discard the last exact verified preview just because the next
+    // verified candidate's bytes are still materializing.
+    if (!item.previewVersionId) {
       item.previewBundle = null;
-      item.previewVersionId = null;
       item.previewArtifactDigest = null;
-      window.PandorasOwnerPreviewFocus?.clear?.();
     }
   }
 }

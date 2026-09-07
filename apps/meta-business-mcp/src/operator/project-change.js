@@ -13,7 +13,7 @@ function fail(res,status,code,message){res.status(status).json({ok:false,error:{
 function safeFile(v){const s=text(v)||"index.html";return !s.startsWith("/")&&!s.includes("..")&&!s.includes("\\")&&!s.includes("\0")?s:null;}
 function component(v){const s=text(v);return s&&s.length<=200&&!/[\r\n\0]/.test(s)?s:null;}
 async function edge(options,token,name,body){
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),28000);
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
   try{
     const response=await (options.projectChangeFetchFn||fetch)(new URL("/functions/v1/"+encodeURIComponent(name),options.supabaseUrl),{
       method:"POST",redirect:"error",signal:controller.signal,

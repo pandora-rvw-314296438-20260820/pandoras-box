@@ -383,7 +383,7 @@ function createOperatorApiApp(options) {
         delete request.headers.origin;
         next();
     });
-    router.post('/projects/:projectId/change', projectChangeHandler);
+    router.post('/projects/:projectId/change', express_1.default.json({ limit: '32kb', strict: true }), projectChangeHandler);
     router.get('/status', async (request, response) => {
         noStore(response);
         try {
