@@ -1315,11 +1315,12 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
     });
   }
 
-  Future<void> _refresh() {
+  Future<void> _refresh() async {
     final active = _refreshTask;
     if (active != null) {
       _refreshAgain = true;
-      return active;
+      await active;
+      return;
     }
 
     late final Future<void> task;
@@ -1329,7 +1330,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
       }
     });
     _refreshTask = task;
-    return task;
+    await task;
   }
 
   Future<void> _runRefreshLoop() async {
