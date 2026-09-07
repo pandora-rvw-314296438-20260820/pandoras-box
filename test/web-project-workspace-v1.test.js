@@ -60,11 +60,19 @@ test('Ready and Publish require canonical experience permission plus runtime pub
   assert.ok(app.includes('expectedProductionVersionId: item.runtime?.production?.versionId ?? null'));
 });
 
-test('Undo is exact-version gated and confirmation precedes mutation', () => {
-  assert.ok(workspace.includes('experience.can_undo === true && Boolean(candidateId)'));
+test('Undo is exact-current parent-bound, production-safe, and confirmation precedes mutation', () => {
+  assert.ok(workspace.includes('function exactUndoIdentity()'));
+  assert.ok(workspace.includes('experience.can_undo !== true'));
+  assert.ok(workspace.includes('runtimeVersionId !== currentVersionId'));
+  assert.ok(workspace.includes('currentVersionId === productionVersionId'));
+  assert.ok(workspace.includes("new Set(['built', 'verification_pending', 'verified', 'preview_ready'])"));
   assert.ok(workspace.includes("action: 'prepare-workspace-undo'"));
   assert.ok(workspace.includes("'confirm-workspace-undo'"));
-  assert.ok(app.includes('expectedVersionId: candidateVersionId'));
+  assert.ok(app.includes('expectedVersionId: undoIdentity.currentVersionId'));
+  assert.ok(app.includes('waitForUndoResolution'));
+  assert.ok(app.includes('previewIdentity?.versionId === identity.parentVersionId'));
+  assert.ok(app.includes('productionVersionId !== identity.productionVersionId'));
+  assert.ok(app.includes('Pandora will not claim success yet'));
   assert.ok(app.includes('idempotencyKey:'));
   assert.ok(app.includes('crypto.randomUUID()'));
   assert.ok(app.indexOf('prepare-workspace-undo') < app.indexOf('confirm-workspace-undo'));

@@ -49,6 +49,12 @@ function ownerState() {
   if (item.mutationKind === 'publish' && item.mutationPhase === 'publishing') {
     return { label: 'Publishing', kind: 'neutral' };
   }
+  if (item.mutationKind === 'undo' && item.mutationPhase === 'checking') {
+    return { label: 'Checking', kind: 'neutral' };
+  }
+  if (item.mutationKind === 'undo' && item.mutationPhase === 'working') {
+    return { label: 'Restoring', kind: 'neutral' };
+  }
   if (experience.can_publish === true && item.runtime?.verification?.publishEligible === true) {
     return { label: 'Ready', kind: 'success' };
   }
@@ -100,6 +106,30 @@ function selectedTargetLabel() {
   const selected = workspace().selectedTarget;
   if (!selected) return '';
   return selected.accessibleName || selected.componentId || selected.semanticId || selected.selector || 'Selected object';
+}
+
+function exactUndoIdentity() {
+  const item = workspace();
+  const experience = item.experience || {};
+  const runtimeCandidate = item.runtime?.candidate;
+  const currentVersionId = String(experience.current_version_id || '').toLowerCase();
+  const productionVersionId = String(experience.production_version_id || '').toLowerCase();
+  const runtimeVersionId = String(runtimeCandidate?.versionId || '').toLowerCase();
+  const parentVersionId = String(runtimeCandidate?.parentVersionId || '').toLowerCase();
+  const runtimeStatus = String(runtimeCandidate?.status || '').toLowerCase();
+  const undoableStatuses = new Set(['built', 'verification_pending', 'verified', 'preview_ready']);
+  if (experience.can_undo !== true
+      || !currentVersionId
+      || runtimeVersionId !== currentVersionId
+      || !parentVersionId
+      || currentVersionId === productionVersionId
+      || !undoableStatuses.has(runtimeStatus)) return null;
+  return Object.freeze({
+    currentVersionId,
+    parentVersionId,
+    productionVersionId: productionVersionId || null,
+    runtimeStatus,
+  });
 }
 
 function verifiedLiveUrl() {
@@ -256,16 +286,20 @@ function actionConfirmation() {
   const item = workspace();
   if (!item.confirmAction) return '';
   const publish = item.confirmAction === 'publish';
+  const undo = publish ? null : exactUndoIdentity();
+  if (!publish && !undo) return '';
   return `<section class="owner-card owner-workspace-confirm">
     <div class="owner-decision-icon warning">${publish ? icons.link : icons.refresh}</div>
     <div>
       <span class="owner-kicker">${publish ? 'Publish' : 'Undo'}</span>
-      <h3>${publish ? 'Make this verified version live?' : 'Undo the latest current change?'}</h3>
-      <p>${publish ? 'Pandora will re-check exact version, preview, verification and production preconditions before moving production.' : 'Pandora will restore only the exact verified parent version. If this would require a production rollback, the runtime will refuse the implicit undo.'}</p>
+      <h3>${publish ? 'Make this verified version live?' : 'Restore the exact verified parent?'}</h3>
+      <p>${publish
+        ? 'Pandora will re-check exact version, preview, verification and production preconditions before moving production.'
+        : `Current ${esc(compactId(undo.currentVersionId))} will be marked rolled back and verified parent ${esc(compactId(undo.parentVersionId))} will become Current. Production will not move.`}</p>
     </div>
     <div class="owner-workspace-confirm-actions">
       ${button('Cancel', { kind: 'secondary', action: 'cancel-workspace-action' })}
-      ${button(publish ? 'Publish verified version' : 'Undo current change', { kind: 'primary', action: publish ? 'confirm-workspace-publish' : 'confirm-workspace-undo', disabled: item.mutating })}
+      ${button(publish ? 'Publish verified version' : 'Restore verified parent', { kind: 'primary', action: publish ? 'confirm-workspace-publish' : 'confirm-workspace-undo', disabled: item.mutating })}
     </div>
   </section>`;
 }
@@ -275,7 +309,7 @@ function controls() {
   const experience = item.experience || {};
   const candidateId = item.runtime?.candidate?.versionId;
   const canPublish = experience.can_publish === true && item.runtime?.verification?.publishEligible === true && Boolean(candidateId);
-  const canUndo = experience.can_undo === true && Boolean(candidateId);
+  const canUndo = Boolean(exactUndoIdentity());
   if (!canPublish && !canUndo) return '';
   return `<section class="owner-workspace-controls" aria-label="Project actions">
     ${canUndo ? button('Undo', { kind: 'secondary', action: 'prepare-workspace-undo', disabled: item.mutating }) : ''}
@@ -312,6 +346,7 @@ window.PandorasOwnerProjectWorkspace = Object.freeze({
   exactPreviewUrl,
   previewIdentity,
   focusCapablePreviewUrl,
+  exactUndoIdentity,
   verifiedLiveUrl,
 });
 }

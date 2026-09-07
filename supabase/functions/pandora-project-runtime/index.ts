@@ -923,23 +923,24 @@ async function undoProject(context: UserContext, identifier: string, body: JsonR
     throw new Error("UNDO_PARENT_PREVIEW_UNAVAILABLE");
   }
 
-  const { data: rolledBack, error: rollBackError } = await admin.from("pandora_project_versions")
-    .update({ lifecycle_status: "rolled_back" })
-    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", expectedVersionId).eq("parent_version_id", parentVersionId)
-    .in("lifecycle_status", ["built", "verification_pending", "verified", "preview_ready"]).select("id").maybeSingle();
-  if (rollBackError) throw new Error("BACKEND_WRITE_FAILED");
-  if (!rolledBack) {
-    const { data: replayData, error: replayError } = await admin.from("pandora_project_versions").select("lifecycle_status").eq("id", expectedVersionId).maybeSingle();
-    if (replayError || textValue(replayData?.lifecycle_status) !== "rolled_back") throw new Error("UNDO_PRECONDITION_MISMATCH");
+  const { error: undoError } = await admin.rpc("pandora_apply_application_undo_v2", {
+    p_organization_id: context.organizationId,
+    p_project_id: projectId,
+    p_expected_version_id: expectedVersionId,
+    p_parent_version_id: parentVersionId,
+    p_parent_preview_deployment_id: parentPreviewData.id,
+    p_parent_preview_url: parentPreviewData.url,
+  });
+  if (undoError) {
+    const message = textValue(undoError.message);
+    if (message.includes("UNDO_REQUIRES_ROLLBACK")) throw new Error("UNDO_REQUIRES_ROLLBACK");
+    if (message.includes("UNDO_PARENT_NOT_VERIFIED")) throw new Error("UNDO_PARENT_NOT_VERIFIED");
+    if (message.includes("UNDO_PARENT_PREVIEW_UNAVAILABLE")) throw new Error("UNDO_PARENT_PREVIEW_UNAVAILABLE");
+    if (message.includes("UNDO_PRECONDITION_MISMATCH")) throw new Error("UNDO_PRECONDITION_MISMATCH");
+    if (message.includes("EXACT_VERSION_REQUIRED")) throw new Error("EXACT_VERSION_REQUIRED");
+    if (message.includes("PROJECT_NOT_FOUND")) throw new Error("PROJECT_NOT_FOUND");
+    throw new Error("BACKEND_WRITE_FAILED");
   }
-
-  const now = new Date().toISOString();
-  const config = asRecord(project.config);
-  const journey = asRecord(config.customerJourney);
-  const parentIsProduction = textValue(productionEnvironment?.current_version_id) === parentVersionId;
-  const nextConfig = { ...config, customerJourney: { ...journey, stage: parentIsProduction ? "live" : "preview_ready", runtimeStatus: "ready", previewUrl: parentPreviewData.url, productionCandidateUrl: null, runtimeUpdatedAt: now } };
-  const { error: projectError } = await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
-  if (projectError) throw new Error("BACKEND_WRITE_FAILED");
   return runtimeSummary(context, projectId);
 }
 

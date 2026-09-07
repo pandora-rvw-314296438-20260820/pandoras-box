@@ -38,7 +38,8 @@ test('Undo is exact-version, parent-bound, and refuses implicit live rollback', 
   assert.match(runtime, /parent_version_id/);
   assert.match(runtime, /UNDO_REQUIRES_ROLLBACK/);
   assert.match(runtime, /UNDO_PARENT_PREVIEW_UNAVAILABLE/);
-  assert.match(runtime, /lifecycle_status: "rolled_back"/);
+  assert.match(runtime, /pandora_apply_application_undo_v2/);
+  assert.doesNotMatch(runtime, /update\(\{ lifecycle_status: "rolled_back" \}\)/);
   assert.match(runtime, /\/projects\\\/\(\[\^\/\]\+\)\\\/undo/);
 });
 
@@ -52,10 +53,17 @@ test('Simple Mode exposes Changed · Undo through the unified experience reposit
   assert.match(workspaceView, /'Undo'/);
   assert.doesNotMatch(workspace, /CURRENT OBJECT/);
   assert.doesNotMatch(workspace, /Your first version is ready/);
-  assert.match(
-    workspace,
-    /bool get _canUndo =>[\s\S]*_projection\?\.canUndo == true && _projection\?\.candidateVersionId != null;/,
-  );
-  assert.match(workspace, /final versionId = _projection\?\.candidateVersionId;/);
+  assert.match(workspace, /String\? get _undoCurrentVersionId/);
+  assert.match(workspace, /projection\.canUndo != true/);
+  assert.match(workspace, /runtimeCurrent\.versionId != current/);
+  assert.match(workspace, /projection\.productionVersionId == current/);
+  assert.match(workspace, /bool get _canUndo => _undoCurrentVersionId != null/);
+  assert.match(workspace, /final versionId = _undoCurrentVersionId/);
+  assert.match(workspace, /final parentVersionId = _snapshot\?\.candidate\?\.parentVersionId/);
   assert.match(workspace, /experience\.undo\([\s\S]*versionId: versionId/);
+  assert.match(workspace, /snapshot\.candidate\?\.versionId != parentVersionId/);
+  assert.match(workspace, /transition\.currentVersionId != parentVersionId/);
+  assert.match(workspace, /transition\.productionVersionId != expectedProductionVersionId/);
+  assert.match(workspace, /versionId: parentVersionId/);
+  assert.match(workspace, /Undo verified\. The exact parent is Current and Live did not move/);
 });
