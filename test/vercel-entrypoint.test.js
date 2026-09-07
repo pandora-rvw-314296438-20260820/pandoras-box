@@ -56,6 +56,8 @@ test("Vercel selects the callable source entrypoint and preserves governed web r
   const rewrites = new Map(vercelConfig.rewrites.map(({ source, destination }) => [source, destination]));
   assert.equal(rewrites.get("/"), "/pandora-web/index.html");
   assert.equal(rewrites.get("/health"), "/api/health");
+  assert.equal(rewrites.get("/control-tower"), "/control-tower/index.html");
+  assert.equal(rewrites.get("/control-tower/"), "/control-tower/index.html");
   assert.equal(rewrites.get("/control-tower/projectos-status.json"), "/api/operator/status");
   assert.equal(rewrites.get("/control-tower/release.json"), "/api/operator/status");
 
