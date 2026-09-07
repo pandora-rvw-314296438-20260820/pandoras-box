@@ -72,6 +72,11 @@ void main() {
       view,
       contains("child: Text(publishing ? 'Publishing…' : 'Publish')"),
     );
+    expect(view, contains("Key('workspace-live-destination')"));
+    expect(view, contains("Key('publish-receipt-live-host')"));
+    expect(view, contains("'Live at'"));
+    expect(source, contains("Key('published-live-host')"));
+    expect(source, contains("label: 'Open site'"));
     expect(source, contains('_tryIntelligenceTurn'));
     expect(source, contains('_flowTimeout'));
     expect(source, contains('_previewRetryLimit'));
