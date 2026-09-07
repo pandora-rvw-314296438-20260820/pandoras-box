@@ -115,11 +115,9 @@ jobs:
           fs.writeFileSync(p, s);
           NODE
 
-      - name: Format isolated toolchain files
+      - name: Validate isolated toolchain install
         shell: bash
-        run: |
-          npm ci --prefix tooling --ignore-scripts --no-audit --no-fund
-          cd tooling\n          ./node_modules/.bin/biome format --write scripts/verify-engineering-toolchain.mjs playwright.config.mjs test/e2e/toolchain-smoke.spec.mjs
+        run: npm ci --prefix tooling --ignore-scripts --no-audit --no-fund
 
       - name: Update documentation paths
         shell: bash
