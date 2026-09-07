@@ -55,7 +55,10 @@ void main() {
     expect(source, isNot(contains('.projectExperience;')));
     expect(source, isNot(contains('.projectExperienceProjection;')));
     expect(source, contains('projection.currentVerified'));
-    expect(source, contains('projection.productionVersionId != currentVersionId'));
+    expect(
+      source,
+      contains('projection.productionVersionId != currentVersionId'),
+    );
     expect(source, contains('projection.productionVersionId == versionId'));
     expect(source, contains('ProjectWorkspaceV2View('));
     expect(source, isNot(contains('PandoraV2IntentSurface(')));
