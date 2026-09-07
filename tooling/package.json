@@ -24,5 +24,18 @@
     "knip": "6.34.0",
     "supabase": "2.116.0",
     "vercel": "59.11.7"
+  },
+  "overrides": {
+    "@vercel/fun": {
+      "@tootallnate/once": "2.0.1",
+      "tar": "7.5.18"
+    },
+    "@vercel/node": {
+      "undici": "5.29.0"
+    },
+    "@vercel/python-analysis": {
+      "js-yaml": "4.3.1",
+      "minimatch": "10.2.6"
+    }
   }
 }
