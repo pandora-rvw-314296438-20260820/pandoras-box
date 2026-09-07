@@ -34,7 +34,7 @@ test('FocusToken v2 is checked on the server against exact visible artifact line
 });
 test('project change is owner-admin and projectos execute scoped',()=>{
   assert.match(api,/createProjectChangeHandler/);
-  assert.match(api,/projects\\/\\[0-9a-f-\\]\\+\\/change/);
+  assert.ok(api.includes("router.post('/projects/:projectId/change'"));
   assert.match(api,/projectos:execute/);
   assert.match(api,/EXECUTOR_ROLE_REQUIRED/);
   assert.match(api,/express_1\.default\.json\(\{ limit: '32kb', strict: true \}\)/);
