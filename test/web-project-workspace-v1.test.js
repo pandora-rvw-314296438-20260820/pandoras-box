@@ -97,7 +97,7 @@ test('Current, Live, and History are first-class workspace views', () => {
 
 test('project workspace assets are loaded under a distinct cache revision', () => {
   assert.ok(first.includes('owner-project-workspace.js'));
-  assert.ok(first.includes('web-project-workspace-v1-20260907-1'));
-  assert.ok(index.includes('owner-experience.css?v=web-project-workspace-v1-20260907-1'));
-  assert.ok(index.includes('bootstrap.js?v=web-project-workspace-v1-20260907-1'));
+  assert.ok(first.includes('web-professional-mode-v1-20260907-1'));
+  assert.ok(index.includes('owner-experience.css?v=web-professional-mode-v1-20260907-1'));
+  assert.ok(index.includes('bootstrap.js?v=web-professional-mode-v1-20260907-1'));
 });

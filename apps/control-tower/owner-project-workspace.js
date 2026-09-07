@@ -217,7 +217,7 @@ function renderProjectWorkspace() {
   const name = item.runtime.project?.name || item.ownerSummary?.name || item.source?.name || 'Project';
   return `<div class="owner-screen owner-project-workspace">
     <div class="owner-workspace-header">
-      <button type="button" class="owner-workspace-back" data-route="projects">${icons.arrow}<span>Projects</span></button>
+      <button type="button" class="owner-workspace-back" data-route="${state.mode === 'professional' ? 'build' : 'projects'}">${icons.arrow}<span>${state.mode === 'professional' ? 'Build' : 'Projects'}</span></button>
       <div><span class="owner-kicker">Project workspace</span><h1>${esc(name)}</h1><p>${esc(item.runtime.project?.objective || item.detail.objective || item.ownerSummary?.plainPurpose || 'Project objective unavailable')}</p></div>
       <div class="owner-workspace-state">${badge(stateLabel.label, stateLabel.kind)}${verifiedLiveUrl() ? '<span>Production verified</span>' : ''}</div>
     </div>

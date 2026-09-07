@@ -5,5 +5,6 @@ window.PandorasOwnerScreens = Object.freeze({
   ...window.PandorasOwnerScreenMore,
   ...window.PandorasOwnerExperience,
   ...window.PandorasOwnerProjectWorkspace,
+  ...window.PandorasOwnerProfessional,
 });
 }

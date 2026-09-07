@@ -1,7 +1,12 @@
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-const { icons, state, app, esc, normalizeStatus, deriveProjects, request, routeFromLocation, routeResourceFromLocation } = { ...window.PandorasOwnerData, ...window.PandorasOwnerRuntime };
+const { icons, state, app, esc, normalizeStatus, deriveProjects, request, routeFromLocation, routeResourceFromLocation, PROFESSIONAL_ROUTES } = { ...window.PandorasOwnerData, ...window.PandorasOwnerRuntime };
 const { refresh, header, showToast, closeToast, navigate, openDialog, closeDialog, focusableInDialog } = window.PandorasOwnerRuntime;
-const { renderHome, renderProjects, renderProjectWorkspace, renderAsk, renderNeeds, renderBusiness, renderApprovals, renderActivity, renderMore, nav } = window.PandorasOwnerScreens;
+const {
+  renderHome, renderProjects, renderProjectWorkspace, renderAsk, renderNeeds, renderBusiness,
+  renderApprovals, renderActivity, renderMore, nav,
+  professionalHome, professionalBuild, professionalRun, professionalConnect, professionalMemory,
+  professionalVerify, professionalBusiness, professionalLibrary, professionalSettings, professionalNav,
+} = window.PandorasOwnerScreens;
 const { dialogMarkup, toastMarkup } = window.PandorasOwnerDialogs;
 
 const AUTO_REFRESH_INTERVAL_MS = 60_000;
@@ -17,8 +22,18 @@ function render() {
     approvals: renderApprovals,
     activity: renderActivity,
     more: renderMore,
-  }[state.route]?.() || renderHome();
-  app.innerHTML = `<div class="owner-app">${header()}<main id="main-content" class="owner-main" tabindex="-1">${routeMarkup}</main>${nav()}${dialogMarkup()}${toastMarkup()}</div>`;
+    'professional-home': professionalHome,
+    build: professionalBuild,
+    run: professionalRun,
+    connect: professionalConnect,
+    memory: professionalMemory,
+    verify: professionalVerify,
+    'professional-business': professionalBusiness,
+    library: professionalLibrary,
+    settings: professionalSettings,
+  }[state.route]?.() || (state.mode === 'professional' ? professionalHome() : renderHome());
+  const navigation = state.mode === 'professional' ? professionalNav() : nav();
+  app.innerHTML = `<div class="owner-app ${state.mode === 'professional' ? 'professional-mode' : 'simple-mode'}">${header()}<main id="main-content" class="owner-main" tabindex="-1">${routeMarkup}</main>${navigation}${dialogMarkup()}${toastMarkup()}</div>`;
 }
 
 function ownerProjectsFromPayload(payload) {
@@ -251,6 +266,14 @@ app.addEventListener('click', async (event) => {
     return;
   }
   const action = target.dataset.action;
+  if (action === 'switch-mode') {
+    const nextMode = target.dataset.mode === 'professional' ? 'professional' : 'simple';
+    state.mode = nextMode;
+    localStorage.setItem('pandoras-owner-mode', nextMode);
+    document.documentElement.dataset.ownerMode = nextMode;
+    navigate(nextMode === 'professional' ? 'professional-home' : 'home');
+    return;
+  }
   if (action === 'clear-ask-project') {
     state.ask.projectId = null;
     state.ask.projectName = '';
@@ -377,6 +400,15 @@ app.addEventListener('click', async (event) => {
 
 window.addEventListener('popstate', () => {
   state.route = routeFromLocation();
+  if (PROFESSIONAL_ROUTES.has(state.route)) {
+    state.mode = 'professional';
+    localStorage.setItem('pandoras-owner-mode', 'professional');
+    document.documentElement.dataset.ownerMode = 'professional';
+  } else if (state.route !== 'project') {
+    state.mode = 'simple';
+    localStorage.setItem('pandoras-owner-mode', 'simple');
+    document.documentElement.dataset.ownerMode = 'simple';
+  }
   closeDialog({ renderAfter: false });
   render();
   if (state.route === 'project') void loadProjectWorkspace(routeResourceFromLocation());

@@ -1,6 +1,13 @@
 const BRAND_MARK = 'https://raw.githubusercontent.com/mbanatao/Battle/c3594e4721097714118a3e1a6854e9836410b00a/public/brand/banatao/red-apple-mark-96.png';
 const API_BASE = '/api/operator';
-const ROUTES = new Set(['home', 'projects', 'project', 'ask', 'needs', 'business', 'approvals', 'activity', 'more']);
+const PROFESSIONAL_ROUTES = new Set([
+  'professional-home', 'build', 'run', 'connect', 'memory', 'verify',
+  'professional-business', 'library', 'settings',
+]);
+const ROUTES = new Set([
+  'home', 'projects', 'project', 'ask', 'needs', 'business', 'approvals', 'activity', 'more',
+  ...PROFESSIONAL_ROUTES,
+]);
 const COMPLETE_STATES = new Set(['complete', 'completed', 'merged', 'released', 'production_verified']);
 const ACTIVE_STATES = new Set(['active', 'in-progress', 'in_progress', 'building', 'reviewing', 'testing', 'queued-qualification', 'partial']);
 
@@ -24,8 +31,21 @@ const icons = {
   close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>',
 };
 
+const initialRoute = routeFromLocation();
+const storedMode = localStorage.getItem('pandoras-owner-mode');
+const initialMode = PROFESSIONAL_ROUTES.has(initialRoute)
+  ? 'professional'
+  : storedMode === 'professional'
+    ? 'professional'
+    : 'simple';
+
+const initialResolvedRoute = initialMode === 'professional' && initialRoute === 'home' && !window.location.hash
+  ? 'professional-home'
+  : initialRoute;
+
 const state = {
-  route: routeFromLocation(),
+  route: initialResolvedRoute,
+  mode: initialMode,
   projection: null,
   health: null,
   tools: null,
@@ -78,6 +98,7 @@ const app = document.querySelector('#app');
 function rerender() { window.PandorasOwnerRender?.(); }
 document.body.classList.add('owner-first-mode');
 document.documentElement.dataset.ownerTheme = state.theme;
+document.documentElement.dataset.ownerMode = state.mode;
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>'"]/g, (char) => ({
@@ -302,5 +323,5 @@ function readiness(candidate) {
 
 
 window.PandorasOwnerData = Object.freeze({
-  BRAND_MARK, API_BASE, ROUTES, icons, state, app, rerender, esc, routeFromLocation, routeResourceFromLocation, normalizeStatus, isComplete, isActive, isBlocked, cleanName, projectName, projectInitials, formatPhase, timeAgo, formatExpiry, formatTool, projectForPlan, projectForEvent, eventMessage, eventKind, deriveProjects, readiness
+  BRAND_MARK, API_BASE, ROUTES, PROFESSIONAL_ROUTES, icons, state, app, rerender, esc, routeFromLocation, routeResourceFromLocation, normalizeStatus, isComplete, isActive, isBlocked, cleanName, projectName, projectInitials, formatPhase, timeAgo, formatExpiry, formatTool, projectForPlan, projectForEvent, eventMessage, eventKind, deriveProjects, readiness
 });
