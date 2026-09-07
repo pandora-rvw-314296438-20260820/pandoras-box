@@ -95,26 +95,6 @@ jobs:
           fs.writeFileSync(path, JSON.stringify(pkg, null, 4) + "\n");
           NODE
 
-      - name: Update engineering workflow paths
-        shell: bash
-        run: |
-          node <<'NODE'
-          const fs = require("node:fs");
-          const p = ".github/workflows/engineering-toolchain.yml";
-          let s = fs.readFileSync(p, "utf8");
-          s = s.replace('      - "package-lock.json"\n', '      - "tooling/**"\n');
-          s = s.replace('      - "biome.json"\n', '');
-          s = s.replace('      - "playwright.config.mjs"\n', '');
-          s = s.replace('      - "scripts/verify-engineering-toolchain.mjs"\n', '');
-          s = s.replace('      - "test/e2e/**"\n', '');
-          s = s.replace(
-            '      - name: Verify project and provider CLIs\n        run: npm run tooling:verify',
-            '      - name: Install pinned engineering tools\n        run: npm ci --prefix tooling --ignore-scripts --no-audit --no-fund\n\n      - name: Verify project and provider CLIs\n        run: npm run tooling:verify'
-          );
-          s = s.replace('run: npx playwright install --with-deps chromium', 'run: npm run playwright:install');
-          fs.writeFileSync(p, s);
-          NODE
-
       - name: Validate isolated toolchain install
         shell: bash
         run: npm ci --prefix tooling --ignore-scripts --no-audit --no-fund
@@ -131,16 +111,12 @@ jobs:
           fs.writeFileSync(p, s);
           NODE
 
-      - name: Remove bootstrap workflow
-        shell: bash
-        run: git rm .github/workflows/toolchain-isolate-bootstrap.yml
-
       - name: Stage and commit isolated toolchain
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json tooling .github/workflows/engineering-toolchain.yml docs/development/ENGINEERING_TOOLCHAIN.md
+          git add package.json package-lock.json tooling docs/development/ENGINEERING_TOOLCHAIN.md
           git commit -m "chore: isolate engineering toolchain from runtime dependencies"
 
       - name: Push isolated toolchain commit
