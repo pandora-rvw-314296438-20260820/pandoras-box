@@ -20,7 +20,7 @@ test('web focus loop keeps the exact preview as the result hero', () => {
   assert.match(workspace, /focusCapablePreviewUrl/);
   assert.match(workspace, /https:\/\/mcpmaster\.vercel\.app/);
   assert.match(workspace, /trustedOrigins\.has\(url\.origin\)/);
-  assert.match(workspace, /\/preview\\\/[0-9a-f]\{64\}\\\/index\\\.html/);
+  assert.ok(workspace.includes('/^\\/preview\\/[0-9a-f]{64}\\/index\\.html$/i'));
   assert.match(workspace, /Object focus is unavailable on this preview transport/);
   assert.doesNotMatch(workspace, /allow-same-origin/);
 });
