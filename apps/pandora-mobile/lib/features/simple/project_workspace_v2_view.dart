@@ -346,8 +346,9 @@ class _PublishTheatreSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final verifying = phase == ProjectReleasePhase.verifying;
-    final headline =
-        verifying ? 'Verifying production' : 'Deploying the reviewed version';
+    final headline = verifying
+        ? 'Verifying production'
+        : 'Deploying the reviewed version';
     final detail = (message ?? '').trim().isNotEmpty
         ? message!.trim()
         : verifying
@@ -455,8 +456,9 @@ class _ReleaseStep extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color:
-                    active || complete ? PandoraV2Colors.ink : PandoraV2Colors.muted,
+                color: active || complete
+                    ? PandoraV2Colors.ink
+                    : PandoraV2Colors.muted,
                 fontSize: 13,
                 fontWeight: active ? FontWeight.w700 : FontWeight.w500,
               ),
