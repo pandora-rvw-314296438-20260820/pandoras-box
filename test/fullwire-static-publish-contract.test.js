@@ -49,6 +49,21 @@ test('production promotion automatically receives independent Worker E proof bef
   assert.match(productionConvergence, /pandora-production-release-convergence/);
 });
 
+test('publish never treats shared fallback hosting as production', () => {
+  const runtime = readFileSync(
+    new URL('../supabase/functions/pandora-project-runtime/index.ts', import.meta.url),
+    'utf8',
+  );
+  const publishStart = runtime.indexOf('async function publishProject');
+  const publishEnd = runtime.indexOf('async function finalizeProductionVerification');
+  const publish = runtime.slice(publishStart, publishEnd);
+  assert.doesNotMatch(publish, /pandora_publish_supabase_fallback_20260831/);
+  assert.doesNotMatch(publish, /provider:\s*"supabase_static"/);
+  assert.match(publish, /publish-vercel-preview:/);
+  assert.match(publish, /pandora_worker_e_verify_runtime_20260829/);
+  assert.match(publish, /textValue\(preview\.provider\)\.toLowerCase\(\) !== "vercel"/);
+});
+
 test('mobile never calls a production candidate Live before exact projection proof arrives', () => {
   assert.match(projectExperience, /String\? get _publishVersionId/);
   assert.match(projectExperience, /projection\.canPublish != true/);
@@ -61,7 +76,13 @@ test('mobile never calls a production candidate Live before exact projection pro
     projectExperience,
     /projection\.state == ProjectExperienceState\.live &&[\s\S]*projection\.productionVersionId == versionId/,
   );
-  assert.match(projectExperience, /Publishing\. Pandora is verifying this exact version\./);
+  assert.match(projectExperience, /ProjectReleasePhase\? get _releasePhase/);
+  assert.match(projectExperience, /ProjectReleasePhase\.deploying/);
+  assert.match(projectExperience, /ProjectReleasePhase\.verifying/);
+  assert.doesNotMatch(
+    projectExperience,
+    /Publishing\. Pandora is verifying this exact version\./,
+  );
   assert.match(projectExperience, /await _watchPublishCompletion\(versionId\);/);
   assert.match(projectExperience, /await _showPublishedConfirmation\(\);/);
   assert.match(projectExperience, /The exact public address will be shown/);

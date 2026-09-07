@@ -17,13 +17,34 @@ test("Vercel scope is resolved from runtime provider config, never a source fall
   assert.doesNotMatch(source, /PANDORA_VERCEL_TOKEN/);
 });
 
+test("publish recovers a fallback preview into the dedicated Vercel project before promotion", () => {
+  assert.match(publish, /textValue\(preview\.provider\)\.toLowerCase\(\) !== "vercel"/);
+  assert.match(publish, /createPreview\(context, projectId/);
+  assert.match(publish, /publish-vercel-preview:/);
+  assert.match(publish, /pandora_worker_e_verify_runtime_20260829/);
+  assert.match(publish, /p_profile: "static_site"/);
+  assert.doesNotMatch(publish, /pandora_publish_supabase_fallback_20260831/);
+  assert.doesNotMatch(publish, /provider:\s*"supabase_static"/);
+});
+
 test("promotion creates a production candidate instead of self-declaring Live", () => {
-  assert.match(publish, /verification_state: "ready_for_verification"/);
+  const productionInsertStart = publish.indexOf(
+    'const { data: productionRow, error: productionError }',
+  );
+  const productionInsertEnd = publish.indexOf(
+    'if (currentEnvironment)',
+    productionInsertStart,
+  );
+  const productionInsert = publish.slice(
+    productionInsertStart,
+    productionInsertEnd,
+  );
+  assert.match(productionInsert, /verification_state: "ready_for_verification"/);
   assert.match(publish, /lifecycle_status: "production_candidate"/);
   assert.match(publish, /current_deployment_id: productionRow\.id/);
   assert.match(publish, /runtimeStatus: "verifying"/);
   assert.match(publish, /productionVerificationState: "ready_for_verification"/);
-  assert.doesNotMatch(publish, /verification_state: "live_verified"/);
+  assert.doesNotMatch(productionInsert, /verification_state: "live_verified"/);
   assert.doesNotMatch(publish, /stage: "live"/);
 });
 

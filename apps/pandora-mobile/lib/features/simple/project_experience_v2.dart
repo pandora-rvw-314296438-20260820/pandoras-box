@@ -1018,7 +1018,39 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
   String? get _liveActivityLabel {
     final activity = _liveBuildActivity;
     if (activity == null || activity.latestSequence <= 0) return null;
+    if (activity.stage == LiveBuildStage.previewReady ||
+        activity.stage == LiveBuildStage.completed) {
+      return 'What Pandora built';
+    }
     return activity.statusLabel;
+  }
+
+  ProjectReleasePhase? get _releasePhase {
+    final projection = _projection;
+    if (_publishing &&
+        (projection == null ||
+            projection.state != ProjectExperienceState.publish)) {
+      return ProjectReleasePhase.deploying;
+    }
+    if (projection?.state == ProjectExperienceState.publish ||
+        projection?.buildPhase?.toLowerCase() == 'publishing') {
+      return ProjectReleasePhase.verifying;
+    }
+    return null;
+  }
+
+  String? get _releaseMessage {
+    final projection = _projection;
+    final phase = _releasePhase;
+    if (phase == null) return null;
+    if (phase == ProjectReleasePhase.verifying &&
+        projection?.state == ProjectExperienceState.publish) {
+      final message = projection?.publicMessage.trim();
+      if (message != null && message.isNotEmpty) return message;
+    }
+    return phase == ProjectReleasePhase.verifying
+        ? 'Pandora is verifying the exact production deployment.'
+        : 'Pandora is creating the production deployment from the exact version you reviewed.';
   }
 
   String? get _liveActivityDetail {
@@ -1114,9 +1146,25 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
   bool get _canUndo =>
       _projection?.canUndo == true && _projection?.candidateVersionId != null;
 
+  bool get _productionUsesDedicatedVercel =>
+      _snapshot?.production?.provider.trim().toLowerCase() == 'vercel';
+
+  bool get _needsDedicatedProductionRepair {
+    final projection = _projection;
+    final currentVersionId = projection?.currentVersionId;
+    return projection != null &&
+        currentVersionId != null &&
+        projection.currentVerified &&
+        projection.productionVersionId == currentVersionId &&
+        !_productionUsesDedicatedVercel;
+  }
+
   String? get _publishVersionId {
     final projection = _projection;
-    if (projection == null || projection.canPublish != true) return null;
+    if (projection == null ||
+        (projection.canPublish != true && !_needsDedicatedProductionRepair)) {
+      return null;
+    }
 
     final candidateVersionId = projection.candidateVersionId;
     if (candidateVersionId != null &&
@@ -1129,7 +1177,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
     if (currentVersionId != null &&
         projection.currentVerified &&
         _previewVersionId == currentVersionId &&
-        projection.productionVersionId != currentVersionId) {
+        (projection.productionVersionId != currentVersionId ||
+            _needsDedicatedProductionRepair)) {
       return currentVersionId;
     }
 
@@ -1151,6 +1200,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
 
   String get _statusLabel {
     if (_recentlyUpdated && _currentVersionVerified) return 'Updated';
+    if (_needsDedicatedProductionRepair) return 'Ready';
     return _projection?.statusLabel ?? 'Working';
   }
 
@@ -1166,6 +1216,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
   }
 
   String? _liveUrlFrom(ProjectRuntimeSnapshot? snapshot) {
+    if (snapshot?.production?.provider.trim().toLowerCase() != 'vercel') {
+      return null;
+    }
     final projectUrl = _safeHttps(snapshot?.project.liveUrl);
     if (projectUrl != null) return projectUrl;
     return _safeHttps(snapshot?.production?.url);
@@ -2167,13 +2220,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
         if (!mounted) return;
         await _showPublishedConfirmation();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Publishing. Pandora is verifying this exact version.',
-            ),
-          ),
-        );
         await _watchPublishCompletion(versionId);
       }
     } on ProjectExperienceException catch (error) {
@@ -2317,10 +2363,13 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
       onToggleSelection: _togglePreviewSelection,
       onOpenPreview: _openExactPreview,
       progressPhase: _projectionProgressPhase,
+      liveBuildActivity: _liveBuildActivity,
       liveActivityLabel: _liveActivityLabel,
       liveActivityDetail: _liveActivityDetail,
       onOpenLiveActivity:
           _liveBuildStreamId == null ? null : _openLiveBuildActivity,
+      releasePhase: _releasePhase,
+      releaseMessage: _releaseMessage,
       liveUrl: _liveUrl,
       liveHost: _liveHost,
       onOpenLiveSite: _openLiveSite,

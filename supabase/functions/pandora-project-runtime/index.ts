@@ -955,12 +955,12 @@ async function runtimeSummary(context: UserContext, identifier: string) {
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (candidate.error) throw new Error("BACKEND_READ_FAILED");
   let previewQuery = admin.from("pandora_project_deployments")
-    .select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at")
+    .select("id, version_id, provider, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at")
     .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview");
   if (candidate.data?.id) previewQuery = previewQuery.eq("version_id", candidate.data.id);
   const [preview, production, domain] = await Promise.all([
     previewQuery.order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    admin.from("pandora_project_deployments").select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    admin.from("pandora_project_deployments").select("id, version_id, provider, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     admin.from("pandora_project_domains").select("id, domain, status, verified, primary_domain, verification, updated_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("primary_domain", true).limit(1).maybeSingle(),
   ]);
   if (preview.error || production.error || domain.error) throw new Error("BACKEND_READ_FAILED");
@@ -1180,15 +1180,98 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   const artifactDigest = textValue(version.artifact_digest_sha256).toLowerCase();
   if (!SHA256_RE.test(sourceDigest) || !UUID_RE.test(projectSpecId) || !UUID_RE.test(buildJobId) || !SHA256_RE.test(artifactDigest)) throw new Error("VERIFICATION_REQUIRED");
 
-  const { data: previewData, error: previewError } = await admin.from("pandora_project_deployments")
-    .select("id, version_id, provider, provider_project_id, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at")
+  const previewSelect = "id, version_id, provider, provider_project_id, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at";
+  let { data: previewData, error: previewError } = await admin.from("pandora_project_deployments")
+    .select(previewSelect)
     .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview").eq("version_id", requestedVersion)
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (previewError) throw new Error("BACKEND_READ_FAILED");
   if (!previewData) throw new Error("PREVIEW_REQUIRED");
-  const preview = asRecord(previewData);
+  let preview = asRecord(previewData);
+
+  if (textValue(preview.provider).toLowerCase() !== "vercel") {
+    const recovered = await createPreview(context, projectId, {
+      versionId: requestedVersion,
+      artifactDigest,
+      idempotencyKey: `publish-vercel-preview:${requestedVersion}:${artifactDigest}`,
+    });
+    const recoveredDeployment = asRecord(recovered.deployment);
+    const recoveredRowId = textValue(recoveredDeployment.id);
+    const recoveredProviderDeploymentId = textValue(recoveredDeployment.provider_deployment_id);
+    if (!UUID_RE.test(recoveredRowId) || !recoveredProviderDeploymentId) throw new Error("VERCEL_PREVIEW_REQUIRED");
+
+    let providerState = textValue(recoveredDeployment.status).toUpperCase();
+    for (let attempt = 0; attempt < 20 && providerState !== "READY"; attempt++) {
+      const providerRead = await vercelRequest(`/v13/deployments/${encodeURIComponent(recoveredProviderDeploymentId)}`, { method: "GET" }, [200]);
+      providerState = textValue(providerRead.readyState ?? providerRead.status).toUpperCase();
+      if (providerState === "READY") break;
+      if (new Set(["ERROR", "CANCELED"]).has(providerState)) throw new Error("VERCEL_PREVIEW_REQUIRED");
+      await new Promise((resolve) => setTimeout(resolve, 750));
+    }
+    if (providerState !== "READY") throw new Error("VERCEL_PREVIEW_REQUIRED");
+
+    const previewReadyAt = new Date().toISOString();
+    const { error: recoveredRowError } = await admin.from("pandora_project_deployments")
+      .update({
+        provider_state: "READY",
+        status: "ready_for_verification",
+        verification_state: "ready_for_verification",
+        ready_at: previewReadyAt,
+        last_provider_check_at: previewReadyAt,
+        updated_at: previewReadyAt,
+      })
+      .eq("id", recoveredRowId).eq("provider", "vercel").eq("environment", "preview");
+    if (recoveredRowError) throw new Error("BACKEND_WRITE_FAILED");
+    const { error: recoveredEnvironmentError } = await admin.from("pandora_runtime_environments")
+      .update({
+        provider: "vercel",
+        status: "ready",
+        current_version_id: requestedVersion,
+        current_deployment_id: recoveredRowId,
+        verification_state: "ready_for_verification",
+        last_reconciled_at: previewReadyAt,
+        updated_at: previewReadyAt,
+      })
+      .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview");
+    if (recoveredEnvironmentError) throw new Error("BACKEND_WRITE_FAILED");
+
+    const { data: recoveredVerificationData, error: recoveredVerificationError } = await admin.rpc(
+      "pandora_worker_e_verify_runtime_20260829",
+      {
+        p_deployment_id: recoveredRowId,
+        p_profile: "static_site",
+        p_requested_by: context.userId,
+      },
+    );
+    const recoveredVerification = asRecord(recoveredVerificationData);
+    if (recoveredVerificationError || textValue(recoveredVerification.status).toUpperCase() !== "PASS") {
+      throw new Error("VERCEL_PREVIEW_VERIFICATION_FAILED");
+    }
+    const recoveredVerificationRunId = textValue(recoveredVerification.verificationRunId);
+    if (!UUID_RE.test(recoveredVerificationRunId)) throw new Error("VERCEL_PREVIEW_VERIFICATION_FAILED");
+    version.verification_run_id = recoveredVerificationRunId;
+
+    const recoveredVerifiedAt = new Date().toISOString();
+    await admin.from("pandora_project_deployments")
+      .update({ status: "ready", verification_state: "live_verified", verification_ref: recoveredVerificationRunId, updated_at: recoveredVerifiedAt })
+      .eq("id", recoveredRowId);
+    await admin.from("pandora_runtime_environments")
+      .update({ status: "ready", verification_state: "live_verified", last_reconciled_at: recoveredVerifiedAt, updated_at: recoveredVerifiedAt })
+      .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview");
+
+    const reread = await admin.from("pandora_project_deployments")
+      .select(previewSelect)
+      .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview")
+      .eq("version_id", requestedVersion).eq("provider", "vercel")
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (reread.error || !reread.data) throw new Error("VERCEL_PREVIEW_REQUIRED");
+    previewData = reread.data;
+    preview = asRecord(previewData);
+  }
+
   const previewDeploymentId = textValue(preview.provider_deployment_id);
   const previewStatus = textValue(preview.status).toLowerCase();
+  if (textValue(preview.provider).toLowerCase() !== "vercel") throw new Error("PRODUCTION_PROVIDER_UNSUPPORTED");
   if (!previewDeploymentId || !new Set(["ready", "ready_for_verification"]).has(previewStatus)) throw new Error("PREVIEW_NOT_READY");
   if (textValue(preview.source_sha256) !== sourceDigest) throw new Error("VERSION_SOURCE_MISMATCH");
   if (textValue(preview.artifact_digest) && textValue(preview.artifact_digest) !== artifactDigest) throw new Error("VERIFICATION_IDENTITY_MISMATCH");
@@ -1229,31 +1312,7 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   if (currentVersionId !== expectedProductionVersionId) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
 
   const domain = normalizeDomain(body.domain);
-  const previewProvider = textValue(preview.provider).toLowerCase();
-  if (previewProvider === "supabase_preview") {
-    if (domain) throw new Error("SUPABASE_FALLBACK_DOMAIN_UNAVAILABLE");
-    const { data: fallbackData, error: fallbackError } = await admin.rpc("pandora_publish_supabase_fallback_20260831", {
-      p_project_id: projectId,
-      p_version_id: requestedVersion,
-      p_requested_by: context.userId,
-      p_expected_production_version_id: expectedProductionVersionId,
-    });
-    if (fallbackError) throw new Error("SUPABASE_PRODUCTION_FALLBACK_FAILED");
-    const fallback = asRecord(fallbackData);
-    const snapshot = await runtimeSummary(context, projectId);
-    return {
-      project: snapshot.project,
-      production: snapshot.production,
-      domain: snapshot.domain,
-      liveUrl: asRecord(snapshot.project).liveUrl ?? null,
-      productionCandidateUrl: asRecord(snapshot.production).url ?? null,
-      domainVerified: asRecord(snapshot.domain).verified === true,
-      verificationState: textValue(fallback.state) === "live" ? "live_verified" : "ready_for_verification",
-      provider: "supabase_static",
-      state: textValue(fallback.state, "working"),
-    };
-  }
-  if (previewProvider !== "vercel") throw new Error("PRODUCTION_PROVIDER_UNSUPPORTED");
+  if (textValue(preview.provider).toLowerCase() !== "vercel") throw new Error("PRODUCTION_PROVIDER_UNSUPPORTED");
 
   const provider = await ensureVercelProject(context, project);
   project = { ...project, config: provider.config };

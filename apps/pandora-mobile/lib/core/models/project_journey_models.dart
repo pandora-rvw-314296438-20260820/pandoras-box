@@ -147,6 +147,7 @@ class ProjectRuntimeDeployment {
     required this.environment,
     required this.status,
     required this.sourceSha256,
+    this.provider = '',
     this.providerDeploymentId,
     this.url,
     this.createdAt,
@@ -156,6 +157,7 @@ class ProjectRuntimeDeployment {
   final String environment;
   final String status;
   final String sourceSha256;
+  final String provider;
   final String? providerDeploymentId;
   final String? url;
   final DateTime? createdAt;
@@ -168,6 +170,7 @@ class ProjectRuntimeDeployment {
       environment: jsonText(json['environment'], fallback: 'preview'),
       status: jsonText(json['status'], fallback: 'pending'),
       sourceSha256: jsonText(json['source_sha256']),
+      provider: jsonText(json['provider']),
       providerDeploymentId: _optionalText(json['provider_deployment_id']),
       url: _optionalText(json['url']),
       createdAt: jsonDateTime(json['created_at']),
