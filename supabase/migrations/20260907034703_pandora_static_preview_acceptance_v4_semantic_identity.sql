@@ -102,7 +102,7 @@ begin
 
   for v_fn in
     select distinct m[1]
-    from regexp_matches(v_body,'onclick=["''][[:space:]]*([A-Za-z_$][A-Za-z0-9_$]*)[[:space:]]*\\(','g') m
+    from regexp_matches(v_body,'onclick=["''][[:space:]]*([A-Za-z_$][A-Za-z0-9_$]*)[[:space:]]*\(','g') m
   loop
     if lower(v_fn) in ('window','document','location','history','console','alert','confirm','prompt','settimeout','setinterval') then
       continue;
