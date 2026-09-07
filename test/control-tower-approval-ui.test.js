@@ -36,7 +36,7 @@ test('Control Tower strips every caller-controlled privileged internal header', 
 test('Control Tower owner shell does not force sign-in when the page first loads', async () => {
   const ownerApp = await readFile('apps/control-tower/owner-app.js', 'utf8');
   const auth = await readFile('apps/control-tower/auth.js', 'utf8');
-  assert.match(ownerApp, /if \(state\.session\?\.authenticated\) \{\s*refresh\(\);\s*\} else \{/);
+  assert.match(ownerApp, /if \(state\.session\?\.authenticated\) \{\s*void refresh\(\)\.then\(/);
   assert.match(ownerApp, /if \(!state\.session\?\.authenticated\) \{\s*await beginOwnerSession\(\);/);
   assert.doesNotMatch(ownerApp, /navigate\(state\.route, \{ replace: true \}\);\s*refresh\(\);\s*\}/);
   assert.match(auth, /Sign in to Pandora/);
