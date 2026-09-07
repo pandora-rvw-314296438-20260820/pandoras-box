@@ -175,9 +175,12 @@ function header() {
       <img src="${BRAND_MARK}" alt="" class="owner-brand-mark" />
       <div class="owner-brand-copy"><strong>Pandoras-Box</strong><span>Everything in one place</span></div>
     </div>
-    <button type="button" class="owner-status ${status.kind}" data-action="refresh" aria-label="${esc(statusActionLabel)}">
-      <span class="owner-status-dot" aria-hidden="true"></span><span>${esc(status.label)}</span>
-    </button>
+    <div class="owner-header-actions">
+      <button type="button" class="owner-account-button" data-route="more" aria-label="Account, settings, and advanced controls">${icons.user}</button>
+      <button type="button" class="owner-status ${status.kind}" data-action="refresh" aria-label="${esc(statusActionLabel)}">
+        <span class="owner-status-dot" aria-hidden="true"></span><span>${esc(status.label)}</span>
+      </button>
+    </div>
   </header>`;
 }
 
