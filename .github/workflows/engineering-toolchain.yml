@@ -6,6 +6,14 @@ on:
     paths:
       - "package.json"
       - "tooling/**"
+      - "src/projectos/pandora-lifecycle.js"
+      - "src/projectos/pandora-posthog-*.js"
+      - "test/pandora-lifecycle.test.js"
+      - "test/pandora-posthog-transport.test.js"
+      - "supabase/**"
+      - "scripts/check-supabase-syntax.mjs"
+      - "scripts/verify-supabase-hardening.mjs"
+      - "scripts/replay-supabase-migrations.mjs"
       - "docs/development/ENGINEERING_TOOLCHAIN.md"
       - ".github/workflows/engineering-toolchain.yml"
 
@@ -35,6 +43,15 @@ jobs:
 
       - name: Verify project and provider CLIs
         run: npm run tooling:verify
+
+      - name: Audit isolated engineering dependencies
+        run: npm run tooling:audit
+
+      - name: Verify PostHog privacy and transport contract
+        run: npm run posthog:contract
+
+      - name: Verify Supabase repository contract
+        run: npm run supabase:contract
 
       - name: Verify MCP contract with Inspector
         run: npm run mcp:inspect
