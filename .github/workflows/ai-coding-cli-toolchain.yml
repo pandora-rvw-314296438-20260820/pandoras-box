@@ -1,0 +1,39 @@
+name: AI coding CLI toolchain
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/install-ai-coding-clis.mjs"
+      - ".github/workflows/ai-coding-cli-toolchain.yml"
+      - "docs/development/AI_CODING_CLI_TOOLCHAIN.md"
+      - "package.json"
+
+permissions:
+  contents: read
+
+jobs:
+  install-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Use user-local npm prefix
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.local"
+          npm config set prefix "$HOME/.local"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install Codex, Claude Code, Gemini CLI, and Grok Build
+        run: node scripts/install-ai-coding-clis.mjs
+
+      - name: Verify all four CLIs
+        run: node scripts/install-ai-coding-clis.mjs --verify-only
