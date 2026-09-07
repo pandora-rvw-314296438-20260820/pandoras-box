@@ -72,43 +72,43 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Root TypeScript
-        continue-on-error: true
+        if: always()
         run: npx tsc -p tsconfig.json --noEmit
 
       - name: Shared security TypeScript
-        continue-on-error: true
+        if: always()
         run: npx tsc -p packages/shared-security/tsconfig.json --noEmit
 
       - name: Meta TypeScript
-        continue-on-error: true
+        if: always()
         run: npx tsc -p apps/meta-business-mcp/tsconfig.json --noEmit
 
       - name: Vercel TypeScript
-        continue-on-error: true
+        if: always()
         run: npx tsc -p tsconfig.vercel.json
 
       - name: Browser syntax
-        continue-on-error: true
+        if: always()
         run: npm run check:browser
 
       - name: Frontend mirrors
-        continue-on-error: true
+        if: always()
         run: npm run check:mirrors
 
       - name: Migration authority
-        continue-on-error: true
+        if: always()
         run: npm run verify:migration-authority
 
       - name: Supabase syntax and hardening
-        continue-on-error: true
+        if: always()
         run: npm run check:supabase
 
       - name: Supabase Edge types
-        continue-on-error: true
+        if: always()
         run: npm run check:supabase:types
 
       - name: Supabase migration replay
-        continue-on-error: true
+        if: always()
         run: npm run check:supabase:replay
 
 
