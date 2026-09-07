@@ -115,18 +115,18 @@ function verifiedLiveUrl() {
 
 function buildTheatre() {
   const item = workspace();
-  const theatre = item.theatre;
-  if (!theatre) {
-    return `<section class="owner-card owner-workspace-theatre owner-workspace-unavailable">
-      <div><span class="owner-kicker">Build Theatre</span><h2>No active build projection</h2><p>Pandora has not published a member-safe build activity projection for this project yet.</p></div>
-    </section>`;
-  }
-  const stage = String(theatre.owner_stage || '').toLowerCase();
+  const theatre = item.theatre || {};
+  const hasTheatre = Boolean(item.theatre);
+  const stage = String(theatre.owner_stage || item.changePhase || '').toLowerCase();
+  const theatreStage = String(theatre.owner_stage || '').toLowerCase();
   const progress = Number(theatre.progress_percent);
-  return `<section class="owner-card owner-workspace-theatre">
+  const progressFresh = item.changing !== true || !item.changePhase || theatreStage === String(item.changePhase).toLowerCase();
+  const message = theatre.public_message
+    || (item.changing ? 'Pandora is preparing this change.' : 'No active build projection');
+  return `<section class="owner-card owner-workspace-theatre ${hasTheatre ? '' : 'owner-workspace-unavailable'}">
     <div class="owner-workspace-theatre-head">
-      <div><span class="owner-kicker">Build Theatre</span><h2 data-workspace-theatre-message>${esc(theatre.public_message || 'Pandora is working on this project.')}</h2></div>
-      ${Number.isFinite(progress) ? `<strong data-workspace-theatre-progress aria-label="${progress}% projected build activity">${Math.max(0, Math.min(100, progress))}%</strong>` : '<strong data-workspace-theatre-progress hidden></strong>'}
+      <div><span class="owner-kicker">Build Theatre</span><h2 data-workspace-theatre-message>${esc(message)}</h2></div>
+      ${Number.isFinite(progress) && progressFresh ? `<strong data-workspace-theatre-progress aria-label="${progress}% projected build activity">${Math.max(0, Math.min(100, progress))}%</strong>` : '<strong data-workspace-theatre-progress hidden></strong>'}
     </div>
     <div class="owner-theatre-stages" aria-label="Current build stage">
       ${THEATRE_STAGES.map((entry) => {
@@ -136,8 +136,9 @@ function buildTheatre() {
     </div>
     <div class="owner-workspace-meta">
       <span>Stage: <strong data-workspace-theatre-current>${esc(stage ? stage.replaceAll('_', ' ') : 'unavailable')}</strong></span>
-      <span data-workspace-theatre-updated>${theatre.updated_at ? `Updated ${esc(timeAgo(theatre.updated_at))}` : 'Update time unavailable'}</span>
+      <span data-workspace-theatre-updated>${theatre.updated_at ? `Updated ${esc(timeAgo(theatre.updated_at))}` : (hasTheatre ? 'Update time unavailable' : 'Waiting for build activity')}</span>
     </div>
+    ${!hasTheatre && !item.changing ? '<p>Pandora has not published a member-safe build activity projection for this project yet.</p>' : ''}
   </section>`;
 }
 
