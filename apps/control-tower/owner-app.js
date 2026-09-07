@@ -42,12 +42,14 @@ function ownerProjectsFromPayload(payload) {
   return [];
 }
 
-async function loadProjectWorkspace(sourceId = routeResourceFromLocation()) {
+async function loadProjectWorkspace(sourceId = routeResourceFromLocation(), { quiet = false } = {}) {
   const item = state.projectWorkspace;
   item.sourceId = sourceId || item.sourceId;
-  item.loading = true;
-  item.error = null;
-  render();
+  if (!quiet) {
+    item.loading = true;
+    item.error = null;
+    render();
+  }
   try {
     const source = deriveProjects().find((project) => project.id === item.sourceId)
       || (item.source?.id === item.sourceId ? item.source : null);
@@ -79,16 +81,22 @@ async function loadProjectWorkspace(sourceId = routeResourceFromLocation()) {
     item.theatre = theatre;
     item.error = null;
     item.loadedAt = new Date().toISOString();
+    if (item.mutationKind === 'publish') {
+      if (experience?.safe_failure_code || experience?.safe_failure_message) item.mutationPhase = 'problem';
+      else if (experience?.needs_you === true || theatre?.needs_you === true) item.mutationPhase = 'needs-you';
+      else if (String(experience?.experience_state || '').toUpperCase() === 'LIVE') item.mutationPhase = 'live';
+    }
   } catch (error) {
-    item.ownerSummary = null;
-    item.detail = null;
-    item.runtime = null;
-    item.experience = null;
-    item.theatre = null;
-    item.error = error?.message || 'Pandora could not open this project workspace.';
+    if (!quiet) {
+      item.ownerSummary = null;
+      item.detail = null;
+      item.runtime = null;
+      item.experience = null;
+      item.theatre = null;
+      item.error = error?.message || 'Pandora could not open this project workspace.';
+    }
   } finally {
-    item.loading = false;
-    item.mutating = false;
+    if (!quiet) item.loading = false;
     render();
   }
 }
@@ -102,7 +110,7 @@ function liveRefreshAllowed() {
 async function refreshLiveStatus() {
   if (!liveRefreshAllowed()) return;
   await refresh();
-  if (state.route === 'project') await loadProjectWorkspace(routeResourceFromLocation());
+  if (state.route === 'project') await loadProjectWorkspace(routeResourceFromLocation(), { quiet: true });
 }
 
 async function beginOwnerSession({ announce = true } = {}) {
@@ -155,12 +163,35 @@ async function askPandora() {
   }
 }
 
+function publishProjectionOutcome() {
+  const item = state.projectWorkspace;
+  const experience = item.experience || {};
+  const theatre = item.theatre || {};
+  if (experience.safe_failure_code || experience.safe_failure_message) return 'problem';
+  if (experience.needs_you === true || theatre.needs_you === true) return 'needs-you';
+  if (String(experience.experience_state || '').toUpperCase() === 'LIVE') return 'live';
+  return null;
+}
+
+async function waitForPublishResolution(sourceId, attempts = 20, delayMs = 1500) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    await loadProjectWorkspace(sourceId, { quiet: true });
+    const outcome = publishProjectionOutcome();
+    if (outcome) return outcome;
+    if (attempt < attempts - 1) await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return 'checking';
+}
+
 async function performWorkspaceMutation(kind) {
   const item = state.projectWorkspace;
   const projectKey = item.runtime?.project?.projectKey;
   const candidateVersionId = item.runtime?.candidate?.versionId;
   if (!projectKey || !candidateVersionId || item.mutating) return;
   item.mutating = true;
+  item.mutationKind = kind;
+  item.mutationPhase = kind === 'publish' ? 'publishing' : 'working';
+  item.mutationStartedAt = new Date().toISOString();
   item.confirmAction = null;
   render();
   try {
@@ -176,7 +207,16 @@ async function performWorkspaceMutation(kind) {
           },
         },
       );
-      showToast('Publish started from the exact verified candidate. Pandora will keep Live separate until production verification completes.', 'success');
+      item.mutationPhase = 'checking';
+      render();
+      const outcome = await waitForPublishResolution(item.sourceId);
+      item.mutating = false;
+      item.mutationPhase = outcome;
+      if (outcome === 'live') showToast('Live verified. Pandora confirmed the exact production version and deployment.', 'success');
+      else if (outcome === 'needs-you') showToast('Publishing needs you before Pandora can establish verified Live state.', 'info');
+      else if (outcome === 'problem') showToast('Publishing did not reach verified Live state. The previous production truth remains authoritative.', 'error');
+      else showToast('Production verification is still running. Pandora will not call this version Live until proof arrives.', 'info');
+      render();
     } else {
       await window.MCPMasterAuth.edgeRequest(
         'pandora-project-runtime',
@@ -185,16 +225,23 @@ async function performWorkspaceMutation(kind) {
           method: 'POST',
           body: {
             expectedVersionId: candidateVersionId,
-            idempotencyKey: `web-undo-${crypto.randomUUID()}`,
+            idempotencyKey: 'web-undo-' + crypto.randomUUID(),
           },
         },
       );
+      await loadProjectWorkspace(item.sourceId, { quiet: true });
+      item.mutating = false;
+      item.mutationKind = null;
+      item.mutationPhase = null;
+      item.mutationStartedAt = null;
       showToast('Undo completed against the exact current version.', 'success');
+      render();
     }
-    await loadProjectWorkspace(item.sourceId);
   } catch (error) {
     item.mutating = false;
-    showToast(`${error?.message || 'Pandora could not complete that project action.'} Nothing was changed implicitly.`, 'error');
+    item.mutationPhase = kind === 'publish' ? 'problem' : null;
+    if (kind !== 'publish') { item.mutationKind = null; item.mutationStartedAt = null; }
+    showToast((error?.message || 'Pandora could not complete that project action.') + ' Nothing was changed implicitly.', 'error');
     render();
   }
 }

@@ -34,14 +34,20 @@ function ownerState() {
   const item = workspace();
   const experience = item.experience || {};
   const theatre = item.theatre || {};
-  if (experience.safe_failure_code || experience.safe_failure_message) {
+  if (experience.safe_failure_code || experience.safe_failure_message || item.mutationPhase === 'problem') {
     return { label: 'Problem', kind: 'danger' };
   }
-  if (experience.needs_you === true || theatre.needs_you === true) {
+  if (experience.needs_you === true || theatre.needs_you === true || item.mutationPhase === 'needs-you') {
     return { label: 'Needs You', kind: 'warning' };
   }
   if (String(experience.experience_state || '').toUpperCase() === 'LIVE') {
     return { label: 'Live', kind: 'success' };
+  }
+  if (item.mutationKind === 'publish' && item.mutationPhase === 'checking') {
+    return { label: 'Checking', kind: 'neutral' };
+  }
+  if (item.mutationKind === 'publish' && item.mutationPhase === 'publishing') {
+    return { label: 'Publishing', kind: 'neutral' };
   }
   if (experience.can_publish === true && item.runtime?.verification?.publishEligible === true) {
     return { label: 'Ready', kind: 'success' };

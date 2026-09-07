@@ -1,6 +1,6 @@
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   void (async () => {
-    const assetVersion = 'web-professional-mode-v1-20260907-1';
+    const assetVersion = 'web-publish-truth-v2-20260907-1';
     const versioned = (asset) => `${asset}?v=${assetVersion}`;
 
     await import(versioned('/control-tower/owner-data.js'));
