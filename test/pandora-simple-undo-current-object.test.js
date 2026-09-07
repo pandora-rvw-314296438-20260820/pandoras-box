@@ -38,7 +38,8 @@ test('Undo is exact-version, parent-bound, and refuses implicit live rollback', 
   assert.match(runtime, /parent_version_id/);
   assert.match(runtime, /UNDO_REQUIRES_ROLLBACK/);
   assert.match(runtime, /UNDO_PARENT_PREVIEW_UNAVAILABLE/);
-  assert.match(runtime, /lifecycle_status: "rolled_back"/);
+  assert.match(runtime, /pandora_apply_application_undo_v2/);
+  assert.doesNotMatch(runtime, /update\(\{ lifecycle_status: "rolled_back" \}\)/);
   assert.match(runtime, /\/projects\\\/\(\[\^\/\]\+\)\\\/undo/);
 });
 
