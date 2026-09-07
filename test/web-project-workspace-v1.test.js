@@ -78,12 +78,13 @@ test('Publish has an explicit confirmation step before exact runtime mutation', 
   assert.ok(app.indexOf('prepare-workspace-publish') < app.indexOf('confirm-workspace-publish'));
 });
 
-test('Tell Pandora carries the exact runtime project UUID and isolates project-scoped threads', () => {
-  assert.ok(app.includes('const projectId = state.projectWorkspace.runtime?.project?.id'));
-  assert.ok(app.includes('projectId: state.ask.projectId'));
-  assert.ok(app.includes('state.ask.threadId && state.ask.projectId !== projectId'));
+test('Tell Pandora uses the server-mediated governed change path and keeps Ask Pandora separate', () => {
+  assert.ok(app.includes('performProjectChange(message)'));
+  assert.ok(app.includes("request('/projects/' + encodeURIComponent(projectId) + '/change'"));
+  assert.ok(app.includes('admitProjectChange'));
+  assert.ok(app.includes('waitForProjectChangeResolution'));
+  assert.ok(app.includes("invokeFunction('pandora-intelligence-chat'"));
   assert.ok(experience.includes('owner-ask-project-context'));
-  assert.ok(experience.includes('data-action="clear-ask-project"'));
 });
 
 test('Current, Live, and History are first-class workspace views', () => {
@@ -97,7 +98,7 @@ test('Current, Live, and History are first-class workspace views', () => {
 
 test('project workspace assets are loaded under a distinct cache revision', () => {
   assert.ok(first.includes('owner-project-workspace.js'));
-  assert.ok(first.includes('web-publish-truth-v2-20260907-1'));
-  assert.ok(index.includes('owner-experience.css?v=web-professional-mode-v1-20260907-1'));
-  assert.ok(index.includes('bootstrap.js?v=web-publish-truth-v2-20260907-1'));
+  assert.ok(first.includes('web-focus-loop-v1-20260907-1'));
+  assert.ok(index.includes('owner-experience.css?v=web-focus-loop-v1-20260907-1'));
+  assert.ok(index.includes('bootstrap.js?v=web-focus-loop-v1-20260907-1'));
 });

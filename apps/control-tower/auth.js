@@ -1,5 +1,5 @@
 const nativeFetch = window.fetch.bind(window);
-const ALLOWED_EDGE_FUNCTIONS = new Set(['pandora-intelligence-chat']);
+const ALLOWED_EDGE_FUNCTIONS = new Set(['pandora-intelligence-chat', 'pandora-preview-content']);
 const EDGE_ROUTE_POLICIES = Object.freeze({
   'pandora-owner-api': Object.freeze({
     GET: Object.freeze([
@@ -306,6 +306,8 @@ async function invokeFunction(functionName, body = {}) {
   }
   return payload;
 }
+
+
 
 function sessionSnapshot() {
   return {

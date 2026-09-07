@@ -109,21 +109,29 @@ function currentView() {
   const item = workspace();
   const { runtime, experience } = item;
   const preview = exactPreviewUrl();
-  const versionId = experience?.candidate_version_id || experience?.current_version_id || runtime?.candidate?.versionId;
+  const versionId = item.previewVersionId || experience?.current_version_id || experience?.candidate_version_id || runtime?.candidate?.versionId;
   const verification = String(experience?.candidate_verification_state || runtime?.verification?.state || 'not checked').replaceAll('_', ' ');
-  return `<div class="owner-workspace-result">
-    <div class="owner-workspace-result-copy">
-      <span class="owner-kicker">Current</span>
-      <h3>${preview ? 'Your latest exact preview is ready' : 'Current result is not previewable yet'}</h3>
-      <p>${esc(experience?.change_summary || experience?.public_message || 'Pandora will show the current result when an exact preview is available.')}</p>
-      <dl class="owner-workspace-facts">
-        <div><dt>Version</dt><dd>${esc(compactId(versionId))}</dd></div>
-        <div><dt>Verification</dt><dd>${esc(verification)}</dd></div>
-      </dl>
+  const exactEmbedded = Boolean(item.previewBundle && item.previewVersionId === versionId);
+  const canFocus = exactEmbedded && experience?.can_focus === true && experience?.can_change === true && !item.mutating;
+  const selected = item.focusToken && item.previewSelection;
+  return `<div class="owner-workspace-current">
+    <div class="owner-workspace-result">
+      <div class="owner-workspace-result-copy">
+        <span class="owner-kicker">Current</span>
+        <h3>${exactEmbedded ? 'Your exact current result' : preview ? 'Your latest exact preview is ready' : 'Current result is not previewable yet'}</h3>
+        <p>${esc(experience?.change_summary || experience?.public_message || 'Pandora will show the current result when an exact preview is available.')}</p>
+        <dl class="owner-workspace-facts">
+          <div><dt>Version</dt><dd>${esc(compactId(versionId))}</dd></div>
+          <div><dt>Verification</dt><dd>${esc(verification)}</dd></div>
+        </dl>
+      </div>
+      <div class="owner-workspace-result-actions">
+        ${exactEmbedded ? `<button class="owner-button ${item.selectionMode ? 'primary' : 'secondary'}" type="button" data-action="toggle-preview-focus"${canFocus ? '' : ' disabled'}>${item.selectionMode ? 'Select an object' : 'Focus object'}</button>` : ''}
+        ${preview ? `<a class="owner-button secondary" href="${esc(preview)}" target="_blank" rel="noopener noreferrer">Open preview</a>` : ''}
+      </div>
     </div>
-    <div class="owner-workspace-result-actions">
-      ${preview ? `<a class="owner-button primary" href="${esc(preview)}" target="_blank" rel="noopener noreferrer">Open preview</a>` : ''}
-    </div>
+    ${selected ? `<div class="owner-focus-chip"><div><span class="owner-kicker">Focused object</span><strong>${esc(item.previewSelection.accessibleName || item.previewSelection.text || item.previewSelection.componentId || 'Selected object')}</strong><small>${esc(item.previewSelection.tag || 'element')} · exact version ${esc(compactId(item.previewVersionId))}</small></div><button type="button" data-action="clear-preview-focus" aria-label="Clear focused object">×</button></div>` : ''}
+    ${exactEmbedded ? '<div class="owner-preview-shell"><div class="owner-preview-stage" data-owner-preview-host></div></div>' : ''}
   </div>`;
 }
 
@@ -172,7 +180,8 @@ function changePanel() {
   const item = workspace();
   const canChange = item.experience?.can_change === true;
   return `<section class="owner-card owner-workspace-change">
-    <div><span class="owner-kicker">Tell Pandora</span><h2>What should change?</h2><p>${canChange ? 'Describe the result. Pandora will reason with this exact project context and prepare governed work.' : 'Pandora has not marked this project safe for a new change yet. You can still inspect the current result.'}</p></div>
+    <div><span class="owner-kicker">Tell Pandora</span><h2>What should change?</h2><p>${canChange ? (item.focusToken ? 'Describe what should change on the focused object. Pandora will bind the request to this exact version and rebuild safely.' : 'Describe the result, or focus an object in the exact preview first. Pandora will prepare governed work without replacing the current version until verification passes.') : 'Pandora has not marked this project safe for a new change yet. You can still inspect the current result.'}</p></div>
+    ${item.changeReply ? `<div class="owner-workspace-change-reply">${esc(item.changeReply)}</div>` : ''}
     <form data-project-change-form>
       <textarea data-project-change-message rows="3" maxlength="8000" placeholder="Make the checkout simpler, change the hero, fix the publish flow…"${canChange ? '' : ' disabled'}>${esc(item.changeMessage)}</textarea>
       <button class="owner-button primary" type="submit"${canChange && item.changeMessage.trim() ? '' : ' disabled'}>Tell Pandora</button>
