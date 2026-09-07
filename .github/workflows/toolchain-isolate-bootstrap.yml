@@ -131,12 +131,19 @@ jobs:
           fs.writeFileSync(p, s);
           NODE
 
-      - name: Remove bootstrap workflow and commit
+      - name: Remove bootstrap workflow
+        shell: bash
+        run: git rm .github/workflows/toolchain-isolate-bootstrap.yml
+
+      - name: Stage and commit isolated toolchain
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/toolchain-isolate-bootstrap.yml
           git add package.json package-lock.json tooling .github/workflows/engineering-toolchain.yml docs/development/ENGINEERING_TOOLCHAIN.md
           git commit -m "chore: isolate engineering toolchain from runtime dependencies"
-          git push origin HEAD
+
+      - name: Push isolated toolchain commit
+        shell: bash
+        run: git push origin HEAD
+
