@@ -1146,9 +1146,25 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
   bool get _canUndo =>
       _projection?.canUndo == true && _projection?.candidateVersionId != null;
 
+  bool get _productionUsesDedicatedVercel =>
+      _snapshot?.production?.provider.trim().toLowerCase() == 'vercel';
+
+  bool get _needsDedicatedProductionRepair {
+    final projection = _projection;
+    final currentVersionId = projection?.currentVersionId;
+    return projection != null &&
+        currentVersionId != null &&
+        projection.currentVerified &&
+        projection.productionVersionId == currentVersionId &&
+        !_productionUsesDedicatedVercel;
+  }
+
   String? get _publishVersionId {
     final projection = _projection;
-    if (projection == null || projection.canPublish != true) return null;
+    if (projection == null ||
+        (projection.canPublish != true && !_needsDedicatedProductionRepair)) {
+      return null;
+    }
 
     final candidateVersionId = projection.candidateVersionId;
     if (candidateVersionId != null &&
@@ -1161,7 +1177,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
     if (currentVersionId != null &&
         projection.currentVerified &&
         _previewVersionId == currentVersionId &&
-        projection.productionVersionId != currentVersionId) {
+        (projection.productionVersionId != currentVersionId ||
+            _needsDedicatedProductionRepair)) {
       return currentVersionId;
     }
 
@@ -1183,6 +1200,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
 
   String get _statusLabel {
     if (_recentlyUpdated && _currentVersionVerified) return 'Updated';
+    if (_needsDedicatedProductionRepair) return 'Ready';
     return _projection?.statusLabel ?? 'Working';
   }
 
@@ -1198,6 +1216,9 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
   }
 
   String? _liveUrlFrom(ProjectRuntimeSnapshot? snapshot) {
+    if (snapshot?.production?.provider.trim().toLowerCase() != 'vercel') {
+      return null;
+    }
     final projectUrl = _safeHttps(snapshot?.project.liveUrl);
     if (projectUrl != null) return projectUrl;
     return _safeHttps(snapshot?.production?.url);
