@@ -58,13 +58,15 @@ test('verified publish receipt is derived from canonical conversation evidence a
   assert.match(view, /deploymentId/);
 });
 
-test('publish promotes the exact reviewed deployment and does not rebuild', () => {
+test('publish carries the exact reviewed artifact into a dedicated production deployment', () => {
   const publish = block(runtime, 'async function publishProject', 'async function finalizeProductionVerification');
   assert.match(publish, /previewDeploymentId/);
-  assert.match(publish, /\/promote\/\$\{encodeURIComponent\(previewDeploymentId\)\}/);
-  assert.match(publish, /beforePromotion/);
-  assert.match(publish, /PRODUCTION_PROMOTION_NOT_CONFIRMED/);
-  assert.doesNotMatch(publish, /createVercelDeployment\(/);
+  assert.match(publish, /loadExactRuntimeBundle\(context, projectId, requestedVersion, artifactDigest\)/);
+  assert.match(publish, /target:\s*"production"/);
+  assert.match(publish, /files:\s*bundle\.files\.map/);
+  assert.match(publish, /PRODUCTION_DEPLOYMENT_NOT_CONFIRMED/);
+  assert.match(publish, /provider_deployment_id: providerDeploymentId/);
+  assert.doesNotMatch(publish, /\/promote\//);
 });
 
 test('stored Vercel project binding must be read back before reuse', () => {

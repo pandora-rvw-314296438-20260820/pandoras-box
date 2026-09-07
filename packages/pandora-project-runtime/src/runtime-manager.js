@@ -78,7 +78,7 @@ class ProjectRuntimeManager {
     return fact;
   }
 
-  async publishVersion(input, previewFact) {
+  async publishVersion(input, previewFact, artifact) {
     return this._operation("publish_version", input, async request => {
       await this._owned(request, this.provider.projectId);
       const current = await this.store.getCurrentProductionVersion(request.projectId);
@@ -88,7 +88,7 @@ class ProjectRuntimeManager {
         throw new Error("fresh independent verification for exact artifact is required");
       }
       assertExactLineage(request, previewFact);
-      const result = await this.provider.publishVersion(request, previewFact);
+      const result = await this.provider.publishVersion(request, previewFact, artifact);
       assertExactLineage(request, result);
       await this.store.compareAndSetProduction({
         projectId: request.projectId,
