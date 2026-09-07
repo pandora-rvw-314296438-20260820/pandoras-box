@@ -155,15 +155,75 @@ function professionalConnect() {
   return professionalShell('Connect', 'GitHub, Supabase, Vercel, PostHog, model providers and installed connectors without credential exposure.', body);
 }
 
+function compactMemoryId(value) {
+  const id = String(value || '');
+  return id.length > 16 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id || 'Unavailable';
+}
+
 function professionalMemory() {
+  const memory = state.projection?.evidence?.memory;
+  if (!state.live || !memory || memory.ok !== true) {
+    return professionalShell(
+      'Memory',
+      'Canonical Memory health, freshness, approved lineage and conflicts from Pandora’s protected status authority.',
+      unavailable(
+        'Protected Memory status is unavailable',
+        state.error?.message || 'Pandora could not verify the bounded Memory status envelope for this protected session.',
+        icons.clock,
+      ),
+    );
+  }
+
+  const approved = Array.isArray(memory.approvedRecordIds) ? memory.approvedRecordIds : [];
+  const conflicts = Array.isArray(memory.conflicts) ? memory.conflicts : [];
+  const connected = memory.healthStatus === 'projectos-connected';
+  const fresh = memory.fresh === true && memory.contextState === 'healthy';
+  const body = `
+    <section class="professional-metrics-grid" aria-label="Memory authority overview">
+      ${metricCard('Connection', connected ? 'Connected' : cleanName(memory.healthStatus || 'Unavailable'), 'Pandora Memory health', connected ? 'success' : 'warning')}
+      ${metricCard('Context', cleanName(memory.contextState || 'Unavailable'), fresh ? 'approved canon is current' : 'degraded or stale', fresh ? 'success' : 'warning')}
+      ${metricCard('Approved canon', approved.length, 'record IDs in current context')}
+      ${metricCard('Conflicts', conflicts.length, conflicts.length ? 'requires resolution' : 'none reported', conflicts.length ? 'warning' : 'success')}
+    </section>
+    <section class="professional-two-column">
+      <div class="owner-card professional-health-card">
+        <div class="professional-card-head"><span class="owner-kicker">Memory plane</span><h2>Protected status</h2></div>
+        <div class="professional-health-list">
+          <div class="professional-health-row"><span>Health</span>${badge(connected ? 'Connected' : cleanName(memory.healthStatus || 'Unavailable'), connected ? 'success' : 'warning')}</div>
+          <div class="professional-health-row"><span>Authentication</span>${badge(memory.authentication ? cleanName(memory.authentication) : 'Unavailable', memory.authentication ? 'success' : 'warning')}</div>
+          <div class="professional-health-row"><span>Canonical context</span>${badge(fresh ? 'Current' : cleanName(memory.contextState || 'Unavailable'), fresh ? 'success' : 'warning')}</div>
+          <div class="professional-health-row"><span>Freshest approved record</span><strong>${esc(memory.freshestRecordAt ? timeAgo(memory.freshestRecordAt) : 'Unavailable')}</strong></div>
+        </div>
+      </div>
+      <div class="owner-card professional-runtime-availability">
+        <span class="owner-kicker">Scope</span><h2>Canonical control-plane context</h2>
+        <p>This protected status envelope is scoped to <strong>mcpmaster-pandoras-box</strong>. It proves Memory health and approved lineage for the control plane; it is not a fabricated portfolio-wide memory index.</p>
+        ${badge(fresh ? 'Fresh approved context' : 'Degraded context', fresh ? 'success' : 'warning')}
+      </div>
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Approved lineage</span><h2>Canonical record IDs</h2></div><span>${approved.length} approved</span></div>
+      <div class="owner-card professional-verification-list">
+        ${approved.length
+          ? approved.slice(0, 25).map((id) => `<div class="professional-verification-row"><span><strong>${esc(compactMemoryId(id))}</strong><small>Approved canonical Memory record</small></span>${badge('Approved', 'success')}</div>`).join('')
+          : '<div class="owner-empty compact"><h3>No approved canonical record IDs returned</h3><p>Pandora will not infer Memory contents when the protected status pack does not return approved lineage.</p></div>'}
+      </div>
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Contradictions</span><h2>Memory conflicts</h2></div><span>${conflicts.length} reported</span></div>
+      <div class="owner-card professional-verification-list">
+        ${conflicts.length
+          ? conflicts.map((conflict) => `<div class="professional-verification-row"><span><strong>${esc(conflict.subject || 'Memory conflict')}</strong><small>${esc(conflict.reason || 'Reason unavailable')}</small></span>${badge('Resolve', 'warning')}</div>`).join('')
+          : '<div class="owner-empty compact"><h3>No conflicts reported</h3><p>The current bounded canonical context has no unresolved Memory conflicts.</p></div>'}
+      </div>
+    </section>
+    <section class="owner-card professional-boundary-note">
+      <span>${icons.shield}</span><div><strong>Memory contents remain bounded</strong><p>This page does not render raw memory contents, proposed evidence bodies, candidate payloads or promotion internals. Those are not exposed by the canonical owner-safe status contract.</p></div>
+    </section>`;
   return professionalShell(
     'Memory',
-    'Project context, decisions, learned patterns, evidence candidates, promotion state, health and lineage.',
-    unavailable(
-      'Dedicated Memory data is not bridged into this web view yet',
-      'Pandora will not synthesize project memories or evidence promotion state from unrelated operator logs. This page stays explicit until the dedicated Memory plane has a bounded owner-safe web contract.',
-      icons.clock,
-    ),
+    'Canonical Memory health, freshness, approved lineage and conflicts from Pandora’s protected status authority.',
+    body,
   );
 }
 
