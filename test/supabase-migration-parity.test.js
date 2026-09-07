@@ -244,7 +244,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260906224847_pandora_static_preview_acceptance_v4_vercel_retry.sql',
     '20260907034703_pandora_static_preview_acceptance_v4_semantic_identity.sql',
     '20260907063000_pandora_owner_api_exact_source_bundle_v1.sql',
-    '20260907123002_pandora_edge_capacity_retirement_broker_v1.sql'
+    '20260907123002_pandora_edge_capacity_retirement_broker_v1.sql',
+    '20260908045200_pandora_exact_application_undo_v2.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
