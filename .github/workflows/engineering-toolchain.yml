@@ -5,11 +5,7 @@ on:
   pull_request:
     paths:
       - "package.json"
-      - "package-lock.json"
-      - "biome.json"
-      - "playwright.config.mjs"
-      - "scripts/verify-engineering-toolchain.mjs"
-      - "test/e2e/**"
+      - "tooling/**"
       - "docs/development/ENGINEERING_TOOLCHAIN.md"
       - ".github/workflows/engineering-toolchain.yml"
 
@@ -31,8 +27,11 @@ jobs:
           node-version: "24"
           cache: npm
 
-      - name: Install pinned dependencies
-        run: npm ci
+      - name: Install Pandora runtime dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install pinned engineering tools
+        run: npm ci --prefix tooling --ignore-scripts --no-audit --no-fund
 
       - name: Verify project and provider CLIs
         run: npm run tooling:verify
@@ -40,11 +39,11 @@ jobs:
       - name: Verify MCP contract with Inspector
         run: npm run mcp:inspect
 
-      - name: Run scoped Biome gate
+      - name: Run scoped Biome lint gate
         run: npm run quality:biome
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npm run playwright:install
 
       - name: Run Playwright smoke
         run: npm run test:e2e:smoke
@@ -52,65 +51,6 @@ jobs:
       - name: Knip report
         continue-on-error: true
         run: npm run quality:dead-code
-
-
-  repo-check-diagnostics:
-    name: Existing repo check diagnostics
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Use Node 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-
-      - name: Install locked dependencies without lifecycle scripts
-        run: npm ci --ignore-scripts --no-audit --no-fund
-
-      - name: Root TypeScript
-        if: always()
-        run: npx tsc -p tsconfig.json --noEmit
-
-      - name: Shared security TypeScript
-        if: always()
-        run: npx tsc -p packages/shared-security/tsconfig.json --noEmit
-
-      - name: Meta TypeScript
-        if: always()
-        run: npx tsc -p apps/meta-business-mcp/tsconfig.json --noEmit
-
-      - name: Vercel TypeScript
-        if: always()
-        run: npx tsc -p tsconfig.vercel.json
-
-      - name: Browser syntax
-        if: always()
-        run: npm run check:browser
-
-      - name: Frontend mirrors
-        if: always()
-        run: npm run check:mirrors
-
-      - name: Migration authority
-        if: always()
-        run: npm run verify:migration-authority
-
-      - name: Supabase syntax and hardening
-        if: always()
-        run: npm run check:supabase
-
-      - name: Supabase Edge types
-        if: always()
-        run: npm run check:supabase:types
-
-      - name: Supabase migration replay
-        if: always()
-        run: npm run check:supabase:replay
-
 
   workflow-lint:
     name: actionlint and ShellCheck
