@@ -1041,10 +1041,14 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
 
   String? get _releaseMessage {
     final projection = _projection;
-    if (_releasePhase == null) return null;
-    final message = projection?.publicMessage.trim();
-    if (message != null && message.isNotEmpty) return message;
-    return _releasePhase == ProjectReleasePhase.verifying
+    final phase = _releasePhase;
+    if (phase == null) return null;
+    if (phase == ProjectReleasePhase.verifying &&
+        projection?.state == ProjectExperienceState.publish) {
+      final message = projection?.publicMessage.trim();
+      if (message != null && message.isNotEmpty) return message;
+    }
+    return phase == ProjectReleasePhase.verifying
         ? 'Pandora is verifying the exact production deployment.'
         : 'Pandora is creating the production deployment from the exact version you reviewed.';
   }
@@ -2195,13 +2199,6 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
         if (!mounted) return;
         await _showPublishedConfirmation();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Publishing. Pandora is verifying this exact version.',
-            ),
-          ),
-        );
         await _watchPublishCompletion(versionId);
       }
     } on ProjectExperienceException catch (error) {
