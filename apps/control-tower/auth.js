@@ -1,5 +1,5 @@
 const nativeFetch = window.fetch.bind(window);
-const ALLOWED_EDGE_FUNCTIONS = new Set(['pandora-intelligence-chat', 'pandora-preview-content', 'pandora-project-spec-compiler', 'pandora-project-source-generator']);
+const ALLOWED_EDGE_FUNCTIONS = new Set(['pandora-intelligence-chat', 'pandora-preview-content']);
 const EDGE_ROUTE_POLICIES = Object.freeze({
   'pandora-owner-api': Object.freeze({
     GET: Object.freeze([
@@ -308,102 +308,6 @@ async function invokeFunction(functionName, body = {}) {
 }
 
 
-async function insertProjectChangeIntent({ projectId, changeText, idempotencyKey, focusToken = null }) {
-  const project = String(projectId || '').trim().toLowerCase();
-  const text = String(changeText || '').trim();
-  const key = String(idempotencyKey || '').trim();
-  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(project) || text.length < 4 || text.length > 8000 || key.length < 8 || key.length > 240) {
-    throw new Error('Pandora rejected an invalid project change request');
-  }
-  const config = await loadConfig();
-  await ensureSession();
-  const requesterId = String(authState.user?.id || '').trim();
-  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(requesterId)) {
-    throw new Error('Please sign in again before changing this project');
-  }
-  const url = new URL(`${config.supabaseUrl}/rest/v1/pandora_project_intents`);
-  url.searchParams.set('select', 'id');
-  const payload = {
-    organization_id: config.organizationId,
-    project_id: project,
-    requester_id: requesterId,
-    intent_kind: 'change',
-    intent_text: text,
-    source: 'customer',
-    idempotency_key: key,
-    provenance: {
-      surface: 'pandora_web_simple_mode',
-      focus_schema_version: focusToken?.schemaVersion === 2 ? 2 : null,
-      focus_version_id: focusToken?.versionId || null,
-      focus_artifact_sha256: focusToken?.artifactDigest || null,
-    },
-  };
-  let response = await nativeFetch(url, {
-    method: 'POST',
-    redirect: 'error',
-    headers: {
-      apikey: config.supabasePublishableKey,
-      authorization: `Bearer ${authState.accessToken}`,
-      accept: 'application/json',
-      'content-type': 'application/json',
-      prefer: 'return=representation',
-    },
-    body: JSON.stringify(payload),
-  });
-  if (response.status === 409) {
-    const existing = new URL(`${config.supabaseUrl}/rest/v1/pandora_project_intents`);
-    existing.searchParams.set('select', 'id');
-    existing.searchParams.set('organization_id', `eq.${config.organizationId}`);
-    existing.searchParams.set('project_id', `eq.${project}`);
-    existing.searchParams.set('idempotency_key', `eq.${key}`);
-    existing.searchParams.set('limit', '1');
-    response = await nativeFetch(existing, {
-      method: 'GET',
-      redirect: 'error',
-      headers: {
-        apikey: config.supabasePublishableKey,
-        authorization: `Bearer ${authState.accessToken}`,
-        accept: 'application/json',
-      },
-    });
-  }
-  const rows = await response.json().catch(() => []);
-  if (!response.ok || !Array.isArray(rows) || !rows[0]?.id) {
-    throw new Error('Pandora could not save that change request right now');
-  }
-  return String(rows[0].id);
-}
-
-async function readProjectSpecForIntent(projectId, intentId) {
-  const project = String(projectId || '').trim().toLowerCase();
-  const intent = String(intentId || '').trim().toLowerCase();
-  if (![project, intent].every((value) => /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value))) {
-    throw new Error('Pandora rejected an invalid project specification read');
-  }
-  const config = await loadConfig();
-  await ensureSession();
-  const url = new URL(`${config.supabaseUrl}/rest/v1/pandora_project_specs`);
-  url.searchParams.set('select', 'id,status,source_intent_id,version');
-  url.searchParams.set('organization_id', `eq.${config.organizationId}`);
-  url.searchParams.set('project_id', `eq.${project}`);
-  url.searchParams.set('source_intent_id', `eq.${intent}`);
-  url.searchParams.set('order', 'version.desc');
-  url.searchParams.set('limit', '1');
-  const response = await nativeFetch(url, {
-    method: 'GET',
-    redirect: 'error',
-    headers: {
-      apikey: config.supabasePublishableKey,
-      authorization: `Bearer ${authState.accessToken}`,
-      accept: 'application/json',
-    },
-  });
-  const rows = await response.json().catch(() => []);
-  if (!response.ok || !Array.isArray(rows)) {
-    throw new Error('Pandora could not read the prepared project change safely');
-  }
-  return rows[0] || null;
-}
 
 function sessionSnapshot() {
   return {
@@ -445,8 +349,6 @@ window.MCPMasterAuth = Object.freeze({
   edgeRequest,
   readProjectProjection,
   invokeFunction,
-  insertProjectChangeIntent,
-  readProjectSpecForIntent,
   signOut,
   session: sessionSnapshot,
 });

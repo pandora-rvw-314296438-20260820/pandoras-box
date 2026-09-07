@@ -200,23 +200,17 @@ async function askPandora() {
 }
 
 
+
 function changeProjectionOutcome(baseVersionId) {
   const item = state.projectWorkspace;
   const experience = item.experience || {};
   if (experience.safe_failure_code || experience.safe_failure_message) return 'problem';
   if (experience.needs_you === true || item.theatre?.needs_you === true) return 'needs-you';
   const candidate = String(experience.candidate_version_id || '');
-  if (
-    candidate &&
-    candidate !== baseVersionId &&
-    String(experience.candidate_verification_state || '').toLowerCase() === 'passed' &&
-    item.previewVersionId === candidate &&
-    item.previewBundle?.versionId === candidate
-  ) return 'ready';
+  if (candidate && candidate !== baseVersionId && String(experience.candidate_verification_state || '').toLowerCase() === 'passed' && item.previewVersionId === candidate && item.previewBundle?.versionId === candidate) return 'ready';
   return null;
 }
-
-async function waitForProjectChangeResolution(sourceId, baseVersionId, attempts = 100, delayMs = 1500) {
+async function waitForProjectChangeResolution(sourceId, baseVersionId, attempts = 120, delayMs = 1500) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     await loadProjectWorkspace(sourceId, { quiet: true });
     const outcome = changeProjectionOutcome(baseVersionId);
@@ -225,104 +219,59 @@ async function waitForProjectChangeResolution(sourceId, baseVersionId, attempts 
   }
   return 'working';
 }
-
-async function compileExactChange(projectId, intentId) {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    if (attempt === 0 || attempt % 4 === 0) {
-      try { await window.MCPMasterAuth.invokeFunction('pandora-project-spec-compiler', { intentId }); }
-      catch { /* exact source_intent_id read below decides readiness */ }
-    }
-    const spec = await window.MCPMasterAuth.readProjectSpecForIntent(projectId, intentId);
-    if (spec?.source_intent_id === intentId && spec?.status === 'active') return spec;
-    if (spec?.status === 'rejected') {
-      throw new Error('Pandora needs a different request before it can make that change.');
-    }
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+async function admitProjectChange(projectId, message, focusToken, idempotencyKey) {
+  for (let attempt = 0; attempt < 45; attempt += 1) {
+    const payload = await request('/projects/' + encodeURIComponent(projectId) + '/change', {
+      method: 'POST',
+      body: JSON.stringify({ message, idempotencyKey, focusToken: focusToken || null }),
+    });
+    if (payload?.buildJobId || (payload?.state && payload.state !== 'understanding')) return payload;
+    if (attempt < 44) await new Promise((resolve) => setTimeout(resolve, 2000));
   }
   throw new Error('Pandora is still preparing that change. Your current project is unchanged.');
 }
-
 async function performProjectChange(message) {
   const item = state.projectWorkspace;
   const projectId = String(item.runtime?.project?.id || '').trim();
-  const request = String(message || '').trim();
-  if (!projectId || request.length < 4 || item.experience?.can_change !== true || item.mutating) return;
+  const ownerRequest = String(message || '').trim();
+  if (!projectId || ownerRequest.length < 4 || item.experience?.can_change !== true || item.mutating) return;
   const baseVersionId = String(item.previewVersionId || item.experience?.current_version_id || '');
-  item.mutating = true;
-  item.mutationKind = 'change';
-  item.mutationPhase = 'working';
-  item.mutationStartedAt = new Date().toISOString();
-  item.changeReply = '';
-  item.error = null;
-  render();
-
+  item.mutating = true; item.mutationKind = 'change'; item.mutationPhase = 'working'; item.mutationStartedAt = new Date().toISOString(); item.changeReply = ''; item.error = null; render();
   try {
-    let actionRequest = request;
+    let actionRequest = ownerRequest;
     try {
-      const turn = await window.MCPMasterAuth.invokeFunction('pandora-intelligence-chat', {
-        message: request,
-        projectId,
-        mode: 'auto',
-      });
+      const turn = await window.MCPMasterAuth.invokeFunction('pandora-intelligence-chat', { message: ownerRequest, projectId, mode: 'auto' });
       if (turn?.needsClarification === true) {
         item.changeReply = turn.clarifyingQuestion || turn.reply || 'Pandora needs one more detail.';
-        item.mutating = false;
-        item.mutationKind = null;
-        item.mutationPhase = null;
-        item.mutationStartedAt = null;
-        render();
-        return;
+        item.mutating = false; item.mutationKind = null; item.mutationPhase = null; item.mutationStartedAt = null; render(); return;
       }
-      if (turn?.intent === 'change_project' && turn?.handoff?.request && String(turn.handoff.request).trim().length >= 4) {
-        actionRequest = String(turn.handoff.request).trim();
+      if (turn?.intent === 'chat') {
+        item.changeReply = turn.reply || 'Tell Pandora what you want changed in this project.';
+        item.mutating = false; item.mutationKind = null; item.mutationPhase = null; item.mutationStartedAt = null; render(); return;
       }
-    } catch {
-      // An explicit in-project change remains durable if intelligence is temporarily unavailable.
-    }
-
+      if (turn?.intent === 'change_project' && turn?.handoff?.request && String(turn.handoff.request).trim().length >= 4) actionRequest = String(turn.handoff.request).trim();
+    } catch { /* explicit owner change remains valid if intelligence routing is temporarily unavailable */ }
     const focusToken = item.focusToken;
-    if (focusToken) {
-      actionRequest = `${window.PandorasOwnerPreviewFocus.intentContext(focusToken)}\nOwner change: ${actionRequest}`;
+    if (focusToken && window.PandorasOwnerPreviewFocus?.matchesVisible?.(focusToken) !== true) {
+      window.PandorasOwnerPreviewFocus?.clear?.();
+      throw new Error('That selection belongs to an older preview. Select the object again before changing it.');
     }
-
-    const intentId = await window.MCPMasterAuth.insertProjectChangeIntent({
-      projectId,
-      changeText: actionRequest,
-      idempotencyKey: 'pandora-web-change:' + projectId + ':' + crypto.randomUUID(),
-      focusToken,
-    });
-    await compileExactChange(projectId, intentId);
-    await window.MCPMasterAuth.invokeFunction('pandora-project-source-generator', {
-      projectId,
-      idempotencyKey: 'pandora-web-change-build:' + projectId + ':' + intentId,
-    });
-
+    const idempotencyKey = 'pandora-web-change:' + projectId + ':' + crypto.randomUUID();
+    await admitProjectChange(projectId, actionRequest, focusToken, idempotencyKey);
     const outcome = await waitForProjectChangeResolution(item.sourceId, baseVersionId);
-    item.mutating = false;
-    item.mutationKind = null;
-    item.mutationPhase = null;
-    item.mutationStartedAt = null;
+    item.mutating = false; item.mutationKind = null; item.mutationPhase = null; item.mutationStartedAt = null;
     if (outcome === 'ready') {
-      item.changeMessage = '';
-      item.changeReply = 'Updated. Pandora verified the rebuilt version before replacing the preview.';
+      item.changeMessage = ''; item.changeReply = 'Updated. Pandora verified the rebuilt version before replacing the preview.';
       window.PandorasOwnerPreviewFocus?.clear?.();
       showToast('Updated. The exact rebuilt version passed verification.', 'success');
-    } else if (outcome === 'needs-you') {
-      showToast('This change needs you before Pandora can continue.', 'info');
-    } else if (outcome === 'problem') {
-      showToast('Pandora stopped the change. Your previous verified result remains current.', 'error');
-    } else {
-      showToast('Pandora is still building. Your previous verified result remains current.', 'info');
-    }
+    } else if (outcome === 'needs-you') showToast('This change needs you before Pandora can continue.', 'info');
+    else if (outcome === 'problem') showToast('Pandora stopped the change. Your previous verified result remains current.', 'error');
+    else showToast('Pandora is still building. Your previous verified result remains current.', 'info');
     render();
   } catch (error) {
-    item.mutating = false;
-    item.mutationKind = null;
-    item.mutationPhase = null;
-    item.mutationStartedAt = null;
+    item.mutating = false; item.mutationKind = null; item.mutationPhase = null; item.mutationStartedAt = null;
     item.error = error?.message || 'Pandora could not complete that change. Your current result is unchanged.';
-    showToast(item.error, 'error');
-    render();
+    showToast(item.error, 'error'); render();
   }
 }
 

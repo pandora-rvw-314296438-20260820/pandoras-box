@@ -78,11 +78,10 @@ test('Publish has an explicit confirmation step before exact runtime mutation', 
   assert.ok(app.indexOf('prepare-workspace-publish') < app.indexOf('confirm-workspace-publish'));
 });
 
-test('Tell Pandora uses the durable governed change path and keeps Ask Pandora separate', () => {
+test('Tell Pandora uses the server-mediated governed change path and keeps Ask Pandora separate', () => {
   assert.ok(app.includes('performProjectChange(message)'));
-  assert.ok(app.includes('insertProjectChangeIntent'));
-  assert.ok(app.includes("invokeFunction('pandora-project-spec-compiler'"));
-  assert.ok(app.includes("invokeFunction('pandora-project-source-generator'"));
+  assert.ok(app.includes("request('/projects/' + encodeURIComponent(projectId) + '/change'"));
+  assert.ok(app.includes('admitProjectChange'));
   assert.ok(app.includes('waitForProjectChangeResolution'));
   assert.ok(app.includes("invokeFunction('pandora-intelligence-chat'"));
   assert.ok(experience.includes('owner-ask-project-context'));

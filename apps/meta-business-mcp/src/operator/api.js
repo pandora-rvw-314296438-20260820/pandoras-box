@@ -8,6 +8,7 @@ const node_crypto_1 = require("node:crypto");
 const node_path_1 = __importDefault(require("node:path"));
 const express_1 = __importDefault(require("express"));
 const vercel_connect_user_1 = require("./vercel-connect-user.js");
+const project_change_1 = require("./project-change.js");
 const OPERATOR_ROLES = new Set(['owner', 'admin', 'operator']);
 const APPROVER_ROLES = new Set(['owner', 'admin']);
 const EXECUTOR_ROLES = new Set(['owner', 'admin']);
@@ -100,7 +101,8 @@ function requiredOperatorScope(request) {
     if (request.method === 'POST' && request.path === '/tools/approve')
         return 'projectos:approve';
     if (request.method === 'POST'
-        && (request.path === '/tools/execute' || request.path === '/tools'))
+        && (request.path === '/tools/execute' || request.path === '/tools'
+            || /^\/projects\/[0-9a-f-]+\/change$/i.test(request.path)))
         return 'projectos:execute';
     if (request.method === 'GET')
         return 'projectos:read';
@@ -188,6 +190,7 @@ function createOperatorApiApp(options) {
         rateLimitRequests: options.requestsPerMinute,
         rateLimitWindowMs: 60000,
     });
+    const projectChangeHandler = (0, project_change_1.createProjectChangeHandler)(options);
     const connectUserBroker = options.connectUserBroker ?? new vercel_connect_user_1.VercelConnectUserBroker({
         connector: "mcpmaster.vercel.app/pandoras-box",
         providerUserinfoUrl: new URL("/auth/v1/oauth/userinfo", options.supabaseUrl).toString(),
@@ -364,7 +367,7 @@ function createOperatorApiApp(options) {
             request.headers['x-approver-id'] = `supabase:${current.identity.userId}`;
         }
         if (request.method === 'POST'
-            && request.path === '/tools/execute'
+            && (request.path === '/tools/execute' || /^\/projects\/[0-9a-f-]+\/change$/i.test(request.path))
             && !EXECUTOR_ROLES.has(current.membership.role)) {
             noStore(response);
             response.status(403).json({
@@ -380,6 +383,7 @@ function createOperatorApiApp(options) {
         delete request.headers.origin;
         next();
     });
+    router.post('/projects/:projectId/change', projectChangeHandler);
     router.get('/status', async (request, response) => {
         noStore(response);
         try {
