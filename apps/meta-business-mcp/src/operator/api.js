@@ -8,6 +8,7 @@ const node_crypto_1 = require("node:crypto");
 const node_path_1 = __importDefault(require("node:path"));
 const express_1 = __importDefault(require("express"));
 const vercel_connect_user_1 = require("./vercel-connect-user.js");
+const project_change_1 = require("./project-change.js");
 const OPERATOR_ROLES = new Set(['owner', 'admin', 'operator']);
 const APPROVER_ROLES = new Set(['owner', 'admin']);
 const EXECUTOR_ROLES = new Set(['owner', 'admin']);
@@ -100,6 +101,9 @@ function requiredOperatorScope(request) {
     if (request.method === 'POST' && request.path === '/tools/approve')
         return 'projectos:approve';
     if (request.method === 'POST'
+        && /^\/projects\/[0-9a-f-]+\/change$/i.test(request.path))
+        return 'projectos:execute';
+    if (request.method === 'POST'
         && (request.path === '/tools/execute' || request.path === '/tools'))
         return 'projectos:execute';
     if (request.method === 'GET')
@@ -191,6 +195,11 @@ function createOperatorApiApp(options) {
     const connectUserBroker = options.connectUserBroker ?? new vercel_connect_user_1.VercelConnectUserBroker({
         connector: "mcpmaster.vercel.app/pandoras-box",
         providerUserinfoUrl: new URL("/auth/v1/oauth/userinfo", options.supabaseUrl).toString(),
+    });
+    const projectChangeExecutor = options.projectChangeExecutor ?? (0, project_change_1.createProjectChangeExecutor)({
+        organizationId: options.organizationId,
+        supabaseUrl: options.supabaseUrl,
+        publishableKey: options.supabasePublishableKey,
     });
     router.use(createOperatorRateLimiter(options.requestsPerMinute));
     router.get('/auth/config', (request, response) => {
@@ -364,14 +373,15 @@ function createOperatorApiApp(options) {
             request.headers['x-approver-id'] = `supabase:${current.identity.userId}`;
         }
         if (request.method === 'POST'
-            && request.path === '/tools/execute'
+            && (request.path === '/tools/execute'
+                || /^\/projects\/[0-9a-f-]+\/change$/i.test(request.path))
             && !EXECUTOR_ROLES.has(current.membership.role)) {
             noStore(response);
             response.status(403).json({
                 ok: false,
                 error: {
                     code: 'EXECUTOR_ROLE_REQUIRED',
-                    message: 'Only an owner or admin may execute a provider operation.',
+                    message: 'Only an owner or admin may execute this operation.',
                 },
             });
             return;
@@ -379,6 +389,36 @@ function createOperatorApiApp(options) {
         request.headers.authorization = `Bearer ${internalAdminToken}`;
         delete request.headers.origin;
         next();
+    });
+    router.post('/projects/:projectId/change', async (request, response) => {
+        noStore(response);
+        const current = actor(response);
+        try {
+            const result = await projectChangeExecutor({
+                actor: current,
+                projectId: request.params.projectId,
+                body: request.body,
+            });
+            const status = result?.httpStatus === 200 ? 200 : 202;
+            const body = { ...result };
+            delete body.httpStatus;
+            response.status(status).json(body);
+        }
+        catch (error) {
+            const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599
+                ? error.status
+                : 503;
+            response.status(status).json({
+                ok: false,
+                state: status >= 500 ? 'waiting' : 'blocked',
+                error: {
+                    code: typeof error?.code === 'string' ? error.code : 'PROJECT_CHANGE_UNAVAILABLE',
+                    message: error instanceof Error
+                        ? error.message
+                        : 'Pandora could not prepare that project change.',
+                },
+            });
+        }
     });
     router.get('/status', async (request, response) => {
         noStore(response);
