@@ -50,10 +50,12 @@ test('production promotion automatically receives independent Worker E proof bef
 });
 
 test('mobile never calls a production candidate Live before exact projection proof arrives', () => {
-  assert.match(
-    projectExperience,
-    /bool get _canPublish =>[\s\S]*_projection\?\.canPublish == true &&[\s\S]*_projection\?\.candidateVersionId != null;/,
-  );
+  assert.match(projectExperience, /String\? get _publishVersionId/);
+  assert.match(projectExperience, /projection\.canPublish != true/);
+  assert.match(projectExperience, /_candidateSafety\?\.candidateVerified == true/);
+  assert.match(projectExperience, /projection\.currentVerified/);
+  assert.match(projectExperience, /projection\.productionVersionId != currentVersionId/);
+  assert.match(projectExperience, /bool get _canPublish => _publishVersionId != null;/);
   assert.match(projectExperience, /return _projection\?\.statusLabel \?\? 'Working';/);
   assert.match(
     projectExperience,
