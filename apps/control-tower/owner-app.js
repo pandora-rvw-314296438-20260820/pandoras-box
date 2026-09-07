@@ -42,6 +42,50 @@ function ownerProjectsFromPayload(payload) {
   return [];
 }
 
+const PROFESSIONAL_DATASETS = Object.freeze([
+  ['projects', 'projects', 100],
+  ['deployments', 'deployments', 100],
+  ['domains', 'domains', 100],
+  ['verificationRuns', 'verification_runs', 100],
+  ['verificationChecks', 'verification_checks', 200],
+  ['verificationEvidence', 'verification_evidence', 100],
+  ['artifacts', 'artifacts', 100],
+  ['artifactVersions', 'artifact_versions', 200],
+  ['businessObjectives', 'business_objectives', 100],
+  ['projectSpecs', 'project_specs', 100],
+]);
+
+async function loadProfessionalData({ force = false } = {}) {
+  const item = state.professionalData;
+  if (!state.session?.authenticated || item.loading) return;
+  if (!force && item.loadedAt && Date.now() - new Date(item.loadedAt).getTime() < 60_000) return;
+  item.loading = true;
+  item.error = null;
+  item.errors = {};
+  render();
+  const results = await Promise.allSettled(
+    PROFESSIONAL_DATASETS.map(([, dataset, limit]) =>
+      window.MCPMasterAuth.readOwnerDataset(dataset, { limit })
+    ),
+  );
+  let failures = 0;
+  results.forEach((result, index) => {
+    const [stateKey, dataset] = PROFESSIONAL_DATASETS[index];
+    if (result.status === 'fulfilled') {
+      item[stateKey] = Array.isArray(result.value) ? result.value : [];
+    } else {
+      failures += 1;
+      item.errors[dataset] = result.reason?.message || 'Unavailable';
+    }
+  });
+  item.loadedAt = new Date().toISOString();
+  item.error = failures
+    ? { code: 'PARTIAL_DATA', message: `${failures} authoritative dataset${failures === 1 ? '' : 's'} could not be read.` }
+    : null;
+  item.loading = false;
+  render();
+}
+
 async function loadProjectWorkspace(sourceId = routeResourceFromLocation()) {
   const item = state.projectWorkspace;
   item.sourceId = sourceId || item.sourceId;
@@ -102,6 +146,7 @@ function liveRefreshAllowed() {
 async function refreshLiveStatus() {
   if (!liveRefreshAllowed()) return;
   await refresh();
+  if (state.mode === 'professional') await loadProfessionalData();
   if (state.route === 'project') await loadProjectWorkspace(routeResourceFromLocation());
 }
 
@@ -111,6 +156,7 @@ async function beginOwnerSession({ announce = true } = {}) {
     state.session = window.MCPMasterAuth?.session?.() || {};
     if (!state.session.authenticated) throw new Error('Sign-in did not complete');
     await refresh({ announce });
+    if (state.mode === 'professional') await loadProfessionalData({ force: true });
   } catch (error) {
     state.loading = false;
     state.refreshing = false;
@@ -272,6 +318,7 @@ app.addEventListener('click', async (event) => {
     localStorage.setItem('pandoras-owner-mode', nextMode);
     document.documentElement.dataset.ownerMode = nextMode;
     navigate(nextMode === 'professional' ? 'professional-home' : 'home');
+    if (nextMode === 'professional') void loadProfessionalData();
     return;
   }
   if (action === 'clear-ask-project') {
@@ -291,6 +338,7 @@ app.addEventListener('click', async (event) => {
       return;
     }
     await refresh({ announce: true });
+    if (state.mode === 'professional') await loadProfessionalData({ force: true });
     return;
   }
   if (action === 'later') {
@@ -378,6 +426,11 @@ app.addEventListener('click', async (event) => {
     state.connections = [];
     state.plans = [];
     state.logs = [];
+    state.professionalData = {
+      loading: false, error: null, errors: {}, loadedAt: null,
+      projects: [], deployments: [], domains: [], verificationRuns: [], verificationChecks: [],
+      verificationEvidence: [], artifacts: [], artifactVersions: [], businessObjectives: [], projectSpecs: [],
+    };
     state.error = { code: 'SIGNED_OUT', message: 'Sign in again to view protected live information.' };
     state.ask = {
       message: '', threadId: null, projectId: null, projectName: '', reply: '', intent: '', confidence: null,
@@ -404,6 +457,7 @@ window.addEventListener('popstate', () => {
     state.mode = 'professional';
     localStorage.setItem('pandoras-owner-mode', 'professional');
     document.documentElement.dataset.ownerMode = 'professional';
+    void loadProfessionalData();
   } else if (state.route !== 'project') {
     state.mode = 'simple';
     localStorage.setItem('pandoras-owner-mode', 'simple');
@@ -458,7 +512,8 @@ window.addEventListener('mcpmaster-auth-changed', (event) => {
 window.PandorasOwnerRender = render;
 navigate(state.route, { replace: true });
 if (state.session?.authenticated) {
-  void refresh().then(() => {
+  void refresh().then(async () => {
+    if (state.mode === 'professional') await loadProfessionalData();
     if (state.route === 'project') void loadProjectWorkspace(routeResourceFromLocation());
   });
 } else {
