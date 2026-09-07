@@ -54,5 +54,5 @@ test('web control plane design preserves verified Live semantics and Admin safet
 test('experience assets are loaded through the owner-first shell', () => {
   assert.match(ownerFirst, /owner-screens-experience\.js/);
   assert.match(index, /owner-experience\.css/);
-  assert.match(index, /web-project-workspace-v1-20260907-1/);
+  assert.match(index, /web-professional-mode-v1-20260907-1/);
 });
