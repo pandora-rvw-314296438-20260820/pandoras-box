@@ -15,7 +15,7 @@ const registry = JSON.parse(
 const migration = fs.readFileSync(
   path.join(
     root,
-    'supabase/migrations/20260907122000_pandora_edge_capacity_retirement_broker_v1.sql',
+    'supabase/migrations/20260907123002_pandora_edge_capacity_retirement_broker_v1.sql',
   ),
   'utf8',
 );
