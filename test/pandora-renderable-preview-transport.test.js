@@ -52,6 +52,10 @@ const acceptanceV4Migration = readFileSync(
   'supabase/migrations/20260906224847_pandora_static_preview_acceptance_v4_vercel_retry.sql',
   'utf8',
 );
+const semanticIdentityMigration = readFileSync(
+  'supabase/migrations/20260907034703_pandora_static_preview_acceptance_v4_semantic_identity.sql',
+  'utf8',
+);
 
 test('Vercel preview proxy preserves capability authority but serves renderable HTML', () => {
   assert.match(api, /pandora-preview-host/);
@@ -189,6 +193,24 @@ test('acceptance v4 handles generic working names without weakening structure ch
   assert.match(acceptanceV4Migration, /404\[\[:space:\]\]\+not/);
   assert.match(acceptanceV4Migration, /regexp_matches\(v_body,'href=/);
   assert.match(acceptanceV4Migration, /regexp_matches\(v_body,'onclick=/);
+});
+
+test('acceptance v4 accepts semantic guide identity without weakening fail-closed checks', () => {
+  assert.match(semanticIdentityMigration, /pandora_static_preview_acceptance_v4/);
+  assert.match(semanticIdentityMigration, /'guide'/);
+  assert.match(semanticIdentityMigration, /v_token_count/);
+  assert.match(semanticIdentityMigration, /Chow Chow Breed Guide/);
+  assert.match(
+    semanticIdentityMigration,
+    /ACCEPTANCE_V4_GUIDE_IDENTITY_FALSE_NEGATIVE/,
+  );
+  assert.match(
+    semanticIdentityMigration,
+    /ACCEPTANCE_V4_GUIDE_IDENTITY_FALSE_POSITIVE/,
+  );
+  assert.match(semanticIdentityMigration, /404\[\[:space:\]\]\+not/);
+  assert.match(semanticIdentityMigration, /regexp_matches\(v_body,'href=/);
+  assert.match(semanticIdentityMigration, /regexp_matches\(v_body,'onclick=/);
 });
 
 test('Vercel Worker E uses current Supabase access and replay-safe acceptance v4', () => {
