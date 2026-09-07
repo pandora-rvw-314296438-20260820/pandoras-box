@@ -89,6 +89,7 @@ const state = {
     artifacts: [],
     artifactVersions: [],
     businessObjectives: [],
+    projectosEvidence: [],
     projectSpecs: [],
   },
   projectWorkspace: {
