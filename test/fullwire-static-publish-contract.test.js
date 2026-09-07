@@ -63,5 +63,9 @@ test('mobile never calls a production candidate Live before exact projection pro
   );
   assert.match(projectExperience, /Publishing\. Pandora is verifying this exact version\./);
   assert.match(projectExperience, /await _watchPublishCompletion\(versionId\);/);
+  assert.match(projectExperience, /await _showPublishedConfirmation\(\);/);
+  assert.match(projectExperience, /The exact public address will be shown/);
+  assert.match(projectExperience, /label: 'Open site'/);
+  assert.doesNotMatch(projectExperience, /SnackBar\(content: Text\('Live\.'\)\)/);
   assert.doesNotMatch(projectExperience, /snapshot\?\.project\.isLive == true/);
 });
