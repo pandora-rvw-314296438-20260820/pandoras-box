@@ -35,6 +35,9 @@ class ProjectWorkspaceV2View extends StatelessWidget {
     this.liveActivityLabel,
     this.liveActivityDetail,
     this.onOpenLiveActivity,
+    required this.liveUrl,
+    required this.liveHost,
+    required this.onOpenLiveSite,
     required this.recentlyUpdated,
     required this.currentVersionVerified,
     required this.changeDiff,
@@ -76,6 +79,9 @@ class ProjectWorkspaceV2View extends StatelessWidget {
   final String? liveActivityLabel;
   final String? liveActivityDetail;
   final VoidCallback? onOpenLiveActivity;
+  final String? liveUrl;
+  final String? liveHost;
+  final VoidCallback onOpenLiveSite;
   final bool recentlyUpdated;
   final bool currentVersionVerified;
   final ProjectExactSourceDiff? changeDiff;
@@ -199,6 +205,16 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                         right: 12,
                         top: 58,
                         child: _ProjectProgressCapsule(phase: progressPhase!),
+                      )
+                    else if (liveUrl != null && liveHost != null)
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        top: 58,
+                        child: _LiveDestinationStrip(
+                          host: liveHost!,
+                          onOpen: onOpenLiveSite,
+                        ),
                       )
                     else if (recentlyUpdated && currentVersionVerified)
                       Positioned(
@@ -462,6 +478,7 @@ class _PublishReceiptCard extends StatelessWidget {
     final verification = _short('verificationRunId');
     final deployment = _short('deploymentId');
     final publishedAt = _text('publishedAt');
+    final liveHost = _text('liveHost');
     return Container(
       key: const Key('publish-receipt'),
       padding: const EdgeInsets.all(12),
@@ -500,6 +517,18 @@ class _PublishReceiptCard extends StatelessWidget {
                 : _text('summary'),
             style: pandoraV2Muted,
           ),
+          if (liveHost.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Live at $liveHost',
+              key: const Key('publish-receipt-live-host'),
+              style: const TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 6),
           Text(
             '$versionLabel · check $verification · deployment $deployment'
@@ -1017,6 +1046,75 @@ class _ProjectProgressCapsule extends StatelessWidget {
       ),
     );
   }
+}
+
+class _LiveDestinationStrip extends StatelessWidget {
+  const _LiveDestinationStrip({
+    required this.host,
+    required this.onOpen,
+  });
+
+  final String host;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        key: const Key('workspace-live-destination'),
+        color: PandoraV2Colors.surface,
+        elevation: 2,
+        shadowColor: Colors.black12,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onOpen,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.public_rounded,
+                  size: 18,
+                  color: PandoraV2Colors.success,
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Live at',
+                        style: TextStyle(
+                          color: PandoraV2Colors.muted,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        host,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PandoraV2Colors.ink,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: onOpen,
+                  style: TextButton.styleFrom(
+                    foregroundColor: PandoraV2Colors.ink,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text('Open'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 }
 
 class _VerifiedChangeCapsule extends StatelessWidget {
