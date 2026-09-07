@@ -50,12 +50,15 @@ jobs:
       - name: Verify frozen Edge type-check
         run: npm run check:supabase:types
 
-      - name: Commit deterministic generated changes
+      - name: Write normalized files to the branch
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/toolchain-normalize.yml
-          git add deno.lock scripts/verify-engineering-toolchain.mjs playwright.config.mjs test/e2e/toolchain-smoke.spec.mjs
-          git commit -m "chore: normalize engineering toolchain metadata"
-          git push origin HEAD
+          set -euo pipefail
+          for path in             deno.lock             scripts/verify-engineering-toolchain.mjs             playwright.config.mjs             test/e2e/toolchain-smoke.spec.mjs
+          do
+            current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$path?ref=$GITHUB_REF_NAME" --jq .sha)"
+            encoded="$(base64 -w 0 "$path")"
+            gh api               --method PUT               "repos/$GITHUB_REPOSITORY/contents/$path"               -f message="chore: normalize $path"               -f content="$encoded"               -f sha="$current_sha"               -f branch="$GITHUB_REF_NAME"               >/dev/null
+          done
