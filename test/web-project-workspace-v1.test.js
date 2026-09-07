@@ -78,12 +78,13 @@ test('Publish has an explicit confirmation step before exact runtime mutation', 
   assert.ok(app.indexOf('prepare-workspace-publish') < app.indexOf('confirm-workspace-publish'));
 });
 
-test('Tell Pandora carries the exact runtime project UUID and isolates project-scoped threads', () => {
+test('Tell Pandora carries the exact runtime project UUID through governed change admission', () => {
   assert.ok(app.includes('const projectId = state.projectWorkspace.runtime?.project?.id'));
-  assert.ok(app.includes('projectId: state.ask.projectId'));
-  assert.ok(app.includes('state.ask.threadId && state.ask.projectId !== projectId'));
-  assert.ok(experience.includes('owner-ask-project-context'));
-  assert.ok(experience.includes('data-action="clear-ask-project"'));
+  assert.ok(app.includes("request('/projects/' + encodeURIComponent(projectId) + '/change'"));
+  assert.ok(app.includes('idempotencyKey: item.changeRequestKey'));
+  assert.ok(app.includes('...(item.focusToken ? { focusToken: item.focusToken } : {})'));
+  assert.ok(app.includes('nextVersion !== baselineVersion'));
+  assert.ok(app.includes("verification === 'passed' || experience.current_verified === true"));
 });
 
 test('Current, Live, and History are first-class workspace views', () => {
