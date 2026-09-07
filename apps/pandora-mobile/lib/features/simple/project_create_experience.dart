@@ -239,6 +239,7 @@ class _ProjectUnderstandingScreenState
   OwnerProjectUnderstanding? _understanding;
   Timer? _timer;
   bool _building = false;
+  bool _refreshing = false;
   bool _proposalCaptured = false;
   bool _showOriginalIntent = false;
   String? _buildIdempotencyKey;
@@ -258,14 +259,19 @@ class _ProjectUnderstandingScreenState
   }
 
   Future<void> _refresh() async {
+    if (_refreshing) return;
     final api = PandoraDependencies.of(context).projectExperienceRepository;
     if (api == null) return;
+    _refreshing = true;
     try {
       final value = await api.understanding(
         projectId: widget.project.id,
         expectedSourceIntentId: widget.sourceIntentId,
       );
       if (!mounted) return;
+      if (value.state != OwnerProjectUnderstandingState.waiting) {
+        _timer?.cancel();
+      }
       if (value.isReady && !_proposalCaptured) {
         _proposalCaptured = true;
         unawaited(
@@ -282,6 +288,8 @@ class _ProjectUnderstandingScreenState
       });
     } on ProjectExperienceException catch (error) {
       if (mounted) setState(() => _error = error.message);
+    } finally {
+      _refreshing = false;
     }
   }
 
