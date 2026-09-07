@@ -19,7 +19,7 @@ test('Simple Mode uses the canonical five-area primary navigation', () => {
   assert.ok(block, 'primary navigation declaration is present');
   const labels = [...block[0].matchAll(/\['[^']+', '([^']+)'/g)].map((match) => match[1]);
   assert.deepEqual(labels, ['Home', 'Projects', 'Ask Pandora', 'Needs You', 'Business']);
-  assert.match(ownerData, /'home', 'projects', 'ask', 'needs', 'business'/);
+  assert.match(ownerData, /'home', 'projects', 'project', 'ask', 'needs', 'business'/);
   assert.match(ownerExperience, /data-owner-primary-nav/);
 });
 
@@ -54,5 +54,5 @@ test('web control plane design preserves verified Live semantics and Admin safet
 test('experience assets are loaded through the owner-first shell', () => {
   assert.match(ownerFirst, /owner-screens-experience\.js/);
   assert.match(index, /owner-experience\.css/);
-  assert.match(index, /web-control-plane-v1-20260907-1/);
+  assert.match(index, /web-project-workspace-v1-20260907-1/);
 });

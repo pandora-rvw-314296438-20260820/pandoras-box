@@ -120,11 +120,12 @@ function closeToast() {
   rerender();
 }
 
-function navigate(route, { replace = false } = {}) {
+function navigate(route, { replace = false, resource = '' } = {}) {
   const safeRoute = ROUTES.has(route) ? route : 'home';
   state.route = safeRoute;
   closeDialog({ renderAfter: false });
-  const nextUrl = `${window.location.pathname}${window.location.search}#${safeRoute}`;
+  const suffix = resource ? `/${encodeURIComponent(String(resource))}` : '';
+  const nextUrl = `${window.location.pathname}${window.location.search}#${safeRoute}${suffix}`;
   if (replace) history.replaceState({ route: safeRoute }, '', nextUrl);
   else history.pushState({ route: safeRoute }, '', nextUrl);
   window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });

@@ -1,5 +1,6 @@
 export const DEFAULT_ALLOWED_ORIGINS = [
   "https://mcpmaster.vercel.app",
+  "https://pandoras-box-system.vercel.app",
   "https://mcpmaster-hazel.vercel.app",
   "https://mcpmaster-mbanatao-dc676069.vercel.app",
 ] as const;
