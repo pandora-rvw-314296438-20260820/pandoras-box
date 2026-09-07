@@ -94,9 +94,9 @@ test('Admin remains the protected existing advanced control tower', () => {
 test('Professional Mode assets are composed under one distinct revision', () => {
   assert.ok(first.includes('owner-professional.js'));
   assert.ok(screens.includes('PandorasOwnerProfessional'));
-  assert.ok(first.includes('web-publish-truth-v2-20260907-1'));
-  assert.ok(index.includes('owner-experience.css?v=web-professional-mode-v1-20260907-1'));
-  assert.ok(index.includes('bootstrap.js?v=web-publish-truth-v2-20260907-1'));
+  assert.ok(first.includes('web-focus-loop-v1-20260907-1'));
+  assert.ok(index.includes('owner-experience.css?v=web-focus-loop-v1-20260907-1'));
+  assert.ok(index.includes('bootstrap.js?v=web-focus-loop-v1-20260907-1'));
 });
 
 test('shared project workspace returns to the active presentation mode', () => {
