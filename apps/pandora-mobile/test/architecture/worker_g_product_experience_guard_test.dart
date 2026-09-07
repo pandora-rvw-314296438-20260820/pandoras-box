@@ -63,7 +63,10 @@ void main() {
     expect(source, contains('_productionUsesDedicatedVercel'));
     expect(source, contains('_needsDedicatedProductionRepair'));
     expect(source, contains("return 'Ready';"));
-    expect(source, contains("production?.provider.trim().toLowerCase() != 'vercel'"));
+    expect(
+      source,
+      contains("production?.provider.trim().toLowerCase() != 'vercel'"),
+    );
     expect(source, contains('ProjectWorkspaceV2View('));
     expect(source, isNot(contains('PandoraV2IntentSurface(')));
     expect(view, contains('PandoraPreviewHost'));
