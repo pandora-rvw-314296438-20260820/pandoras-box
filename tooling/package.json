@@ -1,0 +1,64 @@
+{
+  "name": "pandora-engineering-toolchain",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=24.0.0 <25.0.0"
+  },
+  "scripts": {
+    "verify": "node scripts/verify-engineering-toolchain.mjs",
+    "mcp:inspect": "mcp-inspector --cli node ../src/mcp-stdio.js --method tools/list --format json",
+    "quality:biome": "biome lint scripts/verify-engineering-toolchain.mjs playwright.config.mjs test/e2e/toolchain-smoke.spec.mjs",
+    "playwright:install": "playwright install --with-deps chromium",
+    "test:e2e:smoke": "playwright test test/e2e/toolchain-smoke.spec.mjs --config playwright.config.mjs",
+    "quality:dead-code": "knip --reporter compact",
+    "supabase:version": "supabase --version",
+    "vercel:version": "vercel --version",
+    "posthog:version": "posthog-cli --version"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.12",
+    "@modelcontextprotocol/inspector": "2.5.0",
+    "@playwright/test": "1.63.0",
+    "@posthog/cli": "0.18.0",
+    "knip": "6.34.0",
+    "supabase": "2.116.0",
+    "vercel": "59.11.7"
+  },
+  "overrides": {
+    "tar": "7.5.22",
+    "@vercel/backends": {
+      "path-to-regexp": "8.4.2"
+    },
+    "@vercel/express": {
+      "path-to-regexp": "8.4.2"
+    },
+    "@vercel/fun": {
+      "@tootallnate/once": "2.0.1",
+      "path-to-regexp": "8.4.2",
+      "tar": "7.5.22"
+    },
+    "@vercel/hono": {
+      "path-to-regexp": "8.4.2"
+    },
+    "@vercel/node": {
+      "path-to-regexp": "6.3.0",
+      "undici": "6.28.1"
+    },
+    "@vercel/python-analysis": {
+      "js-yaml": "4.3.1",
+      "minimatch": "10.2.6",
+      "smol-toml": "1.8.0"
+    },
+    "@vercel/remix-builder": {
+      "path-to-regexp": "6.3.0"
+    },
+    "@vercel/rust": {
+      "smol-toml": "1.8.0"
+    },
+    "vercel": {
+      "smol-toml": "1.8.0",
+      "undici": "6.28.1"
+    }
+  }
+}
