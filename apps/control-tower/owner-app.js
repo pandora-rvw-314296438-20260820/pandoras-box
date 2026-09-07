@@ -34,12 +34,47 @@ function render() {
   }[state.route]?.() || (state.mode === 'professional' ? professionalHome() : renderHome());
   const navigation = state.mode === 'professional' ? professionalNav() : nav();
   app.innerHTML = `<div class="owner-app ${state.mode === 'professional' ? 'professional-mode' : 'simple-mode'}">${header()}<main id="main-content" class="owner-main" tabindex="-1">${routeMarkup}</main>${navigation}${dialogMarkup()}${toastMarkup()}</div>`;
+  if (state.route === 'project') window.PandorasOwnerPreviewFocus?.mount?.();
 }
 
 function ownerProjectsFromPayload(payload) {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.projects)) return payload.projects;
   return [];
+}
+
+
+function visibleWorkspaceVersion(experience) {
+  const candidate = String(experience?.candidate_version_id || '').trim();
+  const candidateState = String(experience?.candidate_verification_state || '').trim().toLowerCase();
+  if (candidate && candidateState === 'passed') return candidate;
+  const current = String(experience?.current_version_id || '').trim();
+  if (current && experience?.current_verified === true) return current;
+  return null;
+}
+
+async function hydrateExactWorkspacePreview(item, projectId, experience) {
+  const versionId = visibleWorkspaceVersion(experience);
+  if (!versionId) return;
+  if (item.previewBundle?.versionId === versionId && item.previewVersionId === versionId) return;
+  try {
+    const bundle = await window.MCPMasterAuth.invokeFunction('pandora-preview-content', { projectId, versionId });
+    if (bundle?.versionId !== versionId || bundle?.projectId !== projectId || !/^[0-9a-f]{64}$/.test(String(bundle?.artifactDigest || ''))) {
+      throw new Error('Pandora rejected mismatched preview lineage');
+    }
+    const versionChanged = Boolean(item.previewVersionId && item.previewVersionId !== versionId);
+    item.previewBundle = bundle;
+    item.previewVersionId = versionId;
+    item.previewArtifactDigest = String(bundle.artifactDigest).toLowerCase();
+    if (versionChanged) window.PandorasOwnerPreviewFocus?.clear?.();
+  } catch {
+    if (item.previewVersionId !== versionId) {
+      item.previewBundle = null;
+      item.previewVersionId = null;
+      item.previewArtifactDigest = null;
+      window.PandorasOwnerPreviewFocus?.clear?.();
+    }
+  }
 }
 
 async function loadProjectWorkspace(sourceId = routeResourceFromLocation(), { quiet = false } = {}) {
@@ -79,6 +114,7 @@ async function loadProjectWorkspace(sourceId = routeResourceFromLocation(), { qu
     item.runtime = runtime;
     item.experience = experience;
     item.theatre = theatre;
+    await hydrateExactWorkspacePreview(item, projectId, experience);
     item.error = null;
     item.loadedAt = new Date().toISOString();
     if (item.mutationKind === 'publish') {
@@ -159,6 +195,133 @@ async function askPandora() {
     state.ask.error = error?.message || 'Pandora is temporarily unavailable.';
   } finally {
     state.ask.sending = false;
+    render();
+  }
+}
+
+
+function changeProjectionOutcome(baseVersionId) {
+  const item = state.projectWorkspace;
+  const experience = item.experience || {};
+  if (experience.safe_failure_code || experience.safe_failure_message) return 'problem';
+  if (experience.needs_you === true || item.theatre?.needs_you === true) return 'needs-you';
+  const candidate = String(experience.candidate_version_id || '');
+  if (
+    candidate &&
+    candidate !== baseVersionId &&
+    String(experience.candidate_verification_state || '').toLowerCase() === 'passed' &&
+    item.previewVersionId === candidate &&
+    item.previewBundle?.versionId === candidate
+  ) return 'ready';
+  return null;
+}
+
+async function waitForProjectChangeResolution(sourceId, baseVersionId, attempts = 100, delayMs = 1500) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    await loadProjectWorkspace(sourceId, { quiet: true });
+    const outcome = changeProjectionOutcome(baseVersionId);
+    if (outcome) return outcome;
+    if (attempt < attempts - 1) await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return 'working';
+}
+
+async function compileExactChange(projectId, intentId) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    if (attempt === 0 || attempt % 4 === 0) {
+      try { await window.MCPMasterAuth.invokeFunction('pandora-project-spec-compiler', { intentId }); }
+      catch { /* exact source_intent_id read below decides readiness */ }
+    }
+    const spec = await window.MCPMasterAuth.readProjectSpecForIntent(projectId, intentId);
+    if (spec?.source_intent_id === intentId && spec?.status === 'active') return spec;
+    if (spec?.status === 'rejected') {
+      throw new Error('Pandora needs a different request before it can make that change.');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  throw new Error('Pandora is still preparing that change. Your current project is unchanged.');
+}
+
+async function performProjectChange(message) {
+  const item = state.projectWorkspace;
+  const projectId = String(item.runtime?.project?.id || '').trim();
+  const request = String(message || '').trim();
+  if (!projectId || request.length < 4 || item.experience?.can_change !== true || item.mutating) return;
+  const baseVersionId = String(item.previewVersionId || item.experience?.current_version_id || '');
+  item.mutating = true;
+  item.mutationKind = 'change';
+  item.mutationPhase = 'working';
+  item.mutationStartedAt = new Date().toISOString();
+  item.changeReply = '';
+  item.error = null;
+  render();
+
+  try {
+    let actionRequest = request;
+    try {
+      const turn = await window.MCPMasterAuth.invokeFunction('pandora-intelligence-chat', {
+        message: request,
+        projectId,
+        mode: 'auto',
+      });
+      if (turn?.needsClarification === true) {
+        item.changeReply = turn.clarifyingQuestion || turn.reply || 'Pandora needs one more detail.';
+        item.mutating = false;
+        item.mutationKind = null;
+        item.mutationPhase = null;
+        item.mutationStartedAt = null;
+        render();
+        return;
+      }
+      if (turn?.intent === 'change_project' && turn?.handoff?.request && String(turn.handoff.request).trim().length >= 4) {
+        actionRequest = String(turn.handoff.request).trim();
+      }
+    } catch {
+      // An explicit in-project change remains durable if intelligence is temporarily unavailable.
+    }
+
+    const focusToken = item.focusToken;
+    if (focusToken) {
+      actionRequest = `${window.PandorasOwnerPreviewFocus.intentContext(focusToken)}\nOwner change: ${actionRequest}`;
+    }
+
+    const intentId = await window.MCPMasterAuth.insertProjectChangeIntent({
+      projectId,
+      changeText: actionRequest,
+      idempotencyKey: 'pandora-web-change:' + projectId + ':' + crypto.randomUUID(),
+      focusToken,
+    });
+    await compileExactChange(projectId, intentId);
+    await window.MCPMasterAuth.invokeFunction('pandora-project-source-generator', {
+      projectId,
+      idempotencyKey: 'pandora-web-change-build:' + projectId + ':' + intentId,
+    });
+
+    const outcome = await waitForProjectChangeResolution(item.sourceId, baseVersionId);
+    item.mutating = false;
+    item.mutationKind = null;
+    item.mutationPhase = null;
+    item.mutationStartedAt = null;
+    if (outcome === 'ready') {
+      item.changeMessage = '';
+      item.changeReply = 'Updated. Pandora verified the rebuilt version before replacing the preview.';
+      window.PandorasOwnerPreviewFocus?.clear?.();
+      showToast('Updated. The exact rebuilt version passed verification.', 'success');
+    } else if (outcome === 'needs-you') {
+      showToast('This change needs you before Pandora can continue.', 'info');
+    } else if (outcome === 'problem') {
+      showToast('Pandora stopped the change. Your previous verified result remains current.', 'error');
+    } else {
+      showToast('Pandora is still building. Your previous verified result remains current.', 'info');
+    }
+    render();
+  } catch (error) {
+    item.mutating = false;
+    item.mutationKind = null;
+    item.mutationPhase = null;
+    item.mutationStartedAt = null;
+    item.error = error?.message || 'Pandora could not complete that change. Your current result is unchanged.';
+    showToast(item.error, 'error');
     render();
   }
 }
@@ -279,21 +442,8 @@ app.addEventListener('submit', async (event) => {
   if (projectForm) {
     event.preventDefault();
     const message = state.projectWorkspace.changeMessage.trim();
-    const projectId = state.projectWorkspace.runtime?.project?.id;
-    const projectName = state.projectWorkspace.runtime?.project?.name || state.projectWorkspace.ownerSummary?.name || '';
-    if (!message || !projectId || state.projectWorkspace.experience?.can_change !== true) return;
-    if (state.ask.threadId && state.ask.projectId !== projectId) {
-      state.ask.threadId = null;
-      state.ask.reply = '';
-      state.ask.intent = '';
-      state.ask.handoff = null;
-    }
-    state.ask.projectId = projectId;
-    state.ask.projectName = projectName;
-    state.ask.message = message;
-    state.projectWorkspace.changeMessage = '';
-    navigate('ask');
-    await askPandora();
+    if (!message || state.projectWorkspace.experience?.can_change !== true) return;
+    await performProjectChange(message);
     return;
   }
   const form = event.target.closest('[data-ask-form]');
@@ -365,6 +515,20 @@ app.addEventListener('click', async (event) => {
     }
     return;
   }
+  if (action === 'toggle-preview-focus') {
+    state.projectWorkspace.selectionMode = !state.projectWorkspace.selectionMode;
+    if (state.projectWorkspace.selectionMode) {
+      state.projectWorkspace.previewSelection = null;
+      state.projectWorkspace.focusToken = null;
+    }
+    render();
+    return;
+  }
+  if (action === 'clear-preview-focus') {
+    window.PandorasOwnerPreviewFocus?.clear?.();
+    render();
+    return;
+  }
   if (action === 'workspace-view') {
     const view = target.dataset.view;
     if (['current', 'live', 'history'].includes(view)) {
@@ -432,7 +596,9 @@ app.addEventListener('click', async (event) => {
     };
     state.projectWorkspace = {
       sourceId: null, source: null, ownerSummary: null, detail: null, runtime: null,
-      experience: null, theatre: null, view: 'current', changeMessage: '', loading: false,
+      experience: null, theatre: null, view: 'current', changeMessage: '', changeReply: '',
+      previewBundle: null, previewVersionId: null, previewArtifactDigest: null, previewSelection: null,
+      focusToken: null, selectionMode: false, loading: false,
       mutating: false, confirmAction: null, error: null, loadedAt: null,
     };
     showToast('Signed out. Protected live information is hidden.', 'info');
