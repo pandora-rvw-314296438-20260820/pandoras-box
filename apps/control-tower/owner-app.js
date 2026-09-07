@@ -220,9 +220,11 @@ app.addEventListener('submit', async (event) => {
     const projectId = state.projectWorkspace.runtime?.project?.id;
     const projectName = state.projectWorkspace.runtime?.project?.name || state.projectWorkspace.ownerSummary?.name || '';
     if (!message || !projectId || state.projectWorkspace.experience?.can_change !== true) return;
-    if (state.ask.projectId && state.ask.projectId !== projectId) {
+    if (state.ask.threadId && state.ask.projectId !== projectId) {
       state.ask.threadId = null;
       state.ask.reply = '';
+      state.ask.intent = '';
+      state.ask.handoff = null;
     }
     state.ask.projectId = projectId;
     state.ask.projectName = projectName;
@@ -249,6 +251,16 @@ app.addEventListener('click', async (event) => {
     return;
   }
   const action = target.dataset.action;
+  if (action === 'clear-ask-project') {
+    state.ask.projectId = null;
+    state.ask.projectName = '';
+    state.ask.threadId = null;
+    state.ask.reply = '';
+    state.ask.intent = '';
+    state.ask.handoff = null;
+    render();
+    return;
+  }
   if (action === 'refresh') {
     if (target.closest('[data-owner-dialog]')) closeDialog({ renderAfter: false });
     if (!state.session?.authenticated) {
