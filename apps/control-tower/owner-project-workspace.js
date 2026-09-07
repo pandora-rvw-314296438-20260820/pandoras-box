@@ -125,18 +125,18 @@ function buildTheatre() {
   const progress = Number(theatre.progress_percent);
   return `<section class="owner-card owner-workspace-theatre">
     <div class="owner-workspace-theatre-head">
-      <div><span class="owner-kicker">Build Theatre</span><h2>${esc(theatre.public_message || 'Pandora is working on this project.')}</h2></div>
-      ${Number.isFinite(progress) ? `<strong aria-label="${progress}% projected build activity">${Math.max(0, Math.min(100, progress))}%</strong>` : ''}
+      <div><span class="owner-kicker">Build Theatre</span><h2 data-workspace-theatre-message>${esc(theatre.public_message || 'Pandora is working on this project.')}</h2></div>
+      ${Number.isFinite(progress) ? `<strong data-workspace-theatre-progress aria-label="${progress}% projected build activity">${Math.max(0, Math.min(100, progress))}%</strong>` : '<strong data-workspace-theatre-progress hidden></strong>'}
     </div>
     <div class="owner-theatre-stages" aria-label="Current build stage">
       ${THEATRE_STAGES.map((entry) => {
         const active = entry.stages.includes(stage);
-        return `<div class="owner-theatre-stage ${active ? 'active' : ''}"><span></span><small>${entry.label}</small></div>`;
+        return `<div class="owner-theatre-stage ${active ? 'active' : ''}" data-workspace-theatre-stages="${esc(entry.stages.join(','))}"><span></span><small>${entry.label}</small></div>`;
       }).join('')}
     </div>
     <div class="owner-workspace-meta">
-      <span>Stage: <strong>${esc(stage ? stage.replaceAll('_', ' ') : 'unavailable')}</strong></span>
-      <span>${theatre.updated_at ? `Updated ${esc(timeAgo(theatre.updated_at))}` : 'Update time unavailable'}</span>
+      <span>Stage: <strong data-workspace-theatre-current>${esc(stage ? stage.replaceAll('_', ' ') : 'unavailable')}</strong></span>
+      <span data-workspace-theatre-updated>${theatre.updated_at ? `Updated ${esc(timeAgo(theatre.updated_at))}` : 'Update time unavailable'}</span>
     </div>
   </section>`;
 }
@@ -237,7 +237,7 @@ function changePanel() {
     <div><span class="owner-kicker">Tell Pandora</span><h2>${selected ? 'Change this exact object' : 'What should change?'}</h2><p>${canChange ? (selected ? `Focused on ${esc(selected)}. Pandora will bind the request to this exact preview version and artifact.` : 'Describe the result. Pandora will save the change, prepare the exact spec, build it, verify it and replace the preview only when the new version is safe to show.') : 'Pandora has not marked this project safe for a new change yet. You can still inspect the current result.'}</p></div>
     <form data-project-change-form>
       <textarea data-project-change-message rows="3" maxlength="8000" placeholder="Make the checkout simpler, move this button higher, rewrite this heading…"${canChange && !busy ? '' : ' disabled'}>${esc(item.changeMessage)}</textarea>
-      <button class="owner-button primary" type="submit"${canChange && !busy && item.changeMessage.trim() ? '' : ' disabled'}>${esc(actionLabel)}</button>
+      <button class="owner-button primary" type="submit" data-workspace-change-submit${canChange && !busy && item.changeMessage.trim() ? '' : ' disabled'}>${esc(actionLabel)}</button>
     </form>
   </section>`;
 }
