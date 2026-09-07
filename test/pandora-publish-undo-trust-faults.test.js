@@ -31,14 +31,18 @@ test('stale or unrelated preview can never satisfy reviewed-candidate publish id
   assert.match(publish, /VERIFICATION_STALE/);
 });
 
-test('Publish promotes the exact reviewed deployment and preserves prior live URL until production verification', () => {
-  assert.match(publish, /\/promote\/\$\{encodeURIComponent\(previewDeploymentId\)\}/);
-  assert.match(publish, /provider_deployment_id: previewDeploymentId/);
+test('Publish creates a dedicated exact-artifact production deployment and preserves prior live URL until production verification', () => {
+  assert.match(publish, /loadExactRuntimeBundle\(context, projectId, requestedVersion, artifactDigest\)/);
+  assert.match(publish, /target:\s*"production"/);
+  assert.match(publish, /files:\s*bundle\.files\.map/);
+  assert.match(publish, /provider_deployment_id: providerDeploymentId/);
   assert.match(publish, /promoted_from_id: preview\.id/);
+  assert.match(publish, /exactArtifactDeploy:\s*true/);
   assert.match(publish, /const previousLiveUrl = textValue\(journey\.liveUrl\) \|\| null/);
   assert.match(publish, /stage: "publishing"/);
   assert.match(publish, /liveUrl: previousLiveUrl/);
   assert.match(publish, /productionCandidateUrl/);
+  assert.doesNotMatch(publish, /\/promote\//);
   assert.doesNotMatch(publish, /stage: "live"/);
 });
 
