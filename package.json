@@ -49,7 +49,16 @@
         "build:control-tower": "node scripts/materialize-control-tower.mjs",
         "verify:migration-authority": "node scripts/verify-migration-authority.mjs",
         "agents:install": "node scripts/install-ai-coding-clis.mjs",
-        "agents:verify": "node scripts/install-ai-coding-clis.mjs --verify-only"
+        "agents:verify": "node scripts/install-ai-coding-clis.mjs --verify-only",
+        "tooling:verify": "npm --prefix tooling run verify",
+        "mcp:inspect": "npm --prefix tooling run mcp:inspect",
+        "quality:biome": "npm --prefix tooling run quality:biome",
+        "playwright:install": "npm --prefix tooling run playwright:install",
+        "test:e2e:smoke": "npm --prefix tooling run test:e2e:smoke",
+        "quality:dead-code": "npm --prefix tooling run quality:dead-code",
+        "supabase:version": "npm --prefix tooling run supabase:version",
+        "vercel:version": "npm --prefix tooling run vercel:version",
+        "posthog:version": "npm --prefix tooling run posthog:version"
     },
     "version": "1.3.0-observability",
     "keywords": [
