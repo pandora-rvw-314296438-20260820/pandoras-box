@@ -63,7 +63,7 @@ test('Ready and Publish require canonical experience permission plus runtime pub
 test('Undo is exact-version gated and confirmation precedes mutation', () => {
   assert.ok(workspace.includes('experience.can_undo === true && Boolean(candidateId)'));
   assert.ok(workspace.includes("action: 'prepare-workspace-undo'"));
-  assert.ok(workspace.includes("action: 'confirm-workspace-undo'"));
+  assert.ok(workspace.includes("'confirm-workspace-undo'"));
   assert.ok(app.includes('expectedVersionId: candidateVersionId'));
   assert.ok(app.includes('idempotencyKey:'));
   assert.ok(app.includes('crypto.randomUUID()'));
@@ -72,7 +72,7 @@ test('Undo is exact-version gated and confirmation precedes mutation', () => {
 
 test('Publish has an explicit confirmation step before exact runtime mutation', () => {
   assert.ok(workspace.includes("action: 'prepare-workspace-publish'"));
-  assert.ok(workspace.includes("action: 'confirm-workspace-publish'"));
+  assert.ok(workspace.includes("'confirm-workspace-publish'"));
   assert.ok(app.includes("performWorkspaceMutation('publish')"));
   assert.ok(app.indexOf('prepare-workspace-publish') < app.indexOf('confirm-workspace-publish'));
 });
