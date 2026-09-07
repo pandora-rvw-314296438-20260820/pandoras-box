@@ -119,7 +119,7 @@ jobs:
         shell: bash
         run: |
           npm ci --prefix tooling --ignore-scripts --no-audit --no-fund
-          npm --prefix tooling exec -- biome format --write scripts/verify-engineering-toolchain.mjs playwright.config.mjs test/e2e/toolchain-smoke.spec.mjs
+          cd tooling\n          ./node_modules/.bin/biome format --write scripts/verify-engineering-toolchain.mjs playwright.config.mjs test/e2e/toolchain-smoke.spec.mjs
 
       - name: Update documentation paths
         shell: bash
