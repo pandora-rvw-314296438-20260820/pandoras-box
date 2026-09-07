@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../core/platform/pandora_preview_host.dart';
+import 'live_build_theatre/live_build_reducer.dart';
+import 'live_build_theatre/live_build_theatre.dart';
 import 'pandora_v2_ui.dart';
 import 'project_exact_source_diff.dart';
 
 enum ProjectChangePhase { idle, designing, building, checking }
+
+enum ProjectReleasePhase { deploying, verifying }
 
 class ProjectWorkspaceV2View extends StatelessWidget {
   const ProjectWorkspaceV2View({
@@ -32,9 +36,12 @@ class ProjectWorkspaceV2View extends StatelessWidget {
     required this.onToggleSelection,
     required this.onOpenPreview,
     required this.progressPhase,
+    required this.liveBuildActivity,
     this.liveActivityLabel,
     this.liveActivityDetail,
     this.onOpenLiveActivity,
+    required this.releasePhase,
+    required this.releaseMessage,
     required this.liveUrl,
     required this.liveHost,
     required this.onOpenLiveSite,
@@ -76,9 +83,12 @@ class ProjectWorkspaceV2View extends StatelessWidget {
   final VoidCallback onToggleSelection;
   final VoidCallback onOpenPreview;
   final ProjectChangePhase? progressPhase;
+  final LiveBuildTheatreState? liveBuildActivity;
   final String? liveActivityLabel;
   final String? liveActivityDetail;
   final VoidCallback? onOpenLiveActivity;
+  final ProjectReleasePhase? releasePhase;
+  final String? releaseMessage;
   final String? liveUrl;
   final String? liveHost;
   final VoidCallback onOpenLiveSite;
@@ -104,6 +114,12 @@ class ProjectWorkspaceV2View extends StatelessWidget {
         files.isNotEmpty &&
         versionId != null &&
         versionId.isNotEmpty;
+    final activity = liveBuildActivity;
+    final buildTheatreActive = activity != null &&
+        activity.latestSequence > 0 &&
+        activity.stage != LiveBuildStage.previewReady &&
+        activity.stage != LiveBuildStage.completed;
+    final releaseTheatreActive = releasePhase != null;
 
     return Scaffold(
       backgroundColor: PandoraV2Colors.canvas,
@@ -140,28 +156,41 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                           ),
                           child: loading
                               ? _ExactPreviewLoadingSurface(projectName: title)
-                              : hasExactPreview
-                                  ? PandoraPreviewHost(
-                                      key: ValueKey<String>(versionId),
-                                      files: files,
-                                      versionId: versionId,
-                                      selectionEnabled: selectionMode,
-                                      selectedSelector:
-                                          selectedPreviewTarget?.selector,
-                                      onSelection: onSelection,
-                                      fallback: _ExactPreviewFallback(
-                                        projectName: title,
-                                        onOpen: onOpenPreview,
-                                      ),
+                              : buildTheatreActive
+                                  ? _WorkspaceBuildTheatre(
+                                      state: activity,
+                                      onOpenActivity: onOpenLiveActivity,
                                     )
-                                  : _ExactPreviewFallback(
-                                      projectName: title,
-                                      onOpen: onOpenPreview,
-                                    ),
+                                  : releaseTheatreActive
+                                      ? _PublishTheatreSurface(
+                                          phase: releasePhase!,
+                                          message: releaseMessage,
+                                        )
+                                      : hasExactPreview
+                                          ? PandoraPreviewHost(
+                                              key: ValueKey<String>(versionId),
+                                              files: files,
+                                              versionId: versionId,
+                                              selectionEnabled: selectionMode,
+                                              selectedSelector:
+                                                  selectedPreviewTarget
+                                                      ?.selector,
+                                              onSelection: onSelection,
+                                              fallback: _ExactPreviewFallback(
+                                                projectName: title,
+                                                onOpen: onOpenPreview,
+                                              ),
+                                            )
+                                          : _ExactPreviewFallback(
+                                              projectName: title,
+                                              onOpen: onOpenPreview,
+                                            ),
                         ),
                       ),
                     ),
-                    if (hasExactPreview)
+                    if (hasExactPreview &&
+                        !buildTheatreActive &&
+                        !releaseTheatreActive)
                       Positioned(
                         top: 10,
                         right: 10,
@@ -188,7 +217,9 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                           ],
                         ),
                       ),
-                    if (liveActivityLabel != null)
+                    if (!buildTheatreActive &&
+                        !releaseTheatreActive &&
+                        liveActivityLabel != null)
                       Positioned(
                         left: 12,
                         right: 12,
@@ -199,14 +230,19 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                           onTap: onOpenLiveActivity,
                         ),
                       )
-                    else if (progressPhase != null)
+                    else if (!buildTheatreActive &&
+                        !releaseTheatreActive &&
+                        progressPhase != null)
                       Positioned(
                         left: 12,
                         right: 12,
                         top: 58,
                         child: _ProjectProgressCapsule(phase: progressPhase!),
                       )
-                    else if (liveUrl != null && liveHost != null)
+                    else if (!buildTheatreActive &&
+                        !releaseTheatreActive &&
+                        liveUrl != null &&
+                        liveHost != null)
                       Positioned(
                         left: 12,
                         right: 12,
@@ -216,7 +252,10 @@ class ProjectWorkspaceV2View extends StatelessWidget {
                           onOpen: onOpenLiveSite,
                         ),
                       )
-                    else if (recentlyUpdated && currentVersionVerified)
+                    else if (!buildTheatreActive &&
+                        !releaseTheatreActive &&
+                        recentlyUpdated &&
+                        currentVersionVerified)
                       Positioned(
                         left: 12,
                         right: 12,
@@ -254,6 +293,177 @@ class ProjectWorkspaceV2View extends StatelessWidget {
       ),
     );
   }
+}
+
+class _WorkspaceBuildTheatre extends StatelessWidget {
+  const _WorkspaceBuildTheatre({
+    required this.state,
+    required this.onOpenActivity,
+  });
+
+  final LiveBuildTheatreState state;
+  final VoidCallback? onOpenActivity;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        key: const Key('workspace-build-theatre'),
+        color: PandoraV2Colors.canvas,
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 84),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              LiveBuildTheatre(
+                state: state,
+                ownerStatusLabel: state.statusLabel,
+              ),
+              if (onOpenActivity != null) ...[
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: onOpenActivity,
+                    icon: const Icon(Icons.history_rounded, size: 18),
+                    label: const Text('Build activity'),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+}
+
+class _PublishTheatreSurface extends StatelessWidget {
+  const _PublishTheatreSurface({
+    required this.phase,
+    required this.message,
+  });
+
+  final ProjectReleasePhase phase;
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    final verifying = phase == ProjectReleasePhase.verifying;
+    final headline =
+        verifying ? 'Verifying production' : 'Deploying the reviewed version';
+    final detail = (message ?? '').trim().isNotEmpty
+        ? message!.trim()
+        : verifying
+            ? 'Pandora is checking the exact production deployment before it can become Live.'
+            : 'Pandora is creating the production deployment from the exact version you reviewed.';
+
+    return Container(
+      key: const Key('workspace-publish-theatre'),
+      color: PandoraV2Colors.canvas,
+      padding: const EdgeInsets.fromLTRB(22, 28, 22, 96),
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: PandoraV2Colors.surface,
+            border: Border.all(color: PandoraV2Colors.line),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.rocket_launch_outlined, size: 20),
+                  SizedBox(width: 10),
+                  Text(
+                    'Publishing',
+                    style: TextStyle(
+                      color: PandoraV2Colors.ink,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Text(
+                headline,
+                style: const TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 24,
+                  height: 1.12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.5,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(detail, style: pandoraV2Muted),
+              const SizedBox(height: 22),
+              _ReleaseStep(
+                label: 'Create production deployment',
+                active: !verifying,
+                complete: verifying,
+              ),
+              const SizedBox(height: 10),
+              _ReleaseStep(
+                label: 'Verify exact production result',
+                active: verifying,
+                complete: false,
+              ),
+              const SizedBox(height: 18),
+              const LinearProgressIndicator(
+                minHeight: 2,
+                color: PandoraV2Colors.ink,
+                backgroundColor: PandoraV2Colors.soft,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReleaseStep extends StatelessWidget {
+  const _ReleaseStep({
+    required this.label,
+    required this.active,
+    required this.complete,
+  });
+
+  final String label;
+  final bool active;
+  final bool complete;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Icon(
+            complete
+                ? Icons.check_circle_rounded
+                : active
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+            size: 18,
+            color: active || complete
+                ? PandoraV2Colors.ink
+                : PandoraV2Colors.muted,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color:
+                    active || complete ? PandoraV2Colors.ink : PandoraV2Colors.muted,
+                fontSize: 13,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      );
 }
 
 class _ProgressiveComposerSheet extends StatefulWidget {
