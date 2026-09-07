@@ -274,15 +274,74 @@ function professionalBusiness() {
   );
 }
 
+function formatBytes(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 0) return 'Size unavailable';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+}
+
+function compactDigest(value) {
+  const digest = String(value || '');
+  return /^[0-9a-f]{64}$/i.test(digest) ? `${digest.slice(0, 10)}…${digest.slice(-6)}` : 'Digest unavailable';
+}
+
 function professionalLibrary() {
+  const library = state.library || {};
+  if (library.loading && !library.loadedAt) {
+    return professionalShell(
+      'Library',
+      'Immutable artifact metadata and project-version lineage from Pandora’s member-RLS control plane.',
+      '<div class="owner-card owner-workspace-loading"><span class="owner-spinner"></span><h2>Loading bounded Library index</h2><p>Pandora is reading member-safe artifact and release metadata.</p></div>',
+    );
+  }
+  if (library.error) {
+    return professionalShell(
+      'Library',
+      'Immutable artifact metadata and project-version lineage from Pandora’s member-RLS control plane.',
+      unavailable('Library index is unavailable', library.error.message || 'Pandora could not load the bounded Library index.', icons.projects),
+    );
+  }
+  const artifacts = Array.isArray(library.artifacts) ? library.artifacts : [];
+  const releases = Array.isArray(library.releases) ? library.releases : [];
+  const body = `
+    <section class="professional-metrics-grid" aria-label="Library overview">
+      ${metricCard('Artifacts', artifacts.length, 'latest immutable artifact versions')}
+      ${metricCard('Project versions', releases.length, 'latest release/version lineage')}
+      ${metricCard('Updated', library.generatedAt ? timeAgo(library.generatedAt) : 'Unavailable', 'bounded index refresh')}
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Artifacts</span><h2>Immutable artifact versions</h2></div><span>${artifacts.length} shown</span></div>
+      <div class="owner-card professional-verification-list">
+        ${artifacts.length ? artifacts.map((artifact) => `<div class="professional-verification-row">
+          <span>
+            <strong>${esc(artifact.projectName || 'Project')} · ${esc(artifact.logicalKey || 'artifact')}</strong>
+            <small>${esc(cleanName(artifact.artifactKind || 'other'))} · v${esc(artifact.version ?? '—')} · ${esc(formatBytes(artifact.byteSize))} · ${esc(artifact.mediaType || 'media type unavailable')} · ${esc(compactDigest(artifact.sha256))} · ${esc(artifact.createdAt ? timeAgo(artifact.createdAt) : 'time unavailable')}</small>
+          </span>
+          ${badge('Immutable', 'success')}
+        </div>`).join('') : '<div class="owner-empty compact"><h3>No artifact versions returned</h3><p>The bounded member-safe index currently contains no artifact versions.</p></div>'}
+      </div>
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Versions & releases</span><h2>Project version lineage</h2></div><span>${releases.length} shown</span></div>
+      <div class="owner-card professional-verification-list">
+        ${releases.length ? releases.map((release) => `<div class="professional-verification-row">
+          <span>
+            <strong>${esc(release.projectName || 'Project')} · version ${esc(release.sequenceNo ?? '—')}</strong>
+            <small>${esc(cleanName(release.lifecycleStatus || 'unknown'))} · ${esc(cleanName(release.kind || 'preview'))} · artifact ${esc(compactDigest(release.artifactDigest))} · source ${esc(release.sourceCommit ? release.sourceCommit.slice(0, 10) : compactDigest(release.sourceSha256))} · ${esc(release.createdAt ? timeAgo(release.createdAt) : 'time unavailable')}</small>
+          </span>
+          ${badge(cleanName(release.lifecycleStatus || 'unknown'), ['live','preview_ready','verified'].includes(String(release.lifecycleStatus || '').toLowerCase()) ? 'success' : 'neutral')}
+        </div>`).join('') : '<div class="owner-empty compact"><h3>No project versions returned</h3><p>The bounded member-safe index currently contains no project-version lineage.</p></div>'}
+      </div>
+    </section>
+    <section class="owner-card professional-boundary-note">
+      <span>${icons.shield}</span><div><strong>Metadata only</strong><p>Library v1 does not expose storage paths, raw provenance, source payloads, deployment URLs, provider deployment IDs or artifact bytes. Artifact download remains outside this bounded contract.</p></div>
+    </section>`;
   return professionalShell(
     'Library',
-    'Artifacts, generated files, specs, reports, evidence, releases and searchable project knowledge.',
-    unavailable(
-      'A bounded owner-safe Library index is not connected yet',
-      'Repository files and audit logs are not treated as a substitute for a real Library index. This surface remains unavailable until artifact metadata and access rules are exposed through a dedicated contract.',
-      icons.projects,
-    ),
+    'Immutable artifact metadata and project-version lineage from Pandora’s member-RLS control plane.',
+    body,
   );
 }
 
