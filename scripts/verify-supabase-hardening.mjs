@@ -25,6 +25,13 @@ const allowedClasses = new Set([
 const seen = new Set();
 const counts = new Map();
 const unreconciled = [];
+const reconciliationCounts = new Map();
+const allowedReconciliationDecisions = new Set([
+  'REVIEW_REQUIRED_CAPACITY_RECONCILIATION',
+  'RETIRE_CANDIDATE_SELF_RETIRED',
+  'RETAIN_EVIDENCE_PENDING_OWNER_RECONCILIATION',
+  'REVIEW_REQUIRED_CALLER_PROOF',
+]);
 
 const limit = registry.providerLimits?.edgeFunctionsPerProject;
 if (!Number.isInteger(limit) || limit < 1) {
@@ -67,9 +74,27 @@ for (const fn of registry.functions) {
   } else if (fn.intentionalActive === false) {
     if (
       fn.class !== 'UNRECONCILED' ||
-      fn.decision !== 'REVIEW_REQUIRED_CAPACITY_RECONCILIATION'
+      !allowedReconciliationDecisions.has(fn.decision)
     ) {
       throw new Error('non-intentional live function lacks reconciliation state: ' + key);
+    }
+    if (
+      fn.decision === 'RETIRE_CANDIDATE_SELF_RETIRED' &&
+      !/retired|410/i.test(fn.callerEvidence)
+    ) {
+      throw new Error('retirement candidate lacks provider-retired evidence: ' + key);
+    }
+    if (
+      fn.decision === 'REVIEW_REQUIRED_CALLER_PROOF' &&
+      !/caller proof/i.test(fn.callerEvidence)
+    ) {
+      throw new Error('caller-proof review lacks explicit evidence gap: ' + key);
+    }
+    if (
+      fn.decision === 'RETAIN_EVIDENCE_PENDING_OWNER_RECONCILIATION' &&
+      !/retention evidence/i.test(fn.callerEvidence)
+    ) {
+      throw new Error('retain candidate lacks retention evidence: ' + key);
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fn.reviewBy || '')) {
       throw new Error('unreconciled function lacks review deadline: ' + key);
@@ -83,6 +108,10 @@ for (const fn of registry.functions) {
       throw new Error('reconciliation deadline exceeds seven days: ' + key);
     }
     unreconciled.push(key);
+    reconciliationCounts.set(
+      fn.decision,
+      (reconciliationCounts.get(fn.decision) || 0) + 1,
+    );
   } else {
     throw new Error('intentionalActive must be boolean: ' + key);
   }
@@ -160,7 +189,13 @@ console.log(
     limit +
     ' secondary), ' +
     unreconciled.length +
-    ' unreconciled with bounded review deadlines, ' +
+    ' unreconciled (' +
+    (reconciliationCounts.get('RETIRE_CANDIDATE_SELF_RETIRED') || 0) +
+    ' self-retired, ' +
+    (reconciliationCounts.get('RETAIN_EVIDENCE_PENDING_OWNER_RECONCILIATION') || 0) +
+    ' retain-evidence, ' +
+    (reconciliationCounts.get('REVIEW_REQUIRED_CALLER_PROOF') || 0) +
+    ' caller-proof-required), ' +
     advisor.dispositions.length +
     ' advisor groups.',
 );
