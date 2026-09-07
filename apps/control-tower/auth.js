@@ -1,4 +1,5 @@
 const nativeFetch = window.fetch.bind(window);
+const ALLOWED_EDGE_FUNCTIONS = new Set(['pandora-intelligence-chat']);
 
 const authState = {
   config: null,
@@ -188,6 +189,31 @@ async function ensureSession() {
   return authState.accessToken;
 }
 
+async function invokeFunction(functionName, body = {}) {
+  if (!ALLOWED_EDGE_FUNCTIONS.has(functionName)) {
+    throw new Error('This Pandora function is not available from the owner web surface');
+  }
+  const config = await loadConfig();
+  await ensureSession();
+  const response = await nativeFetch(`${config.supabaseUrl}/functions/v1/${encodeURIComponent(functionName)}`, {
+    method: 'POST',
+    redirect: 'error',
+    headers: {
+      apikey: config.supabasePublishableKey,
+      authorization: `Bearer ${authState.accessToken}`,
+      accept: 'application/json',
+      'content-type': 'application/json',
+      'x-organization-id': config.organizationId,
+    },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.ok === false) {
+    throw new Error(payload?.plainMessage || payload?.message || 'Pandora is temporarily unavailable');
+  }
+  return payload;
+}
+
 function sessionSnapshot() {
   return {
     authenticated: Boolean(authState.accessToken),
@@ -225,6 +251,7 @@ window.fetch = async function authenticatedOperatorFetch(input, init = {}) {
 
 window.MCPMasterAuth = Object.freeze({
   ensureSession,
+  invokeFunction,
   signOut,
   session: sessionSnapshot,
 });
