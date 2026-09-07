@@ -1,12 +1,14 @@
 const BRAND_MARK = 'https://raw.githubusercontent.com/mbanatao/Battle/c3594e4721097714118a3e1a6854e9836410b00a/public/brand/banatao/red-apple-mark-96.png';
 const API_BASE = '/api/operator';
-const ROUTES = new Set(['home', 'projects', 'approvals', 'activity', 'more']);
+const ROUTES = new Set(['home', 'projects', 'ask', 'needs', 'business', 'approvals', 'activity', 'more']);
 const COMPLETE_STATES = new Set(['complete', 'completed', 'merged', 'released', 'production_verified']);
 const ACTIVE_STATES = new Set(['active', 'in-progress', 'in_progress', 'building', 'reviewing', 'testing', 'queued-qualification', 'partial']);
 
 const icons = {
   home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg>',
   projects: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M3 9h18"/></svg>',
+  ask: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-5 4v-4.8A2.5 2.5 0 0 1 4 13.5Z"/><path d="M8 9h8M8 12h5"/></svg>',
+  business: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></svg>',
   approvals: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/></svg>',
   activity: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>',
   more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>',
@@ -39,6 +41,18 @@ const state = {
   error: null,
   dialog: null,
   toast: null,
+  ask: {
+    message: '',
+    threadId: null,
+    reply: '',
+    intent: '',
+    confidence: null,
+    needsClarification: false,
+    clarifyingQuestion: '',
+    handoff: null,
+    sending: false,
+    error: null,
+  },
   theme: localStorage.getItem('pandoras-owner-theme') || 'dark',
 };
 
