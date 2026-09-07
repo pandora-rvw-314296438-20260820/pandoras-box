@@ -186,29 +186,61 @@ class VercelDeploymentProvider extends DeploymentProvider {
     return fact;
   }
 
-  async publishVersion(input, previewFact) {
+  async publishVersion(input, previewFact, artifact) {
     const request = normalizeDeploymentRequest(input);
     if (request.environment !== "production") throw new Error("publishVersion requires production environment");
     if (!this.projectId) throw new Error("provider project is required");
-    if (!previewFact || previewFact.status !== "ready_for_verification") throw new Error("only a provider-ready exact preview may be promoted");
+    if (!previewFact || previewFact.status !== "ready_for_verification") throw new Error("only a provider-ready exact preview may be published");
     assertExactLineage(request, previewFact);
-    const deploymentId = required(previewFact.providerDeploymentId, "providerDeploymentId", DEPLOYMENT_ID);
+    if (!artifact || artifact.sha256 !== request.artifactDigest || !Array.isArray(artifact.files) || artifact.files.length === 0) {
+      throw new Error("exact approved artifact is required");
+    }
+
     const operationId = operationIdempotencyKey("publish_version", request);
-    const path = appendQuery(`/v10/projects/${this.projectId}/promote/${deploymentId}`, { teamId: this.teamId });
+    const prior = await this.findDeploymentByOperation(operationId);
+    if (prior) {
+      assertExactLineage(request, prior);
+      if (prior.target !== "production") {
+        const err = new Error("provider has not confirmed production deployment");
+        err.code = "PRODUCTION_DEPLOYMENT_NOT_CONFIRMED";
+        throw err;
+      }
+      return Object.freeze({ ...prior, operationId, productionState: "ready_for_verification", reconciled: true });
+    }
+
+    const body = {
+      name: this.projectName || undefined,
+      project: this.projectId,
+      target: "production",
+      files: artifact.files,
+      meta: exactMeta(request, operationId),
+    };
+    let deployed;
     try {
-      await this._request("POST", path, { meta: { pandoraOperationId: operationId } }, true);
+      deployed = (await this._request("POST", appendQuery("/v13/deployments", { teamId: this.teamId }), body, true)).body;
     } catch (error) {
       if (error.normalizedProviderError?.kind !== "ambiguous_mutation") throw error;
-      const reconciled = await this.getDeployment(deploymentId);
+      const reconciled = await this.findDeploymentByOperation(operationId);
+      if (!reconciled) throw error;
+      assertExactLineage(request, reconciled);
       if (reconciled.target !== "production") throw error;
+      return Object.freeze({ ...reconciled, operationId, productionState: "ready_for_verification", reconciled: true });
     }
-    const promoted = await this.getDeployment(deploymentId);
-    if (promoted.target !== "production") {
-      const err = new Error("provider has not confirmed production promotion");
-      err.code = "PRODUCTION_PROMOTION_NOT_CONFIRMED";
+
+    const created = normalizeDeploymentFact(deployed, request);
+    assertExactLineage(request, created);
+    if (created.target !== "production") {
+      const err = new Error("provider has not confirmed production deployment");
+      err.code = "PRODUCTION_DEPLOYMENT_NOT_CONFIRMED";
       throw err;
     }
-    return Object.freeze({ ...promoted, projectVersionId: request.projectVersionId, artifactDigest: request.artifactDigest, sourceCommit: request.sourceCommit, operationId, productionState: "ready_for_verification" });
+    const confirmed = await this.getDeployment(created.providerDeploymentId, request);
+    if (confirmed.target !== "production" || confirmed.status !== "ready_for_verification") {
+      const err = new Error("provider has not confirmed production deployment");
+      err.code = "PRODUCTION_DEPLOYMENT_NOT_CONFIRMED";
+      throw err;
+    }
+    return Object.freeze({ ...confirmed, operationId, productionState: "ready_for_verification" });
   }
 
   async cancelDeployment(providerDeploymentId) {
