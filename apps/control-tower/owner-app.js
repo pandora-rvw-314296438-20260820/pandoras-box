@@ -300,11 +300,15 @@ async function performWorkspaceChange(message) {
       if (experience.needs_you === true || item.theatre?.needs_you === true) {
         throw new Error('Pandora needs you before this change can finish.');
       }
-      const nextVersion = experience.candidate_version_id || experience.current_version_id || null;
+      const candidateVersion = experience.candidate_version_id || null;
+      const currentVersion = experience.current_version_id || null;
       const verification = String(experience.candidate_verification_state || '').toLowerCase();
+      const previewIdentity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+      const nextVersion = previewIdentity?.versionId || candidateVersion || currentVersion;
       const preview = window.PandorasOwnerProjectWorkspace?.exactPreviewUrl?.();
-      if (nextVersion && nextVersion !== baselineVersion && preview
-        && (verification === 'passed' || experience.current_verified === true)) {
+      const versionVerified = (nextVersion === candidateVersion && verification === 'passed')
+        || (nextVersion === currentVersion && experience.current_verified === true);
+      if (nextVersion && nextVersion !== baselineVersion && preview && versionVerified) {
         item.changeMessage = '';
         item.changeRequestKey = null;
         item.changePhase = 'preview_ready';
