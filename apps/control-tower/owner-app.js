@@ -204,14 +204,16 @@ function updateWorkspaceProgressDom() {
     preparing_preview: 'Pandora is preparing the verified preview.',
     preview_ready: 'The verified preview is ready.',
   };
+  const projectionFresh = item.changing !== true || !item.changePhase || theatreStage === String(item.changePhase).toLowerCase();
   const message = document.querySelector('[data-workspace-theatre-message]');
   if (message) {
-    message.textContent = theatre.public_message
-      || (item.changing ? phaseMessages[stage] || 'Pandora is working on this change.' : 'No active build projection');
+    message.textContent = projectionFresh && theatre.public_message
+      ? String(theatre.public_message)
+      : (item.changing ? phaseMessages[stage] || 'Pandora is working on this change.' : 'No active build projection');
   }
 
   const progress = Number(theatre.progress_percent);
-  const progressFresh = item.changing !== true || !item.changePhase || theatreStage === String(item.changePhase).toLowerCase();
+  const progressFresh = projectionFresh;
   const progressNode = document.querySelector('[data-workspace-theatre-progress]');
   if (progressNode) {
     if (Number.isFinite(progress) && progressFresh) {
@@ -236,7 +238,7 @@ function updateWorkspaceProgressDom() {
 
   const updated = document.querySelector('[data-workspace-theatre-updated]');
   if (updated) {
-    updated.textContent = theatre.updated_at
+    updated.textContent = projectionFresh && theatre.updated_at
       ? 'Updated ' + timeAgo(theatre.updated_at)
       : (item.changing ? 'Waiting for current build activity' : 'Waiting for build activity');
   }
