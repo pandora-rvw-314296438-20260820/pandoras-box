@@ -1548,6 +1548,11 @@ async function finalizeProductionVerification(context: UserContext, identifier: 
     .update({ verification_state: "live_verified", verification_ref: verificationRunId, metadata: { ...metadata, productionVerificationRunId: verificationRunId, sourceKind: versionSource.sourceKind, sourceRef: versionSource.sourceRef }, last_provider_check_at: now, updated_at: now })
     .eq("id", productionRowId).eq("verification_state", "ready_for_verification").select("id").maybeSingle();
   if (deploymentUpdateError || !deploymentUpdated) throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+  const { error: supersedeError } = await admin.from("pandora_project_deployments")
+    .update({ status: "superseded", verification_state: "stale", updated_at: now })
+    .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production")
+    .eq("version_id", requestedVersion).neq("id", productionRowId).neq("verification_state", "stale");
+  if (supersedeError) throw new Error("BACKEND_WRITE_FAILED");
   const { data: environmentUpdated, error: environmentUpdateError } = await admin.from("pandora_runtime_environments")
     .update({ verification_state: "live_verified", status: "ready", last_reconciled_at: now, updated_at: now })
     .eq("id", environment.id).eq("current_version_id", requestedVersion).eq("current_deployment_id", productionRowId).eq("verification_state", "ready_for_verification").select("id").maybeSingle();
