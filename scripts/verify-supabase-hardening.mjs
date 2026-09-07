@@ -128,6 +128,46 @@ for (const [plane, projectRef] of Object.entries(registry.projects)) {
   }
 }
 
+const retiredFunctions = Array.isArray(registry.retiredFunctions)
+  ? registry.retiredFunctions
+  : [];
+for (const fn of retiredFunctions) {
+  const key = fn.projectRef + '/' + fn.slug;
+  if (seen.has(key)) throw new Error('live/retired duplicate ' + key);
+  seen.add(key);
+
+  if (
+    fn.status !== 'RETIRED' ||
+    fn.decision !== 'RETIRED_VERIFIED' ||
+    fn.intentionalActive !== false
+  ) {
+    throw new Error('invalid verified-retirement state: ' + key);
+  }
+
+  const receipt = fn.retirement;
+  if (
+    !receipt ||
+    receipt.classificationDecision !== 'RETIRE_CANDIDATE_SELF_RETIRED' ||
+    !/^[0-9a-f]{40}$/.test(receipt.classificationSourceSha || '') ||
+    receipt.expectedVersion !== fn.version ||
+    receipt.deleteStatus !== 200 ||
+    receipt.verificationStatus !== 404 ||
+    !Number.isFinite(Date.parse(receipt.deletedAt || ''))
+  ) {
+    throw new Error('invalid retirement receipt evidence: ' + key);
+  }
+}
+
+const primaryCount = counts.get(registry.projects.primary) || 0;
+const secondaryCount = counts.get(registry.projects.secondary) || 0;
+if (
+  registry.liveInventoryCounts?.primary !== primaryCount ||
+  registry.liveInventoryCounts?.secondary !== secondaryCount ||
+  registry.liveInventoryCounts?.total !== registry.functions.length
+) {
+  throw new Error('declared live Supabase inventory counts do not match registry entries');
+}
+
 if (!advisor.dispositions?.length) throw new Error('advisor dispositions missing');
 for (const disposition of advisor.dispositions) {
   if (
@@ -174,8 +214,6 @@ for (const file of await files('apps/pandora-mobile')) {
   }
 }
 
-const primaryCount = counts.get(registry.projects.primary) || 0;
-const secondaryCount = counts.get(registry.projects.secondary) || 0;
 console.log(
   'Supabase hardening registry checks passed: ' +
     registry.functions.length +
@@ -188,10 +226,12 @@ console.log(
     '/' +
     limit +
     ' secondary), ' +
+    retiredFunctions.length +
+    ' retired-verified, ' +
     unreconciled.length +
-    ' unreconciled (' +
+    ' live unreconciled (' +
     (reconciliationCounts.get('RETIRE_CANDIDATE_SELF_RETIRED') || 0) +
-    ' self-retired, ' +
+    ' pending-retirement, ' +
     (reconciliationCounts.get('RETAIN_EVIDENCE_PENDING_OWNER_RECONCILIATION') || 0) +
     ' retain-evidence, ' +
     (reconciliationCounts.get('REVIEW_REQUIRED_CALLER_PROOF') || 0) +
