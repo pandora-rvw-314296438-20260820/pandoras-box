@@ -1,0 +1,36 @@
+name: Refresh tooling security lockfile
+
+on:
+  push:
+    branches:
+      - "fix/tooling-transitive-security-20260907"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Regenerate tooling lockfile
+        run: npm install --prefix tooling --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Verify exact tooling install
+        run: npm ci --prefix tooling --ignore-scripts --no-audit --no-fund
+      - name: Verify CLI toolchain
+        run: npm --prefix tooling run verify
+      - name: Audit high-severity tooling dependencies
+        run: npm --prefix tooling audit --audit-level=high
+      - name: Commit lockfile
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tooling/package-lock.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "fix(tooling): refresh patched transitive lockfile"
+          git push origin HEAD
