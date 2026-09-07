@@ -955,12 +955,12 @@ async function runtimeSummary(context: UserContext, identifier: string) {
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (candidate.error) throw new Error("BACKEND_READ_FAILED");
   let previewQuery = admin.from("pandora_project_deployments")
-    .select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at")
+    .select("id, version_id, provider, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at")
     .eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "preview");
   if (candidate.data?.id) previewQuery = previewQuery.eq("version_id", candidate.data.id);
   const [preview, production, domain] = await Promise.all([
     previewQuery.order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    admin.from("pandora_project_deployments").select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    admin.from("pandora_project_deployments").select("id, version_id, provider, environment, provider_deployment_id, url, status, source_sha256, artifact_digest, source_commit_sha, created_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("environment", "production").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     admin.from("pandora_project_domains").select("id, domain, status, verified, primary_domain, verification, updated_at").eq("organization_id", context.organizationId).eq("project_id", projectId).eq("primary_domain", true).limit(1).maybeSingle(),
   ]);
   if (preview.error || production.error || domain.error) throw new Error("BACKEND_READ_FAILED");
