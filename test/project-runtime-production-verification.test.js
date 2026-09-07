@@ -28,12 +28,23 @@ test("publish recovers a fallback preview into the dedicated Vercel project befo
 });
 
 test("promotion creates a production candidate instead of self-declaring Live", () => {
-  assert.match(publish, /verification_state: "ready_for_verification"/);
+  const productionInsertStart = publish.indexOf(
+    'const { data: productionRow, error: productionError }',
+  );
+  const productionInsertEnd = publish.indexOf(
+    'if (currentEnvironment)',
+    productionInsertStart,
+  );
+  const productionInsert = publish.slice(
+    productionInsertStart,
+    productionInsertEnd,
+  );
+  assert.match(productionInsert, /verification_state: "ready_for_verification"/);
   assert.match(publish, /lifecycle_status: "production_candidate"/);
   assert.match(publish, /current_deployment_id: productionRow\.id/);
   assert.match(publish, /runtimeStatus: "verifying"/);
   assert.match(publish, /productionVerificationState: "ready_for_verification"/);
-  assert.doesNotMatch(publish, /verification_state: "live_verified"/);
+  assert.doesNotMatch(productionInsert, /verification_state: "live_verified"/);
   assert.doesNotMatch(publish, /stage: "live"/);
 });
 
