@@ -71,6 +71,12 @@ const OWNER_DATASETS = Object.freeze({
     order: 'created_at.desc',
     projectFilter: true,
   }),
+  projectos_evidence: Object.freeze({
+    table: 'projectos_evidence',
+    columns: 'id,project_id,evidence_type,provider,external_id,source_url,repository,head_sha,status,verdict,observed_at,invalidated_at,created_at',
+    order: 'observed_at.desc',
+    projectFilter: true,
+  }),
   project_specs: Object.freeze({
     table: 'pandora_project_specs',
     columns: 'id,project_id,version,status,project_type,target_user_summary,business_summary,content_sha256,created_at,superseded_at',
