@@ -1114,10 +1114,29 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
   bool get _canUndo =>
       _projection?.canUndo == true && _projection?.candidateVersionId != null;
 
-  bool get _canPublish =>
-      _projection?.canPublish == true &&
-      _candidateSafety?.candidateVerified == true &&
-      _projection?.candidateVersionId != null;
+  String? get _publishVersionId {
+    final projection = _projection;
+    if (projection == null || projection.canPublish != true) return null;
+
+    final candidateVersionId = projection.candidateVersionId;
+    if (candidateVersionId != null &&
+        _candidateSafety?.candidateVerified == true &&
+        _previewVersionId == candidateVersionId) {
+      return candidateVersionId;
+    }
+
+    final currentVersionId = projection.currentVersionId;
+    if (currentVersionId != null &&
+        projection.currentVerified &&
+        _previewVersionId == currentVersionId &&
+        projection.productionVersionId != currentVersionId) {
+      return currentVersionId;
+    }
+
+    return null;
+  }
+
+  bool get _canPublish => _publishVersionId != null;
 
   bool get _currentVersionVerified {
     final projection = _projection;
@@ -1136,10 +1155,11 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
   }
 
   Color get _statusColor {
-    final state = _projection?.state;
+    final projection = _projection;
     if ((_recentlyUpdated && _currentVersionVerified) ||
-        state == ProjectExperienceState.live ||
-        state == ProjectExperienceState.review) {
+        projection?.isLive == true ||
+        projection?.state == ProjectExperienceState.review ||
+        (_canPublish && _currentVersionVerified)) {
       return PandoraV2Colors.success;
     }
     return PandoraV2Colors.muted;
@@ -1845,8 +1865,8 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
 
   Future<void> _showPublish() async {
     final snapshot = _snapshot;
-    final candidateVersionId = _projection?.candidateVersionId;
-    if (candidateVersionId == null || !_canPublish) {
+    final publishVersionId = _publishVersionId;
+    if (publishVersionId == null || !_canPublish) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Pandora is still checking this version.'),
@@ -1923,7 +1943,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
       ),
     );
     if (approved == true && mounted) {
-      await _publish(domainController.text.trim(), candidateVersionId);
+      await _publish(domainController.text.trim(), publishVersionId);
     }
     domainController.dispose();
   }
@@ -2145,8 +2165,11 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
       statusColor: _statusColor,
       canUndo: _canUndo,
       undoing: _undoing,
+      canPublish: _canPublish,
+      publishing: _publishing,
       onBack: () => Navigator.of(context).maybePop(),
       onUndo: _undoChange,
+      onPublish: _showPublish,
       onMore: _showProjectActions,
       loading: _loading,
       previewFiles: _previewFiles,
