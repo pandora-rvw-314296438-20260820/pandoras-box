@@ -101,6 +101,27 @@ function setPreviewHeaders(response: any, path: string) {
   );
 }
 
+
+function injectFocusBridge(html: string): string {
+  const bridge = `<style id="pandora-focus-bridge-style">
+[data-pandora-focus-hover="true"]{outline:2px solid rgba(220,48,48,.95)!important;outline-offset:2px!important;cursor:crosshair!important}
+</style><script id="pandora-focus-bridge-script">
+(()=>{let enabled=false;let hover=null;
+const clean=(value,max)=>String(value||'').replace(/\\s+/g,' ').trim().slice(0,max);
+const label=(el)=>clean(el.getAttribute('aria-label')||el.getAttribute('alt')||el.getAttribute('title')||el.textContent||'',300);
+const role=(el)=>el.getAttribute('role')||({A:'link',BUTTON:'button',INPUT:'input',TEXTAREA:'textbox',SELECT:'combobox',IMG:'img',H1:'heading',H2:'heading',H3:'heading',H4:'heading',H5:'heading',H6:'heading'}[el.tagName]||'');
+const selector=(el)=>{const parts=[];let node=el;for(let depth=0;node&&node.nodeType===1&&depth<5;depth+=1,node=node.parentElement){let part=node.tagName.toLowerCase();const siblings=node.parentElement?[...node.parentElement.children].filter((item)=>item.tagName===node.tagName):[];if(siblings.length>1)part+=':nth-of-type('+(siblings.indexOf(node)+1)+')';parts.unshift(part);}return parts.join(' > ');};
+const clear=()=>{if(hover)hover.removeAttribute('data-pandora-focus-hover');hover=null;};
+const choose=(el)=>{const rect=el.getBoundingClientRect();const sel=selector(el);const name=label(el);const r=role(el);const semantic=clean(el.getAttribute('data-pandora-semantic-id')||el.getAttribute('data-pandora-component-id')||el.id||(r&&name?r+':'+name.slice(0,120):sel),400);const component=clean(el.getAttribute('data-pandora-component-id')||el.id||semantic,200);const sourceLine=Number(el.getAttribute('data-pandora-source-line')||0);return{type:'pandora.preview.selection.v2',componentId:component,semanticId:semantic,selector:sel,role:r,accessibleName:name,route:location.pathname+location.hash,sourceFile:clean(el.getAttribute('data-pandora-source-file')||'index.html',512),sourceLine:Number.isSafeInteger(sourceLine)&&sourceLine>0?sourceLine:null,bounds:{x:Math.max(0,rect.x),y:Math.max(0,rect.y),width:Math.max(0,rect.width),height:Math.max(0,rect.height)}};};
+addEventListener('message',(event)=>{const data=event.data||{};if(data.type!=='pandora.preview.focus-mode.v1')return;enabled=data.enabled===true;clear();});
+addEventListener('pointerover',(event)=>{if(!enabled)return;const el=event.target instanceof Element?event.target:null;if(!el)return;clear();hover=el;hover.setAttribute('data-pandora-focus-hover','true');},true);
+addEventListener('pointerout',(event)=>{if(!enabled)return;const next=event.relatedTarget;if(hover&&next instanceof Node&&hover.contains(next))return;clear();},true);
+addEventListener('click',(event)=>{if(!enabled)return;const el=event.target instanceof Element?event.target:null;if(!el)return;event.preventDefault();event.stopImmediatePropagation();const payload=choose(el);enabled=false;clear();parent.postMessage(payload,'*');},true);
+})();</script>`;
+  if (/<\/body\s*>/i.test(html)) return html.replace(/<\/body\s*>/i, `${bridge}</body>`);
+  return `${html}${bridge}`;
+}
+
 export default async function preview(request: any, response: any) {
   const method = String(request.method ?? 'GET').toUpperCase();
   if (method !== 'GET' && method !== 'HEAD') {
@@ -111,6 +132,7 @@ export default async function preview(request: any, response: any) {
 
   const token = queryValue(request.query?.token).toLowerCase();
   const rawPath = queryValue(request.query?.path) || 'index.html';
+  const focusMode = queryValue(request.query?.focus) === '1';
   const path = safePath(rawPath);
   if (!TOKEN_RE.test(token) || path == null) {
     response.status(404).send('Not found');
@@ -165,8 +187,22 @@ export default async function preview(request: any, response: any) {
       response.status(502).send('Preview unavailable');
       return;
     }
-    response.setHeader('Content-Length', String(bytes.length));
-    response.status(200).send(bytes);
+    let output = bytes;
+    if (focusMode && /\.html?$/i.test(rawPath)) {
+      try {
+        const html = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+        output = Buffer.from(injectFocusBridge(html), 'utf8');
+      } catch {
+        response.status(502).send('Preview unavailable');
+        return;
+      }
+      if (output.length > MAX_FILE_BYTES) {
+        response.status(502).send('Preview unavailable');
+        return;
+      }
+    }
+    response.setHeader('Content-Length', String(output.length));
+    response.status(200).send(output);
   } catch {
     response.status(503).send('Preview unavailable');
   } finally {

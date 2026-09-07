@@ -66,6 +66,42 @@ function exactPreviewUrl() {
   return safeHttps(runtime.preview.url);
 }
 
+function previewIdentity() {
+  const item = workspace();
+  const preview = exactPreviewUrl();
+  const runtimePreview = item.runtime?.preview;
+  const projectId = String(item.runtime?.project?.id || '').toLowerCase();
+  const versionId = String(runtimePreview?.version_id || item.experience?.candidate_version_id || item.experience?.current_version_id || '').toLowerCase();
+  const artifactDigest = String(runtimePreview?.artifact_digest || item.runtime?.candidate?.artifactDigest || '').toLowerCase();
+  const visibleVersions = new Set([
+    item.experience?.current_version_id,
+    item.experience?.candidate_version_id,
+  ].filter(Boolean).map((value) => String(value).toLowerCase()));
+  if (!preview || !projectId || !versionId || !visibleVersions.has(versionId) || !/^[0-9a-f]{64}$/.test(artifactDigest)) return null;
+  return { projectId, versionId, artifactDigest, url: preview };
+}
+
+function focusCapablePreviewUrl() {
+  const preview = exactPreviewUrl();
+  if (!preview) return null;
+  const url = new URL(preview);
+  const proxyPath = /^\/preview\/[0-9a-f]{64}\/index\.html$/i.test(url.pathname);
+  const trustedOrigins = new Set([window.location.origin, 'https://mcpmaster.vercel.app']);
+  if (!trustedOrigins.has(url.origin) || !proxyPath) return null;
+  url.searchParams.set('focus', '1');
+  return url.toString();
+}
+
+function embeddedPreviewUrl() {
+  return focusCapablePreviewUrl() || exactPreviewUrl();
+}
+
+function selectedTargetLabel() {
+  const selected = workspace().selectedTarget;
+  if (!selected) return '';
+  return selected.accessibleName || selected.componentId || selected.semanticId || selected.selector || 'Selected object';
+}
+
 function verifiedLiveUrl() {
   const { runtime, experience } = workspace();
   if (!runtime?.production || !experience) return null;
@@ -109,21 +145,43 @@ function currentView() {
   const item = workspace();
   const { runtime, experience } = item;
   const preview = exactPreviewUrl();
+  const embedded = embeddedPreviewUrl();
+  const identity = previewIdentity();
+  const focusCapable = Boolean(focusCapablePreviewUrl());
   const versionId = experience?.candidate_version_id || experience?.current_version_id || runtime?.candidate?.versionId;
   const verification = String(experience?.candidate_verification_state || runtime?.verification?.state || 'not checked').replaceAll('_', ' ');
-  return `<div class="owner-workspace-result">
-    <div class="owner-workspace-result-copy">
-      <span class="owner-kicker">Current</span>
-      <h3>${preview ? 'Your latest exact preview is ready' : 'Current result is not previewable yet'}</h3>
-      <p>${esc(experience?.change_summary || experience?.public_message || 'Pandora will show the current result when an exact preview is available.')}</p>
-      <dl class="owner-workspace-facts">
-        <div><dt>Version</dt><dd>${esc(compactId(versionId))}</dd></div>
-        <div><dt>Verification</dt><dd>${esc(verification)}</dd></div>
-      </dl>
+  if (!preview || !embedded) {
+    return `<div class="owner-workspace-result">
+      <div class="owner-workspace-result-copy">
+        <span class="owner-kicker">Current</span>
+        <h3>Current result is not previewable yet</h3>
+        <p>${esc(experience?.change_summary || experience?.public_message || 'Pandora will show the current result when an exact preview is available.')}</p>
+        <dl class="owner-workspace-facts">
+          <div><dt>Version</dt><dd>${esc(compactId(versionId))}</dd></div>
+          <div><dt>Verification</dt><dd>${esc(verification)}</dd></div>
+        </dl>
+      </div>
+    </div>`;
+  }
+  const selected = selectedTargetLabel();
+  return `<div class="owner-workspace-preview">
+    <div class="owner-workspace-preview-toolbar">
+      <div>
+        <span class="owner-kicker">Current exact preview</span>
+        <strong>${esc(compactId(versionId))}</strong>
+        <small>${esc(verification)}</small>
+      </div>
+      <div class="owner-workspace-preview-actions">
+        <button type="button" class="owner-button secondary" data-action="toggle-preview-focus"${identity && focusCapable && !item.changing ? '' : ' disabled'}>${item.selectionMode ? 'Cancel focus' : item.selectedTarget ? 'Select another' : 'Focus object'}</button>
+        <a class="owner-button primary" href="${esc(preview)}" target="_blank" rel="noopener noreferrer">Open full preview</a>
+      </div>
     </div>
-    <div class="owner-workspace-result-actions">
-      ${preview ? `<a class="owner-button primary" href="${esc(preview)}" target="_blank" rel="noopener noreferrer">Open preview</a>` : ''}
+    <div class="owner-workspace-preview-frame-wrap ${item.selectionMode ? 'is-focusing' : ''}">
+      <iframe data-project-preview-frame title="Exact project preview" src="${esc(embedded)}" sandbox="allow-scripts allow-popups allow-modals allow-downloads" referrerpolicy="no-referrer"></iframe>
+      ${item.selectionMode ? '<div class="owner-workspace-focus-hint">Choose the exact object you want Pandora to change.</div>' : ''}
     </div>
+    ${selected ? `<div class="owner-workspace-selected-target"><span>Focused</span><strong>${esc(selected)}</strong><button type="button" data-action="clear-preview-focus">Clear</button></div>` : ''}
+    ${!focusCapable ? '<div class="owner-workspace-focus-unavailable">Object focus is unavailable on this preview transport. You can still describe a whole-page change below.</div>' : ''}
   </div>`;
 }
 
@@ -171,11 +229,15 @@ function resultPanel() {
 function changePanel() {
   const item = workspace();
   const canChange = item.experience?.can_change === true;
+  const selected = selectedTargetLabel();
+  const busy = item.changing === true;
+  const phase = String(item.changePhase || '').replaceAll('_', ' ');
+  const actionLabel = busy ? (phase ? `Pandora is ${phase}…` : 'Pandora is working…') : (selected ? 'Change selected object' : 'Tell Pandora');
   return `<section class="owner-card owner-workspace-change">
-    <div><span class="owner-kicker">Tell Pandora</span><h2>What should change?</h2><p>${canChange ? 'Describe the result. Pandora will reason with this exact project context and prepare governed work.' : 'Pandora has not marked this project safe for a new change yet. You can still inspect the current result.'}</p></div>
+    <div><span class="owner-kicker">Tell Pandora</span><h2>${selected ? 'Change this exact object' : 'What should change?'}</h2><p>${canChange ? (selected ? `Focused on ${esc(selected)}. Pandora will bind the request to this exact preview version and artifact.` : 'Describe the result. Pandora will save the change, prepare the exact spec, build it, verify it and replace the preview only when the new version is safe to show.') : 'Pandora has not marked this project safe for a new change yet. You can still inspect the current result.'}</p></div>
     <form data-project-change-form>
-      <textarea data-project-change-message rows="3" maxlength="8000" placeholder="Make the checkout simpler, change the hero, fix the publish flow…"${canChange ? '' : ' disabled'}>${esc(item.changeMessage)}</textarea>
-      <button class="owner-button primary" type="submit"${canChange && item.changeMessage.trim() ? '' : ' disabled'}>Tell Pandora</button>
+      <textarea data-project-change-message rows="3" maxlength="8000" placeholder="Make the checkout simpler, move this button higher, rewrite this heading…"${canChange && !busy ? '' : ' disabled'}>${esc(item.changeMessage)}</textarea>
+      <button class="owner-button primary" type="submit"${canChange && !busy && item.changeMessage.trim() ? '' : ' disabled'}>${esc(actionLabel)}</button>
     </form>
   </section>`;
 }
@@ -238,6 +300,8 @@ function renderProjectWorkspace() {
 window.PandorasOwnerProjectWorkspace = Object.freeze({
   renderProjectWorkspace,
   exactPreviewUrl,
+  previewIdentity,
+  focusCapablePreviewUrl,
   verifiedLiveUrl,
 });
 }
