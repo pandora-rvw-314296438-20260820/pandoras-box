@@ -1,0 +1,65 @@
+name: Bootstrap engineering toolchain lockfile
+
+on:
+  push:
+    branches:
+      - "chore/install-engineering-toolchain-20260907"
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install exact project tools and regenerate lockfile
+        shell: bash
+        run: |
+          npm install --save-dev --save-exact \
+            @modelcontextprotocol/inspector@2.5.0 \
+            @playwright/test@1.63.0 \
+            @biomejs/biome@2.5.12 \
+            supabase@2.116.0 \
+            vercel@59.11.7 \
+            knip@6.34.0 \
+            @posthog/cli@0.18.0
+
+      - name: Add repository scripts
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = "package.json";
+          const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
+          pkg.scripts = {
+            ...pkg.scripts,
+            "tooling:verify": "node scripts/verify-engineering-toolchain.mjs",
+            "mcp:inspect": "mcp-inspector --cli node src/mcp-stdio.js --method tools/list --format json",
+            "test:e2e:smoke": "playwright test test/e2e/toolchain-smoke.spec.mjs",
+            "quality:biome": "biome check scripts/verify-engineering-toolchain.mjs playwright.config.mjs test/e2e/toolchain-smoke.spec.mjs",
+            "quality:dead-code": "knip --reporter compact",
+            "supabase:version": "supabase --version",
+            "vercel:version": "vercel --version",
+            "posthog:version": "posthog-cli --version"
+          };
+          fs.writeFileSync(path, JSON.stringify(pkg, null, 4) + "\n");
+          NODE
+
+      - name: Commit deterministic package metadata
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/toolchain-bootstrap.yml
+          git add package.json package-lock.json
+          git commit -m "chore: pin Pandora engineering toolchain"
+          git push origin HEAD
