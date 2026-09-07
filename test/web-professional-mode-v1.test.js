@@ -64,8 +64,19 @@ test('Professional mode does not create a second backend authority', () => {
   assert.doesNotMatch(professional, /service[_-]?role|Github_supabase|OPENAI_API_KEY|MOONSHOT_API_KEY/i);
 });
 
-test('unbacked Professional pages refuse to fabricate data', () => {
-  assert.ok(professional.includes('Dedicated Memory data is not bridged into this web view yet'));
+test('Professional Memory consumes only the bounded canonical status envelope', () => {
+  assert.match(professional, /state\.projection\?\.evidence\?\.memory/);
+  assert.match(professional, /memory\.healthStatus/);
+  assert.match(professional, /memory\.authentication/);
+  assert.match(professional, /memory\.approvedRecordIds/);
+  assert.match(professional, /memory\.freshestRecordAt/);
+  assert.match(professional, /memory\.conflicts/);
+  assert.ok(professional.includes('mcpmaster-pandoras-box'));
+  assert.ok(professional.includes('Memory contents remain bounded'));
+  assert.ok(professional.includes('does not render raw memory contents, proposed evidence bodies, candidate payloads or promotion internals'));
+});
+
+test('remaining unbacked Professional pages refuse to fabricate data', () => {
   assert.ok(professional.includes('Authoritative business analytics are not connected to this web mode yet'));
   assert.ok(professional.includes('A bounded owner-safe Library index is not connected yet'));
   assert.ok(professional.includes('Pandora will not invent revenue, cost, retention, adoption, ROI'));
