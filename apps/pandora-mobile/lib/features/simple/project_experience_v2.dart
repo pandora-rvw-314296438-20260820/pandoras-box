@@ -1153,8 +1153,31 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
     }
   }
 
-  bool get _canUndo =>
-      _projection?.canUndo == true && _projection?.candidateVersionId != null;
+  String? get _undoCurrentVersionId {
+    final projection = _projection;
+    final current = projection?.currentVersionId?.trim();
+    final runtimeCurrent = _snapshot?.candidate;
+    if (projection == null ||
+        projection.canUndo != true ||
+        current == null ||
+        current.isEmpty ||
+        runtimeCurrent == null ||
+        runtimeCurrent.versionId != current ||
+        runtimeCurrent.parentVersionId == null ||
+        runtimeCurrent.parentVersionId!.trim().isEmpty ||
+        projection.productionVersionId == current ||
+        !const <String>{
+          'built',
+          'verification_pending',
+          'verified',
+          'preview_ready',
+        }.contains(runtimeCurrent.status.trim().toLowerCase())) {
+      return null;
+    }
+    return current;
+  }
+
+  bool get _canUndo => _undoCurrentVersionId != null;
 
   bool get _productionUsesDedicatedVercel =>
       _snapshot?.production?.provider.trim().toLowerCase() == 'vercel';
@@ -1793,8 +1816,14 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
   Future<void> _undoChange() async {
     final experience =
         PandoraDependencies.of(context).projectExperienceRepository;
-    final versionId = _projection?.candidateVersionId;
-    if (experience == null || versionId == null || !_canUndo || _undoing) {
+    final versionId = _undoCurrentVersionId;
+    final parentVersionId = _snapshot?.candidate?.parentVersionId?.trim();
+    final expectedProductionVersionId = _projection?.productionVersionId;
+    if (experience == null ||
+        versionId == null ||
+        parentVersionId == null ||
+        parentVersionId.isEmpty ||
+        _undoing) {
       return;
     }
     setState(() {
@@ -1809,15 +1838,83 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
         idempotencyKey: 'pandora-v2-undo:${widget.project.id}:$versionId',
       );
       if (!mounted) return;
+
+      if (snapshot.candidate?.versionId != parentVersionId ||
+          snapshot.preview?.versionId != parentVersionId ||
+          snapshot.production?.versionId != expectedProductionVersionId) {
+        throw const ProjectExperienceException(
+          'Pandora accepted Undo, but the exact parent has not reconciled yet.',
+        );
+      }
+
+      ProjectExperienceProjection transition;
+      final currentProjection = _projection;
+      if (currentProjection?.currentVersionId == parentVersionId &&
+          currentProjection?.productionVersionId ==
+              expectedProductionVersionId) {
+        transition = currentProjection!;
+      } else {
+        transition = await experience
+            .watchExperience(widget.project.id)
+            .firstWhere(
+              (projection) =>
+                  projection.hasSafeFailure ||
+                  projection.productionVersionId !=
+                      expectedProductionVersionId ||
+                  projection.currentVersionId == parentVersionId,
+            )
+            .timeout(const Duration(seconds: 30));
+      }
+
+      if (!mounted) return;
+      if (transition.hasSafeFailure ||
+          transition.currentVersionId != parentVersionId ||
+          transition.productionVersionId != expectedProductionVersionId ||
+          !transition.currentVerified) {
+        throw const ProjectExperienceException(
+          'Pandora could not verify the exact restored parent without moving production.',
+        );
+      }
+
+      final files = await _loadExactPreviewFiles(
+        experience,
+        projectId: widget.project.id,
+        versionId: parentVersionId,
+      ).timeout(const Duration(seconds: 12));
+      if (!mounted) return;
+      if (files.isEmpty ||
+          _previewArtifactDigest(
+                files,
+                projectId: widget.project.id,
+                versionId: parentVersionId,
+              ) ==
+              null) {
+        throw const ProjectExperienceException(
+          'Pandora restored the parent, but its exact verified preview is not ready yet.',
+        );
+      }
+
       setState(() {
         _snapshot = snapshot;
+        _projection = transition;
+        _previewFiles = files;
+        _previewVersionId = parentVersionId;
         _recentlyUpdated = false;
         _lastChangeDiff = null;
+        _selectionMode = false;
+        _selectedPreviewTarget = null;
+        _focusToken = null;
       });
-      await _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Undo verified. The exact parent is Current and Live did not move.',
+          ),
+        ),
+      );
+    } on ProjectExperienceException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Undone.')));
+      setState(() => _error = error.message);
     } catch (_) {
       if (!mounted) return;
       setState(
