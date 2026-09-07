@@ -52,6 +52,7 @@ const PROFESSIONAL_DATASETS = Object.freeze([
   ['artifacts', 'artifacts', 100],
   ['artifactVersions', 'artifact_versions', 200],
   ['businessObjectives', 'business_objectives', 100],
+  ['projectosEvidence', 'projectos_evidence', 100],
   ['projectSpecs', 'project_specs', 100],
 ]);
 
@@ -429,7 +430,7 @@ app.addEventListener('click', async (event) => {
     state.professionalData = {
       loading: false, error: null, errors: {}, loadedAt: null,
       projects: [], deployments: [], domains: [], verificationRuns: [], verificationChecks: [],
-      verificationEvidence: [], artifacts: [], artifactVersions: [], businessObjectives: [], projectSpecs: [],
+      verificationEvidence: [], artifacts: [], artifactVersions: [], businessObjectives: [], projectosEvidence: [], projectSpecs: [],
     };
     state.error = { code: 'SIGNED_OUT', message: 'Sign in again to view protected live information.' };
     state.ask = {
