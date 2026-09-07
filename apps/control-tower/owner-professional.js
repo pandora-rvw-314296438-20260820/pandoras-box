@@ -43,6 +43,50 @@ function metricCard(label, value, detail = '', kind = 'neutral') {
   </article>`;
 }
 
+function authoritativeData() {
+  return state.professionalData || {};
+}
+
+function projectRecord(projectId) {
+  return (authoritativeData().projects || []).find((project) => project.id === projectId) || null;
+}
+
+function authoritativeProjectName(projectId) {
+  const project = projectRecord(projectId);
+  return project?.name || project?.project_key || (projectId ? `Project ${String(projectId).slice(0, 8)}` : 'Project unavailable');
+}
+
+function compactHash(value) {
+  const text = String(value || '');
+  return text ? (text.length > 16 ? `${text.slice(0, 9)}…${text.slice(-5)}` : text) : 'Unavailable';
+}
+
+function safeHttps(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function sourceError(dataset) {
+  return authoritativeData().errors?.[dataset] || null;
+}
+
+function dataFreshness() {
+  const loadedAt = authoritativeData().loadedAt;
+  return loadedAt ? `Updated ${timeAgo(loadedAt)}` : 'Not loaded';
+}
+
+function statusKind(value) {
+  const normalized = normalizeStatus(value);
+  if (['pass','passed','success','succeeded','verified','ready','live','active'].includes(normalized)) return 'success';
+  if (['fail','failed','error','blocked','problem','invalid'].includes(normalized)) return 'danger';
+  if (['pending','running','working','queued','checking','in_progress'].includes(normalized)) return 'warning';
+  return 'neutral';
+}
+
 function projectBuildRow(project) {
   const progress = project.progress === null ? '—' : `${project.progress}%`;
   return `<button type="button" class="professional-build-row" data-action="open-project" data-id="${esc(project.id)}">
@@ -111,6 +155,24 @@ function professionalRun() {
     return professionalShell('Run', 'Deployments, workers, jobs, retries, failures and recovery state.', unavailable('Protected runtime state is unavailable', state.error?.message || 'Pandora could not complete the protected live checks.', icons.activity));
   }
   const events = state.logs.slice(0, 40);
+  const data = authoritativeData();
+  const deployments = (data.deployments || []).slice(0, 24);
+  const production = deployments.filter((item) => normalizeStatus(item.environment) === 'production');
+  const verified = deployments.filter((item) => normalizeStatus(item.verification_state) === 'verified');
+  const deploymentBody = sourceError('deployments')
+    ? unavailable('Deployment inventory is unavailable', sourceError('deployments'), icons.activity)
+    : `<section class="owner-card professional-data-list">
+        ${deployments.length ? deployments.map((deployment) => {
+          const href = safeHttps(deployment.stable_url) || safeHttps(deployment.immutable_url) || safeHttps(deployment.url);
+          return `<article class="professional-data-row">
+            <span class="professional-provider-icon">${icons.activity}</span>
+            <span><strong>${esc(authoritativeProjectName(deployment.project_id))}</strong><small>${esc(cleanName(deployment.provider || 'provider'))} · ${esc(cleanName(deployment.environment || 'environment'))}</small></span>
+            <span><strong>${esc(cleanName(deployment.provider_state || deployment.status || 'recorded'))}</strong><small>${esc(deployment.last_provider_check_at ? `Checked ${timeAgo(deployment.last_provider_check_at)}` : `Recorded ${timeAgo(deployment.created_at)}`)}</small></span>
+            ${badge(deployment.verification_state ? cleanName(deployment.verification_state) : 'Not verified', statusKind(deployment.verification_state))}
+            ${href ? `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">Open</a>` : '<span></span>'}
+          </article>`;
+        }).join('') : '<div class="owner-empty compact"><h3>No deployment records</h3><p>The authenticated organization has no member-visible deployment rows.</p></div>'}
+      </section>`;
   const body = `
     <section class="professional-two-column">
       <div class="owner-card professional-health-card">
@@ -118,15 +180,20 @@ function professionalRun() {
         <div class="professional-health-list">${healthRows()}</div>
       </div>
       <div class="owner-card professional-runtime-availability">
-        <span class="owner-kicker">Runtime inventory</span><h2>Deployment and worker inventory</h2><p>The owner operator feed currently exposes protected health and audit events, but not a complete normalized deployment/worker inventory for this web surface.</p>
-        ${badge('Explicitly unavailable', 'neutral')}
+        <span class="owner-kicker">RLS-backed runtime inventory</span><h2>${deployments.length} recent deployments</h2>
+        <p>${production.length} production records · ${verified.length} verification-marked records · ${esc(dataFreshness())}.</p>
+        ${badge(sourceError('deployments') ? 'Partial data' : 'Member-scoped', sourceError('deployments') ? 'warning' : 'success')}
       </div>
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Deployments</span><h2>Recent runtime records</h2></div><span>${esc(dataFreshness())}</span></div>
+      ${deploymentBody}
     </section>
     <section class="owner-section">
       <div class="professional-section-head"><div><span class="owner-kicker">Protected audit stream</span><h2>Recent operations</h2></div><span>${events.length} shown</span></div>
       <div class="owner-card professional-event-list">${events.length ? events.map((event) => `<button type="button" data-action="open-activity" data-sequence="${esc(event.sequence ?? '')}"><span>${icons.activity}</span><span><strong>${esc(eventMessage(event))}</strong><small>${esc(projectForEvent(event))} · ${esc(timeAgo(event.occurredAt))}</small></span>${icons.arrow}</button>`).join('') : '<div class="owner-empty compact"><h3>No recent protected operations</h3><p>Verified events will appear here.</p></div>'}</div>
     </section>`;
-  return professionalShell('Run', 'Operational health, protected audit activity, failures and recovery signals.', body);
+  return professionalShell('Run', 'Operational health, RLS-backed deployments, protected audit activity, failures and recovery signals.', body);
 }
 
 function connectionRow(connection) {
@@ -184,46 +251,151 @@ function verificationRows() {
 }
 
 function professionalVerify() {
+  const data = authoritativeData();
+  const runs = (data.verificationRuns || []).slice(0, 20);
+  const checks = (data.verificationChecks || []).slice(0, 30);
+  const evidence = (data.projectosEvidence || []).filter((item) => !item.invalidated_at).slice(0, 20);
+  const passedChecks = checks.filter((item) => ['pass','passed','success','verified'].includes(normalizeStatus(item.status))).length;
+  const failedChecks = checks.filter((item) => ['fail','failed','error','blocked'].includes(normalizeStatus(item.status))).length;
+  const sourceBound = runs.filter((item) => item.source_digest && item.artifact_digest).length;
+
+  const runRows = sourceError('verification_runs')
+    ? unavailable('Verification runs are unavailable', sourceError('verification_runs'), icons.shield)
+    : `<section class="owner-card professional-data-list">${runs.length ? runs.map((run) => `<article class="professional-data-row professional-verification-data-row">
+        <span class="professional-provider-icon">${icons.shield}</span>
+        <span><strong>${esc(authoritativeProjectName(run.project_id))}</strong><small>${esc(cleanName(run.target_environment || 'environment'))} · ${esc(run.required_check_profile || 'default profile')}</small></span>
+        <span><strong>${esc(compactHash(run.source_commit || run.source_digest))}</strong><small>Artifact ${esc(compactHash(run.artifact_digest))}</small></span>
+        ${badge(cleanName(run.status || 'recorded'), statusKind(run.status))}
+        <span class="professional-data-time">${esc(timeAgo(run.completed_at || run.created_at))}</span>
+      </article>`).join('') : '<div class="owner-empty compact"><h3>No verification runs</h3><p>No member-visible verification run is recorded for this organization.</p></div>'}</section>`;
+
+  const checkRows = sourceError('verification_checks')
+    ? unavailable('Verification checks are unavailable', sourceError('verification_checks'), icons.shield)
+    : `<section class="owner-card professional-data-list">${checks.length ? checks.map((check) => `<article class="professional-data-row professional-check-row">
+        <span class="professional-provider-icon">${icons.check}</span>
+        <span><strong>${esc(cleanName(check.check_key || 'verification check'))}</strong><small>${esc(authoritativeProjectName(check.project_id))}</small></span>
+        <span><strong>${esc(check.summary || 'No summary recorded')}</strong><small>${esc(check.failure_class ? `Failure class: ${cleanName(check.failure_class)}` : 'No failure class')}</small></span>
+        ${badge(cleanName(check.status || 'recorded'), statusKind(check.status))}
+        <span class="professional-data-time">${esc(timeAgo(check.completed_at || check.created_at))}</span>
+      </article>`).join('') : '<div class="owner-empty compact"><h3>No verification checks</h3><p>No member-visible verification checks are recorded.</p></div>'}</section>`;
+
+  const evidenceRows = sourceError('projectos_evidence')
+    ? unavailable('ProjectOS evidence is unavailable', sourceError('projectos_evidence'), icons.shield)
+    : `<section class="owner-card professional-data-list">${evidence.length ? evidence.map((item) => {
+        const href = safeHttps(item.source_url);
+        return `<article class="professional-data-row">
+          <span class="professional-provider-icon">${icons.link}</span>
+          <span><strong>${esc(cleanName(item.evidence_type || 'evidence'))}</strong><small>${esc(authoritativeProjectName(item.project_id))}</small></span>
+          <span><strong>${esc(cleanName(item.provider || 'provider'))}</strong><small>${esc(item.head_sha ? compactHash(item.head_sha) : item.external_id || 'No external identity')}</small></span>
+          ${badge(cleanName(item.verdict || item.status || 'recorded'), statusKind(item.verdict || item.status))}
+          ${href ? `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">Evidence</a>` : '<span></span>'}
+        </article>`;
+      }).join('') : '<div class="owner-empty compact"><h3>No active ProjectOS evidence</h3><p>No non-invalidated member-visible evidence is recorded.</p></div>'}</section>`;
+
   const body = `
+    <section class="professional-metrics-grid" aria-label="Verification evidence overview">
+      ${metricCard('Runs', runs.length, 'recent member-visible')}
+      ${metricCard('Passed checks', passedChecks, 'recent check window')}
+      ${metricCard('Failed checks', failedChecks, 'recent check window', failedChecks ? 'warning' : 'neutral')}
+      ${metricCard('Source + artifact bound', sourceBound, 'recent verification runs')}
+    </section>
     <section class="professional-two-column professional-verify-grid">
       <div class="owner-card professional-verification-card">
-        <div class="professional-card-head"><span class="owner-kicker">Current protected checks</span><h2>Verification</h2></div>
+        <div class="professional-card-head"><span class="owner-kicker">Control-plane checks</span><h2>Verification posture</h2></div>
         <div class="professional-verification-list">${verificationRows()}</div>
       </div>
       <div class="owner-card professional-runtime-availability">
-        <span class="owner-kicker">Exact-source evidence</span><h2>Artifact and deployment binding</h2>
-        <p>Exact source SHA, artifact SHA-256, independent review and deployment receipts are not exposed as a normalized owner-safe aggregate by the current operator feed.</p>
-        ${badge('Source-specific evidence on demand', 'neutral')}
+        <span class="owner-kicker">Authoritative evidence</span><h2>Exact-source verification is member-readable</h2>
+        <p>Source and artifact digests come directly from RLS-protected verification rows. Raw storage paths, credentials and unredacted provider payloads are not exposed.</p>
+        ${badge(data.error ? 'Partial data' : 'RLS member-scoped', data.error ? 'warning' : 'success')}
       </div>
     </section>
+    <section class="owner-section"><div class="professional-section-head"><div><span class="owner-kicker">Verification runs</span><h2>Recent exact-source runs</h2></div><span>${esc(dataFreshness())}</span></div>${runRows}</section>
+    <section class="owner-section"><div class="professional-section-head"><div><span class="owner-kicker">Checks</span><h2>Recent verification checks</h2></div><span>${checks.length} shown</span></div>${checkRows}</section>
+    <section class="owner-section"><div class="professional-section-head"><div><span class="owner-kicker">ProjectOS evidence</span><h2>Source-bound evidence</h2></div><span>${evidence.length} active</span></div>${evidenceRows}</section>
     <section class="owner-card professional-boundary-note">
       <span>${icons.shield}</span><div><strong>READY is never LIVE</strong><p>Professional Mode inherits the same project runtime rule as Simple Mode: production is Live only after the exact production version and deployment are verified.</p></div>
     </section>`;
-  return professionalShell('Verify', 'Canonical status, audit validity, protected controls and exact-source verification posture.', body);
+  return professionalShell('Verify', 'Canonical status, audit validity, exact-source verification runs, checks and member-scoped evidence.', body);
 }
 
 function professionalBusiness() {
-  return professionalShell(
-    'Business',
-    'Commercial analytics and validation operations from connected first-party sources only.',
-    unavailable(
-      'Authoritative business analytics are not connected to this web mode yet',
-      'Pandora will not invent revenue, cost, retention, adoption, ROI, pilots, customer outcomes or validation scores. Connect an authoritative business source before this page renders those metrics.',
-      icons.business,
-    ),
-  );
+  const data = authoritativeData();
+  const objectives = (data.businessObjectives || []).slice(0, 40);
+  const specs = (data.projectSpecs || []).filter((spec) => !spec.superseded_at).slice(0, 20);
+
+  const objectiveRows = sourceError('business_objectives')
+    ? unavailable('Business objectives are unavailable', sourceError('business_objectives'), icons.business)
+    : `<section class="owner-card professional-business-objectives">${objectives.length ? objectives.map((item) => `<article>
+        <div><span class="owner-kicker">${esc(authoritativeProjectName(item.project_id))}</span><h3>${esc(item.objective || 'Business objective')}</h3><p>${esc(item.desired_outcome || 'No desired outcome recorded')}</p></div>
+        <dl>
+          <div><dt>Success metric</dt><dd>${esc(item.success_metric || 'Not specified')}</dd></div>
+          <div><dt>Baseline</dt><dd>${esc(item.baseline || 'Not recorded')}</dd></div>
+          <div><dt>Target</dt><dd>${esc(item.target || 'Not recorded')}</dd></div>
+        </dl>
+      </article>`).join('') : '<div class="owner-empty compact"><h3>No business objectives recorded</h3><p>No member-visible objective rows exist for this organization.</p></div>'}</section>`;
+
+  const specRows = sourceError('project_specs')
+    ? ''
+    : specs.map((spec) => `<article class="owner-card professional-business-spec">
+        <span class="owner-kicker">${esc(authoritativeProjectName(spec.project_id))} · Spec v${esc(spec.version)}</span>
+        <h3>${esc(spec.business_summary || cleanName(spec.project_type || 'Project specification'))}</h3>
+        <p>${esc(spec.target_user_summary || 'Target-user summary not recorded')}</p>
+        <div>${badge(cleanName(spec.status || 'recorded'), statusKind(spec.status))}<span>SHA ${esc(compactHash(spec.content_sha256))}</span></div>
+      </article>`).join('');
+
+  const body = `
+    <section class="professional-metrics-grid">
+      ${metricCard('Objectives', objectives.length, 'member-visible records')}
+      ${metricCard('Active specs', specs.length, 'not superseded')}
+      ${metricCard('Measured targets', objectives.filter((item) => item.success_metric && item.target).length, 'defined, not measured')}
+      ${metricCard('Revenue data', '—', 'not connected')}
+    </section>
+    <section class="owner-section"><div class="professional-section-head"><div><span class="owner-kicker">Defined commercial intent</span><h2>Business objectives</h2></div><span>${esc(dataFreshness())}</span></div>${objectiveRows}</section>
+    ${specRows ? `<section class="owner-section"><div class="professional-section-head"><div><span class="owner-kicker">Current specifications</span><h2>Business context</h2></div><span>${specs.length} active</span></div><div class="professional-business-spec-grid">${specRows}</div></section>` : ''}
+    <section class="owner-card professional-boundary-note">
+      <span>${icons.business}</span><div><strong>Commercial outcomes remain source-bound</strong><p>Pandora is showing recorded objectives and specification context only. Revenue, cost, retention, adoption, ROI and realized customer outcomes remain unavailable until authoritative commercial sources are connected.</p></div>
+    </section>`;
+  return professionalShell('Business', 'Recorded objectives and business specification context from member-scoped first-party data.', body);
 }
 
 function professionalLibrary() {
-  return professionalShell(
-    'Library',
-    'Artifacts, generated files, specs, reports, evidence, releases and searchable project knowledge.',
-    unavailable(
-      'A bounded owner-safe Library index is not connected yet',
-      'Repository files and audit logs are not treated as a substitute for a real Library index. This surface remains unavailable until artifact metadata and access rules are exposed through a dedicated contract.',
-      icons.projects,
-    ),
-  );
+  const data = authoritativeData();
+  const artifacts = (data.artifacts || []).slice(0, 60);
+  const versions = data.artifactVersions || [];
+  const latestVersion = (artifactId) => versions
+    .filter((version) => version.artifact_id === artifactId)
+    .sort((a, b) => Number(b.version || 0) - Number(a.version || 0))[0] || null;
+
+  const rows = sourceError('artifacts') || sourceError('artifact_versions')
+    ? unavailable('Artifact Library is partially unavailable', sourceError('artifacts') || sourceError('artifact_versions'), icons.projects)
+    : `<section class="owner-card professional-data-list professional-library-list">${artifacts.length ? artifacts.map((artifact) => {
+        const version = latestVersion(artifact.id);
+        const bytes = Number(version?.byte_size);
+        const size = Number.isFinite(bytes)
+          ? bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : bytes >= 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${bytes} B`
+          : 'Size unavailable';
+        return `<article class="professional-data-row professional-library-row">
+          <span class="professional-provider-icon">${icons.projects}</span>
+          <span><strong>${esc(artifact.logical_key || 'Artifact')}</strong><small>${esc(authoritativeProjectName(artifact.project_id))}</small></span>
+          <span><strong>${esc(cleanName(artifact.artifact_kind || 'artifact'))}</strong><small>${version ? `v${esc(version.version)} · ${esc(size)} · ${esc(version.media_type || 'media type unavailable')}` : 'No version row loaded'}</small></span>
+          ${badge(version ? 'Versioned' : 'Recorded', version ? 'success' : 'neutral')}
+          <span class="professional-data-hash">${esc(version?.content_sha256 ? compactHash(version.content_sha256) : 'No digest')}</span>
+        </article>`;
+      }).join('') : '<div class="owner-empty compact"><h3>No artifacts recorded</h3><p>No member-visible artifact metadata exists for this organization.</p></div>'}</section>`;
+
+  const body = `
+    <section class="professional-metrics-grid">
+      ${metricCard('Artifacts', artifacts.length, 'recent metadata')}
+      ${metricCard('Versions', versions.length, 'recent version metadata')}
+      ${metricCard('Verification evidence', (data.verificationEvidence || []).length, 'recent metadata')}
+      ${metricCard('Storage secrets', '0', 'never exposed')}
+    </section>
+    <section class="owner-section"><div class="professional-section-head"><div><span class="owner-kicker">Artifact metadata</span><h2>Library</h2></div><span>${esc(dataFreshness())}</span></div>${rows}</section>
+    <section class="owner-card professional-boundary-note">
+      <span>${icons.shield}</span><div><strong>Metadata without storage authority</strong><p>Library shows logical artifact identity, kind, version, byte size, media type and SHA-256 only. Storage buckets, paths, provenance payloads and credentials stay outside this owner surface.</p></div>
+    </section>`;
+  return professionalShell('Library', 'Member-scoped artifact metadata, versions, digests and verification evidence without storage credentials.', body);
 }
 
 function professionalSettings() {
