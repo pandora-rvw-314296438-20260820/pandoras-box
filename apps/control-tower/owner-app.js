@@ -565,11 +565,50 @@ async function waitForPublishResolution(sourceId, attempts = 20, delayMs = 1500)
   return 'checking';
 }
 
+async function waitForUndoResolution(sourceId, identity, attempts = 12, delayMs = 1000) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    await loadProjectWorkspace(sourceId, { quiet: true, renderAfter: false });
+    const item = state.projectWorkspace;
+    const experience = item.experience || {};
+    if (experience.safe_failure_code || experience.safe_failure_message) return 'problem';
+
+    const currentVersionId = String(experience.current_version_id || '').toLowerCase();
+    const runtimeVersionId = String(item.runtime?.candidate?.versionId || '').toLowerCase();
+    const previewIdentity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+    const productionVersionId = String(
+      experience.production_version_id || item.runtime?.production?.version_id || ''
+    ).toLowerCase() || null;
+
+    if (productionVersionId !== identity.productionVersionId) return 'problem';
+    if (currentVersionId === identity.parentVersionId
+        && runtimeVersionId === identity.parentVersionId
+        && previewIdentity?.versionId === identity.parentVersionId
+        && window.PandorasOwnerProjectWorkspace?.exactPreviewUrl?.()
+        && (experience.current_verified === true || String(item.runtime?.verification?.state || '').toLowerCase() === 'verified')) {
+      return 'restored';
+    }
+    if (currentVersionId && currentVersionId !== identity.currentVersionId && currentVersionId !== identity.parentVersionId) {
+      return 'problem';
+    }
+    if (attempt < attempts - 1) await sleep(delayMs);
+  }
+  return 'checking';
+}
+
 async function performWorkspaceMutation(kind) {
   const item = state.projectWorkspace;
   const projectKey = item.runtime?.project?.projectKey;
   const candidateVersionId = item.runtime?.candidate?.versionId;
-  if (!projectKey || !candidateVersionId || item.mutating) return;
+  const undoIdentity = kind === 'undo'
+    ? window.PandorasOwnerProjectWorkspace?.exactUndoIdentity?.()
+    : null;
+  if (!projectKey || item.mutating) return;
+  if (kind === 'publish' && !candidateVersionId) return;
+  if (kind === 'undo' && !undoIdentity) {
+    showToast('Undo is not available for this exact current version. Production rollback is a separate governed action.', 'error');
+    render();
+    return;
+  }
   item.mutating = true;
   item.mutationKind = kind;
   item.mutationPhase = kind === 'publish' ? 'publishing' : 'working';
@@ -606,17 +645,25 @@ async function performWorkspaceMutation(kind) {
         {
           method: 'POST',
           body: {
-            expectedVersionId: candidateVersionId,
+            expectedVersionId: undoIdentity.currentVersionId,
             idempotencyKey: 'web-undo-' + crypto.randomUUID(),
           },
         },
       );
-      await loadProjectWorkspace(item.sourceId, { quiet: true });
+      item.mutationPhase = 'checking';
+      render();
+      const outcome = await waitForUndoResolution(item.sourceId, undoIdentity);
       item.mutating = false;
       item.mutationKind = null;
-      item.mutationPhase = null;
       item.mutationStartedAt = null;
-      showToast('Undo completed against the exact current version.', 'success');
+      item.mutationPhase = outcome === 'problem' ? 'problem' : null;
+      if (outcome === 'restored') {
+        showToast('Undo verified. Pandora restored the exact verified parent preview and production did not move.', 'success');
+      } else if (outcome === 'problem') {
+        showToast('Undo could not be reconciled to the exact parent without changing production. Pandora will not claim success.', 'error');
+      } else {
+        showToast('Undo was accepted, but exact parent reconciliation is still pending. Pandora will not claim success yet.', 'info');
+      }
       render();
     }
   } catch (error) {
@@ -790,6 +837,11 @@ app.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'prepare-workspace-undo') {
+    if (!window.PandorasOwnerProjectWorkspace?.exactUndoIdentity?.()) {
+      showToast('Undo is not available for this exact current version. Production rollback is a separate governed action.', 'error');
+      render();
+      return;
+    }
     state.projectWorkspace.confirmAction = 'undo';
     render();
     return;
