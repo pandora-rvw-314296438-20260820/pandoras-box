@@ -75,6 +75,14 @@ const state = {
     sending: false,
     error: null,
   },
+  library: {
+    loading: false,
+    loadedAt: null,
+    generatedAt: null,
+    artifacts: [],
+    releases: [],
+    error: null,
+  },
   projectWorkspace: {
     sourceId: null,
     source: null,
