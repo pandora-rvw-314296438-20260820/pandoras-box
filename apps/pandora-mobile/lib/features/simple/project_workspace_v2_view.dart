@@ -346,9 +346,8 @@ class _PublishTheatreSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final verifying = phase == ProjectReleasePhase.verifying;
-    final headline = verifying
-        ? 'Verifying production'
-        : 'Deploying the reviewed version';
+    final headline =
+        verifying ? 'Verifying production' : 'Deploying the reviewed version';
     final detail = (message ?? '').trim().isNotEmpty
         ? message!.trim()
         : verifying
