@@ -1,15 +1,21 @@
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 const { icons, state, app, esc, normalizeStatus, deriveProjects, request, routeFromLocation } = { ...window.PandorasOwnerData, ...window.PandorasOwnerRuntime };
 const { refresh, header, showToast, closeToast, navigate, openDialog, closeDialog, focusableInDialog } = window.PandorasOwnerRuntime;
-const { renderHome, renderProjects, renderApprovals, renderActivity, renderMore, nav } = window.PandorasOwnerScreens;
+const { renderHome, renderProjects, renderAsk, renderNeeds, renderBusiness, renderApprovals, renderActivity, renderMore, nav } = window.PandorasOwnerScreens;
 const { dialogMarkup, toastMarkup } = window.PandorasOwnerDialogs;
 
 const AUTO_REFRESH_INTERVAL_MS = 60_000;
 
 function render() {
   const routeMarkup = {
-    home: renderHome, projects: renderProjects, approvals: renderApprovals,
-    activity: renderActivity, more: renderMore,
+    home: renderHome,
+    projects: renderProjects,
+    ask: renderAsk,
+    needs: renderNeeds,
+    business: renderBusiness,
+    approvals: renderApprovals,
+    activity: renderActivity,
+    more: renderMore,
   }[state.route]?.() || renderHome();
   app.innerHTML = `<div class="owner-app">${header()}<main id="main-content" class="owner-main" tabindex="-1">${routeMarkup}</main>${nav()}${dialogMarkup()}${toastMarkup()}</div>`;
 }
@@ -42,6 +48,38 @@ async function beginOwnerSession({ announce = true } = {}) {
   }
 }
 
+async function askPandora() {
+  const message = state.ask.message.trim();
+  if (!message || state.ask.sending) return;
+  state.ask.sending = true;
+  state.ask.error = null;
+  render();
+  try {
+    const payload = await window.MCPMasterAuth?.invokeFunction?.('pandora-intelligence-chat', {
+      message,
+      ...(state.ask.threadId ? { threadId: state.ask.threadId } : {}),
+      mode: 'auto',
+    });
+    if (!payload?.threadId || typeof payload?.reply !== 'string') {
+      throw new Error('Pandora returned an unreadable response');
+    }
+    state.session = window.MCPMasterAuth?.session?.() || state.session;
+    state.ask.threadId = payload.threadId;
+    state.ask.reply = payload.reply;
+    state.ask.intent = payload.intent || '';
+    state.ask.confidence = Number.isFinite(Number(payload.confidence)) ? Number(payload.confidence) : null;
+    state.ask.needsClarification = payload.needsClarification === true;
+    state.ask.clarifyingQuestion = payload.clarifyingQuestion || '';
+    state.ask.handoff = payload.handoff || null;
+    state.ask.message = '';
+  } catch (error) {
+    state.ask.error = error?.message || 'Pandora is temporarily unavailable.';
+  } finally {
+    state.ask.sending = false;
+    render();
+  }
+}
+
 async function approve(planId, trigger) {
   const plan = state.plans.find((item) => item.planId === planId);
   if (!plan || !state.live) return;
@@ -52,12 +90,26 @@ async function approve(planId, trigger) {
     closeDialog({ renderAfter: false });
     showToast('Approval recorded. The update can now continue.', 'success');
     await refresh();
-    navigate('approvals', { replace: true });
+    navigate('needs', { replace: true });
   } catch (error) {
     showToast(`${error.message || 'The approval could not be saved.'} Nothing was changed.`, 'error');
     render();
   }
 }
+
+app.addEventListener('input', (event) => {
+  const input = event.target.closest('[data-ask-message]');
+  if (input) state.ask.message = input.value;
+});
+
+app.addEventListener('submit', async (event) => {
+  const form = event.target.closest('[data-ask-form]');
+  if (!form) return;
+  event.preventDefault();
+  if (!state.ask.message.trim()) return;
+  if (state.route !== 'ask') navigate('ask');
+  await askPandora();
+});
 
 app.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-route],[data-action]');
@@ -125,6 +177,10 @@ app.addEventListener('click', async (event) => {
     state.plans = [];
     state.logs = [];
     state.error = { code: 'SIGNED_OUT', message: 'Sign in again to view protected live information.' };
+    state.ask = {
+      message: '', threadId: null, reply: '', intent: '', confidence: null,
+      needsClarification: false, clarifyingQuestion: '', handoff: null, sending: false, error: null,
+    };
     showToast('Signed out. Protected live information is hidden.', 'info');
     return;
   }
