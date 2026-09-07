@@ -43,7 +43,7 @@ function ownerState() {
   if (String(experience.experience_state || '').toUpperCase() === 'LIVE') {
     return { label: 'Live', kind: 'success' };
   }
-  if (experience.can_publish === true && String(experience.candidate_verification_state || '').toLowerCase() === 'verified') {
+  if (experience.can_publish === true && item.runtime?.verification?.publishEligible === true) {
     return { label: 'Ready', kind: 'success' };
   }
   return { label: 'Working', kind: 'neutral' };
