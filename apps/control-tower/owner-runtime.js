@@ -1,5 +1,5 @@
 const {
-  BRAND_MARK, API_BASE, ROUTES, icons, state, app, rerender, esc, routeFromLocation, normalizeStatus, isComplete, isActive, isBlocked, cleanName, projectName, projectInitials, formatPhase, timeAgo, formatExpiry, formatTool, projectForPlan, projectForEvent, eventMessage, eventKind, deriveProjects, readiness
+  BRAND_MARK, API_BASE, ROUTES, PROFESSIONAL_ROUTES, icons, state, app, rerender, esc, routeFromLocation, normalizeStatus, isComplete, isActive, isBlocked, cleanName, projectName, projectInitials, formatPhase, timeAgo, formatExpiry, formatTool, projectForPlan, projectForEvent, eventMessage, eventKind, deriveProjects, readiness
 } = window.PandorasOwnerData;
 
 let toastTimer = null;
@@ -168,16 +168,20 @@ function badge(label, kind = 'neutral') {
 
 function header() {
   const status = statusSummary();
+  const professional = state.mode === 'professional';
   const statusActionLabel = state.session?.authenticated
     ? `${status.label}. Refresh status.`
     : 'Sign in to view protected status.';
   return `<header class="owner-header">
     <div class="owner-brand">
       <img src="${BRAND_MARK}" alt="" class="owner-brand-mark" />
-      <div class="owner-brand-copy"><strong>Pandoras-Box</strong><span>Everything in one place</span></div>
+      <div class="owner-brand-copy"><strong>Pandoras-Box</strong><span>${professional ? 'Professional workspace' : 'Everything in one place'}</span></div>
     </div>
     <div class="owner-header-actions">
-      <button type="button" class="owner-account-button" data-route="more" aria-label="Account, settings, and advanced controls">${icons.user}</button>
+      <button type="button" class="owner-mode-button" data-action="switch-mode" data-mode="${professional ? 'simple' : 'professional'}" aria-label="Switch to ${professional ? 'Simple' : 'Professional'} Mode">
+        <span>${professional ? 'Professional' : 'Simple'}</span><b>Mode</b>
+      </button>
+      <button type="button" class="owner-account-button" data-route="${professional ? 'settings' : 'more'}" aria-label="Account, settings, and advanced controls">${icons.user}</button>
       <button type="button" class="owner-status ${status.kind}" data-action="refresh" aria-label="${esc(statusActionLabel)}">
         <span class="owner-status-dot" aria-hidden="true"></span><span>${esc(status.label)}</span>
       </button>
