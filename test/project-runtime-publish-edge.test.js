@@ -32,12 +32,15 @@ test("customer Publish is bound to exact independent verification", () => {
   assert.match(publish, /VERIFICATION_STALE/);
 });
 
-test("customer Publish promotes the exact preview and never rebuilds production", () => {
-  assert.match(publish, /\/promote\/\$\{encodeURIComponent\(previewDeploymentId\)\}/);
-  assert.match(publish, /provider_deployment_id: previewDeploymentId/);
+test("customer Publish deploys the exact verified artifact to dedicated Vercel production", () => {
+  assert.match(publish, /loadExactRuntimeBundle\(context, projectId, requestedVersion, artifactDigest\)/);
+  assert.match(publish, /target:\s*"production"/);
+  assert.match(publish, /files:\s*bundle\.files\.map/);
+  assert.match(publish, /provider_deployment_id: providerDeploymentId/);
   assert.match(publish, /promoted_from_id: preview\.id/);
-  assert.doesNotMatch(publish, /createVercelDeployment\([^;]+"production"/s);
-  assert.doesNotMatch(publish, /\/v13\/deployments[^\n]+method:\s*"POST"/s);
+  assert.match(publish, /exactArtifactDeploy:\s*true/);
+  assert.match(publish, /productionDeploymentId: providerDeploymentId/);
+  assert.doesNotMatch(publish, /\/promote\//);
 });
 
 test("customer Publish owns concurrency and ambiguous outcomes durably", () => {
