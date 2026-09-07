@@ -99,6 +99,7 @@ function askResult() {
 function renderAsk() {
   return `<div class="owner-screen owner-ask-screen">
     <div class="owner-page-intro"><span class="owner-kicker">Intent first</span><h1>Ask Pandora</h1><p>Describe the outcome. Pandora can reason with project context and prepare governed work without putting provider credentials in the browser.</p></div>
+    ${state.ask.projectId ? `<div class="owner-ask-project-context"><span>${icons.projects}</span><div><strong>${esc(state.ask.projectName || 'Selected project')}</strong><small>Pandora is using this exact project context.</small></div><button type="button" data-action="clear-ask-project">Clear</button></div>` : ''}
     ${askResult()}
     <section class="owner-card owner-ask-composer">
       <form data-ask-form>
