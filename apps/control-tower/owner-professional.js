@@ -288,6 +288,14 @@ function compactDigest(value) {
 }
 
 function professionalLibrary() {
+  const session = window.MCPMasterAuth?.session?.() || state.session || {};
+  if (!session.authenticated) {
+    return professionalShell(
+      'Library',
+      'Immutable artifact metadata and project-version lineage from Pandora’s member-RLS control plane.',
+      unavailable('Sign in to view Library', 'Library metadata is protected and is not retained in the owner surface after sign-out.', icons.projects),
+    );
+  }
   const library = state.library || {};
   if (library.loading && !library.loadedAt) {
     return professionalShell(
