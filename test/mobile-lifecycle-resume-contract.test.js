@@ -22,7 +22,7 @@ test('Task65 V2 workspace reconstructs durable state when Android resumes', () =
   );
   assert.match(
     workspace,
-    /Future<void> _resumeFromDurableState\(\)[\s\S]*?_projectionSubscription = null;[\s\S]*?_liveBuildSubscription = null;[\s\S]*?await _startProjection\(\);[\s\S]*?await _refresh\(\);/,
+    /Future<void> _resumeFromDurableState\(\)[\s\S]*?_projectionSubscription = null;[\s\S]*?_liveBuildSubscription = null;[\s\S]*?await _startProjection\(hydrateInitial: false\);[\s\S]*?await _refresh\(\);/,
     'resume must discard stale subscriptions before reloading server-authoritative project truth',
   );
 });
