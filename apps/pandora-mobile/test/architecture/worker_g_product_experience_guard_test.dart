@@ -99,9 +99,16 @@ void main() {
     );
     expect(source, contains('ProjectHistoryBuildEvidenceScreen('));
     expect(source, contains('liveActivityLabel: _liveActivityLabel'));
+    expect(view, contains("Key('workspace-build-theatre')"));
+    expect(view, contains('LiveBuildTheatre('));
+    expect(view, contains("Key('workspace-publish-theatre')"));
+    expect(view, contains("'Deploying the reviewed version'"));
+    expect(view, contains("'Verifying production'"));
+    expect(source, contains('liveBuildActivity: _liveBuildActivity'));
+    expect(source, contains('releasePhase: _releasePhase'));
     expect(view, contains("Key('workspace-live-activity-strip')"));
     expect(view, contains('child: _LiveBuildActivityStrip('));
-    expect(view, contains('else if (progressPhase != null)'));
+    expect(view, contains('else if (!buildTheatreActive'));
     expect(view, isNot(contains('fake activity')));
   });
 
