@@ -16,6 +16,69 @@ const EDGE_ROUTE_POLICIES = Object.freeze({
     ]),
   }),
 });
+const OWNER_DATASETS = Object.freeze({
+  projects: Object.freeze({
+    table: 'projectos_projects',
+    columns: 'id,project_key,name,repository,status,objective,current_phase_key,current_task_key,progress_percent,last_reconciled_at,updated_at',
+    order: 'updated_at.desc',
+    projectFilter: false,
+  }),
+  deployments: Object.freeze({
+    table: 'pandora_project_deployments',
+    columns: 'id,project_id,version_id,provider,environment,provider_deployment_id,url,status,source_sha256,artifact_digest,source_commit_sha,provider_state,immutable_url,stable_url,last_provider_check_at,ready_at,failed_at,verification_state,created_at,updated_at',
+    order: 'updated_at.desc',
+    projectFilter: true,
+  }),
+  domains: Object.freeze({
+    table: 'pandora_project_domains',
+    columns: 'id,project_id,provider,domain,status,verified,primary_domain,environment,ownership_verified,dns_configured,tls_ready,routing_ready,runtime_healthy,last_checked_at,updated_at',
+    order: 'updated_at.desc',
+    projectFilter: true,
+  }),
+  verification_runs: Object.freeze({
+    table: 'pandora_verification_runs',
+    columns: 'id,project_id,project_version_id,build_job_id,source_commit,source_digest,artifact_digest,migration_set_digest,runtime_target_digest,preview_deployment_id,target_environment,required_check_profile,builder_identity,verifier_identity,identity_sha256,status,started_at,completed_at,created_at,source_kind,source_ref',
+    order: 'created_at.desc',
+    projectFilter: true,
+  }),
+  verification_checks: Object.freeze({
+    table: 'pandora_verification_checks',
+    columns: 'id,project_id,verification_run_id,check_key,status,failure_class,security_severity,summary,started_at,completed_at,created_at',
+    order: 'created_at.desc',
+    projectFilter: true,
+  }),
+  verification_evidence: Object.freeze({
+    table: 'pandora_verification_evidence',
+    columns: 'id,project_id,verification_run_id,verification_check_id,artifact_version_id,evidence_type,media_type,content_sha256,created_at',
+    order: 'created_at.desc',
+    projectFilter: true,
+  }),
+  artifacts: Object.freeze({
+    table: 'pandora_artifacts',
+    columns: 'id,project_id,logical_key,artifact_kind,created_at',
+    order: 'created_at.desc',
+    projectFilter: true,
+  }),
+  artifact_versions: Object.freeze({
+    table: 'pandora_artifact_versions',
+    columns: 'id,project_id,artifact_id,version,parent_version_id,content_sha256,byte_size,media_type,created_at',
+    order: 'created_at.desc',
+    projectFilter: true,
+  }),
+  business_objectives: Object.freeze({
+    table: 'pandora_project_business_objectives',
+    columns: 'id,project_id,project_spec_id,ordinal,objective,desired_outcome,success_metric,baseline,target,created_at',
+    order: 'created_at.desc',
+    projectFilter: true,
+  }),
+  project_specs: Object.freeze({
+    table: 'pandora_project_specs',
+    columns: 'id,project_id,version,status,project_type,target_user_summary,business_summary,content_sha256,created_at,superseded_at',
+    order: 'created_at.desc',
+    projectFilter: true,
+  }),
+});
+
 const PROJECT_PROJECTION_COLUMNS = Object.freeze({
   pandora_project_experience_projection: [
     'project_id','experience_state','current_version_id','current_preview_deployment_id',
@@ -255,6 +318,36 @@ async function edgeRequest(functionName, pathSegments = [], options = {}) {
   return payload;
 }
 
+async function readOwnerDataset(datasetName, { projectId = null, limit = 100 } = {}) {
+  const dataset = OWNER_DATASETS[datasetName];
+  if (!dataset) throw new Error('Pandora rejected an unavailable owner dataset');
+  if (projectId !== null && (!dataset.projectFilter || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(String(projectId)))) {
+    throw new Error('Pandora rejected an invalid project dataset request');
+  }
+  const config = await loadConfig();
+  await ensureSession();
+  const url = new URL(`${config.supabaseUrl}/rest/v1/${dataset.table}`);
+  url.searchParams.set('select', dataset.columns);
+  url.searchParams.set('organization_id', `eq.${config.organizationId}`);
+  if (projectId !== null) url.searchParams.set('project_id', `eq.${projectId}`);
+  url.searchParams.set('order', dataset.order);
+  url.searchParams.set('limit', String(Math.max(1, Math.min(200, Number(limit) || 100))));
+  const response = await nativeFetch(url, {
+    method: 'GET',
+    redirect: 'error',
+    headers: {
+      apikey: config.supabasePublishableKey,
+      authorization: `Bearer ${authState.accessToken}`,
+      accept: 'application/json',
+    },
+  });
+  const rows = await response.json().catch(() => []);
+  if (!response.ok || !Array.isArray(rows)) {
+    throw new Error('Pandora could not read this owner dataset safely');
+  }
+  return rows;
+}
+
 async function readProjectProjection(tableName, projectId) {
   const select = PROJECT_PROJECTION_COLUMNS[tableName];
   if (!select || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(String(projectId || ''))) {
@@ -345,6 +438,7 @@ window.fetch = async function authenticatedOperatorFetch(input, init = {}) {
 window.MCPMasterAuth = Object.freeze({
   ensureSession,
   edgeRequest,
+  readOwnerDataset,
   readProjectProjection,
   invokeFunction,
   signOut,
