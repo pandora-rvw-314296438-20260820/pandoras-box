@@ -76,9 +76,15 @@ test('Professional Memory consumes only the bounded canonical status envelope', 
   assert.ok(professional.includes('does not render raw memory contents, proposed evidence bodies, candidate payloads or promotion internals'));
 });
 
-test('remaining unbacked Professional pages refuse to fabricate data', () => {
+test('Professional Library consumes only the bounded operator Library index', () => {
+  assert.match(professional, /state\.library/);
+  assert.ok(professional.includes('Immutable artifact metadata and project-version lineage'));
+  assert.ok(professional.includes('Metadata only'));
+  assert.ok(professional.includes('does not expose storage paths, raw provenance, source payloads, deployment URLs, provider deployment IDs or artifact bytes'));
+});
+
+test('Business remains unavailable rather than fabricated', () => {
   assert.ok(professional.includes('Authoritative business analytics are not connected to this web mode yet'));
-  assert.ok(professional.includes('A bounded owner-safe Library index is not connected yet'));
   assert.ok(professional.includes('Pandora will not invent revenue, cost, retention, adoption, ROI'));
 });
 
