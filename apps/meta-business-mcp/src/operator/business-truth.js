@@ -146,11 +146,11 @@ function createBusinessTruthExecutor(options){
       ok:true,kind:"pandora.business-truth.v1",generatedAt:new Date().toISOString(),
       projects:safeProjects,
       boundaries:{
-        providerMeasurementConnected:false,
-        revenueMeasured:false,
-        retentionMeasured:false,
-        pilotMeasured:false,
-        roiMeasured:false,
+        measurementEvidenceState:"not_exposed_by_contract",
+        revenueState:"not_measured",
+        retentionState:"not_measured",
+        pilotState:"not_measured",
+        roiState:"not_measured",
       },
     };
   };
