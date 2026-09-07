@@ -6,6 +6,7 @@ const migration = fs.readFileSync('supabase/migrations/20260908045200_pandora_ex
 const runtime = fs.readFileSync('supabase/functions/pandora-project-runtime/index.ts', 'utf8');
 const workspace = fs.readFileSync('apps/control-tower/owner-project-workspace.js', 'utf8');
 const app = fs.readFileSync('apps/control-tower/owner-app.js', 'utf8');
+const mobile = fs.readFileSync('apps/pandora-mobile/lib/features/simple/project_experience_v2.dart', 'utf8');
 
 test('Exact Undo v2 is a single service-only atomic database primitive', () => {
   assert.match(migration, /create or replace function private\.pandora_apply_application_undo_v2/);
@@ -62,4 +63,18 @@ test('web Undo uses current not publish candidate and proves the parent before s
   assert.match(app, /previewIdentity\?\.versionId === identity\.parentVersionId/);
   assert.match(app, /productionVersionId !== identity\.productionVersionId/);
   assert.match(app, /Undo verified\. Pandora restored the exact verified parent preview and production did not move/);
+});
+
+
+test('native Simple Mode uses the same exact current-to-parent Undo identity', () => {
+  assert.match(mobile, /String\? get _undoCurrentVersionId/);
+  assert.match(mobile, /runtimeCurrent\.versionId != current/);
+  assert.match(mobile, /projection\.productionVersionId == current/);
+  assert.match(mobile, /final versionId = _undoCurrentVersionId/);
+  assert.match(mobile, /snapshot\.candidate\?\.versionId != parentVersionId/);
+  assert.match(mobile, /snapshot\.preview\?\.versionId != parentVersionId/);
+  assert.match(mobile, /transition\.currentVersionId != parentVersionId/);
+  assert.match(mobile, /transition\.productionVersionId != expectedProductionVersionId/);
+  assert.match(mobile, /_loadExactPreviewFiles/);
+  assert.match(mobile, /Undo verified\. The exact parent is Current and Live did not move/);
 });
