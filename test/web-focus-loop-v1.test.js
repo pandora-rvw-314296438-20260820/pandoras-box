@@ -17,6 +17,10 @@ test('web focus loop keeps the exact preview as the result hero', () => {
   assert.match(workspace, /Focus object/);
   assert.match(workspace, /previewIdentity/);
   assert.match(workspace, /runtimePreview\?\.artifact_digest/);
+  assert.match(workspace, /focusCapablePreviewUrl/);
+  assert.match(workspace, /url\.origin !== window\.location\.origin/);
+  assert.match(workspace, /\/preview\\\/[0-9a-f]\{64\}\\\/index\\\.html/);
+  assert.match(workspace, /Object focus is unavailable on this preview transport/);
   assert.doesNotMatch(workspace, /allow-same-origin/);
 });
 
