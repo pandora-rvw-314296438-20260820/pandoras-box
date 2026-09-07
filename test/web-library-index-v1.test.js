@@ -41,3 +41,10 @@ test('Library exposes only safe immutable metadata and release lineage',()=>{
   assert.match(professional,/Immutable artifact versions/);
   assert.match(professional,/Project version lineage/);
 });
+
+test('Library metadata is purged and gated when the operator signs out',()=>{
+  assert.match(app,/state\.library = \{/);
+  assert.match(app,/artifacts: \[\], releases: \[\]/);
+  assert.match(professional,/if \(!session\.authenticated\)/);
+  assert.ok(professional.includes('Library metadata is protected and is not retained in the owner surface after sign-out.'));
+});
