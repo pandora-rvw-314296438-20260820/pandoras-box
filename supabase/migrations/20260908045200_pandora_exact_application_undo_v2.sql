@@ -261,8 +261,13 @@ create trigger pandora_project_experience_undo_guard_v2
 before insert or update on public.pandora_project_experience_projection
 for each row execute function private.pandora_project_experience_undo_guard_v2();
 
--- Recompute all rows so the stricter fail-closed can_undo truth is visible immediately.
-do $$
+-- Force every existing projection through the new BEFORE guard once.
+-- This works even when the computed projection payload itself has not changed.
+update public.pandora_project_experience_projection
+set can_undo=can_undo;
+
+-- Recompute after the guard is installed so all other derived fields remain canonical.
+do $
 declare
   r record;
 begin
@@ -272,9 +277,9 @@ begin
     perform private.pandora_refresh_project_experience_projection_v1(r.id);
   end loop;
 end;
-$$;
+$;
 
-do $$
+do $
 begin
   if exists (
     select 1
