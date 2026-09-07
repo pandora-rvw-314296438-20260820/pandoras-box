@@ -1,5 +1,5 @@
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-const { icons, state, app, esc, normalizeStatus, deriveProjects, request, routeFromLocation, routeResourceFromLocation, PROFESSIONAL_ROUTES } = { ...window.PandorasOwnerData, ...window.PandorasOwnerRuntime };
+const { icons, state, app, esc, normalizeStatus, deriveProjects, request, routeFromLocation, routeResourceFromLocation, timeAgo, PROFESSIONAL_ROUTES } = { ...window.PandorasOwnerData, ...window.PandorasOwnerRuntime };
 const { refresh, header, showToast, closeToast, navigate, openDialog, closeDialog, focusableInDialog } = window.PandorasOwnerRuntime;
 const {
   renderHome, renderProjects, renderProjectWorkspace, renderAsk, renderNeeds, renderBusiness,
@@ -42,7 +42,7 @@ function ownerProjectsFromPayload(payload) {
   return [];
 }
 
-async function loadProjectWorkspace(sourceId = routeResourceFromLocation(), { quiet = false } = {}) {
+async function loadProjectWorkspace(sourceId = routeResourceFromLocation(), { quiet = false, renderAfter = true } = {}) {
   const item = state.projectWorkspace;
   item.sourceId = sourceId || item.sourceId;
   if (!quiet) {
@@ -107,7 +107,8 @@ async function loadProjectWorkspace(sourceId = routeResourceFromLocation(), { qu
     }
   } finally {
     if (!quiet) item.loading = false;
-    render();
+    if (renderAfter) render();
+    else updateWorkspaceProgressDom();
   }
 }
 
@@ -119,6 +120,10 @@ function liveRefreshAllowed() {
 
 async function refreshLiveStatus() {
   if (!liveRefreshAllowed()) return;
+  if (state.route === 'project' && state.projectWorkspace.changing === true) {
+    await loadProjectWorkspace(routeResourceFromLocation(), { quiet: true, renderAfter: false });
+    return;
+  }
   await refresh();
   if (state.route === 'project') await loadProjectWorkspace(routeResourceFromLocation(), { quiet: true });
 }
@@ -175,6 +180,78 @@ async function askPandora() {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function updateWorkspaceProgressDom() {
+  const item = state.projectWorkspace;
+  const theatre = item.theatre || {};
+  const theatreStage = String(theatre.owner_stage || '').toLowerCase();
+  const stage = String(
+    item.changing === true
+      ? (item.changePhase || theatreStage)
+      : (theatreStage || item.changePhase || '')
+  ).toLowerCase();
+  const theatreCard = document.querySelector('.owner-workspace-theatre');
+  if (theatreCard) theatreCard.classList.toggle('owner-workspace-unavailable', !item.theatre && item.changing !== true);
+
+  const phaseMessages = {
+    understanding: 'Pandora is understanding your change.',
+    designing: 'Pandora is preparing the exact change.',
+    building: 'Pandora is building the new version.',
+    connecting: 'Pandora is connecting the new version.',
+    checking: 'Pandora is checking the new version.',
+    fixing: 'Pandora is repairing the new version.',
+    preparing_preview: 'Pandora is preparing the verified preview.',
+    preview_ready: 'The verified preview is ready.',
+  };
+  const projectionFresh = item.changing !== true || !item.changePhase || theatreStage === String(item.changePhase).toLowerCase();
+  const message = document.querySelector('[data-workspace-theatre-message]');
+  if (message) {
+    message.textContent = projectionFresh && theatre.public_message
+      ? String(theatre.public_message)
+      : (item.changing ? phaseMessages[stage] || 'Pandora is working on this change.' : 'No active build projection');
+  }
+
+  const progress = Number(theatre.progress_percent);
+  const progressFresh = projectionFresh;
+  const progressNode = document.querySelector('[data-workspace-theatre-progress]');
+  if (progressNode) {
+    if (Number.isFinite(progress) && progressFresh) {
+      const boundedProgress = Math.max(0, Math.min(100, progress));
+      progressNode.hidden = false;
+      progressNode.textContent = boundedProgress + '%';
+      progressNode.setAttribute('aria-label', boundedProgress + '% projected build activity');
+    } else {
+      progressNode.hidden = true;
+      progressNode.textContent = '';
+      progressNode.removeAttribute('aria-label');
+    }
+  }
+
+  document.querySelectorAll('[data-workspace-theatre-stages]').forEach((node) => {
+    const stages = String(node.dataset.workspaceTheatreStages || '').split(',').filter(Boolean);
+    node.classList.toggle('active', stages.includes(stage));
+  });
+
+  const current = document.querySelector('[data-workspace-theatre-current]');
+  if (current) current.textContent = stage ? stage.replaceAll('_', ' ') : 'unavailable';
+
+  const updated = document.querySelector('[data-workspace-theatre-updated]');
+  if (updated) {
+    updated.textContent = projectionFresh && theatre.updated_at
+      ? 'Updated ' + timeAgo(theatre.updated_at)
+      : (item.changing ? 'Waiting for current build activity' : 'Waiting for build activity');
+  }
+
+  const textarea = document.querySelector('[data-project-change-message]');
+  if (textarea) textarea.disabled = item.changing === true || item.experience?.can_change !== true;
+
+  const submit = document.querySelector('[data-workspace-change-submit]');
+  if (submit) {
+    const phase = String(item.changePhase || stage || 'working').replaceAll('_', ' ');
+    submit.disabled = item.changing === true || !item.changeMessage.trim() || item.experience?.can_change !== true;
+    if (item.changing === true) submit.textContent = 'Pandora is ' + phase + '…';
+  }
 }
 
 function postPreviewFocusMode(enabled) {
@@ -272,7 +349,7 @@ async function performWorkspaceChange(message) {
   };
   item.changing = true;
   item.changePhase = 'understanding';
-  render();
+  updateWorkspaceProgressDom();
   try {
     let admission = null;
     for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -281,7 +358,7 @@ async function performWorkspaceChange(message) {
         body: JSON.stringify(payload),
       });
       item.changePhase = admission?.stage || 'understanding';
-      render();
+      updateWorkspaceProgressDom();
       if (admission?.streamId || ['building','generating_source','queued'].includes(String(admission?.stage || ''))) break;
       if (attempt < 7) await sleep(2000);
     }
@@ -290,9 +367,9 @@ async function performWorkspaceChange(message) {
     }
 
     item.changePhase = 'building';
-    render();
+    updateWorkspaceProgressDom();
     for (let attempt = 0; attempt < 60; attempt += 1) {
-      await loadProjectWorkspace(item.sourceId, { quiet: true });
+      await loadProjectWorkspace(item.sourceId, { quiet: true, renderAfter: false });
       const experience = item.experience || {};
       if (experience.safe_failure_code || experience.safe_failure_message) {
         throw new Error(experience.safe_failure_message || 'Pandora could not verify the new version.');
@@ -321,7 +398,7 @@ async function performWorkspaceChange(message) {
         return;
       }
       item.changePhase = String(item.theatre?.owner_stage || experience.build_phase || 'checking').toLowerCase();
-      render();
+      updateWorkspaceProgressDom();
       if (attempt < 59) await sleep(3000);
     }
     throw new Error('Pandora is still building that change. The current preview remains available.');
