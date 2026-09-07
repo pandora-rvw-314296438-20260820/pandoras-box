@@ -1987,16 +1987,22 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
     if (experience == null) return;
     try {
       final snapshot = await experience.runtime(widget.project.id);
-      final receipt = await experience.loadLatestPublishReceipt(
-        projectId: widget.project.id,
-      );
+      if (!mounted) return;
+      Map<String, Object?>? receipt;
+      try {
+        receipt = await experience.loadLatestPublishReceipt(
+          projectId: widget.project.id,
+        );
+      } catch (_) {
+        // The live runtime destination remains authoritative if history lags.
+      }
       if (!mounted) return;
       setState(() {
         _snapshot = snapshot;
         _publishReceipt = _withLiveDestination(receipt, snapshot);
       });
     } catch (_) {
-      // Receipt history is supplemental to the authoritative lifecycle projection.
+      // The caller still has projection truth if the runtime refresh fails.
     }
   }
 
