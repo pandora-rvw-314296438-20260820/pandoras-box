@@ -98,3 +98,9 @@ test('Professional Mode assets are composed under one distinct revision', () => 
   assert.ok(index.includes('owner-experience.css?v=web-professional-mode-v1-20260907-1'));
   assert.ok(index.includes('bootstrap.js?v=web-professional-mode-v1-20260907-1'));
 });
+
+test('shared project workspace returns to the active presentation mode', () => {
+  const workspace = read('apps/control-tower/owner-project-workspace.js');
+  assert.ok(workspace.includes("state.mode === 'professional' ? 'build' : 'projects'"));
+  assert.ok(workspace.includes("state.mode === 'professional' ? 'Build' : 'Projects'"));
+});
