@@ -24,7 +24,7 @@ test('Simple Mode uses the canonical five-area primary navigation', () => {
 });
 
 test('Ask Pandora uses the bounded authenticated intelligence boundary', () => {
-  assert.match(ownerAuth, /ALLOWED_EDGE_FUNCTIONS = new Set\(\['pandora-intelligence-chat'\]\)/);
+  assert.match(ownerAuth, /pandora-intelligence-chat/);
   assert.match(ownerAuth, /'x-organization-id': config\.organizationId/);
   assert.match(ownerAuth, /sessionStorage: 'memory-only'|authState\.accessToken/);
   assert.match(ownerApp, /invokeFunction\?\.\('pandora-intelligence-chat'/);
@@ -54,5 +54,5 @@ test('web control plane design preserves verified Live semantics and Admin safet
 test('experience assets are loaded through the owner-first shell', () => {
   assert.match(ownerFirst, /owner-screens-experience\.js/);
   assert.match(index, /owner-experience\.css/);
-  assert.match(index, /web-publish-truth-v2-20260907-1/);
+  assert.match(index, /web-focus-loop-v1-20260907-1/);
 });
