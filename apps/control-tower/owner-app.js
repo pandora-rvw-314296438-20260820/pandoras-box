@@ -43,6 +43,34 @@ function ownerProjectsFromPayload(payload) {
   return [];
 }
 
+async function loadLibrary({ quiet = false } = {}) {
+  const item = state.library;
+  if (item.loading) return;
+  item.loading = true;
+  if (!quiet) item.error = null;
+  render();
+  try {
+    const result = await request('/library?limit=100');
+    if (result?.kind !== 'pandora.library-index.v1'
+      || !Array.isArray(result.artifacts)
+      || !Array.isArray(result.releases)) {
+      throw new Error('Pandora returned an invalid Library index.');
+    }
+    item.artifacts = result.artifacts;
+    item.releases = result.releases;
+    item.generatedAt = result.generatedAt || null;
+    item.loadedAt = new Date().toISOString();
+    item.error = null;
+  } catch (error) {
+    item.artifacts = [];
+    item.releases = [];
+    item.error = { code: error?.code || 'LIBRARY_UNAVAILABLE', message: error?.message || 'Pandora could not load the Library index.' };
+  } finally {
+    item.loading = false;
+    render();
+  }
+}
+
 async function loadProjectWorkspace(sourceId = routeResourceFromLocation(), { quiet = false, renderAfter = true } = {}) {
   const item = state.projectWorkspace;
   item.sourceId = sourceId || item.sourceId;
@@ -136,6 +164,7 @@ async function refreshLiveStatus() {
   }
   await refresh();
   if (state.route === 'project') await loadProjectWorkspace(routeResourceFromLocation(), { quiet: true });
+  if (state.route === 'library') await loadLibrary({ quiet: true });
 }
 
 async function beginOwnerSession({ announce = true } = {}) {
@@ -684,6 +713,7 @@ app.addEventListener('click', async (event) => {
   const route = target.dataset.route;
   if (route) {
     navigate(route);
+    if (route === 'library') void loadLibrary();
     return;
   }
   const action = target.dataset.action;
@@ -886,6 +916,7 @@ window.addEventListener('popstate', () => {
   closeDialog({ renderAfter: false });
   render();
   if (state.route === 'project') void loadProjectWorkspace(routeResourceFromLocation());
+  if (state.route === 'library') void loadLibrary();
 });
 
 window.addEventListener('focus', refreshLiveStatus);
@@ -934,6 +965,7 @@ navigate(state.route, { replace: true });
 if (state.session?.authenticated) {
   void refresh().then(() => {
     if (state.route === 'project') void loadProjectWorkspace(routeResourceFromLocation());
+    if (state.route === 'library') void loadLibrary();
   });
 } else {
   state.loading = false;
