@@ -47,7 +47,9 @@
         "aws-deploy-complete-win": "powershell -ExecutionPolicy Bypass -File aws/deploy-complete.ps1",
         "meta:staging:prove-access": "npm run build:meta && node apps/meta-business-mcp/dist/staging-cli.js prove-access",
         "build:control-tower": "node scripts/materialize-control-tower.mjs",
-        "verify:migration-authority": "node scripts/verify-migration-authority.mjs"
+        "verify:migration-authority": "node scripts/verify-migration-authority.mjs",
+        "agents:install": "node scripts/install-ai-coding-clis.mjs",
+        "agents:verify": "node scripts/install-ai-coding-clis.mjs --verify-only"
     },
     "version": "1.3.0-observability",
     "keywords": [
