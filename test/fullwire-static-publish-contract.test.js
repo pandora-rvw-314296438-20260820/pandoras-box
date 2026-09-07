@@ -76,7 +76,13 @@ test('mobile never calls a production candidate Live before exact projection pro
     projectExperience,
     /projection\.state == ProjectExperienceState\.live &&[\s\S]*projection\.productionVersionId == versionId/,
   );
-  assert.match(projectExperience, /Publishing\. Pandora is verifying this exact version\./);
+  assert.match(projectExperience, /ProjectReleasePhase\? get _releasePhase/);
+  assert.match(projectExperience, /ProjectReleasePhase\.deploying/);
+  assert.match(projectExperience, /ProjectReleasePhase\.verifying/);
+  assert.doesNotMatch(
+    projectExperience,
+    /Publishing\. Pandora is verifying this exact version\./,
+  );
   assert.match(projectExperience, /await _watchPublishCompletion\(versionId\);/);
   assert.match(projectExperience, /await _showPublishedConfirmation\(\);/);
   assert.match(projectExperience, /The exact public address will be shown/);
