@@ -267,7 +267,7 @@ update public.pandora_project_experience_projection
 set can_undo=can_undo;
 
 -- Recompute after the guard is installed so all other derived fields remain canonical.
-do $
+do $$
 declare
   r record;
 begin
@@ -277,9 +277,9 @@ begin
     perform private.pandora_refresh_project_experience_projection_v1(r.id);
   end loop;
 end;
-$;
+$$;
 
-do $
+do $$
 begin
   if exists (
     select 1
