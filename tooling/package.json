@@ -26,7 +26,7 @@
     "vercel": "59.11.7"
   },
   "overrides": {
-    "tar": "7.5.18",
+    "tar": "7.5.22",
     "@vercel/backends": {
       "path-to-regexp": "8.4.2"
     },
@@ -36,21 +36,29 @@
     "@vercel/fun": {
       "@tootallnate/once": "2.0.1",
       "path-to-regexp": "8.4.2",
-      "tar": "7.5.18"
+      "tar": "7.5.22"
     },
     "@vercel/hono": {
       "path-to-regexp": "8.4.2"
     },
     "@vercel/node": {
       "path-to-regexp": "6.3.0",
-      "undici": "5.29.0"
+      "undici": "6.28.1"
     },
     "@vercel/python-analysis": {
       "js-yaml": "4.3.1",
-      "minimatch": "10.2.6"
+      "minimatch": "10.2.6",
+      "smol-toml": "1.8.0"
     },
     "@vercel/remix-builder": {
       "path-to-regexp": "6.3.0"
+    },
+    "@vercel/rust": {
+      "smol-toml": "1.8.0"
+    },
+    "vercel": {
+      "smol-toml": "1.8.0",
+      "undici": "6.28.1"
     }
   }
 }
