@@ -31,6 +31,7 @@ const allowedReconciliationDecisions = new Set([
   'RETIRE_CANDIDATE_SELF_RETIRED',
   'RETAIN_EVIDENCE_PENDING_OWNER_RECONCILIATION',
   'REVIEW_REQUIRED_CALLER_PROOF',
+  'RETIRE_CANDIDATE_NO_LIVE_CALLER',
 ]);
 
 const limit = registry.providerLimits?.edgeFunctionsPerProject;
@@ -89,6 +90,12 @@ for (const fn of registry.functions) {
       !/caller proof/i.test(fn.callerEvidence)
     ) {
       throw new Error('caller-proof review lacks explicit evidence gap: ' + key);
+    }
+    if (
+      fn.decision === 'RETIRE_CANDIDATE_NO_LIVE_CALLER' &&
+      !/no repository references|no live caller/i.test(fn.callerEvidence)
+    ) {
+      throw new Error('no-live-caller retirement candidate lacks caller evidence: ' + key);
     }
     if (
       fn.decision === 'RETAIN_EVIDENCE_PENDING_OWNER_RECONCILIATION' &&
@@ -235,7 +242,9 @@ console.log(
     (reconciliationCounts.get('RETAIN_EVIDENCE_PENDING_OWNER_RECONCILIATION') || 0) +
     ' retain-evidence, ' +
     (reconciliationCounts.get('REVIEW_REQUIRED_CALLER_PROOF') || 0) +
-    ' caller-proof-required), ' +
+    ' caller-proof-required, ' +
+    (reconciliationCounts.get('RETIRE_CANDIDATE_NO_LIVE_CALLER') || 0) +
+    ' no-live-caller-retirement), ' +
     advisor.dispositions.length +
     ' advisor groups.',
 );
