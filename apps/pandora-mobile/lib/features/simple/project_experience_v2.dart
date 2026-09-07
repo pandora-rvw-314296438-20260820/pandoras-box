@@ -1192,8 +1192,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
       if (liveUrl != null) 'liveUrl': liveUrl,
       if (host != null && host.isNotEmpty) 'liveHost': host,
       if (snapshot.domain != null) 'domain': snapshot.domain!.domain,
-      if (snapshot.domain != null)
-        'domainVerified': snapshot.domain!.verified,
+      if (snapshot.domain != null) 'domainVerified': snapshot.domain!.verified,
     };
   }
 
@@ -2008,8 +2007,7 @@ class _ProjectWorkspaceV2ScreenState extends State<ProjectWorkspaceV2Screen>
 
   Future<void> _openLiveSite() async {
     final liveUrl = _liveUrl;
-    if (liveUrl != null &&
-        await PandoraNativeIo.openExternalUrl(liveUrl)) {
+    if (liveUrl != null && await PandoraNativeIo.openExternalUrl(liveUrl)) {
       return;
     }
     if (!mounted) return;
