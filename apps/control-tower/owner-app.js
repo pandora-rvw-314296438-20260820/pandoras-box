@@ -79,6 +79,16 @@ async function loadProjectWorkspace(sourceId = routeResourceFromLocation(), { qu
     item.runtime = runtime;
     item.experience = experience;
     item.theatre = theatre;
+    const previewIdentity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+    if (item.focusToken && (!previewIdentity
+      || item.focusToken.projectId !== previewIdentity.projectId
+      || item.focusToken.versionId !== previewIdentity.versionId
+      || item.focusToken.artifactDigest !== previewIdentity.artifactDigest
+      || Date.parse(item.focusToken.expiresAt || '') <= Date.now())) {
+      item.selectionMode = false;
+      item.selectedTarget = null;
+      item.focusToken = null;
+    }
     item.error = null;
     item.loadedAt = new Date().toISOString();
     if (item.mutationKind === 'publish') {
@@ -159,6 +169,162 @@ async function askPandora() {
     state.ask.error = error?.message || 'Pandora is temporarily unavailable.';
   } finally {
     state.ask.sending = false;
+    render();
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function postPreviewFocusMode(enabled) {
+  requestAnimationFrame(() => {
+    const frame = document.querySelector('[data-project-preview-frame]');
+    frame?.contentWindow?.postMessage({ type: 'pandora.preview.focus-mode.v1', enabled: enabled === true }, '*');
+  });
+}
+
+function normalizedPreviewSelection(value) {
+  if (!value || typeof value !== 'object' || value.type !== 'pandora.preview.selection.v2') return null;
+  const bounded = (input, max) => String(input || '').replace(/[\r\n\0]/g, ' ').trim().slice(0, max);
+  const bounds = value.bounds && typeof value.bounds === 'object'
+    ? Object.fromEntries(['x','y','width','height'].map((key) => [key, Number(value.bounds[key])]))
+    : null;
+  if (bounds && Object.values(bounds).some((number) => !Number.isFinite(number) || number < 0 || number > 100000)) return null;
+  const componentId = bounded(value.componentId, 200);
+  const semanticId = bounded(value.semanticId, 400);
+  if (!componentId || !semanticId) return null;
+  const sourceLine = value.sourceLine == null ? null : Number(value.sourceLine);
+  return {
+    componentId,
+    semanticId,
+    selector: bounded(value.selector, 1000),
+    role: bounded(value.role, 120),
+    accessibleName: bounded(value.accessibleName, 300),
+    route: bounded(value.route, 500) || '/',
+    sourceFile: bounded(value.sourceFile, 512) || 'index.html',
+    sourceLine: Number.isSafeInteger(sourceLine) && sourceLine > 0 ? sourceLine : null,
+    bounds,
+  };
+}
+
+function acceptPreviewSelection(value) {
+  const item = state.projectWorkspace;
+  if (!item.selectionMode || item.changing) return;
+  const selected = normalizedPreviewSelection(value);
+  const identity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+  if (!selected || !identity) {
+    item.selectionMode = false;
+    item.selectedTarget = null;
+    item.focusToken = null;
+    showToast('Pandora could not bind that object to the exact preview. Select it again.', 'error');
+    render();
+    return;
+  }
+  const issuedAt = new Date();
+  const expiresAt = new Date(issuedAt.getTime() + 15 * 60 * 1000);
+  item.selectionMode = false;
+  item.selectedTarget = selected;
+  item.focusToken = {
+    schemaVersion: 2,
+    projectId: identity.projectId,
+    versionId: identity.versionId,
+    artifactDigest: identity.artifactDigest,
+    ...selected,
+    issuedAt: issuedAt.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+  };
+  render();
+}
+
+function focusTokenMatchesVisible() {
+  const token = state.projectWorkspace.focusToken;
+  if (!token) return true;
+  const identity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+  return Boolean(identity
+    && token.projectId === identity.projectId
+    && token.versionId === identity.versionId
+    && token.artifactDigest === identity.artifactDigest
+    && Date.parse(token.expiresAt || '') > Date.now());
+}
+
+async function performWorkspaceChange(message) {
+  const item = state.projectWorkspace;
+  const projectId = item.runtime?.project?.id;
+  if (!projectId || item.experience?.can_change !== true || item.changing) return;
+  if (!focusTokenMatchesVisible()) {
+    item.selectionMode = false;
+    item.selectedTarget = null;
+    item.focusToken = null;
+    showToast('That selection belongs to an older preview. Select the object again before changing it.', 'error');
+    render();
+    return;
+  }
+  const baselineVersion = item.experience?.candidate_version_id
+    || item.experience?.current_version_id
+    || item.runtime?.candidate?.versionId
+    || null;
+  item.changeRequestKey ||= 'web-focus-change:' + projectId + ':' + crypto.randomUUID();
+  const payload = {
+    change: message,
+    idempotencyKey: item.changeRequestKey,
+    ...(item.focusToken ? { focusToken: item.focusToken } : {}),
+  };
+  item.changing = true;
+  item.changePhase = 'understanding';
+  render();
+  try {
+    let admission = null;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      admission = await request('/projects/' + encodeURIComponent(projectId) + '/change', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      item.changePhase = admission?.stage || 'understanding';
+      render();
+      if (admission?.streamId || ['building','generating_source','queued'].includes(String(admission?.stage || ''))) break;
+      if (attempt < 7) await sleep(2000);
+    }
+    if (!admission?.streamId && !['building','generating_source','queued'].includes(String(admission?.stage || ''))) {
+      throw new Error('Pandora is still preparing that change. The current preview remains available.');
+    }
+
+    item.changePhase = 'building';
+    render();
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      await loadProjectWorkspace(item.sourceId, { quiet: true });
+      const experience = item.experience || {};
+      if (experience.safe_failure_code || experience.safe_failure_message) {
+        throw new Error(experience.safe_failure_message || 'Pandora could not verify the new version.');
+      }
+      if (experience.needs_you === true || item.theatre?.needs_you === true) {
+        throw new Error('Pandora needs you before this change can finish.');
+      }
+      const nextVersion = experience.candidate_version_id || experience.current_version_id || null;
+      const verification = String(experience.candidate_verification_state || '').toLowerCase();
+      const preview = window.PandorasOwnerProjectWorkspace?.exactPreviewUrl?.();
+      if (nextVersion && nextVersion !== baselineVersion && preview
+        && (verification === 'passed' || experience.current_verified === true)) {
+        item.changeMessage = '';
+        item.changeRequestKey = null;
+        item.changePhase = 'preview_ready';
+        item.changing = false;
+        item.selectionMode = false;
+        item.selectedTarget = null;
+        item.focusToken = null;
+        showToast('Preview updated. Pandora verified the exact new version before showing it.', 'success');
+        render();
+        return;
+      }
+      item.changePhase = String(item.theatre?.owner_stage || experience.build_phase || 'checking').toLowerCase();
+      render();
+      if (attempt < 59) await sleep(3000);
+    }
+    throw new Error('Pandora is still building that change. The current preview remains available.');
+  } catch (error) {
+    item.changing = false;
+    item.changePhase = 'problem';
+    showToast((error?.message || 'Pandora could not complete that change.') + ' No unverified version replaced the current preview.', 'error');
     render();
   }
 }
@@ -268,9 +434,13 @@ app.addEventListener('input', (event) => {
   if (input) state.ask.message = input.value;
   const projectChange = event.target.closest('[data-project-change-message]');
   if (projectChange) {
+    if (projectChange.value !== state.projectWorkspace.changeMessage && !state.projectWorkspace.changing) {
+      state.projectWorkspace.changeRequestKey = null;
+      state.projectWorkspace.changePhase = null;
+    }
     state.projectWorkspace.changeMessage = projectChange.value;
     const submit = projectChange.closest('form')?.querySelector('button[type="submit"]');
-    if (submit) submit.disabled = !projectChange.value.trim();
+    if (submit) submit.disabled = state.projectWorkspace.changing || !projectChange.value.trim();
   }
 });
 
@@ -280,20 +450,8 @@ app.addEventListener('submit', async (event) => {
     event.preventDefault();
     const message = state.projectWorkspace.changeMessage.trim();
     const projectId = state.projectWorkspace.runtime?.project?.id;
-    const projectName = state.projectWorkspace.runtime?.project?.name || state.projectWorkspace.ownerSummary?.name || '';
-    if (!message || !projectId || state.projectWorkspace.experience?.can_change !== true) return;
-    if (state.ask.threadId && state.ask.projectId !== projectId) {
-      state.ask.threadId = null;
-      state.ask.reply = '';
-      state.ask.intent = '';
-      state.ask.handoff = null;
-    }
-    state.ask.projectId = projectId;
-    state.ask.projectName = projectName;
-    state.ask.message = message;
-    state.projectWorkspace.changeMessage = '';
-    navigate('ask');
-    await askPandora();
+    if (!message || !projectId || state.projectWorkspace.experience?.can_change !== true || state.projectWorkspace.changing) return;
+    await performWorkspaceChange(message);
     return;
   }
   const form = event.target.closest('[data-ask-form]');
@@ -360,6 +518,12 @@ app.addEventListener('click', async (event) => {
       state.projectWorkspace.sourceId = project.id;
       state.projectWorkspace.view = 'current';
       state.projectWorkspace.confirmAction = null;
+      state.projectWorkspace.changing = false;
+      state.projectWorkspace.changePhase = null;
+      state.projectWorkspace.changeRequestKey = null;
+      state.projectWorkspace.selectionMode = false;
+      state.projectWorkspace.selectedTarget = null;
+      state.projectWorkspace.focusToken = null;
       navigate('project', { resource: project.id });
       await loadProjectWorkspace(project.id);
     }
@@ -371,6 +535,25 @@ app.addEventListener('click', async (event) => {
       state.projectWorkspace.view = view;
       render();
     }
+    return;
+  }
+  if (action === 'toggle-preview-focus') {
+    if (state.projectWorkspace.changing) return;
+    state.projectWorkspace.selectionMode = !state.projectWorkspace.selectionMode;
+    if (state.projectWorkspace.selectionMode) {
+      state.projectWorkspace.selectedTarget = null;
+      state.projectWorkspace.focusToken = null;
+    }
+    render();
+    postPreviewFocusMode(state.projectWorkspace.selectionMode);
+    return;
+  }
+  if (action === 'clear-preview-focus') {
+    state.projectWorkspace.selectionMode = false;
+    state.projectWorkspace.selectedTarget = null;
+    state.projectWorkspace.focusToken = null;
+    render();
+    postPreviewFocusMode(false);
     return;
   }
   if (action === 'prepare-workspace-publish') {
@@ -432,7 +615,9 @@ app.addEventListener('click', async (event) => {
     };
     state.projectWorkspace = {
       sourceId: null, source: null, ownerSummary: null, detail: null, runtime: null,
-      experience: null, theatre: null, view: 'current', changeMessage: '', loading: false,
+      experience: null, theatre: null, view: 'current', changeMessage: '',
+      changing: false, changePhase: null, changeRequestKey: null,
+      selectionMode: false, selectedTarget: null, focusToken: null, loading: false,
       mutating: false, confirmAction: null, error: null, loadedAt: null,
     };
     showToast('Signed out. Protected live information is hidden.', 'info');
@@ -443,6 +628,18 @@ app.addEventListener('click', async (event) => {
     return;
   }
   if (action === 'close-toast') closeToast();
+});
+
+app.addEventListener('load', (event) => {
+  if (event.target?.matches?.('[data-project-preview-frame]')) {
+    postPreviewFocusMode(state.projectWorkspace.selectionMode);
+  }
+}, true);
+
+window.addEventListener('message', (event) => {
+  const frame = document.querySelector('[data-project-preview-frame]');
+  if (!frame || event.source !== frame.contentWindow) return;
+  acceptPreviewSelection(event.data);
 });
 
 window.addEventListener('popstate', () => {
