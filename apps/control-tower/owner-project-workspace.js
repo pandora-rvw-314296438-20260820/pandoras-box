@@ -148,7 +148,16 @@ function currentView() {
   const preview = exactPreviewUrl();
   const embedded = embeddedPreviewUrl();
   const identity = previewIdentity();
-  const focusCapable = Boolean(focusCapablePreviewUrl());
+  const proxyFocus = Boolean(focusCapablePreviewUrl());
+  const focusAvailable = Boolean(identity && experience?.can_focus === true);
+  const preparedFocus = Boolean(
+    item.selectionMode
+      && item.focusPreviewHtml
+      && identity
+      && item.focusPreviewVersionId === identity.versionId
+      && item.focusPreviewArtifactDigest === identity.artifactDigest
+  );
+  const frameSource = preparedFocus ? 'about:blank' : embedded;
   const versionId = experience?.candidate_version_id || experience?.current_version_id || runtime?.candidate?.versionId;
   const verification = String(experience?.candidate_verification_state || runtime?.verification?.state || 'not checked').replaceAll('_', ' ');
   if (!preview || !embedded) {
@@ -173,16 +182,16 @@ function currentView() {
         <small>${esc(verification)}</small>
       </div>
       <div class="owner-workspace-preview-actions">
-        <button type="button" class="owner-button secondary" data-action="toggle-preview-focus"${identity && focusCapable && !item.changing ? '' : ' disabled'}>${item.selectionMode ? 'Cancel focus' : item.selectedTarget ? 'Select another' : 'Focus object'}</button>
+        <button type="button" class="owner-button secondary" data-action="toggle-preview-focus"${focusAvailable && !item.changing && !item.focusPreviewLoading ? '' : ' disabled'}>${item.focusPreviewLoading ? 'Preparing focus…' : item.selectionMode ? 'Cancel focus' : item.selectedTarget ? 'Select another' : 'Focus object'}</button>
         <a class="owner-button primary" href="${esc(preview)}" target="_blank" rel="noopener noreferrer">Open full preview</a>
       </div>
     </div>
     <div class="owner-workspace-preview-frame-wrap ${item.selectionMode ? 'is-focusing' : ''}">
-      <iframe data-project-preview-frame title="Exact project preview" src="${esc(embedded)}" sandbox="allow-scripts allow-popups allow-modals allow-downloads" referrerpolicy="no-referrer"></iframe>
+      <iframe data-project-preview-frame data-focus-proxy="${proxyFocus ? 'true' : 'false'}" title="Exact project preview" src="${esc(frameSource)}" sandbox="allow-scripts allow-popups allow-modals allow-downloads" referrerpolicy="no-referrer"></iframe>
       ${item.selectionMode ? '<div class="owner-workspace-focus-hint">Choose the exact object you want Pandora to change.</div>' : ''}
     </div>
     ${selected ? `<div class="owner-workspace-selected-target"><span>Focused</span><strong>${esc(selected)}</strong><button type="button" data-action="clear-preview-focus">Clear</button></div>` : ''}
-    ${!focusCapable ? '<div class="owner-workspace-focus-unavailable">Object focus is unavailable on this preview transport. You can still describe a whole-page change below.</div>' : ''}
+    ${item.focusPreviewError ? `<div class="owner-workspace-focus-unavailable">${esc(item.focusPreviewError)}</div>` : ''}
   </div>`;
 }
 

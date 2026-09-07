@@ -21,7 +21,9 @@ test('web focus loop keeps the exact preview as the result hero', () => {
   assert.match(workspace, /https:\/\/mcpmaster\.vercel\.app/);
   assert.match(workspace, /trustedOrigins\.has\(url\.origin\)/);
   assert.ok(workspace.includes('/^\\/preview\\/[0-9a-f]{64}\\/index\\.html$/i'));
-  assert.match(workspace, /Object focus is unavailable on this preview transport/);
+  assert.match(workspace, /experience\?\.can_focus === true/);
+  assert.match(workspace, /data-focus-proxy/);
+  assert.doesNotMatch(workspace, /Object focus is unavailable on this preview transport/);
   assert.doesNotMatch(workspace, /allow-same-origin/);
 });
 
@@ -29,6 +31,7 @@ test('preview focus bridge stays sandboxed and communicates by postMessage', () 
   assert.match(preview, /injectFocusBridge/);
   assert.match(preview, /pandora\.preview\.selection\.v2/);
   assert.match(preview, /parent\.postMessage/);
+  assert.match(preview, /event\.source!==parent/);
   assert.match(preview, /sandbox allow-scripts allow-popups allow-modals allow-downloads/);
   assert.doesNotMatch(preview, /allow-same-origin/);
 });

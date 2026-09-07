@@ -9,6 +9,7 @@ const node_path_1 = __importDefault(require("node:path"));
 const express_1 = __importDefault(require("express"));
 const vercel_connect_user_1 = require("./vercel-connect-user.js");
 const project_change_1 = require("./project-change.js");
+const preview_focus_1 = require("./preview-focus.js");
 const OPERATOR_ROLES = new Set(['owner', 'admin', 'operator']);
 const APPROVER_ROLES = new Set(['owner', 'admin']);
 const EXECUTOR_ROLES = new Set(['owner', 'admin']);
@@ -100,6 +101,9 @@ function requiredOperatorScope(request) {
         return 'projectos:plan';
     if (request.method === 'POST' && request.path === '/tools/approve')
         return 'projectos:approve';
+    if (request.method === 'POST'
+        && /^\/projects\/[0-9a-f-]+\/focus-preview$/i.test(request.path))
+        return 'projectos:read';
     if (request.method === 'POST'
         && /^\/projects\/[0-9a-f-]+\/change$/i.test(request.path))
         return 'projectos:execute';
@@ -198,6 +202,10 @@ function createOperatorApiApp(options) {
     });
     const projectChangeExecutor = options.projectChangeExecutor ?? (0, project_change_1.createProjectChangeExecutor)({
         organizationId: options.organizationId,
+        supabaseUrl: options.supabaseUrl,
+        publishableKey: options.supabasePublishableKey,
+    });
+    const focusPreviewExecutor = options.focusPreviewExecutor ?? (0, preview_focus_1.createFocusPreviewExecutor)({
         supabaseUrl: options.supabaseUrl,
         publishableKey: options.supabasePublishableKey,
     });
@@ -374,7 +382,7 @@ function createOperatorApiApp(options) {
         }
         if (request.method === 'POST'
             && (request.path === '/tools/execute'
-                || /^\/projects\/[0-9a-f-]+\/change$/i.test(request.path))
+                || /^\/projects\/[0-9a-f-]+\/(?:change|focus-preview)$/i.test(request.path))
             && !EXECUTOR_ROLES.has(current.membership.role)) {
             noStore(response);
             response.status(403).json({
@@ -389,6 +397,32 @@ function createOperatorApiApp(options) {
         request.headers.authorization = `Bearer ${internalAdminToken}`;
         delete request.headers.origin;
         next();
+    });
+    router.post('/projects/:projectId/focus-preview', async (request, response) => {
+        noStore(response);
+        const current = actor(response);
+        try {
+            const result = await focusPreviewExecutor({
+                actor: current,
+                projectId: request.params.projectId,
+                body: request.body,
+            });
+            response.json(result);
+        }
+        catch (error) {
+            const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599
+                ? error.status
+                : 503;
+            response.status(status).json({
+                ok: false,
+                error: {
+                    code: typeof error?.code === 'string' ? error.code : 'FOCUS_PREVIEW_UNAVAILABLE',
+                    message: error instanceof Error
+                        ? error.message
+                        : 'Pandora could not prepare object focus right now.',
+                },
+            });
+        }
     });
     router.post('/projects/:projectId/change', async (request, response) => {
         noStore(response);

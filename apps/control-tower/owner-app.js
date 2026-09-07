@@ -34,6 +34,7 @@ function render() {
   }[state.route]?.() || (state.mode === 'professional' ? professionalHome() : renderHome());
   const navigation = state.mode === 'professional' ? professionalNav() : nav();
   app.innerHTML = `<div class="owner-app ${state.mode === 'professional' ? 'professional-mode' : 'simple-mode'}">${header()}<main id="main-content" class="owner-main" tabindex="-1">${routeMarkup}</main>${navigation}${dialogMarkup()}${toastMarkup()}</div>`;
+  mountPreparedFocusPreview();
 }
 
 function ownerProjectsFromPayload(payload) {
@@ -88,6 +89,15 @@ async function loadProjectWorkspace(sourceId = routeResourceFromLocation(), { qu
       item.selectionMode = false;
       item.selectedTarget = null;
       item.focusToken = null;
+    }
+    if (item.focusPreviewHtml && (!previewIdentity
+      || item.focusPreviewVersionId !== previewIdentity.versionId
+      || item.focusPreviewArtifactDigest !== previewIdentity.artifactDigest)) {
+      item.selectionMode = false;
+      item.focusPreviewHtml = null;
+      item.focusPreviewVersionId = null;
+      item.focusPreviewArtifactDigest = null;
+      item.focusPreviewError = null;
     }
     item.error = null;
     item.loadedAt = new Date().toISOString();
@@ -254,6 +264,125 @@ function updateWorkspaceProgressDom() {
   }
 }
 
+function mountPreparedFocusPreview() {
+  const item = state.projectWorkspace;
+  if (state.route !== 'project' || item.selectionMode !== true || !item.focusPreviewHtml) return;
+  const frame = document.querySelector('[data-project-preview-frame]');
+  if (!frame || frame.dataset.focusProxy === 'true') return;
+  frame.srcdoc = item.focusPreviewHtml;
+}
+
+async function focusHtmlFromEnvelope(payload, identity) {
+  if (!payload || payload.kind !== 'pandora.web-focus-preview.v1'
+    || payload.projectId !== identity.projectId
+    || payload.versionId !== identity.versionId
+    || String(payload.artifactDigest || '').toLowerCase() !== identity.artifactDigest
+    || payload.provider !== 'vercel'
+    || !/^[0-9a-f]{64}$/i.test(String(payload.sha256 || ''))
+    || typeof payload.htmlBase64 !== 'string'
+    || payload.htmlBase64.length < 4
+    || payload.htmlBase64.length > 3 * 1024 * 1024
+    || payload.htmlBase64.length % 4 !== 0
+    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(payload.htmlBase64)) {
+    throw new Error('Pandora could not verify the exact focus preview.');
+  }
+  let binary;
+  try {
+    binary = atob(payload.htmlBase64);
+  } catch {
+    throw new Error('Pandora returned an unreadable focus preview.');
+  }
+  if (binary.length < 1 || binary.length > 2 * 1024 * 1024 || Number(payload.byteSize) !== binary.length) {
+    throw new Error('Pandora returned an invalid focus preview size.');
+  }
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  const digestHex = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  if (digestHex !== String(payload.sha256).toLowerCase()) {
+    throw new Error('Pandora could not verify the focus preview digest.');
+  }
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw new Error('Pandora returned invalid preview text.');
+  }
+}
+
+async function preparePreviewFocus() {
+  const item = state.projectWorkspace;
+  if (item.changing || item.focusPreviewLoading) return;
+  const identity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+  if (!identity || item.experience?.can_focus !== true) {
+    showToast('Pandora has not marked this exact preview safe for object focus.', 'error');
+    return;
+  }
+
+  item.selectedTarget = null;
+  item.focusToken = null;
+  item.focusPreviewError = null;
+
+  const proxyUrl = window.PandorasOwnerProjectWorkspace?.focusCapablePreviewUrl?.();
+  if (proxyUrl) {
+    item.focusPreviewHtml = null;
+    item.focusPreviewVersionId = null;
+    item.focusPreviewArtifactDigest = null;
+    item.selectionMode = true;
+    render();
+    postPreviewFocusMode(true);
+    return;
+  }
+
+  item.focusPreviewLoading = true;
+  item.selectionMode = false;
+  render();
+  try {
+    const payload = await request('/projects/' + encodeURIComponent(identity.projectId) + '/focus-preview', {
+      method: 'POST',
+      body: JSON.stringify({ versionId: identity.versionId }),
+    });
+    const currentIdentity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+    if (!currentIdentity
+      || currentIdentity.projectId !== identity.projectId
+      || currentIdentity.versionId !== identity.versionId
+      || currentIdentity.artifactDigest !== identity.artifactDigest) {
+      throw new Error('The preview changed while Pandora was preparing object focus. Select Focus object again.');
+    }
+    const html = await focusHtmlFromEnvelope(payload, identity);
+    const finalIdentity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
+    if (!finalIdentity
+      || finalIdentity.projectId !== identity.projectId
+      || finalIdentity.versionId !== identity.versionId
+      || finalIdentity.artifactDigest !== identity.artifactDigest) {
+      throw new Error('The preview changed while Pandora was preparing object focus. Select Focus object again.');
+    }
+    item.focusPreviewHtml = html;
+    item.focusPreviewVersionId = identity.versionId;
+    item.focusPreviewArtifactDigest = identity.artifactDigest;
+    item.focusPreviewLoading = false;
+    item.selectionMode = true;
+    render();
+  } catch (error) {
+    item.focusPreviewLoading = false;
+    item.selectionMode = false;
+    item.focusPreviewHtml = null;
+    item.focusPreviewVersionId = null;
+    item.focusPreviewArtifactDigest = null;
+    item.focusPreviewError = error?.message || 'Pandora could not prepare object focus right now.';
+    render();
+    showToast(item.focusPreviewError, 'error');
+  }
+}
+
+function clearPreparedFocusPreview() {
+  const item = state.projectWorkspace;
+  item.selectionMode = false;
+  item.focusPreviewLoading = false;
+  item.focusPreviewHtml = null;
+  item.focusPreviewVersionId = null;
+  item.focusPreviewArtifactDigest = null;
+}
+
 function postPreviewFocusMode(enabled) {
   requestAnimationFrame(() => {
     const frame = document.querySelector('[data-project-preview-frame]');
@@ -291,9 +420,10 @@ function acceptPreviewSelection(value) {
   const selected = normalizedPreviewSelection(value);
   const identity = window.PandorasOwnerProjectWorkspace?.previewIdentity?.();
   if (!selected || !identity) {
-    item.selectionMode = false;
+    clearPreparedFocusPreview();
     item.selectedTarget = null;
     item.focusToken = null;
+    item.focusPreviewError = null;
     showToast('Pandora could not bind that object to the exact preview. Select it again.', 'error');
     render();
     return;
@@ -302,6 +432,10 @@ function acceptPreviewSelection(value) {
   const expiresAt = new Date(issuedAt.getTime() + 15 * 60 * 1000);
   item.selectionMode = false;
   item.selectedTarget = selected;
+  item.focusPreviewHtml = null;
+  item.focusPreviewVersionId = null;
+  item.focusPreviewArtifactDigest = null;
+  item.focusPreviewError = null;
   item.focusToken = {
     schemaVersion: 2,
     projectId: identity.projectId,
@@ -330,9 +464,10 @@ async function performWorkspaceChange(message) {
   const projectId = item.runtime?.project?.id;
   if (!projectId || item.experience?.can_change !== true || item.changing) return;
   if (!focusTokenMatchesVisible()) {
-    item.selectionMode = false;
+    clearPreparedFocusPreview();
     item.selectedTarget = null;
     item.focusToken = null;
+    item.focusPreviewError = null;
     showToast('That selection belongs to an older preview. Select the object again before changing it.', 'error');
     render();
     return;
@@ -605,6 +740,11 @@ app.addEventListener('click', async (event) => {
       state.projectWorkspace.selectionMode = false;
       state.projectWorkspace.selectedTarget = null;
       state.projectWorkspace.focusToken = null;
+      state.projectWorkspace.focusPreviewHtml = null;
+      state.projectWorkspace.focusPreviewVersionId = null;
+      state.projectWorkspace.focusPreviewArtifactDigest = null;
+      state.projectWorkspace.focusPreviewLoading = false;
+      state.projectWorkspace.focusPreviewError = null;
       navigate('project', { resource: project.id });
       await loadProjectWorkspace(project.id);
     }
@@ -613,28 +753,35 @@ app.addEventListener('click', async (event) => {
   if (action === 'workspace-view') {
     const view = target.dataset.view;
     if (['current', 'live', 'history'].includes(view)) {
+      if (view !== 'current') {
+        clearPreparedFocusPreview();
+        state.projectWorkspace.selectedTarget = null;
+        state.projectWorkspace.focusToken = null;
+      }
       state.projectWorkspace.view = view;
       render();
     }
     return;
   }
   if (action === 'toggle-preview-focus') {
-    if (state.projectWorkspace.changing) return;
-    state.projectWorkspace.selectionMode = !state.projectWorkspace.selectionMode;
+    if (state.projectWorkspace.changing || state.projectWorkspace.focusPreviewLoading) return;
     if (state.projectWorkspace.selectionMode) {
+      clearPreparedFocusPreview();
       state.projectWorkspace.selectedTarget = null;
       state.projectWorkspace.focusToken = null;
+      state.projectWorkspace.focusPreviewError = null;
+      render();
+      return;
     }
-    render();
-    postPreviewFocusMode(state.projectWorkspace.selectionMode);
+    await preparePreviewFocus();
     return;
   }
   if (action === 'clear-preview-focus') {
-    state.projectWorkspace.selectionMode = false;
+    clearPreparedFocusPreview();
     state.projectWorkspace.selectedTarget = null;
     state.projectWorkspace.focusToken = null;
+    state.projectWorkspace.focusPreviewError = null;
     render();
-    postPreviewFocusMode(false);
     return;
   }
   if (action === 'prepare-workspace-publish') {
@@ -698,7 +845,9 @@ app.addEventListener('click', async (event) => {
       sourceId: null, source: null, ownerSummary: null, detail: null, runtime: null,
       experience: null, theatre: null, view: 'current', changeMessage: '',
       changing: false, changePhase: null, changeRequestKey: null,
-      selectionMode: false, selectedTarget: null, focusToken: null, loading: false,
+      selectionMode: false, selectedTarget: null, focusToken: null,
+      focusPreviewHtml: null, focusPreviewVersionId: null, focusPreviewArtifactDigest: null,
+      focusPreviewLoading: false, focusPreviewError: null, loading: false,
       mutating: false, confirmAction: null, error: null, loadedAt: null,
     };
     showToast('Signed out. Protected live information is hidden.', 'info');
