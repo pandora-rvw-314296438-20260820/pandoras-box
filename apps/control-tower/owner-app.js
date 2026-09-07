@@ -157,7 +157,7 @@ async function performWorkspaceMutation(kind) {
           method: 'POST',
           body: {
             versionId: candidateVersionId,
-            expectedProductionVersionId: item.runtime?.production?.version_id ?? null,
+            expectedProductionVersionId: item.runtime?.production?.versionId ?? null,
           },
         },
       );

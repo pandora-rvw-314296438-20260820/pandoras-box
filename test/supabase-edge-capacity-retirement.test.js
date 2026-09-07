@@ -23,8 +23,11 @@ const migration = fs.readFileSync(
 const classificationSha = 'ec9c02fe13095d34c3c7433d1db743ac5a57e14e';
 
 test('Edge retirement broker is exactly bound to source-classified self-retired functions', () => {
-  const expected = registry.functions
-    .filter((entry) => entry.decision === 'RETIRE_CANDIDATE_SELF_RETIRED')
+  const expected = registry.retiredFunctions
+    .filter(
+      (entry) =>
+        entry.retirement?.classificationDecision === 'RETIRE_CANDIDATE_SELF_RETIRED',
+    )
     .map((entry) => ({
       key: entry.projectRef + ':' + entry.slug,
       version: entry.version,
@@ -41,6 +44,34 @@ test('Edge retirement broker is exactly bound to source-classified self-retired 
   assert.equal(expected.length, 30);
   assert.deepEqual(actual, expected);
   assert.match(migration, new RegExp(classificationSha));
+
+  for (const entry of registry.retiredFunctions) {
+    assert.equal(entry.status, 'RETIRED');
+    assert.equal(entry.decision, 'RETIRED_VERIFIED');
+    assert.equal(entry.intentionalActive, false);
+    assert.equal(entry.retirement.classificationSourceSha, classificationSha);
+    assert.equal(entry.retirement.expectedVersion, entry.version);
+    assert.equal(entry.retirement.deleteStatus, 200);
+    assert.equal(entry.retirement.verificationStatus, 404);
+    assert.ok(Date.parse(entry.retirement.deletedAt));
+  }
+});
+
+test('post-retirement registry separates live provider inventory from retirement history', () => {
+  assert.equal(registry.functions.length, 102);
+  assert.equal(registry.retiredFunctions.length, 30);
+  assert.deepEqual(registry.liveInventoryCounts, {
+    primary: 71,
+    secondary: 31,
+    total: 102,
+  });
+
+  const activeKeys = new Set(
+    registry.functions.map((entry) => entry.projectRef + ':' + entry.slug),
+  );
+  for (const entry of registry.retiredFunctions) {
+    assert.equal(activeKeys.has(entry.projectRef + ':' + entry.slug), false);
+  }
 });
 
 test('Edge retirement broker excludes retained and unresolved candidates', () => {
