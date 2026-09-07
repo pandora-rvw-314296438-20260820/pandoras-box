@@ -1343,39 +1343,97 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   } else operationId = textValue(claimed.id);
   await admin.from("pandora_runtime_operations").update({ status: "running", started_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
 
+  const bundle = await loadExactRuntimeBundle(context, projectId, requestedVersion, artifactDigest);
+  if (bundle.sourceDigest !== sourceDigest || bundle.sourceKind !== sourceKind || bundle.sourceRef !== sourceRef || bundle.sourceCommit !== sourceCommit) {
+    throw new Error("ARTIFACT_BUNDLE_LINEAGE_MISMATCH");
+  }
+
   let providerMutationStarted = false;
   try {
-    const beforePromotion = await vercelRequest(`/v13/deployments/${encodeURIComponent(previewDeploymentId)}`, { method: "GET" }, [200]);
-    if (textValue(beforePromotion.id ?? beforePromotion.uid) !== previewDeploymentId) throw new Error("PROVIDER_LINEAGE_MISMATCH");
-    if (textValue(beforePromotion.readyState ?? beforePromotion.status).toUpperCase() !== "READY") throw new Error("PREVIEW_NOT_READY");
-    if (textValue(beforePromotion.target).toLowerCase() === "production") throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
-    providerMutationStarted = true;
-    try {
-      await vercelRequest(`/v10/projects/${encodeURIComponent(provider.id)}/promote/${encodeURIComponent(previewDeploymentId)}`, {
-        method: "POST", body: JSON.stringify({ meta: { pandoraProjectVersionId: requestedVersion, pandoraVerificationRunId: textValue(verification.id) } }),
-      }, [200, 201]);
-    } catch (promotionError) {
-      const reconciled = await vercelRequest(`/v13/deployments/${encodeURIComponent(previewDeploymentId)}`, { method: "GET" }, [200]);
-      if (textValue(reconciled.target).toLowerCase() !== "production") throw promotionError;
+    const beforeProduction = await vercelRequest(`/v13/deployments/${encodeURIComponent(previewDeploymentId)}`, { method: "GET" }, [200]);
+    if (textValue(beforeProduction.id ?? beforeProduction.uid) !== previewDeploymentId) throw new Error("PROVIDER_LINEAGE_MISMATCH");
+    if (textValue(beforeProduction.readyState ?? beforeProduction.status).toUpperCase() !== "READY") throw new Error("PREVIEW_NOT_READY");
+    if (textValue(beforeProduction.target).toLowerCase() === "production") throw new Error("PRODUCTION_PRECONDITION_MISMATCH");
+
+    const productionMeta = {
+      pandoraOperationId: operationKey,
+      pandoraProjectId: projectId,
+      pandoraProjectVersionId: requestedVersion,
+      pandoraArtifactDigest: artifactDigest,
+      pandoraSourceKind: sourceKind,
+      pandoraSourceRef: sourceRef,
+      ...(sourceCommit ? { pandoraSourceCommit: sourceCommit } : {}),
+      pandoraAuthorizationRef: `owner:${context.userId}`,
+      pandoraEnvironment: "production",
+      pandoraPreviewVerificationRunId: textValue(verification.id),
+    };
+
+    let deployment = await findVercelDeploymentByOperation(provider.id, operationKey);
+    if (!Object.keys(deployment).length) {
+      providerMutationStarted = true;
+      try {
+        deployment = await vercelRequest("/v13/deployments", {
+          method: "POST",
+          body: JSON.stringify({
+            name: provider.name,
+            project: provider.id,
+            target: "production",
+            files: bundle.files.map(({ file, data, encoding }) => ({ file, data, encoding })),
+            meta: productionMeta,
+          }),
+        }, [200, 201]);
+      } catch (createError) {
+        const reconciled = await findVercelDeploymentByOperation(provider.id, operationKey);
+        if (!Object.keys(reconciled).length) throw createError;
+        deployment = reconciled;
+      }
     }
-    const deployment = await vercelRequest(`/v13/deployments/${encodeURIComponent(previewDeploymentId)}`, { method: "GET" }, [200]);
-    if (textValue(deployment.id ?? deployment.uid) !== previewDeploymentId || textValue(deployment.target).toLowerCase() !== "production" || textValue(deployment.readyState ?? deployment.status).toUpperCase() !== "READY") throw new Error("PRODUCTION_PROMOTION_NOT_CONFIRMED");
-    const providerState = textValue(deployment.readyState ?? deployment.status, "pending");
-    const rawUrl = textValue(deployment.url) || textValue(preview.url);
-    const deploymentUrl = rawUrl ? `https://${rawUrl.replace(/^https?:\/\//, "")}` : null;
+
+    const providerDeploymentId = textValue(deployment.id ?? deployment.uid);
+    if (!/^dpl_[A-Za-z0-9]+$/.test(providerDeploymentId)) throw new Error("PROVIDER_LINEAGE_MISMATCH");
+
+    let providerState = textValue(deployment.readyState ?? deployment.status).toUpperCase();
+    for (let attempt = 0; attempt < 20 && !new Set(["READY", "ERROR", "CANCELED"]).has(providerState); attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 750));
+      deployment = await vercelRequest(`/v13/deployments/${encodeURIComponent(providerDeploymentId)}`, { method: "GET" }, [200]);
+      providerState = textValue(deployment.readyState ?? deployment.status).toUpperCase();
+    }
+    if (providerState !== "READY" || textValue(deployment.target).toLowerCase() !== "production") {
+      throw new Error("PRODUCTION_DEPLOYMENT_NOT_CONFIRMED");
+    }
+
+    const deploymentProjectId = textValue(deployment.projectId ?? asRecord(deployment.project).id);
+    if (deploymentProjectId && deploymentProjectId !== provider.id) throw new Error("PROVIDER_LINEAGE_MISMATCH");
+    const confirmedMeta = asRecord(deployment.meta);
+    if (
+      textValue(confirmedMeta.pandoraOperationId) !== operationKey ||
+      textValue(confirmedMeta.pandoraProjectId) !== projectId ||
+      textValue(confirmedMeta.pandoraProjectVersionId) !== requestedVersion ||
+      textValue(confirmedMeta.pandoraArtifactDigest).toLowerCase() !== artifactDigest ||
+      textValue(confirmedMeta.pandoraSourceKind).toLowerCase() !== sourceKind ||
+      textValue(confirmedMeta.pandoraSourceRef).toLowerCase() !== sourceRef ||
+      (textValue(confirmedMeta.pandoraSourceCommit).toLowerCase() || null) !== sourceCommit ||
+      textValue(confirmedMeta.pandoraEnvironment).toLowerCase() !== "production" ||
+      textValue(confirmedMeta.pandoraPreviewVerificationRunId) !== textValue(verification.id)
+    ) throw new Error("PROVIDER_LINEAGE_MISMATCH");
+
+    const immutableRawUrl = textValue(deployment.url);
+    const immutableUrl = immutableRawUrl ? `https://${immutableRawUrl.replace(/^https?:\/\//, "")}` : null;
+    const deploymentUrl = provider.defaultDomain ? `https://${provider.defaultDomain}` : immutableUrl;
+    if (!deploymentUrl || !immutableUrl) throw new Error("PRODUCTION_DEPLOYMENT_NOT_CONFIRMED");
     const status = providerState.toLowerCase();
 
     const { data: productionRow, error: productionError } = await admin.from("pandora_project_deployments").insert({
       organization_id: context.organizationId, project_id: projectId, version_id: requestedVersion, provider: "vercel", environment: "production",
-      provider_project_id: provider.id, provider_deployment_id: previewDeploymentId, url: deploymentUrl, status, source_sha256: sourceDigest,
+      provider_project_id: provider.id, provider_deployment_id: providerDeploymentId, url: deploymentUrl, status, source_sha256: sourceDigest,
       promoted_from_id: preview.id, artifact_digest: artifactDigest, source_commit_sha: sourceCommit, verification_ref: textValue(verification.id), verification_state: "ready_for_verification",
-      provider_state: providerState, immutable_url: deploymentUrl, metadata: { providerName: provider.name, promotionOnly: true, previewVerificationRunId: textValue(verification.id), productionVerificationRunId: null, sourceKind, sourceRef },
+      provider_state: providerState, immutable_url: immutableUrl, metadata: { providerName: provider.name, exactArtifactDeploy: true, promotionOnly: false, previewVerificationRunId: textValue(verification.id), productionVerificationRunId: null, sourceKind, sourceRef },
     }).select("id, version_id, environment, provider_deployment_id, url, status, source_sha256, verification_state, created_at").single();
     if (productionError || !productionRow) throw new Error("BACKEND_WRITE_FAILED");
 
     if (currentEnvironment) {
       let environmentUpdate = admin.from("pandora_runtime_environments")
-        .update({ current_version_id: requestedVersion, current_deployment_id: productionRow.id, status: "ready", verification_state: "ready_for_verification", last_reconciled_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .update({ provider: "vercel", provider_project_id: provider.id, current_version_id: requestedVersion, current_deployment_id: productionRow.id, status: "ready", verification_state: "ready_for_verification", last_reconciled_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq("id", currentEnvironment.id);
       environmentUpdate = expectedProductionVersionId == null ? environmentUpdate.is("current_version_id", null) : environmentUpdate.eq("current_version_id", expectedProductionVersionId);
       const { data: updatedEnvironment, error: environmentUpdateError } = await environmentUpdate.select("id").maybeSingle();
@@ -1413,10 +1471,10 @@ async function publishProject(context: UserContext, identifier: string, body: Js
     const journey = asRecord(config.customerJourney);
     const productionCandidateUrl = domain && domainVerified ? `https://${domain}` : deploymentUrl;
     const previousLiveUrl = textValue(journey.liveUrl) || null;
-    const nextConfig = { ...config, customerJourney: { ...journey, stage: "publishing", runtimeStatus: "verifying", liveUrl: previousLiveUrl, productionCandidateUrl, productionDeploymentId: previewDeploymentId, publishedVersionId: requestedVersion, requestedDomain: domain, domainStatus, productionVerificationState: "ready_for_verification", runtimeUpdatedAt: new Date().toISOString() } };
+    const nextConfig = { ...config, customerJourney: { ...journey, stage: "publishing", runtimeStatus: "verifying", liveUrl: previousLiveUrl, productionCandidateUrl, productionDeploymentId: providerDeploymentId, publishedVersionId: requestedVersion, requestedDomain: domain, domainStatus, productionVerificationState: "ready_for_verification", runtimeUpdatedAt: new Date().toISOString() } };
     const { error: projectError } = await admin.from("projectos_projects").update({ config: nextConfig, updated_at: new Date().toISOString() }).eq("organization_id", context.organizationId).eq("id", projectId);
     if (projectError) throw new Error("BACKEND_WRITE_FAILED");
-    await admin.from("pandora_runtime_operations").update({ status: "succeeded", ambiguous: false, provider_resource_id: previewDeploymentId, result_facts: { projectVersionId: requestedVersion, providerDeploymentId: previewDeploymentId, previewVerificationRunId: textValue(verification.id), promotedFromDeploymentId: previewDeploymentId, sourceKind, sourceRef, verificationState: "ready_for_verification" }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
+    await admin.from("pandora_runtime_operations").update({ status: "succeeded", ambiguous: false, provider_resource_id: providerDeploymentId, result_facts: { projectVersionId: requestedVersion, providerDeploymentId, previewDeploymentId, previewVerificationRunId: textValue(verification.id), sourceKind, sourceRef, verificationState: "ready_for_verification" }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
     return { project: projectResponse({ ...project, config: nextConfig }), production: productionRow, domain: domainRow, liveUrl: previousLiveUrl, productionCandidateUrl, domainVerified, verificationState: "ready_for_verification" };
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
