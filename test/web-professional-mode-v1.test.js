@@ -83,9 +83,14 @@ test('Professional Library consumes only the bounded operator Library index', ()
   assert.ok(professional.includes('does not expose storage paths, raw provenance, source payloads, deployment URLs, provider deployment IDs or artifact bytes'));
 });
 
-test('Business remains unavailable rather than fabricated', () => {
-  assert.ok(professional.includes('Authoritative business analytics are not connected to this web mode yet'));
-  assert.ok(professional.includes('Pandora will not invent revenue, cost, retention, adoption, ROI'));
+test('Professional Business consumes bounded control-plane truth without fabricating outcomes', () => {
+  assert.match(professional, /state\.businessTruth/);
+  assert.ok(professional.includes('Durable business objectives, measurement readiness, economics and budgets'));
+  assert.ok(professional.includes("metricCard('Revenue', 'Not measured'"));
+  assert.ok(professional.includes("metricCard('Retention', 'Not measured'"));
+  assert.ok(professional.includes("metricCard('Paid pilots', 'Not measured'"));
+  assert.ok(professional.includes("metricCard('ROI', 'Unknown'"));
+  assert.ok(professional.includes('Operational economics are not commercial proof'));
 });
 
 test('Connect exposes posture but explicitly keeps credentials out of the browser', () => {
