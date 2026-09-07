@@ -16,12 +16,13 @@ class FakeTransport{
  async request(method,path,body){this.calls.push({method,path,body});
   if(method==="GET"&&path.startsWith("/v6/deployments")) return {status:200,body:{deployments:this.deployments}};
   if(method==="POST"&&path.startsWith("/v13/deployments")){
-   const d={id:"dpl_AAAAA",projectId:"prj_ABCDE",url:"preview.example.vercel.app",readyState:"QUEUED",target:"preview",meta:body.meta};this.deployments.unshift(d);
+   const id=this.deployments.length===0?"dpl_AAAAA":"dpl_BBBBB";
+   const target=body.target||"preview";
+   const d={id,projectId:"prj_ABCDE",url:target==="production"?"production.example.vercel.app":"preview.example.vercel.app",readyState:"QUEUED",target,meta:body.meta};this.deployments.unshift(d);
    if(this.failCreateOnce){this.failCreateOnce=false;const e=new Error("network timeout");e.mutationMayHaveCommitted=true;throw e;}return {status:200,body:d};
   }
   const dep=path.match(/^\/v13\/deployments\/(dpl_[A-Za-z0-9]+)/)?.[1];
-  if(method==="GET"&&dep){const d=this.deployments.find(x=>x.id===dep);return {status:200,body:{...d,readyState:"READY",target:this.promoted.has(dep)?"production":"preview"}};}
-  if(method==="POST"&&path.includes("/promote/")){this.promoted.add(path.match(/promote\/(dpl_[A-Za-z0-9]+)/)[1]);return {status:200,body:{}};}
+  if(method==="GET"&&dep){const d=this.deployments.find(x=>x.id===dep);return {status:200,body:{...d,readyState:"READY"}};}
   if(method==="POST"&&path.includes("/rollback/")) return {status:200,body:{}};
   if(method==="POST"&&path.includes("/domains")) return {status:200,body:{verified:false}};
   if(method==="GET"&&path.includes("/domains/")&&!path.includes("/config")) return {status:200,body:{verified:true,verification:[]}};
@@ -50,13 +51,17 @@ test("READY never self-declares verified",async()=>{
  const p=new VercelDeploymentProvider({transport:t,teamId:"team_ABC",projectId:"prj_ABCDE"});
  const f=await p.getDeployment("dpl_AAAAA");assert.equal(f.status,"ready_for_verification");assert.equal(f.liveVerified,undefined);
 });
-test("publish promotes exact existing deployment without rebuild",async()=>{
+test("publish creates an exact dedicated production deployment",async()=>{
  const t=new FakeTransport();t.deployments=[{id:"dpl_AAAAA",projectId:"prj_ABCDE",url:"x",readyState:"READY",target:"preview",meta:{pandoraProjectVersionId:ids.version,pandoraArtifactDigest:ids.digest,pandoraSourceCommit:ids.source}}];
- const p=new VercelDeploymentProvider({transport:t,teamId:"team_ABC",projectId:"prj_ABCDE"});
+ const p=new VercelDeploymentProvider({transport:t,teamId:"team_ABC",projectId:"prj_ABCDE",projectName:"demo"});
  const preview={providerDeploymentId:"dpl_AAAAA",status:"ready_for_verification",projectVersionId:ids.version,artifactDigest:ids.digest,sourceCommit:ids.source};
- const out=await p.publishVersion(request("production"),preview);assert.equal(out.productionState,"ready_for_verification");
- assert.equal(t.calls.some(c=>c.path.includes("/promote/dpl_AAAAA")),true);
- assert.equal(t.calls.some(c=>c.method==="POST"&&c.path.startsWith("/v13/deployments")),false);
+ const artifact={sha256:ids.digest,files:[{file:"index.html",data:"ok"}]};
+ const out=await p.publishVersion(request("production"),preview,artifact);assert.equal(out.productionState,"ready_for_verification");
+ assert.equal(out.providerDeploymentId,"dpl_BBBBB");
+ assert.equal(t.calls.some(c=>c.path.includes("/promote/")),false);
+ const create=t.calls.find(c=>c.method==="POST"&&c.path.startsWith("/v13/deployments"));
+ assert.equal(create.body.target,"production");
+ assert.deepEqual(create.body.files,artifact.files);
 });
 test("domain truth does not conflate DNS with TLS/runtime",async()=>{
  const t=new FakeTransport();const p=new VercelDeploymentProvider({transport:t,teamId:"team_ABC",projectId:"prj_ABCDE"});
@@ -80,7 +85,8 @@ test("manager requires exact independent verification before publish",async()=>{
  };
  const m=new ProjectRuntimeManager({store,provider:p});
  const preview={providerDeploymentId:"dpl_AAAAA",status:"ready_for_verification",projectVersionId:ids.version,artifactDigest:ids.digest,sourceCommit:ids.source};
- const r=await m.publishVersion(request("production"),preview);assert.equal(r.productionState,"ready_for_verification");
+ const artifact={sha256:ids.digest,files:[{file:"index.html",data:"ok"}]};
+ const r=await m.publishVersion(request("production"),preview,artifact);assert.equal(r.productionState,"ready_for_verification");
 });
 
 test("customer runtime edge function uses Vault-backed Vercel broker",()=>{
