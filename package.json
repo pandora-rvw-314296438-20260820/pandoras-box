@@ -49,7 +49,15 @@
         "build:control-tower": "node scripts/materialize-control-tower.mjs",
         "verify:migration-authority": "node scripts/verify-migration-authority.mjs",
         "agents:install": "node scripts/install-ai-coding-clis.mjs",
-        "agents:verify": "node scripts/install-ai-coding-clis.mjs --verify-only"
+        "agents:verify": "node scripts/install-ai-coding-clis.mjs --verify-only",
+        "tooling:verify": "node scripts/verify-engineering-toolchain.mjs",
+        "mcp:inspect": "mcp-inspector --cli node src/mcp-stdio.js --method tools/list --format json",
+        "test:e2e:smoke": "playwright test test/e2e/toolchain-smoke.spec.mjs",
+        "quality:biome": "biome check scripts/verify-engineering-toolchain.mjs playwright.config.mjs test/e2e/toolchain-smoke.spec.mjs",
+        "quality:dead-code": "knip --reporter compact",
+        "supabase:version": "supabase --version",
+        "vercel:version": "vercel --version",
+        "posthog:version": "posthog-cli --version"
     },
     "version": "1.3.0-observability",
     "keywords": [
@@ -83,27 +91,34 @@
     ],
     "description": "Pandoras-Box control plane with the MCPMaster secure provider gateway runtime",
     "dependencies": {
-        "ws": "^8.21.1",
-        "zod": "^3.25.76",
-        "cors": "^2.8.6",
-        "three": "^0.158.0",
-        "helmet": "^8.1.0",
-        "express": "^5.2.1",
-        "telegraf": "^4.15.0",
-        "node-fetch": "^3.3.2",
-        "@vercel/oidc": "^3.8.4",
+        "@modelcontextprotocol/sdk": "^1.30.0",
         "@slack/web-api": "^8.0.0",
-        "@modelcontextprotocol/sdk": "^1.30.0"
+        "@vercel/oidc": "^3.8.4",
+        "cors": "^2.8.6",
+        "express": "^5.2.1",
+        "helmet": "^8.1.0",
+        "node-fetch": "^3.3.2",
+        "telegraf": "^4.15.0",
+        "three": "^0.158.0",
+        "ws": "^8.21.1",
+        "zod": "^3.25.76"
     },
     "devDependencies": {
-        "ts-node": "^10.9.0",
-        "@types/ws": "^8.5.10",
-        "typescript": "^5.3.0",
+        "@biomejs/biome": "2.5.12",
+        "@electric-sql/pglite": "0.5.8",
+        "@modelcontextprotocol/inspector": "2.5.0",
+        "@playwright/test": "1.63.0",
+        "@posthog/cli": "0.18.0",
         "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.6",
         "@types/node": "^24.0.0",
         "@types/three": "^0.158.3",
+        "@types/ws": "^8.5.10",
         "@vercel/node": "5.10.2",
-        "@types/express": "^5.0.6",
-        "@electric-sql/pglite": "0.5.8"
+        "knip": "6.34.0",
+        "supabase": "2.116.0",
+        "ts-node": "^10.9.0",
+        "typescript": "^5.3.0",
+        "vercel": "59.11.7"
     }
 }
