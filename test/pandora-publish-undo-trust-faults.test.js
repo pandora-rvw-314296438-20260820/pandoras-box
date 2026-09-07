@@ -65,6 +65,13 @@ test('stable live domain is provider-read and bound to the exact verified produc
   assert.match(finalize, /defaultDomainStatus = "live_verified"/);
 });
 
+test('production verification supersedes alternate deployments of the same version without erasing history', () => {
+  assert.match(finalize, /status: "superseded", verification_state: "stale"/);
+  assert.match(finalize, /eq\("version_id", requestedVersion\)/);
+  assert.match(finalize, /neq\("id", productionRowId\)/);
+  assert.match(finalize, /neq\("verification_state", "stale"\)/);
+});
+
 test('publish receipt proves what went live and retains the exact previous production rollback pointer', () => {
   assert.match(receipts, /version_id uuid not null/);
   assert.match(receipts, /production_deployment_id uuid not null/);
