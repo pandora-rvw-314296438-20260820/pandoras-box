@@ -14,8 +14,11 @@ class ProjectWorkspaceV2View extends StatelessWidget {
     required this.statusColor,
     required this.canUndo,
     required this.undoing,
+    required this.canPublish,
+    required this.publishing,
     required this.onBack,
     required this.onUndo,
+    required this.onPublish,
     required this.onMore,
     required this.loading,
     required this.previewFiles,
@@ -52,8 +55,11 @@ class ProjectWorkspaceV2View extends StatelessWidget {
   final Color statusColor;
   final bool canUndo;
   final bool undoing;
+  final bool canPublish;
+  final bool publishing;
   final VoidCallback onBack;
   final VoidCallback onUndo;
+  final VoidCallback onPublish;
   final VoidCallback onMore;
   final bool loading;
   final List<Map<String, Object?>>? previewFiles;
@@ -105,8 +111,11 @@ class ProjectWorkspaceV2View extends StatelessWidget {
               statusColor: statusColor,
               canUndo: canUndo,
               undoing: undoing,
+              canPublish: canPublish,
+              publishing: publishing,
               onBack: onBack,
               onUndo: onUndo,
+              onPublish: onPublish,
               onMore: onMore,
             ),
             Expanded(
@@ -575,8 +584,11 @@ class _LiveProjectHeader extends StatelessWidget {
     required this.statusColor,
     required this.canUndo,
     required this.undoing,
+    required this.canPublish,
+    required this.publishing,
     required this.onBack,
     required this.onUndo,
+    required this.onPublish,
     required this.onMore,
   });
 
@@ -585,8 +597,11 @@ class _LiveProjectHeader extends StatelessWidget {
   final Color statusColor;
   final bool canUndo;
   final bool undoing;
+  final bool canPublish;
+  final bool publishing;
   final VoidCallback onBack;
   final VoidCallback onUndo;
+  final VoidCallback onPublish;
   final VoidCallback onMore;
 
   @override
@@ -653,6 +668,27 @@ class _LiveProjectHeader extends StatelessWidget {
                   ),
                   child: Text(undoing ? 'Undoing…' : 'Undo'),
                 ),
+              if (canPublish) ...[
+                FilledButton(
+                  key: const Key('workspace-publish-action'),
+                  onPressed: publishing ? null : onPublish,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: PandoraV2Colors.ink,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: PandoraV2Colors.soft,
+                    disabledForegroundColor: PandoraV2Colors.muted,
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 13),
+                    shape: const StadiumBorder(),
+                    textStyle: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  child: Text(publishing ? 'Publishing…' : 'Publish'),
+                ),
+                const SizedBox(width: 2),
+              ],
               IconButton(
                 tooltip: 'More',
                 onPressed: onMore,
