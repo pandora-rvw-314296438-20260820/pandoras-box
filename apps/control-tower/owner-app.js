@@ -43,6 +43,32 @@ function ownerProjectsFromPayload(payload) {
   return [];
 }
 
+async function loadBusinessTruth({ quiet = false } = {}) {
+  const item = state.businessTruth;
+  if (item.loading) return;
+  item.loading = true;
+  if (!quiet) item.error = null;
+  render();
+  try {
+    const result = await request('/business-truth');
+    if (result?.kind !== 'pandora.business-truth.v1' || !Array.isArray(result.projects)) {
+      throw new Error('Pandora returned an invalid Business truth projection.');
+    }
+    item.projects = result.projects;
+    item.boundaries = result.boundaries || null;
+    item.generatedAt = result.generatedAt || null;
+    item.loadedAt = new Date().toISOString();
+    item.error = null;
+  } catch (error) {
+    item.projects = [];
+    item.boundaries = null;
+    item.error = { code: error?.code || 'BUSINESS_UNAVAILABLE', message: error?.message || 'Pandora could not load bounded Business truth.' };
+  } finally {
+    item.loading = false;
+    render();
+  }
+}
+
 async function loadLibrary({ quiet = false } = {}) {
   const item = state.library;
   if (item.loading) return;
@@ -165,6 +191,7 @@ async function refreshLiveStatus() {
   await refresh();
   if (state.route === 'project') await loadProjectWorkspace(routeResourceFromLocation(), { quiet: true });
   if (state.route === 'library') await loadLibrary({ quiet: true });
+  if (state.route === 'professional-business') await loadBusinessTruth({ quiet: true });
 }
 
 async function beginOwnerSession({ announce = true } = {}) {
@@ -714,6 +741,7 @@ app.addEventListener('click', async (event) => {
   if (route) {
     navigate(route);
     if (route === 'library') void loadLibrary();
+    if (route === 'professional-business') void loadBusinessTruth();
     return;
   }
   const action = target.dataset.action;
@@ -917,6 +945,7 @@ window.addEventListener('popstate', () => {
   render();
   if (state.route === 'project') void loadProjectWorkspace(routeResourceFromLocation());
   if (state.route === 'library') void loadLibrary();
+  if (state.route === 'professional-business') void loadBusinessTruth();
 });
 
 window.addEventListener('focus', refreshLiveStatus);
@@ -954,6 +983,10 @@ window.addEventListener('mcpmaster-auth-changed', (event) => {
     state.connections = [];
     state.plans = [];
     state.logs = [];
+    state.businessTruth = {
+      loading: false, loadedAt: null, generatedAt: null,
+      projects: [], boundaries: null, error: null,
+    };
     state.library = {
       loading: false, loadedAt: null, generatedAt: null,
       artifacts: [], releases: [], error: null,
@@ -970,6 +1003,7 @@ if (state.session?.authenticated) {
   void refresh().then(() => {
     if (state.route === 'project') void loadProjectWorkspace(routeResourceFromLocation());
     if (state.route === 'library') void loadLibrary();
+    if (state.route === 'professional-business') void loadBusinessTruth();
   });
 } else {
   state.loading = false;

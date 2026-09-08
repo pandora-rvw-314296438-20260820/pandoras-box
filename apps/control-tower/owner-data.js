@@ -75,6 +75,14 @@ const state = {
     sending: false,
     error: null,
   },
+  businessTruth: {
+    loading: false,
+    loadedAt: null,
+    generatedAt: null,
+    projects: [],
+    boundaries: null,
+    error: null,
+  },
   library: {
     loading: false,
     loadedAt: null,
