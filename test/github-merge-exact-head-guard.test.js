@@ -5,6 +5,7 @@ const test = require('node:test');
 
 const { executionPayloadHash } = require('../dist/http-app.js');
 const { GitHubMCPServer, githubTools } = require('../dist/tools/github.js');
+const { executeTool } = require('../dist/runtime/tool-catalog.js');
 
 const GOOD_SHA = 'a'.repeat(40);
 const STALE_SHA = 'b'.repeat(40);
@@ -83,6 +84,41 @@ test('durable merge payload hash changes when the reviewed head changes', () => 
   const first = executionPayloadHash('github.merge-pull-request', { ...base, expectedHeadSha: GOOD_SHA });
   const moved = executionPayloadHash('github.merge-pull-request', { ...base, expectedHeadSha: STALE_SHA });
   assert.notEqual(first, moved);
+});
+
+test('generic repository API cannot bypass the exact-head pull request merge control', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    throw new Error('network must not be reached');
+  };
+  try {
+    await assert.rejects(
+      executeTool('github.write-repository-api', {
+        owner: 'owner',
+        repo: 'repo',
+        method: 'PUT',
+        pathSegments: ['pulls', '7', 'merge'],
+        body: { merge_method: 'squash' },
+        confirmation: 'PUT owner/repo/pulls/7/merge',
+      }, {
+        github: {
+          id: 'fixture',
+          label: 'fixture',
+          baseUrl: 'https://api.github.com',
+          token: 'not-used',
+          allowMutations: true,
+          allowedRepositories: ['owner/repo'],
+          grantedScopes: ['repositories:write'],
+        },
+      }),
+      /Pull request merges must use github\.merge-pull-request with expectedHeadSha/,
+    );
+    assert.equal(calls, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('Control Tower requires and hashes the reviewed head SHA in merge plans', () => {
