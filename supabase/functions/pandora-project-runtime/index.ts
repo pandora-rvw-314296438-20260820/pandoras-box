@@ -62,6 +62,31 @@ function allowedOrigin(req: Request) {
   return allowed.has(origin) ? origin : "";
 }
 
+type ExternalExperienceWriteOperation =
+  | "project.create"
+  | "preview.create"
+  | "project.undo"
+  | "project.rollback"
+  | "project.publish"
+  | "production.verify";
+
+async function assertExternalExperienceWriteAllowed(
+  origin: string | null,
+  operation: ExternalExperienceWriteOperation,
+) {
+  if (!origin || DEFAULT_ORIGINS.has(origin)) return;
+  const { data, error } = await serviceClient().rpc(
+    "pandora_external_experience_write_allowed_v1",
+    {
+      p_origin: origin,
+      p_operation: operation,
+    },
+  );
+  if (error || data !== true) {
+    throw new Error("EXTERNAL_EXPERIENCE_WRITE_DISABLED");
+  }
+}
+
 async function bodyJson(req: Request): Promise<JsonRecord> {
   const length = Number(req.headers.get("content-length") || "0");
   if (Number.isFinite(length) && length > 64 * 1024) {
@@ -1604,6 +1629,7 @@ Deno.serve(async (req: Request) => {
     await enforceRateLimit(context, req.method);
     const route = routePath(new URL(req.url).pathname);
     if (req.method === "POST" && route === "/projects") {
+      await assertExternalExperienceWriteAllowed(origin, "project.create");
       const idempotencyKey = textValue(req.headers.get("idempotency-key"));
       if (idempotencyKey.length < 8 || idempotencyKey.length > 200) {
         throw new Error("IDEMPOTENCY_KEY_REQUIRED");
@@ -1630,15 +1656,30 @@ Deno.serve(async (req: Request) => {
     const runtimeMatch = route.match(/^\/projects\/([^/]+)\/runtime$/);
     if (req.method === "GET" && runtimeMatch) return jsonResponse(await runtimeSummary(context, decodeURIComponent(runtimeMatch[1])), 200, requestId, origin);
     const previewMatch = route.match(/^\/projects\/([^/]+)\/previews$/);
-    if (req.method === "POST" && previewMatch) return jsonResponse(await createPreview(context, decodeURIComponent(previewMatch[1]), await bodyJson(req)), 201, requestId, origin);
+    if (req.method === "POST" && previewMatch) {
+      await assertExternalExperienceWriteAllowed(origin, "preview.create");
+      return jsonResponse(await createPreview(context, decodeURIComponent(previewMatch[1]), await bodyJson(req)), 201, requestId, origin);
+    }
     const undoMatch = route.match(/^\/projects\/([^/]+)\/undo$/);
-    if (req.method === "POST" && undoMatch) return jsonResponse(await undoProject(context, decodeURIComponent(undoMatch[1]), await bodyJson(req)), 200, requestId, origin);
+    if (req.method === "POST" && undoMatch) {
+      await assertExternalExperienceWriteAllowed(origin, "project.undo");
+      return jsonResponse(await undoProject(context, decodeURIComponent(undoMatch[1]), await bodyJson(req)), 200, requestId, origin);
+    }
     const rollbackMatch = route.match(/^\/projects\/([^/]+)\/rollback$/);
-    if (req.method === "POST" && rollbackMatch) return jsonResponse(await rollbackProject(context, decodeURIComponent(rollbackMatch[1]), await bodyJson(req)), 200, requestId, origin);
+    if (req.method === "POST" && rollbackMatch) {
+      await assertExternalExperienceWriteAllowed(origin, "project.rollback");
+      return jsonResponse(await rollbackProject(context, decodeURIComponent(rollbackMatch[1]), await bodyJson(req)), 200, requestId, origin);
+    }
     const publishMatch = route.match(/^\/projects\/([^/]+)\/publish$/);
-    if (req.method === "POST" && publishMatch) return jsonResponse(await publishProject(context, decodeURIComponent(publishMatch[1]), await bodyJson(req)), 201, requestId, origin);
+    if (req.method === "POST" && publishMatch) {
+      await assertExternalExperienceWriteAllowed(origin, "project.publish");
+      return jsonResponse(await publishProject(context, decodeURIComponent(publishMatch[1]), await bodyJson(req)), 201, requestId, origin);
+    }
     const productionVerificationMatch = route.match(/^\/projects\/([^/]+)\/production-verification$/);
-    if (req.method === "POST" && productionVerificationMatch) return jsonResponse(await finalizeProductionVerification(context, decodeURIComponent(productionVerificationMatch[1]), await bodyJson(req)), 200, requestId, origin);
+    if (req.method === "POST" && productionVerificationMatch) {
+      await assertExternalExperienceWriteAllowed(origin, "production.verify");
+      return jsonResponse(await finalizeProductionVerification(context, decodeURIComponent(productionVerificationMatch[1]), await bodyJson(req)), 200, requestId, origin);
+    }
     return jsonResponse({ code: "PROJECT_RUNTIME_ROUTE_NOT_FOUND", plainMessage: "That project action is not available yet.", requestId }, 404, requestId, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROJECT_RUNTIME_ERROR";
