@@ -21,7 +21,7 @@ const TOOL_ROWS = [
   ["github.search-issues", "read", false, "account", "issues:read,pull_requests:read", "", false, "Search issues", "Search GitHub issues"],
   ["github.get-me", "read", false, "account", "identity:read", "", false, "Get connected identity", "Get current GitHub user information"],
   ["github.read-repository-api", "read", false, "repository", "repositories:read", "github-repository-api", false, "Repository API read", "Call any GET or HEAD GitHub REST endpoint under one allowlisted repository"],
-  ["github.write-repository-api", "write", true, "repository", "repositories:write", "github-repository-api", true, "Repository API write", "Call any POST, PUT, or PATCH GitHub REST endpoint under one allowlisted repository"],
+  ["github.write-repository-api", "write", true, "repository", "repositories:write", "github-repository-api", true, "Repository API write", "Call any POST, PUT, or PATCH GitHub REST endpoint under one allowlisted repository except pull request merge; use the reviewed-head merge action"],
   ["github.delete-repository-api", "destructive", true, "repository", "repositories:write", "github-repository-api", true, "Repository API delete", "Call any DELETE GitHub REST endpoint under one allowlisted repository"],
   ["supabase.list-accounts", "read", false, "account", "", "", false, "List connections", "List configured Supabase account connections without exposing credentials"],
   ["supabase.list-organizations", "read", false, "account", "organizations:read", "", false, "List organizations", "List organizations visible to one configured Supabase account"],
