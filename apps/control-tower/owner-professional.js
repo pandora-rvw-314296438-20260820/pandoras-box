@@ -262,29 +262,102 @@ function professionalVerify() {
   return professionalShell('Verify', 'Canonical status, audit validity, protected controls and exact-source verification posture.', body);
 }
 
+function professionalBusinessMoney(micros, currency) {
+  try {
+    const value = BigInt(String(micros ?? '0'));
+    const cents = (value + 5000n) / 10000n;
+    const whole = cents / 100n;
+    const fraction = String(cents % 100n).padStart(2, '0');
+    return `${String(currency || 'USD').toUpperCase()} ${whole.toLocaleString()}.${fraction}`;
+  } catch {
+    return '—';
+  }
+}
+
+function professionalCostFact(cost) {
+  const charged = BigInt(String(cost?.chargedMicros || '0'));
+  const billed = BigInt(String(cost?.billedMicros || '0'));
+  const estimated = BigInt(String(cost?.estimatedMicros || '0'));
+  if (charged > 0n) return { label: 'Charged', value: professionalBusinessMoney(cost.chargedMicros, cost.currency) };
+  if (billed > 0n) return { label: 'Billed', value: professionalBusinessMoney(cost.billedMicros, cost.currency) };
+  return { label: estimated > 0n ? 'Estimated' : 'Recorded cost', value: professionalBusinessMoney(cost.estimatedMicros, cost.currency) };
+}
+
+function professionalBusinessProject(project) {
+  const objective = project.objective;
+  const costFacts = Array.isArray(project.costs) ? project.costs.map(professionalCostFact) : [];
+  const budgetFacts = Array.isArray(project.budgets) ? project.budgets : [];
+  const economics = [
+    ...costFacts.map((fact) => `${fact.label} ${fact.value}`),
+    ...budgetFacts.map((budget) => `${budget.currency} budget ${professionalBusinessMoney(budget.spentMicros, budget.currency)} / ${professionalBusinessMoney(budget.hardLimitMicros, budget.currency)}`),
+  ];
+  return `<article class="owner-card professional-callout">
+    <div>
+      <span class="owner-kicker">${esc(project.status || 'Recorded')}</span>
+      <h2>${esc(project.name)}</h2>
+      <p>${esc(objective?.objective || 'No current business objective recorded')}</p>
+      <small>${esc(objective?.successMetric ? `Metric: ${objective.successMetric}${objective.baseline || objective.target ? ` · ${objective.baseline || '—'} → ${objective.target || '—'}` : ''}` : 'Success metric not recorded')}</small>
+    </div>
+    <div><strong>${esc(economics.join(' · ') || 'No cost or budget facts recorded')}</strong></div>
+  </article>`;
+}
+
 function professionalBusiness() {
+  const item = state.business;
+  const data = item?.data;
+  if (item?.loading && !data) {
+    return professionalShell(
+      'Business',
+      'Recorded objectives, budgets and append-only cost facts from Pandora’s protected owner contract.',
+      '<section class="owner-card owner-skeleton-card"><div class="owner-skeleton wide"></div><div class="owner-skeleton medium"></div></section>',
+    );
+  }
+  if (!data || data.contractVersion !== 'pandora-owner-business-v1') {
+    return professionalShell(
+      'Business',
+      'Recorded objectives, budgets and append-only cost facts from Pandora’s protected owner contract.',
+      unavailable('Protected Business facts are unavailable', item?.error || 'Pandora could not read the bounded Business contract right now.', icons.business),
+    );
+  }
+
+  const costs = Array.isArray(data.costs) ? data.costs : [];
+  const budgets = Array.isArray(data.budgets) ? data.budgets : [];
+  const projects = Array.isArray(data.projects)
+    ? data.projects.filter((project) => project.objective || project.costs?.length || project.budgets?.length).slice(0, 25)
+    : [];
+  const exhausted = budgets.reduce((sum, budget) => sum + Number(budget.exhaustedCount || 0), 0);
+  const activeBudgets = budgets.reduce((sum, budget) => sum + Number(budget.activeCount || 0), 0);
+  const costCards = costs.length
+    ? costs.map((cost) => {
+        const fact = professionalCostFact(cost);
+        return metricCard(`${fact.label} · ${cost.currency}`, fact.value, `${cost.entryCount || 0} ledger entries`);
+      }).join('')
+    : metricCard('Recorded cost', '—', 'No cost entries');
+
+  const body = `
+    <section class="professional-metrics-grid" aria-label="Business authority overview">
+      ${metricCard('Projects', data.counts?.projects ?? '—', 'non-archived')}
+      ${metricCard('With objectives', data.counts?.projectsWithObjectives ?? '—', 'ProjectSpec business truth')}
+      ${metricCard('Budget limits', data.counts?.budgetLimits ?? '—', `${activeBudgets} active · ${exhausted} exhausted`, exhausted ? 'warning' : 'neutral')}
+      ${metricCard('Cost entries', data.counts?.costEntries ?? '—', 'append-only ledger')}
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Economics</span><h2>Recorded spend by currency</h2></div><span>No cross-currency totals</span></div>
+      <div class="professional-metrics-grid">${costCards}</div>
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Objectives</span><h2>Project business truth</h2></div><span>${projects.length} shown</span></div>
+      <div class="professional-build-list">${projects.length ? projects.map(professionalBusinessProject).join('') : '<div class="owner-card owner-empty"><h3>No project business facts to show</h3><p>Objectives, costs, and budgets will appear here only when recorded.</p></div>'}</div>
+    </section>
+    <section class="owner-card professional-boundary-note">
+      <span>${icons.shield}</span><div><strong>Commercial outcomes are not inferred</strong><p>Revenue, ROI, adoption, retention, and customer outcomes remain explicitly unavailable until a bounded first-party measurement source is connected. Spend, budgets, and objectives are not treated as proof of business success.</p></div>
+    </section>`;
+
   return professionalShell(
     'Business',
-    'Commercial analytics and validation operations from connected first-party sources only.',
-    unavailable(
-      'Authoritative business analytics are not connected to this web mode yet',
-      'Pandora will not invent revenue, cost, retention, adoption, ROI, pilots, customer outcomes or validation scores. Connect an authoritative business source before this page renders those metrics.',
-      icons.business,
-    ),
+    'Recorded objectives, budgets and append-only cost facts from Pandora’s protected owner contract.',
+    body,
   );
-}
-
-function formatBytes(value) {
-  const bytes = Number(value);
-  if (!Number.isFinite(bytes) || bytes < 0) return 'Size unavailable';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
-}
-
-function compactDigest(value) {
-  const digest = String(value || '');
-  return /^[0-9a-f]{64}$/i.test(digest) ? `${digest.slice(0, 10)}…${digest.slice(-6)}` : 'Digest unavailable';
 }
 
 function professionalLibrary() {
