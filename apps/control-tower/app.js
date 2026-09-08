@@ -65,7 +65,7 @@ const state = {
   sheet: null,
   toast: null,
   live: { projectos: null, health: null, metrics: null, tools: null, connections: null, plans: null, logs: null, chain: null, error: null },
-  builder: { step: 0, tool: null, connectionKey: "", target: "", owner: "", repo: "", projectRef: "", organizationSlug: "", branchIdOrRef: "", method: "PATCH", pathSegments: "", title: "", body: "", pullNumber: "", mergeMethod: "squash", hash: "", result: null },
+  builder: { step: 0, tool: null, connectionKey: "", target: "", owner: "", repo: "", projectRef: "", organizationSlug: "", branchIdOrRef: "", method: "PATCH", pathSegments: "", title: "", body: "", pullNumber: "", expectedHeadSha: "", mergeMethod: "squash", hash: "", result: null },
 };
 
 const ROUTES = {
@@ -223,7 +223,7 @@ function builderArgs() {
     args.pathSegments = b.pathSegments.split("/").map((part) => part.trim()).filter(Boolean);
   }
   if (tool.name === "github.create-issue") { args.title = b.title; if (b.body) args.body = b.body; }
-  if (tool.name === "github.merge-pull-request") { args.pullNumber = Number(b.pullNumber); args.mergeMethod = b.mergeMethod; }
+  if (tool.name === "github.merge-pull-request") { args.pullNumber = Number(b.pullNumber); args.expectedHeadSha = String(b.expectedHeadSha || "").trim(); args.mergeMethod = b.mergeMethod; }
   if (tool.name === "supabase.pause-project") args.confirmation = `PAUSE ${args.projectRef}`;
   if (tool.name === "supabase.restore-project") args.confirmation = `RESTORE ${args.projectRef}`;
   if (tool.name === "supabase.enable-leaked-password-protection") {
@@ -684,7 +684,7 @@ function builderCanContinue() {
   if (b.step === 1) return Boolean(b.connectionKey && b.target);
   if (b.step === 2) {
     if (b.tool?.name === "github.create-issue") return Boolean(b.title);
-    if (b.tool?.name === "github.merge-pull-request") return Boolean(b.pullNumber);
+    if (b.tool?.name === "github.merge-pull-request") return Boolean(b.pullNumber) && /^[0-9a-fA-F]{40}$/.test(String(b.expectedHeadSha || "").trim());
     if (b.tool?.confirmationKind) return Boolean(b.pathSegments || b.tool.risk === "destructive");
     return true;
   }
@@ -721,6 +721,7 @@ function renderBuilderFields() {
   }
   if (b.tool.name === "github.merge-pull-request") {
     fields.push(field("pullNumber", "Pull request number", "Required", b.pullNumber, "number", null, "31"));
+    fields.push(field("expectedHeadSha", "Reviewed head SHA", "Required exact 40-character commit SHA. If the PR head changes, re-review before creating a new plan.", b.expectedHeadSha, "text", null, "0123456789abcdef0123456789abcdef01234567"));
     fields.push(field("mergeMethod", "Merge method", "squash, merge or rebase", b.mergeMethod, "select", ["squash", "merge", "rebase"]));
   }
   if (b.tool.scope === "branch") fields.push(field("branchIdOrRef", "Branch ID or ref", "Must belong to the selected allowlisted project", b.branchIdOrRef, "text", null, "preview-branch"));
@@ -917,7 +918,7 @@ app.addEventListener("click", async (event) => {
       return;
     }
     const tool = TOOLS.find((item) => item.name === target.dataset.tool);
-    state.builder = { ...state.builder, step: 1, tool, connectionKey: "", target: "", hash: "", result: null };
+    state.builder = { ...state.builder, step: 1, tool, connectionKey: "", target: "", pullNumber: "", expectedHeadSha: "", mergeMethod: "squash", hash: "", result: null };
     state.query = "";
     track("action_selected", { action: tool.name, provider: tool.provider, risk: tool.risk });
     setRoute("builder");
