@@ -11,6 +11,7 @@ import {
   textValue,
 } from "./runtime-common.ts";
 import { classifyProjectRuntimeError } from "./runtime-errors.ts";
+import { enforceExternalExperienceWriteRequest } from "./external-write-gate.mjs";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -62,29 +63,28 @@ function allowedOrigin(req: Request) {
   return allowed.has(origin) ? origin : "";
 }
 
-type ExternalExperienceWriteOperation =
-  | "project.create"
-  | "preview.create"
-  | "project.undo"
-  | "project.rollback"
-  | "project.publish"
-  | "production.verify";
-
 async function assertExternalExperienceWriteAllowed(
   origin: string | null,
-  operation: ExternalExperienceWriteOperation,
+  method: string,
+  route: string,
 ) {
-  if (!origin || DEFAULT_ORIGINS.has(origin)) return;
-  const { data, error } = await serviceClient().rpc(
-    "pandora_external_experience_write_allowed_v1",
-    {
-      p_origin: origin,
-      p_operation: operation,
+  await enforceExternalExperienceWriteRequest({
+    origin,
+    method,
+    route,
+    firstPartyOrigins: DEFAULT_ORIGINS,
+    decide: async (checkedOrigin: string, operation: string) => {
+      const { data, error } = await serviceClient().rpc(
+        "pandora_external_experience_write_allowed_v1",
+        {
+          p_origin: checkedOrigin,
+          p_operation: operation,
+        },
+      );
+      if (error) return false;
+      return data === true;
     },
-  );
-  if (error || data !== true) {
-    throw new Error("EXTERNAL_EXPERIENCE_WRITE_DISABLED");
-  }
+  });
 }
 
 async function bodyJson(req: Request): Promise<JsonRecord> {
@@ -1628,8 +1628,8 @@ Deno.serve(async (req: Request) => {
     const context = await authenticate(req);
     await enforceRateLimit(context, req.method);
     const route = routePath(new URL(req.url).pathname);
+    await assertExternalExperienceWriteAllowed(origin, req.method, route);
     if (req.method === "POST" && route === "/projects") {
-      await assertExternalExperienceWriteAllowed(origin, "project.create");
       const idempotencyKey = textValue(req.headers.get("idempotency-key"));
       if (idempotencyKey.length < 8 || idempotencyKey.length > 200) {
         throw new Error("IDEMPOTENCY_KEY_REQUIRED");
@@ -1657,27 +1657,22 @@ Deno.serve(async (req: Request) => {
     if (req.method === "GET" && runtimeMatch) return jsonResponse(await runtimeSummary(context, decodeURIComponent(runtimeMatch[1])), 200, requestId, origin);
     const previewMatch = route.match(/^\/projects\/([^/]+)\/previews$/);
     if (req.method === "POST" && previewMatch) {
-      await assertExternalExperienceWriteAllowed(origin, "preview.create");
       return jsonResponse(await createPreview(context, decodeURIComponent(previewMatch[1]), await bodyJson(req)), 201, requestId, origin);
     }
     const undoMatch = route.match(/^\/projects\/([^/]+)\/undo$/);
     if (req.method === "POST" && undoMatch) {
-      await assertExternalExperienceWriteAllowed(origin, "project.undo");
       return jsonResponse(await undoProject(context, decodeURIComponent(undoMatch[1]), await bodyJson(req)), 200, requestId, origin);
     }
     const rollbackMatch = route.match(/^\/projects\/([^/]+)\/rollback$/);
     if (req.method === "POST" && rollbackMatch) {
-      await assertExternalExperienceWriteAllowed(origin, "project.rollback");
       return jsonResponse(await rollbackProject(context, decodeURIComponent(rollbackMatch[1]), await bodyJson(req)), 200, requestId, origin);
     }
     const publishMatch = route.match(/^\/projects\/([^/]+)\/publish$/);
     if (req.method === "POST" && publishMatch) {
-      await assertExternalExperienceWriteAllowed(origin, "project.publish");
       return jsonResponse(await publishProject(context, decodeURIComponent(publishMatch[1]), await bodyJson(req)), 201, requestId, origin);
     }
     const productionVerificationMatch = route.match(/^\/projects\/([^/]+)\/production-verification$/);
     if (req.method === "POST" && productionVerificationMatch) {
-      await assertExternalExperienceWriteAllowed(origin, "production.verify");
       return jsonResponse(await finalizeProductionVerification(context, decodeURIComponent(productionVerificationMatch[1]), await bodyJson(req)), 200, requestId, origin);
     }
     return jsonResponse({ code: "PROJECT_RUNTIME_ROUTE_NOT_FOUND", plainMessage: "That project action is not available yet.", requestId }, 404, requestId, origin);
