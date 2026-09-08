@@ -120,6 +120,15 @@ export function classifyProjectRuntimeError(
   if (code === "ORGANIZATION_SELECTION_REQUIRED") {
     return e(code, 409, "Choose which organization you want to use.", "auth", "request");
   }
+  if (code === "EXTERNAL_EXPERIENCE_WRITE_DISABLED") {
+    return e(
+      code,
+      403,
+      "That external app is not enabled for this project action.",
+      "project",
+      "authorization",
+    );
+  }
   if (code === "RATE_LIMITED") {
     return e(code, 429, "Please wait a moment before trying again.", "project", "request", true);
   }
