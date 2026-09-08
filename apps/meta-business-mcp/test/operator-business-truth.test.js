@@ -15,7 +15,7 @@ function executor(fixtures){
     supabaseUrl:'https://example.supabase.co',
     publishableKey:['unit','business','key'].join('-'),
     async fetchFn(url,init){
-      seen.push({url:String(url),authorization:init.headers.authorization});
+      seen.push({url:String(url),authorization:new Headers(init.headers).get('authorization')});
       const pathname=new URL(url).pathname;
       if(pathname.endsWith('/projectos_projects')) return response(fixtures.projects||[]);
       if(pathname.endsWith('/pandora_project_business_objectives')) return response(fixtures.objectives||[]);
