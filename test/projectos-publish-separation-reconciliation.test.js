@@ -5,6 +5,8 @@ const test = require('node:test');
 
 const migrationPath = 'supabase/migrations/20260909024500_projectos_publish_separation_reconciliation_v1.sql';
 const migration = fs.readFileSync(migrationPath, 'utf8');
+const rulesetMigrationPath = 'supabase/migrations/20260909042500_projectos_ruleset_protection_reconciliation_v1.sql';
+const rulesetMigration = fs.readFileSync(rulesetMigrationPath, 'utf8');
 const vercel = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
 
 test('Git merges cannot auto-deploy Pandora production', () => {
@@ -28,4 +30,17 @@ test('only verified production receipts can promote release_state to released', 
   );
   assert.match(migration, /receipt\.status = 'ready'/);
   assert.match(migration, /receipt\.status = 'verified'/);
+});
+
+test('branch protection reconciliation uses effective GitHub rulesets', () => {
+  assert.match(rulesetMigration, /\/rules\/branches\//);
+  assert.match(rulesetMigration, /item->>'type' = 'pull_request'/);
+  assert.match(rulesetMigration, /item->>'type' = 'required_status_checks'/);
+  assert.match(rulesetMigration, /item->>'type' = 'non_fast_forward'/);
+  assert.match(rulesetMigration, /item->>'type' = 'deletion'/);
+  assert.match(rulesetMigration, /'protectionSource', 'github_rules_for_branch'/);
+  assert.doesNotMatch(
+    rulesetMigration,
+    /select coalesce\(\(item->>'protected'\)::boolean, false\)/,
+  );
 });
