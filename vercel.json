@@ -1,10 +1,8 @@
+
  {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
-    "deploymentEnabled": {
-      "*": false,
-      "main": true
-    }
+    "deploymentEnabled": false
   },
   "buildCommand": "npm run build && bash scripts/build-vercel-pandora-web.sh",
   "framework": "express",
