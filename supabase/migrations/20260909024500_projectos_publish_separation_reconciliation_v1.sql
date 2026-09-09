@@ -379,7 +379,7 @@ begin
   );
 end;
 $function$
-
+;
 
 CREATE OR REPLACE FUNCTION public.projectos_record_release_receipt_base_v1(p_organization_id uuid, p_project_key text, p_receipt jsonb)
  RETURNS jsonb
@@ -545,7 +545,7 @@ begin
   return to_jsonb(v_result) || jsonb_build_object('idempotentReplay', not v_inserted);
 end;
 $function$
-
+;
 
 
 update private.project_canonical_registry registry
