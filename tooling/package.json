@@ -46,7 +46,7 @@
       "undici": "6.28.1"
     },
     "@vercel/python-analysis": {
-      "js-yaml": "4.3.1",
+      "js-yaml": "4.3.2",
       "minimatch": "10.2.6",
       "smol-toml": "1.8.0"
     },
@@ -59,6 +59,9 @@
     "vercel": {
       "smol-toml": "1.8.0",
       "undici": "6.28.1"
+    },
+    "@vercel/static-config": {
+      "ajv": "8.20.0"
     }
   }
 }
