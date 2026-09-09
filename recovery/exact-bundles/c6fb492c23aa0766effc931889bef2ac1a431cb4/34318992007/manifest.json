@@ -1,0 +1,41 @@
+{
+  "artifactFormat": "git_bundle",
+  "artifactType": "operational_git_bundle",
+  "bundleBytes": 7876284,
+  "bundleSha256": "c9b8272b3c12d1baecec75eaa55d6e2bbdbdc3a1e9cf5210555a3a4690257337",
+  "containsRefs": [
+    {
+      "ref": "refs/heads/main",
+      "sha": "c6fb492c23aa0766effc931889bef2ac1a431cb4"
+    },
+    {
+      "ref": "refs/heads/recovery/convergence-source",
+      "sha": "cfc1eb91a9ac345bf9a0c251a14a14dd055aaf01"
+    },
+    {
+      "ref": "refs/heads/recovery/convergence-latest",
+      "sha": "7398de0014485089150ab154cbcac5617c9fdd6c"
+    },
+    {
+      "ref": "refs/heads/recovery/child-db-reviewed",
+      "sha": "41a7a5f36a97ed173caea4cf7b017206221ac72d"
+    },
+    {
+      "ref": "refs/heads/recovery/child-db-latest",
+      "sha": "649d320201d66764b569cd501e5fff89291241e1"
+    },
+    {
+      "ref": "refs/heads/recovery/desktop-wip",
+      "sha": "e7cb95c51353861429c58504e232c191f47f8fc2"
+    }
+  ],
+  "repository": "pandora-rvw-314296438-20260820/pandoras-box",
+  "schemaVersion": 1,
+  "sourceSha": "c6fb492c23aa0766effc931889bef2ac1a431cb4",
+  "verification": [
+    "git_bundle_verify",
+    "sha256",
+    "exact_ref_readback"
+  ],
+  "workflowRunId": "34318992007"
+}
