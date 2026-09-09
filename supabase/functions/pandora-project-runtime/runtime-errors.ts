@@ -252,6 +252,15 @@ export function classifyProjectRuntimeError(
       false,
     );
   }
+  if (code === "BASE44_ROLLOUT_DISABLED") {
+    return e(
+      code,
+      403,
+      "Publishing is not enabled for this experience yet.",
+      "publish",
+      "authorization",
+    );
+  }
   if (code === "PUBLISH_IN_PROGRESS") {
     return e(code, 409, "Pandora is already publishing this version.", "publish", "provider", true);
   }

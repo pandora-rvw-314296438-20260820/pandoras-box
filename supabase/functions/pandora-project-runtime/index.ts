@@ -1161,6 +1161,12 @@ async function publishProject(context: UserContext, identifier: string, body: Js
   const projectId = textValue(project.id);
   const requestedVersion = textValue(body.versionId);
   if (!requestedVersion) throw new Error("VERSION_REQUIRED");
+
+  const base44Rollout = await serviceClient().rpc("pandora_base44_action_allowed_v1", {
+    p_project_id: projectId,
+    p_action: "publish",
+  });
+  if (base44Rollout.error || base44Rollout.data !== true) throw new Error("BASE44_ROLLOUT_DISABLED");
   if (!Object.prototype.hasOwnProperty.call(body, "expectedProductionVersionId")) throw new Error("PRODUCTION_PRECONDITION_REQUIRED");
   const expectedProductionVersionId = body.expectedProductionVersionId == null ? null : textValue(body.expectedProductionVersionId);
   if (body.expectedProductionVersionId != null && !expectedProductionVersionId) throw new Error("INVALID_PRODUCTION_PRECONDITION");
