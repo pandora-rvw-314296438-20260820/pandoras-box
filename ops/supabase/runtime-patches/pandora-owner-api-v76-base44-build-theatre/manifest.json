@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0.0",
+  "purpose": "Bounded production release artifact for Base44 Build Theatre visibility without releasing unrelated canonical pandora-owner-api drift.",
+  "provider": {
+    "projectRef": "jcyqixttuebxqqfkjonq",
+    "functionSlug": "pandora-owner-api",
+    "baselineVersion": 76,
+    "baselineSourceHash": "87b942a56305c0696e32f9f7ebc591aaef7e43238ccceb5dc9998d3a1a13700d",
+    "verifyJwt": true
+  },
+  "canonicalDelta": {
+    "pullRequest": 487,
+    "mainSha": "74d7ade3465c955c8ef9f74eb99ab04047e6691f",
+    "invariant": "Build Theatre is always visible; idle has ownerStage=null and progressPercent=null; active state comes only from pandora_build_theatre_projection."
+  },
+  "files": [
+    {
+      "name": "index.ts",
+      "blob": "285b10e929defc700fceb16a9e393592ffd37e2c",
+      "bytes": 88925,
+      "changedFromProviderBaseline": true
+    },
+    {
+      "name": "contract.ts",
+      "blob": "2d7377352f586d45609a849e75e1cb96d860c46b",
+      "bytes": 3459,
+      "changedFromProviderBaseline": false
+    },
+    {
+      "name": "command-pipeline.mjs",
+      "blob": "0356dd7db7e22390764caaaec0fcbe9b45da886d",
+      "bytes": 14511,
+      "changedFromProviderBaseline": false
+    },
+    {
+      "name": "operational-workspace.mjs",
+      "blob": "4080a7e88ac57119cb90cbb3d019988fe47b771c",
+      "bytes": 19940,
+      "changedFromProviderBaseline": false
+    },
+    {
+      "name": "deno.json",
+      "blob": "aee0ec940fcdeddd5fb9aaa0fc8664b07fde5691",
+      "bytes": 50,
+      "changedFromProviderBaseline": false
+    }
+  ],
+  "restrictions": [
+    "This artifact is not the long-term canonical owner-api source.",
+    "Deploy only as an exact bounded patch from provider v76.",
+    "Do not use it to overwrite newer provider state without exact readback.",
+    "Do not infer Build Theatre progress when no canonical theatre row exists."
+  ]
+}
