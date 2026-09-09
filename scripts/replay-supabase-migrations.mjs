@@ -129,6 +129,20 @@ async function bootstrap(db) {
     $bootstrap$;
 
     create schema if not exists auth;
+
+    -- PGlite replay compatibility for Supabase Storage. Production migrations
+    -- remain byte-for-byte unchanged; this stub models only the bucket metadata
+    -- used by the inactive recovery fixture.
+    create schema if not exists storage;
+    create table if not exists storage.buckets (
+      id text primary key,
+      name text not null unique,
+      public boolean not null default false,
+      file_size_limit bigint,
+      allowed_mime_types text[],
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
     create type auth.aal_level as enum ('aal1', 'aal2');
     create table auth.users (
       id uuid primary key,
