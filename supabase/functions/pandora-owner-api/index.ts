@@ -175,6 +175,85 @@ function textValue(value: unknown, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
+const BUILD_THEATRE_STAGE_CONTRACT = Object.freeze({
+  build: Object.freeze([
+    "understanding",
+    "planning",
+    "building",
+    "testing",
+    "preview_ready",
+  ]),
+  edit: Object.freeze([
+    "edit_requested",
+    "rebuilding",
+    "verifying",
+    "updated_preview",
+  ]),
+  publish: Object.freeze([
+    "preparing",
+    "deploying",
+    "verifying_live",
+    "live",
+  ]),
+});
+
+function numberValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function buildTheatreSummary(experienceValue: unknown, theatreValue: unknown) {
+  const experience = asRecord(experienceValue);
+  const theatre = asRecord(theatreValue);
+  const buildJobId = textValue(theatre.build_job_id);
+
+  if (buildJobId) {
+    return {
+      source: "pandora_build_theatre_projection",
+      mode: "active",
+      buildJobId,
+      ownerState: textValue(theatre.owner_state) || null,
+      ownerStage: textValue(theatre.owner_stage) || null,
+      progressPercent: numberValue(theatre.progress_percent),
+      publicMessage: textValue(
+        theatre.public_message,
+        textValue(experience.public_message, "Pandora is working."),
+      ),
+      previewUrl: textValue(theatre.preview_url) || null,
+      liveUrl: textValue(theatre.live_url) || null,
+      needsYou: theatre.needs_you === true,
+      retryAvailable: theatre.retry_available === true,
+      lastEventAt: textValue(theatre.last_event_at) || null,
+      updatedAt: textValue(theatre.updated_at) || null,
+      stageContract: BUILD_THEATRE_STAGE_CONTRACT,
+    };
+  }
+
+  return {
+    source: "pandora_project_experience_projection",
+    mode: "idle",
+    buildJobId: null,
+    ownerState: textValue(experience.experience_state, "START"),
+    ownerStage: null,
+    progressPercent: null,
+    publicMessage: textValue(
+      experience.public_message,
+      "What do you want to build?",
+    ),
+    previewUrl: null,
+    liveUrl: null,
+    needsYou: experience.needs_you === true,
+    retryAvailable: experience.retry_available === true,
+    lastEventAt: textValue(experience.last_transition_at) || null,
+    updatedAt: textValue(experience.updated_at) || null,
+    stageContract: BUILD_THEATRE_STAGE_CONTRACT,
+  };
+}
+
 function intValue(value: string | null, fallback: number, max: number) {
   if (value === null || !value.trim()) return fallback;
   const parsed = Number(value);
@@ -871,7 +950,7 @@ async function project(context: UserContext, identifier: string) {
   const { data: projectRow, error } = await query.maybeSingle();
   if (error) throw new Error("BACKEND_READ_FAILED");
   if (!projectRow) throw new Error("PROJECT_NOT_FOUND");
-  const [phases, tasks, evidence, projection] = await Promise.all([
+  const [phases, tasks, evidence, projection, experience, theatre] = await Promise.all([
     context.client.from("projectos_phases").select(
       "id, phase_key, name, sequence, status, exit_criteria, started_at, completed_at",
     )
@@ -899,8 +978,25 @@ async function project(context: UserContext, identifier: string) {
       .eq("organization_id", context.organizationId)
       .eq("project_id", projectRow.id)
       .maybeSingle(),
+    context.client.from("pandora_project_experience_projection")
+      .select(
+        "experience_state, active_build_job_id, build_phase, public_message, needs_you, retry_available, last_transition_at, updated_at",
+      )
+      .eq("organization_id", context.organizationId)
+      .eq("project_id", projectRow.id)
+      .maybeSingle(),
+    context.client.from("pandora_build_theatre_projection")
+      .select(
+        "build_job_id, owner_state, owner_stage, progress_percent, public_message, preview_url, live_url, needs_you, retry_available, last_event_at, updated_at",
+      )
+      .eq("organization_id", context.organizationId)
+      .eq("project_id", projectRow.id)
+      .maybeSingle(),
   ]);
-  if (phases.error || tasks.error || evidence.error || projection.error) {
+  if (
+    phases.error || tasks.error || evidence.error || projection.error ||
+    experience.error || theatre.error
+  ) {
     throw new Error("BACKEND_READ_FAILED");
   }
   const evidenceRows = (evidence.data || []) as JsonRecord[];
@@ -929,6 +1025,7 @@ async function project(context: UserContext, identifier: string) {
       .map(releaseSummary)
       .slice(0, 10),
     currentState: projection.data?.projection || null,
+    buildTheatre: buildTheatreSummary(experience.data, theatre.data),
     operations,
   };
 }
