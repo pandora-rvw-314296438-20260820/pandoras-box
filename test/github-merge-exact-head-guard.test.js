@@ -126,5 +126,8 @@ test('Control Tower requires and hashes the reviewed head SHA in merge plans', (
   assert.match(source, /expectedHeadSha: ""/);
   assert.match(source, /args\.expectedHeadSha = String\(b\.expectedHeadSha \|\| ""\)\.trim\(\)/);
   assert.match(source, /Reviewed head SHA/);
-  assert.match(source, /Boolean\(b\.pullNumber\).*expectedHeadSha/s);
+  assert.match(
+    source,
+    /if \(b\.tool\?\.name === "github\.merge-pull-request"\) return Boolean\(b\.pullNumber\) && \/\^\[0-9a-fA-F\]\{40\}\$\/\.test\(String\(b\.expectedHeadSha \|\| ""\)\.trim\(\)\);/,
+  );
 });
