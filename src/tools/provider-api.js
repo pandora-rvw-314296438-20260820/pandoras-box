@@ -317,6 +317,12 @@ async function githubRepositoryRequest(configuration, method, owner, repo, pathS
     const url = `${GITHUB_API_ORIGIN}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${encodedSuffix(pathSegments)}`;
     return providerRequest(fetchFn, url, method, githubHeaders(configuration.token), query, body, DEFAULT_TIMEOUT_MS, DEFAULT_MAX_RESPONSE_BYTES, 'GitHub API');
 }
+function isGitHubPullRequestMergeEndpoint(method, pathSegments) {
+    return method === 'PUT'
+        && pathSegments.length === 3
+        && pathSegments[0].toLowerCase() === 'pulls'
+        && pathSegments[2].toLowerCase() === 'merge';
+}
 async function executeGitHubProviderApiTool(tool, args, configuration, fetchFn) {
     switch (tool) {
         case 'github.read-repository-api': {
@@ -325,6 +331,9 @@ async function executeGitHubProviderApiTool(tool, args, configuration, fetchFn) 
         }
         case 'github.write-repository-api': {
             const input = GitHubWriteArgsSchema.parse(args);
+            if (isGitHubPullRequestMergeEndpoint(input.method, input.pathSegments)) {
+                throw new Error('Pull request merges must use github.merge-pull-request with expectedHeadSha');
+            }
             const expected = `${input.method} ${input.owner}/${input.repo}${rawSuffix(input.pathSegments)}`;
             if (input.confirmation !== expected)
                 throw new Error(`Confirmation must exactly equal "${expected}"`);
@@ -1343,7 +1352,7 @@ exports.githubProviderApiTools = {
         },
     },
     'github.write-repository-api': {
-        description: 'Call any POST, PUT, or PATCH GitHub REST endpoint under one allowlisted repository',
+        description: 'Call any POST, PUT, or PATCH GitHub REST endpoint under one allowlisted repository except pull request merge, which requires github.merge-pull-request with expectedHeadSha',
         parameters: {
             type: 'object',
             properties: {
