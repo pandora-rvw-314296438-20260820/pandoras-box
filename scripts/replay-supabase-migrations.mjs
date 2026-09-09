@@ -3081,6 +3081,7 @@ async function main() {
   const fixtures = new Map([
     ['20260724030000_meta_remote_mcp_persistence.sql', await readFile(join(fixtureRoot, 'after-foundations.sql'), 'utf8')],
     ['20260731122011_projectos_product_intelligence_schema.sql', await readFile(join(fixtureRoot, 'after-20260731122011.sql'), 'utf8')],
+    ['20260825085155_pandora_canonical_control_plane_foundation_v1.sql', await readFile(join(fixtureRoot, 'after-20260825085155.sql'), 'utf8')],
   ]);
 
   const db = new PGlite({ extensions: { pgcrypto } });
