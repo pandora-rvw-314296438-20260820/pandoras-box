@@ -358,9 +358,7 @@ class _PandoraSidePanel extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(10, 14, 10, 14),
                 children: [
-                  for (var index = 0;
-                      index < destinations.length;
-                      index++)
+                  for (var index = 0; index < destinations.length; index++)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: ListTile(
