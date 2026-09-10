@@ -30,7 +30,7 @@ class PandoraPage extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverAppBar(
-          toolbarHeight: 56,
+          toolbarHeight: 68,
           automaticallyImplyLeading: navigation == null,
           leading: navigation?.openDrawer == null
               ? null
