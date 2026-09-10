@@ -1003,17 +1003,35 @@ Deno.serve(async (req) => {
       return response({ ok: true, state: "cancelled" });
     }
 
-    const primitiveResolutionResult = await admin.rpc(
-      "pandora_worker_i_resolve_project_spec_primitives_20260831",
-      { p_project_spec_id: text(spec.id), p_require_trusted: true },
-    );
-    if (primitiveResolutionResult.error) throw new Error("PRIMITIVE_SELECTION_UNAVAILABLE");
-    const primitiveResolution = rec(primitiveResolutionResult.data);
-    const primitiveState = text(primitiveResolution.state);
-    if (primitiveState === "BLOCKED") {
-      const blockedPrimitives = Array.isArray(primitiveResolution.blockedPrimitives)
-        ? primitiveResolution.blockedPrimitives.map((value) => text(value)).filter(Boolean).slice(0, 50)
+    const resolveTrustedPrimitives = async () => {
+      const result = await admin.rpc(
+        "pandora_worker_i_resolve_project_spec_primitives_20260831",
+        { p_project_spec_id: text(spec.id), p_require_trusted: true },
+      );
+      if (result.error) throw new Error("PRIMITIVE_SELECTION_UNAVAILABLE");
+      return rec(result.data);
+    };
+    const blockedPrimitiveNames = (resolution: JsonRecord) =>
+      Array.isArray(resolution.blockedPrimitives)
+        ? resolution.blockedPrimitives.map((value) => text(value)).filter(Boolean).slice(0, 50)
         : [];
+    const trustedPrimitiveUnavailableSummary = (blocked: string[]) =>
+      blocked.length > 0
+        ? `Pandora could not start this build because required building blocks are not available yet (${blocked.join(", ")}). Nothing was published.`
+        : "Pandora could not start this build because required building blocks are not available yet. Nothing was published.";
+
+    let primitiveResolution = await resolveTrustedPrimitives();
+    let primitiveState = text(primitiveResolution.state);
+    if (primitiveState === "BLOCKED") {
+      // Once-per-attempt self-heal: Worker E catalog bootstrap verify, then re-resolve.
+      // Fail-closed: still require TRUSTED + evidence after verify; never flip p_require_trusted.
+      await admin.rpc("pandora_worker_e_verify_catalog_experimental_20260910");
+      primitiveResolution = await resolveTrustedPrimitives();
+      primitiveState = text(primitiveResolution.state);
+    }
+    if (primitiveState === "BLOCKED") {
+      const blockedPrimitives = blockedPrimitiveNames(primitiveResolution);
+      const publicErrorSummary = trustedPrimitiveUnavailableSummary(blockedPrimitives);
       await admin.from("pandora_source_generation_queue").update({
         status: "failed",
         last_error_code: "TRUSTED_PRIMITIVE_UNAVAILABLE",
@@ -1025,8 +1043,7 @@ Deno.serve(async (req) => {
           status: "failed",
           current_stage: "understanding",
           error_code: "TRUSTED_PRIMITIVE_UNAVAILABLE",
-          public_error_summary:
-            "Pandora could not start this build because required building blocks are not available yet. Nothing was published.",
+          public_error_summary: publicErrorSummary,
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }).eq("id", row.build_job_id).in("status", ["queued", "claimed", "dispatching"]);
@@ -1036,6 +1053,7 @@ Deno.serve(async (req) => {
         state: "blocked",
         error: { code: "TRUSTED_PRIMITIVE_UNAVAILABLE" },
         blockedPrimitives,
+        public_error_summary: publicErrorSummary,
       }, 409);
     }
     if (primitiveState !== "READY") throw new Error("PRIMITIVE_SELECTION_UNAVAILABLE");
