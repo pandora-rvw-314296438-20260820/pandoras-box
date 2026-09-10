@@ -262,7 +262,13 @@ async function flushStreamEvents(admin: ReturnType<typeof adminClient>, state: S
   if (!state.pending.length || (!force && state.pending.length < 6)) return;
   const rows = state.pending.splice(0, state.pending.length);
   const inserted = await admin.from("pandora_build_stream_events").insert(rows);
-  if (inserted.error) throw new Error("SOURCE_STREAM_WRITE_FAILED");
+  if (inserted.error) {
+    const detail = [inserted.error.code, inserted.error.message, inserted.error.details]
+      .filter((part) => typeof part === "string" && part.trim().length > 0)
+      .join(" | ")
+      .slice(0, 240);
+    throw new Error(detail ? `SOURCE_STREAM_WRITE_FAILED:${detail}` : "SOURCE_STREAM_WRITE_FAILED");
+  }
 }
 
 function queueStreamEvent(state: StreamAssembler, eventType: string, filePath: string | null = null, contentChunk: string | null = null, safePayload: JsonRecord = {}) {

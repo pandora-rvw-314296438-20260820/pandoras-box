@@ -251,6 +251,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260909093400_pandora_preview_not_live_projection_v1.sql',
     '20260910075705_pandora_theatre_preexecution_primitive_truth_v1.sql',
     '20260910081625_pandora_worker_e_catalog_trust_bootstrap_v1.sql',
+    '20260910103000_pandora_stream_event_impact_classified_v1.sql',
     '20260910123000_pandora_base44_identity_bridge_v1.sql',
     '20260910140000_pandora_base44_bridge_release_allowlist_v1.sql'
   ]);
@@ -486,6 +487,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260909093400_pandora_preview_not_live_projection_v1.sql',
     '20260910075705_pandora_theatre_preexecution_primitive_truth_v1.sql',
     '20260910081625_pandora_worker_e_catalog_trust_bootstrap_v1.sql',
+    '20260910103000_pandora_stream_event_impact_classified_v1.sql',
     '20260910123000_pandora_base44_identity_bridge_v1.sql',
     '20260910140000_pandora_base44_bridge_release_allowlist_v1.sql'
   ]);
@@ -673,6 +675,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260909093400_pandora_preview_not_live_projection_v1.sql',
     '20260910075705_pandora_theatre_preexecution_primitive_truth_v1.sql',
     '20260910081625_pandora_worker_e_catalog_trust_bootstrap_v1.sql',
+    '20260910103000_pandora_stream_event_impact_classified_v1.sql',
     '20260910123000_pandora_base44_identity_bridge_v1.sql',
     '20260910140000_pandora_base44_bridge_release_allowlist_v1.sql'
   ]);
