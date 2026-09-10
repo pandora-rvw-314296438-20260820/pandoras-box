@@ -33,10 +33,38 @@ $fn$;
 revoke all on function public.pandora_base44_resolve_identity_v1(text,text,text) from public, anon, authenticated;
 grant execute on function public.pandora_base44_resolve_identity_v1(text,text,text) to service_role;
 
-insert into private.pandora_base44_identity_links(base44_origin,base44_app_id,base44_user_id,pandora_user_id,organization_id,project_id,enabled)
-values ('https://build-with-pandora.base44.app','6a94ecfadf75736cd4ebf7e1','6a94ecfadf75736cd4ebf7e2','f17558e4-e1b2-4b8d-a215-b96775b1a470'::uuid,'076a9306-5c4e-4d9d-98d3-e3a6fea968fb'::uuid,'db007811-fe55-42b4-b0be-3a11324dcfff'::uuid,true)
-on conflict (base44_origin,base44_app_id,base44_user_id,project_id)
-do update set pandora_user_id=excluded.pandora_user_id,organization_id=excluded.organization_id,enabled=true,updated_at=timezone('utc',now());
+insert into private.pandora_base44_identity_links(
+  base44_origin,
+  base44_app_id,
+  base44_user_id,
+  pandora_user_id,
+  organization_id,
+  project_id,
+  enabled
+)
+select
+  'https://build-with-pandora.base44.app',
+  '6a94ecfadf75736cd4ebf7e1',
+  '6a94ecfadf75736cd4ebf7e2',
+  u.id,
+  m.organization_id,
+  p.id,
+  true
+from auth.users u
+join public.memberships m
+  on m.user_id = u.id
+ and m.organization_id = '076a9306-5c4e-4d9d-98d3-e3a6fea968fb'::uuid
+ and m.status = 'active'
+join public.projectos_projects p
+  on p.id = 'db007811-fe55-42b4-b0be-3a11324dcfff'::uuid
+ and p.organization_id = m.organization_id
+where u.id = 'f17558e4-e1b2-4b8d-a215-b96775b1a470'::uuid
+on conflict (base44_origin, base44_app_id, base44_user_id, project_id)
+do update set
+  pandora_user_id = excluded.pandora_user_id,
+  organization_id = excluded.organization_id,
+  enabled = true,
+  updated_at = timezone('utc', now());
 
 comment on table private.pandora_base44_identity_links is 'Service-only mapping used after Base44 bearer validation; Base44 remains presentation/authentication input, not Pandora authority.';
 comment on function public.pandora_base44_resolve_identity_v1(text,text,text) is 'Service-role-only resolver for an externally validated Base44 user ID with active Pandora membership and exact project/org binding.';
