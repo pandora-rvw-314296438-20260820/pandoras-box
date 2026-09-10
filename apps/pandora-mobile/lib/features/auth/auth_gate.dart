@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../app/pandora_chat_shell.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../app/pandora_shell.dart';
 import '../../core/data/pandora_repository.dart';
@@ -169,6 +170,10 @@ class _AuthGateState extends State<AuthGate> {
         onSignOut: _signOut,
       );
     }
+    final dependencies = PandoraDependencies.of(context);
+    final authenticatedHome = dependencies.intelligence == null
+        ? const PandoraShell()
+        : const PandoraChatShell();
     return NavigatorPopHandler(
       onPopWithResult: (_) {
         unawaited(
@@ -180,7 +185,7 @@ class _AuthGateState extends State<AuthGate> {
         key: _authenticatedNavigatorKey,
         onGenerateRoute: (settings) => MaterialPageRoute<void>(
           settings: settings,
-          builder: (_) => const PandoraShell(),
+          builder: (_) => authenticatedHome,
         ),
       ),
     );
