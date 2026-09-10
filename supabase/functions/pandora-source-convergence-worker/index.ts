@@ -1020,6 +1020,17 @@ Deno.serve(async (req) => {
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }).eq("id", queueId);
+      if (row.build_job_id) {
+        await admin.from("pandora_build_jobs").update({
+          status: "failed",
+          current_stage: "understanding",
+          error_code: "TRUSTED_PRIMITIVE_UNAVAILABLE",
+          public_error_summary:
+            "Pandora could not start this build because required building blocks are not available yet. Nothing was published.",
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq("id", row.build_job_id).in("status", ["queued", "claimed", "dispatching"]);
+      }
       return response({
         ok: false,
         state: "blocked",
