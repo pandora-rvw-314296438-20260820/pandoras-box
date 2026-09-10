@@ -7,14 +7,14 @@ import '../core/analytics/owner_analytics.dart';
 import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
-import '../features/connections/connections_screen.dart';
-import '../features/simple/offline_evidence_screen.dart';
-import '../features/simple/simple_safety_screen.dart';
 import '../features/approvals/approvals_screen.dart';
+import '../features/connections/connections_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
 import '../features/simple/more_screen.dart';
+import '../features/simple/offline_evidence_screen.dart';
 import '../features/simple/pandora_v2_ui.dart';
 import '../features/simple/projects_screen.dart';
+import '../features/simple/simple_safety_screen.dart';
 
 class PandoraChatShell extends StatefulWidget {
   const PandoraChatShell({super.key});
