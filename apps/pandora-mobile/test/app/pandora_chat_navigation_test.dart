@@ -51,18 +51,31 @@ void main() {
         'Verify & Safety',
         'More',
       ]) {
-        expect(find.descendant(of: drawer, matching: find.text(title)),
-            findsOneWidget);
+        expect(
+          find.descendant(
+            of: drawer,
+            matching: find.widgetWithText(ListTile, title),
+          ),
+          findsOneWidget,
+        );
       }
-      await tester
-          .tap(find.descendant(of: drawer, matching: find.text('Projects')));
+      await tester.tap(
+        find.descendant(
+          of: drawer,
+          matching: find.widgetWithText(ListTile, 'Projects'),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(menu, findsOneWidget);
       expect(find.byTooltip('Create project'), findsOneWidget);
       await tester.tap(menu);
       await tester.pumpAndSettle();
-      await tester
-          .tap(find.descendant(of: drawer, matching: find.text('Pandora')));
+      await tester.tap(
+        find.descendant(
+          of: drawer,
+          matching: find.widgetWithText(ListTile, 'Pandora'),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Keep this draft'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -100,7 +113,11 @@ void main() {
       await tester.tap(menu);
       await tester.pumpAndSettle();
       await tester.tap(
-          find.descendant(of: find.byType(Drawer), matching: find.text(title)));
+        find.descendant(
+          of: find.byType(Drawer),
+          matching: find.widgetWithText(ListTile, title),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(menu, findsOneWidget);
       expect(tester.takeException(), isNull);
