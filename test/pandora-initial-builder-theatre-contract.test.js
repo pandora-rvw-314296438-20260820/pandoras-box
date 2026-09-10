@@ -44,6 +44,7 @@ test('stream lifecycle is bounded and exact preview safety is preserved', () => 
 
 
 test('request intent cannot claim active execution before stream evidence', () => {
+  // Stage rails may say Starting before evidence; Simple header status must not.
   assert.match(
     initial,
     /if \(_buildRequested\) return updating \? 'Starting your change' : 'Starting';/,
@@ -53,10 +54,17 @@ test('request intent cannot claim active execution before stream evidence', () =
     /if \(_buildRequested\) return updating \? 'Building your change' : 'Building';/,
   );
   assert.match(initial, /String get _ownerHeaderStatus/);
-  assert.match(initial, /case LiveBuildStage\.starting:[\s\S]*return 'Starting';/);
+  // Simple status vocabulary: pre-execution / in-flight Theatre stages → Working
+  // (never Building/Starting as a Simple badge). Blocked → Needs You / Problem.
+  assert.match(
+    initial,
+    /case LiveBuildStage\.starting:[\s\S]*return 'Working';/,
+  );
   assert.match(
     initial,
     /case LiveBuildStage\.building:[\s\S]*return 'Working';/,
   );
+  assert.match(initial, /case LiveBuildStage\.needsYou:[\s\S]*return 'Needs You';/);
+  assert.match(initial, /case LiveBuildStage\.problem:[\s\S]*return 'Problem';/);
   assert.match(initial, /subtitle: _ownerHeaderStatus/);
 });
