@@ -120,12 +120,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(menu, findsOneWidget);
-      final exception = tester.takeException();
-      expect(
-        exception,
-        isNull,
-        reason: 'Root destination $title must render without a framework error.',
-      );
+      debugPrint('PANDORA_ROOT:$title');
+      expect(tester.takeException(), isNull);
     }
   });
 
