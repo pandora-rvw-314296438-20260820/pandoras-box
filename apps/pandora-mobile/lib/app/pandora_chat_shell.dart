@@ -274,7 +274,7 @@ class _PandoraSidePanel extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
+  Widget build(BuildContext context) => Material(
         color: PandoraV2Colors.surface,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
