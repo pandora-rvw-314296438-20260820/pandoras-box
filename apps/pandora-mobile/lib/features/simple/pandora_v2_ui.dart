@@ -461,6 +461,12 @@ class PandoraV2ProjectCard extends StatelessWidget {
       return PandoraV2Colors.success;
     }
     if (value.contains('need')) return PandoraV2Colors.warning;
+    if (value.contains('problem') ||
+        value.contains('fail') ||
+        value.contains('error') ||
+        value.contains('blocked')) {
+      return PandoraV2Colors.danger;
+    }
     if (value.contains('build') || value.contains('work')) {
       return const Color(0xFF4776B8);
     }

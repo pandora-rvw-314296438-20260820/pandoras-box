@@ -535,13 +535,12 @@ class _ProjectBuildExperienceV2ScreenState
   }
 
   String get _ownerHeaderStatus {
-    if (_error != null) return 'Needs you';
+    if (_error != null) return 'Needs You';
     if (_ready) return 'Ready';
     final activity = _initialBuildActivity;
     if (activity != null) {
       switch (activity.stage) {
         case LiveBuildStage.starting:
-          return 'Starting';
         case LiveBuildStage.writing:
         case LiveBuildStage.sourceReady:
         case LiveBuildStage.building:
@@ -552,12 +551,13 @@ class _ProjectBuildExperienceV2ScreenState
         case LiveBuildStage.completed:
           return 'Ready';
         case LiveBuildStage.needsYou:
+          return 'Needs You';
         case LiveBuildStage.problem:
-          return 'Needs you';
+          return 'Problem';
       }
     }
-    if (_candidate != null) return 'Preparing';
-    return _buildRequested ? 'Starting' : 'Preparing';
+    if (_candidate != null) return 'Working';
+    return 'Working';
   }
 
   Widget _buildStageSurface() {

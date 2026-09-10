@@ -93,17 +93,24 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   String _state(ProjectSummary project) {
     if (project.blocker != null && project.blocker!.trim().isNotEmpty) {
-      return 'Needs you';
+      return 'Needs You';
     }
     final live = project.evidenceState(EvidenceStage.productionVerified) ==
             EvidenceClaimState.verified &&
         project.freshness.isFresh;
     if (live) return 'Live';
     final status = project.status.toLowerCase();
-    if (status.contains('ready') ||
-        status.contains('review') ||
-        status.contains('approval')) {
-      return 'Ready for review';
+    if (status.contains('fail') ||
+        status.contains('error') ||
+        status.contains('blocked') ||
+        status.contains('problem')) {
+      return 'Problem';
+    }
+    if (status.contains('needs_you') || status.contains('approval')) {
+      return 'Needs You';
+    }
+    if (status.contains('ready') || status.contains('review')) {
+      return 'Ready';
     }
     return 'Working';
   }

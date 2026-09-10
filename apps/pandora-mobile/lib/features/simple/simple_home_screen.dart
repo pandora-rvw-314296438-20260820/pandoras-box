@@ -109,24 +109,26 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
 
   String _state(ProjectSummary p) {
     if (p.blocker != null && p.blocker!.trim().isNotEmpty) {
-      return 'Needs you';
+      return 'Needs You';
     }
     final live = p.evidenceState(EvidenceStage.productionVerified) ==
             EvidenceClaimState.verified &&
         p.freshness.isFresh;
     if (live) return 'Live';
     final status = p.status.toLowerCase();
-    if (status.contains('ready') ||
-        status.contains('review') ||
-        status.contains('approval')) {
+    if (status.contains('fail') ||
+        status.contains('error') ||
+        status.contains('blocked') ||
+        status.contains('problem')) {
+      return 'Problem';
+    }
+    if (status.contains('needs_you') || status.contains('approval')) {
+      return 'Needs You';
+    }
+    if (status.contains('ready') || status.contains('review')) {
       return 'Ready';
     }
-    if (status.contains('build') ||
-        status.contains('progress') ||
-        status.contains('working') ||
-        status.contains('active')) {
-      return 'Building';
-    }
+    // Active build/work collapses to Working — never Building as a badge.
     return 'Working';
   }
 
@@ -265,7 +267,7 @@ class _SimpleHomeScreenState extends State<SimpleHomeScreen> {
                 summary.approvalCount > 0) ...[
               const SizedBox(height: 30),
               const Text(
-                'Needs you',
+                'Needs You',
                 style: TextStyle(
                   color: PandoraV2Colors.ink,
                   fontSize: 20,
