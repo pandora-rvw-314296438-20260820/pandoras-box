@@ -11,8 +11,13 @@ const data = read('apps/control-tower/owner-data.js');
 
 test('web publish truth is projection driven and never equates provider return with Live', () => {
   assert.match(data, /mutationPhase: null/);
-  assert.match(workspace, /label: 'Publishing'/);
-  assert.match(workspace, /label: 'Checking'/);
+  assert.match(workspace, /PUBLISH_THEATRE_STAGES/);
+  assert.match(workspace, /label: 'Deploying'/);
+  assert.match(workspace, /label: 'Preparing'/);
+  assert.match(workspace, /label: 'Working'/);
+  assert.match(workspace, /mutationPhase === 'checking' \|\| item\.mutationPhase === 'publishing'/);
+  assert.doesNotMatch(workspace, /label: 'Publishing'/);
+  assert.doesNotMatch(workspace, /label: 'Checking'/);
   assert.match(app, /item\.mutationPhase = kind === 'publish' \? 'publishing' : 'working'/);
   assert.match(app, /item\.mutationPhase = 'checking'/);
   assert.match(app, /waitForPublishResolution/);
