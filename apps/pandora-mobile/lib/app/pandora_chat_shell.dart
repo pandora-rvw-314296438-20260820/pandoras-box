@@ -307,9 +307,7 @@ class _RailDestinationButton extends StatelessWidget {
                 child: Icon(
                   selected ? destination.selectedIcon : destination.icon,
                   size: 21,
-                  color: selected
-                      ? PandoraV2Colors.ink
-                      : PandoraV2Colors.muted,
+                  color: selected ? PandoraV2Colors.ink : PandoraV2Colors.muted,
                 ),
               ),
             ),
