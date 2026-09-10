@@ -166,25 +166,25 @@ String pandoraOwnerProjectState(CustomerProject project) {
   if (project.liveUrl != null && project.liveUrl!.trim().isNotEmpty) {
     return 'Live';
   }
-  if (_containsAny(signal, const ['blocked', 'failed', 'error'])) {
-    return 'Blocked';
+  if (_containsAny(signal, const [
+    'blocked',
+    'failed',
+    'error',
+    'problem',
+    'budget',
+    'trusted_primitive',
+  ])) {
+    return 'Problem';
   }
   if (_containsAny(signal, const ['needs_you', 'approval_required'])) {
     return 'Needs You';
   }
   if (project.previewUrl != null && project.previewUrl!.trim().isNotEmpty) {
-    return 'Preview ready';
+    return 'Ready';
   }
-  if (_containsAny(signal, const ['verification', 'verifying', 'checking'])) {
-    return 'Checking';
-  }
-  if (_containsAny(signal, const ['building', 'working', 'updating'])) {
-    return 'Building';
-  }
-  if (_containsAny(signal, const ['understanding', 'spec'])) {
-    return 'Understanding';
-  }
-  return 'Draft';
+  // Active / draft / checking / building collapse to Working — never
+  // Building/Checking/Draft as Simple status badges.
+  return 'Working';
 }
 
 String pandoraOwnerFailureMessage(String? internalState) {

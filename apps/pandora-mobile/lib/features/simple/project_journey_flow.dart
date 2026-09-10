@@ -1067,7 +1067,7 @@ class _ProjectJourneyWorkspaceScreenState
                           label: project!.isLive
                               ? 'Live'
                               : project.hasPreview
-                                  ? 'Preview ready'
+                                  ? 'Ready'
                                   : 'Working',
                           icon: project.isLive
                               ? Icons.public_rounded

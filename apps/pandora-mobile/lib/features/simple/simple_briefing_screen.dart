@@ -175,9 +175,9 @@ class _SimpleBriefingScreenState extends State<SimpleBriefingScreen> {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _metric('Needs you', s.needsMe, Icons.person_outline_rounded),
+              _metric('Needs You', s.needsMe, Icons.person_outline_rounded),
               _metric('Working', s.active, Icons.play_circle_outline_rounded),
-              _metric('Blocked', s.blocked, Icons.block_rounded),
+              _metric('Problem', s.blocked, Icons.block_rounded),
               _metric('Approvals', s.approvals, Icons.approval_outlined),
               _metric(
                   'Connections', s.connectionAttention, Icons.cable_outlined),

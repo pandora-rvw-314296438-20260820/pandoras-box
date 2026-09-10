@@ -333,7 +333,7 @@ class _LiveBuildProjection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (snapshot.requiresReplay) {
       return _ConversationBuildNotice(
-        title: experience?.statusLabel ?? 'Preparing',
+        title: experience?.statusLabel ?? 'Working',
         message: experience?.publicMessage ??
             'Pandora is reconnecting to the same build.',
       );
@@ -355,7 +355,7 @@ class _LiveBuildProjection extends StatelessWidget {
         );
       }
       return _ConversationBuildNotice(
-        title: experience?.statusLabel ?? 'Preparing',
+        title: experience?.statusLabel ?? 'Working',
         message: experience?.publicMessage ??
             'Pandora is preparing the working result.',
       );

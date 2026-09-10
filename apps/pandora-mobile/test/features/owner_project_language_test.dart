@@ -54,7 +54,7 @@ void main() {
       PandoraOwnerBuildStage.previewReady,
     );
     expect(pandoraHasLivePreview(snapshot), isTrue);
-    expect(pandoraOwnerProjectState(snapshot.project), 'Preview ready');
+    expect(pandoraOwnerProjectState(snapshot.project), 'Ready');
   });
 
   test('failed durable state maps to fixing and owner-safe failure copy', () {
@@ -91,5 +91,12 @@ void main() {
       liveUrl: 'https://www.example.com',
     );
     expect(pandoraOwnerProjectState(project), 'Live');
+  });
+
+  test('blocked runtime maps to Problem, never Building', () {
+    final project = _project(runtimeStatus: 'blocked');
+    expect(pandoraOwnerProjectState(project), 'Problem');
+    expect(pandoraOwnerProjectState(project), isNot('Building'));
+    expect(pandoraOwnerProjectState(project), isNot('Blocked'));
   });
 }
