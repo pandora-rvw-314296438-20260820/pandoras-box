@@ -212,6 +212,20 @@ test('parsed but lifecycle-invalid model event remains generated-source rejectio
   await expectCode(parser().parse([encoder.encode(`data: ${envelope(JSON.stringify({type:'done',schemaVersion:1}))}`)]), 'INVALID_GENERATED_SOURCE_STREAM');
 });
 
+
+test('canonical source uses stable INVALID_GENERATED_SOURCE_STREAM reason subtypes', () => {
+  const source = fs.readFileSync(path.join(process.cwd(),'supabase/functions/pandora-project-source-generator/index.ts'),'utf8');
+  assert.match(source, /function invalidGeneratedSourceStream\(reason: string\)/);
+  assert.match(source, /INVALID_GENERATED_SOURCE_STREAM:\$\{reason\}/);
+  assert.match(source, /invalidGeneratedSourceStream\("STREAM_JSON_PARSE"\)/);
+  assert.match(source, /invalidGeneratedSourceStream\("STREAM_DONE_INVALID"\)/);
+  assert.match(source, /invalidGeneratedSourceStream\("STREAM_INCOMPLETE"\)/);
+  assert.match(source, /invalidGeneratedSourceStream\("FILE_CHUNK_SECRET"\)/);
+  assert.doesNotMatch(source, /throw new Error\("INVALID_GENERATED_SOURCE_STREAM"\)/);
+  assert.match(source, /function isMidGenerationSourceFailure\(code: string\)/);
+  assert.match(source, /code\.startsWith\("INVALID_GENERATED_SOURCE"\)/);
+});
+
 test('canonical source binds framing limits and EOF classification', () => {
   const source = fs.readFileSync(path.join(process.cwd(),'supabase/functions/pandora-project-source-generator/index.ts'),'utf8');
   assert.match(source, /MAX_STREAM_FRAME_BUFFER_BYTES = 256 \* 1024/);

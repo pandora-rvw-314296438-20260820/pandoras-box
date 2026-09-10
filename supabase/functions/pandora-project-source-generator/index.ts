@@ -258,6 +258,15 @@ function assertProviderFrameBufferBounded(value: string) {
   if (new TextEncoder().encode(value).byteLength > MAX_STREAM_FRAME_BUFFER_BYTES) throw new Error("PROVIDER_REJECTED");
 }
 
+
+function invalidGeneratedSourceStream(reason: string) {
+  return new Error(`INVALID_GENERATED_SOURCE_STREAM:${reason}`);
+}
+
+function isMidGenerationSourceFailure(code: string) {
+  return code.startsWith("INVALID_GENERATED_SOURCE") || code.startsWith("SOURCE_STREAM_WRITE_FAILED");
+}
+
 async function flushStreamEvents(admin: ReturnType<typeof adminClient>, state: StreamAssembler, force = false) {
   if (!state.pending.length || (!force && state.pending.length < 6)) return;
   const rows = state.pending.splice(0, state.pending.length);
@@ -312,17 +321,17 @@ async function acceptModelLine(admin: ReturnType<typeof adminClient>, state: Str
   const line = rawLine.trim();
   if (!line) return;
   let parsed: unknown;
-  try { parsed = JSON.parse(line); } catch { throw new Error("INVALID_GENERATED_SOURCE_STREAM"); }
+  try { parsed = JSON.parse(line); } catch { throw invalidGeneratedSourceStream("STREAM_JSON_PARSE"); }
   const event = rec(parsed);
   const kind = text(event.type);
   if (kind === "stream_start") {
-    if (!exactKeys(event, ["type", "schemaVersion"]) || event.schemaVersion !== 1 || state.files.size || state.currentPath || state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (!exactKeys(event, ["type", "schemaVersion"]) || event.schemaVersion !== 1 || state.files.size || state.currentPath || state.done) throw invalidGeneratedSourceStream("STREAM_START_INVALID");
     return;
   }
   if (kind === "file_start") {
-    if (!exactKeys(event, ["type", "path"]) || state.currentPath || state.liveDisplayBuffer || state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (!exactKeys(event, ["type", "path"]) || state.currentPath || state.liveDisplayBuffer || state.done) throw invalidGeneratedSourceStream("FILE_START_INVALID");
     const path = text(event.path);
-    if (!SAFE_PATH.test(path) || path.length > 512 || path.startsWith(".env") || path.includes("/.env") || path.includes("node_modules/") || path.startsWith("build/") || path.startsWith("dist/") || path.startsWith(".next/") || state.files.has(path) || state.files.size >= MAX_FILES) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (!SAFE_PATH.test(path) || path.length > 512 || path.startsWith(".env") || path.includes("/.env") || path.includes("node_modules/") || path.startsWith("build/") || path.startsWith("dist/") || path.startsWith(".next/") || state.files.has(path) || state.files.size >= MAX_FILES) throw invalidGeneratedSourceStream("FILE_START_PATH_REJECTED");
     state.currentPath = path;
     state.files.set(path, []);
     state.fileBytes.set(path, 0);
@@ -331,20 +340,20 @@ async function acceptModelLine(admin: ReturnType<typeof adminClient>, state: Str
     return;
   }
   if (kind === "file_chunk") {
-    if (!exactKeys(event, ["type", "path", "content"]) || state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (!exactKeys(event, ["type", "path", "content"]) || state.done) throw invalidGeneratedSourceStream("FILE_CHUNK_INVALID");
     const path = text(event.path);
     const content = typeof event.content === "string" ? event.content : "";
-    if (!content || path !== state.currentPath || !state.files.has(path)) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (!content || path !== state.currentPath || !state.files.has(path)) throw invalidGeneratedSourceStream("FILE_CHUNK_STATE");
     const bytes = new TextEncoder().encode(content);
-    if (bytes.byteLength > 16384) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (bytes.byteLength > 16384) throw invalidGeneratedSourceStream("FILE_CHUNK_TOO_LARGE");
     const nextFileBytes = (state.fileBytes.get(path) || 0) + bytes.byteLength;
     const nextTotal = state.totalBytes + bytes.byteLength;
-    if (nextFileBytes > MAX_FILE_BYTES || nextTotal > MAX_SOURCE_BYTES) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (nextFileBytes > MAX_FILE_BYTES || nextTotal > MAX_SOURCE_BYTES) throw invalidGeneratedSourceStream("FILE_CHUNK_BUDGET");
     // Withhold a bounded tail before customer delivery. The next provider chunk is
     // scanned together with this tail, so a credential split across transport/model
     // chunk boundaries is rejected before any credential bytes can reach code_chunk.
     const candidateLiveSource = state.liveDisplayBuffer + content;
-    if (sourceContainsSecret(candidateLiveSource, state.knownSecrets)) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (sourceContainsSecret(candidateLiveSource, state.knownSecrets)) throw invalidGeneratedSourceStream("FILE_CHUNK_SECRET");
     state.fileBytes.set(path, nextFileBytes);
     state.totalBytes = nextTotal;
     state.files.get(path)!.push(content);
@@ -356,10 +365,10 @@ async function acceptModelLine(admin: ReturnType<typeof adminClient>, state: Str
     return;
   }
   if (kind === "file_end") {
-    if (!exactKeys(event, ["type", "path"]) || state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (!exactKeys(event, ["type", "path"]) || state.done) throw invalidGeneratedSourceStream("FILE_END_INVALID");
     const path = text(event.path);
-    if (path !== state.currentPath || !state.files.has(path) || (state.fileBytes.get(path) || 0) < 1) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
-    if (sourceContainsSecret(state.liveDisplayBuffer, state.knownSecrets)) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (path !== state.currentPath || !state.files.has(path) || (state.fileBytes.get(path) || 0) < 1) throw invalidGeneratedSourceStream("FILE_END_STATE");
+    if (sourceContainsSecret(state.liveDisplayBuffer, state.knownSecrets)) throw invalidGeneratedSourceStream("FILE_END_SECRET");
     await emitLiveSource(admin, state, path, state.liveDisplayBuffer);
     state.liveDisplayBuffer = "";
     state.currentPath = null;
@@ -368,13 +377,13 @@ async function acceptModelLine(admin: ReturnType<typeof adminClient>, state: Str
     return;
   }
   if (kind === "done") {
-    if (!exactKeys(event, ["type", "schemaVersion"]) || event.schemaVersion !== 1 || state.currentPath || state.liveDisplayBuffer || !state.files.size || state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (!exactKeys(event, ["type", "schemaVersion"]) || event.schemaVersion !== 1 || state.currentPath || state.liveDisplayBuffer || !state.files.size || state.done) throw invalidGeneratedSourceStream("STREAM_DONE_INVALID");
     state.done = true;
     queueStreamEvent(state, "generation_completed", null, null, { fileCount: state.files.size, byteSize: state.totalBytes });
     await flushStreamEvents(admin, state, true);
     return;
   }
-  throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+  throw invalidGeneratedSourceStream("STREAM_EVENT_UNKNOWN");
 }
 
 async function streamGeminiSource(admin: ReturnType<typeof adminClient>, providerRequest: JsonRecord, state: StreamAssembler) {
@@ -412,7 +421,7 @@ async function streamGeminiSource(admin: ReturnType<typeof adminClient>, provide
   const consumeModelText = async (piece: string) => {
     if (!piece) return;
     rawOutput += piece;
-    if (new TextEncoder().encode(rawOutput).byteLength > MAX_SOURCE_BYTES * 3) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+    if (new TextEncoder().encode(rawOutput).byteLength > MAX_SOURCE_BYTES * 3) throw invalidGeneratedSourceStream("STREAM_OUTPUT_BUDGET");
     modelBuffer += piece;
     for (;;) {
       const newline = modelBuffer.indexOf("\n");
@@ -461,7 +470,7 @@ async function streamGeminiSource(admin: ReturnType<typeof adminClient>, provide
     await acceptModelLine(admin, state, modelBuffer);
   }
   await flushStreamEvents(admin, state, true);
-  if (!state.done) throw new Error("INVALID_GENERATED_SOURCE_STREAM");
+  if (!state.done) throw invalidGeneratedSourceStream("STREAM_INCOMPLETE");
   const providerCompletedAt = performance.now();
   const providerCompletedAtIso = new Date().toISOString();
   const measuredFirstByteAt = firstProviderByteAt;
@@ -791,10 +800,15 @@ async function runGenerationInBackground(input: {
       }).eq("id", input.sourceQueueId).eq("build_job_id", input.buildJobId).eq("status", "dispatching");
     }
 
+    const midGeneration = isMidGenerationSourceFailure(code);
+    const publicSummary = midGeneration
+      ? "Pandora could not finish generating this project. You can try again."
+      : "Pandora couldn't finish this build. Your current version is unchanged.";
+
     if (terminal) {
       await admin.from("pandora_build_jobs").update({
         status: "failed", current_stage: "failed", completed_at: new Date().toISOString(),
-        error_code: code.slice(0, 120), public_error_summary: "Pandora couldn't finish this build. Your current version is unchanged.",
+        error_code: code.slice(0, 120), public_error_summary: publicSummary,
         updated_at: new Date().toISOString(),
       }).eq("id", input.buildJobId).eq("status", "queued").is("target_project_version_id", null);
       await admin.from("pandora_build_stream_sessions").update({
