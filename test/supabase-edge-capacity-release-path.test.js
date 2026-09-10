@@ -6,7 +6,7 @@ const test = require("node:test");
 
 const config = fs.readFileSync("supabase/config.toml", "utf8");
 const migration = fs.readFileSync(
-  "supabase/migrations/20260906050000_pandora_declared_edge_release_allowlist_v1.sql",
+  "supabase/migrations/20260910140000_pandora_base44_bridge_release_allowlist_v1.sql",
   "utf8",
 );
 
