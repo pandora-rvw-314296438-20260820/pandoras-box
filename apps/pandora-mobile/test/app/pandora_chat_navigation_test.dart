@@ -120,7 +120,12 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(menu, findsOneWidget);
-      expect(tester.takeException(), isNull);
+      final exception = tester.takeException();
+      expect(
+        exception,
+        isNull,
+        reason: 'Root destination $title must render without a framework error.',
+      );
     }
   });
 
