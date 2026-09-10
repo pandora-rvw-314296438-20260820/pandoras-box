@@ -121,7 +121,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(menu, findsOneWidget);
       debugPrint('PANDORA_ROOT:$title');
-      expect(tester.takeException(), isNull);
+      final exception = tester.takeException();
+      if (exception != null) {
+        debugDumpRenderTree();
+      }
+      expect(exception, isNull);
     }
   });
 
