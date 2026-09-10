@@ -153,7 +153,14 @@ jobs:
           for file in \
             lib/features/simple/project_experience_v2.dart \
             lib/features/simple/project_build_conversation.dart \
-            lib/features/simple/project_workspace_v2_view.dart
+            lib/features/simple/project_workspace_v2_view.dart \
+            lib/app/pandora_chat_shell.dart \
+            lib/core/widgets/pandora_navigation.dart \
+            lib/core/widgets/pandora_page.dart \
+            lib/features/approvals/approvals_screen.dart \
+            lib/features/simple/ask_pandora_screen.dart \
+            lib/features/simple/projects_screen.dart \
+            test/app/pandora_chat_navigation_test.dart
           do
             dart format "$file"
             git diff --no-index -- "../apps/pandora-mobile/$file" "$file" || true

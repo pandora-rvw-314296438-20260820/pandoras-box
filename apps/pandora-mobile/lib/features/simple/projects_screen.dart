@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/models/pandora_models.dart';
+import '../../core/widgets/pandora_navigation.dart';
 import 'pandora_v2_ui.dart';
 import 'project_create_experience.dart';
 import 'project_experience_v2.dart';
@@ -123,26 +124,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Work',
-                      style: TextStyle(
-                        color: PandoraV2Colors.ink,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -1.1,
-                      ),
-                    ),
-                  ),
-                  IconButton.filled(
-                    tooltip: 'Create',
-                    style: IconButton.styleFrom(
-                      backgroundColor: PandoraV2Colors.ink,
-                      foregroundColor: Colors.white,
-                    ),
+              PandoraPageHeader(
+                title: 'Projects',
+                actions: [
+                  IconButton(
+                    tooltip: 'Create project',
                     onPressed: _create,
                     icon: const Icon(Icons.add_rounded),
                   ),

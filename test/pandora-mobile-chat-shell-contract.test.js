@@ -22,7 +22,8 @@ test('mobile runtime enters Pandora chat and uses side navigation', async () => 
   assert.match(shell, /AskPandoraScreen\(/);
   assert.match(shell, /Drawer\(/);
   assert.match(shell, /class _PandoraSidePanel/);
-  assert.match(shell, /class _PandoraMobileRail/);
+  assert.doesNotMatch(shell, /class _PandoraMobileRail/);
+  assert.match(shell, /PandoraNavigationScope/);
   assert.doesNotMatch(shell, /bottomNavigationBar\s*:/);
   assert.match(
     gate,

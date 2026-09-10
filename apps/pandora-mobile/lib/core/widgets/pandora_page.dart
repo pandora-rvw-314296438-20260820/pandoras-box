@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../design/pandora_tokens.dart';
 import 'pandora_mark.dart';
+import 'pandora_navigation.dart';
 import 'pandora_route_boundary.dart';
 
 class PandoraPage extends StatelessWidget {
@@ -24,12 +25,22 @@ class PandoraPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final navigation = PandoraNavigationScope.maybeOf(context);
     final content = CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverAppBar(
-          toolbarHeight: 68,
-          titleSpacing: PandoraSpacing.md,
+          toolbarHeight: 56,
+          automaticallyImplyLeading: navigation == null,
+          leading: navigation?.openDrawer == null
+              ? null
+              : IconButton(
+                  key: const ValueKey<String>('pandora-side-panel-open'),
+                  tooltip: 'Open navigation',
+                  onPressed: navigation!.openDrawer,
+                  icon: const Icon(Icons.menu_rounded),
+                ),
+          titleSpacing: navigation?.openDrawer == null ? PandoraSpacing.md : 0,
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
