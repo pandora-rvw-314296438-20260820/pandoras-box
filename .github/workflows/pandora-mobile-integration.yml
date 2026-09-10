@@ -151,7 +151,6 @@ jobs:
         run: |
           set -euo pipefail
           for file in \
-            lib/app/pandora_chat_shell.dart \
             lib/features/simple/project_experience_v2.dart \
             lib/features/simple/project_build_conversation.dart \
             lib/features/simple/project_workspace_v2_view.dart
