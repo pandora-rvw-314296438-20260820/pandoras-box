@@ -99,7 +99,7 @@ function renderHome() {
 function renderProjects() {
   const projects = deriveProjects();
   return `<div class="owner-screen">
-    <div class="owner-page-intro"><span class="owner-kicker">Your portfolio</span><h1>Projects</h1><p>Progress is calculated only from tasks recorded in the current ProjectOS status.</p></div>
+    <div class="owner-page-intro"><span class="owner-kicker">Your portfolio</span><h1>Projects</h1><p>Progress is calculated only from tasks recorded in the current Pandora status.</p></div>
     <div class="owner-project-grid">${projects.length ? projects.map((project) => `<article class="owner-card owner-project-card">
       <button type="button" class="owner-project-open" data-action="open-project" data-id="${esc(project.id)}">
         <span class="owner-project-card-top"><span class="owner-project-mark large">${esc(project.initials)}</span><span class="owner-project-card-title"><strong>${esc(project.name)}</strong><span>${esc(project.repository)}</span></span><b>${project.progress === null ? '—' : `${project.progress}%`}</b></span>

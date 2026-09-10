@@ -224,7 +224,10 @@ function sleep(ms) {
 function updateWorkspaceProgressDom() {
   const item = state.projectWorkspace;
   const theatre = item.theatre || {};
-  const theatreStage = String(theatre.owner_stage || '').toLowerCase();
+  const theatreApi = window.PandorasOwnerTheatre;
+  const theatreStage = theatreApi
+    ? theatreApi.theatreStageKey(item)
+    : String(theatre.owner_stage || '').toLowerCase();
   const stage = String(
     item.changing === true
       ? (item.changePhase || theatreStage)
@@ -236,12 +239,23 @@ function updateWorkspaceProgressDom() {
   const phaseMessages = {
     understanding: 'Pandora is understanding your change.',
     designing: 'Pandora is preparing the exact change.',
+    planning: 'Pandora is preparing the exact change.',
     building: 'Pandora is building the new version.',
     connecting: 'Pandora is connecting the new version.',
     checking: 'Pandora is checking the new version.',
+    testing: 'Pandora is checking the new version.',
     fixing: 'Pandora is repairing the new version.',
+    verifying: 'Pandora is verifying the new version.',
     preparing_preview: 'Pandora is preparing the verified preview.',
     preview_ready: 'The verified preview is ready.',
+    edit_requested: 'Pandora received your change request.',
+    rebuilding: 'Pandora is rebuilding the new version.',
+    updated_preview: 'The updated preview is ready.',
+    preparing: 'Pandora is preparing to publish.',
+    deploying: 'Pandora is deploying the verified version.',
+    publishing: 'Pandora is deploying the verified version.',
+    verifying_live: 'Pandora is verifying the live result.',
+    live: 'This version is live.',
   };
   const projectionFresh = item.changing !== true || !item.changePhase || theatreStage === String(item.changePhase).toLowerCase();
   const message = document.querySelector('[data-workspace-theatre-message]');
@@ -251,29 +265,34 @@ function updateWorkspaceProgressDom() {
       : (item.changing ? phaseMessages[stage] || 'Pandora is working on this change.' : 'No active build projection');
   }
 
-  const progress = Number(theatre.progress_percent);
-  const progressFresh = projectionFresh;
   const progressNode = document.querySelector('[data-workspace-theatre-progress]');
   if (progressNode) {
-    if (Number.isFinite(progress) && progressFresh) {
-      const boundedProgress = Math.max(0, Math.min(100, progress));
-      progressNode.hidden = false;
-      progressNode.textContent = boundedProgress + '%';
-      progressNode.setAttribute('aria-label', boundedProgress + '% projected build activity');
-    } else {
-      progressNode.hidden = true;
-      progressNode.textContent = '';
-      progressNode.removeAttribute('aria-label');
-    }
+    progressNode.hidden = true;
+    progressNode.textContent = '';
+    progressNode.removeAttribute('aria-label');
   }
 
-  document.querySelectorAll('[data-workspace-theatre-stages]').forEach((node) => {
-    const stages = String(node.dataset.workspaceTheatreStages || '').split(',').filter(Boolean);
-    node.classList.toggle('active', stages.includes(stage));
-  });
+  const stagesRail = theatreApi ? theatreApi.theatreStagesFor(item) : null;
+  const stagesRoot = document.querySelector('.owner-theatre-stages');
+  if (stagesRoot && stagesRail) {
+    const esc = window.PandorasOwnerData?.esc || ((value) => String(value ?? ''));
+    stagesRoot.innerHTML = stagesRail.map((entry) => {
+      const active = entry.stages.includes(stage);
+      return `<div class="owner-theatre-stage ${active ? 'active' : ''}" data-workspace-theatre-stages="${esc(entry.stages.join(','))}"><span></span><small>${entry.label}</small></div>`;
+    }).join('');
+  } else {
+    document.querySelectorAll('[data-workspace-theatre-stages]').forEach((node) => {
+      const stages = String(node.dataset.workspaceTheatreStages || '').split(',').filter(Boolean);
+      node.classList.toggle('active', stages.includes(stage));
+    });
+  }
 
   const current = document.querySelector('[data-workspace-theatre-current]');
-  if (current) current.textContent = stage ? stage.replaceAll('_', ' ') : 'unavailable';
+  if (current) {
+    current.textContent = theatreApi
+      ? theatreApi.theatreStageLabel(stage, item)
+      : (stage ? stage.replaceAll('_', ' ') : 'unavailable');
+  }
 
   const updated = document.querySelector('[data-workspace-theatre-updated]');
   if (updated) {

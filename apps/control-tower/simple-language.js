@@ -87,15 +87,18 @@ function simpleTask(value) {
   const raw = String(value || "").trim();
   const id = raw.match(/PO-\d+/)?.[0];
   if (id && SIMPLE_TASKS[id]) return SIMPLE_TASKS[id];
-  return raw.replace(/^PO-\d+\s*·\s*/, "") || "ProjectOS will choose the next ready step";
+  return raw.replace(/^PO-\d+\s*·\s*/, "") || "Pandora will choose the next ready step";
 }
 
 function simpleStatus(value) {
   const status = String(value || "").trim().toUpperCase();
-  if (["COMPLETE", "COMPLETED", "ACTIVE"].includes(status)) return status === "ACTIVE" ? "NOW" : "DONE";
-  if (["IN-PROGRESS", "IN PROGRESS", "READY", "QUEUED-QUALIFICATION"].includes(status)) return "READY";
-  if (["PLANNED", "NOT-STARTED", "NOT STARTED"].includes(status)) return "LATER";
-  if (["PARTIAL", "BLOCKED", "UNAVAILABLE"].includes(status)) return "BLOCKED";
+  if (status === "LIVE") return "Live";
+  if (["COMPLETE", "COMPLETED"].includes(status)) return "Ready";
+  if (["ACTIVE", "IN-PROGRESS", "IN PROGRESS", "WORKING", "QUEUED-QUALIFICATION", "NOW"].includes(status)) return "Working";
+  if (status === "READY" || status === "DONE") return "Ready";
+  if (["NEEDS YOU", "NEEDS_YOU", "APPROVAL"].includes(status)) return "Needs You";
+  if (["PARTIAL", "BLOCKED", "UNAVAILABLE", "FAILED", "ERROR", "PROBLEM"].includes(status)) return "Problem";
+  if (["PLANNED", "NOT-STARTED", "NOT STARTED", "LATER"].includes(status)) return "Working";
   return status;
 }
 
@@ -131,12 +134,12 @@ function rewriteTopLevelCopy(root) {
 
   const connecting = root.querySelector(".demo-banner");
   if (connecting) {
-    setText(connecting.querySelector("strong"), "Checking ProjectOS");
-    setText(connecting.querySelector("p"), "ProjectOS is confirming that everything is ready. Manual actions stay locked until the safety checks pass.");
+    setText(connecting.querySelector("strong"), "Checking Pandora");
+    setText(connecting.querySelector("p"), "Pandora is confirming that everything is ready. Manual actions stay locked until the safety checks pass.");
   }
 
   const error = root.querySelector(".system-banner");
-  if (error) setText(error.querySelector("strong"), "ProjectOS needs attention");
+  if (error) setText(error.querySelector("strong"), "Pandora needs attention");
 }
 
 function rewriteGate(gate, label, detail, healthyText = "OK", warningText = "CHECK") {
@@ -153,7 +156,7 @@ function rewriteGate(gate, label, detail, healthyText = "OK", warningText = "CHE
 function rewriteNextCard(card) {
   if (!card) return;
   setText(card.querySelector(".card-title"), "What happens next");
-  setText(card.querySelector(".card-subtitle"), "ProjectOS chose the next ready step");
+  setText(card.querySelector(".card-subtitle"), "Pandora chose the next ready step");
   const badge = card.querySelector(".badge");
   if (badge) setText(badge, simpleStatus(badge.textContent));
 
@@ -215,7 +218,7 @@ function rewriteSafetyCard(card) {
   const button = card.querySelector("button");
   setText(eyebrow, "SYSTEM SAFETY");
   setText(heading, heading?.textContent?.trim() === "Operational" ? "Ready" : "Needs attention");
-  setText(paragraph, "ProjectOS keeps approvals, activity history, limits, and recovery protection ready in the background.");
+  setText(paragraph, "Pandora keeps approvals, activity history, limits, and recovery protection ready in the background.");
   setText(button, "Open full system details");
 
   const grid = card.querySelector(":scope > .gate-grid");
@@ -248,7 +251,7 @@ function transformProjectOS(section) {
     } else {
       setText(heroHeading, "Checking the next step");
     }
-    setText(hero.querySelector("p"), "ProjectOS checks the real status, chooses the next ready step, and continues the work for you.");
+    setText(hero.querySelector("p"), "Pandora checks the real status, chooses the next ready step, and continues the work for you.");
     setText(hero.querySelector("button"), "Check again");
 
     const gates = hero.querySelectorAll(".gate");
@@ -264,7 +267,7 @@ function transformProjectOS(section) {
       : blockerCount
         ? `${blockerCount} things need outside access or proof`
         : "Something needs attention";
-    rewriteGate(gates[3], "What is blocked", simpleBlocker, "CLEAR", "BLOCKED");
+    rewriteGate(gates[3], "What is blocked", simpleBlocker, "CLEAR", "Problem");
   }
 
   const metricCards = metrics ? Array.from(metrics.querySelectorAll(":scope > .metric")) : [];
