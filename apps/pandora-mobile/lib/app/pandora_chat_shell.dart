@@ -68,6 +68,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   ];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey _workspaceKey = GlobalKey();
   final Map<int, Widget> _roots = <int, Widget>{};
   final Set<int> _visited = <int>{0};
   int _index = 0;
@@ -190,6 +191,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final body = IndexedStack(
+              key: _workspaceKey,
               index: _index,
               children: [
                 for (var i = 0; i < _destinations.length; i++)
