@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -28,22 +27,29 @@ class PandoraChatShell extends StatefulWidget {
 
 class _PandoraChatShellState extends State<PandoraChatShell> {
   static const _destinations = <_ChatDestination>[
-    _ChatDestination('Pandora', Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded),
+    _ChatDestination('Pandora', Icons.chat_bubble_outline_rounded,
+        Icons.chat_bubble_rounded),
     _ChatDestination('Projects', Icons.folder_outlined, Icons.folder_rounded),
-    _ChatDestination('Needs You', Icons.check_circle_outline_rounded, Icons.check_circle_rounded),
-    _ChatDestination('More', Icons.more_horiz_rounded, Icons.more_horiz_rounded),
+    _ChatDestination('Needs You', Icons.check_circle_outline_rounded,
+        Icons.check_circle_rounded),
+    _ChatDestination(
+        'More', Icons.more_horiz_rounded, Icons.more_horiz_rounded),
     _ChatDestination('Activity', Icons.history_rounded, Icons.history_rounded),
     _ChatDestination('Connections', Icons.cable_outlined, Icons.cable_rounded),
-    _ChatDestination('Saved evidence', Icons.offline_pin_outlined, Icons.offline_pin_rounded),
-    _ChatDestination('Verify & Safety', Icons.shield_outlined, Icons.shield_rounded),
+    _ChatDestination('Saved evidence', Icons.offline_pin_outlined,
+        Icons.offline_pin_rounded),
+    _ChatDestination(
+        'Verify & Safety', Icons.shield_outlined, Icons.shield_rounded),
   ];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey _workspaceKey = GlobalKey();
-  final GlobalKey<AskPandoraScreenState> _chatKey = GlobalKey<AskPandoraScreenState>();
+  final GlobalKey<AskPandoraScreenState> _chatKey =
+      GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
   final Set<int> _visited = <int>{0};
-  List<PandoraIntelligenceThread> _threads = const <PandoraIntelligenceThread>[];
+  List<PandoraIntelligenceThread> _threads =
+      const <PandoraIntelligenceThread>[];
   bool _historyLoading = false;
   bool _historyLoaded = false;
   int _index = 0;
@@ -181,7 +187,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: PandoraV2Colors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: PandoraV2Colors.line),
@@ -218,7 +225,9 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               index: _index,
               children: [
                 for (var i = 0; i < _destinations.length; i++)
-                  _visited.contains(i) || i == _index ? _root(i) : const SizedBox.shrink(),
+                  _visited.contains(i) || i == _index
+                      ? _root(i)
+                      : const SizedBox.shrink(),
               ],
             );
 
@@ -228,9 +237,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                 body: Row(
                   children: [
                     SizedBox(width: 284, child: SafeArea(child: _sidePanel())),
-                    const VerticalDivider(width: 1, color: PandoraV2Colors.line),
+                    const VerticalDivider(
+                        width: 1, color: PandoraV2Colors.line),
                     Expanded(
-                      child: PandoraNavigationScope(openDrawer: null, child: body),
+                      child:
+                          PandoraNavigationScope(openDrawer: null, child: body),
                     ),
                   ],
                 ),
@@ -312,9 +323,11 @@ class _PandoraSidePanel extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
               child: ListTile(
                 key: const ValueKey<String>('pandora-new-chat'),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
                 leading: const Icon(Icons.edit_square, size: 21),
-                title: const Text('New chat', style: TextStyle(fontWeight: FontWeight.w600)),
+                title: const Text('New chat',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: onNewChat,
               ),
             ),
@@ -349,7 +362,8 @@ class _PandoraSidePanel extends StatelessWidget {
                       padding: EdgeInsets.fromLTRB(10, 4, 10, 14),
                       child: Text(
                         'Your conversations will appear here.',
-                        style: TextStyle(color: PandoraV2Colors.muted, fontSize: 12.5),
+                        style: TextStyle(
+                            color: PandoraV2Colors.muted, fontSize: 12.5),
                       ),
                     )
                   else
@@ -364,7 +378,8 @@ class _PandoraSidePanel extends StatelessWidget {
                             thread.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
+                            style: const TextStyle(
+                                fontSize: 13.5, fontWeight: FontWeight.w500),
                           ),
                           onTap: () => onOpenThread(thread),
                         ),
@@ -382,16 +397,21 @@ class _PandoraSidePanel extends StatelessWidget {
                         iconColor: PandoraV2Colors.muted,
                         textColor: PandoraV2Colors.ink,
                         selectedTileColor: PandoraV2Colors.soft,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
                         leading: Icon(
-                          index == selectedIndex ? destinations[index].selectedIcon : destinations[index].icon,
+                          index == selectedIndex
+                              ? destinations[index].selectedIcon
+                              : destinations[index].icon,
                           size: 22,
                         ),
                         title: Text(
                           destinations[index].label,
                           style: TextStyle(
                             fontSize: 15,
-                            fontWeight: index == selectedIndex ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight: index == selectedIndex
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                           ),
                         ),
                         onTap: () => onSelected(index),
