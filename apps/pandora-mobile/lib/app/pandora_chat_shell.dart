@@ -294,8 +294,9 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       ),
     );
     controller.dispose();
-    if (!mounted || title == null || title.isEmpty || title == thread.title)
+    if (!mounted || title == null || title.isEmpty || title == thread.title) {
       return;
+    }
     await _runThreadMutation(
       () => PandoraDependencies.of(context)
           .intelligence!
