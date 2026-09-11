@@ -1,0 +1,55 @@
+name: PR 522 canonical format repair once
+
+on:
+  push:
+    branches:
+      - feat/contextual-chat-composer-20260912
+    paths:
+      - .github/workflows/pr522-canonical-format-repair-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact repair branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: feat/contextual-chat-composer-20260912
+      - name: Guard expected branch head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "9eb742235bf7f9515d03c2719782dc672c6ab8ac"
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          cache: true
+      - name: Resolve lockfile, format exact changed sources, and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/pandora-mobile
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+          dart format \
+            lib/core/data/pandora_intelligence_api.dart \
+            lib/features/simple/ask_pandora_screen.dart
+          rm pubspec.lock.expected
+          cd ../..
+          rm .github/workflows/pr522-canonical-format-repair-once.yml
+          git config user.name 'Pandora ProjectOS'
+          git config user.email 'projectos@users.noreply.github.com'
+          git add \
+            apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart \
+            apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart \
+            .github/workflows/pr522-canonical-format-repair-once.yml
+          git diff --cached --check
+          git diff --cached --quiet && exit 0
+          git commit -m 'style(mobile): apply canonical package-aware formatting'
+          git push origin HEAD:feat/contextual-chat-composer-20260912
