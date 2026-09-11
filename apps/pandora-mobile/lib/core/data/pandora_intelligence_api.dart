@@ -1,4 +1,3 @@
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../platform/pandora_native_io.dart';
@@ -15,13 +14,15 @@ class PandoraIntelligenceApi {
 
   static const functionName = 'pandora-intelligence-chat';
 
-  Future<List<PandoraIntelligenceThread>> recentThreads({int limit = 30}) async {
+  Future<List<PandoraIntelligenceThread>> recentThreads(
+      {int limit = 30}) async {
     _requireSession();
     final safeLimit = limit.clamp(1, 100).toInt();
     try {
       final rows = await _client
           .from('pandora_intelligence_threads')
-          .select('id,project_id,title,status,last_message_at,created_at,updated_at')
+          .select(
+              'id,project_id,title,status,last_message_at,created_at,updated_at')
           .eq('organization_id', _organizationId)
           .eq('status', 'active')
           .order('last_message_at', ascending: false)
@@ -45,7 +46,8 @@ class PandoraIntelligenceApi {
     try {
       final rows = await _client
           .from('pandora_intelligence_messages')
-          .select('id,thread_id,author_role,content,attachment_manifest,created_at')
+          .select(
+              'id,thread_id,author_role,content,attachment_manifest,created_at')
           .eq('organization_id', _organizationId)
           .eq('thread_id', threadId)
           .order('created_at')
