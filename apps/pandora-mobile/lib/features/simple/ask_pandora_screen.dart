@@ -1053,6 +1053,147 @@ class _Composer extends StatelessWidget {
       );
 }
 
+class _ServiceContextSheet extends StatelessWidget {
+  const _ServiceContextSheet({required this.providers});
+
+  final List<PandoraCapabilityProvider> providers;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 520),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Text(
+                  'Services',
+                  style: TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: providers.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No verified service state is available.',
+                          style: TextStyle(color: PandoraSimpleColors.muted),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+                        itemCount: providers.length,
+                        separatorBuilder: (_, __) => const Divider(
+                          height: 1,
+                          color: PandoraSimpleColors.line,
+                        ),
+                        itemBuilder: (context, index) {
+                          final provider = providers[index];
+                          return ListTile(
+                            title: Text(
+                              provider.label,
+                              style: const TextStyle(
+                                color: PandoraSimpleColors.ink,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              provider.state,
+                              style: const TextStyle(
+                                color: PandoraSimpleColors.muted,
+                              ),
+                            ),
+                            trailing: provider.canUseNow
+                                ? const Icon(
+                                    Icons.check_circle_outline,
+                                    color: PandoraSimpleColors.ink,
+                                  )
+                                : const Icon(
+                                    Icons.info_outline_rounded,
+                                    color: PandoraSimpleColors.muted,
+                                  ),
+                            onTap: () => Navigator.of(context).pop(provider),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _ProjectContextSheet extends StatelessWidget {
+  const _ProjectContextSheet({required this.projects});
+
+  final List<PandoraProjectContext> projects;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 560),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Text(
+                  'Project context',
+                  style: TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: projects.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No existing projects are available.',
+                          style: TextStyle(color: PandoraSimpleColors.muted),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+                        itemCount: projects.length,
+                        separatorBuilder: (_, __) => const Divider(
+                          height: 1,
+                          color: PandoraSimpleColors.line,
+                        ),
+                        itemBuilder: (context, index) {
+                          final project = projects[index];
+                          return ListTile(
+                            title: Text(
+                              project.name,
+                              style: const TextStyle(
+                                color: PandoraSimpleColors.ink,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              project.repository ?? project.projectKey,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: PandoraSimpleColors.muted,
+                              ),
+                            ),
+                            onTap: () => Navigator.of(context).pop(project),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
 class _ComposerMenuItem extends StatelessWidget {
   const _ComposerMenuItem({
     super.key,
