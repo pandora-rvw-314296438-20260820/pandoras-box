@@ -7,6 +7,7 @@ import '../../core/data/owner_projection.dart';
 import '../../core/models/pandora_models.dart';
 import '../../core/state/screen_controller.dart';
 import '../../core/widgets/owner_experience.dart';
+import '../../core/widgets/pandora_navigation.dart';
 import '../simple/ask_pandora_screen.dart';
 import '../simple/pandora_v2_ui.dart';
 
@@ -69,10 +70,22 @@ class _PluginsScreenState extends State<PluginsScreen> {
                   children: [
                     Row(
                       children: [
-                        IconButton(
-                          tooltip: 'Back to Pandora',
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          icon: const Icon(Icons.arrow_back_rounded),
+                        Builder(
+                          builder: (context) {
+                            final navigation =
+                                PandoraNavigationScope.maybeOf(context);
+                            if (navigation?.openDrawer == null) {
+                              return const SizedBox(width: 48);
+                            }
+                            return IconButton(
+                              key: const ValueKey<String>(
+                                'pandora-side-panel-open',
+                              ),
+                              tooltip: 'Open navigation',
+                              onPressed: navigation!.openDrawer,
+                              icon: const Icon(Icons.menu_rounded),
+                            );
+                          },
                         ),
                         const Expanded(
                           child: Text(
