@@ -134,7 +134,7 @@ begin
 
   select p.* into v_project
   from public.projectos_projects p
-  join jsonb_array_elements(v_candidates) c on (c->>'projectId')::uuid=p.id
+  join jsonb_array_elements(v_candidates) c(value) on (c.value->>'projectId')::uuid=p.id
   where p.organization_id=p_organization_id
   limit 1;
 
