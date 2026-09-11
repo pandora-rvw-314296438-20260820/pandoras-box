@@ -42,6 +42,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   final List<_ChatMessage> _messages = <_ChatMessage>[];
   PandoraTextAttachment? _attachment;
   PandoraImageAttachment? _imageAttachment;
+  PandoraProjectContext? _projectContext;
+  PandoraCapabilityProvider? _serviceContext;
   String? _threadId;
   String? _pendingMessage;
   bool _submitting = false;
@@ -83,8 +85,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     }
     final spacer = _objective.text.trim().isEmpty ? '' : ' ';
     _objective.text = '${_objective.text}$spacer$text';
-    _objective.selection =
-        TextSelection.collapsed(offset: _objective.text.length);
+    _objective.selection = TextSelection.collapsed(
+      offset: _objective.text.length,
+    );
     setState(() => _error = null);
   }
 
@@ -105,6 +108,94 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       _attachment = attachment;
       _error = null;
     });
+  }
+
+  Future<void> _pickServiceContext() async {
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null) return;
+    try {
+      final registry = await intelligence.capabilityRegistry();
+      if (!mounted) return;
+      final selected = await showModalBottomSheet<PandoraCapabilityProvider>(
+        context: context,
+        backgroundColor: PandoraSimpleColors.surface,
+        showDragHandle: true,
+        builder: (context) =>
+            _ServiceContextSheet(providers: registry.providers),
+      );
+      if (!mounted || selected == null) return;
+      final prefix = '${selected.label}: ';
+      setState(() {
+        _serviceContext = selected;
+        if (!_objective.text.toLowerCase().startsWith(prefix.toLowerCase())) {
+          _objective.text = '$prefix${_objective.text}';
+          _objective.selection = TextSelection.collapsed(
+            offset: _objective.text.length,
+          );
+        }
+        _error = null;
+      });
+      _objectiveFocus.requestFocus();
+    } on PandoraIntelligenceException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
+  }
+
+  Future<void> _pickProjectContext() async {
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null) return;
+    try {
+      final projects = await intelligence.projectContexts();
+      if (!mounted) return;
+      final selected = await showModalBottomSheet<PandoraProjectContext>(
+        context: context,
+        backgroundColor: PandoraSimpleColors.surface,
+        showDragHandle: true,
+        builder: (context) => _ProjectContextSheet(projects: projects),
+      );
+      if (!mounted || selected == null) return;
+      final threadId = _threadId;
+      if (threadId != null) {
+        await intelligence.associateThreadWithProject(threadId, selected.id);
+        if (!mounted) return;
+      }
+      setState(() {
+        _projectContext = selected;
+        _error = null;
+      });
+      _objectiveFocus.requestFocus();
+    } on PandoraIntelligenceException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
+  }
+
+  void _removeServiceContext() {
+    final selected = _serviceContext;
+    if (selected == null) return;
+    final prefix = '${selected.label}: ';
+    setState(() {
+      if (_objective.text.toLowerCase().startsWith(prefix.toLowerCase())) {
+        _objective.text = _objective.text.substring(prefix.length);
+        _objective.selection = TextSelection.collapsed(
+          offset: _objective.text.length,
+        );
+      }
+      _serviceContext = null;
+    });
+  }
+
+  Future<void> _removeProjectContext() async {
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    final threadId = _threadId;
+    try {
+      if (intelligence != null && threadId != null) {
+        await intelligence.associateThreadWithProject(threadId, null);
+        if (!mounted) return;
+      }
+      setState(() => _projectContext = null);
+    } on PandoraIntelligenceException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
   }
 
   Future<void> _submit() async {
@@ -147,6 +238,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       final turn = await intelligence.chat(
         message: objective,
         threadId: _threadId,
+        projectId: _projectContext?.id,
         textAttachment: _attachment,
         imageAttachment: _imageAttachment,
       );
@@ -171,9 +263,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         _submissionKey = null;
         await Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => CreateProjectExperienceScreen(
-              initialIntent: handoff.request,
-            ),
+            builder: (_) =>
+                CreateProjectExperienceScreen(initialIntent: handoff.request),
           ),
         );
         return;
@@ -253,6 +344,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       _objective.clear();
       _attachment = null;
       _imageAttachment = null;
+      _projectContext = null;
+      _serviceContext = null;
       _threadId = null;
       _pendingMessage = null;
       _error = null;
@@ -307,9 +400,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     if (image == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(camera
-              ? 'No camera image was attached.'
-              : 'No supported photo was attached.'),
+          content: Text(
+            camera
+                ? 'No camera image was attached.'
+                : 'No supported photo was attached.',
+          ),
         ),
       );
       return;
@@ -355,6 +450,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 focusNode: _objectiveFocus,
                 attachment: _attachment,
                 imageAttachment: _imageAttachment,
+                projectContext: _projectContext,
+                serviceContext: _serviceContext,
                 error: _error,
                 submitting: _submitting,
                 disabled: _outcomeUnknown,
@@ -364,10 +461,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 onCamera: () => _pickImage(camera: true),
                 onPhotos: () => _pickImage(camera: false),
                 onAttach: _attach,
+                onServices: _pickServiceContext,
+                onProjectContext: _pickProjectContext,
                 onDictate: _dictate,
                 onSubmit: _submit,
                 onRemoveAttachment: () => setState(() => _attachment = null),
                 onRemoveImage: () => setState(() => _imageAttachment = null),
+                onRemoveServiceContext: _removeServiceContext,
+                onRemoveProjectContext: _removeProjectContext,
               ),
             ],
           ),
@@ -625,10 +726,7 @@ class _PandoraThinkingBubble extends StatelessWidget {
           SizedBox(width: 9),
           Text(
             'Thinking…',
-            style: TextStyle(
-              color: PandoraSimpleColors.muted,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: PandoraSimpleColors.muted, fontSize: 14),
           ),
         ],
       );
@@ -640,6 +738,8 @@ class _Composer extends StatelessWidget {
     required this.focusNode,
     required this.attachment,
     required this.imageAttachment,
+    required this.projectContext,
+    required this.serviceContext,
     required this.error,
     required this.submitting,
     required this.disabled,
@@ -647,16 +747,22 @@ class _Composer extends StatelessWidget {
     required this.onCamera,
     required this.onPhotos,
     required this.onAttach,
+    required this.onServices,
+    required this.onProjectContext,
     required this.onDictate,
     required this.onSubmit,
     required this.onRemoveAttachment,
     required this.onRemoveImage,
+    required this.onRemoveServiceContext,
+    required this.onRemoveProjectContext,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final PandoraTextAttachment? attachment;
   final PandoraImageAttachment? imageAttachment;
+  final PandoraProjectContext? projectContext;
+  final PandoraCapabilityProvider? serviceContext;
   final String? error;
   final bool submitting;
   final bool disabled;
@@ -664,10 +770,14 @@ class _Composer extends StatelessWidget {
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
   final VoidCallback onAttach;
+  final VoidCallback onServices;
+  final VoidCallback onProjectContext;
   final VoidCallback onDictate;
   final VoidCallback onSubmit;
   final VoidCallback onRemoveAttachment;
   final VoidCallback onRemoveImage;
+  final VoidCallback onRemoveServiceContext;
+  final VoidCallback onRemoveProjectContext;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -715,7 +825,10 @@ class _Composer extends StatelessWidget {
                   ),
                 ),
               ],
-              if (attachment != null || imageAttachment != null) ...[
+              if (attachment != null ||
+                  imageAttachment != null ||
+                  projectContext != null ||
+                  serviceContext != null) ...[
                 Wrap(
                   spacing: 8,
                   runSpacing: 6,
@@ -734,6 +847,28 @@ class _Composer extends StatelessWidget {
                         label: Text(imageAttachment!.name),
                         onDeleted:
                             submitting || disabled ? null : onRemoveImage,
+                      ),
+                    if (serviceContext != null)
+                      InputChip(
+                        key: const ValueKey<String>(
+                            'ask-pandora-service-context'),
+                        avatar: const Icon(Icons.extension_outlined, size: 17),
+                        label: Text(
+                          '${serviceContext!.label} · ${serviceContext!.state}',
+                        ),
+                        onDeleted: submitting || disabled
+                            ? null
+                            : onRemoveServiceContext,
+                      ),
+                    if (projectContext != null)
+                      InputChip(
+                        key: const ValueKey<String>(
+                            'ask-pandora-project-context'),
+                        avatar: const Icon(Icons.workspaces_outline, size: 17),
+                        label: Text(projectContext!.name),
+                        onDeleted: submitting || disabled
+                            ? null
+                            : onRemoveProjectContext,
                       ),
                   ],
                 ),
@@ -828,6 +963,22 @@ class _Composer extends StatelessWidget {
                                 icon: Icons.insert_drive_file_outlined,
                                 onPressed: onAttach,
                               ),
+                              _ComposerMenuItem(
+                                key: const ValueKey<String>(
+                                  'ask-pandora-menu-services',
+                                ),
+                                label: 'Services',
+                                icon: Icons.extension_outlined,
+                                onPressed: onServices,
+                              ),
+                              _ComposerMenuItem(
+                                key: const ValueKey<String>(
+                                  'ask-pandora-menu-project-context',
+                                ),
+                                label: 'Project context',
+                                icon: Icons.workspaces_outline,
+                                onPressed: onProjectContext,
+                              ),
                             ],
                             builder: (context, controller, child) => IconButton(
                               key: const ValueKey<String>('ask-pandora-plus'),
@@ -891,10 +1042,149 @@ class _Composer extends StatelessWidget {
               const Text(
                 'Pandora can make mistakes. Review important changes before publishing.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: PandoraSimpleColors.muted,
-                  fontSize: 10.5,
+                style:
+                    TextStyle(color: PandoraSimpleColors.muted, fontSize: 10.5),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _ServiceContextSheet extends StatelessWidget {
+  const _ServiceContextSheet({required this.providers});
+
+  final List<PandoraCapabilityProvider> providers;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 520),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Text(
+                  'Services',
+                  style: TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
+              ),
+              Expanded(
+                child: providers.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No verified service state is available.',
+                          style: TextStyle(color: PandoraSimpleColors.muted),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+                        itemCount: providers.length,
+                        separatorBuilder: (_, __) => const Divider(
+                          height: 1,
+                          color: PandoraSimpleColors.line,
+                        ),
+                        itemBuilder: (context, index) {
+                          final provider = providers[index];
+                          return ListTile(
+                            title: Text(
+                              provider.label,
+                              style: const TextStyle(
+                                color: PandoraSimpleColors.ink,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              provider.state,
+                              style: const TextStyle(
+                                color: PandoraSimpleColors.muted,
+                              ),
+                            ),
+                            trailing: provider.canUseNow
+                                ? const Icon(
+                                    Icons.check_circle_outline,
+                                    color: PandoraSimpleColors.ink,
+                                  )
+                                : const Icon(
+                                    Icons.info_outline_rounded,
+                                    color: PandoraSimpleColors.muted,
+                                  ),
+                            onTap: () => Navigator.of(context).pop(provider),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _ProjectContextSheet extends StatelessWidget {
+  const _ProjectContextSheet({required this.projects});
+
+  final List<PandoraProjectContext> projects;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 560),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Text(
+                  'Project context',
+                  style: TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: projects.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No existing projects are available.',
+                          style: TextStyle(color: PandoraSimpleColors.muted),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+                        itemCount: projects.length,
+                        separatorBuilder: (_, __) => const Divider(
+                          height: 1,
+                          color: PandoraSimpleColors.line,
+                        ),
+                        itemBuilder: (context, index) {
+                          final project = projects[index];
+                          return ListTile(
+                            title: Text(
+                              project.name,
+                              style: const TextStyle(
+                                color: PandoraSimpleColors.ink,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              project.repository ?? project.projectKey,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: PandoraSimpleColors.muted,
+                              ),
+                            ),
+                            onTap: () => Navigator.of(context).pop(project),
+                          );
+                        },
+                      ),
               ),
             ],
           ),
@@ -922,9 +1212,8 @@ class _ComposerMenuItem extends StatelessWidget {
           padding: const WidgetStatePropertyAll(
             EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           ),
-          foregroundColor: const WidgetStatePropertyAll(
-            PandoraSimpleColors.ink,
-          ),
+          foregroundColor:
+              const WidgetStatePropertyAll(PandoraSimpleColors.ink),
         ),
         child: Text(
           label,
