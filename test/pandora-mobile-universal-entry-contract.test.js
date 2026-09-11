@@ -14,7 +14,7 @@ test('Universal Pandora entry never creates a Project just because intelligence 
   assert.match(chat, /_keys\.create\('simple-intake'\)/);
   assert.doesNotMatch(
     chat,
-    /if \(intelligence == null\) \{[\s\S]{0,1000}CreateProjectExperienceScreen/,
+    /if \(intelligence == null\) \{\s*if \(dependencies\.projectExperienceRepository != null\)/,
   );
 });
 
