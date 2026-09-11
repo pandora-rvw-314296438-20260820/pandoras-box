@@ -236,7 +236,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                 backgroundColor: PandoraV2Colors.canvas,
                 body: Row(
                   children: [
-                    SizedBox(width: 284, child: SafeArea(child: _sidePanel())),
+                    SizedBox(width: 264, child: SafeArea(child: _sidePanel())),
                     const VerticalDivider(
                         width: 1, color: PandoraV2Colors.line),
                     Expanded(
@@ -388,7 +388,7 @@ class _PandoraSidePanel extends StatelessWidget {
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(height: 1, color: PandoraV2Colors.line),
                   ),
-                  for (final index in const <int>[1, 2, 4, 5, 6, 7, 3])
+                  for (final index in const <int>[0, 1, 2, 4, 5, 6, 7, 3])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: ListTile(
