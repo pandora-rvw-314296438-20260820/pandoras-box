@@ -500,12 +500,14 @@ class PandoraStatusPill extends StatelessWidget {
               Icon(icon, color: foreground, size: 16),
               const SizedBox(width: 5),
             ],
-            Text(
-              label,
-              style: TextStyle(
-                color: foreground,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

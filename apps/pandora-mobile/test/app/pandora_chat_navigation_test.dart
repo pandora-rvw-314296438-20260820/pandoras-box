@@ -120,12 +120,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(menu, findsOneWidget);
-      debugPrint('PANDORA_ROOT:$title');
-      final exception = tester.takeException();
-      if (exception != null) {
-        debugDumpRenderTree();
-      }
-      expect(exception, isNull);
+      expect(tester.takeException(), isNull, reason: '$title must fit the phone');
     }
   });
 
