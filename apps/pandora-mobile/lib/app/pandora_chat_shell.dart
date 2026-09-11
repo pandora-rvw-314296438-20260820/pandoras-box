@@ -9,7 +9,7 @@ import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
-import '../features/connections/connections_screen.dart';
+import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
 import '../features/simple/more_screen.dart';
 import '../features/simple/offline_evidence_screen.dart';
@@ -35,7 +35,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     _ChatDestination(
         'More', Icons.more_horiz_rounded, Icons.more_horiz_rounded),
     _ChatDestination('Activity', Icons.history_rounded, Icons.history_rounded),
-    _ChatDestination('Connections', Icons.cable_outlined, Icons.cable_rounded),
+    _ChatDestination('Plugins', Icons.extension_outlined, Icons.extension_rounded),
     _ChatDestination('Saved evidence', Icons.offline_pin_outlined,
         Icons.offline_pin_rounded),
     _ChatDestination(
@@ -108,7 +108,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       2 => 'needs_you',
       3 => 'more',
       4 => 'activity',
-      5 => 'connections',
+      5 => 'plugins',
       6 => 'saved_evidence',
       7 => 'verify_safety',
       _ => 'pandora_chat',
@@ -145,7 +145,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
           2 => const ApprovalsScreen(),
           3 => const MoreScreen(),
           4 => const ActivityScreen(),
-          5 => const ConnectionsScreen(),
+          5 => const PluginsScreen(),
           6 => const OfflineEvidenceScreen(),
           7 => const SimpleSafetyScreen(),
           _ => AskPandoraScreen(key: _chatKey),
