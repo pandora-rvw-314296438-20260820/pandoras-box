@@ -238,6 +238,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       final turn = await intelligence.chat(
         message: objective,
         threadId: _threadId,
+        projectId: _projectContext?.id,
         textAttachment: _attachment,
         imageAttachment: _imageAttachment,
       );
