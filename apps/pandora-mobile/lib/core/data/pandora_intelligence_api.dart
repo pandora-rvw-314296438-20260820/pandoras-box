@@ -157,10 +157,12 @@ class PandoraIntelligenceApi {
     }
   }
 
-  bool _mightNeedCapability(String message) => RegExp(
-        r'(github|repository|\brepo\b|pull request|supabase|postgres|database|posthog|analytics|vercel|google\s+drive|google\s+sheets?|spreadsheet|connector|connection|capabilit|plugin|plugins|available\s+tools?|what\s+can\s+you\s+do|what\s+are\s+you\s+able\s+to\s+do|what\s+can\s+pandora\s+do)',
-        caseSensitive: false,
-      ).hasMatch(message);
+  bool _mightNeedCapability(String message) {
+    return RegExp(
+      r'(github|repository|\brepo\b|pull request|supabase|postgres|database|posthog|analytics|vercel|google\s+drive|google\s+sheets?|spreadsheet|connector|connection|capabilit|plugin|plugins|available\s+tools?|what\s+can\s+you\s+do|what\s+are\s+you\s+able\s+to\s+do|what\s+can\s+pandora\s+do)',
+      caseSensitive: false,
+    ).hasMatch(message);
+  }
 
   void _requireSession() {
     if (_client.auth.currentSession == null) {
