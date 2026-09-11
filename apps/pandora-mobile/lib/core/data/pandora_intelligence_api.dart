@@ -211,6 +211,27 @@ class PandoraIntelligenceApi {
     }
   }
 
+  Future<List<PandoraProjectContext>> projectContexts({int limit = 60}) async {
+    _requireSession();
+    final safeLimit = limit.clamp(1, 100).toInt();
+    try {
+      final rows = await _client
+          .from('projectos_projects')
+          .select('id,project_key,name,repository,status,updated_at')
+          .eq('organization_id', _organizationId)
+          .neq('status', 'archived')
+          .order('updated_at', ascending: false)
+          .limit(safeLimit);
+      return (rows as List<dynamic>)
+          .map((row) => PandoraProjectContext.fromJson(_map(row)))
+          .toList(growable: false);
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not verify project context right now.',
+      );
+    }
+  }
+
   Future<PandoraIntelligenceTurn?> _dispatchCapability({
     required String message,
     String? threadId,
