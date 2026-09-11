@@ -163,7 +163,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 14,
                     mainAxisSpacing: 14,
@@ -176,7 +177,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       project: project,
                       state: _state(project),
                       busy: _openingId == project.id,
-                      onTap: _openingId == project.id ? null : () => _open(project),
+                      onTap: _openingId == project.id
+                          ? null
+                          : () => _open(project),
                     );
                   },
                 ),
@@ -195,7 +198,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         ),
       );
 }
-
 
 class _ObsidianProjectCard extends StatelessWidget {
   const _ObsidianProjectCard({
