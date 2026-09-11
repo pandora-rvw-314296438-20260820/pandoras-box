@@ -213,6 +213,200 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     await _chatKey.currentState?.loadThread(thread.id);
   }
 
+  Future<void> _manageThread(PandoraIntelligenceThread thread) async {
+    final action = await showModalBottomSheet<_ThreadAction>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Rename'),
+              onTap: () => Navigator.of(sheetContext).pop(_ThreadAction.rename),
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder_outlined),
+              title: const Text('Move to project'),
+              onTap: () => Navigator.of(sheetContext).pop(_ThreadAction.project),
+            ),
+            ListTile(
+              leading: const Icon(Icons.archive_outlined),
+              title: const Text('Archive'),
+              onTap: () => Navigator.of(sheetContext).pop(_ThreadAction.archive),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded),
+              title: const Text('Delete'),
+              textColor: PandoraV2Colors.danger,
+              iconColor: PandoraV2Colors.danger,
+              onTap: () => Navigator.of(sheetContext).pop(_ThreadAction.delete),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case _ThreadAction.rename:
+        await _renameThread(thread);
+        break;
+      case _ThreadAction.project:
+        await _moveThreadToProject(thread);
+        break;
+      case _ThreadAction.archive:
+        await _archiveThread(thread);
+        break;
+      case _ThreadAction.delete:
+        await _deleteThread(thread);
+        break;
+    }
+  }
+
+  Future<void> _renameThread(PandoraIntelligenceThread thread) async {
+    final controller = TextEditingController(text: thread.title);
+    final title = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Rename conversation'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 200,
+          decoration: const InputDecoration(hintText: 'Conversation name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (!mounted || title == null || title.isEmpty || title == thread.title) return;
+    await _runThreadMutation(
+      () => PandoraDependencies.of(context).intelligence!.renameThread(thread.id, title),
+      success: 'Conversation renamed.',
+    );
+  }
+
+  Future<void> _archiveThread(PandoraIntelligenceThread thread) async {
+    await _runThreadMutation(
+      () => PandoraDependencies.of(context).intelligence!.archiveThread(thread.id),
+      success: 'Conversation archived.',
+    );
+  }
+
+  Future<void> _deleteThread(PandoraIntelligenceThread thread) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Delete conversation?'),
+            content: Text('Delete “${thread.title}” and its saved messages? This cannot be undone.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!mounted || !confirmed) return;
+    await _runThreadMutation(
+      () => PandoraDependencies.of(context).intelligence!.deleteThread(thread.id),
+      success: 'Conversation deleted.',
+    );
+  }
+
+  Future<void> _moveThreadToProject(PandoraIntelligenceThread thread) async {
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null) return;
+    try {
+      final projectSnapshot = await PandoraDependencies.of(context)
+          .repository
+          .projects(allowCached: true);
+      if (!mounted) return;
+      final selected = await showModalBottomSheet<String>(
+        context: context,
+        useSafeArea: true,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+            children: [
+              const ListTile(
+                title: Text('Move conversation to project'),
+                subtitle: Text('Choose a persistent project context or remove the association.'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.link_off_rounded),
+                title: const Text('No project'),
+                onTap: () => Navigator.of(sheetContext).pop(''),
+              ),
+              for (final project in projectSnapshot.data)
+                ListTile(
+                  leading: const Icon(Icons.folder_outlined),
+                  title: Text(project.name),
+                  trailing: thread.projectId == project.id
+                      ? const Icon(Icons.check_rounded)
+                      : null,
+                  onTap: () => Navigator.of(sheetContext).pop(project.id),
+                ),
+            ],
+          ),
+        ),
+      );
+      if (!mounted || selected == null) return;
+      await _runThreadMutation(
+        () => intelligence.associateThreadWithProject(
+          thread.id,
+          selected.isEmpty ? null : selected,
+        ),
+        success: selected.isEmpty
+            ? 'Project association removed.'
+            : 'Conversation moved to project.',
+      );
+    } on PandoraIntelligenceException catch (error) {
+      _showThreadMessage(error.message);
+    } on Exception {
+      _showThreadMessage('Pandora could not load projects for this conversation.');
+    }
+  }
+
+  Future<void> _runThreadMutation(
+    Future<void> Function() mutation, {
+    required String success,
+  }) async {
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null) return;
+    try {
+      await mutation();
+      if (!mounted) return;
+      await _refreshHistory();
+      if (mounted) _showThreadMessage(success);
+    } on PandoraIntelligenceException catch (error) {
+      if (mounted) _showThreadMessage(error.message);
+    }
+  }
+
+  void _showThreadMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Widget _root(int index) => _roots.putIfAbsent(
         index,
         () => switch (index) {
@@ -290,6 +484,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         onNewChat: _newChat,
         onSearchChats: _searchChats,
         onOpenThread: _openThread,
+        onManageThread: _manageThread,
       );
 
   @override
@@ -363,6 +558,7 @@ class _PandoraSidePanel extends StatelessWidget {
     required this.onNewChat,
     required this.onSearchChats,
     required this.onOpenThread,
+    required this.onManageThread,
   });
 
   final List<_ChatDestination> destinations;
@@ -373,6 +569,7 @@ class _PandoraSidePanel extends StatelessWidget {
   final VoidCallback onNewChat;
   final VoidCallback onSearchChats;
   final ValueChanged<PandoraIntelligenceThread> onOpenThread;
+  final ValueChanged<PandoraIntelligenceThread> onManageThread;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -472,6 +669,11 @@ class _PandoraSidePanel extends StatelessWidget {
                             style: const TextStyle(
                                 fontSize: 13.5, fontWeight: FontWeight.w500),
                           ),
+                          trailing: IconButton(
+                            tooltip: 'Conversation options',
+                            icon: const Icon(Icons.more_horiz_rounded, size: 19),
+                            onPressed: () => onManageThread(thread),
+                          ),
                           onTap: () => onOpenThread(thread),
                         ),
                       ),
@@ -515,6 +717,8 @@ class _PandoraSidePanel extends StatelessWidget {
         ),
       );
 }
+
+enum _ThreadAction { rename, project, archive, delete }
 
 class _ChatDestination {
   const _ChatDestination(this.label, this.icon, this.selectedIcon);
