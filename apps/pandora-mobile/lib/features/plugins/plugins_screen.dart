@@ -197,7 +197,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
                         icon: Icons.person_outline_rounded,
                         title: 'No personal plugins returned',
                         message:
-                            'Pandora will only show user-scoped plugins after their authorization state is verified.',
+                            'This plugin needs verified authorization before Pandora can use it. Personal plugins appear here only after user-scoped access is verified.',
                       )
                     else if (visible.isEmpty)
                       const _InlineState(
