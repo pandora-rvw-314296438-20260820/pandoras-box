@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const api = fs.readFileSync(path.join(root, 'apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart'), 'utf8');
 const shell = fs.readFileSync(path.join(root, 'apps/pandora-mobile/lib/app/pandora_chat_shell.dart'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260911161000_pandora_intelligence_thread_management_v1.sql'), 'utf8');
+const hardening = fs.readFileSync(path.join(root, 'supabase/migrations/20260911163000_pandora_intelligence_thread_manage_anon_hardening_v2.sql'), 'utf8');
 
 test('thread management RPC is owner and organization scoped', () => {
   assert.match(migration, /auth\.uid\(\)/);
@@ -42,4 +43,12 @@ test('chat shell exposes explicit owner controls and confirms destructive delete
   assert.match(shell, /Delete conversation\?/);
   assert.match(shell, /This cannot be undone/);
   assert.match(shell, /associateThreadWithProject/);
+});
+
+
+test('thread management explicitly denies anonymous execution after replace-function ACL preservation', () => {
+  assert.match(hardening, /revoke all .* from anon/);
+  assert.match(hardening, /revoke all .* from public/);
+  assert.match(hardening, /grant execute .* authenticated/);
+  assert.match(hardening, /grant execute .* service_role/);
 });
