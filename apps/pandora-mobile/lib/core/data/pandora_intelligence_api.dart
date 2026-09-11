@@ -264,15 +264,22 @@ class PandoraCapabilityProvider {
       provider: _text(json['provider'], fallback: 'unknown'),
       label: _text(json['label'], fallback: 'Plugin'),
       state: _text(json['state'], fallback: 'Unavailable'),
-      rawStatus: _text(health['rawStatus'], fallback: _text(json['status'], fallback: 'unknown')),
+      rawStatus: _text(
+        health['rawStatus'],
+        fallback: _text(json['status'], fallback: 'unknown'),
+      ),
       canUseNow: health['canUseNow'] == true || json['canUseNow'] == true,
       readAvailable: json['readAvailable'] == true,
       writeAvailable: json['writeAvailable'] == true,
-      authorization: _text(json['authorization'], fallback: 'Authorization state is not available.'),
+      authorization: _text(
+        json['authorization'],
+        fallback: 'Authorization state is not available.',
+      ),
       accountVerified: account['verified'] == true,
       accountLabel: _optionalText(account['label']),
       scopesVerified: json['scopesVerified'] == true,
-      lastVerifiedAt: _optionalDate(json['lastVerifiedAt']) ?? _optionalDate(health['lastVerifiedAt']),
+      lastVerifiedAt: _optionalDate(json['lastVerifiedAt']) ??
+          _optionalDate(health['lastVerifiedAt']),
       failureCode: _optionalText(failure['code']),
       failureMessage: _optionalText(failure['message']),
       actions: rawActions is List
