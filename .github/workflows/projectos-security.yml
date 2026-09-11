@@ -49,5 +49,17 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run check
-      - run: npm test
+      - name: Run npm test with diagnostic capture
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee npm-test-output.txt
+      - name: Upload npm test diagnostic
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: projectos-security-npm-test-output
+          path: npm-test-output.txt
+          if-no-files-found: error
+          retention-days: 1
       - run: npm audit --omit=dev --audit-level=high
