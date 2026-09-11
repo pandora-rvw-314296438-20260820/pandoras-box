@@ -74,9 +74,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
   List<_PluginViewModel> _items(List<ConnectionSummary> raw) {
     final runtime = _runtimeProviders;
     if (runtime != null && runtime.isNotEmpty) {
-      return runtime
-          .map(_PluginViewModel.fromRuntime)
-          .toList(growable: false);
+      return runtime.map(_PluginViewModel.fromRuntime).toList(growable: false);
     }
     return deduplicateConnections(raw)
         .map(_PluginViewModel.fromConnection)
@@ -91,17 +89,17 @@ class _PluginsScreenState extends State<PluginsScreen> {
             animation: _controller!,
             builder: (context, _) {
               final controller = _controller!;
-              final items = _items(controller.data ?? const <ConnectionSummary>[]);
-              final installed = items
-                  .where((item) => item.installed)
-                  .toList(growable: false);
+              final items =
+                  _items(controller.data ?? const <ConnectionSummary>[]);
+              final installed =
+                  items.where((item) => item.installed).toList(growable: false);
               final needsYou = items
                   .where((item) => item.state == 'Needs authorization')
                   .toList(growable: false);
               final available = items.where((item) {
                 if (_query.isNotEmpty) {
-                  final haystack =
-                      '${item.name} ${item.purpose} ${item.state}'.toLowerCase();
+                  final haystack = '${item.name} ${item.purpose} ${item.state}'
+                      .toLowerCase();
                   if (!haystack.contains(_query.toLowerCase())) return false;
                 }
                 return !_personal || item.accountVerified;
@@ -607,7 +605,8 @@ class _PluginViewModel {
           ),
       ],
       lastVerifiedAt: connection.freshness.lastVerifiedAt,
-      failureMessage: installed ? null : 'Live plugin runtime detail is not verified.',
+      failureMessage:
+          installed ? null : 'Live plugin runtime detail is not verified.',
     );
   }
 }
@@ -866,11 +865,14 @@ class _InlineState extends StatelessWidget {
 }
 
 String _providerPurpose(String provider) => switch (provider) {
-      'github' => 'Repositories, pull requests, source and governed code actions.',
-      'supabase' => 'Database and project state through governed Supabase access.',
+      'github' =>
+        'Repositories, pull requests, source and governed code actions.',
+      'supabase' =>
+        'Database and project state through governed Supabase access.',
       'vercel' => 'Deployment state and governed publishing actions.',
       'posthog' => 'Product analytics when query authority is verified.',
-      'google_drive' => 'Files and documents through Google Workspace authorization.',
+      'google_drive' =>
+        'Files and documents through Google Workspace authorization.',
       'google_sheets' => 'Spreadsheets through Google Workspace authorization.',
       _ => 'Provider capability exposed by Pandora runtime truth.',
     };
