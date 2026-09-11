@@ -219,7 +219,7 @@ class PandoraIntelligenceApi {
     if (message.trim().isEmpty) return null;
     try {
       final response = await _client.rpc(
-        'pandora_chat_universal_dispatch_v4',
+        'pandora_chat_universal_dispatch_v5',
         params: <String, Object?>{
           'p_organization_id': _organizationId,
           'p_message': message.trim(),
