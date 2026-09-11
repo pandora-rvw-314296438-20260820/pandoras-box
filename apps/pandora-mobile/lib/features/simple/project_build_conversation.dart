@@ -392,6 +392,46 @@ class _LiveBuildProjection extends StatelessWidget {
               ),
             ),
           ],
+          if (experience?.needsYou == true) ...[
+            const SizedBox(height: 12),
+            PandoraV2InlineMessage(
+              title: 'Needs You',
+              message: experience?.publicMessage ??
+                  'Pandora is waiting for a consequential decision before continuing.',
+            ),
+          ],
+          if (experience?.hasSafeFailure == true) ...[
+            const SizedBox(height: 12),
+            PandoraV2InlineMessage(
+              title: 'Problem',
+              message: experience?.safeFailureMessage ??
+                  experience?.publicMessage ??
+                  'Pandora stopped safely because the current build could not be verified.',
+              danger: true,
+            ),
+          ],
+          if (experience?.retryAvailable == true) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Retry is available from the project controls. Pandora will not retry automatically.',
+              style: TextStyle(
+                color: PandoraV2Colors.muted,
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
+          ],
+          if (experience?.canRollback == true) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Rollback is available from the project controls and remains approval-gated.',
+              style: TextStyle(
+                color: PandoraV2Colors.muted,
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
+          ],
           if ((experience?.state == ProjectExperienceState.review) ||
               theatre.previewReady) ...[
             const SizedBox(height: 12),
