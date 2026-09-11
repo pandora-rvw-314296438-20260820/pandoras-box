@@ -11,6 +11,7 @@ const api = await readFile(
   'utf8',
 );
 
+// Exact-source mobile gates remain authoritative for format, analysis, tests, and builds.
 test('composer keeps files and images while adding services and project context', () => {
   assert.match(screen, /ask-pandora-menu-camera/);
   assert.match(screen, /ask-pandora-menu-photos/);
