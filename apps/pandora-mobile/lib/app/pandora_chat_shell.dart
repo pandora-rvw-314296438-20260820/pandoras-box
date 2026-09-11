@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/analytics/owner_analytics.dart';
+import '../core/data/pandora_intelligence_api.dart';
 import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
@@ -15,6 +16,7 @@ import '../features/simple/offline_evidence_screen.dart';
 import '../features/simple/pandora_v2_ui.dart';
 import '../features/simple/projects_screen.dart';
 import '../features/simple/simple_safety_screen.dart';
+import 'pandora_dependencies.dart';
 
 class PandoraChatShell extends StatefulWidget {
   const PandoraChatShell({super.key});
@@ -25,52 +27,31 @@ class PandoraChatShell extends StatefulWidget {
 
 class _PandoraChatShellState extends State<PandoraChatShell> {
   static const _destinations = <_ChatDestination>[
+    _ChatDestination('Pandora', Icons.chat_bubble_outline_rounded,
+        Icons.chat_bubble_rounded),
+    _ChatDestination('Projects', Icons.folder_outlined, Icons.folder_rounded),
+    _ChatDestination('Needs You', Icons.check_circle_outline_rounded,
+        Icons.check_circle_rounded),
     _ChatDestination(
-      'Pandora',
-      Icons.chat_bubble_outline_rounded,
-      Icons.chat_bubble_rounded,
-    ),
+        'More', Icons.more_horiz_rounded, Icons.more_horiz_rounded),
+    _ChatDestination('Activity', Icons.history_rounded, Icons.history_rounded),
+    _ChatDestination('Connections', Icons.cable_outlined, Icons.cable_rounded),
+    _ChatDestination('Saved evidence', Icons.offline_pin_outlined,
+        Icons.offline_pin_rounded),
     _ChatDestination(
-      'Projects',
-      Icons.folder_outlined,
-      Icons.folder_rounded,
-    ),
-    _ChatDestination(
-      'Needs You',
-      Icons.check_circle_outline_rounded,
-      Icons.check_circle_rounded,
-    ),
-    _ChatDestination(
-      'More',
-      Icons.more_horiz_rounded,
-      Icons.more_horiz_rounded,
-    ),
-    _ChatDestination(
-      'Activity',
-      Icons.history_rounded,
-      Icons.history_rounded,
-    ),
-    _ChatDestination(
-      'Connections',
-      Icons.cable_outlined,
-      Icons.cable_rounded,
-    ),
-    _ChatDestination(
-      'Saved evidence',
-      Icons.offline_pin_outlined,
-      Icons.offline_pin_rounded,
-    ),
-    _ChatDestination(
-      'Verify & Safety',
-      Icons.shield_outlined,
-      Icons.shield_rounded,
-    ),
+        'Verify & Safety', Icons.shield_outlined, Icons.shield_rounded),
   ];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey _workspaceKey = GlobalKey();
+  final GlobalKey<AskPandoraScreenState> _chatKey =
+      GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
   final Set<int> _visited = <int>{0};
+  List<PandoraIntelligenceThread> _threads =
+      const <PandoraIntelligenceThread>[];
+  bool _historyLoading = false;
+  bool _historyLoaded = false;
   int _index = 0;
 
   @override
@@ -83,6 +64,31 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         resultClass: 'pandora_chat',
       ),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_historyLoaded) {
+      _historyLoaded = true;
+      unawaited(_refreshHistory());
+    }
+  }
+
+  Future<void> _refreshHistory() async {
+    if (_historyLoading) return;
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null) return;
+    setState(() => _historyLoading = true);
+    try {
+      final threads = await intelligence.recentThreads();
+      if (!mounted) return;
+      setState(() => _threads = threads);
+    } on PandoraIntelligenceException {
+      // Chat remains usable when history is temporarily unavailable.
+    } finally {
+      if (mounted) setState(() => _historyLoading = false);
+    }
   }
 
   void _select(int value) {
@@ -115,10 +121,26 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     );
   }
 
+  void _newChat() {
+    _select(0);
+    _chatKey.currentState?.newChat();
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      _scaffoldKey.currentState?.closeDrawer();
+    }
+  }
+
+  Future<void> _openThread(PandoraIntelligenceThread thread) async {
+    _select(0);
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      _scaffoldKey.currentState?.closeDrawer();
+    }
+    await _chatKey.currentState?.loadThread(thread.id);
+  }
+
   Widget _root(int index) => _roots.putIfAbsent(
         index,
         () => switch (index) {
-          0 => const AskPandoraScreen(),
+          0 => AskPandoraScreen(key: _chatKey),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
           3 => const MoreScreen(),
@@ -126,7 +148,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
           5 => const ConnectionsScreen(),
           6 => const OfflineEvidenceScreen(),
           7 => const SimpleSafetyScreen(),
-          _ => const AskPandoraScreen(),
+          _ => AskPandoraScreen(key: _chatKey),
         },
       );
 
@@ -165,10 +187,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: PandoraV2Colors.surface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 15,
-        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: PandoraV2Colors.line),
@@ -184,6 +204,16 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       ),
     );
   }
+
+  Widget _sidePanel() => _PandoraSidePanel(
+        destinations: _destinations,
+        selectedIndex: _index,
+        onSelected: _select,
+        threads: _threads,
+        historyLoading: _historyLoading,
+        onNewChat: _newChat,
+        onOpenThread: _openThread,
+      );
 
   @override
   Widget build(BuildContext context) => Theme(
@@ -206,25 +236,12 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                 backgroundColor: PandoraV2Colors.canvas,
                 body: Row(
                   children: [
-                    SizedBox(
-                      width: 264,
-                      child: SafeArea(
-                        child: _PandoraSidePanel(
-                          destinations: _destinations,
-                          selectedIndex: _index,
-                          onSelected: _select,
-                        ),
-                      ),
-                    ),
+                    SizedBox(width: 264, child: SafeArea(child: _sidePanel())),
                     const VerticalDivider(
-                      width: 1,
-                      color: PandoraV2Colors.line,
-                    ),
+                        width: 1, color: PandoraV2Colors.line),
                     Expanded(
-                      child: PandoraNavigationScope(
-                        openDrawer: null,
-                        child: body,
-                      ),
+                      child:
+                          PandoraNavigationScope(openDrawer: null, child: body),
                     ),
                   ],
                 ),
@@ -234,8 +251,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
             return Scaffold(
               key: _scaffoldKey,
               backgroundColor: PandoraV2Colors.canvas,
+              onDrawerChanged: (open) {
+                if (open) unawaited(_refreshHistory());
+              },
               drawer: Drawer(
-                width: 286,
+                width: 304,
                 backgroundColor: PandoraV2Colors.surface,
                 surfaceTintColor: Colors.transparent,
                 shape: const RoundedRectangleBorder(
@@ -244,13 +264,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                     bottomRight: Radius.circular(24),
                   ),
                 ),
-                child: SafeArea(
-                  child: _PandoraSidePanel(
-                    destinations: _destinations,
-                    selectedIndex: _index,
-                    onSelected: _select,
-                  ),
-                ),
+                child: SafeArea(child: _sidePanel()),
               ),
               body: PandoraNavigationScope(
                 openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
@@ -267,11 +281,19 @@ class _PandoraSidePanel extends StatelessWidget {
     required this.destinations,
     required this.selectedIndex,
     required this.onSelected,
+    required this.threads,
+    required this.historyLoading,
+    required this.onNewChat,
+    required this.onOpenThread,
   });
 
   final List<_ChatDestination> destinations;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
+  final List<PandoraIntelligenceThread> threads;
+  final bool historyLoading;
+  final VoidCallback onNewChat;
+  final ValueChanged<PandoraIntelligenceThread> onOpenThread;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -280,7 +302,7 @@ class _PandoraSidePanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Padding(
-              padding: EdgeInsets.fromLTRB(20, 22, 18, 18),
+              padding: EdgeInsets.fromLTRB(20, 22, 18, 16),
               child: Row(
                 children: [
                   PandoraMark(size: 28),
@@ -297,11 +319,75 @@ class _PandoraSidePanel extends StatelessWidget {
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+              child: ListTile(
+                key: const ValueKey<String>('pandora-new-chat'),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                leading: const Icon(Icons.edit_square, size: 21),
+                title: const Text('New chat',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: onNewChat,
+              ),
+            ),
             const Divider(height: 1, color: PandoraV2Colors.line),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(10, 14, 10, 14),
+                padding: const EdgeInsets.fromLTRB(10, 12, 10, 14),
                 children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
+                    child: Text(
+                      'Recent chats',
+                      style: TextStyle(
+                        color: PandoraV2Colors.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (historyLoading && threads.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(
+                        child: SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 1.8),
+                        ),
+                      ),
+                    )
+                  else if (threads.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(10, 4, 10, 14),
+                      child: Text(
+                        'Your conversations will appear here.',
+                        style: TextStyle(
+                            color: PandoraV2Colors.muted, fontSize: 12.5),
+                      ),
+                    )
+                  else
+                    for (final thread in threads.take(12))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: ListTile(
+                          dense: true,
+                          visualDensity: const VisualDensity(vertical: -2),
+                          key: ValueKey<String>('pandora-thread-${thread.id}'),
+                          title: Text(
+                            thread.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 13.5, fontWeight: FontWeight.w500),
+                          ),
+                          onTap: () => onOpenThread(thread),
+                        ),
+                      ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(height: 1, color: PandoraV2Colors.line),
+                  ),
                   for (final index in const <int>[0, 1, 2, 4, 5, 6, 7, 3])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
@@ -312,8 +398,7 @@ class _PandoraSidePanel extends StatelessWidget {
                         textColor: PandoraV2Colors.ink,
                         selectedTileColor: PandoraV2Colors.soft,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                            borderRadius: BorderRadius.circular(14)),
                         leading: Icon(
                           index == selectedIndex
                               ? destinations[index].selectedIcon

@@ -26,10 +26,10 @@ class AskPandoraScreen extends StatefulWidget {
   final VoidCallback? onMore;
 
   @override
-  State<AskPandoraScreen> createState() => _AskPandoraScreenState();
+  State<AskPandoraScreen> createState() => AskPandoraScreenState();
 }
 
-class _AskPandoraScreenState extends State<AskPandoraScreen> {
+class AskPandoraScreenState extends State<AskPandoraScreen> {
   static const _suggestions = <String>[
     'Build an online booking system',
     'Improve my website',
@@ -45,6 +45,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
   String? _threadId;
   String? _pendingMessage;
   bool _submitting = false;
+  bool _loadingThread = false;
   bool _outcomeUnknown = false;
   String? _submissionKey;
   String? _error;
@@ -261,7 +262,7 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
     setState(() => _error = null);
   }
 
-  void _newChat() {
+  void newChat() {
     if (_submitting) return;
     setState(() {
       _messages.clear();
@@ -275,6 +276,43 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
       _submissionKey = null;
     });
     _objectiveFocus.requestFocus();
+  }
+
+  Future<void> loadThread(String threadId) async {
+    if (_submitting || _loadingThread || threadId == _threadId) return;
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null) return;
+    setState(() {
+      _loadingThread = true;
+      _error = null;
+      _pendingMessage = null;
+    });
+    try {
+      final history = await intelligence.messages(threadId);
+      if (!mounted) return;
+      setState(() {
+        _threadId = threadId;
+        _messages
+          ..clear()
+          ..addAll(
+            history.map(
+              (message) => message.isUser
+                  ? _ChatMessage.user(message.content)
+                  : _ChatMessage.pandora(message.content),
+            ),
+          );
+        _objective.clear();
+        _attachment = null;
+        _imageAttachment = null;
+        _outcomeUnknown = false;
+        _submissionKey = null;
+      });
+    } on PandoraIntelligenceException catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _loadingThread = false);
+    }
   }
 
   Future<void> _pickImage({required bool camera}) async {
@@ -306,20 +344,27 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
           bottom: false,
           child: Column(
             children: [
-              _ChatHeader(onNewChat: _newChat),
+              _ChatHeader(onNewChat: newChat),
               const Divider(height: 1, color: PandoraSimpleColors.line),
               Expanded(
-                child: _messages.isEmpty && _pendingMessage == null
-                    ? _EmptyConversation(
-                        suggestions: _suggestions,
-                        onSuggestion: _useSuggestion,
-                        disabled: _outcomeUnknown || _submitting,
+                child: _loadingThread
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: PandoraSimpleColors.muted,
+                        ),
                       )
-                    : _Conversation(
-                        messages: _messages,
-                        pendingMessage: _pendingMessage,
-                        thinking: _submitting,
-                      ),
+                    : _messages.isEmpty && _pendingMessage == null
+                        ? _EmptyConversation(
+                            suggestions: _suggestions,
+                            onSuggestion: _useSuggestion,
+                            disabled: _outcomeUnknown || _submitting,
+                          )
+                        : _Conversation(
+                            messages: _messages,
+                            pendingMessage: _pendingMessage,
+                            thinking: _submitting,
+                          ),
               ),
               _Composer(
                 controller: _objective,
