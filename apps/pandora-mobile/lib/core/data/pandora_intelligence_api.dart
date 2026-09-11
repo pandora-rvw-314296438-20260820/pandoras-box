@@ -6,23 +6,25 @@ class PandoraIntelligenceApi {
   PandoraIntelligenceApi({
     required SupabaseClient client,
     required String organizationId,
-  })  : _client = client,
-        _organizationId = organizationId;
+  }) : _client = client,
+       _organizationId = organizationId;
 
   final SupabaseClient _client;
   final String _organizationId;
 
   static const functionName = 'pandora-intelligence-chat';
 
-  Future<List<PandoraIntelligenceThread>> recentThreads(
-      {int limit = 30}) async {
+  Future<List<PandoraIntelligenceThread>> recentThreads({
+    int limit = 30,
+  }) async {
     _requireSession();
     final safeLimit = limit.clamp(1, 100).toInt();
     try {
       final rows = await _client
           .from('pandora_intelligence_threads')
           .select(
-              'id,project_id,title,status,last_message_at,created_at,updated_at')
+            'id,project_id,title,status,last_message_at,created_at,updated_at',
+          )
           .eq('organization_id', _organizationId)
           .eq('status', 'active')
           .order('last_message_at', ascending: false)
@@ -47,7 +49,8 @@ class PandoraIntelligenceApi {
       final rows = await _client
           .from('pandora_intelligence_messages')
           .select(
-              'id,thread_id,author_role,content,attachment_manifest,created_at')
+            'id,thread_id,author_role,content,attachment_manifest,created_at',
+          )
           .eq('organization_id', _organizationId)
           .eq('thread_id', threadId)
           .order('created_at')
@@ -85,10 +88,7 @@ class PandoraIntelligenceApi {
   Future<void> deleteThread(String threadId) =>
       _manageThread(threadId: threadId, action: 'delete');
 
-  Future<void> associateThreadWithProject(
-    String threadId,
-    String? projectId,
-  ) =>
+  Future<void> associateThreadWithProject(String threadId, String? projectId) =>
       _manageThread(
         threadId: threadId,
         action: 'associate_project',
@@ -199,9 +199,7 @@ class PandoraIntelligenceApi {
     try {
       final response = await _client.rpc(
         'pandora_plugin_runtime_registry_v4',
-        params: <String, Object?>{
-          'p_organization_id': _organizationId,
-        },
+        params: <String, Object?>{'p_organization_id': _organizationId},
       );
       return PandoraCapabilityRegistry.fromJson(_map(response));
     } on PostgrestException {
@@ -288,8 +286,8 @@ class PandoraCapabilityRegistry {
       projectRequired: json['projectRequired'] == true,
       providers: rawProviders is List
           ? rawProviders
-              .map((value) => PandoraCapabilityProvider.fromJson(_map(value)))
-              .toList(growable: false)
+                .map((value) => PandoraCapabilityProvider.fromJson(_map(value)))
+                .toList(growable: false)
           : const <PandoraCapabilityProvider>[],
     );
   }
@@ -355,14 +353,15 @@ class PandoraCapabilityProvider {
       accountVerified: account['verified'] == true,
       accountLabel: _optionalText(account['label']),
       scopesVerified: json['scopesVerified'] == true,
-      lastVerifiedAt: _optionalDate(json['lastVerifiedAt']) ??
+      lastVerifiedAt:
+          _optionalDate(json['lastVerifiedAt']) ??
           _optionalDate(health['lastVerifiedAt']),
       failureCode: _optionalText(failure['code']),
       failureMessage: _optionalText(failure['message']),
       actions: rawActions is List
           ? rawActions
-              .map((value) => PandoraCapabilityAction.fromJson(_map(value)))
-              .toList(growable: false)
+                .map((value) => PandoraCapabilityAction.fromJson(_map(value)))
+                .toList(growable: false)
           : const <PandoraCapabilityAction>[],
     );
   }
