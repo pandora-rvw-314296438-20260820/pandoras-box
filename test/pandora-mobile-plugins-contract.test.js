@@ -14,7 +14,7 @@ const pluginsPath = new URL(
 test('mobile drawer exposes Plugins as a first-class Pandora destination', async () => {
   const shell = await readFile(shellPath, 'utf8');
 
-  assert.match(shell, /_ChatDestination\('Plugins'/);
+  assert.match(shell, /_ChatDestination\(\s*'Plugins'/);
   assert.match(shell, /PluginsScreen\(\)/);
   assert.match(shell, /5 => 'plugins'/);
   assert.doesNotMatch(shell, /_ChatDestination\('Connections'/);
