@@ -1,7 +1,7 @@
-const assert = require('node:assert/strict');
-const { readFile } = require('node:fs/promises');
-const { join } = require('node:path');
-const test = require('node:test');
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import test from 'node:test';
 
 const root = join(__dirname, '..');
 const migrationPath = join(
