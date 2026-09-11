@@ -231,12 +231,14 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
             ListTile(
               leading: const Icon(Icons.folder_outlined),
               title: const Text('Move to project'),
-              onTap: () => Navigator.of(sheetContext).pop(_ThreadAction.project),
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(_ThreadAction.project),
             ),
             ListTile(
               leading: const Icon(Icons.archive_outlined),
               title: const Text('Archive'),
-              onTap: () => Navigator.of(sheetContext).pop(_ThreadAction.archive),
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(_ThreadAction.archive),
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline_rounded),
@@ -284,23 +286,29 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
             child: const Text('Rename'),
           ),
         ],
       ),
     );
     controller.dispose();
-    if (!mounted || title == null || title.isEmpty || title == thread.title) return;
+    if (!mounted || title == null || title.isEmpty || title == thread.title)
+      return;
     await _runThreadMutation(
-      () => PandoraDependencies.of(context).intelligence!.renameThread(thread.id, title),
+      () => PandoraDependencies.of(context)
+          .intelligence!
+          .renameThread(thread.id, title),
       success: 'Conversation renamed.',
     );
   }
 
   Future<void> _archiveThread(PandoraIntelligenceThread thread) async {
     await _runThreadMutation(
-      () => PandoraDependencies.of(context).intelligence!.archiveThread(thread.id),
+      () => PandoraDependencies.of(context)
+          .intelligence!
+          .archiveThread(thread.id),
       success: 'Conversation archived.',
     );
   }
@@ -310,7 +318,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('Delete conversation?'),
-            content: Text('Delete “${thread.title}” and its saved messages? This cannot be undone.'),
+            content: Text(
+                'Delete “${thread.title}” and its saved messages? This cannot be undone.'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -326,7 +335,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         false;
     if (!mounted || !confirmed) return;
     await _runThreadMutation(
-      () => PandoraDependencies.of(context).intelligence!.deleteThread(thread.id),
+      () =>
+          PandoraDependencies.of(context).intelligence!.deleteThread(thread.id),
       success: 'Conversation deleted.',
     );
   }
@@ -350,7 +360,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
             children: [
               const ListTile(
                 title: Text('Move conversation to project'),
-                subtitle: Text('Choose a persistent project context or remove the association.'),
+                subtitle: Text(
+                    'Choose a persistent project context or remove the association.'),
               ),
               ListTile(
                 leading: const Icon(Icons.link_off_rounded),
@@ -383,7 +394,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     } on PandoraIntelligenceException catch (error) {
       _showThreadMessage(error.message);
     } on Exception {
-      _showThreadMessage('Pandora could not load projects for this conversation.');
+      _showThreadMessage(
+          'Pandora could not load projects for this conversation.');
     }
   }
 
@@ -404,7 +416,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
   void _showThreadMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _root(int index) => _roots.putIfAbsent(
@@ -671,7 +684,8 @@ class _PandoraSidePanel extends StatelessWidget {
                           ),
                           trailing: IconButton(
                             tooltip: 'Conversation options',
-                            icon: const Icon(Icons.more_horiz_rounded, size: 19),
+                            icon:
+                                const Icon(Icons.more_horiz_rounded, size: 19),
                             onPressed: () => onManageThread(thread),
                           ),
                           onTap: () => onOpenThread(thread),
