@@ -139,7 +139,7 @@ class PandoraIntelligenceApi {
     if (!_mightNeedCapability(message)) return null;
     try {
       final response = await _client.rpc(
-        'pandora_chat_capability_dispatch_v1',
+        'pandora_chat_universal_dispatch_v1',
         params: <String, Object?>{
           'p_organization_id': _organizationId,
           'p_message': message.trim(),
