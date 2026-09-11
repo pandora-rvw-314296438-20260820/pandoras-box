@@ -109,6 +109,95 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     });
   }
 
+  Future<void> _pickServiceContext() async {
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null) return;
+    try {
+      final registry = await intelligence.capabilityRegistry();
+      if (!mounted) return;
+      final selected = await showModalBottomSheet<PandoraCapabilityProvider>(
+        context: context,
+        backgroundColor: PandoraSimpleColors.surface,
+        showDragHandle: true,
+        builder: (context) => _ServiceContextSheet(
+          providers: registry.providers,
+        ),
+      );
+      if (!mounted || selected == null) return;
+      final prefix = '${selected.label}: ';
+      setState(() {
+        _serviceContext = selected;
+        if (!_objective.text.toLowerCase().startsWith(prefix.toLowerCase())) {
+          _objective.text = '$prefix${_objective.text}';
+          _objective.selection = TextSelection.collapsed(
+            offset: _objective.text.length,
+          );
+        }
+        _error = null;
+      });
+      _objectiveFocus.requestFocus();
+    } on PandoraIntelligenceException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
+  }
+
+  Future<void> _pickProjectContext() async {
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null) return;
+    try {
+      final projects = await intelligence.projectContexts();
+      if (!mounted) return;
+      final selected = await showModalBottomSheet<PandoraProjectContext>(
+        context: context,
+        backgroundColor: PandoraSimpleColors.surface,
+        showDragHandle: true,
+        builder: (context) => _ProjectContextSheet(projects: projects),
+      );
+      if (!mounted || selected == null) return;
+      final threadId = _threadId;
+      if (threadId != null) {
+        await intelligence.associateThreadWithProject(threadId, selected.id);
+        if (!mounted) return;
+      }
+      setState(() {
+        _projectContext = selected;
+        _error = null;
+      });
+      _objectiveFocus.requestFocus();
+    } on PandoraIntelligenceException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
+  }
+
+  void _removeServiceContext() {
+    final selected = _serviceContext;
+    if (selected == null) return;
+    final prefix = '${selected.label}: ';
+    setState(() {
+      if (_objective.text.toLowerCase().startsWith(prefix.toLowerCase())) {
+        _objective.text = _objective.text.substring(prefix.length);
+        _objective.selection = TextSelection.collapsed(
+          offset: _objective.text.length,
+        );
+      }
+      _serviceContext = null;
+    });
+  }
+
+  Future<void> _removeProjectContext() async {
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    final threadId = _threadId;
+    try {
+      if (intelligence != null && threadId != null) {
+        await intelligence.associateThreadWithProject(threadId, null);
+        if (!mounted) return;
+      }
+      setState(() => _projectContext = null);
+    } on PandoraIntelligenceException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
+  }
+
   Future<void> _submit() async {
     final objective = _objective.text.trim();
     if (objective.isEmpty) {
