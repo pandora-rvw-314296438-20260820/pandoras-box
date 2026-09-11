@@ -1,3 +1,4 @@
+
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
@@ -25,16 +26,18 @@ test('Plugins UI derives installed state from runtime connection truth', async (
 
   assert.match(plugins, /repository\.connections\(allowCached: true\)/);
   assert.match(plugins, /deduplicateConnections\(raw\)/);
-  assert.match(plugins, /resolveOwnerConnectionState\(item\)/);
+  assert.match(plugins, /resolveOwnerConnectionState\(connection\)/);
   assert.match(plugins, /OwnerConnectionState\.verified/);
-  assert.match(plugins, /item\.canRead \|\| item\.canChange/);
+  assert.match(plugins, /connection\.canRead \|\| connection\.canChange/);
+  assert.match(plugins, /runtime\.map\(_PluginViewModel\.fromRuntime\)/);
+  assert.match(plugins, /provider\.installed/);
   assert.match(plugins, /Search plugins/);
   assert.match(plugins, /'Installed'/);
   assert.match(plugins, /label: 'Public'/);
   assert.match(plugins, /label: 'Personal'/);
   assert.match(
     plugins,
-    /Availability and connection state come from Pandora runtime truth, not a hard-coded catalog\./,
+    /Availability comes from Pandora runtime truth, not a hard-coded connected list\./,
   );
   assert.doesNotMatch(plugins, /Github\s*:\s*true|GitHub\s*:\s*true/);
 });
@@ -42,7 +45,7 @@ test('Plugins UI derives installed state from runtime connection truth', async (
 test('Plugins UI fails closed when authorization is not verified', async () => {
   const plugins = await readFile(pluginsPath, 'utf8');
 
-  assert.match(plugins, /Verified access is not currently available/);
-  assert.match(plugins, /needs verified authorization before Pandora can use it/);
+  assert.match(plugins, /Verified authorization is required before Pandora can use this plugin/);
+  assert.match(plugins, /Live plugin runtime detail is not verified/);
   assert.match(plugins, /No verified plugins are connected right now/);
 });
