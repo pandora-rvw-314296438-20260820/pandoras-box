@@ -827,7 +827,10 @@ class _Composer extends StatelessWidget {
                   ),
                 ),
               ],
-              if (attachment != null || imageAttachment != null) ...[
+              if (attachment != null ||
+                  imageAttachment != null ||
+                  projectContext != null ||
+                  serviceContext != null) ...[
                 Wrap(
                   spacing: 8,
                   runSpacing: 6,
@@ -846,6 +849,26 @@ class _Composer extends StatelessWidget {
                         label: Text(imageAttachment!.name),
                         onDeleted:
                             submitting || disabled ? null : onRemoveImage,
+                      ),
+                    if (serviceContext != null)
+                      InputChip(
+                        key: const ValueKey<String>('ask-pandora-service-context'),
+                        avatar: const Icon(Icons.extension_outlined, size: 17),
+                        label: Text(
+                          '${serviceContext!.label} · ${serviceContext!.state}',
+                        ),
+                        onDeleted: submitting || disabled
+                            ? null
+                            : onRemoveServiceContext,
+                      ),
+                    if (projectContext != null)
+                      InputChip(
+                        key: const ValueKey<String>('ask-pandora-project-context'),
+                        avatar: const Icon(Icons.workspaces_outline, size: 17),
+                        label: Text(projectContext!.name),
+                        onDeleted: submitting || disabled
+                            ? null
+                            : onRemoveProjectContext,
                       ),
                   ],
                 ),
