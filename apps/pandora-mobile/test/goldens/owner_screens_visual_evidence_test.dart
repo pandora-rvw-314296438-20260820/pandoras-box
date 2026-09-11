@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/data/pandora_repository.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
@@ -23,6 +24,8 @@ import 'package:pandora_mobile/features/projects/project_detail_screen.dart';
 import 'package:pandora_mobile/features/projects/projects_screen.dart';
 import 'package:pandora_mobile/features/safety/safety_screen.dart';
 import 'package:pandora_mobile/features/settings/settings_screen.dart';
+import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
+import 'package:pandora_mobile/features/simple/projects_screen.dart' as simple;
 
 import '../helpers/fake_owner_api.dart';
 import '../helpers/test_app.dart';
@@ -523,6 +526,33 @@ void main() {
     _VisualCase(
       name: 'safety_protected_porcelain_390x844',
       build: () => const SafetyScreen(),
+    ),
+    _VisualCase(
+      name: 'obsidian_chat_shell_390x844',
+      build: () => const PandoraChatShell(),
+      themeMode: ThemeMode.dark,
+    ),
+    _VisualCase(
+      name: 'obsidian_chat_shell_320x800',
+      build: () => const PandoraChatShell(),
+      themeMode: ThemeMode.dark,
+      logicalSize: _compactPhoneSize,
+    ),
+    _VisualCase(
+      name: 'obsidian_chat_shell_1_6x_text_390x844',
+      build: () => const PandoraChatShell(),
+      themeMode: ThemeMode.dark,
+      textScaler: TextScaler.linear(1.6),
+    ),
+    _VisualCase(
+      name: 'obsidian_chat_empty_390x844',
+      build: () => const AskPandoraScreen(),
+      themeMode: ThemeMode.dark,
+    ),
+    _VisualCase(
+      name: 'obsidian_projects_grid_390x844',
+      build: () => const simple.ProjectsScreen(),
+      themeMode: ThemeMode.dark,
     ),
     _VisualCase(
       name: 'settings_porcelain_390x844',
