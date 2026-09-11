@@ -398,7 +398,7 @@ class _PandoraSidePanel extends StatelessWidget {
                         textColor: PandoraV2Colors.ink,
                         selectedTileColor: PandoraV2Colors.soft,
                         shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(14)),
                         leading: Icon(
                           index == selectedIndex
                               ? destinations[index].selectedIcon
