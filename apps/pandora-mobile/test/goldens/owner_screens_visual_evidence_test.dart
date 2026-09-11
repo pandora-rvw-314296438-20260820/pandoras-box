@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/data/pandora_repository.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
@@ -23,7 +24,6 @@ import 'package:pandora_mobile/features/projects/project_detail_screen.dart';
 import 'package:pandora_mobile/features/projects/projects_screen.dart';
 import 'package:pandora_mobile/features/safety/safety_screen.dart';
 import 'package:pandora_mobile/features/settings/settings_screen.dart';
-import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
 import 'package:pandora_mobile/features/simple/projects_screen.dart' as simple;
 
