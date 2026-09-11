@@ -65,7 +65,9 @@ class PandoraIntelligenceApi {
   Future<void> renameThread(String threadId, String title) async {
     final normalized = title.trim();
     if (normalized.isEmpty || normalized.length > 200) {
-      throw const PandoraIntelligenceException('Choose a conversation name between 1 and 200 characters.');
+      throw const PandoraIntelligenceException(
+        'Choose a conversation name between 1 and 200 characters.',
+      );
     }
     await _manageThread(
       threadId: threadId,
