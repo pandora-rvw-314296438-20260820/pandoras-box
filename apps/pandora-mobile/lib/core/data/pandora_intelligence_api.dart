@@ -153,10 +153,10 @@ class PandoraIntelligenceApi {
     String? threadId,
     String? projectId,
   }) async {
-    if (!_mightNeedCapability(message)) return null;
+    if (message.trim().isEmpty) return null;
     try {
       final response = await _client.rpc(
-        'pandora_chat_universal_dispatch_v1',
+        'pandora_chat_universal_dispatch_v2',
         params: <String, Object?>{
           'p_organization_id': _organizationId,
           'p_message': message.trim(),
@@ -172,13 +172,6 @@ class PandoraIntelligenceApi {
         'Pandora could not verify that capability right now.',
       );
     }
-  }
-
-  bool _mightNeedCapability(String message) {
-    return RegExp(
-      r'(github|repository|\brepo\b|pull request|supabase|postgres|database|posthog|analytics|vercel|google\s+drive|google\s+sheets?|spreadsheet|connector|connection|capabilit|plugin|plugins|available\s+tools?|what\s+can\s+you\s+do|what\s+are\s+you\s+able\s+to\s+do|what\s+can\s+pandora\s+do)',
-      caseSensitive: false,
-    ).hasMatch(message);
   }
 
   void _requireSession() {
