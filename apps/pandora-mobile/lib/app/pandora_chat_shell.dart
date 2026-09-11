@@ -229,22 +229,22 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       );
 
   ThemeData _theme(ThemeData base) {
-    const scheme = ColorScheme.light(
+    const scheme = ColorScheme.dark(
       primary: PandoraV2Colors.ink,
-      onPrimary: Colors.white,
+      onPrimary: Colors.black,
       primaryContainer: PandoraV2Colors.soft,
       onPrimaryContainer: PandoraV2Colors.ink,
       secondary: PandoraV2Colors.ink,
-      onSecondary: Colors.white,
+      onSecondary: Colors.black,
       surface: PandoraV2Colors.surface,
       onSurface: PandoraV2Colors.ink,
       error: PandoraV2Colors.danger,
-      onError: Colors.white,
+      onError: Colors.black,
       outline: PandoraV2Colors.line,
       outlineVariant: PandoraV2Colors.line,
     );
     return base.copyWith(
-      brightness: Brightness.light,
+      brightness: Brightness.dark,
       colorScheme: scheme,
       scaffoldBackgroundColor: PandoraV2Colors.canvas,
       canvasColor: PandoraV2Colors.canvas,
