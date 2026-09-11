@@ -23,10 +23,10 @@ test('multi-capability router creates an ordered governed workflow and never cla
 });
 
 test('canonical analytics to code to fix to deploy request preserves step order', () => {
-  const analytics = migration.indexOf("call add_step('posthog','analytics.read'");
-  const codeRead = migration.indexOf("call add_step('github','repository.read'");
-  const codeWrite = migration.indexOf("call add_step('github','repository.write'");
-  const deploy = migration.indexOf("call add_step('vercel','deployment.write'");
+  const analytics = migration.indexOf("private.pandora_workflow_step_v1(v_registry,1,'posthog','analytics.read'");
+  const codeRead = migration.indexOf("private.pandora_workflow_step_v1(v_registry,2,'github','repository.read'");
+  const codeWrite = migration.indexOf("private.pandora_workflow_step_v1(v_registry,3,'github','repository.write'");
+  const deploy = migration.indexOf("private.pandora_workflow_step_v1(v_registry,4,'vercel','deployment.write'");
   assert.ok(analytics >= 0);
   assert.ok(codeRead > analytics);
   assert.ok(codeWrite > codeRead);
