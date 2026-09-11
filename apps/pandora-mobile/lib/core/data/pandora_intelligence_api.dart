@@ -62,6 +62,69 @@ class PandoraIntelligenceApi {
     }
   }
 
+  Future<void> renameThread(String threadId, String title) async {
+    final normalized = title.trim();
+    if (normalized.isEmpty || normalized.length > 200) {
+      throw const PandoraIntelligenceException(
+        'Choose a conversation name between 1 and 200 characters.',
+      );
+    }
+    await _manageThread(
+      threadId: threadId,
+      action: 'rename',
+      title: normalized,
+    );
+  }
+
+  Future<void> archiveThread(String threadId) =>
+      _manageThread(threadId: threadId, action: 'archive');
+
+  Future<void> restoreThread(String threadId) =>
+      _manageThread(threadId: threadId, action: 'restore');
+
+  Future<void> deleteThread(String threadId) =>
+      _manageThread(threadId: threadId, action: 'delete');
+
+  Future<void> associateThreadWithProject(
+    String threadId,
+    String? projectId,
+  ) =>
+      _manageThread(
+        threadId: threadId,
+        action: 'associate_project',
+        projectId: projectId,
+      );
+
+  Future<void> _manageThread({
+    required String threadId,
+    required String action,
+    String? title,
+    String? projectId,
+  }) async {
+    _requireSession();
+    try {
+      final response = await _client.rpc(
+        'pandora_intelligence_thread_manage_v1',
+        params: <String, Object?>{
+          'p_organization_id': _organizationId,
+          'p_thread_id': threadId,
+          'p_action': action,
+          'p_title': title,
+          'p_project_id': projectId,
+        },
+      );
+      if (_map(response)['ok'] != true) {
+        throw const PandoraIntelligenceException(
+          'Pandora could not update that conversation.',
+        );
+      }
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not update that conversation.',
+      );
+    }
+  }
+
   Future<PandoraIntelligenceTurn> chat({
     required String message,
     String? threadId,
