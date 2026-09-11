@@ -19,11 +19,14 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           ref: feat/contextual-chat-composer-20260912
-      - name: Guard expected branch head
+          fetch-depth: 2
+      - name: Guard exact parent and helper-only update
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "9eb742235bf7f9515d03c2719782dc672c6ab8ac"
+          test "$(git rev-parse HEAD^)" = "ef3616fb987c7ed0273bb52a582004d1a2508401"
+          changed="$(git diff-tree --no-commit-id --name-only -r HEAD)"
+          test "$changed" = ".github/workflows/pr522-canonical-format-repair-once.yml"
       - name: Install pinned Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
@@ -49,6 +52,8 @@ jobs:
             apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart \
             apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart \
             .github/workflows/pr522-canonical-format-repair-once.yml
+          unexpected="$(git diff --cached --name-only | grep -Ev '^(apps/pandora-mobile/lib/core/data/pandora_intelligence_api\.dart|apps/pandora-mobile/lib/features/simple/ask_pandora_screen\.dart|\.github/workflows/pr522-canonical-format-repair-once\.yml)$' || true)"
+          test -z "$unexpected"
           git diff --cached --check
           git diff --cached --quiet && exit 0
           git commit -m 'style(mobile): apply canonical package-aware formatting'
