@@ -9,7 +9,7 @@ import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
-import '../features/connections/connections_screen.dart';
+import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
 import '../features/simple/more_screen.dart';
 import '../features/simple/offline_evidence_screen.dart';
@@ -35,7 +35,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     _ChatDestination(
         'More', Icons.more_horiz_rounded, Icons.more_horiz_rounded),
     _ChatDestination('Activity', Icons.history_rounded, Icons.history_rounded),
-    _ChatDestination('Connections', Icons.cable_outlined, Icons.cable_rounded),
+    _ChatDestination(
+        'Plugins', Icons.extension_outlined, Icons.extension_rounded),
     _ChatDestination('Saved evidence', Icons.offline_pin_outlined,
         Icons.offline_pin_rounded),
     _ChatDestination(
@@ -108,7 +109,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       2 => 'needs_you',
       3 => 'more',
       4 => 'activity',
-      5 => 'connections',
+      5 => 'plugins',
       6 => 'saved_evidence',
       7 => 'verify_safety',
       _ => 'pandora_chat',
@@ -129,6 +130,81 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     }
   }
 
+  Future<void> _searchChats() async {
+    if (!_historyLoaded) await _refreshHistory();
+    if (!mounted) return;
+    final controller = TextEditingController();
+    var query = '';
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final matches = _threads
+              .where((thread) =>
+                  query.isEmpty ||
+                  thread.title.toLowerCase().contains(query.toLowerCase()))
+              .toList(growable: false);
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              18,
+              4,
+              18,
+              MediaQuery.viewInsetsOf(context).bottom + 18,
+            ),
+            child: SizedBox(
+              height: MediaQuery.sizeOf(context).height * .68,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Search chats',
+                      style:
+                          TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: 'Search conversations',
+                      prefixIcon: Icon(Icons.search_rounded),
+                    ),
+                    onChanged: (value) =>
+                        setSheetState(() => query = value.trim()),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: matches.isEmpty
+                        ? const Center(
+                            child: Text('No matching chats.',
+                                style: TextStyle(color: PandoraV2Colors.muted)))
+                        : ListView.builder(
+                            itemCount: matches.length,
+                            itemBuilder: (context, index) {
+                              final thread = matches[index];
+                              return ListTile(
+                                title: Text(thread.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis),
+                                onTap: () async {
+                                  Navigator.of(sheetContext).pop();
+                                  await _openThread(thread);
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    controller.dispose();
+  }
+
   Future<void> _openThread(PandoraIntelligenceThread thread) async {
     _select(0);
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
@@ -145,7 +221,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
           2 => const ApprovalsScreen(),
           3 => const MoreScreen(),
           4 => const ActivityScreen(),
-          5 => const ConnectionsScreen(),
+          5 => const PluginsScreen(),
           6 => const OfflineEvidenceScreen(),
           7 => const SimpleSafetyScreen(),
           _ => AskPandoraScreen(key: _chatKey),
@@ -212,6 +288,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         threads: _threads,
         historyLoading: _historyLoading,
         onNewChat: _newChat,
+        onSearchChats: _searchChats,
         onOpenThread: _openThread,
       );
 
@@ -284,6 +361,7 @@ class _PandoraSidePanel extends StatelessWidget {
     required this.threads,
     required this.historyLoading,
     required this.onNewChat,
+    required this.onSearchChats,
     required this.onOpenThread,
   });
 
@@ -293,6 +371,7 @@ class _PandoraSidePanel extends StatelessWidget {
   final List<PandoraIntelligenceThread> threads;
   final bool historyLoading;
   final VoidCallback onNewChat;
+  final VoidCallback onSearchChats;
   final ValueChanged<PandoraIntelligenceThread> onOpenThread;
 
   @override
@@ -320,7 +399,7 @@ class _PandoraSidePanel extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 2),
               child: ListTile(
                 key: const ValueKey<String>('pandora-new-chat'),
                 shape: RoundedRectangleBorder(
@@ -329,6 +408,18 @@ class _PandoraSidePanel extends StatelessWidget {
                 title: const Text('New chat',
                     style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: onNewChat,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+              child: ListTile(
+                key: const ValueKey<String>('pandora-search-chats'),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                leading: const Icon(Icons.search_rounded, size: 21),
+                title: const Text('Search chats',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: onSearchChats,
               ),
             ),
             const Divider(height: 1, color: PandoraV2Colors.line),

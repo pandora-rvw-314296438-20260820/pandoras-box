@@ -31,9 +31,9 @@ class AskPandoraScreen extends StatefulWidget {
 
 class AskPandoraScreenState extends State<AskPandoraScreen> {
   static const _suggestions = <String>[
-    'Build an online booking system',
-    'Improve my website',
-    'Automate customer follow-ups',
+    'What can you do for me now?',
+    'Check my GitHub for failing CI',
+    'What needs my attention?',
   ];
 
   final TextEditingController _objective = TextEditingController();
@@ -123,25 +123,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       final dependencies = PandoraDependencies.of(context);
       final intelligence = dependencies.intelligence;
       if (intelligence == null) {
-        if (dependencies.projectExperienceRepository != null) {
-          if (!mounted) return;
-          setState(() {
-            _messages.add(_ChatMessage.user(objective));
-            _pendingMessage = null;
-            _objective.clear();
-            _attachment = null;
-            _imageAttachment = null;
-            _submissionKey = null;
-          });
-          await Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => CreateProjectExperienceScreen(
-                initialIntent: objective,
-              ),
-            ),
-          );
-          return;
-        }
+        // A Project is optional persistent context, never a prerequisite for
+        // talking to Pandora or using a non-project capability. Fall back to
+        // the general governed ask path instead of creating a Project.
         _submissionKey ??= _keys.create('simple-intake');
         final receipt = await dependencies.repository.ask(
           message: objective,
