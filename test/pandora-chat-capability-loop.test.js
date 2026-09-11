@@ -31,7 +31,7 @@ test('provider reads are bounded and mutations remain ProjectOS governed', () =>
 });
 
 test('mobile chat invokes the capability gateway and fails closed on capability lookup errors', () => {
-  assert.match(mobile, /pandora_chat_capability_dispatch_v1/);
+  assert.match(mobile, /pandora_chat_universal_dispatch_v1/);
   assert.match(mobile, /_mightNeedCapability/);
   assert.match(mobile, /textAttachment == null && imageAttachment == null/);
   assert.match(mobile, /Pandora could not verify that capability right now/);
