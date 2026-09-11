@@ -8,6 +8,7 @@ import '../../core/data/pandora_repository.dart';
 import '../../core/models/pandora_models.dart';
 import '../../core/state/screen_controller.dart';
 import '../../core/widgets/owner_experience.dart';
+import '../simple/ask_pandora_screen.dart';
 import '../simple/pandora_v2_ui.dart';
 
 class PluginsScreen extends StatefulWidget {
@@ -289,15 +290,13 @@ class _PluginsScreenState extends State<PluginsScreen> {
   }
 
   void _openGovernedPluginAction(ConnectionSummary connection) {
-    final messenger = ScaffoldMessenger.of(context);
     final state = resolveOwnerConnectionState(connection);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          state == OwnerConnectionState.verified
-              ? '${connection.name} is verified. Manage consequential changes through Pandora Chat and ProjectOS.'
-              : '${connection.name} needs verified authorization before Pandora can use it.',
-        ),
+    final prompt = state == OwnerConnectionState.verified
+        ? 'Manage ${connection.name}. First verify the live connection and current capabilities. Use the plugin for bounded reads when authorized. Route any consequential change through ProjectOS and show me only the approval or blocker that actually needs me.'
+        : 'Connect ${connection.name}. Check the live authorization state and exact scopes required. If owner authorization is required, show me the secure Needs You step. Do not claim this plugin is connected until provider readback verifies it.';
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AskPandoraScreen(initialPrompt: prompt),
       ),
     );
   }
