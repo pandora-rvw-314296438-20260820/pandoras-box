@@ -17,7 +17,7 @@ class PandoraIntelligenceApi {
 
   Future<List<PandoraIntelligenceThread>> recentThreads({int limit = 30}) async {
     _requireSession();
-    final safeLimit = limit.clamp(1, 100);
+    final safeLimit = limit.clamp(1, 100).toInt();
     try {
       final rows = await _client
           .from('pandora_intelligence_threads')
@@ -41,7 +41,7 @@ class PandoraIntelligenceApi {
     int limit = 200,
   }) async {
     _requireSession();
-    final safeLimit = limit.clamp(1, 500);
+    final safeLimit = limit.clamp(1, 500).toInt();
     try {
       final rows = await _client
           .from('pandora_intelligence_messages')
