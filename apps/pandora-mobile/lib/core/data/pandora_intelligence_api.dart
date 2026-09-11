@@ -131,6 +131,23 @@ class PandoraIntelligenceApi {
     }
   }
 
+  Future<PandoraCapabilityRegistry> capabilityRegistry() async {
+    _requireSession();
+    try {
+      final response = await _client.rpc(
+        'pandora_plugin_runtime_registry_v3',
+        params: <String, Object?>{
+          'p_organization_id': _organizationId,
+        },
+      );
+      return PandoraCapabilityRegistry.fromJson(_map(response));
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not verify plugin runtime state right now.',
+      );
+    }
+  }
+
   Future<PandoraIntelligenceTurn?> _dispatchCapability({
     required String message,
     String? threadId,
@@ -172,6 +189,129 @@ class PandoraIntelligenceApi {
 }
 
 enum PandoraIntelligenceMode { auto, fast, deep }
+
+class PandoraCapabilityRegistry {
+  const PandoraCapabilityRegistry({
+    required this.contractVersion,
+    required this.observedAt,
+    required this.projectRequired,
+    required this.providers,
+  });
+
+  final String contractVersion;
+  final DateTime observedAt;
+  final bool projectRequired;
+  final List<PandoraCapabilityProvider> providers;
+
+  factory PandoraCapabilityRegistry.fromJson(Map<String, dynamic> json) {
+    final rawProviders = json['providers'];
+    return PandoraCapabilityRegistry(
+      contractVersion: _text(json['contractVersion'], fallback: 'unknown'),
+      observedAt: _date(json['observedAt']),
+      projectRequired: json['projectRequired'] == true,
+      providers: rawProviders is List
+          ? rawProviders
+              .map((value) => PandoraCapabilityProvider.fromJson(_map(value)))
+              .toList(growable: false)
+          : const <PandoraCapabilityProvider>[],
+    );
+  }
+}
+
+class PandoraCapabilityProvider {
+  const PandoraCapabilityProvider({
+    required this.provider,
+    required this.label,
+    required this.state,
+    required this.rawStatus,
+    required this.canUseNow,
+    required this.readAvailable,
+    required this.writeAvailable,
+    required this.authorization,
+    required this.accountVerified,
+    required this.scopesVerified,
+    required this.actions,
+    this.accountLabel,
+    this.lastVerifiedAt,
+    this.failureCode,
+    this.failureMessage,
+  });
+
+  final String provider;
+  final String label;
+  final String state;
+  final String rawStatus;
+  final bool canUseNow;
+  final bool readAvailable;
+  final bool writeAvailable;
+  final String authorization;
+  final bool accountVerified;
+  final bool scopesVerified;
+  final List<PandoraCapabilityAction> actions;
+  final String? accountLabel;
+  final DateTime? lastVerifiedAt;
+  final String? failureCode;
+  final String? failureMessage;
+
+  bool get installed => state == 'Connected' && canUseNow;
+
+  factory PandoraCapabilityProvider.fromJson(Map<String, dynamic> json) {
+    final account = _map(json['account']);
+    final health = _map(json['health']);
+    final failure = _map(json['failure']);
+    final rawActions = json['actions'];
+    return PandoraCapabilityProvider(
+      provider: _text(json['provider'], fallback: 'unknown'),
+      label: _text(json['label'], fallback: 'Plugin'),
+      state: _text(json['state'], fallback: 'Unavailable'),
+      rawStatus: _text(
+        health['rawStatus'],
+        fallback: _text(json['status'], fallback: 'unknown'),
+      ),
+      canUseNow: health['canUseNow'] == true || json['canUseNow'] == true,
+      readAvailable: json['readAvailable'] == true,
+      writeAvailable: json['writeAvailable'] == true,
+      authorization: _text(
+        json['authorization'],
+        fallback: 'Authorization state is not available.',
+      ),
+      accountVerified: account['verified'] == true,
+      accountLabel: _optionalText(account['label']),
+      scopesVerified: json['scopesVerified'] == true,
+      lastVerifiedAt: _optionalDate(json['lastVerifiedAt']) ??
+          _optionalDate(health['lastVerifiedAt']),
+      failureCode: _optionalText(failure['code']),
+      failureMessage: _optionalText(failure['message']),
+      actions: rawActions is List
+          ? rawActions
+              .map((value) => PandoraCapabilityAction.fromJson(_map(value)))
+              .toList(growable: false)
+          : const <PandoraCapabilityAction>[],
+    );
+  }
+}
+
+class PandoraCapabilityAction {
+  const PandoraCapabilityAction({
+    required this.name,
+    required this.mode,
+    required this.available,
+    this.approval,
+  });
+
+  final String name;
+  final String mode;
+  final bool available;
+  final String? approval;
+
+  factory PandoraCapabilityAction.fromJson(Map<String, dynamic> json) =>
+      PandoraCapabilityAction(
+        name: _text(json['name'], fallback: 'unknown.action'),
+        mode: _text(json['mode'], fallback: 'read'),
+        available: json['available'] == true,
+        approval: _optionalText(json['approval']),
+      );
+}
 
 class PandoraIntelligenceThread {
   const PandoraIntelligenceThread({
@@ -301,6 +441,11 @@ String _requiredText(Object? value) {
     );
   }
   return result;
+}
+
+DateTime? _optionalDate(Object? value) {
+  if (value is String) return DateTime.tryParse(value);
+  return null;
 }
 
 DateTime _date(Object? value) {
