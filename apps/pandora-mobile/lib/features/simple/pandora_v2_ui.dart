@@ -3,15 +3,15 @@ import 'package:flutter/material.dart';
 import '../../core/widgets/pandora_mark.dart';
 
 abstract final class PandoraV2Colors {
-  static const canvas = Color(0xFFF6F5F2);
-  static const surface = Color(0xFFFFFFFF);
-  static const ink = Color(0xFF171717);
-  static const muted = Color(0xFF6B6A66);
-  static const line = Color(0xFFE4E3DF);
-  static const soft = Color(0xFFF0EFEB);
-  static const success = Color(0xFF0B6B45);
-  static const warning = Color(0xFF8A5A12);
-  static const danger = Color(0xFFB42318);
+  static const canvas = Color(0xFF000000);
+  static const surface = Color(0xFF0A0A0A);
+  static const ink = Color(0xFFFFFFFF);
+  static const muted = Color(0xFF888888);
+  static const line = Color(0xFF222222);
+  static const soft = Color(0xFF141414);
+  static const success = Color(0xFF66C58A);
+  static const warning = Color(0xFFE2A85D);
+  static const danger = Color(0xFFFF817A);
 }
 
 const pandoraV2Body = TextStyle(

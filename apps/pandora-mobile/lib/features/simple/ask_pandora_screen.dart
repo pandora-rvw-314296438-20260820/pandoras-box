@@ -414,16 +414,16 @@ class _EmptyConversation extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const PandoraMark(size: 42),
+                const PandoraMark(size: 54, color: Colors.white),
                 const SizedBox(height: 18),
                 const Text(
                   'What can I help with?',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: PandoraSimpleColors.ink,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -.45,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -.35,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -439,35 +439,73 @@ class _EmptyConversation extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 22),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final suggestion in suggestions)
-                      ActionChip(
-                        onPressed:
-                            disabled ? null : () => onSuggestion(suggestion),
-                        backgroundColor: PandoraSimpleColors.surface,
-                        side: const BorderSide(color: PandoraSimpleColors.line),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
+                const SizedBox(height: 30),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Column(
+                    children: [
+                      for (var index = 0;
+                          index < suggestions.length;
+                          index++) ...[
+                        _ObsidianSuggestion(
+                          label: suggestions[index],
+                          enabled: !disabled,
+                          onPressed: () => onSuggestion(suggestions[index]),
                         ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 6,
-                        ),
-                        label: Text(
-                          suggestion,
-                          style: const TextStyle(
-                            color: PandoraSimpleColors.ink,
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                  ],
+                        if (index != suggestions.length - 1)
+                          const SizedBox(height: 12),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+class _ObsidianSuggestion extends StatelessWidget {
+  const _ObsidianSuggestion({
+    required this.label,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: const Color(0x990F0F0F),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: PandoraSimpleColors.line),
+        ),
+        child: InkWell(
+          onTap: enabled ? onPressed : null,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: enabled
+                          ? const Color(0xFFE2E2E2)
+                          : PandoraSimpleColors.muted,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 17,
+                  color: Color(0xFF555555),
                 ),
               ],
             ),
@@ -527,7 +565,7 @@ class _ChatBubble extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 320),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: const Color(0xFFF0EFED),
+              color: const Color(0xFF1F1F1F),
               borderRadius: BorderRadius.circular(22),
             ),
             child: Padding(
@@ -550,7 +588,7 @@ class _ChatBubble extends StatelessWidget {
       children: [
         const Padding(
           padding: EdgeInsets.only(top: 2),
-          child: PandoraMark(size: 24),
+          child: PandoraMark(size: 24, color: Colors.white),
         ),
         const SizedBox(width: 11),
         Expanded(
@@ -575,7 +613,7 @@ class _PandoraThinkingBubble extends StatelessWidget {
   Widget build(BuildContext context) => const Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          PandoraMark(size: 24),
+          PandoraMark(size: 24, color: Colors.white),
           SizedBox(width: 11),
           SizedBox.square(
             dimension: 16,
@@ -705,11 +743,11 @@ class _Composer extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: PandoraSimpleColors.surface,
                   borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: const Color(0xFFD8D7D4)),
+                  border: Border.all(color: PandoraSimpleColors.line),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x0C000000),
-                      blurRadius: 14,
+                      color: Color(0xB3000000),
+                      blurRadius: 30,
                       offset: Offset(0, 5),
                     ),
                   ],
@@ -823,9 +861,9 @@ class _Composer extends StatelessWidget {
                                   disabled || submitting ? null : onSubmit,
                               style: FilledButton.styleFrom(
                                 padding: EdgeInsets.zero,
-                                backgroundColor: PandoraSimpleColors.ink,
+                                backgroundColor: Colors.white,
                                 disabledBackgroundColor:
-                                    const Color(0xFFE4E3E0),
+                                    const Color(0xFF1F1F1F),
                                 shape: const CircleBorder(),
                               ),
                               child: submitting
@@ -838,7 +876,7 @@ class _Composer extends StatelessWidget {
                                     )
                                   : const Icon(
                                       Icons.arrow_upward_rounded,
-                                      color: Colors.white,
+                                      color: Colors.black,
                                       size: 22,
                                     ),
                             ),

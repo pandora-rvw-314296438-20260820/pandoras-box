@@ -4,22 +4,22 @@ import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
 
 abstract final class PandoraSimpleColors {
-  static const red = Color(0xFFD40A24);
-  static const deepRed = Color(0xFFB9091F);
-  static const ink = Color(0xFF151515);
-  static const muted = Color(0xFF6E6D69);
-  static const canvas = Color(0xFFF8F8F6);
-  static const surface = Color(0xFFFFFFFF);
-  static const line = Color(0xFFE9E7E3);
-  static const blush = Color(0xFFFFF2F4);
-  static const blueWash = Color(0xFFF1F5FF);
-  static const greenWash = Color(0xFFF0FAF3);
-  static const purpleWash = Color(0xFFF7F1FF);
-  static const amberWash = Color(0xFFFFF7ED);
-  static const green = Color(0xFF26954A);
-  static const blue = Color(0xFF2F6FD7);
-  static const purple = Color(0xFF7A45C5);
-  static const amber = Color(0xFFD77816);
+  static const red = Color(0xFFFFFFFF);
+  static const deepRed = Color(0xFFD8D8D8);
+  static const ink = Color(0xFFFFFFFF);
+  static const muted = Color(0xFF888888);
+  static const canvas = Color(0xFF000000);
+  static const surface = Color(0xFF0A0A0A);
+  static const line = Color(0xFF222222);
+  static const blush = Color(0xFF181010);
+  static const blueWash = Color(0xFF10141A);
+  static const greenWash = Color(0xFF101814);
+  static const purpleWash = Color(0xFF151018);
+  static const amberWash = Color(0xFF18140E);
+  static const green = Color(0xFF66C58A);
+  static const blue = Color(0xFF7EA8F6);
+  static const purple = Color(0xFFB69AE8);
+  static const amber = Color(0xFFE2A85D);
 }
 
 class PandoraSimplePage extends StatelessWidget {
