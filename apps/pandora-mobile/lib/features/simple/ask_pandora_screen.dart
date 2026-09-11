@@ -42,6 +42,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   final List<_ChatMessage> _messages = <_ChatMessage>[];
   PandoraTextAttachment? _attachment;
   PandoraImageAttachment? _imageAttachment;
+  PandoraProjectContext? _projectContext;
+  PandoraCapabilityProvider? _serviceContext;
   String? _threadId;
   String? _pendingMessage;
   bool _submitting = false;
