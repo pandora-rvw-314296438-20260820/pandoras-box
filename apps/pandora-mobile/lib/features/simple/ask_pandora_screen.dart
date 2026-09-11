@@ -345,6 +345,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       _objective.clear();
       _attachment = null;
       _imageAttachment = null;
+      _projectContext = null;
+      _serviceContext = null;
       _threadId = null;
       _pendingMessage = null;
       _error = null;
