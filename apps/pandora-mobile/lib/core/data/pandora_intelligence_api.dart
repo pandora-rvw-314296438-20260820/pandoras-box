@@ -390,6 +390,31 @@ class PandoraCapabilityAction {
       );
 }
 
+class PandoraProjectContext {
+  const PandoraProjectContext({
+    required this.id,
+    required this.projectKey,
+    required this.name,
+    required this.status,
+    this.repository,
+  });
+
+  final String id;
+  final String projectKey;
+  final String name;
+  final String status;
+  final String? repository;
+
+  factory PandoraProjectContext.fromJson(Map<String, dynamic> json) =>
+      PandoraProjectContext(
+        id: _requiredText(json['id']),
+        projectKey: _requiredText(json['project_key']),
+        name: _requiredText(json['name']),
+        status: _text(json['status'], fallback: 'active'),
+        repository: _optionalText(json['repository']),
+      );
+}
+
 class PandoraIntelligenceThread {
   const PandoraIntelligenceThread({
     required this.id,
