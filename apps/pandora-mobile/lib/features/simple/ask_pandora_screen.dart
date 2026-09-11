@@ -740,6 +740,8 @@ class _Composer extends StatelessWidget {
     required this.focusNode,
     required this.attachment,
     required this.imageAttachment,
+    required this.projectContext,
+    required this.serviceContext,
     required this.error,
     required this.submitting,
     required this.disabled,
@@ -747,16 +749,22 @@ class _Composer extends StatelessWidget {
     required this.onCamera,
     required this.onPhotos,
     required this.onAttach,
+    required this.onServices,
+    required this.onProjectContext,
     required this.onDictate,
     required this.onSubmit,
     required this.onRemoveAttachment,
     required this.onRemoveImage,
+    required this.onRemoveServiceContext,
+    required this.onRemoveProjectContext,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final PandoraTextAttachment? attachment;
   final PandoraImageAttachment? imageAttachment;
+  final PandoraProjectContext? projectContext;
+  final PandoraCapabilityProvider? serviceContext;
   final String? error;
   final bool submitting;
   final bool disabled;
@@ -764,10 +772,14 @@ class _Composer extends StatelessWidget {
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
   final VoidCallback onAttach;
+  final VoidCallback onServices;
+  final VoidCallback onProjectContext;
   final VoidCallback onDictate;
   final VoidCallback onSubmit;
   final VoidCallback onRemoveAttachment;
   final VoidCallback onRemoveImage;
+  final VoidCallback onRemoveServiceContext;
+  final VoidCallback onRemoveProjectContext;
 
   @override
   Widget build(BuildContext context) => SafeArea(
