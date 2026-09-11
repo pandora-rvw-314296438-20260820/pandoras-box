@@ -436,6 +436,11 @@ String _requiredText(Object? value) {
   return result;
 }
 
+DateTime? _optionalDate(Object? value) {
+  if (value is String) return DateTime.tryParse(value);
+  return null;
+}
+
 DateTime _date(Object? value) {
   if (value is String) {
     final parsed = DateTime.tryParse(value);
