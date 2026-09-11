@@ -71,6 +71,14 @@ class PandoraIntelligenceApi {
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
   }) async {
     _requireSession();
+    if (textAttachment == null && imageAttachment == null) {
+      final capabilityTurn = await _dispatchCapability(
+        message: message,
+        threadId: threadId,
+        projectId: projectId,
+      );
+      if (capabilityTurn != null) return capabilityTurn;
+    }
     final attachments = <Map<String, Object?>>[
       if (textAttachment != null)
         <String, Object?>{
@@ -122,6 +130,37 @@ class PandoraIntelligenceApi {
       );
     }
   }
+
+  Future<PandoraIntelligenceTurn?> _dispatchCapability({
+    required String message,
+    String? threadId,
+    String? projectId,
+  }) async {
+    if (!_mightNeedCapability(message)) return null;
+    try {
+      final response = await _client.rpc(
+        'pandora_chat_capability_dispatch_v1',
+        params: <String, Object?>{
+          'p_organization_id': _organizationId,
+          'p_message': message.trim(),
+          if (threadId != null) 'p_thread_id': threadId,
+          if (projectId != null) 'p_project_id': projectId,
+        },
+      );
+      final payload = _map(response);
+      if (payload['handled'] != true) return null;
+      return PandoraIntelligenceTurn.fromJson(payload);
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not verify that capability right now.',
+      );
+    }
+  }
+
+  bool _mightNeedCapability(String message) => RegExp(
+        r'(github|repository|\brepo\b|pull request|supabase|postgres|database|posthog|analytics|google\s+drive|google\s+sheets?|spreadsheet|connector|connection|capabilit)',
+        caseSensitive: false,
+      ).hasMatch(message);
 
   void _requireSession() {
     if (_client.auth.currentSession == null) {
