@@ -1,7 +1,43 @@
 -- Pandora multi-capability workflow routing v1
--- One owner request may span multiple providers, but execution remains ordered,
--- fail-closed, and governed. This migration plans and records the workflow only;
--- it never bypasses ProjectOS or claims provider completion.
+-- One owner request may span multiple providers. This migration plans and records
+-- the ordered workflow only; it never bypasses ProjectOS or claims provider completion.
+
+create or replace function private.pandora_workflow_step_v1(
+  p_registry jsonb,
+  p_sequence integer,
+  p_provider text,
+  p_action text,
+  p_mode text,
+  p_reason text
+) returns jsonb
+language sql
+stable
+set search_path = pg_catalog, public, private, pg_temp
+as $$
+  select jsonb_build_object(
+    'sequence', p_sequence,
+    'provider', p_provider,
+    'action', p_action,
+    'mode', p_mode,
+    'reason', p_reason,
+    'runtimeAvailable', exists(
+      select 1
+      from jsonb_array_elements(coalesce(p_registry->'providers','[]'::jsonb)) p,
+           jsonb_array_elements(coalesce(p->'actions','[]'::jsonb)) a
+      where p->>'provider'=p_provider
+        and coalesce((p->>'canUseNow')::boolean,false)
+        and a->>'name'=p_action
+        and coalesce((a->>'available')::boolean,false)
+    ),
+    'authority', case when p_mode='write' then 'projectos' else 'governed_adapter' end,
+    'verifiedComplete', false
+  );
+$$;
+
+revoke all on function private.pandora_workflow_step_v1(jsonb,integer,text,text,text,text)
+  from public, anon, authenticated;
+grant execute on function private.pandora_workflow_step_v1(jsonb,integer,text,text,text,text)
+  to service_role;
 
 create or replace function private.pandora_multi_capability_workflow_v1(
   p_organization_id uuid,
@@ -26,45 +62,6 @@ declare
   v_intake jsonb;
   v_idempotency text;
   v_blocked jsonb := '[]'::jsonb;
-
-  procedure add_step(p_provider text, p_action text, p_mode text, p_reason text)
-  language plpgsql
-  as $proc$
-  declare
-    v_available boolean := false;
-  begin
-    select exists(
-      select 1
-      from jsonb_array_elements(coalesce(v_registry->'providers','[]'::jsonb)) p,
-           jsonb_array_elements(coalesce(p->'actions','[]'::jsonb)) a
-      where p->>'provider'=p_provider
-        and coalesce((p->>'canUseNow')::boolean,false)
-        and a->>'name'=p_action
-        and coalesce((a->>'available')::boolean,false)
-    ) into v_available;
-
-    v_step := jsonb_build_object(
-      'sequence', jsonb_array_length(v_steps) + 1,
-      'provider', p_provider,
-      'action', p_action,
-      'mode', p_mode,
-      'reason', p_reason,
-      'runtimeAvailable', v_available,
-      'authority', case when p_mode='write' then 'projectos' else 'governed_adapter' end,
-      'verifiedComplete', false
-    );
-    v_steps := v_steps || jsonb_build_array(v_step);
-    v_provider_count := v_provider_count + 1;
-    if v_available then
-      v_available_count := v_available_count + 1;
-    else
-      v_blocked := v_blocked || jsonb_build_array(jsonb_build_object(
-        'provider',p_provider,'action',p_action,'reason','runtime_authority_unavailable'
-      ));
-    end if;
-    if p_mode='write' then v_has_write := true; end if;
-  end;
-  $proc$;
 begin
   if v_uid is null then
     raise exception 'pandora_multi_workflow_sign_in_required' using errcode='42501';
@@ -98,58 +95,96 @@ begin
      and v_message ~* '\m(github|repository|repo|code|codebase|source)\M'
      and v_message ~* '\m(fix|repair|change|update|edit)\M'
      and v_message ~* '\m(vercel|deploy|deployment|publish|go live)\M' then
-    call add_step('posthog','analytics.read','read','inspect product/runtime signals');
-    call add_step('github','repository.read','read','inspect the exact source before changing it');
-    call add_step('github','repository.write','write','apply the bounded source correction through ProjectOS');
-    call add_step('vercel','deployment.write','write','publish only after source and verification gates succeed');
+
+    v_step := private.pandora_workflow_step_v1(v_registry,1,'posthog','analytics.read','read','inspect product/runtime signals');
+    v_steps := v_steps || jsonb_build_array(v_step);
+    v_step := private.pandora_workflow_step_v1(v_registry,2,'github','repository.read','read','inspect the exact source before changing it');
+    v_steps := v_steps || jsonb_build_array(v_step);
+    v_step := private.pandora_workflow_step_v1(v_registry,3,'github','repository.write','write','apply the bounded source correction through ProjectOS');
+    v_steps := v_steps || jsonb_build_array(v_step);
+    v_step := private.pandora_workflow_step_v1(v_registry,4,'vercel','deployment.write','write','publish only after source and verification gates succeed');
+    v_steps := v_steps || jsonb_build_array(v_step);
   else
     if v_message ~* '\m(github|repository|repo|pull request|codebase|source code)\M' then
-      if v_message ~* '\m(fix|change|update|delete|create|write|merge|apply|repair|edit|rename|move)\M' then
-        call add_step('github','repository.write','write','requested source change');
-      else
-        call add_step('github','repository.read','read','requested source inspection');
-      end if;
+      v_steps := v_steps || jsonb_build_array(
+        private.pandora_workflow_step_v1(
+          v_registry,jsonb_array_length(v_steps)+1,'github',
+          case when v_message ~* '\m(fix|change|update|delete|create|write|merge|apply|repair|edit|rename|move)\M' then 'repository.write' else 'repository.read' end,
+          case when v_message ~* '\m(fix|change|update|delete|create|write|merge|apply|repair|edit|rename|move)\M' then 'write' else 'read' end,
+          'GitHub source step'
+        )
+      );
     end if;
     if v_message ~* '\m(supabase|postgres|postgresql|database|sql|backend database)\M' then
-      if v_message ~* '\m(fix|change|update|delete|create|write|apply|configure|repair|edit)\M' then
-        call add_step('supabase','project.write','write','requested database/backend change');
-      else
-        call add_step('supabase','project.read','read','requested database/backend inspection');
-      end if;
+      v_steps := v_steps || jsonb_build_array(
+        private.pandora_workflow_step_v1(
+          v_registry,jsonb_array_length(v_steps)+1,'supabase',
+          case when v_message ~* '\m(fix|change|update|delete|create|write|apply|configure|repair|edit)\M' then 'project.write' else 'project.read' end,
+          case when v_message ~* '\m(fix|change|update|delete|create|write|apply|configure|repair|edit)\M' then 'write' else 'read' end,
+          'Supabase project step'
+        )
+      );
     end if;
     if v_message ~* '\m(posthog|analytics|funnel|retention|events)\M' then
-      if v_message ~* '\m(change|update|create|configure|write|edit)\M' then
-        call add_step('posthog','analytics.manage','write','requested analytics configuration change');
-      else
-        call add_step('posthog','analytics.read','read','requested analytics inspection');
-      end if;
+      v_steps := v_steps || jsonb_build_array(
+        private.pandora_workflow_step_v1(
+          v_registry,jsonb_array_length(v_steps)+1,'posthog',
+          case when v_message ~* '\m(change|update|create|configure|write|edit)\M' then 'analytics.manage' else 'analytics.read' end,
+          case when v_message ~* '\m(change|update|create|configure|write|edit)\M' then 'write' else 'read' end,
+          'PostHog analytics step'
+        )
+      );
     end if;
     if v_message ~* '\m(vercel|deployment|deployments|hosting|publish|go live)\M' then
-      if v_message ~* '\m(deploy|publish|change|update|create|configure|write|rollback|restore)\M' then
-        call add_step('vercel','deployment.write','write','requested deployment or hosting change');
-      else
-        call add_step('vercel','deployment.read','read','requested deployment inspection');
-      end if;
+      v_steps := v_steps || jsonb_build_array(
+        private.pandora_workflow_step_v1(
+          v_registry,jsonb_array_length(v_steps)+1,'vercel',
+          case when v_message ~* '\m(deploy|publish|change|update|create|configure|write|rollback|restore)\M' then 'deployment.write' else 'deployment.read' end,
+          case when v_message ~* '\m(deploy|publish|change|update|create|configure|write|rollback|restore)\M' then 'write' else 'read' end,
+          'Vercel deployment step'
+        )
+      );
     end if;
     if v_message ~* '(google[[:space:]]+drive|drive[[:space:]]+file|drive[[:space:]]+folder)' then
-      if v_message ~* '\m(change|update|delete|create|write|move|rename|upload|edit)\M' then
-        call add_step('google_drive','files.write','write','requested Drive file change');
-      else
-        call add_step('google_drive','files.read','read','requested Drive file inspection');
-      end if;
+      v_steps := v_steps || jsonb_build_array(
+        private.pandora_workflow_step_v1(
+          v_registry,jsonb_array_length(v_steps)+1,'google_drive',
+          case when v_message ~* '\m(change|update|delete|create|write|move|rename|upload|edit)\M' then 'files.write' else 'files.read' end,
+          case when v_message ~* '\m(change|update|delete|create|write|move|rename|upload|edit)\M' then 'write' else 'read' end,
+          'Google Drive step'
+        )
+      );
     end if;
     if v_message ~* '(google[[:space:]]+sheets?|spreadsheet|workbook)' then
-      if v_message ~* '\m(change|update|delete|create|write|move|rename|edit)\M' then
-        call add_step('google_sheets','sheets.write','write','requested spreadsheet change');
-      else
-        call add_step('google_sheets','sheets.read','read','requested spreadsheet inspection');
-      end if;
+      v_steps := v_steps || jsonb_build_array(
+        private.pandora_workflow_step_v1(
+          v_registry,jsonb_array_length(v_steps)+1,'google_sheets',
+          case when v_message ~* '\m(change|update|delete|create|write|move|rename|edit)\M' then 'sheets.write' else 'sheets.read' end,
+          case when v_message ~* '\m(change|update|delete|create|write|move|rename|edit)\M' then 'write' else 'read' end,
+          'Google Sheets step'
+        )
+      );
     end if;
   end if;
 
+  v_provider_count := jsonb_array_length(v_steps);
   if v_provider_count < 2 then
     return jsonb_build_object('handled',false,'reason','single_capability','stepCount',v_provider_count);
   end if;
+
+  select count(*) filter (where coalesce((step->>'runtimeAvailable')::boolean,false)),
+         bool_or(step->>'mode'='write')
+    into v_available_count, v_has_write
+  from jsonb_array_elements(v_steps) step;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'provider',step->>'provider',
+      'action',step->>'action',
+      'reason','runtime_authority_unavailable'
+    )),'[]'::jsonb)
+    into v_blocked
+  from jsonb_array_elements(v_steps) step
+  where not coalesce((step->>'runtimeAvailable')::boolean,false);
 
   v_idempotency := encode(extensions.digest(
     p_organization_id::text||':'||v_uid::text||':'||coalesce(p_project_id::text,'')||':multi_capability:'||lower(v_message),
@@ -173,7 +208,7 @@ begin
     'stepCount',v_provider_count,
     'availableStepCount',v_available_count,
     'allRuntimeAuthorityAvailable',v_available_count=v_provider_count,
-    'containsMutation',v_has_write,
+    'containsMutation',coalesce(v_has_write,false),
     'steps',v_steps,
     'blockedBy',v_blocked,
     'intakeId',v_intake#>>'{intake,id}',
