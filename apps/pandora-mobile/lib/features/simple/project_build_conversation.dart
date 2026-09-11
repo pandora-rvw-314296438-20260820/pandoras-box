@@ -565,6 +565,29 @@ class _BuildExecutionView {
             'Repair $status${files == null ? '' : ' · $files files'}',
           );
           break;
+        case 'provider_fallback_started':
+          final from = _text(payload['from_provider']);
+          final to = _text(payload['to_provider']);
+          record(
+            from == null || to == null
+                ? 'Provider fallback started'
+                : 'Provider fallback · $from → $to',
+          );
+          break;
+        case 'provider_fallback_completed':
+          final provider = _text(payload['provider']);
+          record(
+            provider == null
+                ? 'Provider fallback completed'
+                : 'Provider fallback completed · $provider',
+          );
+          break;
+        case 'rollback_started':
+          record('Rollback started');
+          break;
+        case 'rollback_completed':
+          record('Rollback completed');
+          break;
         case 'verification':
           record('Verifying the exact build');
           break;
