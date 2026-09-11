@@ -39,7 +39,7 @@ test("runtime registry exposes human-readable plugin state including Vercel", ()
 });
 
 test("mobile routes plugin and capability questions to universal runtime truth", () => {
-  assert.match(api, /pandora_chat_universal_dispatch_v1/);
+  assert.match(api, /pandora_chat_universal_dispatch_v2/);
   assert.match(api, /plugin\|plugins/);
   assert.match(api, /what\\s\+can\\s\+you\\s\+do/);
   assert.match(api, /vercel/);
