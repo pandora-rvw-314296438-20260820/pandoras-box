@@ -14,15 +14,17 @@ class PandoraIntelligenceApi {
 
   static const functionName = 'pandora-intelligence-chat';
 
-  Future<List<PandoraIntelligenceThread>> recentThreads(
-      {int limit = 30}) async {
+  Future<List<PandoraIntelligenceThread>> recentThreads({
+    int limit = 30,
+  }) async {
     _requireSession();
     final safeLimit = limit.clamp(1, 100).toInt();
     try {
       final rows = await _client
           .from('pandora_intelligence_threads')
           .select(
-              'id,project_id,title,status,last_message_at,created_at,updated_at')
+            'id,project_id,title,status,last_message_at,created_at,updated_at',
+          )
           .eq('organization_id', _organizationId)
           .eq('status', 'active')
           .order('last_message_at', ascending: false)
@@ -47,7 +49,8 @@ class PandoraIntelligenceApi {
       final rows = await _client
           .from('pandora_intelligence_messages')
           .select(
-              'id,thread_id,author_role,content,attachment_manifest,created_at')
+            'id,thread_id,author_role,content,attachment_manifest,created_at',
+          )
           .eq('organization_id', _organizationId)
           .eq('thread_id', threadId)
           .order('created_at')
@@ -85,10 +88,7 @@ class PandoraIntelligenceApi {
   Future<void> deleteThread(String threadId) =>
       _manageThread(threadId: threadId, action: 'delete');
 
-  Future<void> associateThreadWithProject(
-    String threadId,
-    String? projectId,
-  ) =>
+  Future<void> associateThreadWithProject(String threadId, String? projectId) =>
       _manageThread(
         threadId: threadId,
         action: 'associate_project',
@@ -199,14 +199,33 @@ class PandoraIntelligenceApi {
     try {
       final response = await _client.rpc(
         'pandora_plugin_runtime_registry_v4',
-        params: <String, Object?>{
-          'p_organization_id': _organizationId,
-        },
+        params: <String, Object?>{'p_organization_id': _organizationId},
       );
       return PandoraCapabilityRegistry.fromJson(_map(response));
     } on PostgrestException {
       throw const PandoraIntelligenceException(
         'Pandora could not verify plugin runtime state right now.',
+      );
+    }
+  }
+
+  Future<List<PandoraProjectContext>> projectContexts({int limit = 60}) async {
+    _requireSession();
+    final safeLimit = limit.clamp(1, 100).toInt();
+    try {
+      final rows = await _client
+          .from('projectos_projects')
+          .select('id,project_key,name,repository,status,updated_at')
+          .eq('organization_id', _organizationId)
+          .neq('status', 'archived')
+          .order('updated_at', ascending: false)
+          .limit(safeLimit);
+      return (rows as List<dynamic>)
+          .map((row) => PandoraProjectContext.fromJson(_map(row)))
+          .toList(growable: false);
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not verify project context right now.',
       );
     }
   }
@@ -366,6 +385,31 @@ class PandoraCapabilityAction {
         mode: _text(json['mode'], fallback: 'read'),
         available: json['available'] == true,
         approval: _optionalText(json['approval']),
+      );
+}
+
+class PandoraProjectContext {
+  const PandoraProjectContext({
+    required this.id,
+    required this.projectKey,
+    required this.name,
+    required this.status,
+    this.repository,
+  });
+
+  final String id;
+  final String projectKey;
+  final String name;
+  final String status;
+  final String? repository;
+
+  factory PandoraProjectContext.fromJson(Map<String, dynamic> json) =>
+      PandoraProjectContext(
+        id: _requiredText(json['id']),
+        projectKey: _requiredText(json['project_key']),
+        name: _requiredText(json['name']),
+        status: _text(json['status'], fallback: 'active'),
+        repository: _optionalText(json['repository']),
       );
 }
 
