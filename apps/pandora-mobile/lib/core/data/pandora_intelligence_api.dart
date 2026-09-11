@@ -174,7 +174,6 @@ class PandoraIntelligenceApi {
     }
   }
 
-
   void _requireSession() {
     if (_client.auth.currentSession == null) {
       throw const PandoraIntelligenceException('Please sign in again.');
