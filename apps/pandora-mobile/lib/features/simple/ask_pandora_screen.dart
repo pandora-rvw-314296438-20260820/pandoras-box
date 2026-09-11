@@ -444,7 +444,9 @@ class _EmptyConversation extends StatelessWidget {
                   constraints: const BoxConstraints(maxWidth: 320),
                   child: Column(
                     children: [
-                      for (var index = 0; index < suggestions.length; index++) ...[
+                      for (var index = 0;
+                          index < suggestions.length;
+                          index++) ...[
                         _ObsidianSuggestion(
                           label: suggestions[index],
                           enabled: !disabled,
