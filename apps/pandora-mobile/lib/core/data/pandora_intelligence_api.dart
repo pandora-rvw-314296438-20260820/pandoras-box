@@ -135,7 +135,7 @@ class PandoraIntelligenceApi {
     _requireSession();
     try {
       final response = await _client.rpc(
-        'pandora_plugin_runtime_registry_v3',
+        'pandora_plugin_runtime_registry_v4',
         params: <String, Object?>{
           'p_organization_id': _organizationId,
         },
