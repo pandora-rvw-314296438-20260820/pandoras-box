@@ -120,7 +120,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(menu, findsOneWidget);
-      expect(tester.takeException(), isNull, reason: '$title must fit the phone');
+      expect(tester.takeException(), isNull, reason: '$title layout');
     }
   });
 
