@@ -355,16 +355,16 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                         ),
                       )
                     : _messages.isEmpty && _pendingMessage == null
-                    ? _EmptyConversation(
-                        suggestions: _suggestions,
-                        onSuggestion: _useSuggestion,
-                        disabled: _outcomeUnknown || _submitting,
-                      )
-                    : _Conversation(
-                        messages: _messages,
-                        pendingMessage: _pendingMessage,
-                        thinking: _submitting,
-                      ),
+                        ? _EmptyConversation(
+                            suggestions: _suggestions,
+                            onSuggestion: _useSuggestion,
+                            disabled: _outcomeUnknown || _submitting,
+                          )
+                        : _Conversation(
+                            messages: _messages,
+                            pendingMessage: _pendingMessage,
+                            thinking: _submitting,
+                          ),
               ),
               _Composer(
                 controller: _objective,
