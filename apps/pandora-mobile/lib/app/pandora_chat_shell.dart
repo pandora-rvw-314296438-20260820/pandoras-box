@@ -35,7 +35,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     _ChatDestination(
         'More', Icons.more_horiz_rounded, Icons.more_horiz_rounded),
     _ChatDestination('Activity', Icons.history_rounded, Icons.history_rounded),
-    _ChatDestination('Plugins', Icons.extension_outlined, Icons.extension_rounded),
+    _ChatDestination(
+        'Plugins', Icons.extension_outlined, Icons.extension_rounded),
     _ChatDestination('Saved evidence', Icons.offline_pin_outlined,
         Icons.offline_pin_rounded),
     _ChatDestination(
@@ -141,8 +142,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       showDragHandle: true,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) {
-          final matches = _threads.where((thread) =>
-              query.isEmpty || thread.title.toLowerCase().contains(query.toLowerCase())).toList(growable: false);
+          final matches = _threads
+              .where((thread) =>
+                  query.isEmpty ||
+                  thread.title.toLowerCase().contains(query.toLowerCase()))
+              .toList(growable: false);
           return Padding(
             padding: EdgeInsets.fromLTRB(
               18,
@@ -155,7 +159,9 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Search chats', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+                  const Text('Search chats',
+                      style:
+                          TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
                   TextField(
                     controller: controller,
@@ -164,18 +170,23 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                       hintText: 'Search conversations',
                       prefixIcon: Icon(Icons.search_rounded),
                     ),
-                    onChanged: (value) => setSheetState(() => query = value.trim()),
+                    onChanged: (value) =>
+                        setSheetState(() => query = value.trim()),
                   ),
                   const SizedBox(height: 12),
                   Expanded(
                     child: matches.isEmpty
-                        ? const Center(child: Text('No matching chats.', style: TextStyle(color: PandoraV2Colors.muted)))
+                        ? const Center(
+                            child: Text('No matching chats.',
+                                style: TextStyle(color: PandoraV2Colors.muted)))
                         : ListView.builder(
                             itemCount: matches.length,
                             itemBuilder: (context, index) {
                               final thread = matches[index];
                               return ListTile(
-                                title: Text(thread.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                title: Text(thread.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis),
                                 onTap: () async {
                                   Navigator.of(sheetContext).pop();
                                   await _openThread(thread);
@@ -403,9 +414,11 @@ class _PandoraSidePanel extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
               child: ListTile(
                 key: const ValueKey<String>('pandora-search-chats'),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
                 leading: const Icon(Icons.search_rounded, size: 21),
-                title: const Text('Search chats', style: TextStyle(fontWeight: FontWeight.w600)),
+                title: const Text('Search chats',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: onSearchChats,
               ),
             ),
