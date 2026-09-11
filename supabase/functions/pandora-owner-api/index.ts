@@ -1451,8 +1451,8 @@ async function approvals(context: UserContext, limit: number) {
     },
   );
   if (planError) throw new Error("BACKEND_READ_FAILED");
-  const governed = (Array.isArray(plans) ? plans : [])
-    .map(asRecord)
+  const planRows = (Array.isArray(plans) ? plans : []).map(asRecord);
+  const workerGoverned = planRows
     .filter((plan) =>
       plan.tool === "projectos.worker.verify" &&
       plan.risk === "write" && plan.status === "pending_approval"
@@ -1482,7 +1482,43 @@ async function approvals(context: UserContext, limit: number) {
         memoryContextReady: plan.memoryContextRecorded === true,
       },
     }));
-  return [...governed, ...ordinary].slice(0, limit);
+  const genericGoverned = planRows
+    .filter((plan) =>
+      plan.tool !== "projectos.worker.verify" &&
+      plan.risk !== "read" && plan.status === "pending_approval"
+    )
+    .map((plan) => {
+      const tool = textValue(plan.tool, "governed action");
+      const plainTool = tool.replace(/[._-]+/g, " ");
+      return {
+        id: textValue(plan.planId),
+        projectId: textValue(plan.projectId) || null,
+        whatWillHappen: `Allow Pandora to proceed with the exact governed plan for ${plainTool}.`,
+        whyINeedYou: "This consequential plan cannot proceed without your explicit approval.",
+        whatWillChange:
+          "Approval records permission only. Execution remains a separate governed step with claim, provider readback, and evidence.",
+        whatCouldGoWrong:
+          "A stale, expired, mismatched, or unverified plan remains blocked instead of being guessed or replayed.",
+        howWeCanUndoIt:
+          "Approval alone changes no provider state; rollback is required only if a later execution actually changes something.",
+        riskLevel: ownerRiskLabel(textValue(plan.risk, "WRITE")),
+        reversible: true,
+        extraIdentityCheckRequired: false,
+        decision: "pending",
+        expiresAt: plan.expiresAt ?? null,
+        createdAt: plan.createdAt ?? null,
+        advanced: {
+          kind: "execution_plan",
+          intakeId: plan.intakeId ?? null,
+          projectKey: plan.projectKey ?? null,
+          tool,
+          args: plan.args ?? null,
+          payloadHash: plan.payloadHash ?? null,
+          memoryContextReady: plan.memoryContextRecorded === true,
+        },
+      };
+    });
+  return [...workerGoverned, ...genericGoverned, ...ordinary].slice(0, limit);
 }
 
 async function activity(context: UserContext, limit: number) {
@@ -2376,6 +2412,58 @@ async function decide(
       },
     };
   }
+
+  const genericDecision = await context.client.rpc("decide_execution_plan_v1", {
+    p_organization_id: context.organizationId,
+    p_plan_id: approvalId,
+    p_decision: requested === "approved" ? "approve" : "deny",
+  });
+  if (genericDecision.error) {
+    const genericError = textValue(
+      asRecord(genericDecision.error).message,
+    ).toLowerCase();
+    if (
+      genericError.includes("cannot") || genericError.includes("expired") ||
+      genericError.includes("mismatch") || genericError.includes("does not require")
+    ) {
+      throw new Error("APPROVAL_CONFLICT");
+    }
+    throw new Error("APPROVAL_DECISION_FAILED");
+  }
+  const generic = asRecord(genericDecision.data);
+  if (generic.kind === "execution_plan") {
+    return {
+      ok: true,
+      decision: requested,
+      approval: {
+        id: approvalId,
+        projectId: textValue(generic.projectId) || null,
+        whatWillHappen: "Record your decision on the exact consequential ProjectOS plan.",
+        whyINeedYou: "This plan requires explicit owner permission before any execution can be claimed.",
+        whatWillChange:
+          "The plan permission state changes. No provider mutation is executed by this approval call.",
+        whatCouldGoWrong:
+          "Expired, stale, terminal, or mismatched plans remain blocked.",
+        howWeCanUndoIt:
+          "A later provider change, if any, must still carry its own rollback and verification evidence.",
+        riskLevel: ownerRiskLabel(textValue(generic.risk, "WRITE")),
+        reversible: true,
+        extraIdentityCheckRequired: false,
+        decision: requested,
+        expiresAt: null,
+        createdAt: null,
+        advanced: {
+          kind: "execution_plan",
+          planId: generic.planId ?? approvalId,
+          intakeId: generic.intakeId ?? null,
+          status: generic.status ?? null,
+          tool: generic.tool ?? null,
+          idempotentReplay: generic.idempotentReplay === true,
+        },
+      },
+    };
+  }
+
   const { data, error } = await context.client.rpc("decide_approval", {
     approval_id: approvalId,
     requested_decision: requested,
