@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
 
-const root = join(__dirname, '..');
+const root = join(import.meta.dirname, '..');
 const migrationPath = join(
   root,
   'supabase',
