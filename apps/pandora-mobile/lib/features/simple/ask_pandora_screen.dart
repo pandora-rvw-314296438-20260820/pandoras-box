@@ -449,6 +449,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 focusNode: _objectiveFocus,
                 attachment: _attachment,
                 imageAttachment: _imageAttachment,
+                projectContext: _projectContext,
+                serviceContext: _serviceContext,
                 error: _error,
                 submitting: _submitting,
                 disabled: _outcomeUnknown,
