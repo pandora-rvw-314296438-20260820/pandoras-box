@@ -18,7 +18,7 @@ const pluginsPath = new URL(
 
 test('plugin registry v3 enriches runtime truth without inventing identity', async () => {
   const migration = await readFile(migrationPath, 'utf8');
-  assert.match(migration, /pandora_plugin_runtime_registry_v4/);
+  assert.match(migration, /pandora_plugin_runtime_registry_v3/);
   assert.match(migration, /pandora_chat_capability_registry_v2/);
   assert.match(migration, /'account'/);
   assert.match(migration, /'verified', false/);
