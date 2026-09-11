@@ -38,7 +38,7 @@ test('universal router preserves governed mutations and vercel ProjectOS intake'
 
 test('mobile sends every ordinary text command through the universal router first', async () => {
   const api = await readFile(apiPath, 'utf8');
-  assert.match(api, /pandora_chat_universal_dispatch_v2/);
+  assert.match(api, /pandora_chat_universal_dispatch_v3/);
   assert.match(api, /if \(message\.trim\(\)\.isEmpty\) return null/);
   assert.doesNotMatch(api, /if \(!_mightNeedCapability\(message\)\) return null/);
 });
