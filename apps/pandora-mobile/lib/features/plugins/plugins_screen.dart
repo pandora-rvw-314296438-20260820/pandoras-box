@@ -96,7 +96,8 @@ class _PluginsScreenState extends State<PluginsScreen> {
                     const SizedBox(height: 10),
                     TextField(
                       controller: _search,
-                      onChanged: (value) => setState(() => _query = value.trim()),
+                      onChanged: (value) =>
+                          setState(() => _query = value.trim()),
                       decoration: InputDecoration(
                         hintText: 'Search plugins',
                         prefixIcon: const Icon(Icons.search_rounded),
@@ -115,7 +116,8 @@ class _PluginsScreenState extends State<PluginsScreen> {
                     const SizedBox(height: 22),
                     const Text(
                       'Installed',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      style:
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 10),
                     if (controller.isLoading && controller.data == null)
@@ -137,7 +139,8 @@ class _PluginsScreenState extends State<PluginsScreen> {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: installed.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 12),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 12),
                           itemBuilder: (context, index) => _InstalledPlugin(
                             connection: installed[index],
                             onTap: () => _showPlugin(installed[index]),
@@ -280,7 +283,8 @@ class _PluginsScreenState extends State<PluginsScreen> {
                 icon: Icon(connection.canRead
                     ? Icons.tune_rounded
                     : Icons.add_link_rounded),
-                label: Text(connection.canRead ? 'Manage in Pandora' : 'Connect'),
+                label:
+                    Text(connection.canRead ? 'Manage in Pandora' : 'Connect'),
               ),
             ),
           ],
