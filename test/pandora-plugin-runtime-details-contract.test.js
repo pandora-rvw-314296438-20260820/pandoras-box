@@ -35,7 +35,7 @@ test('plugin registry v3 enriches runtime truth without inventing identity', asy
 test('mobile capability client reads the runtime registry directly', async () => {
   const api = await readFile(apiPath, 'utf8');
   assert.match(api, /Future<PandoraCapabilityRegistry> capabilityRegistry\(\)/);
-  assert.match(api, /pandora_plugin_runtime_registry_v3/);
+  assert.match(api, /pandora_plugin_runtime_registry_v4/);
   assert.match(api, /class PandoraCapabilityRegistry/);
   assert.match(api, /class PandoraCapabilityProvider/);
   assert.match(api, /class PandoraCapabilityAction/);
