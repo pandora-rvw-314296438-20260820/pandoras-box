@@ -1,39 +1,23 @@
-const assert = require('node:assert/strict');
-const { readFile } = require('node:fs/promises');
-const { join } = require('node:path');
-const test = require('node:test');
 
-const root = join(__dirname, '..');
-const migrationPath = join(
-  root,
-  'supabase',
-  'migrations',
-  '20260911114500_pandora_plugin_runtime_registry_v3.sql',
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+const migrationPath = new URL(
+  '../supabase/migrations/20260911114500_pandora_plugin_runtime_registry_v3.sql',
+  import.meta.url,
 );
-const apiPath = join(
-  root,
-  'apps',
-  'pandora-mobile',
-  'lib',
-  'core',
-  'data',
-  'pandora_intelligence_api.dart',
+const apiPath = new URL(
+  '../apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart',
+  import.meta.url,
 );
-const pluginsPath = join(
-  root,
-  'apps',
-  'pandora-mobile',
-  'lib',
-  'features',
-  'plugins',
-  'plugins_screen.dart',
+const pluginsPath = new URL(
+  '../apps/pandora-mobile/lib/features/plugins/plugins_screen.dart',
+  import.meta.url,
 );
 
-const migration = await readFile(migrationPath, 'utf8');
-const api = await readFile(apiPath, 'utf8');
-const plugins = await readFile(pluginsPath, 'utf8');
-
-test('plugin registry v3 enriches runtime truth without inventing identity', () => {
+test('plugin registry v3 enriches runtime truth without inventing identity', async () => {
+  const migration = await readFile(migrationPath, 'utf8');
   assert.match(migration, /pandora_plugin_runtime_registry_v3/);
   assert.match(migration, /pandora_chat_capability_registry_v2/);
   assert.match(migration, /'account'/);
@@ -48,7 +32,8 @@ test('plugin registry v3 enriches runtime truth without inventing identity', () 
   assert.match(migration, /revoke all on function public\.pandora_plugin_runtime_registry_v3\(uuid\) from public, anon/);
 });
 
-test('mobile capability client reads the runtime registry directly', () => {
+test('mobile capability client reads the runtime registry directly', async () => {
+  const api = await readFile(apiPath, 'utf8');
   assert.match(api, /Future<PandoraCapabilityRegistry> capabilityRegistry\(\)/);
   assert.match(api, /pandora_plugin_runtime_registry_v3/);
   assert.match(api, /class PandoraCapabilityRegistry/);
@@ -60,7 +45,8 @@ test('mobile capability client reads the runtime registry directly', () => {
   assert.match(api, /failureMessage/);
 });
 
-test('Plugins UX exposes real runtime detail and governed lifecycle actions', () => {
+test('Plugins UX exposes real runtime detail and governed lifecycle actions', async () => {
+  const plugins = await readFile(pluginsPath, 'utf8');
   assert.match(plugins, /_loadRuntimeRegistry/);
   assert.match(plugins, /registry\.providers/);
   assert.match(plugins, /'Needs You'/);
