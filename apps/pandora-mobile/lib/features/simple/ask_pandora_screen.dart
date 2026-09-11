@@ -6,6 +6,7 @@ import '../../core/data/pandora_repository.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
+import '../../core/widgets/pandora_navigation.dart';
 import 'pandora_simple_ui.dart';
 import 'project_create_experience.dart';
 import 'project_experience_v2.dart';
@@ -331,9 +332,6 @@ class _AskPandoraScreenState extends State<AskPandoraScreen> {
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
                 },
-                onHome: widget.onHome,
-                onProjects: widget.onProjects,
-                onMore: widget.onMore,
                 onCamera: () => _pickImage(camera: true),
                 onPhotos: () => _pickImage(camera: false),
                 onAttach: _attach,
@@ -354,34 +352,16 @@ class _ChatHeader extends StatelessWidget {
   final VoidCallback onNewChat;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-        height: 58,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              const PandoraMark(size: 28),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Pandora',
-                  style: TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -.2,
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: 'New chat',
-                onPressed: onNewChat,
-                icon: const Icon(Icons.edit_square),
-                color: PandoraSimpleColors.ink,
-              ),
-            ],
+  Widget build(BuildContext context) => PandoraPageHeader(
+        title: 'Pandora',
+        actions: [
+          IconButton(
+            tooltip: 'New chat',
+            onPressed: onNewChat,
+            icon: const Icon(Icons.edit_square),
+            color: PandoraSimpleColors.ink,
           ),
-        ),
+        ],
       );
 }
 
@@ -597,9 +577,6 @@ class _Composer extends StatelessWidget {
     required this.submitting,
     required this.disabled,
     required this.onChanged,
-    required this.onHome,
-    required this.onProjects,
-    required this.onMore,
     required this.onCamera,
     required this.onPhotos,
     required this.onAttach,
@@ -617,9 +594,6 @@ class _Composer extends StatelessWidget {
   final bool submitting;
   final bool disabled;
   final VoidCallback onChanged;
-  final VoidCallback? onHome;
-  final VoidCallback? onProjects;
-  final VoidCallback? onMore;
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
   final VoidCallback onAttach;
@@ -763,31 +737,6 @@ class _Composer extends StatelessWidget {
                               ),
                             ),
                             menuChildren: [
-                              _ComposerMenuItem(
-                                key: const ValueKey<String>(
-                                  'ask-pandora-menu-home',
-                                ),
-                                label: 'Home',
-                                icon: Icons.home_outlined,
-                                onPressed: onHome,
-                              ),
-                              _ComposerMenuItem(
-                                key: const ValueKey<String>(
-                                  'ask-pandora-menu-projects',
-                                ),
-                                label: 'Projects',
-                                icon: Icons.folder_outlined,
-                                onPressed: onProjects,
-                              ),
-                              _ComposerMenuItem(
-                                key: const ValueKey<String>(
-                                  'ask-pandora-menu-more',
-                                ),
-                                label: 'More',
-                                icon: Icons.menu_rounded,
-                                onPressed: onMore,
-                              ),
-                              const Divider(height: 12),
                               _ComposerMenuItem(
                                 key: const ValueKey<String>(
                                   'ask-pandora-menu-camera',

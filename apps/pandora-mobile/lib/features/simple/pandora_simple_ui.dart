@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/widgets/pandora_mark.dart';
+import '../../core/widgets/pandora_navigation.dart';
 
 abstract final class PandoraSimpleColors {
   static const red = Color(0xFFD40A24);
@@ -57,7 +58,7 @@ class PandoraSimplePage extends StatelessWidget {
     return ColoredBox(
       color: PandoraSimpleColors.canvas,
       child: SafeArea(
-        bottom: false,
+        bottom: true,
         child: onRefresh == null
             ? scrollView
             : RefreshIndicator(
@@ -96,6 +97,9 @@ class PandoraOwnerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (PandoraNavigationScope.maybeOf(context) != null) {
+      return PandoraPageHeader(title: title);
+    }
     if (centerBrand) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
@@ -496,12 +500,14 @@ class PandoraStatusPill extends StatelessWidget {
               Icon(icon, color: foreground, size: 16),
               const SizedBox(width: 5),
             ],
-            Text(
-              label,
-              style: TextStyle(
-                color: foreground,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
