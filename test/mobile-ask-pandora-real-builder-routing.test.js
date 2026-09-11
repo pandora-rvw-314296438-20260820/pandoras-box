@@ -8,11 +8,11 @@ const source = fs.readFileSync(
   'utf8',
 );
 
-test('Ask Pandora routes new build intents into the real project experience when available', () => {
+test('Ask Pandora fallback stays universal when intelligence is unavailable', () => {
   assert.equal(source.includes("import 'project_create_experience.dart';"), true);
-  assert.equal(source.includes('dependencies.projectExperienceRepository != null'), true);
-  assert.equal(source.includes('CreateProjectExperienceScreen('), true);
-  assert.equal(source.includes('initialIntent: objective'), true);
+  assert.equal(source.includes("_keys.create('simple-intake')"), true);
+  assert.equal(source.includes('final receipt = await dependencies.repository.ask('), true);
+  assert.equal(source.includes('initialIntent: objective'), false);
 });
 
 test('intelligence handoffs without an existing project enter the real create-understand-build journey', () => {
