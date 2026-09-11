@@ -963,6 +963,22 @@ class _Composer extends StatelessWidget {
                                 icon: Icons.insert_drive_file_outlined,
                                 onPressed: onAttach,
                               ),
+                              _ComposerMenuItem(
+                                key: const ValueKey<String>(
+                                  'ask-pandora-menu-services',
+                                ),
+                                label: 'Services',
+                                icon: Icons.extension_outlined,
+                                onPressed: onServices,
+                              ),
+                              _ComposerMenuItem(
+                                key: const ValueKey<String>(
+                                  'ask-pandora-menu-project-context',
+                                ),
+                                label: 'Project context',
+                                icon: Icons.workspaces_outline,
+                                onPressed: onProjectContext,
+                              ),
                             ],
                             builder: (context, controller, child) => IconButton(
                               key: const ValueKey<String>('ask-pandora-plus'),
