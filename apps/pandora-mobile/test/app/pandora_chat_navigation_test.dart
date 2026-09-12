@@ -183,10 +183,16 @@ void main() {
         find.byKey(const ValueKey<String>('pandora-search-chats')),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Search chats'), findsNWidgets(2));
+      expect(
+        find.byKey(const ValueKey<String>('pandora-search-chats-sheet')),
+        findsOneWidget,
+      );
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.text('Search chats'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('pandora-search-chats-sheet')),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull, reason: 'search attempt $attempt');
     }
     await tester.binding.handlePopRoute();
