@@ -3,19 +3,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
+import 'package:pandora_mobile/core/models/pandora_models.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
 
 import '../helpers/fake_owner_api.dart';
 import '../helpers/test_app.dart';
 
 void main() {
-  Future<void> mount(WidgetTester tester, Size size) async {
+  Future<void> mount(
+    WidgetTester tester,
+    Size size, {
+    FakeRepository? repository,
+  }) async {
     await setTestSurface(tester, logicalSize: size);
     await tester.pumpWidget(
       testApp(
         child: PandoraDependencies(
           auth: const FakeAuth(),
-          repository: FakeRepository(),
+          repository: repository ?? FakeRepository(),
           diagnostics: DiagnosticsStore(),
           child: const PandoraChatShell(),
         ),
@@ -227,7 +232,11 @@ void main() {
   testWidgets(
       'chat header swaps temporary chat for overflow after the first turn',
       (tester) async {
-    await mount(tester, const Size(390, 800));
+    await mount(
+      tester,
+      const Size(390, 800),
+      repository: _ConversationRepository(),
+    );
 
     expect(find.text('Pandora'), findsNothing);
     expect(
@@ -272,4 +281,26 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+}
+
+
+class _ConversationRepository extends FakeRepository {
+  @override
+  Future<IntakeReceipt> ask({
+    required String message,
+    String? projectId,
+    String? idempotencyKey,
+  }) async =>
+      const IntakeReceipt(
+        reply: 'Conversation started.',
+        needsApproval: false,
+        actionId: 'action-chat-header-1',
+        status: IntakeStatus(
+          whatChanged: 'Message recorded.',
+          whereWeAre: 'Conversation',
+          whatIsDone: 'First turn complete.',
+          whatIsHappeningNow: 'Waiting for the next message.',
+          whatIWillDoNext: 'Continue the conversation.',
+        ),
+      );
 }
