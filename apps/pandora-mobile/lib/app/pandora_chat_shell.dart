@@ -129,77 +129,17 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     }
   }
 
+
   Future<void> _searchChats() async {
     if (!_historyLoaded) await _refreshHistory();
     if (!mounted) return;
-    final controller = TextEditingController();
-    var query = '';
     final selected = await showModalBottomSheet<PandoraIntelligenceThread>(
       context: context,
       useSafeArea: true,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          final matches = _threads
-              .where((thread) =>
-                  query.isEmpty ||
-                  thread.title.toLowerCase().contains(query.toLowerCase()))
-              .toList(growable: false);
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              18,
-              4,
-              18,
-              MediaQuery.viewInsetsOf(context).bottom + 18,
-            ),
-            child: SizedBox(
-              height: MediaQuery.sizeOf(context).height * .68,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text('Search chats',
-                      style:
-                          TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: controller,
-                    autofocus: true,
-                    decoration: const InputDecoration(
-                      hintText: 'Search conversations',
-                      prefixIcon: Icon(Icons.search_rounded),
-                    ),
-                    onChanged: (value) =>
-                        setSheetState(() => query = value.trim()),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: matches.isEmpty
-                        ? const Center(
-                            child: Text('No matching chats.',
-                                style: TextStyle(color: PandoraV2Colors.muted)))
-                        : ListView.builder(
-                            itemCount: matches.length,
-                            itemBuilder: (context, index) {
-                              final thread = matches[index];
-                              return ListTile(
-                                title: Text(thread.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis),
-                                onTap: () =>
-                                    Navigator.of(sheetContext).pop(thread),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+      builder: (sheetContext) => _SearchChatsSheet(threads: _threads),
     );
-    controller.dispose();
     if (!mounted || selected == null) return;
     await _openThread(selected);
   }
@@ -730,6 +670,91 @@ class _PandoraSidePanel extends StatelessWidget {
           ],
         ),
       );
+}
+
+
+class _SearchChatsSheet extends StatefulWidget {
+  const _SearchChatsSheet({required this.threads});
+
+  final List<PandoraIntelligenceThread> threads;
+
+  @override
+  State<_SearchChatsSheet> createState() => _SearchChatsSheetState();
+}
+
+class _SearchChatsSheetState extends State<_SearchChatsSheet> {
+  final TextEditingController _controller = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final matches = widget.threads
+        .where((thread) =>
+            _query.isEmpty ||
+            thread.title.toLowerCase().contains(_query.toLowerCase()))
+        .toList(growable: false);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        18,
+        4,
+        18,
+        MediaQuery.viewInsetsOf(context).bottom + 18,
+      ),
+      child: SizedBox(
+        key: const ValueKey<String>('pandora-search-chats-sheet'),
+        height: MediaQuery.sizeOf(context).height * .68,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Search chats',
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'Search conversations',
+                prefixIcon: Icon(Icons.search_rounded),
+              ),
+              onChanged: (value) => setState(() => _query = value.trim()),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: matches.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No matching chats.',
+                        style: TextStyle(color: PandoraV2Colors.muted),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: matches.length,
+                      itemBuilder: (context, index) {
+                        final thread = matches[index];
+                        return ListTile(
+                          title: Text(
+                            thread.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => Navigator.of(context).pop(thread),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 enum _ThreadAction { rename, project, archive, delete }
