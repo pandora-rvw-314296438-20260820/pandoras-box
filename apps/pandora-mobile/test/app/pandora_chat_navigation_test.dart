@@ -143,7 +143,6 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-
   testWidgets('rotation preserves chat draft', (tester) async {
     await mount(tester, const Size(390, 844));
     final objective =
