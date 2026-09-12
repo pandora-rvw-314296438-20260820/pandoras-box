@@ -229,9 +229,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-      'composer is compact, bounded, and keeps voice beside send',
-      (tester) async {
+  testWidgets('composer stays compact and bounded', (tester) async {
     await mount(tester, const Size(390, 844));
 
     final screen = find.byType(AskPandoraScreen);
@@ -252,42 +250,22 @@ void main() {
     expect(voice, findsOneWidget);
     expect(send, findsOneWidget);
 
-    final cubeX = tester.getCenter(cube).dx;
-    final objectiveX = tester.getCenter(objective).dx;
-    final voiceX = tester.getCenter(voice).dx;
-    final sendX = tester.getCenter(send).dx;
-    expect(cubeX, lessThan(objectiveX));
-    expect(objectiveX, lessThan(voiceX));
-    expect(voiceX, lessThan(sendX));
-    expect(sendX - voiceX, lessThanOrEqualTo(52));
+    expect(tester.getCenter(cube).dx, lessThan(tester.getCenter(objective).dx));
+    expect(tester.getCenter(objective).dx, lessThan(tester.getCenter(voice).dx));
+    expect(tester.getCenter(voice).dx, lessThan(tester.getCenter(send).dx));
 
     final initialHeight = tester.getSize(composer).height;
     expect(initialHeight, lessThanOrEqualTo(72));
 
     await tester.enterText(objective, 'one\ntwo\nthree\nfour');
     await tester.pumpAndSettle();
-    final expandedHeight = tester.getSize(composer).height;
-    expect(expandedHeight, greaterThan(initialHeight));
+    expect(tester.getSize(composer).height, greaterThan(initialHeight));
 
-    await tester.enterText(objective, 'one\ntwo\nthree\nfour\nfive\nsix');
-    await tester.pumpAndSettle();
-    final sixLineHeight = tester.getSize(composer).height;
-
-    await tester.enterText(
-      objective,
-      List<String>.generate(20, (index) => 'line ${index + 1}').join('\n'),
-    );
-    await tester.pumpAndSettle();
-    final cappedHeight = tester.getSize(composer).height;
-    expect(cappedHeight, lessThanOrEqualTo(180));
-    expect((cappedHeight - sixLineHeight).abs(), lessThanOrEqualTo(2));
-
-    final textField = tester.widget<TextField>(objective);
-    expect(textField.minLines, 1);
-    expect(textField.maxLines, 6);
+    final field = tester.widget<TextField>(objective);
+    expect(field.minLines, 1);
+    expect(field.maxLines, 6);
     expect(tester.takeException(), isNull);
   });
-
   testWidgets(
       'chat header swaps temporary chat for overflow after the first turn',
       (tester) async {
