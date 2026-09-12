@@ -170,11 +170,21 @@ void main() {
     final objective =
         find.byKey(const ValueKey<String>('ask-pandora-objective'));
     final plus = find.byKey(const ValueKey<String>('ask-pandora-plus'));
+    final composer = find.byKey(const ValueKey<String>('ask-pandora-composer'));
+    final voice = find.byKey(const ValueKey<String>('ask-pandora-voice'));
+    final submit = find.byKey(const ValueKey<String>('ask-pandora-submit'));
     await tester.tap(objective);
     tester.view.viewInsets = const FakeViewPadding(bottom: 320);
     await tester.pumpAndSettle();
     expect(objective, findsOneWidget);
     expect(plus, findsOneWidget);
+    expect(composer, findsOneWidget);
+    expect(voice, findsOneWidget);
+    expect(submit, findsOneWidget);
+    expect(find.byType(Divider), findsNothing);
+    final field = tester.widget<TextField>(objective);
+    expect(field.minLines, 1);
+    expect(field.maxLines, 6);
     expect(tester.takeException(), isNull);
   });
 
