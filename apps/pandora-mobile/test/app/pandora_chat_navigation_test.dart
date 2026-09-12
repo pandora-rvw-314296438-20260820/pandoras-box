@@ -229,7 +229,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('composer is compact, bounded, and keeps voice beside send',
+  testWidgets(
+      'composer is compact, bounded, and keeps voice beside send',
       (tester) async {
     await mount(tester, const Size(390, 844));
 
