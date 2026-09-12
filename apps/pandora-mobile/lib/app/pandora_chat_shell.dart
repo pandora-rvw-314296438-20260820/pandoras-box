@@ -362,7 +362,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   Widget _root(int index) => _roots.putIfAbsent(
         index,
         () => switch (index) {
-          0 => AskPandoraScreen(key: _chatKey),
+          0 => AskPandoraScreen(
+              key: _chatKey,
+              onSearchChats: _searchChats,
+              onMore: () => _select(3),
+            ),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
           3 => const MoreScreen(),
