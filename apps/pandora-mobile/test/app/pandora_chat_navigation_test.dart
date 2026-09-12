@@ -179,7 +179,9 @@ void main() {
     await tester.tap(menu);
     await tester.pumpAndSettle();
     for (var attempt = 0; attempt < 3; attempt++) {
-      await tester.tap(find.byKey(const ValueKey<String>('pandora-search-chats')));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('pandora-search-chats')),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Search chats'), findsOneWidget);
       await tester.binding.handlePopRoute();
