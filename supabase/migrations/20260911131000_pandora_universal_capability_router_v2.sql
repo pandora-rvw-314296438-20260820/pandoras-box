@@ -33,6 +33,11 @@ declare
   v_project_key text;
   v_project_name text;
   v_repository text;
+  v_vercel jsonb;
+  v_vercel_body jsonb;
+  v_production jsonb;
+  v_facts jsonb;
+  v_http_status integer;
 begin
   if v_uid is null then
     raise exception 'pandora_chat_sign_in_required' using errcode='42501';
@@ -246,6 +251,121 @@ begin
   end if;
 
   v_registry := public.pandora_plugin_runtime_registry_v4(p_organization_id);
+
+  if v_provider='vercel' and not v_mutating then
+    v_vercel := private.pandora_exact_vercel_api_20260825(
+      'GET',
+      '/v9/projects/prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk',
+      null
+    );
+    v_http_status := nullif(v_vercel->>'status','')::integer;
+
+    if v_http_status = 200 then
+      v_vercel_body := coalesce(v_vercel->'body','{}'::jsonb);
+      v_production := coalesce(v_vercel_body #> '{targets,production}','{}'::jsonb);
+      v_facts := jsonb_strip_nulls(jsonb_build_object(
+        'projectId',v_vercel_body->>'id',
+        'projectName',v_vercel_body->>'name',
+        'deploymentId',v_production->>'id',
+        'deploymentUrl',v_production->>'url',
+        'readyState',v_production->>'readyState',
+        'readySubstate',v_production->>'readySubstate',
+        'sourceSha',v_production #>> '{meta,githubCommitSha}'
+      ));
+      v_reply := format(
+        'Vercel verified read: %s production deployment %s is %s%s%s.',
+        coalesce(v_vercel_body->>'name','mcpmaster'),
+        coalesce(v_production->>'id','unknown'),
+        coalesce(v_production->>'readyState','unknown'),
+        case when nullif(v_production->>'readySubstate','') is null then '' else concat('/',v_production->>'readySubstate') end,
+        case when nullif(v_production #>> '{meta,githubCommitSha}','') is null then '' else concat(' at source ',v_production #>> '{meta,githubCommitSha}') end
+      );
+    else
+      v_facts := '{}'::jsonb;
+      v_reply := 'Vercel live read could not be verified from the bounded provider adapter. I will not invent deployment state.';
+    end if;
+
+    if v_thread_id is not null then
+      if not exists (
+        select 1 from public.pandora_intelligence_threads t
+        where t.id=v_thread_id
+          and t.organization_id=p_organization_id
+          and t.created_by=v_uid
+          and t.status='active'
+      ) then
+        raise exception 'pandora_chat_thread_not_found' using errcode='22023';
+      end if;
+    else
+      insert into public.pandora_intelligence_threads(
+        organization_id,project_id,created_by,title,status,last_message_at
+      ) values (
+        p_organization_id,p_project_id,v_uid,
+        left(regexp_replace(v_message,'[[:space:]]+',' ','g'),80),
+        'active',now()
+      ) returning id into v_thread_id;
+    end if;
+
+    insert into public.pandora_intelligence_messages(
+      thread_id,organization_id,project_id,author_role,content,attachment_manifest
+    ) values (
+      v_thread_id,p_organization_id,p_project_id,'user',v_message,'[]'::jsonb
+    );
+
+    insert into public.pandora_intelligence_messages(
+      thread_id,organization_id,project_id,author_role,content,structured_response,provider,model
+    ) values (
+      v_thread_id,p_organization_id,p_project_id,'assistant',v_reply,
+      jsonb_build_object(
+        'intent','inspect_provider',
+        'confidence',1,
+        'needsClarification',false,
+        'clarifyingQuestion',null,
+        'route',jsonb_build_object(
+          'provider','vercel','action','deployment.read','mode','read','projectRequired',false
+        ),
+        'capabilityResult',jsonb_build_object(
+          'ok',v_http_status=200,
+          'authority','governed_adapter',
+          'provider','vercel',
+          'action','deployment.read',
+          'mode','read',
+          'httpStatus',v_http_status,
+          'facts',v_facts,
+          'router',jsonb_build_object(
+            'provider','vercel','action','deployment.read','mode','read','inferred',true,'projectRequired',false
+          )
+        )
+      ),
+      'pandora_capability_router','deterministic-v2'
+    );
+
+    update public.pandora_intelligence_threads
+    set last_message_at=now(),updated_at=now()
+    where id=v_thread_id;
+
+    return jsonb_build_object(
+      'handled',true,
+      'threadId',v_thread_id,
+      'reply',v_reply,
+      'intent','inspect_provider',
+      'confidence',1,
+      'needsClarification',false,
+      'clarifyingQuestion',null,
+      'handoff',null,
+      'capabilityResult',jsonb_build_object(
+        'ok',v_http_status=200,
+        'authority','governed_adapter',
+        'provider','vercel',
+        'action','deployment.read',
+        'mode','read',
+        'httpStatus',v_http_status,
+        'facts',v_facts,
+        'router',jsonb_build_object(
+          'provider','vercel','action','deployment.read','mode','read','inferred',true,'projectRequired',false
+        )
+      )
+    );
+  end if;
 
   if v_provider='vercel' and v_mutating then
     if p_project_id is not null then
