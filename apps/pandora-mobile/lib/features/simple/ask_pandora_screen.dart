@@ -252,24 +252,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         _outcomeUnknown = false;
       });
 
-      final handoff = turn.handoff;
-      if (handoff == null) return;
-
-      // Universal Chat is the control plane. An actionable handoff executes
-      // through the governed owner API and stays in this conversation; it must
-      // never redirect the owner into a Project or Build screen implicitly.
-      // A resolved Project remains optional execution context only.
-      _submissionKey ??= _keys.create('intelligence-handoff');
-      final receipt = await dependencies.repository.ask(
-        message: handoff.request,
-        projectId: handoff.projectId ?? _projectContext?.id,
-        idempotencyKey: _submissionKey,
-      );
-      if (!mounted) return;
-      setState(() {
-        _submissionKey = null;
-        _messages.add(_ChatMessage.pandora(receipt.reply));
-      });
+      // `intelligence.chat` already performed the governed dispatch. A handoff
+      // is the ProjectOS admission receipt for that same request, not a second
+      // command. Never resubmit it through the legacy owner `/ask` mutation:
+      // doing so would create duplicate work under a different idempotency key.
+      // Execution progress and terminal evidence are rendered from the
+      // authoritative intake/build stream in this conversation.
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
       setState(() {
