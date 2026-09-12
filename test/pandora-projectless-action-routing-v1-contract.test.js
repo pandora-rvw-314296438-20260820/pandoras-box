@@ -22,7 +22,7 @@ test('explicit owner/repo actions route before model fallback without creating a
   assert.match(migration,/review/);
   assert.match(migration,/check/);
   assert.match(migration,/pandora_chat_universal_dispatch_v5/);
-  assert.match(migration,/'projectRequired','false'::jsonb/);
+  assert.match(migration,/jsonb_set\(v_result,'\{projectRequired\}','false'::jsonb,true\)/);
   assert.doesNotMatch(migration,/projectos_register_project|project\.create/);
 });
 
