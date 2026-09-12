@@ -1,5 +1,6 @@
 -- Pandora projectless action routing v1
--- Explicit provider targets are actionable without creating a new user Project.
+-- Normal chat is the default. Existing provider targets become actionable only when
+-- the user explicitly uses action language; a Project is never manufactured as a prerequisite.
 
 create or replace function public.pandora_chat_universal_dispatch_v6(
   p_organization_id uuid,
@@ -30,17 +31,10 @@ begin
     v_repository := substring(v_message from '([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)');
   end if;
 
+  -- A repository mention by itself is conversation, not authorization to act.
+  -- Route only when the owner explicitly asks for an action.
   if v_repository is not null
-     and (
-       v_message ~* '\m(audit|inspect|review|check|read|show|open|scan|analy[sz]e|debug|fix|change|update|repair|edit|merge|branch|commit|deploy|publish)\M'
-       or v_repository in ('pandora-rvw-314296438-20260820/pandoras-box','pandora-rvw-314296438-20260820/pandoras-box-memory')
-       or exists (
-         select 1 from public.projectos_projects p
-         where p.organization_id=p_organization_id
-           and lower(coalesce(p.repository,''))=lower(v_repository)
-           and p.status <> 'archived'
-       )
-     ) then
+     and v_message ~* '\m(audit|inspect|review|check|read|show|open|scan|analy[sz]e|debug|fix|change|update|repair|edit|merge|branch|commit|deploy|publish)\M' then
     v_routed_message := 'GitHub: ' || v_message;
     v_result := public.pandora_chat_universal_dispatch_v5(
       p_organization_id,
@@ -92,4 +86,4 @@ revoke all on function public.pandora_chat_universal_dispatch_v6(uuid,text,uuid,
 grant execute on function public.pandora_chat_universal_dispatch_v6(uuid,text,uuid,uuid) to authenticated;
 
 comment on function public.pandora_chat_universal_dispatch_v6(uuid,text,uuid,uuid)
-is 'Universal Chat dispatch that treats explicit existing provider targets such as owner/repo as actionable without creating a new user Project; ProjectOS governance remains mandatory for consequential execution.';
+is 'Universal Chat dispatch where normal conversation is the default and explicit action language is required before an existing provider target is routed for governed execution; ProjectOS governance remains mandatory for consequential execution.';
