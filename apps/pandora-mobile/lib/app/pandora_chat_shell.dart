@@ -129,7 +129,6 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     }
   }
 
-
   Future<void> _searchChats() async {
     if (!_historyLoaded) await _refreshHistory();
     if (!mounted) return;
@@ -671,7 +670,6 @@ class _PandoraSidePanel extends StatelessWidget {
         ),
       );
 }
-
 
 class _SearchChatsSheet extends StatefulWidget {
   const _SearchChatsSheet({required this.threads});
