@@ -250,9 +250,18 @@ void main() {
     expect(voice, findsOneWidget);
     expect(send, findsOneWidget);
 
-    expect(tester.getCenter(cube).dx, lessThan(tester.getCenter(objective).dx));
-    expect(tester.getCenter(objective).dx, lessThan(tester.getCenter(voice).dx));
-    expect(tester.getCenter(voice).dx, lessThan(tester.getCenter(send).dx));
+    expect(
+      tester.getCenter(cube).dx,
+      lessThan(tester.getCenter(objective).dx),
+    );
+    expect(
+      tester.getCenter(objective).dx,
+      lessThan(tester.getCenter(voice).dx),
+    );
+    expect(
+      tester.getCenter(voice).dx,
+      lessThan(tester.getCenter(send).dx),
+    );
 
     final initialHeight = tester.getSize(composer).height;
     expect(initialHeight, lessThanOrEqualTo(72));
