@@ -56,7 +56,8 @@ test('canonical GitHub transport supports all three exact repository ids and rem
   assert.doesNotMatch(transport, /1346543644/);
   assert.match(transport, /name='Github_supabase'/);
   assert.match(transport, /pandoras-box-memory/);
-  assert.match(transport, /pandoras-box/);\n  assert.match(transport, /pandora-rvw-314296438-20260820\\/plp/);
+  assert.match(transport, /pandoras-box/);
+  assert.match(transport, /pandora-rvw-314296438-20260820\\/plp/);
   assert.match(transport, /revoke all on function private\.pandora_integration_github_api_20260825\(text,text,jsonb\) from public,anon,authenticated/);
   assert.match(transport, /grant execute on function private\.pandora_integration_github_api_20260825\(text,text,jsonb\) to service_role/);
 });
