@@ -224,7 +224,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('chat header swaps temporary chat for overflow after the first turn',
+  testWidgets(
+      'chat header swaps temporary chat for overflow after the first turn',
       (tester) async {
     await mount(tester, const Size(390, 800));
 
