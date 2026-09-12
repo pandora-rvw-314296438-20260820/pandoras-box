@@ -273,7 +273,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260912070000_pandora_google_workspace_oauth_backend_v1.sql',
     '20260912082000_pandora_projectless_action_routing_v1.sql',
     '20260912100000_pandora_universal_chat_repository_targeting_v2.sql',
-    '20260912100500_pandora_github_memory_repository_binding_v2.sql'
+    '20260912100500_pandora_github_memory_repository_binding_v2.sql',
+    '20260912101000_pandora_internal_skill_exact_source_allowlist_v1.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -529,7 +530,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260912070000_pandora_google_workspace_oauth_backend_v1.sql',
     '20260912082000_pandora_projectless_action_routing_v1.sql',
     '20260912100000_pandora_universal_chat_repository_targeting_v2.sql',
-    '20260912100500_pandora_github_memory_repository_binding_v2.sql'
+    '20260912100500_pandora_github_memory_repository_binding_v2.sql',
+    '20260912101000_pandora_internal_skill_exact_source_allowlist_v1.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -737,7 +739,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260912070000_pandora_google_workspace_oauth_backend_v1.sql',
     '20260912082000_pandora_projectless_action_routing_v1.sql',
     '20260912100000_pandora_universal_chat_repository_targeting_v2.sql',
-    '20260912100500_pandora_github_memory_repository_binding_v2.sql'
+    '20260912100500_pandora_github_memory_repository_binding_v2.sql',
+    '20260912101000_pandora_internal_skill_exact_source_allowlist_v1.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
