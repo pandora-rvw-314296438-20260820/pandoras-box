@@ -33,10 +33,12 @@ test('mobile uses v6 and hides the internal ProjectOS inbox from user project co
   assert.match(api,/neq\('project_key', 'projectos-inbox'\)/);
 });
 
-test('mobile handoffs stay in Universal Chat and never create a Project implicitly', () => {
+test('mobile handoffs stay in Universal Chat, never create a Project implicitly, and never submit the admission twice', () => {
   assert.doesNotMatch(screen,/handoffProjectId == null \|\| handoffProjectId\.isEmpty/);
   assert.doesNotMatch(screen,/initialIntent: handoff\.request/);
-  assert.match(screen,/dependencies\.repository\.ask\([\s\S]*message: handoff\.request[\s\S]*projectId: handoff\.projectId \?\? _projectContext\?\.id/);
+  assert.doesNotMatch(screen,/message: handoff\.request/);
+  assert.doesNotMatch(screen,/intelligence-handoff/);
+  assert.match(screen,/already performed the governed dispatch/);
 });
 
 test('model fallback is forbidden from manufacturing a Project prerequisite for existing targets', () => {

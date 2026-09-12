@@ -15,10 +15,10 @@ test('Ask Pandora fallback stays universal when intelligence is unavailable', ()
   assert.equal(source.includes('initialIntent: objective'), false);
 });
 
-test('intelligence handoffs without an existing project stay in Universal Chat and do not create one implicitly', () => {
-  assert.equal(source.includes('message: handoff.request'), true);
-  assert.equal(source.includes('projectId: handoff.projectId ?? _projectContext?.id'), true);
-  assert.equal(source.includes('handoffProjectId == null || handoffProjectId.isEmpty'), false);
+test('ProjectOS handoffs are admission receipts and are never submitted twice', () => {
+  assert.equal(source.includes('message: handoff.request'), false);
+  assert.equal(source.includes("_keys.create('intelligence-handoff')"), false);
+  assert.equal(source.includes('doing so would create duplicate work under a different idempotency key'), true);
   assert.equal(source.includes('initialIntent: handoff.request'), false);
 });
 
@@ -27,11 +27,10 @@ test('Ask Pandora never presents the static prototype as a real build result', (
   assert.equal(source.includes('BuildProgressScreen('), false);
 });
 
-test('existing-project intelligence handoffs stay in Pandora Chat with project context preserved', () => {
-  assert.equal(source.includes('final receipt = await dependencies.repository.ask('), true);
-  assert.equal(source.includes('message: handoff.request'), true);
-  assert.equal(source.includes('projectId: handoff.projectId'), true);
-  assert.equal(source.includes('final snapshot = await experience.runtime(handoffProjectId);'), false);
+test('existing-project intelligence handoffs stay in Pandora Chat without a second mutation', () => {
+  assert.equal(source.includes('message: handoff.request'), false);
+  assert.equal(source.includes('projectId: handoff.projectId'), false);
+  assert.equal(source.includes('ProjectWorkspaceV2Screen('), false);
   assert.equal(source.includes('initialChange: handoff.request'), false);
 });
 

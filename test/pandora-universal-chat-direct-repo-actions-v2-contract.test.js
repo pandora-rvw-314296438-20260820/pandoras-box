@@ -19,12 +19,12 @@ const api = await readFile(
   'utf8',
 );
 
-test('video regression: actionable handoff remains in Universal Chat', () => {
-  assert.match(mobile, /final handoff = turn\.handoff/);
-  assert.match(mobile, /dependencies\.repository\.ask\([\s\S]*message: handoff\.request/);
+test('video regression: actionable ProjectOS admission remains single-shot in Universal Chat', () => {
+  assert.doesNotMatch(mobile, /message: handoff\.request/);
+  assert.doesNotMatch(mobile, /intelligence-handoff/);
   assert.doesNotMatch(mobile, /CreateProjectExperienceScreen/);
   assert.doesNotMatch(mobile, /ProjectWorkspaceV2Screen/);
-  assert.match(mobile, /Execution stays in this conversation|Universal Chat is the control plane/);
+  assert.match(mobile, /already performed the governed dispatch/);
 });
 
 test('repository router recognizes provider-verified canonical repos including PLP', () => {
