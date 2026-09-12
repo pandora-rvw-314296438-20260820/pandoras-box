@@ -8,7 +8,6 @@ import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import 'pandora_simple_ui.dart';
-import 'project_create_experience.dart';
 
 class AskPandoraScreen extends StatefulWidget {
   const AskPandoraScreen({
@@ -255,37 +254,22 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
 
       final handoff = turn.handoff;
       if (handoff == null) return;
-      final experience = dependencies.projectExperienceRepository;
-      final handoffProjectId = handoff.projectId?.trim();
-      if (experience != null &&
-          turn.intent == 'create_project' &&
-          (handoffProjectId == null || handoffProjectId.isEmpty)) {
-        _submissionKey = null;
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) =>
-                CreateProjectExperienceScreen(initialIntent: handoff.request),
-          ),
-        );
-        return;
-      }
-      // Existing projects stay under Pandora Chat control. ProjectOS may
-      // attach the request to a project, but that is execution context rather
-      // than a navigation instruction. Continue the governed request here and
-      // surface the verified result back into this conversation.
+
+      // Universal Chat is the control plane. An actionable handoff executes
+      // through the governed owner API and stays in this conversation; it must
+      // never redirect the owner into a Project or Build screen implicitly.
+      // A resolved Project remains optional execution context only.
       _submissionKey ??= _keys.create('intelligence-handoff');
       final receipt = await dependencies.repository.ask(
         message: handoff.request,
-        projectId: handoff.projectId,
+        projectId: handoff.projectId ?? _projectContext?.id,
         idempotencyKey: _submissionKey,
       );
       if (!mounted) return;
-      setState(() => _submissionKey = null);
-      if (mounted) {
-        setState(() {
-          _messages.add(_ChatMessage.pandora(receipt.reply));
-        });
-      }
+      setState(() {
+        _submissionKey = null;
+        _messages.add(_ChatMessage.pandora(receipt.reply));
+      });
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
       setState(() {
