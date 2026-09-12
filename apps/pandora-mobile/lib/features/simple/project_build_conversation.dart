@@ -39,7 +39,6 @@ class _ProjectBuildConversationScreenState
     extends State<ProjectBuildConversationScreen> {
   Stream<ProjectBuildStreamSnapshot>? _stream;
   Stream<ProjectExperienceProjection>? _experienceStream;
-  bool _autoOpenedResult = false;
   bool _intentExpanded = false;
   bool _wasReconnecting = false;
   final Set<String> _capturedAnalytics = <String>{};
@@ -207,18 +206,6 @@ class _ProjectBuildConversationScreenState
     _experienceStream ??= repository.watchExperience(widget.project.id);
   }
 
-  void _maybeAutoOpenResult(ProjectExperienceProjection projection) {
-    if (_autoOpenedResult || !mounted) return;
-    final resultReady = projection.state == ProjectExperienceState.review &&
-        (projection.currentVersionId != null ||
-            projection.candidateVersionId != null);
-    if (!resultReady) return;
-    _autoOpenedResult = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _openProject();
-    });
-  }
-
   void _openProject() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
@@ -288,9 +275,6 @@ class _ProjectBuildConversationScreenState
                             stream: experienceStream,
                             builder: (context, experienceSnapshot) {
                               final experience = experienceSnapshot.data;
-                              if (experience != null) {
-                                _maybeAutoOpenResult(experience);
-                              }
                               return _LiveBuildProjection(
                                 streamId: widget.buildStart.streamId,
                                 snapshot: streamState,
