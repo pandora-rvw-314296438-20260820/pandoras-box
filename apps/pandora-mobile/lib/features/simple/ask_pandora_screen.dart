@@ -393,7 +393,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 onSearchChats: widget.onSearchChats,
                 onMore: widget.onMore,
               ),
-              const Divider(height: 1, color: PandoraSimpleColors.line),
               Expanded(
                 child: _loadingThread
                     ? const Center(
@@ -912,165 +911,175 @@ class _Composer extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
               ],
+
               DecoratedBox(
+                key: const ValueKey<String>('ask-pandora-composer'),
                 decoration: BoxDecoration(
                   color: PandoraSimpleColors.surface,
-                  borderRadius: BorderRadius.circular(26),
+                  borderRadius: BorderRadius.circular(30),
                   border: Border.all(color: PandoraSimpleColors.line),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0xB3000000),
-                      blurRadius: 30,
-                      offset: Offset(0, 5),
+                      blurRadius: 24,
+                      offset: Offset(0, 4),
                     ),
                   ],
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 5, 8, 7),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      TextField(
-                        key: const ValueKey<String>('ask-pandora-objective'),
-                        controller: controller,
-                        focusNode: focusNode,
-                        readOnly: disabled,
-                        minLines: 1,
-                        maxLines: 6,
-                        maxLength: 4000,
-                        textCapitalization: TextCapitalization.sentences,
-                        decoration: const InputDecoration(
-                          hintText: 'Message Pandora',
-                          counterText: '',
-                          filled: false,
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          contentPadding: EdgeInsets.fromLTRB(8, 8, 8, 4),
-                        ),
-                        style: const TextStyle(
-                          color: PandoraSimpleColors.ink,
-                          fontSize: 16,
-                          height: 1.35,
-                        ),
-                        onChanged: (_) => onChanged(),
-                      ),
-                      Row(
-                        children: [
-                          MenuAnchor(
-                            alignmentOffset: const Offset(0, -8),
-                            style: MenuStyle(
-                              backgroundColor: const WidgetStatePropertyAll(
-                                PandoraSimpleColors.surface,
+                      MenuAnchor(
+                        alignmentOffset: const Offset(0, -8),
+                        style: MenuStyle(
+                          backgroundColor: const WidgetStatePropertyAll(
+                            PandoraSimpleColors.surface,
+                          ),
+                          elevation: const WidgetStatePropertyAll(10),
+                          padding: const WidgetStatePropertyAll(
+                            EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          shape: WidgetStatePropertyAll(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              side: const BorderSide(
+                                color: PandoraSimpleColors.line,
                               ),
-                              elevation: const WidgetStatePropertyAll(10),
-                              padding: const WidgetStatePropertyAll(
-                                EdgeInsets.symmetric(vertical: 8),
-                              ),
-                              shape: WidgetStatePropertyAll(
-                                RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                  side: const BorderSide(
-                                    color: PandoraSimpleColors.line,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            menuChildren: [
-                              _ComposerMenuItem(
-                                key: const ValueKey<String>(
-                                  'ask-pandora-menu-camera',
-                                ),
-                                label: 'Camera',
-                                icon: Icons.camera_alt_outlined,
-                                onPressed: onCamera,
-                              ),
-                              _ComposerMenuItem(
-                                key: const ValueKey<String>(
-                                  'ask-pandora-menu-photos',
-                                ),
-                                label: 'Photos',
-                                icon: Icons.photo_outlined,
-                                onPressed: onPhotos,
-                              ),
-                              _ComposerMenuItem(
-                                key: const ValueKey<String>(
-                                  'ask-pandora-menu-files',
-                                ),
-                                label: 'Files',
-                                icon: Icons.insert_drive_file_outlined,
-                                onPressed: onAttach,
-                              ),
-                              _ComposerMenuItem(
-                                key: const ValueKey<String>(
-                                  'ask-pandora-menu-services',
-                                ),
-                                label: 'Services',
-                                icon: Icons.extension_outlined,
-                                onPressed: onServices,
-                              ),
-                              _ComposerMenuItem(
-                                key: const ValueKey<String>(
-                                  'ask-pandora-menu-project-context',
-                                ),
-                                label: 'Project context',
-                                icon: Icons.workspaces_outline,
-                                onPressed: onProjectContext,
-                              ),
-                            ],
-                            builder: (context, controller, child) => IconButton(
-                              key: const ValueKey<String>('ask-pandora-plus'),
-                              tooltip: 'Open menu',
-                              onPressed: disabled || submitting
-                                  ? null
-                                  : () {
-                                      if (controller.isOpen) {
-                                        controller.close();
-                                      } else {
-                                        controller.open();
-                                      }
-                                    },
-                              icon: const Icon(Icons.view_in_ar_outlined),
-                              color: PandoraSimpleColors.ink,
                             ),
                           ),
-                          IconButton(
-                            tooltip: 'Voice input',
-                            onPressed:
-                                disabled || submitting ? null : onDictate,
-                            icon: const Icon(Icons.mic_none_rounded),
-                            color: PandoraSimpleColors.ink,
-                          ),
-                          const Spacer(),
-                          SizedBox.square(
-                            dimension: 42,
-                            child: FilledButton(
-                              key: const ValueKey<String>('ask-pandora-submit'),
-                              onPressed:
-                                  disabled || submitting ? null : onSubmit,
-                              style: FilledButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                backgroundColor: Colors.white,
-                                disabledBackgroundColor:
-                                    const Color(0xFF1F1F1F),
-                                shape: const CircleBorder(),
-                              ),
-                              child: submitting
-                                  ? const SizedBox.square(
-                                      dimension: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(
-                                      Icons.arrow_upward_rounded,
-                                      color: Colors.black,
-                                      size: 22,
-                                    ),
+                        ),
+                        menuChildren: [
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                              'ask-pandora-menu-camera',
                             ),
+                            label: 'Camera',
+                            icon: Icons.camera_alt_outlined,
+                            onPressed: onCamera,
+                          ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                              'ask-pandora-menu-photos',
+                            ),
+                            label: 'Photos',
+                            icon: Icons.photo_outlined,
+                            onPressed: onPhotos,
+                          ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                              'ask-pandora-menu-files',
+                            ),
+                            label: 'Files',
+                            icon: Icons.insert_drive_file_outlined,
+                            onPressed: onAttach,
+                          ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                              'ask-pandora-menu-services',
+                            ),
+                            label: 'Services',
+                            icon: Icons.extension_outlined,
+                            onPressed: onServices,
+                          ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                              'ask-pandora-menu-project-context',
+                            ),
+                            label: 'Project context',
+                            icon: Icons.workspaces_outline,
+                            onPressed: onProjectContext,
                           ),
                         ],
+                        builder: (context, controller, child) => SizedBox.square(
+                          dimension: 44,
+                          child: IconButton(
+                            key: const ValueKey<String>('ask-pandora-plus'),
+                            tooltip: 'Open menu',
+                            padding: EdgeInsets.zero,
+                            onPressed: disabled || submitting
+                                ? null
+                                : () {
+                                    if (controller.isOpen) {
+                                      controller.close();
+                                    } else {
+                                      controller.open();
+                                    }
+                                  },
+                            icon: const Icon(Icons.view_in_ar_outlined),
+                            color: PandoraSimpleColors.ink,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: TextField(
+                          key: const ValueKey<String>('ask-pandora-objective'),
+                          controller: controller,
+                          focusNode: focusNode,
+                          readOnly: disabled,
+                          minLines: 1,
+                          maxLines: 6,
+                          maxLength: 4000,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: const InputDecoration(
+                            hintText: 'Message Pandora',
+                            counterText: '',
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.fromLTRB(4, 11, 4, 10),
+                          ),
+                          style: const TextStyle(
+                            color: PandoraSimpleColors.ink,
+                            fontSize: 16,
+                            height: 1.35,
+                          ),
+                          onChanged: (_) => onChanged(),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      SizedBox.square(
+                        dimension: 44,
+                        child: IconButton(
+                          key: const ValueKey<String>('ask-pandora-voice'),
+                          tooltip: 'Voice input',
+                          padding: EdgeInsets.zero,
+                          onPressed: disabled || submitting ? null : onDictate,
+                          icon: const Icon(Icons.mic_none_rounded),
+                          color: PandoraSimpleColors.ink,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      SizedBox.square(
+                        dimension: 44,
+                        child: FilledButton(
+                          key: const ValueKey<String>('ask-pandora-submit'),
+                          onPressed: disabled || submitting ? null : onSubmit,
+                          style: FilledButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            backgroundColor: Colors.white,
+                            disabledBackgroundColor: const Color(0xFF1F1F1F),
+                            shape: const CircleBorder(),
+                          ),
+                          child: submitting
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.arrow_upward_rounded,
+                                  color: Colors.black,
+                                  size: 22,
+                                ),
+                        ),
                       ),
                     ],
                   ),
