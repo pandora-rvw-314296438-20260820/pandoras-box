@@ -143,6 +143,39 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+
+  testWidgets('portrait to landscape keeps the chat draft and renders cleanly',
+      (tester) async {
+    await mount(tester, const Size(390, 844));
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('ask-pandora-objective')),
+      'Keep this through rotation',
+    );
+    tester.view.physicalSize = const Size(844, 390);
+    await tester.pumpAndSettle();
+    expect(find.text('Keep this through rotation'), findsOneWidget);
+    expect(find.byType(AskPandoraScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpAndSettle();
+    expect(find.text('Keep this through rotation'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('keyboard inset keeps the Pandora composer mounted without overflow',
+      (tester) async {
+    await mount(tester, const Size(390, 844));
+    addTearDown(tester.view.resetViewInsets);
+    final objective =
+        find.byKey(const ValueKey<String>('ask-pandora-objective'));
+    await tester.tap(objective);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+    await tester.pumpAndSettle();
+    expect(objective, findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('ask-pandora-plus')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'attachment menu contains input actions without another navigation menu',
       (tester) async {
