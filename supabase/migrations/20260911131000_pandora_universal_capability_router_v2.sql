@@ -277,8 +277,8 @@ begin
         coalesce(v_vercel_body->>'name','mcpmaster'),
         coalesce(v_production->>'id','unknown'),
         coalesce(v_production->>'readyState','unknown'),
-        case when nullif(v_production->>'readySubstate','') is null then '' else '/'||v_production->>'readySubstate' end,
-        case when nullif(v_production #>> '{meta,githubCommitSha}','') is null then '' else ' at source '||(v_production #>> '{meta,githubCommitSha}') end
+        case when nullif(v_production->>'readySubstate','') is null then '' else concat('/',v_production->>'readySubstate') end,
+        case when nullif(v_production #>> '{meta,githubCommitSha}','') is null then '' else concat(' at source ',v_production #>> '{meta,githubCommitSha}') end
       );
     else
       v_facts := '{}'::jsonb;
