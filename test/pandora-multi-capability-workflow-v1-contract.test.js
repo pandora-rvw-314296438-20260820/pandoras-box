@@ -30,8 +30,8 @@ test('unsupported or unresolved steps fail closed instead of fabricating success
   assert.match(migration, /No blocked step was treated as complete/);
 });
 
-test('public workflow dispatcher is authenticated-only and mobile uses v5', () => {
+test('public workflow dispatcher is authenticated-only and mobile uses v6', () => {
   assert.match(migration, /revoke all on function public\.pandora_chat_universal_dispatch_v5\(uuid,text,uuid,uuid\) from public, anon/);
   assert.match(migration, /grant execute on function public\.pandora_chat_universal_dispatch_v5\(uuid,text,uuid,uuid\) to authenticated/);
-  assert.match(mobile, /pandora_chat_universal_dispatch_v5/);
+  assert.match(mobile, /pandora_chat_universal_dispatch_v6/);
 });
