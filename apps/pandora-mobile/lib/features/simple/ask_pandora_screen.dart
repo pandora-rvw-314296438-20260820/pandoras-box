@@ -446,9 +446,9 @@ class _ChatHeader extends StatelessWidget {
         title: 'Pandora',
         actions: [
           IconButton(
-            tooltip: 'New chat',
+            tooltip: 'Temporary chat',
             onPressed: onNewChat,
-            icon: const Icon(Icons.edit_square),
+            icon: const Icon(Icons.history_toggle_off_rounded),
             color: PandoraSimpleColors.ink,
           ),
         ],
@@ -952,7 +952,7 @@ class _Composer extends StatelessWidget {
                                         controller.open();
                                       }
                                     },
-                              icon: const Icon(Icons.add_rounded),
+                              icon: const Icon(Icons.view_in_ar_outlined),
                               color: PandoraSimpleColors.ink,
                             ),
                           ),
