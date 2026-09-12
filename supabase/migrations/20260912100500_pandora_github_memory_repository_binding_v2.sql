@@ -17,7 +17,7 @@ declare
   v_body jsonb;
   v_method extensions.http_method;
   v_box_prefix constant text := '/repos/pandora-rvw-314296438-20260820/pandoras-box';
-  v_memory_prefix constant text := '/repos/pandora-rvw-314296438-20260820/pandoras-box-memory';
+  v_memory_prefix constant text := '/repos/pandora-rvw-314296438-20260820/pandoras-box-memory';\n  v_plp_prefix constant text := '/repos/pandora-rvw-314296438-20260820/plp';
 begin
   if upper(coalesce(p_method,'')) not in ('GET','POST','PUT','PATCH','DELETE') then
     raise exception 'unsupported GitHub method' using errcode='22023';
@@ -27,9 +27,9 @@ begin
   end if;
   if not (
     p_path ~ ('^' || v_box_prefix || '(/|$)')
-    or p_path ~ ('^' || v_memory_prefix || '(/|$)')
+    or p_path ~ ('^' || v_memory_prefix || '(/|$)')\n    or p_path ~ ('^' || v_plp_prefix || '(/|$)')
     or (upper(p_method)='GET' and p_path ~ '^/user/installations([?].*)?$')
-    or (upper(p_method)='PUT' and p_path ~ '^/user/installations/[0-9]+/repositories/(1345495177|1346392092)$')
+    or (upper(p_method)='PUT' and p_path ~ '^/user/installations/[0-9]+/repositories/(1345495177|1346392092|1358856339)$')
   ) then
     raise exception 'GitHub path is outside the fixed Pandora recovery scope' using errcode='22023';
   end if;
@@ -79,4 +79,4 @@ revoke all on function private.pandora_integration_github_api_20260825(text,text
 grant execute on function private.pandora_integration_github_api_20260825(text,text,jsonb) to service_role;
 
 comment on function private.pandora_integration_github_api_20260825(text,text,jsonb)
-is 'Vault-backed fixed-scope Pandora GitHub transport for pandoras-box and pandoras-box-memory; canonical repository ids 1345495177 and 1346392092.';
+is 'Vault-backed fixed-scope Pandora GitHub transport for pandoras-box, pandoras-box-memory, and PLP; canonical repository ids 1345495177, 1346392092, and 1358856339.';
