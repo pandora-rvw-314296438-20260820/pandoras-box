@@ -7,9 +7,17 @@ const api = await readFile('apps/pandora-mobile/lib/core/data/pandora_intelligen
 const screen = await readFile('apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart','utf8');
 const intelligence = await readFile('supabase/functions/pandora-intelligence-chat/index.ts','utf8');
 
+test('normal conversation is the default and owner/repo mentions do not authorize action', () => {
+  assert.match(migration,/Normal chat is the default/);
+  assert.match(migration,/repository mention by itself is conversation, not authorization to act/);
+  assert.match(migration,/Route only when the owner explicitly asks for an action/);
+  assert.doesNotMatch(migration,/or v_repository in \(/);
+  assert.doesNotMatch(migration,/or exists \([\s\S]*projectos_projects/);
+});
+
 test('explicit owner/repo actions route before model fallback without creating a project prerequisite', () => {
   assert.match(migration,/pandora_chat_universal_dispatch_v6/);
-  assert.match(migration,/audit\|inspect\|review\|check/);
+  assert.match(migration,/audit\|inspect||review\|check/);
   assert.match(migration,/pandora_chat_universal_dispatch_v5/);
   assert.match(migration,/'projectRequired','false'::jsonb/);
   assert.doesNotMatch(migration,/projectos_register_project|project\.create/);
