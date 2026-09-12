@@ -16,7 +16,7 @@ test('normal conversation is the default and owner/repo mentions do not authoriz
 });
 
 test('explicit owner/repo actions route before model fallback without creating a project prerequisite', () => {
-  assert.match(migration,/pandora_chat_universal_dispatch_v6/);
+  assert.match(migration,/pandora_chat_universal_dispatch_v7/);
   assert.match(migration,/audit/);
   assert.match(migration,/inspect/);
   assert.match(migration,/review/);
@@ -27,7 +27,7 @@ test('explicit owner/repo actions route before model fallback without creating a
 });
 
 test('mobile uses v6 and hides the internal ProjectOS inbox from user project context', () => {
-  assert.match(api,/pandora_chat_universal_dispatch_v6/);
+  assert.match(api,/pandora_chat_universal_dispatch_v7/);
   assert.match(api,/neq\('project_key', 'projectos-inbox'\)/);
 });
 
