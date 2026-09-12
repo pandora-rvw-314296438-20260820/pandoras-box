@@ -24,6 +24,7 @@ test("Android prerelease publisher is manual, exact-source, and evidence-bound",
   assert.doesNotMatch(publisher, /^\s{2}(?:push|pull_request|workflow_run):/m);
   assert.match(publisher, /contents: write/);
   assert.match(publisher, /actions: read/);
+  assert.match(publisher, /GH_TOKEN: \$\{\{ github\.token \}\}/);
   assert.match(publisher, /git\/ref\/heads\/main/);
   assert.match(publisher, /test \"\$main_sha\" = \"\$SOURCE_SHA\"/);
   assert.match(publisher, /\.head_branch.*main/);
@@ -37,10 +38,10 @@ test("Android prerelease publisher is manual, exact-source, and evidence-bound",
   assert.match(publisher, /--target \"\$SOURCE_SHA\"/);
   assert.match(publisher, /--prerelease/);
   assert.match(publisher, /Physical-device verification: not yet asserted/);
-  assert.doesNotMatch(
-    publisher,
-    /secrets\.|(?:GH|GITHUB|VERCEL|SUPABASE)_(?:PAT|TOKEN)|BEGIN [A-Z ]+PRIVATE KEY/,
-  );
+  assert.doesNotMatch(publisher, /secrets\./);
+  assert.doesNotMatch(publisher, /(?:VERCEL|SUPABASE)_(?:PAT|TOKEN)/);
+  assert.doesNotMatch(publisher, /GITHUB_PAT/);
+  assert.doesNotMatch(publisher, /BEGIN [A-Z ]+PRIVATE KEY/);
 });
 
 test("read-only mobile validation lane remains unable to publish releases", () => {
