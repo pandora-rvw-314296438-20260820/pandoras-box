@@ -27,7 +27,7 @@ test('video regression: actionable handoff remains in Universal Chat', () => {
   assert.match(mobile, /Execution stays in this conversation|Universal Chat is the control plane/);
 });
 
-test('repository router recognizes canonical repos and PLP without inventing degraded PLP source truth', () => {
+test('repository router recognizes provider-verified canonical repos including PLP', () => {
   assert.match(routing, /pandora-rvw-314296438-20260820\/pandoras-box-memory/);
   assert.match(routing, /pandora-rvw-314296438-20260820\/pandoras-box/);
   assert.match(routing, /project_key='plp-boracay'/);
@@ -51,12 +51,12 @@ test('target resolution grants no mutation authority and handoff remains Project
   assert.match(api, /pandora_chat_universal_dispatch_v7/);
 });
 
-test('canonical GitHub transport supports both exact repository ids and remains Vault-backed', () => {
+test('canonical GitHub transport supports all three exact repository ids and remains Vault-backed', () => {
   assert.match(transport, /1345495177\|1346392092/);
   assert.doesNotMatch(transport, /1346543644/);
   assert.match(transport, /name='Github_supabase'/);
   assert.match(transport, /pandoras-box-memory/);
-  assert.match(transport, /pandoras-box/);
+  assert.match(transport, /pandoras-box/);\n  assert.match(transport, /pandora-rvw-314296438-20260820\\/plp/);
   assert.match(transport, /revoke all on function private\.pandora_integration_github_api_20260825\(text,text,jsonb\) from public,anon,authenticated/);
   assert.match(transport, /grant execute on function private\.pandora_integration_github_api_20260825\(text,text,jsonb\) to service_role/);
 });
