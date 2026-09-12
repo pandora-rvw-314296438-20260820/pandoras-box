@@ -17,6 +17,8 @@ test('Vercel deployment.read uses the bounded Vault-backed adapter', () => {
   assert.match(source, /'sourceSha'/);
   assert.match(source, /'readyState'/);
   assert.match(source, /'readySubstate'/);
+  assert.match(source, /concat\('\/',v_production->>'readySubstate'\)/);
+  assert.match(source, /concat\(' at source ',v_production #>> '\{meta,githubCommitSha\}'\)/);
 });
 
 test('Vercel live read does not persist or return the raw provider body', () => {
