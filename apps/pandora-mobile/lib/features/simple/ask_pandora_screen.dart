@@ -9,7 +9,6 @@ import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import 'pandora_simple_ui.dart';
 import 'project_create_experience.dart';
-import 'project_experience_v2.dart';
 
 class AskPandoraScreen extends StatefulWidget {
   const AskPandoraScreen({
@@ -270,22 +269,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         );
         return;
       }
-      if (experience != null &&
-          handoffProjectId != null &&
-          handoffProjectId.isNotEmpty) {
-        final snapshot = await experience.runtime(handoffProjectId);
-        if (!mounted) return;
-        _submissionKey = null;
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => ProjectWorkspaceV2Screen(
-              project: snapshot.project,
-              initialChange: handoff.request,
-            ),
-          ),
-        );
-        return;
-      }
+      // Existing projects stay under Pandora Chat control. ProjectOS may
+      // attach the request to a project, but that is execution context rather
+      // than a navigation instruction. Continue the governed request here and
+      // surface the verified result back into this conversation.
       _submissionKey ??= _keys.create('intelligence-handoff');
       final receipt = await dependencies.repository.ask(
         message: handoff.request,

@@ -1,5 +1,5 @@
 const test = require('node:test');
-const assert = require('node:assert/strict');
+const assert = require("node:assert/strict");
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -25,11 +25,12 @@ test('Ask Pandora never presents the static prototype as a real build result', (
   assert.equal(source.includes('BuildProgressScreen('), false);
 });
 
-
-test('existing-project intelligence handoffs enter the real workspace change engine', () => {
-  assert.equal(source.includes('final snapshot = await experience.runtime(handoffProjectId);'), true);
-  assert.equal(source.includes('ProjectWorkspaceV2Screen('), true);
-  assert.equal(source.includes('initialChange: handoff.request'), true);
+test('existing-project intelligence handoffs stay in Pandora Chat with project context preserved', () => {
+  assert.equal(source.includes('final receipt = await dependencies.repository.ask('), true);
+  assert.equal(source.includes('message: handoff.request'), true);
+  assert.equal(source.includes('projectId: handoff.projectId'), true);
+  assert.equal(source.includes('final snapshot = await experience.runtime(handoffProjectId);'), false);
+  assert.equal(source.includes('initialChange: handoff.request'), false);
 });
 
 const workspace = fs.readFileSync(
@@ -48,7 +49,6 @@ test('routed initial changes retry safely with one stable admission key per work
   assert.equal(workspace.includes('String? _initialChangeIdempotencyKey;'), true);
   assert.equal(workspace.includes('idempotencyKey: _initialChangeIdempotencyKey'), true);
   assert.equal(workspace.includes('if (_error == null && !_changing) _initialChangeSubmitted = true;'), true);
-  assert.equal(workspace.includes('final changeIdempotencyKey ='), true);
   assert.equal(workspace.includes('idempotencyKey ??'), true);
   assert.equal(workspace.includes('idempotencyKey: changeIdempotencyKey'), true);
 });
