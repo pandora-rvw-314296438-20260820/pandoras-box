@@ -283,15 +283,13 @@ void main() {
   });
 }
 
-
 class _ConversationRepository extends FakeRepository {
   @override
   Future<IntakeReceipt> ask({
     required String message,
     String? projectId,
     String? idempotencyKey,
-  }) async =>
-      const IntakeReceipt(
+  }) async => const IntakeReceipt(
         reply: 'Conversation started.',
         needsApproval: false,
         actionId: 'action-chat-header-1',
