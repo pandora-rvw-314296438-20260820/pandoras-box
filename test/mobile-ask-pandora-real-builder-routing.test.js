@@ -9,15 +9,17 @@ const source = fs.readFileSync(
 );
 
 test('Ask Pandora fallback stays universal when intelligence is unavailable', () => {
-  assert.equal(source.includes("import 'project_create_experience.dart';"), true);
+  assert.equal(source.includes("import 'project_create_experience.dart';"), false);
   assert.equal(source.includes("_keys.create('simple-intake')"), true);
   assert.equal(source.includes('final receipt = await dependencies.repository.ask('), true);
   assert.equal(source.includes('initialIntent: objective'), false);
 });
 
-test('intelligence handoffs without an existing project enter the real create-understand-build journey', () => {
-  assert.equal(source.includes('handoffProjectId == null || handoffProjectId.isEmpty'), true);
-  assert.equal(source.includes('initialIntent: handoff.request'), true);
+test('intelligence handoffs without an existing project stay in Universal Chat and do not create one implicitly', () => {
+  assert.equal(source.includes('message: handoff.request'), true);
+  assert.equal(source.includes('projectId: handoff.projectId ?? _projectContext?.id'), true);
+  assert.equal(source.includes('handoffProjectId == null || handoffProjectId.isEmpty'), false);
+  assert.equal(source.includes('initialIntent: handoff.request'), false);
 });
 
 test('Ask Pandora never presents the static prototype as a real build result', () => {
