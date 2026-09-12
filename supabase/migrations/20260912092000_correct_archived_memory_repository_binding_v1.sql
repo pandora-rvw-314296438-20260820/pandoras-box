@@ -2,6 +2,7 @@
 -- CHAT-FINISH-002
 -- Correct the historical ProjectOS Memory repository binding without
 -- reactivating the archived project or erasing the prior repository identity.
+-- Clean replays may not contain this historical row, so absence is a safe no-op.
 do $$
 declare
   v_repository text;
@@ -15,7 +16,7 @@ begin
   for update;
 
   if not found then
-    raise exception 'CHAT-FINISH-002 expected archived pandoras-box-memory project is missing';
+    return;
   end if;
 
   if v_repository = 'banataosystems/pandoras-box-memory' then
