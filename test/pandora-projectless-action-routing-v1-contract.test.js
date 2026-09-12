@@ -17,7 +17,10 @@ test('normal conversation is the default and owner/repo mentions do not authoriz
 
 test('explicit owner/repo actions route before model fallback without creating a project prerequisite', () => {
   assert.match(migration,/pandora_chat_universal_dispatch_v6/);
-  assert.match(migration,/audit\|inspect||review\|check/);
+  assert.match(migration,/audit/);
+  assert.match(migration,/inspect/);
+  assert.match(migration,/review/);
+  assert.match(migration,/check/);
   assert.match(migration,/pandora_chat_universal_dispatch_v5/);
   assert.match(migration,/'projectRequired','false'::jsonb/);
   assert.doesNotMatch(migration,/projectos_register_project|project\.create/);
