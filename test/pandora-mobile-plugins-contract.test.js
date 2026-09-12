@@ -12,13 +12,12 @@ const pluginsPath = new URL(
   import.meta.url,
 );
 
-test('mobile drawer exposes Plugins as a first-class Pandora destination', async () => {
+test('mobile drawer exposes Connections as the owner-facing plugin destination', async () => {
   const shell = await readFile(shellPath, 'utf8');
 
-  assert.match(shell, /_ChatDestination\(\s*'Plugins'/);
+  assert.match(shell, /_ChatDestination\(\s*'Connections'/);
   assert.match(shell, /PluginsScreen\(\)/);
   assert.match(shell, /5 => 'plugins'/);
-  assert.doesNotMatch(shell, /_ChatDestination\('Connections'/);
 });
 
 test('Plugins UI derives installed state from runtime connection truth', async () => {

@@ -46,10 +46,10 @@ void main() {
         'Projects',
         'Needs You',
         'Activity',
-        'Plugins',
+        'Connections',
         'Saved evidence',
         'Verify & Safety',
-        'More',
+        'Settings & More',
       ]) {
         expect(
           find.descendant(
@@ -94,18 +94,19 @@ void main() {
     await mount(tester, const Size(1024, 800));
     expect(menu, findsNothing);
     expect(find.byType(Drawer), findsNothing);
-    expect(find.widgetWithText(ListTile, 'Plugins'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Connections'), findsOneWidget);
     expect(tester.getSize(find.byType(AskPandoraScreen)).width, 759);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Needs You and More expose exactly one navigation control',
+  testWidgets(
+      'Needs You and Settings & More expose exactly one navigation control',
       (tester) async {
     await mount(tester, const Size(390, 800));
     for (final title in <String>[
       'Needs You',
-      'More',
-      'Plugins',
+      'Settings & More',
+      'Connections',
       'Activity',
       'Saved evidence',
       'Verify & Safety',
@@ -152,7 +153,7 @@ void main() {
     expect(find.text('Photos'), findsOneWidget);
     expect(find.text('Files'), findsOneWidget);
     expect(find.text('Home'), findsNothing);
-    expect(find.text('More'), findsNothing);
+    expect(find.text('Settings & More'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
