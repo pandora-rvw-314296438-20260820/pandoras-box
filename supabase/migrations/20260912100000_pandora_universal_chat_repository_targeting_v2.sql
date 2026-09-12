@@ -61,23 +61,7 @@ begin
     );
   end if;
 
-  -- PLP is a known existing ProjectOS system. Its current GitHub binding is degraded,
-  -- so resolve the project without inventing a repository identity. Execution will
-  -- fail closed until provider readback repairs the source binding.
-  if v_message ~ '\mplp\M|plp[- ]boracay|pueblo la perla' then
-    select * into v_project from public.projectos_projects p
-    where p.organization_id=p_organization_id and p.project_key='plp-boracay' and p.status<>'archived'
-    order by p.updated_at desc limit 1;
-    if found then
-      return jsonb_build_object(
-        'state','resolved','resolved',true,'resolution','canonical_project_alias',
-        'repository',null,'projectId',v_project.id,'projectKey',v_project.project_key,
-        'projectName',v_project.name,'repositoryStatus','degraded','projectRequired',false
-      );
-    end if;
-  end if;
-
-  if p_explicit_project_id is not null then
+  -- PLP is a canonical, provider-verified repository. Provider readback on 2026-09-12 verified\n  -- pandora-rvw-314296438-20260820/plp (repo id 1358856339, default branch main).\n  if v_message ~ '\\mplp\\M|plp[- ]boracay|pueblo la perla' then\n    select * into v_project from public.projectos_projects p\n    where p.organization_id=p_organization_id and p.project_key='plp-boracay' and p.status<>'archived'\n    order by p.updated_at desc limit 1;\n    return jsonb_build_object(\n      'state','resolved','resolved',true,'resolution','canonical_repository_alias',\n      'repository','pandora-rvw-314296438-20260820/plp',\n      'projectId',v_project.id,'projectKey',coalesce(v_project.project_key,'plp-boracay'),\n      'projectName',coalesce(v_project.name,'PLP'),'repositoryStatus','provider_verified',\n      'repositoryId',1358856339,'projectRequired',false\n    );\n  end if;\n\n    if p_explicit_project_id is not null then
     select * into v_project from public.projectos_projects p
     where p.organization_id=p_organization_id and p.id=p_explicit_project_id and p.status<>'archived'
     limit 1;
