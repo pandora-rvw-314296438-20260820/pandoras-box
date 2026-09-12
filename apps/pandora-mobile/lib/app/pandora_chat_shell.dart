@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../core/analytics/owner_analytics.dart';
 import '../core/data/pandora_intelligence_api.dart';
+import '../core/design/pandora_tokens.dart';
 import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
@@ -43,7 +44,6 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   ];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final GlobalKey _workspaceKey = GlobalKey();
   final GlobalKey<AskPandoraScreenState> _chatKey =
       GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
@@ -134,7 +134,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     if (!mounted) return;
     final controller = TextEditingController();
     var query = '';
-    await showModalBottomSheet<void>(
+    final selected = await showModalBottomSheet<PandoraIntelligenceThread>(
       context: context,
       useSafeArea: true,
       isScrollControlled: true,
@@ -186,10 +186,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                                 title: Text(thread.title,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis),
-                                onTap: () async {
-                                  Navigator.of(sheetContext).pop();
-                                  await _openThread(thread);
-                                },
+                                onTap: () =>
+                                    Navigator.of(sheetContext).pop(thread),
                               );
                             },
                           ),
@@ -202,6 +200,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       ),
     );
     controller.dispose();
+    if (!mounted || selected == null) return;
+    await _openThread(selected);
   }
 
   Future<void> _openThread(PandoraIntelligenceThread thread) async {
@@ -455,6 +455,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       colorScheme: scheme,
       scaffoldBackgroundColor: PandoraV2Colors.canvas,
       canvasColor: PandoraV2Colors.canvas,
+      extensions: const <ThemeExtension<dynamic>>[PandoraPalette.graphite],
       appBarTheme: const AppBarTheme(
         backgroundColor: PandoraV2Colors.canvas,
         foregroundColor: PandoraV2Colors.ink,
@@ -506,7 +507,6 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final body = IndexedStack(
-              key: _workspaceKey,
               index: _index,
               children: [
                 for (var i = 0; i < _destinations.length; i++)
