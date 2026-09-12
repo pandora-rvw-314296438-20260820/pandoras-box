@@ -7,6 +7,7 @@ const root = join(__dirname, '..');
 const simple = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'features', 'simple', 'pandora_simple_ui.dart'), 'utf8');
 const v2 = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'features', 'simple', 'pandora_v2_ui.dart'), 'utf8');
 const shell = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'app', 'pandora_chat_shell.dart'), 'utf8');
+const navigation = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'core', 'widgets', 'pandora_navigation.dart'), 'utf8');
 const chat = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'features', 'simple', 'ask_pandora_screen.dart'), 'utf8');
 const projects = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'features', 'simple', 'projects_screen.dart'), 'utf8');
 
@@ -32,4 +33,13 @@ test('projects use native Obsidian workspace cards backed by real ProjectSummary
   assert.match(projects, /class _ObsidianProjectCard/);
   assert.match(projects, /ProjectSummary project/);
   assert.match(projects, /projectPurposeForDisplay/);
+});
+
+
+test('latest Obsidian navigation hierarchy stays conversation-first and centered', () => {
+  assert.match(shell, /Settings & More/);
+  assert.match(shell, /Connections/);
+  assert.match(navigation, /Stack\(/);
+  assert.match(navigation, /keyboard_arrow_down_rounded/);
+  assert.match(navigation, /showPandoraChevron/);
 });
