@@ -289,7 +289,8 @@ class _ConversationRepository extends FakeRepository {
     required String message,
     String? projectId,
     String? idempotencyKey,
-  }) async => const IntakeReceipt(
+  }) async =>
+      const IntakeReceipt(
         reply: 'Conversation started.',
         needsApproval: false,
         actionId: 'action-chat-header-1',
