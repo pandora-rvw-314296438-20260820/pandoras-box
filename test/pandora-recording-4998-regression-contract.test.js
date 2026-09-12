@@ -43,13 +43,22 @@ test('recording 4998: bounded status reads stay direct but audit/analyze takes d
   assert.match(analysis, /audit\|analy\[sz\]e/);
 });
 
-test('recording 4998: search sheet teardown cannot reparent a globally keyed inherited subtree', () => {
+test('recording 4998: search sheet owns controller lifetime and opens selected chat only after teardown', () => {
   assert.doesNotMatch(shell, /_workspaceKey/);
   assert.doesNotMatch(shell, /key:\s*_workspaceKey/);
   assert.match(shell, /showModalBottomSheet<PandoraIntelligenceThread>/);
-  assert.match(shell, /Navigator\.of\(sheetContext\)\.pop\(thread\)/);
+  assert.match(shell, /_SearchChatsSheet\(threads: _threads\)/);
+  assert.match(shell, /final TextEditingController _controller = TextEditingController\(\);/);
+  assert.match(shell, /void dispose\(\) \{[\s\S]*?_controller\.dispose\(\);[\s\S]*?super\.dispose\(\);/);
+  assert.match(shell, /pandora-search-chats-sheet/);
+  assert.match(shell, /Navigator\.of\(context\)\.pop\(thread\)/);
   assert.match(shell, /if \(!mounted \|\| selected == null\) return;/);
   assert.match(shell, /await _openThread\(selected\)/);
+  const searchStart = shell.indexOf('Future<void> _searchChats() async');
+  const openThreadStart = shell.indexOf('Future<void> _openThread(', searchStart);
+  const searchBody = shell.slice(searchStart, openThreadStart);
+  assert.doesNotMatch(searchBody, /TextEditingController/);
+  assert.doesNotMatch(searchBody, /\.dispose\(\)/);
 });
 
 test('recording 4998: owner shell is deterministically Graphite', () => {
