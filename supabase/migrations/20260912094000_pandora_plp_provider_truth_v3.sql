@@ -305,6 +305,9 @@ begin
     end if;
   end if;
 
+  -- Repository target resolution grants no mutation authority. Consequential work
+  -- still requires ProjectOS authorization, a one-time claim, provider readback,
+  -- and evidence before Pandora can report the action complete.
   v_result := private.pandora_governed_mutation_request_v1(
     p_organization_id,'github','repository.write',v_execution_message,v_target_project_id
   );
