@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const routing = await readFile(
-  'supabase/migrations/20260912100000_pandora_universal_chat_repository_targeting_v2.sql',
+  'supabase/migrations/20260912094000_pandora_plp_provider_truth_v3.sql',
   'utf8',
 );
 const transport = await readFile(
@@ -27,13 +27,16 @@ test('video regression: actionable ProjectOS admission remains single-shot in Un
   assert.match(mobile, /already performed the governed dispatch/);
 });
 
-test('repository router recognizes provider-verified canonical repos including PLP', () => {
+test('repository router preserves verified Pandora repos and fails closed on degraded PLP', () => {
   assert.match(routing, /pandora-rvw-314296438-20260820\/pandoras-box-memory/);
   assert.match(routing, /pandora-rvw-314296438-20260820\/pandoras-box/);
   assert.match(routing, /project_key='plp-boracay'/);
-  assert.equal(routing.includes('pandora-rvw-314296438-20260820/plp'), true);
-  assert.match(routing, /'repositoryStatus','provider_verified'/);
-  assert.match(routing, /'repositoryId',1358856339/);
+  assert.match(routing, /projectos_project_resources/);
+  assert.match(routing, /binding_state <> 'verified'/);
+  assert.match(routing, /'state','degraded','resolved',false/);
+  assert.match(routing, /repository_binding_degraded/);
+  assert.match(routing, /'authorityGranted',false/);
+  assert.match(routing, /'handoff',null/);
 });
 
 test('build and short follow-ups reuse only an already resolved same-thread target', () => {
