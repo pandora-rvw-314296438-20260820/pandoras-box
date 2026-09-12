@@ -273,6 +273,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260912070000_pandora_google_workspace_oauth_backend_v1.sql',
     '20260912082000_pandora_projectless_action_routing_v1.sql',
     '20260912092000_correct_archived_memory_repository_binding_v1.sql',
+    '20260912094000_pandora_plp_provider_truth_v3.sql',
     '20260912100000_pandora_universal_chat_repository_targeting_v2.sql',
     '20260912100500_pandora_github_memory_repository_binding_v2.sql',
     '20260912101000_pandora_internal_skill_exact_source_allowlist_v1.sql'
@@ -531,6 +532,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260912070000_pandora_google_workspace_oauth_backend_v1.sql',
     '20260912082000_pandora_projectless_action_routing_v1.sql',
     '20260912092000_correct_archived_memory_repository_binding_v1.sql',
+    '20260912094000_pandora_plp_provider_truth_v3.sql',
     '20260912100000_pandora_universal_chat_repository_targeting_v2.sql',
     '20260912100500_pandora_github_memory_repository_binding_v2.sql',
     '20260912101000_pandora_internal_skill_exact_source_allowlist_v1.sql'
@@ -741,6 +743,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260912070000_pandora_google_workspace_oauth_backend_v1.sql',
     '20260912082000_pandora_projectless_action_routing_v1.sql',
     '20260912092000_correct_archived_memory_repository_binding_v1.sql',
+    '20260912094000_pandora_plp_provider_truth_v3.sql',
     '20260912100000_pandora_universal_chat_repository_targeting_v2.sql',
     '20260912100500_pandora_github_memory_repository_binding_v2.sql',
     '20260912101000_pandora_internal_skill_exact_source_allowlist_v1.sql'
