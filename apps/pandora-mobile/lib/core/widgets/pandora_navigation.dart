@@ -28,7 +28,7 @@ class PandoraPageHeader extends StatelessWidget {
   final String title;
   final List<Widget> actions;
 
-  @Override
+  @override
   Widget build(BuildContext context) {
     final openDrawer = PandoraNavigationScope.maybeOf(context)?.openDrawer;
     final showPandoraChevron = title == 'Pandora';
@@ -77,8 +77,8 @@ class PandoraPageHeader extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                  ...actions,
-                  const SizedBox(width: 4),
+                ...actions,
+                const SizedBox(width: 4),
               ],
             ),
           ),
