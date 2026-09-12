@@ -31,8 +31,8 @@ test('repository router recognizes provider-verified canonical repos including P
   assert.match(routing, /pandora-rvw-314296438-20260820\/pandoras-box-memory/);
   assert.match(routing, /pandora-rvw-314296438-20260820\/pandoras-box/);
   assert.match(routing, /project_key='plp-boracay'/);
-  assert.match(routing, /'repositoryStatus','degraded'/);
-  assert.doesNotMatch(routing, /pandora-rvw-314296438-20260820\/plp',\s*'projectId'/);
+  assert.match(routing, /'repositoryStatus','provider_verified'/);
+  assert.match(routing, /'repositoryId',1358856339/);
 });
 
 test('build and short follow-ups reuse only an already resolved same-thread target', () => {
@@ -52,7 +52,7 @@ test('target resolution grants no mutation authority and handoff remains Project
 });
 
 test('canonical GitHub transport supports all three exact repository ids and remains Vault-backed', () => {
-  assert.match(transport, /1345495177\|1346392092/);
+  assert.match(transport, /1345495177\|1346392092\|1358856339/);
   assert.doesNotMatch(transport, /1346543644/);
   assert.match(transport, /name='Github_supabase'/);
   assert.match(transport, /pandoras-box-memory/);
