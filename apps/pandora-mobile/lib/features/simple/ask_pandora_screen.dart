@@ -911,7 +911,6 @@ class _Composer extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
               ],
-
               DecoratedBox(
                 key: const ValueKey<String>('ask-pandora-composer'),
                 decoration: BoxDecoration(
@@ -992,7 +991,8 @@ class _Composer extends StatelessWidget {
                             onPressed: onProjectContext,
                           ),
                         ],
-                        builder: (context, controller, child) => SizedBox.square(
+                        builder: (context, controller, child) =>
+                            SizedBox.square(
                           dimension: 44,
                           child: IconButton(
                             key: const ValueKey<String>('ask-pandora-plus'),
