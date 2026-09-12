@@ -15,6 +15,7 @@ const operator_public_config_js_1 = require("./operator-public-config.js");
 const memory_js_1 = require("./tools/memory.js");
 const canonical_status_provider_js_1 = require("./projectos/canonical-status-provider.js");
 const worker_plan_context_provider_js_1 = require("./projectos/worker-plan-context-provider.js");
+const aws_bedrock_runtime_js_1 = require("./providers/aws-bedrock-runtime.js");
 const CANONICAL_MEMORY_ORIGIN = 'https://pandorasbox-memory.vercel.app';
 const CANONICAL_MEMORY_PROJECT_KEY = 'mcpmaster-pandoras-box';
 const MEMORY_HEALTH_TTL_MS = 5 * 60 * 1000;
@@ -194,6 +195,7 @@ function createProjectOsContainerApp(environment = process.env) {
             ? publicIndex
             : controlTowerIndex;
     const memoryHealth = createCanonicalMemoryHealthProbe(environment);
+    const bedrockHealth = (0, aws_bedrock_runtime_js_1.createBedrockHealthProbe)(environment);
     app.disable('x-powered-by');
     app.set('trust proxy', 1);
     app.get('/health', (_request, response) => {
@@ -208,6 +210,16 @@ function createProjectOsContainerApp(environment = process.env) {
     app.get('/health/memory', async (request, response, next) => {
         try {
             const snapshot = await memoryHealth(request.get('x-vercel-oidc-token'));
+            response.setHeader('Cache-Control', 'no-store');
+            response.status(snapshot.status === 'healthy' ? 200 : 503).json(snapshot);
+        }
+        catch (error) {
+            next(error);
+        }
+    });
+    app.get('/health/bedrock', async (_request, response, next) => {
+        try {
+            const snapshot = await bedrockHealth();
             response.setHeader('Cache-Control', 'no-store');
             response.status(snapshot.status === 'healthy' ? 200 : 503).json(snapshot);
         }
