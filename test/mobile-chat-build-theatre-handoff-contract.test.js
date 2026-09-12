@@ -29,7 +29,7 @@ test("Pandora Chat stateful capability requests hand off only after ProjectOS in
 });
 
 test("mobile handoff keeps existing project work inside Pandora Chat", () => {
-  assert.match(ask, /Existing projects stay under Pandora Chat control/);
+  assert.match(ask, /Universal Chat is the control plane/);
   assert.doesNotMatch(ask, /ProjectWorkspaceV2Screen\(/);
   assert.match(ask, /dependencies\.repository\.ask\(/);
   assert.match(ask, /projectId: handoff\.projectId/);
