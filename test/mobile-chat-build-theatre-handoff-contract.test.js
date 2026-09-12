@@ -28,11 +28,11 @@ test("Pandora Chat stateful capability requests hand off only after ProjectOS in
   assert.match(migration, /revoke all on function public\.pandora_chat_capability_dispatch_core_v1.*authenticated/s);
 });
 
-test("mobile handoff keeps existing project work inside Pandora Chat", () => {
-  assert.match(ask, /Universal Chat is the control plane/);
+test("mobile treats the ProjectOS handoff as an admission receipt, not a second command", () => {
+  assert.match(ask, /intelligence\.chat` already performed the governed dispatch/);
   assert.doesNotMatch(ask, /ProjectWorkspaceV2Screen\(/);
-  assert.match(ask, /dependencies\.repository\.ask\(/);
-  assert.match(ask, /projectId: handoff\.projectId/);
+  assert.doesNotMatch(ask, /message: handoff\.request/);
+  assert.doesNotMatch(ask, /intelligence-handoff/);
   assert.doesNotMatch(ask, /fake progress|simulated progress/i);
 });
 
