@@ -259,6 +259,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       final experience = dependencies.projectExperienceRepository;
       final handoffProjectId = handoff.projectId?.trim();
       if (experience != null &&
+          turn.intent == 'create_project' &&
           (handoffProjectId == null || handoffProjectId.isEmpty)) {
         _submissionKey = null;
         await Navigator.of(context).push(

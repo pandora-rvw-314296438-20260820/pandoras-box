@@ -218,6 +218,7 @@ class PandoraIntelligenceApi {
           .select('id,project_key,name,repository,status,updated_at')
           .eq('organization_id', _organizationId)
           .neq('status', 'archived')
+          .neq('project_key', 'projectos-inbox')
           .order('updated_at', ascending: false)
           .limit(safeLimit);
       return (rows as List<dynamic>)
@@ -238,7 +239,7 @@ class PandoraIntelligenceApi {
     if (message.trim().isEmpty) return null;
     try {
       final response = await _client.rpc(
-        'pandora_chat_universal_dispatch_v5',
+        'pandora_chat_universal_dispatch_v6',
         params: <String, Object?>{
           'p_organization_id': _organizationId,
           'p_message': message.trim(),
