@@ -223,4 +223,52 @@ void main() {
     expect(find.text('Settings & More'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('chat header swaps temporary chat for overflow after the first turn',
+      (tester) async {
+    await mount(tester, const Size(390, 800));
+
+    expect(find.text('Pandora'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('pandora-chat-overflow')),
+      findsNothing,
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('ask-pandora-objective')),
+      'Start this conversation',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('ask-pandora-submit')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
+      findsNothing,
+    );
+    final overflow =
+        find.byKey(const ValueKey<String>('pandora-chat-overflow'));
+    expect(overflow, findsOneWidget);
+
+    await tester.tap(overflow);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('pandora-chat-menu-new')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('pandora-chat-menu-search')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('pandora-chat-menu-more')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }
