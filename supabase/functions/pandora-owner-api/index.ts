@@ -484,17 +484,33 @@ function releaseSummary(value: unknown) {
   };
 }
 
+function ownerVisibleProject(value: unknown) {
+  const project = asRecord(value);
+  const config = asRecord(project.config);
+  if (config.ownerVisible === false) return false;
+  if (config.ownerVisible === true) return true;
+  const systemRole = textValue(config.systemRole).toLowerCase();
+  if (systemRole === "pandora_control_plane") return false;
+  const key = textValue(project.project_key).toLowerCase();
+  const name = textValue(project.name).toLowerCase();
+  if (key === "projectos-inbox") return false;
+  if (/^worker-[a-z0-9-]*proof/.test(key)) return false;
+  if (["provider-integration-verifier", "supabase-state-verifier", "pandora-alpha-workboard", "pandora-memory-maximization", "pandora-memory-supabase-source-parity-recovery"].includes(key)) return false;
+  if (name.includes("worker") && name.includes("proof")) return false;
+  return true;
+}
+
 async function loadProjectSummaries(context: UserContext) {
   const { data: rows, error: projectsError } = await context.client
     .from("projectos_projects")
     .select(
-      "id, project_key, name, repository, status, objective, current_phase_key, progress_percent, last_reconciled_at, updated_at",
+      "id, project_key, name, repository, status, objective, current_phase_key, progress_percent, last_reconciled_at, updated_at, config",
     )
     .eq("organization_id", context.organizationId)
     .neq("status", "archived")
     .order("updated_at", { ascending: false });
   if (projectsError) throw new Error("BACKEND_READ_FAILED");
-  const projectRows = (rows || []) as JsonRecord[];
+  const projectRows = ((rows || []) as JsonRecord[]).filter(ownerVisibleProject);
   const projectIds = projectRows.map((row) => textValue(row.id)).filter(
     Boolean,
   );

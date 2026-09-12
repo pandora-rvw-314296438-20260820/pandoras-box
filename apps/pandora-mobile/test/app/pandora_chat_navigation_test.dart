@@ -173,6 +173,43 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('search chats can open and close repeatedly before navigation',
+      (tester) async {
+    await mount(tester, const Size(390, 800));
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    for (var attempt = 0; attempt < 3; attempt++) {
+      await tester.tap(
+        find.byKey(const ValueKey<String>('pandora-search-chats')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('pandora-search-chats-sheet')),
+        findsOneWidget,
+      );
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('pandora-search-chats-sheet')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull, reason: 'search attempt $attempt');
+    }
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.widgetWithText(ListTile, 'Projects'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Create project'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'attachment menu contains input actions without another navigation menu',
       (tester) async {
