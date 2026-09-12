@@ -24,7 +24,11 @@ test('archived Memory binding moves only from the obsolete owner to canonical Pa
   assert.doesNotMatch(migration, /delete\s+from\s+public\.projectos_projects/i);
 });
 
-test('unexpected repository authority fails closed instead of being overwritten', () => {
+test('clean replay absence is a no-op while unexpected existing authority fails closed', () => {
+  assert.match(migration, /if not found then\s+return;/);
   assert.match(migration, /refused unexpected Memory repository binding/);
-  assert.match(migration, /elsif v_repository <> 'pandora-rvw-314296438-20260820\/pandoras-box-memory'/);
+  assert.match(
+    migration,
+    /elsif v_repository <> 'pandora-rvw-314296438-20260820\/pandoras-box-memory'/,
+  );
 });
