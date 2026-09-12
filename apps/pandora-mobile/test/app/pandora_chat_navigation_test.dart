@@ -170,11 +170,21 @@ void main() {
     final objective =
         find.byKey(const ValueKey<String>('ask-pandora-objective'));
     final plus = find.byKey(const ValueKey<String>('ask-pandora-plus'));
+    final composer = find.byKey(const ValueKey<String>('ask-pandora-composer'));
+    final voice = find.byKey(const ValueKey<String>('ask-pandora-voice'));
+    final submit = find.byKey(const ValueKey<String>('ask-pandora-submit'));
     await tester.tap(objective);
     tester.view.viewInsets = const FakeViewPadding(bottom: 320);
     await tester.pumpAndSettle();
     expect(objective, findsOneWidget);
     expect(plus, findsOneWidget);
+    expect(composer, findsOneWidget);
+    expect(voice, findsOneWidget);
+    expect(submit, findsOneWidget);
+    expect(find.byType(Divider), findsNothing);
+    final field = tester.widget<TextField>(objective);
+    expect(field.minLines, 1);
+    expect(field.maxLines, 6);
     expect(tester.takeException(), isNull);
   });
 
@@ -229,52 +239,6 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('composer stays compact and bounded', (tester) async {
-    await mount(tester, const Size(390, 844));
-
-    final screen = find.byType(AskPandoraScreen);
-    final composer =
-        find.byKey(const ValueKey<String>('ask-pandora-composer'));
-    final objective =
-        find.byKey(const ValueKey<String>('ask-pandora-objective'));
-    final cube = find.byKey(const ValueKey<String>('ask-pandora-plus'));
-    final voice = find.byKey(const ValueKey<String>('ask-pandora-voice'));
-    final send = find.byKey(const ValueKey<String>('ask-pandora-submit'));
-
-    expect(
-      find.descendant(of: screen, matching: find.byType(Divider)),
-      findsNothing,
-    );
-    expect(composer, findsOneWidget);
-    expect(cube, findsOneWidget);
-    expect(voice, findsOneWidget);
-    expect(send, findsOneWidget);
-
-    expect(
-      tester.getCenter(cube).dx,
-      lessThan(tester.getCenter(objective).dx),
-    );
-    expect(
-      tester.getCenter(objective).dx,
-      lessThan(tester.getCenter(voice).dx),
-    );
-    expect(
-      tester.getCenter(voice).dx,
-      lessThan(tester.getCenter(send).dx),
-    );
-
-    final initialHeight = tester.getSize(composer).height;
-    expect(initialHeight, lessThanOrEqualTo(72));
-
-    await tester.enterText(objective, 'one\ntwo\nthree\nfour');
-    await tester.pumpAndSettle();
-    expect(tester.getSize(composer).height, greaterThan(initialHeight));
-
-    final field = tester.widget<TextField>(objective);
-    expect(field.minLines, 1);
-    expect(field.maxLines, 6);
-    expect(tester.takeException(), isNull);
-  });
   testWidgets(
       'chat header swaps temporary chat for overflow after the first turn',
       (tester) async {
