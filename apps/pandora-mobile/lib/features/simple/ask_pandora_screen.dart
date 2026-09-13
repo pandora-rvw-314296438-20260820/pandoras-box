@@ -652,7 +652,7 @@ class _ObsidianSuggestion extends StatelessWidget {
       );
 }
 
-class _Conversation extends StatelessWidget {
+class _Conversation extends StatefulWidget {
   const _Conversation({
     required this.messages,
     required this.pendingMessage,
@@ -664,19 +664,75 @@ class _Conversation extends StatelessWidget {
   final bool thinking;
 
   @override
+  State<_Conversation> createState() => _ConversationState();
+}
+
+class _ConversationState extends State<_Conversation> {
+  final ScrollController _scrollController = ScrollController();
+  late int _lastRenderedItemCount;
+
+  bool get _hasPending =>
+      widget.pendingMessage != null && widget.pendingMessage!.isNotEmpty;
+
+  int get _renderedItemCount =>
+      widget.messages.length + (_hasPending ? 1 : 0) + (widget.thinking ? 1 : 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _lastRenderedItemCount = _renderedItemCount;
+    _scheduleScrollToLatest(jump: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _Conversation oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextCount = _renderedItemCount;
+    if (nextCount != _lastRenderedItemCount) {
+      _lastRenderedItemCount = nextCount;
+      _scheduleScrollToLatest();
+    }
+  }
+
+  void _scheduleScrollToLatest({bool jump = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final target = _scrollController.position.maxScrollExtent;
+      if (jump) {
+        _scrollController.jumpTo(target);
+      } else {
+        _scrollController.animateTo(
+          target,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final hasPending = pendingMessage != null && pendingMessage!.isNotEmpty;
-    final count = messages.length + (hasPending ? 1 : 0) + (thinking ? 1 : 0);
+    final count = _renderedItemCount;
     return ListView.builder(
+      controller: _scrollController,
+      reverse: false,
       padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       itemCount: count,
       itemBuilder: (context, index) {
         Widget child;
-        if (index < messages.length) {
-          child = _ChatBubble(message: messages[index]);
-        } else if (hasPending && index == messages.length) {
-          child = _ChatBubble(message: _ChatMessage.user(pendingMessage!));
+        if (index < widget.messages.length) {
+          child = _ChatBubble(message: widget.messages[index]);
+        } else if (_hasPending && index == widget.messages.length) {
+          child = _ChatBubble(
+            message: _ChatMessage.user(widget.pendingMessage!),
+          );
         } else {
           child = const _PandoraThinkingBubble();
         }
