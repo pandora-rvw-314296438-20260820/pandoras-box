@@ -16,6 +16,7 @@ Current implementation locations:
 - secret boundary: `packages/pandora-intelligence/src/security/secret-boundary.js`
 - Gemini adapter: `packages/pandora-intelligence/src/providers/gemini.js`
 - Kimi/Moonshot adapter: `packages/pandora-intelligence/src/providers/kimi.js`
+- OpenAI adapter: `packages/pandora-intelligence/src/providers/openai.js`
 - provider exports: `packages/pandora-intelligence/src/index.js`
 
 ## Responsibility boundaries
@@ -27,6 +28,8 @@ Owns Pandora task names, output modes, context/input/schema, budgets, required c
 ### Capability declaration
 
 A model declaration is evidence-backed, additive and conservative. Only capabilities confirmed by current authoritative provider documentation and actually serialized/normalized by the adapter may be declared. Capability metadata is not a production traffic switch.
+
+Each declaration also identifies the execution boundary Pandora can actually enforce: `device`, `pandora_trusted_cloud`, or `external_provider`. This field describes execution placement, not provider retention/training/residency/compliance behavior. Unknown legacy declarations normalize conservatively to `external_provider`; stricter routing policy may allow only selected boundaries globally or per task.
 
 ### Provider adapter
 
@@ -61,9 +64,11 @@ The deployed primary-Supabase boundary is `public.pandora_kimi_chat_request_v1(p
 
 Kimi's upstream API supports streaming, but the current trusted Supabase transport rejects `stream=true`. Accordingly, the Kimi model metadata distinguishes upstream provider support from current Pandora transport support and reports streaming unavailable for routing today. `normalizeKimiStreamEvent()` remains a tested future seam only. The transport implementation owns Vault retrieval, fixed-host enforcement, authentication headers, HTTP timeout enforcement, bounded same-provider retry/backoff and response-size controls. It must never expose raw credentials to the adapter.
 
+For OpenAI, the package adapter consumes the same trusted shape, `createChatCompletion({ model, requestId, body })`, and deliberately omits `model` from the serialized request body so the transport owns model injection. The deployed primary-Supabase boundary is `public.pandora_openai_chat_request_v1(p_model, p_body)`, backed by `private.pandora_openai_chat_api_v1`. The production credential remains Vault-only as `openai_key`, the upstream host is fixed to `https://api.openai.com/v1/chat/completions`, streaming is currently disabled, output is capped at 16,384 completion tokens, and same-provider transport retry is bounded. The package adapter declares only Pandora's currently activated GPT-5.6 Luna/Terra/Sol set; additional upstream models require a separate activation/configuration decision before becoming routable.
+
 ### Router and routing policy
 
-The router owns provider/model choice and cross-provider fallback. Provider adapters classify retryability; they do not silently call another provider. Authentication/authorization, malformed trusted requests, missing secrets and other security failures must remain non-retryable at the cross-provider layer unless an explicit security policy says otherwise.
+The router owns provider/model choice and cross-provider fallback. It applies capability, privacy execution boundary, adapter availability, provider/model controls, session compatibility, health, quality, latency and cost constraints before soft preference or empirical scoring. Provider adapters classify retryability; they do not silently call another provider. Authentication/authorization, malformed trusted requests, missing secrets and other security failures must remain non-retryable at the cross-provider layer unless an explicit security policy says otherwise.
 
 ### Tool execution
 
