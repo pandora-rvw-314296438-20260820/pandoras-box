@@ -201,6 +201,9 @@ test('public Activity Theatre text fields reject credential-like material withou
       outcome: { summary: 'Provider echoed sk-1234567890abcdefghijklmnop.' },
     },
     { executionId: 'eyJabcdefghijklmnopqrstuv.abcdefghijklmnopqrstuv.abcdefghijklmnop' },
+    { message: 'Authorization: Basic dXNlcjpwYXNzd29yZA==' },
+    { message: 'Provider returned sb_secret_1234567890abcdefghijklmnop' },
+    { provenance: { ...base().provenance, evidenceRef: 'https://user:password@example.test/evidence' } },
   ];
 
   for (const payload of credentialCases) {
