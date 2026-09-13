@@ -59,10 +59,13 @@ test('mobile attaches verified repository source to audit turns and uses dispatc
   assert.match(intelligence, /source: _optionalText\(handoffJson\['source'\]\)/);
 });
 
-test('only the explicit workspace-change handoff enters ProjectWorkspaceV2', () => {
+test('explicit project handoffs execute in Universal Chat through the real builder', () => {
   assert.match(ask, /handoff\?\.source == 'project_workspace_change'/);
-  assert.match(ask, /ProjectWorkspaceV2Screen\(/);
-  assert.match(ask, /initialChange: handoff!\.request/);
+  assert.match(ask, /experience\.loadExperience\(handoffProjectId\)/);
+  assert.match(ask, /experience\.submitChange\(/);
+  assert.match(ask, /experience\.understanding\(/);
+  assert.match(ask, /experience\.requestBuild\(/);
+  assert.doesNotMatch(ask, /ProjectWorkspaceV2Screen\(/);
   assert.doesNotMatch(ask, /message: handoff\.request/);
 });
 
