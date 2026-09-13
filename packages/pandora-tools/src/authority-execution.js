@@ -75,7 +75,20 @@ function authorityRequired(definition, args, context, risk) {
   return false;
 }
 
-function authorizationFingerprint(binding, definition) {
+function authorityScopeFromAction(proposal, context = {}) {
+  const snapshot = {
+    destination_or_audience: context.destination_or_audience ?? null,
+    data_sensitivity: context.data_sensitivity ?? null,
+    cost: context.authority_cost ?? context.cost ?? context.budget ?? null,
+    destructive: proposal?.arguments?.destructive === true,
+    production: context.environment === "production" || proposal?.arguments?.target_environment === "production",
+    protected_app: context.protected_app_scope ?? context.protected_app ?? null,
+  };
+  return Object.freeze(JSON.parse(canonicalizeJson(snapshot)));
+}
+
+function authorizationFingerprint(binding, definition, proposal = null, context = {}) {
+  const authorityScope = authorityScopeFromAction(proposal, context);
   return sha256Hex(canonicalizeJson({
     schema_version: AUTHORITY_SCHEMA_VERSION,
     principal: binding.actor_id,
@@ -87,6 +100,12 @@ function authorizationFingerprint(binding, definition) {
     organization_id: binding.organization_id,
     project_id: binding.project_id,
     environment: binding.environment,
+    destination_or_audience: authorityScope.destination_or_audience,
+    data_sensitivity: authorityScope.data_sensitivity,
+    cost: authorityScope.cost,
+    destructive: authorityScope.destructive,
+    production: authorityScope.production,
+    protected_app: authorityScope.protected_app,
     risk: binding.risk,
     policy_version: binding.policy_version,
     project_version: binding.project_version,
@@ -95,7 +114,7 @@ function authorizationFingerprint(binding, definition) {
   }));
 }
 
-function validateAuthorityDecision(raw, expected, definition, proposal, { now = new Date() } = {}) {
+function validateAuthorityDecision(raw, expected, definition, proposal, context = {}, { now = new Date() } = {}) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     throw new PandoraToolError("approval_required", "AUTHORITY_DECISION_INVALID", "Authority decision is missing or invalid");
   }
@@ -106,7 +125,7 @@ function validateAuthorityDecision(raw, expected, definition, proposal, { now = 
     throw new PandoraToolError("approval_required", "AUTHORITY_DECISION_INVALID", "Authority decision is invalid");
   }
 
-  const expectedFingerprint = authorizationFingerprint(expected, definition);
+  const expectedFingerprint = authorizationFingerprint(expected, definition, proposal, context);
   if (!secureEqualHex(raw.authorization_fingerprint, expectedFingerprint)) {
     throw new PandoraToolError("approval_required", "AUTHORITY_FINGERPRINT_MISMATCH", "Authority decision does not match this action");
   }
@@ -186,7 +205,7 @@ function createAuthorityGrant(binding, authority) {
     approved_by: `authority:${authority.authority_basis}`,
     approved_at: authority.issued_at,
     expires_at: authority.expires_at,
-    one_time: false,
+    one_time: authority.authority_basis === "active_explicit_standing_policy" ? false : true,
   });
   return Object.freeze({
     ...grant,
@@ -271,7 +290,7 @@ class PandoraAuthorityToolExecutor {
       risk,
       policy_version: POLICY_VERSION,
     });
-    const fingerprint = authorizationFingerprint(binding, definition);
+    const fingerprint = authorizationFingerprint(binding, definition, proposal, context);
     const rawAuthority = await this.authorityEvaluator.evaluate(Object.freeze({
       schema_version: AUTHORITY_SCHEMA_VERSION,
       authorization_fingerprint: fingerprint,
@@ -290,9 +309,15 @@ class PandoraAuthorityToolExecutor {
       execution_adapter: definition.executor,
       required_capabilities: Object.freeze([...definition.capabilityRequirements]),
       request_id: proposal.arguments?.request_id || null,
+      authority_scope: authorityScopeFromAction(proposal, context),
     }));
 
-    const authority = validateAuthorityDecision(rawAuthority, binding, definition, proposal, { now });
+    const postEvaluationFingerprint = authorizationFingerprint(binding, definition, proposal, context);
+    if (!secureEqualHex(postEvaluationFingerprint, fingerprint)) {
+      throw new PandoraToolError("approval_required", "AUTHORITY_SCOPE_DRIFT", "Authority scope changed while authorization was being evaluated");
+    }
+
+    const authority = validateAuthorityDecision(rawAuthority, binding, definition, proposal, context, { now });
     await recordLineage(this.gateway.lineage, "authority_decision", {
       tool_call_id: toolCallId,
       organization_id: binding.organization_id,
