@@ -37,10 +37,17 @@ test('fallback intelligence is universal and capability-neutral', () => {
   assert.match(doctrine, /unless the actual user request is a software-building task/i);
 });
 
-test('mobile chat dispatches universal capabilities before model fallback', () => {
+test('mobile chat dispatches universal capabilities before model fallback without a Project gate', () => {
   assert.match(mobile, /pandora_chat_universal_dispatch_v7/);
-  assert.match(mobile, /if \(capabilityTurn != null\) return capabilityTurn/);
-  assert.match(mobile, /Projects are optional and do not limit Pandora's general capabilities/);
+  assert.match(
+    mobile,
+    /final capabilityTurn = await _dispatchCapability\([\s\S]*?projectId: projectId,[\s\S]*?if \(capabilityTurn != null\) return capabilityTurn;/,
+  );
+  assert.match(mobile, /if \(projectId != null\) 'p_project_id': projectId/);
+  const dispatchIndex = mobile.indexOf('final capabilityTurn = await _dispatchCapability(');
+  const fallbackIndex = mobile.indexOf('final response = await _client.functions.invoke(');
+  assert.ok(dispatchIndex >= 0, 'universal capability dispatch must exist');
+  assert.ok(fallbackIndex > dispatchIndex, 'universal capability dispatch must run before model fallback');
 });
 
 test('current product doctrine is not delegated to builder-era roadmap inventories', () => {
