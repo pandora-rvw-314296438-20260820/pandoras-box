@@ -139,4 +139,101 @@ void main() {
     expect(request.toMap(), {'kind': 'permission_state'});
     expect(request.toMap().containsKey('command'), isFalse);
   });
+
+  test('OEM reliability diagnostic is allowlisted without command input', () {
+    const request = PandoraSafeDiagnosticRequest(
+      PandoraSafeDiagnosticKind.oemReliability,
+    );
+
+    expect(request.toMap(), {'kind': 'oem_reliability'});
+    expect(request.toMap().containsKey('command'), isFalse);
+  });
+
+  test('parses Xiaomi OEM state as a manual user-controlled boundary', () {
+    final state = PandoraOemReliabilityState.fromMap({
+      'schemaVersion': '1.0.0',
+      'adapterId': 'xiaomi_public_v1',
+      'manufacturer': 'Xiaomi',
+      'brand': 'Redmi',
+      'xiaomiFamily': true,
+      'backgroundRestrictionSupported': true,
+      'backgroundRestricted': false,
+      'batteryOptimizationStateSupported': true,
+      'ignoringBatteryOptimizations': false,
+      'autostartManagement': 'manual_oem_control',
+      'appDetailsSurfaceAvailable': true,
+      'batteryOptimizationSurfaceAvailable': true,
+      'normalOperationRequiresDesktop': false,
+      'rootRequired': false,
+      'bootloaderUnlockRequired': false,
+      'hiddenOemApiRequired': false,
+    });
+
+    expect(state.xiaomiFamily, isTrue);
+    expect(state.autostartManagement, 'manual_oem_control');
+    expect(state.normalOperationRequiresDesktop, isFalse);
+    expect(state.hiddenOemApiRequired, isFalse);
+  });
+
+  test('rejects OEM reliability that weakens the trust boundary', () {
+    Map<String, Object?> state({
+      bool desktop = false,
+      bool root = false,
+      bool bootloader = false,
+      bool hiddenApi = false,
+    }) => {
+          'schemaVersion': '1.0.0',
+          'adapterId': 'xiaomi_public_v1',
+          'manufacturer': 'Xiaomi',
+          'brand': 'Redmi',
+          'xiaomiFamily': true,
+          'backgroundRestrictionSupported': true,
+          'backgroundRestricted': false,
+          'batteryOptimizationStateSupported': true,
+          'ignoringBatteryOptimizations': false,
+          'autostartManagement': 'manual_oem_control',
+          'appDetailsSurfaceAvailable': true,
+          'batteryOptimizationSurfaceAvailable': true,
+          'normalOperationRequiresDesktop': desktop,
+          'rootRequired': root,
+          'bootloaderUnlockRequired': bootloader,
+          'hiddenOemApiRequired': hiddenApi,
+        };
+
+    for (final invalid in [
+      state(desktop: true),
+      state(root: true),
+      state(bootloader: true),
+      state(hiddenApi: true),
+    ]) {
+      expect(
+        () => PandoraOemReliabilityState.fromMap(invalid),
+        throwsFormatException,
+      );
+    }
+  });
+
+  test('rejects Xiaomi OEM state that pretends autostart is automatic', () {
+    expect(
+      () => PandoraOemReliabilityState.fromMap({
+        'schemaVersion': '1.0.0',
+        'adapterId': 'xiaomi_public_v1',
+        'manufacturer': 'Xiaomi',
+        'brand': 'Poco',
+        'xiaomiFamily': true,
+        'backgroundRestrictionSupported': true,
+        'backgroundRestricted': null,
+        'batteryOptimizationStateSupported': true,
+        'ignoringBatteryOptimizations': null,
+        'autostartManagement': 'automatic',
+        'appDetailsSurfaceAvailable': true,
+        'batteryOptimizationSurfaceAvailable': true,
+        'normalOperationRequiresDesktop': false,
+        'rootRequired': false,
+        'bootloaderUnlockRequired': false,
+        'hiddenOemApiRequired': false,
+      }),
+      throwsFormatException,
+    );
+  });
 }
