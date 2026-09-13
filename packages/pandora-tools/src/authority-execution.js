@@ -199,7 +199,7 @@ function validateAuthorityDecision(raw, expected, definition, proposal, context 
 }
 
 function createAuthorityGrant(binding, authority) {
-  const approvalId = `authority-${authority.authorization_fingerprint}`;
+  const approvalId = `authority-${authority.authorization_fingerprint.slice(0, 16)}-${randomUUID()}`;
   const grant = createApprovalGrant(binding, {
     approval_id: approvalId,
     approved_by: `authority:${authority.authority_basis}`,
