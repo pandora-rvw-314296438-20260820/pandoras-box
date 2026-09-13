@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/design/pandora_tokens.dart';
+import '../../core/device/pandora_device_agent.dart';
 import '../../core/security/pandora_auth.dart';
 import '../../core/widgets/owner_experience.dart';
 import '../../core/widgets/pandora_page.dart';
@@ -13,9 +14,14 @@ import '../intelligence/owner_intelligence_screen.dart';
 import '../safety/safety_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, this.installedBuildLabel});
+  const SettingsScreen({
+    super.key,
+    this.installedBuildLabel,
+    this.deviceAgent,
+  });
 
   final String? installedBuildLabel;
+  final PandoraDeviceAgent? deviceAgent;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -43,6 +49,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _open(Widget screen) {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+  }
+
+  Future<void> _openSystemSurface(
+    PandoraSystemSurface surface,
+    String label,
+  ) async {
+    final agent = widget.deviceAgent ?? MethodChannelPandoraDeviceAgent();
+    var opened = false;
+    try {
+      opened = await agent.openSystemSurface(surface);
+    } catch (_) {
+      opened = false;
+    }
+    if (!mounted || opened) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Android could not open $label from Pandora. System recovery remains available outside the app.',
+        ),
+      ),
+    );
   }
 
   @override
@@ -170,6 +197,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Developer diagnostics',
                   subtitle: 'Sanitized, temporary request metadata',
                   onTap: () => _open(const DeveloperDiagnosticsScreen()),
+                ),
+              ],
+            ),
+            const SizedBox(height: PandoraSpacing.xl),
+            const OwnerSectionHeading(
+              title: 'Android recovery',
+              subtitle:
+                  'Android remains the trusted system base even when Pandora is selected as Home.',
+            ),
+            const SizedBox(height: PandoraSpacing.sm),
+            _SettingsGroup(
+              children: [
+                _SettingsAction(
+                  icon: Icons.settings_outlined,
+                  title: 'Android settings',
+                  subtitle: 'Open the system Settings app',
+                  onTap: () {
+                    _openSystemSurface(
+                      PandoraSystemSurface.androidSettings,
+                      'Android Settings',
+                    );
+                  },
+                ),
+                _SettingsAction(
+                  icon: Icons.home_outlined,
+                  title: 'Home app settings',
+                  subtitle: 'Review or change the default Home app',
+                  onTap: () {
+                    _openSystemSurface(
+                      PandoraSystemSurface.homeAppSettings,
+                      'Home app settings',
+                    );
+                  },
+                ),
+                _SettingsAction(
+                  icon: Icons.phone_outlined,
+                  title: 'Phone dialer',
+                  subtitle: 'Open the system dialer without placing a call',
+                  onTap: () {
+                    _openSystemSurface(
+                      PandoraSystemSurface.systemDialer,
+                      'the system dialer',
+                    );
+                  },
                 ),
               ],
             ),
