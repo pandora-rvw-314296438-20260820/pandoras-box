@@ -3,6 +3,25 @@
 const { createModelError, createModelUsage } = require('../contracts/model.js');
 const { assertNoCredentialMaterial } = require('../security/secret-boundary.js');
 
+const GEMINI_PROVIDER_ID = 'gemini';
+const GEMINI_COMMON_CAPABILITIES = Object.freeze({
+  reasoning: true,
+  coding: true,
+  multimodal: false,
+  imageUnderstanding: false,
+  structuredOutput: true,
+  toolCalling: false,
+  longContext: true,
+  classification: true,
+  summarization: true,
+  copywriting: true,
+});
+const GEMINI_MODEL_CAPABILITY_DECLARATIONS = Object.freeze([
+  Object.freeze({ provider: GEMINI_PROVIDER_ID, modelId: 'gemini-3.5-flash-lite', capabilities: GEMINI_COMMON_CAPABILITIES, executionBoundary: 'external_provider', latencyClass: 'interactive', costClass: 'low', reliabilityClass: 'high', maxContextTokens: 1048576, outputModes: Object.freeze(['text','json','structured','tool_proposals']), enabled: true, metadata: Object.freeze({ modelVersion: 'gemini-3.5-flash-lite', lifecycle: 'stable', adapterApiFamily: 'generate-content', adapterSupportsStreaming: false, providerSupportsMultimodalInput: true, adapterSupportsMultimodalInput: false }) }),
+  Object.freeze({ provider: GEMINI_PROVIDER_ID, modelId: 'gemini-3.7-flash', capabilities: GEMINI_COMMON_CAPABILITIES, executionBoundary: 'external_provider', latencyClass: 'interactive', costClass: 'medium', reliabilityClass: 'high', maxContextTokens: 1048576, outputModes: Object.freeze(['text','json','structured','tool_proposals']), enabled: true, metadata: Object.freeze({ modelVersion: 'gemini-3.7-flash', lifecycle: 'stable', adapterApiFamily: 'generate-content', adapterSupportsStreaming: false, providerSupportsMultimodalInput: true, adapterSupportsMultimodalInput: false }) }),
+  Object.freeze({ provider: GEMINI_PROVIDER_ID, modelId: 'gemini-3.1-pro-preview', capabilities: GEMINI_COMMON_CAPABILITIES, executionBoundary: 'external_provider', latencyClass: 'standard', costClass: 'high', reliabilityClass: 'standard', maxContextTokens: 1048576, outputModes: Object.freeze(['text','json','structured','tool_proposals']), enabled: true, metadata: Object.freeze({ modelVersion: 'gemini-3.1-pro-preview', lifecycle: 'preview', adapterApiFamily: 'generate-content', adapterSupportsStreaming: false, providerSupportsMultimodalInput: true, adapterSupportsMultimodalInput: false }) }),
+]);
+
 /** @param {unknown} value */
 function isRecord(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
 /** @param {unknown} value @param {string} field */
@@ -107,4 +126,4 @@ class GeminiProviderAdapter {
   }
 }
 
-module.exports = { GeminiProviderAdapter, buildGeminiBody, extractCandidate, normalizeHttpResponse };
+module.exports = { GEMINI_COMMON_CAPABILITIES, GEMINI_MODEL_CAPABILITY_DECLARATIONS, GEMINI_PROVIDER_ID, GeminiProviderAdapter, buildGeminiBody, extractCandidate, normalizeHttpResponse };
