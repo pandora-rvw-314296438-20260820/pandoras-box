@@ -219,11 +219,11 @@ test("authorization fingerprint binds cost privacy destination and protected-app
   assert.notEqual(one, two);
 });
 
-test("authority scope drift during evaluation fails closed before provider execution", async () => {
+test("caller authority-scope mutation during evaluation cannot alter frozen execution scope", async () => {
   let calls = 0;
   const adapters = new T.ExecutionAdapterRegistry().register("DeploymentExecutor", {
     productionConcurrency: { durability: "durable", mode: "compare_and_set", owner: "deployment-provider" },
-    async execute() { calls += 1; },
+    async execute() { calls += 1; return { output: { status: "published" } }; },
   });
   const gateway = new T.PandoraToolGateway(durableMemoryDeps(adapters));
   const ctx = publishContext({ authority_cost: { unit: "credit", maximum: 5 } });
@@ -248,8 +248,11 @@ test("authority scope drift during evaluation fails closed before provider execu
       },
     },
   });
-  await assert.rejects(executor.handle(publishProposal(), ctx), (error) => error?.code === "AUTHORITY_SCOPE_DRIFT");
-  assert.equal(calls, 0);
+  const result = await executor.handle(publishProposal(), ctx);
+  assert.equal(ctx.authority_cost.maximum, 6);
+  assert.equal(result.executed, true);
+  assert.equal(result.decision.disposition, T.TOOL_DECISIONS.ALLOW);
+  assert.equal(calls, 1);
 });
 
 test("prediction cannot be converted into authority even when fingerprint is exact", async () => {

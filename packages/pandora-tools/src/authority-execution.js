@@ -15,6 +15,7 @@ const { effectiveRisk, POLICY_VERSION } = require("./policy");
 const { approvalBindingFromAction, createApprovalGrant } = require("./approvals");
 const { PandoraToolError } = require("./errors");
 const { recordLineage } = require("./lineage");
+const { snapshotToolContext } = require("./context-snapshot");
 
 const AUTHORITY_SCHEMA_VERSION = "pandora-standing-authority-decision-v1";
 
@@ -247,6 +248,7 @@ class PandoraAuthorityToolExecutor {
   }
 
   async handle(rawProposal, context) {
+    context = snapshotToolContext(context);
     if (context?.approval_id || !this.authorityEvaluator) {
       return this.gateway.handle(rawProposal, context);
     }
@@ -340,6 +342,11 @@ class PandoraAuthorityToolExecutor {
     }
     if (authority.decision === AUTHORITY_DECISIONS.NEEDS_APPROVAL) {
       return this.gateway.handle(rawProposal, { ...context, tool_call_id: toolCallId });
+    }
+
+    const preGatewayFingerprint = authorizationFingerprint(binding, definition, proposal, context);
+    if (!secureEqualHex(preGatewayFingerprint, fingerprint)) {
+      throw new PandoraToolError("approval_required", "AUTHORITY_SCOPE_DRIFT", "Authority scope changed before governed execution");
     }
 
     if (
