@@ -20,6 +20,8 @@ function requiredText(value, field) { if (typeof value !== 'string' || !value.tr
 /** @param {Readonly<Record<string,unknown>>} model */
 function modelKey(model) { return `${String(model.provider)}:${String(model.modelId)}`; }
 /** @param {Readonly<Record<string,unknown>>} model */
+function modelExecutionBoundary(model) { return typeof model.executionBoundary === 'string' && model.executionBoundary.trim() ? model.executionBoundary.trim() : 'external_provider'; }
+/** @param {Readonly<Record<string,unknown>>} model */
 function modelVersion(model) {
   if (typeof model.modelVersion === 'string' && model.modelVersion.trim()) return model.modelVersion.trim();
   if (isRecord(model.metadata)) {
@@ -64,11 +66,11 @@ class ModelRouter {
     const required = Array.isArray(request.requiredCapabilities) ? request.requiredCapabilities.map(String) : [];
     const compatible = this.registry.findCompatible({ required, outputMode: String(request.outputMode ?? 'structured'), minContext: options.minContext });
     const compatibleKeys = new Set(compatible.map(modelKey));
-    /** @type {{provider:string,model:string,reasons:readonly string[]}[]} */
+    /** @type {{provider:string,model:string,executionBoundary:string,reasons:readonly string[]}[]} */
     const excluded = [];
     if (typeof this.registry.list === 'function') {
       for (const model of this.registry.list()) {
-        if (!compatibleKeys.has(modelKey(model))) excluded.push(Object.freeze({ provider: String(model.provider), model: String(model.modelId), reasons: Object.freeze(['capability_incompatible']) }));
+        if (!compatibleKeys.has(modelKey(model))) excluded.push(Object.freeze({ provider: String(model.provider), model: String(model.modelId), executionBoundary: modelExecutionBoundary(model), reasons: Object.freeze(['capability_incompatible']) }));
       }
     }
     const priorAttempts = Array.isArray(options.attemptHistory) ? options.attemptHistory : [];
@@ -94,7 +96,7 @@ class ModelRouter {
       }
       const policyEligibility = options.policy
         ? modelEligibility(model, options.policy, { task, estimatedCostUsd, requestMaxCostUsd, allowCircuitProbe: options.allowCircuitProbe, nowMs: options.nowMs })
-        : Object.freeze({ allowed: true, reasons: Object.freeze([]), metrics: null, estimatedCostUsd, costCeiling: requestMaxCostUsd, circuitState: 'closed' });
+        : Object.freeze({ allowed: true, reasons: Object.freeze([]), metrics: null, estimatedCostUsd, costCeiling: requestMaxCostUsd, circuitState: 'closed', executionBoundary: modelExecutionBoundary(model), allowedExecutionBoundaries: Object.freeze([]) });
       reasons.push(.../** @type {readonly string[]} */ (policyEligibility.reasons ?? []));
       const sessionResult = sessionCompatibility(model, options.session);
       let recoveryRequired = false;
@@ -103,7 +105,7 @@ class ModelRouter {
         if (options.allowRecoveryBoundary !== true) reasons.push(String(sessionResult.reason ?? 'session_incompatible'));
       }
       if (reasons.length) {
-        excluded.push(Object.freeze({ provider, model: String(model.modelId), reasons: Object.freeze([...new Set(reasons)]) }));
+        excluded.push(Object.freeze({ provider, model: String(model.modelId), executionBoundary: modelExecutionBoundary(model), reasons: Object.freeze([...new Set(reasons)]) }));
         continue;
       }
       const policyScore = routingPolicyScoreDetailed(model, options.policy, { task, nowMs: options.nowMs, cohortKey: options.cohortKey ?? null });
@@ -171,13 +173,14 @@ class ModelRouter {
           routingPolicyVersion: policyVersion,
           selectedProvider: provider,
           selectedModel: model,
+          selectedExecutionBoundary: modelExecutionBoundary(declaration),
           selectedReasoningPolicy: candidate.reasoningPolicy,
           recoveryRequired: candidate.recoveryRequired,
           recoveryEpoch: Number(nextSessionState?.recoveryEpoch ?? 0),
           stickinessMode: nextSessionState?.stickinessMode ?? null,
           fallbackUsed: newAttempts > 1 || (options.attemptHistory?.length ?? 0) > 0,
           attempts: Object.freeze(attempts.map(item => Object.freeze({ ...item }))),
-          eligibleCandidates: Object.freeze(detailed.candidates.map(item => Object.freeze({ provider: String(item.model.provider), model: String(item.model.modelId), recoveryRequired: item.recoveryRequired, score: item.score, scoreComponents: item.scoreComponents }))),
+          eligibleCandidates: Object.freeze(detailed.candidates.map(item => Object.freeze({ provider: String(item.model.provider), model: String(item.model.modelId), executionBoundary: modelExecutionBoundary(item.model), recoveryRequired: item.recoveryRequired, score: item.score, scoreComponents: item.scoreComponents }))),
           excludedCandidates: detailed.excluded,
           cohortApplied: typeof options.cohortKey === 'string' && options.cohortKey.length > 0,
         });
