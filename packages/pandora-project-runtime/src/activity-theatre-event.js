@@ -31,7 +31,7 @@ const ACTIVITY_EVENT_STATE_SET = new Set(ACTIVITY_EVENT_STATES);
 const ACTIVITY_EVENT_SOURCE_TYPE_SET = new Set(ACTIVITY_EVENT_SOURCE_TYPES);
 
 const opaqueIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
-const credentialLikePatterns = Object.freeze([
+const highConfidenceCredentialPatterns = Object.freeze([
   /Authorization\s*:\s*(?:Bearer|Basic)\s+[^\s]+/i,
   /gh[pousr]_[A-Za-z0-9_]{20,}/,
   /\bsk-[A-Za-z0-9_-]{20,}\b/,
@@ -42,7 +42,23 @@ const credentialLikePatterns = Object.freeze([
   /(?:postgres(?:ql)?):\/\/[^\s:@]+:[^@\s]+@/i,
   /https?:\/\/[^/\s:@]+:[^@\s/]+@/i,
   /\beyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\b/,
-  /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|private[_-]?key)\s*[:=]\s*["']?[^\s,;}"']{4,}/i,
+
+]);
+const credentialAssignmentPattern = /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|private[_-]?key)\s*[:=]\s*["']?([^\s,;}"']{4,})/gi;
+const safeCredentialStatusValues = new Set([
+  "disabled",
+  "expired",
+  "hidden",
+  "invalid",
+  "missing",
+  "not-configured",
+  "not_configured",
+  "redacted",
+  "required",
+  "revoked",
+  "unknown",
+  "unavailable",
+  "unset",
 ]);
 const allowedTopLevelKeys = new Set([
   "schemaVersion",
@@ -96,14 +112,34 @@ function nonEmpty(value, field, maxLength = 500) {
   const normalized = value.trim();
   if (!normalized) throw new Error(`${field} is required`);
   if (normalized.length > maxLength) throw new Error(`${field} is too long`);
-  if (credentialLikePatterns.some((pattern) => pattern.test(normalized))) {
+  return normalized;
+}
+
+function assertNoCredentialLikeMaterial(value, field, { inspectNamedAssignments = false } = {}) {
+  if (highConfidenceCredentialPatterns.some((pattern) => pattern.test(value))) {
     throw new Error(`${field} contains credential-like material`);
   }
-  return normalized;
+  if (!inspectNamedAssignments) return value;
+
+  credentialAssignmentPattern.lastIndex = 0;
+  let match;
+  while ((match = credentialAssignmentPattern.exec(value)) !== null) {
+    const assigned = String(match[1] || "").replace(/^[\[({]+|[\])}.]+$/g, "").toLowerCase();
+    if (!safeCredentialStatusValues.has(assigned)) {
+      throw new Error(`${field} contains credential-like material`);
+    }
+  }
+  return value;
+}
+
+function publicText(value, field, maxLength) {
+  const normalized = nonEmpty(value, field, maxLength);
+  return assertNoCredentialLikeMaterial(normalized, field, { inspectNamedAssignments: true });
 }
 
 function opaqueId(value, field) {
   const normalized = nonEmpty(value, field, 200);
+  assertNoCredentialLikeMaterial(normalized, field);
   if (!opaqueIdPattern.test(normalized)) {
     throw new Error(`${field} must be an opaque identifier using letters, digits, dot, colon, underscore or hyphen`);
   }
@@ -120,7 +156,7 @@ function isoTimestamp(value, field) {
 
 function optionalText(value, field, maxLength) {
   if (value == null) return null;
-  return nonEmpty(value, field, maxLength);
+  return publicText(value, field, maxLength);
 }
 
 function optionalOpaqueId(value, field) {
@@ -155,8 +191,8 @@ function normalizeBlocker(input, state) {
     throw new Error("blocker.approvalRequired must be boolean");
   }
   return Object.freeze({
-    reason: nonEmpty(blocker.reason, "blocker.reason", 500),
-    requiredAction: nonEmpty(blocker.requiredAction, "blocker.requiredAction", 500),
+    reason: publicText(blocker.reason, "blocker.reason", 500),
+    requiredAction: publicText(blocker.requiredAction, "blocker.requiredAction", 500),
     approvalRequired: blocker.approvalRequired,
     policyRef: optionalText(blocker.policyRef, "blocker.policyRef", 300),
   });
@@ -170,7 +206,7 @@ function normalizeOutcome(input, state) {
   const outcome = plainObject(input, "outcome");
   assertKnownKeys(outcome, allowedOutcomeKeys, "outcome");
   return Object.freeze({
-    summary: nonEmpty(outcome.summary, "outcome.summary", 1000),
+    summary: publicText(outcome.summary, "outcome.summary", 1000),
     verificationRef: optionalText(outcome.verificationRef, "outcome.verificationRef", 500),
   });
 }
@@ -197,7 +233,7 @@ function normalizeActivityEvent(input) {
     jobId: opaqueId(event.jobId, "jobId"),
     sequence: event.sequence,
     state,
-    message: nonEmpty(event.message, "message", 1000),
+    message: publicText(event.message, "message", 1000),
     occurredAt: isoTimestamp(event.occurredAt, "occurredAt"),
     provenance: normalizeProvenance(event.provenance),
     domain: optionalText(event.domain, "domain", 100),
