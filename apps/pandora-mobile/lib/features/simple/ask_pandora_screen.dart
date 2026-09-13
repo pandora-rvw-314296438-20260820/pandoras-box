@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/data/pandora_repository.dart';
+import '../../core/device/pandora_communication_command.dart';
+import '../../core/device/pandora_communications.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
@@ -39,6 +42,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   final TextEditingController _objective = TextEditingController();
   final FocusNode _objectiveFocus = FocusNode();
   final IdempotencyKeyFactory _keys = IdempotencyKeyFactory();
+  final PandoraCommunicationsClient _communications =
+      PandoraCommunicationsClient();
   final List<_ChatMessage> _messages = <_ChatMessage>[];
   PandoraTextAttachment? _attachment;
   PandoraImageAttachment? _imageAttachment;
@@ -212,6 +217,13 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     });
     try {
       final dependencies = PandoraDependencies.of(context);
+      final deviceCommunication = PandoraDeviceCommunicationCommand.tryParse(
+        objective,
+      );
+      if (deviceCommunication != null) {
+        await _handleDeviceCommunication(objective, deviceCommunication);
+        return;
+      }
       final intelligence = dependencies.intelligence;
       if (intelligence == null) {
         // A Project is optional persistent context, never a prerequisite for
@@ -268,8 +280,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         }
 
         var mutationAccepted = false;
-        final executionKey =
-            _submissionKey ??= _keys.create('pandora-chat-project-change');
+        final executionKey = _submissionKey ??= _keys.create(
+          'pandora-chat-project-change',
+        );
         try {
           final projection = await experience.loadExperience(handoffProjectId);
           if (!mounted) return;
@@ -427,6 +440,116 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
           _pendingMessage = null;
         });
       }
+    }
+  }
+
+  Future<void> _handleDeviceCommunication(
+    String objective,
+    PandoraDeviceCommunicationCommand command,
+  ) async {
+    final isCall = command.kind == PandoraCommunicationKind.call;
+    final recipientLabel = command.recipient.trim();
+
+    if (!command.recipientIsBounded) {
+      setState(() {
+        _messages.add(_ChatMessage.user(objective));
+        _messages.add(
+          _ChatMessage.pandora(
+            isCall
+                ? 'I need $recipientLabel\'s phone number before I can open the system dialer. No call was placed.'
+                : 'I need $recipientLabel\'s phone number before I can open Messages. No message was sent.',
+          ),
+        );
+        _objective.clear();
+        _attachment = null;
+        _imageAttachment = null;
+        _submissionKey = null;
+        _outcomeUnknown = false;
+      });
+      return;
+    }
+
+    if (!isCall && !command.messageIsReady) {
+      setState(() {
+        _messages.add(_ChatMessage.user(objective));
+        _messages.add(
+          _ChatMessage.pandora(
+            'Tell me the message you want to send. I will open the system composer and you will confirm Send yourself.',
+          ),
+        );
+        _objective.clear();
+        _attachment = null;
+        _imageAttachment = null;
+        _submissionKey = null;
+        _outcomeUnknown = false;
+      });
+      return;
+    }
+
+    try {
+      final request = isCall
+          ? PandoraCommunicationRequest.call(command.recipient)
+          : PandoraCommunicationRequest.sms(
+              command.recipient,
+              message: command.message,
+            );
+      final handoff = await _communications.open(request);
+      if (!mounted) return;
+      if (!handoff.opened || !handoff.userConfirmationRequired) {
+        setState(() {
+          _messages.add(_ChatMessage.user(objective));
+          _messages.add(
+            _ChatMessage.pandora(
+              isCall
+                  ? 'The system dialer is unavailable. No call was placed.'
+                  : 'The system message composer is unavailable. No message was sent.',
+            ),
+          );
+          _objective.clear();
+          _submissionKey = null;
+          _outcomeUnknown = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _messages.add(_ChatMessage.user(objective));
+        _messages.add(
+          _ChatMessage.pandora(
+            isCall
+                ? 'System dialer opened for ${command.recipient}. Review the number and tap Call yourself.'
+                : 'Messages opened for ${command.recipient}. Review the message and tap Send yourself.',
+          ),
+        );
+        _objective.clear();
+        _attachment = null;
+        _imageAttachment = null;
+        _submissionKey = null;
+        _outcomeUnknown = false;
+      });
+    } on FormatException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _submissionKey = null;
+      });
+    } on PlatformException {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(_ChatMessage.user(objective));
+        _messages.add(
+          _ChatMessage.pandora(
+            isCall
+                ? 'Android could not open the system dialer. No call was placed.'
+                : 'Android could not open Messages. No message was sent.',
+          ),
+        );
+        _objective.clear();
+        _attachment = null;
+        _imageAttachment = null;
+        _submissionKey = null;
+        _outcomeUnknown = false;
+      });
     }
   }
 
