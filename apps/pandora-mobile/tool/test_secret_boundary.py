@@ -42,11 +42,11 @@ class SecretBoundaryScannerTest(unittest.TestCase):
         findings = scanner.scan_bytes(source, location="workflow.yml")
         self.assertTrue(any(item.rule == "sensitive_dart_define" for item in findings))
 
-    def test_cli_reports_fingerprint_not_plaintext(self):
-        secret_value = "sk-" + ("Z" * 32)
+    def test_cli_reports_fingerprint_not_matched_source(self):
+        matched_source = "--dart-define=PANDORA_FAKE_SECRET=synthetic"
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "source.dart"
-            path.write_text(f"const value = '{secret_value}';\n", encoding="utf-8")
+            path = Path(directory) / "workflow.yml"
+            path.write_text(f"{matched_source}\n", encoding="utf-8")
             result = subprocess.run(
                 [sys.executable, str(_SCRIPT), str(path)],
                 text=True,
@@ -54,8 +54,9 @@ class SecretBoundaryScannerTest(unittest.TestCase):
                 check=False,
             )
         self.assertEqual(result.returncode, 1)
+        self.assertIn("sensitive_dart_define", result.stderr)
         self.assertIn("fingerprint=", result.stderr)
-        self.assertNotIn(secret_value, result.stderr)
+        self.assertNotIn(matched_source, result.stderr)
 
     def test_current_mobile_operational_sources_pass_secret_boundary(self):
         repo_root = Path(__file__).resolve().parents[3]
