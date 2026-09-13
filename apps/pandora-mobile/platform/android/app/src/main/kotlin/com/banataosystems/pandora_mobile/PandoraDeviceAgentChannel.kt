@@ -2,8 +2,10 @@ package com.banataosystems.pandora_mobile
 
 import android.app.admin.DevicePolicyManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -24,9 +26,46 @@ internal class PandoraDeviceAgentChannel private constructor(
         when (call.method) {
             "getCapabilityManifest" -> result.success(capabilityManifest())
             "getPermissionStates" -> result.success(permissionStates())
+            "openSystemSurface" -> openSystemSurface(call, result)
             "runSafeDiagnostic" -> runSafeDiagnostic(call, result)
             else -> result.notImplemented()
         }
+    }
+
+    private fun openSystemSurface(call: MethodCall, result: MethodChannel.Result) {
+        val intent = when (call.argument<String>("surface")) {
+            "android_settings" -> Intent(Settings.ACTION_SETTINGS)
+            "home_app_settings" -> Intent(Settings.ACTION_HOME_SETTINGS)
+            "system_dialer" -> Intent(Intent.ACTION_DIAL)
+            else -> {
+                result.error(
+                    "UNSUPPORTED_SYSTEM_SURFACE",
+                    "Pandora Device Agent only opens an allowlisted Android recovery surface.",
+                    null
+                )
+                return
+            }
+        }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        if (intent.resolveActivity(context.packageManager) == null) {
+            result.success(false)
+            return
+        }
+        try {
+            context.startActivity(intent)
+            result.success(true)
+        } catch (_: RuntimeException) {
+            result.success(false)
+        }
+    }
+
+    private fun isDefaultHome(): Boolean {
+        val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val resolved = context.packageManager.resolveActivity(
+            homeIntent,
+            PackageManager.MATCH_DEFAULT_ONLY
+        )
+        return resolved?.activityInfo?.packageName == context.packageName
     }
 
     private fun runSafeDiagnostic(call: MethodCall, result: MethodChannel.Result) {
@@ -96,11 +135,42 @@ internal class PandoraDeviceAgentChannel private constructor(
                     true
                 ),
                 capability(
+                    "phone.home_candidate",
+                    "public_app",
+                    "available",
+                    "Pandora declares a standard Android HOME intent and remains selectable rather than forcing itself as default.",
+                    true
+                ),
+                capability(
                     "phone.home_role",
                     "android_role",
-                    "implementation_pending",
-                    "Launcher integration belongs to M4-002.",
-                    false
+                    if (isDefaultHome()) "available" else "permission_required",
+                    if (isDefaultHome())
+                        "Android currently resolves the HOME action to Pandora."
+                    else
+                        "Selecting Pandora as default HOME remains a user-controlled Android boundary.",
+                    true
+                ),
+                capability(
+                    "system.settings_recovery",
+                    "public_app",
+                    "available",
+                    "Pandora exposes a bounded route back to Android Settings.",
+                    true
+                ),
+                capability(
+                    "system.home_settings_recovery",
+                    "public_app",
+                    "available",
+                    "Pandora exposes Android Home-app settings so the default launcher can be changed or recovered.",
+                    true
+                ),
+                capability(
+                    "system.dialer_recovery",
+                    "public_app",
+                    "available",
+                    "Pandora can open the system dialer without CALL_PHONE permission or placing a call itself.",
+                    true
                 ),
                 capability(
                     "phone.calls",
