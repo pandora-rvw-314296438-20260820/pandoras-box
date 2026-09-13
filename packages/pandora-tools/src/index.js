@@ -24,4 +24,6 @@ module.exports = {
   ...require("./receipts"),
   ...require("./lineage"),
   ...require("./gateway"),
+  ...require("./authority-execution"),
+  ...require("./tool-chain"),
 };
