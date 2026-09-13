@@ -368,8 +368,9 @@ class PandoraOemReliabilityState {
 
     final xiaomiFamily = _requiredBool(map, 'xiaomiFamily');
     final autostartManagement = _requiredString(map, 'autostartManagement');
-    final expectedAutostartManagement =
-        xiaomiFamily ? 'manual_oem_control' : 'public_api_unavailable';
+    final expectedAutostartManagement = xiaomiFamily
+        ? 'manual_oem_control'
+        : 'public_api_unavailable';
     if (autostartManagement != expectedAutostartManagement) {
       throw const FormatException('OEM autostart boundary is not truthful.');
     }
