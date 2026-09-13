@@ -1,11 +1,11 @@
 # Pandora’s Box — Canonical Roadmap & Status Matrix v2.0
 
-**Status:** CANONICAL CURRENT ROADMAP SOURCE  
+**Status:** HISTORICAL ROADMAP EVIDENCE — superseded for current product direction  
 **Observed:** 2026-08-28 Asia/Manila  
 **Canonical repository:** `pandora-rvw-314296438-20260820/pandoras-box`  
 **Baseline at creation:** `main@77bed9c83daafd742cd299073adf98f9a44ea705`  
 
-This document is the single roadmap/status authority for Pandora’s Box. Older dated roadmap files remain historical design and execution evidence only. They must not be used to claim current completion.
+This document preserves the 2026-08-28 implementation/status matrix as historical evidence. It is not current product doctrine or current execution authority. `PROJECT_CUSTOM_INSTRUCTION.md` defines Pandora as a universal personal AI operating layer in which software building is one capability among many. The authoritative Pandora Device execution plan plus current provider/runtime truth govern active dependencies and completion claims.
 
 ## Completion language
 
@@ -69,7 +69,7 @@ The current canonical Android/Simple Mode implementation has substantial working
 Simple Mode should require the customer to understand only:
 
 1. **Home** — what is happening and what needs attention.
-2. **Systems** — what Pandora has built and whether it works.
+2. **Systems** — what Pandora can operate, manage, inspect or build across device, cloud, services and software.
 3. **Ask Pandora** — request an outcome in natural language.
 4. **Needs You** — decisions, approvals or blockers requiring the owner.
 5. **Business** — business results, intelligence and economics.
