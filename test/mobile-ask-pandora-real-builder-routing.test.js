@@ -18,7 +18,7 @@ test('Ask Pandora fallback stays universal when intelligence is unavailable', ()
 test('ProjectOS handoffs are admission receipts and are never submitted twice', () => {
   assert.equal(source.includes('message: handoff.request'), false);
   assert.equal(source.includes("_keys.create('intelligence-handoff')"), false);
-  assert.equal(source.includes('doing so would create duplicate work under a different idempotency key'), true);
+  assert.equal(source.includes('owns exactly one dispatch'), true);
   assert.equal(source.includes('initialIntent: handoff.request'), false);
 });
 
@@ -27,11 +27,12 @@ test('Ask Pandora never presents the static prototype as a real build result', (
   assert.equal(source.includes('BuildProgressScreen('), false);
 });
 
-test('existing-project intelligence handoffs stay in Pandora Chat without a second mutation', () => {
+test('only explicit project workspace change handoffs enter the real change runtime', () => {
   assert.equal(source.includes('message: handoff.request'), false);
-  assert.equal(source.includes('projectId: handoff.projectId'), false);
-  assert.equal(source.includes('ProjectWorkspaceV2Screen('), false);
-  assert.equal(source.includes('initialChange: handoff.request'), false);
+  assert.equal(source.includes("handoff?.source == 'project_workspace_change'"), true);
+  assert.equal(source.includes('ProjectWorkspaceV2Screen('), true);
+  assert.equal(source.includes('initialChange: handoff!.request'), true);
+  assert.equal(source.includes("handoff?.source == 'projectos_intake'"), false);
 });
 
 const workspace = fs.readFileSync(

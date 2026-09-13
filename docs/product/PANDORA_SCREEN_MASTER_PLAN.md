@@ -1,10 +1,10 @@
-# Pandora product screen master plan
+# Pandora product screen master plan — HISTORICAL IMPLEMENTATION INVENTORY
 
 Observed: 2026-08-28  
 Foundation: protected `main@cc0421f4461219bd6a9e864295d70743e8cd32dc` (CI green)  
 Sources: native `apps/pandora-mobile`, Control Tower owner surfaces, `docs/build/PANDORAS_BOX_FLUTTERFLOW_FULL_BUILD.md`, `docs/roadmaps/pandora-mobile-v1/01_PRODUCT_UX.md`
 
-This is the living inventory. It does not replace the FlutterFlow full-build instruction. It records what is implemented in canonical source versus what remains.
+This file preserves the 2026-08-28 screen inventory as historical implementation evidence. It is not current product doctrine. Current direction is the universal Pandora personal AI operating layer defined in `PROJECT_CUSTOM_INSTRUCTION.md`: Universal Chat is the control surface, software building is one specialized capability, and project/build screens are opened only when useful to the actual request.
 
 No literal 112-page inventory exists in canonical source. The FlutterFlow full-build is a qualitative finish instruction, not a numbered page list. Native Simple Mode currently has 18 implemented owner surfaces. Do not invent missing pages to reach 112.
 
@@ -40,7 +40,7 @@ Proof ladder: **implemented + tested in exact-source CI**. Not production-verifi
 
 The current convergence branch now closes the source-level owner journeys that were previously listed as incomplete:
 
-- Ask Pandora remains the canonical center destination in the newer Simple Mode IA; Home remains the owner startup context instead of reverting to the older command-first draft.
+- Universal Chat is Pandora’s canonical control surface. Home may provide owner context, while software Build/Projects remain specialized surfaces rather than the default destination for arbitrary requests.
 - Project filters: Needs me / Active / Blocked / Stale / Recently changed / Production verified.
 - Approval detail: risk, reversibility, rollback, missing-proof labels, expiry, and locally sanitized change summary.
 - Connections: Test / Connect / Reconnect / Manage / Disconnect routed through governed Ask Pandora preparation rather than direct client-side provider mutation.
