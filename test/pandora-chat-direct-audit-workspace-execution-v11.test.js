@@ -36,6 +36,8 @@ test('repository snapshot is exact-head, bounded, text-only, and excludes creden
   assert.match(migration, /\.env/);
   assert.match(migration, /pem\|key\|p12\|pfx\|jks\|keystore/);
   assert.match(migration, /'truncated',v_truncated/);
+  assert.match(migration, /'emptyRepository',true/);
+  assert.match(migration, /'repositoryState','empty'/);
   assert.match(migration, /grant execute on function public\.pandora_chat_repository_snapshot_v1[^;]+authenticated/s);
 });
 
@@ -49,8 +51,9 @@ test('read-only audits bypass inert research intake while project changes use th
 
 test('mobile attaches verified repository source to audit turns and uses dispatcher v9', () => {
   assert.match(intelligence, /pandora_chat_repository_snapshot_v1/);
-  assert.match(intelligence, /Pandora-verified exact-head repository snapshot part/);
-  assert.match(intelligence, /If the snapshot field truncated is true/);
+  assert.match(intelligence, /Pandora-verified repository snapshot part/);
+  assert.match(intelligence, /If emptyRepository is true/);
+  assert.match(intelligence, /If truncated is true/);
   assert.match(intelligence, /pandora_chat_universal_dispatch_v9/);
   assert.match(intelligence, /final String\? source;/);
   assert.match(intelligence, /source: _optionalText\(handoffJson\['source'\]\)/);
