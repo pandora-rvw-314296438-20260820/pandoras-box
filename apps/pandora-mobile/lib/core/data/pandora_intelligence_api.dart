@@ -292,7 +292,7 @@ class PandoraIntelligenceApi {
           'kind': 'text',
           'name': 'pandora-repository-audit-${index + 1}-of-$partCount.json',
           'mimeType': 'application/json',
-          'text': 'Pandora-verified exact-head repository snapshot part ${index + 1} of $partCount. Read all parts in order. Audit the supplied repository source now. If the snapshot field truncated is true, explicitly call the audit bounded rather than claiming every source file was inspected.\n$body',
+          'text': 'Pandora-verified repository snapshot part ${index + 1} of $partCount. Read all parts in order. Audit the supplied project/repository evidence now. If emptyRepository is true, explicitly state that the repository has no committed source yet and audit the supplied project specification/runtime state without inventing code. If truncated is true, explicitly call the source audit bounded rather than claiming every source file was inspected.\n$body',
         });
       }
       return parts;
