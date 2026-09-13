@@ -6,6 +6,16 @@
 **Canonical Memory repository:** `pandora-rvw-314296438-20260820/pandoras-box-memory`  
 **Instruction status:** Master product, execution, governance, device, Memory, learning, and evidence direction
 
+## STATUS AUTHORITY
+
+This master instruction defines Pandora’s active product direction, execution rules, governance, and quality standard. It is **not** a current implementation, deployment, release, blocker, or production-status surface.
+
+Current operational truth comes only from the authenticated `GET /api/operator/status` canonical pack and verified provider/runtime evidence. Always distinguish:
+
+**documented → implemented → tested → deployed → production-verified**
+
+Never use this instruction, roadmap text, chat statements, or dated evidence to overrule newer verified operational truth.
+
 ## MISSION
 
 Build Pandora into a universal personal AI operating layer, not primarily a software builder.
