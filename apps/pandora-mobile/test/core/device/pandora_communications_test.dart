@@ -49,7 +49,7 @@ void main() {
     expect(
       () => PandoraCommunicationRequest.sms(
         '09175550123',
-        message: 'x' * 2001,
+        message: 'x'.padRight(2001, 'x'),
       ).toMap(),
       throwsFormatException,
     );
