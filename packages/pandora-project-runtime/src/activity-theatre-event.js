@@ -31,6 +31,7 @@ const ACTIVITY_EVENT_STATE_SET = new Set(ACTIVITY_EVENT_STATES);
 const ACTIVITY_EVENT_SOURCE_TYPE_SET = new Set(ACTIVITY_EVENT_SOURCE_TYPES);
 
 const opaqueIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
+const timestampPattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/i;
 const highConfidenceCredentialPatterns = Object.freeze([
   /Authorization\s*:\s*(?:Bearer|Basic)\s+[^\s]+/i,
   /gh[pousr]_[A-Za-z0-9_]{20,}/,
@@ -98,6 +99,10 @@ function plainObject(value, field) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`${field} must be an object`);
   }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error(`${field} must be a plain object`);
+  }
   return value;
 }
 
@@ -146,12 +151,51 @@ function opaqueId(value, field) {
   return normalized;
 }
 
+function isLeapYear(year) {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
 function isoTimestamp(value, field) {
   const normalized = nonEmpty(value, field, 80);
-  if (!/(?:Z|[+-]\d{2}:\d{2})$/i.test(normalized) || Number.isNaN(Date.parse(normalized))) {
+  const match = timestampPattern.exec(normalized);
+  if (!match) {
     throw new Error(`${field} must be an offset-aware ISO-8601 timestamp`);
   }
-  return new Date(normalized).toISOString();
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  const zone = match[7];
+  const daysInMonth = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > daysInMonth[month - 1] ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59
+  ) {
+    throw new Error(`${field} must be an offset-aware ISO-8601 timestamp`);
+  }
+
+  if (zone.toUpperCase() !== "Z") {
+    const offsetHour = Number(zone.slice(1, 3));
+    const offsetMinute = Number(zone.slice(4, 6));
+    if (offsetHour > 23 || offsetMinute > 59) {
+      throw new Error(`${field} must be an offset-aware ISO-8601 timestamp`);
+    }
+  }
+
+  const timestamp = Date.parse(normalized);
+  if (Number.isNaN(timestamp)) {
+    throw new Error(`${field} must be an offset-aware ISO-8601 timestamp`);
+  }
+  return new Date(timestamp).toISOString();
 }
 
 function optionalText(value, field, maxLength) {
