@@ -70,6 +70,41 @@ test("runtime availability can narrow or restore availability but cannot grant e
   assert.equal(restored.gatewayExecutable, false);
 });
 
+test("runtime narrowing restores declared project execution but cannot promote pending implementation", () => {
+  const registry = T.createDefaultCapabilityRegistry();
+  const initial = registry.get("tool.read_file");
+  assert.equal(initial.gatewayExecutable, true);
+  assert.equal(initial.declaredGatewayExecutable, true);
+
+  const down = registry.applyRuntimeAvailability("tool.read_file", "unsupported", { reason: "workspace offline" });
+  assert.equal(down.gatewayExecutable, false);
+  const back = registry.applyRuntimeAvailability("tool.read_file", "available", { reason: "workspace online" });
+  assert.equal(back.gatewayExecutable, true);
+
+  assert.throws(
+    () => registry.applyRuntimeAvailability("tool.device.get_resource_snapshot", "available", { reason: "unverified" }),
+    /cannot promote capability beyond declared availability/,
+  );
+  assert.equal(registry.get("tool.device.get_resource_snapshot").availability, "implementation_pending");
+});
+
+test("bulk registration is atomic and malformed descriptor types fail closed", () => {
+  assert.throws(
+    () => T.normalizeCapabilityDescriptor({ id: "tool.bad-version", version: 0, kind: "tool", scope: "project", description: "bad", authority: "governed_policy", availability: "available", actorCapabilities: [], platformPermissions: [], executionAdapter: "XExecutor", gatewayExecutable: true, source: "test" }),
+    /positive integer/,
+  );
+  assert.throws(
+    () => T.normalizeCapabilityDescriptor({ id: "tool.bad-capability", kind: "tool", scope: "project", description: "bad", authority: "governed_policy", availability: "available", actorCapabilities: [1], platformPermissions: [], executionAdapter: "XExecutor", gatewayExecutable: true, source: "test" }),
+    /only strings/,
+  );
+  const registry = new T.PandoraCapabilityRegistry();
+  assert.throws(() => registry.registerMany([
+    { id: "service.atomic", kind: "service", scope: "service", description: "one", authority: "provider_account", availability: "available", actorCapabilities: [], platformPermissions: [], executionAdapter: "OneExecutor", gatewayExecutable: false, source: "test" },
+    { id: "service.atomic", kind: "service", scope: "service", description: "duplicate", authority: "provider_account", availability: "available", actorCapabilities: [], platformPermissions: [], executionAdapter: "TwoExecutor", gatewayExecutable: false, source: "test" },
+  ]), /already registered/);
+  assert.equal(registry.list().length, 0);
+});
+
 test("model declarations join the same discovery registry without becoming tools or tool authority", () => {
   const registry = new T.PandoraCapabilityRegistry();
   T.registerModels(registry, [{

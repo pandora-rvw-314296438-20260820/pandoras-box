@@ -32,7 +32,7 @@ The contract deliberately keeps three concerns separate:
 2. **platform permissions / roles** — what Android or another platform has actually granted;
 3. **runtime availability** — whether the adapter/device/provider is actually available now.
 
-Runtime truth may narrow availability. It does not alter authority, risk, permissions, adapter identity, or turn a non-executable capability into an executable one.
+Runtime truth may temporarily narrow a declared-available capability and later restore its declared executable state. It does not alter authority, risk, permissions, or adapter identity, and it cannot promote `implementation_pending`, `unsupported`, `forbidden`, or `disabled` capability declarations to `available`.
 
 ## Existing project Tool Gateway
 

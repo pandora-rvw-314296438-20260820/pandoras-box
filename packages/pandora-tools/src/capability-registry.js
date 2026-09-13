@@ -32,7 +32,8 @@ function asText(value, field) {
 function asStringArray(value, field) {
   if (value == null) return Object.freeze([]);
   if (!Array.isArray(value)) throw new TypeError(`${field} must be an array`);
-  const items = value.map((item) => asText(String(item), field));
+  if (value.some((item) => typeof item !== "string")) throw new TypeError(`${field} must contain only strings`);
+  const items = value.map((item) => asText(item, field));
   if (new Set(items).size !== items.length) throw new TypeError(`${field} must not contain duplicates`);
   return Object.freeze(items);
 }
@@ -46,7 +47,8 @@ function oneOf(value, field, allowed) {
 function normalizeCapabilityDescriptor(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new TypeError("capability descriptor must be an object");
   const id = asText(input.id, "id");
-  const version = Number.isInteger(input.version) && input.version > 0 ? input.version : 1;
+  const version = input.version == null ? 1 : input.version;
+  if (!Number.isInteger(version) || version <= 0) throw new TypeError("version must be a positive integer");
   const kind = oneOf(input.kind, "kind", CAPABILITY_KINDS);
   const scope = oneOf(input.scope, "scope", CAPABILITY_SCOPES);
   const availability = oneOf(input.availability, "availability", CAPABILITY_AVAILABILITY);
@@ -67,6 +69,7 @@ function normalizeCapabilityDescriptor(input) {
     scope,
     description: asText(input.description, "description"),
     authority,
+    declaredAvailability: availability,
     availability,
     risk,
     sideEffect,
@@ -74,6 +77,7 @@ function normalizeCapabilityDescriptor(input) {
     actorCapabilities: asStringArray(input.actorCapabilities, "actorCapabilities"),
     platformPermissions: asStringArray(input.platformPermissions, "platformPermissions"),
     executionAdapter,
+    declaredGatewayExecutable: gatewayExecutable,
     gatewayExecutable,
     source: asText(input.source, "source"),
     metadata: Object.freeze(input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata) ? { ...input.metadata } : {}),
@@ -93,7 +97,15 @@ class PandoraCapabilityRegistry {
   }
 
   registerMany(inputs) {
-    return Object.freeze(inputs.map((input) => this.register(input)));
+    if (!Array.isArray(inputs)) throw new TypeError("capability declarations must be an array");
+    const descriptors = inputs.map(normalizeCapabilityDescriptor);
+    const keys = new Set();
+    for (const descriptor of descriptors) {
+      if (keys.has(descriptor.key) || this.entries.has(descriptor.key)) throw new Error(`capability already registered: ${descriptor.key}`);
+      keys.add(descriptor.key);
+    }
+    for (const descriptor of descriptors) this.entries.set(descriptor.key, descriptor);
+    return Object.freeze(descriptors);
   }
 
   get(id, version = 1) {
@@ -116,13 +128,18 @@ class PandoraCapabilityRegistry {
     const current = this.entries.get(key);
     if (!current) throw new Error(`unknown capability: ${key}`);
     const nextAvailability = oneOf(availability, "availability", CAPABILITY_AVAILABILITY);
+    const declaredAvailability = current.declaredAvailability ?? current.availability;
+    const declaredGatewayExecutable = current.declaredGatewayExecutable === true;
     if (nextAvailability === "forbidden" && current.authority !== "policy_denied") {
       throw new TypeError("runtime state cannot convert non-policy-denied capability to forbidden");
+    }
+    if (nextAvailability === "available" && !["available", "permission_required"].includes(declaredAvailability)) {
+      throw new TypeError("runtime state cannot promote capability beyond declared availability");
     }
     const next = Object.freeze({
       ...current,
       availability: nextAvailability,
-      gatewayExecutable: current.gatewayExecutable && nextAvailability === "available",
+      gatewayExecutable: declaredGatewayExecutable && nextAvailability === "available",
       metadata: Object.freeze({ ...current.metadata, runtime: Object.freeze({ ...metadata }) }),
     });
     this.entries.set(key, next);
