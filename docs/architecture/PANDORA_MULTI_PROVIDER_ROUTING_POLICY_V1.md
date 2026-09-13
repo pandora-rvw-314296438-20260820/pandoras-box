@@ -1,6 +1,6 @@
 # Pandora Multi-Provider Routing Policy v1
 
-This document defines the Chat C implementation boundary for Pandora's provider-neutral model router. It does not activate Kimi traffic and does not own provider adapters, secrets, transport retries, telemetry persistence, evaluation, or production rollout.
+This document defines Pandora's provider-neutral model-routing boundary. The router does not itself activate provider traffic and does not own secrets, trusted transport retries, telemetry persistence, evaluation, or production rollout.
 
 ## Eligibility order
 
@@ -8,18 +8,27 @@ The router applies hard constraints before soft optimization:
 
 1. request secret boundary
 2. capability/output/context compatibility
-3. adapter availability
-4. provider/model allow-deny, quarantine and kill switches
-5. session/thread compatibility
-6. circuit/health state
-7. reliability and quality hard floors when sufficient evidence exists
-8. request/policy cost ceilings using an injected estimator or canonical evidence
-9. latency ceiling when sufficient rolling evidence exists
-10. server-owned task/provider/model preference
-11. empirical weighted score with confidence, recency and model-version weighting
-12. deterministic canary preference and bounded exploration only when explicitly configured
+3. privacy execution-boundary compatibility
+4. adapter availability
+5. provider/model allow-deny, quarantine and kill switches
+6. session/thread compatibility
+7. circuit/health state
+8. reliability and quality hard floors when sufficient evidence exists
+9. request/policy cost ceilings using an injected estimator or canonical evidence
+10. latency ceiling when sufficient rolling evidence exists
+11. server-owned task/provider/model preference
+12. empirical weighted score with confidence, recency and model-version weighting
+13. deterministic canary preference and bounded exploration only when explicitly configured
 
 No hard constraint is bypassed by preference, traffic weight, exploration, historical score, or fallback.
+
+## Privacy execution boundary
+
+Every model declaration carries a conservative execution boundary: `device`, `pandora_trusted_cloud`, or `external_provider`. Legacy declarations that predate the field normalize to `external_provider`, which avoids silently treating an unknown remote model as local/private execution.
+
+Routing policy can set a global `allowedExecutionBoundaries` allowlist and narrower per-task `taskExecutionBoundaries`. A task-specific entry wins over the wildcard entry, which wins over the global allowlist. A model outside the effective allowlist is excluded with `privacy_boundary_not_allowed` before preference or empirical scoring is considered. Fallback cannot cross this boundary.
+
+The boundary describes where Pandora permits model execution to occur. It is not a claim about a provider's retention, training, residency, or compliance terms; those require separate authoritative policy evidence. Provider/model declarations therefore describe only capabilities Pandora's current adapter and trusted transport can actually exercise.
 
 ## Fallback boundary
 
@@ -49,7 +58,7 @@ Reasoning selection and cache-aware cost are hooks only: the router consumes ser
 
 ## Audit evidence
 
-Every successful route can return bounded decision evidence containing policy version, selected provider/model, reasoning policy, eligible and excluded candidates with reasons, score components, stickiness/recovery decision and normalized attempt chain. Raw prompts, responses, credentials and raw cohort identifiers are excluded.
+Every successful route can return bounded decision evidence containing policy version, selected provider/model, selected execution boundary, reasoning policy, eligible and excluded candidates with their execution boundary and reasons, score components, stickiness/recovery decision and normalized attempt chain. Raw prompts, responses, credentials and raw cohort identifiers are excluded.
 
 Persistence of model-run telemetry remains Chat D-owned.
 

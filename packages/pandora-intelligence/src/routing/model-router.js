@@ -2,6 +2,7 @@
 
 const { assertNoCredentialMaterial } = require('../security/secret-boundary.js');
 const { modelEligibility, reasoningPolicyFor, routingPolicyScoreDetailed } = require('./policy.js');
+const { intentRoutingAudit, prepareIntentResolvedRouting } = require('./intent-capability-constraints.js');
 const { createRecoveryRoutingState, createSessionRoutingState, sessionCompatibility } = require('./session.js');
 
 /** @type {Readonly<Record<string, number>>} */
@@ -19,6 +20,8 @@ function isRecord(value) { return !!value && typeof value === 'object' && !Array
 function requiredText(value, field) { if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${field} is required`); return value.trim(); }
 /** @param {Readonly<Record<string,unknown>>} model */
 function modelKey(model) { return `${String(model.provider)}:${String(model.modelId)}`; }
+/** @param {Readonly<Record<string,unknown>>} model */
+function modelExecutionBoundary(model) { return typeof model.executionBoundary === 'string' && model.executionBoundary.trim() ? model.executionBoundary.trim() : 'external_provider'; }
 /** @param {Readonly<Record<string,unknown>>} model */
 function modelVersion(model) {
   if (typeof model.modelVersion === 'string' && model.modelVersion.trim()) return model.modelVersion.trim();
@@ -64,11 +67,11 @@ class ModelRouter {
     const required = Array.isArray(request.requiredCapabilities) ? request.requiredCapabilities.map(String) : [];
     const compatible = this.registry.findCompatible({ required, outputMode: String(request.outputMode ?? 'structured'), minContext: options.minContext });
     const compatibleKeys = new Set(compatible.map(modelKey));
-    /** @type {{provider:string,model:string,reasons:readonly string[]}[]} */
+    /** @type {{provider:string,model:string,executionBoundary:string,reasons:readonly string[]}[]} */
     const excluded = [];
     if (typeof this.registry.list === 'function') {
       for (const model of this.registry.list()) {
-        if (!compatibleKeys.has(modelKey(model))) excluded.push(Object.freeze({ provider: String(model.provider), model: String(model.modelId), reasons: Object.freeze(['capability_incompatible']) }));
+        if (!compatibleKeys.has(modelKey(model))) excluded.push(Object.freeze({ provider: String(model.provider), model: String(model.modelId), executionBoundary: modelExecutionBoundary(model), reasons: Object.freeze(['capability_incompatible']) }));
       }
     }
     const priorAttempts = Array.isArray(options.attemptHistory) ? options.attemptHistory : [];
@@ -94,7 +97,7 @@ class ModelRouter {
       }
       const policyEligibility = options.policy
         ? modelEligibility(model, options.policy, { task, estimatedCostUsd, requestMaxCostUsd, allowCircuitProbe: options.allowCircuitProbe, nowMs: options.nowMs })
-        : Object.freeze({ allowed: true, reasons: Object.freeze([]), metrics: null, estimatedCostUsd, costCeiling: requestMaxCostUsd, circuitState: 'closed' });
+        : Object.freeze({ allowed: true, reasons: Object.freeze([]), metrics: null, estimatedCostUsd, costCeiling: requestMaxCostUsd, circuitState: 'closed', executionBoundary: modelExecutionBoundary(model), allowedExecutionBoundaries: Object.freeze([]) });
       reasons.push(.../** @type {readonly string[]} */ (policyEligibility.reasons ?? []));
       const sessionResult = sessionCompatibility(model, options.session);
       let recoveryRequired = false;
@@ -103,7 +106,7 @@ class ModelRouter {
         if (options.allowRecoveryBoundary !== true) reasons.push(String(sessionResult.reason ?? 'session_incompatible'));
       }
       if (reasons.length) {
-        excluded.push(Object.freeze({ provider, model: String(model.modelId), reasons: Object.freeze([...new Set(reasons)]) }));
+        excluded.push(Object.freeze({ provider, model: String(model.modelId), executionBoundary: modelExecutionBoundary(model), reasons: Object.freeze([...new Set(reasons)]) }));
         continue;
       }
       const policyScore = routingPolicyScoreDetailed(model, options.policy, { task, nowMs: options.nowMs, cohortKey: options.cohortKey ?? null });
@@ -125,6 +128,21 @@ class ModelRouter {
 
   /** @param {Record<string,unknown>} request @param {RouterOptions} options */
   candidates(request, options = {}) { return this.candidatesDetailed(request, options).candidates.map(item => item.model); }
+
+  /**
+   * Route a model request using the frozen M1 intent/capability handoff without letting M1 choose providers or grant authority.
+   * @param {Record<string,unknown>} request
+   * @param {unknown} intentResolution
+   * @param {RouterOptions} options
+   */
+  async executeResolved(request, intentResolution, options = {}) {
+    assertNoCredentialMaterial(intentResolution);
+    const prepared = prepareIntentResolvedRouting(this.registry, request, intentResolution, options);
+    const result = await this.execute(prepared.request, prepared.options);
+    const routingDecision = Object.freeze({ ...result.routingDecision, intentResolution: intentRoutingAudit(prepared.constraints, prepared.hardConstraintRecovery) });
+    assertNoCredentialMaterial(routingDecision);
+    return Object.freeze({ ...result, routingDecision });
+  }
 
   /** @param {Record<string,unknown>} request @param {RouterOptions} options */
   async execute(request, options = {}) {
@@ -171,13 +189,14 @@ class ModelRouter {
           routingPolicyVersion: policyVersion,
           selectedProvider: provider,
           selectedModel: model,
+          selectedExecutionBoundary: modelExecutionBoundary(declaration),
           selectedReasoningPolicy: candidate.reasoningPolicy,
           recoveryRequired: candidate.recoveryRequired,
           recoveryEpoch: Number(nextSessionState?.recoveryEpoch ?? 0),
           stickinessMode: nextSessionState?.stickinessMode ?? null,
           fallbackUsed: newAttempts > 1 || (options.attemptHistory?.length ?? 0) > 0,
           attempts: Object.freeze(attempts.map(item => Object.freeze({ ...item }))),
-          eligibleCandidates: Object.freeze(detailed.candidates.map(item => Object.freeze({ provider: String(item.model.provider), model: String(item.model.modelId), recoveryRequired: item.recoveryRequired, score: item.score, scoreComponents: item.scoreComponents }))),
+          eligibleCandidates: Object.freeze(detailed.candidates.map(item => Object.freeze({ provider: String(item.model.provider), model: String(item.model.modelId), executionBoundary: modelExecutionBoundary(item.model), recoveryRequired: item.recoveryRequired, score: item.score, scoreComponents: item.scoreComponents }))),
           excludedCandidates: detailed.excluded,
           cohortApplied: typeof options.cohortKey === 'string' && options.cohortKey.length > 0,
         });
