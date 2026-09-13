@@ -56,6 +56,9 @@ function assertUserActionBoundary(event, authorityDecision) {
   if (authorityDecision === "needs_approval") {
     throw new Error(`${event.blocker.reasonCode} must not masquerade as an approval boundary`);
   }
+  if (authorityDecision === "deny") {
+    throw new Error("authorityDecision=deny is non-overridable and must not emit Needs You");
+  }
 
   const allowed = {
     account_connection_or_reauthentication_required: ["runtime", "provider", "tool"],
