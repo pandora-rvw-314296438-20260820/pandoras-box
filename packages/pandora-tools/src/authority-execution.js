@@ -342,17 +342,29 @@ class PandoraAuthorityToolExecutor {
       return this.gateway.handle(rawProposal, { ...context, tool_call_id: toolCallId });
     }
 
-    if (!this.gateway.approvalStore || typeof this.gateway.approvalStore.put !== "function") {
-      throw new PandoraToolError("approval_required", "AUTHORITY_EVIDENCE_STORE_UNAVAILABLE", "Durable authority evidence storage is unavailable");
+    if (
+      !this.gateway.approvalStore ||
+      typeof this.gateway.approvalStore.put !== "function" ||
+      typeof this.gateway.approvalStore.revoke !== "function"
+    ) {
+      throw new PandoraToolError(
+        "approval_required",
+        "AUTHORITY_EVIDENCE_STORE_UNAVAILABLE",
+        "Durable authority evidence storage with revocation is unavailable",
+      );
     }
 
     const grant = createAuthorityGrant(binding, authority);
     await this.gateway.approvalStore.put(grant);
-    return this.gateway.handle(rawProposal, {
-      ...context,
-      tool_call_id: toolCallId,
-      approval_id: grant.approval_id,
-    });
+    try {
+      return await this.gateway.handle(rawProposal, {
+        ...context,
+        tool_call_id: toolCallId,
+        approval_id: grant.approval_id,
+      });
+    } finally {
+      await this.gateway.approvalStore.revoke(grant.approval_id, this.now());
+    }
   }
 }
 
