@@ -11,7 +11,7 @@ const {
   isTerminalActivityState,
   normalizeActivityEvent,
   validateActivityTimeline,
-} = require('../packages/pandora-project-runtime/src/activity-theatre-event.js');
+} = require('../packages/pandora-project-runtime/activity-theatre-event.js');
 
 const base = (overrides = {}) => ({
   schemaVersion: ACTIVITY_EVENT_SCHEMA_VERSION,
@@ -77,9 +77,33 @@ test('rejects visible events that lack real source provenance, timestamp or job 
     /provenance.sourceId/,
   );
   assert.throws(
+    () => normalizeActivityEvent(base({
+      provenance: {
+        sourceType: 'runtime',
+        sourceId: 'pandora-runtime-1',
+        observedAt: '2026-09-13T03:06:00Z',
+      },
+    })),
+    /requires sourceEventId or evidenceRef/,
+  );
+  assert.throws(
     () => normalizeActivityEvent(base({ provenance: { ...base().provenance, sourceType: 'decorative' } })),
     /unsupported provenance.sourceType/,
   );
+});
+
+test('accepts either a source event id or evidence reference as the real-source linkage', () => {
+  const byEventId = normalizeActivityEvent(base({
+    provenance: { ...base().provenance, evidenceRef: null },
+  }));
+  assert.equal(byEventId.provenance.sourceEventId, 'runtime-event-1');
+  assert.equal(byEventId.provenance.evidenceRef, null);
+
+  const byEvidence = normalizeActivityEvent(base({
+    provenance: { ...base().provenance, sourceEventId: null },
+  }));
+  assert.equal(byEvidence.provenance.sourceEventId, null);
+  assert.equal(byEvidence.provenance.evidenceRef, 'runtime://job-1/events/1');
 });
 
 test('Needs You is explicit and requires the exact blocker plus required user action', () => {
@@ -165,7 +189,6 @@ test('schema is strict so decorative or invented fields cannot silently enter th
   );
 });
 
-
 test('public Activity Theatre boundary rejects arbitrary metadata and sensitive payload fields', () => {
   for (const payload of [
     { metadata: { safeLabel: 'looks-safe' } },
@@ -230,4 +253,3 @@ test('public Activity Theatre text fields reject credential-like material withou
   assert.match(safe.provenance.evidenceRef, /token=redacted/);
   assert.equal(safe.executionId, 'token:expired');
 });
-
