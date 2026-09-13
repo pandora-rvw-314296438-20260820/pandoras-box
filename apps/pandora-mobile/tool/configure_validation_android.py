@@ -16,6 +16,8 @@ _PANDORA_ICON = 'android:icon="@drawable/pandora_launcher_icon"'
 _MANIFEST_OPEN = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
 _INTERNET_PERMISSION_NAME = 'android.permission.INTERNET'
 _INTERNET_PERMISSION = '<uses-permission android:name="android.permission.INTERNET"/>'
+_NETWORK_PERMISSION_NAME = 'android.permission.ACCESS_NETWORK_STATE'
+_NETWORK_PERMISSION = '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>'
 _HOME_CATEGORY = 'android.intent.category.HOME'
 _DEFAULT_CATEGORY = 'android.intent.category.DEFAULT'
 _LAUNCHER_CATEGORY = 'android.intent.category.LAUNCHER'
@@ -121,6 +123,22 @@ def configure_manifest(manifest: Path) -> int:
         )
         return 1
 
+    network_mentions = text.count(_NETWORK_PERMISSION_NAME)
+    if network_mentions > 1:
+        print(
+            'Expected at most one Android ACCESS_NETWORK_STATE permission; refusing an '
+            'ambiguous manifest mutation.',
+            file=sys.stderr,
+        )
+        return 1
+    if network_mentions == 1 and _NETWORK_PERMISSION not in text:
+        print(
+            'Android ACCESS_NETWORK_STATE permission exists in an unexpected form; '
+            'refusing to rewrite it implicitly.',
+            file=sys.stderr,
+        )
+        return 1
+
     if text.count(_HOME_CATEGORY) != 0 or text.count(_DEFAULT_CATEGORY) != 0:
         print(
             'Generated Android manifest already declares HOME/DEFAULT routing; '
@@ -157,6 +175,20 @@ def configure_manifest(manifest: Path) -> int:
             1,
         )
 
+    if network_mentions == 0:
+        if updated.count(_MANIFEST_OPEN) != 1:
+            print(
+                'Expected exactly one generated Android manifest root; refusing '
+                'an ambiguous network permission mutation.',
+                file=sys.stderr,
+            )
+            return 1
+        updated = updated.replace(
+            _MANIFEST_OPEN,
+            f'{_MANIFEST_OPEN}\n    {_NETWORK_PERMISSION}',
+            1,
+        )
+
     manifest.write_text(updated, encoding='utf-8')
     try:
         launcher_icon, copied_mark = _write_launcher_icon(manifest)
@@ -176,6 +208,12 @@ def configure_manifest(manifest: Path) -> int:
         return 1
     if _INTERNET_PERMISSION not in verified:
         print('Android INTERNET permission is not in the approved form.', file=sys.stderr)
+        return 1
+    if verified.count(_NETWORK_PERMISSION_NAME) != 1:
+        print('Android ACCESS_NETWORK_STATE permission verification failed.', file=sys.stderr)
+        return 1
+    if _NETWORK_PERMISSION not in verified:
+        print('Android ACCESS_NETWORK_STATE permission is not in the approved form.', file=sys.stderr)
         return 1
     if verified.count(_HOME_CATEGORY) != 1:
         print('Android HOME eligibility verification failed.', file=sys.stderr)
@@ -199,6 +237,7 @@ def configure_manifest(manifest: Path) -> int:
     print('Configured Android application label: Pandora')
     print('Configured Android launcher icon: canonical Pandora spiral apple')
     print('Configured Android permission: android.permission.INTERNET')
+    print('Configured Android permission: android.permission.ACCESS_NETWORK_STATE')
     print('Configured Android HOME eligibility without forcing default HOME')
     return 0
 
