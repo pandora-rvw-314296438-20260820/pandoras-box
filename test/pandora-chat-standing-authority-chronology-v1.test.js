@@ -20,7 +20,8 @@ test('chat stays chronological and opens on the newest turn', () => {
   assert.match(mobile, /reverse: false/);
   assert.match(mobile, /_scrollController\.position\.maxScrollExtent/);
   assert.match(mobile, /_scheduleScrollToLatest\(jump: true\)/);
-  assert.match(api, /\.order\('created_at', ascending: true\)/);
+  assert.match(api, /\.order\('created_at', ascending: false\)/);
+  assert.match(api, /return latest\.reversed\.toList\(growable: false\)/);
 });
 
 test('mobile uses standing-authority dispatch v8', () => {
