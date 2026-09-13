@@ -253,3 +253,42 @@ test('public Activity Theatre text fields reject credential-like material withou
   assert.match(safe.provenance.evidenceRef, /token=redacted/);
   assert.equal(safe.executionId, 'token:expired');
 });
+
+
+test('strict timestamps reject impossible calendar dates while preserving valid offsets', () => {
+  for (const occurredAt of [
+    '2026-02-30T00:00:00Z',
+    '2025-02-29T03:06:00Z',
+    '2026-09-13 03:06:00Z',
+    '2026-09-13T03:06:00+24:00',
+  ]) {
+    assert.throws(
+      () => normalizeActivityEvent(base({ occurredAt })),
+      /offset-aware ISO-8601/,
+    );
+  }
+
+  const leapDay = normalizeActivityEvent(base({
+    occurredAt: '2024-02-29T03:06:00+08:00',
+    provenance: {
+      ...base().provenance,
+      observedAt: '2024-02-29T03:06:00+08:00',
+    },
+  }));
+  assert.equal(leapDay.occurredAt, '2024-02-28T19:06:00.000Z');
+  assert.equal(leapDay.provenance.observedAt, '2024-02-28T19:06:00.000Z');
+});
+
+test('schema boundaries reject prototype-backed objects', () => {
+  const inheritedEvent = Object.create(base());
+  assert.throws(
+    () => normalizeActivityEvent(inheritedEvent),
+    /event must be a plain object/,
+  );
+
+  const inheritedProvenance = Object.create(base().provenance);
+  assert.throws(
+    () => normalizeActivityEvent(base({ provenance: inheritedProvenance })),
+    /provenance must be a plain object/,
+  );
+});
