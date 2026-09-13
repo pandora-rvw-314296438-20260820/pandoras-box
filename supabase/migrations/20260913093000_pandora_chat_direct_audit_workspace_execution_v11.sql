@@ -181,6 +181,31 @@ begin
     v_project.repository,
     '/branches/'||v_default_branch
   );
+  if coalesce((v_branch_response->>'status')::integer,0)=404
+     and coalesce(nullif(v_repo_body->>'size','')::integer,0)=0 then
+    return jsonb_build_object(
+      'ok',true,
+      'contractVersion','pandora-repository-snapshot-v1',
+      'projectId',v_project.id,
+      'projectKey',v_project.project_key,
+      'projectName',v_project.name,
+      'repository',v_project.repository,
+      'repositoryState','empty',
+      'defaultBranch',v_default_branch,
+      'headSha',null,
+      'treeSha',null,
+      'allFileCount',0,
+      'eligibleTextFileCount',0,
+      'includedFileCount',0,
+      'bytesIncluded',0,
+      'truncated',false,
+      'emptyRepository',true,
+      'inventory','[]'::jsonb,
+      'files','[]'::jsonb,
+      'authority','project_bound_vault_backed_github_read',
+      'observedAt',now()
+    );
+  end if;
   if coalesce((v_branch_response->>'status')::integer,0) not between 200 and 299
      or v_branch_response->'body' is null then
     return jsonb_build_object(
@@ -335,6 +360,8 @@ begin
     'includedFileCount',v_included_files,
     'bytesIncluded',v_bytes,
     'truncated',v_truncated,
+    'emptyRepository',false,
+    'repositoryState','committed',
     'inventory',v_inventory,
     'files',v_files,
     'authority','project_bound_vault_backed_github_read',
