@@ -31,6 +31,16 @@ const ACTIVITY_EVENT_STATE_SET = new Set(ACTIVITY_EVENT_STATES);
 const ACTIVITY_EVENT_SOURCE_TYPE_SET = new Set(ACTIVITY_EVENT_SOURCE_TYPES);
 
 const opaqueIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
+const credentialLikePatterns = Object.freeze([
+  /gh[pousr]_[A-Za-z0-9_]{20,}/,
+  /\bsk-[A-Za-z0-9_-]{20,}\b/,
+  /AIza[0-9A-Za-z_-]{20,}/,
+  /\bBearer\s+[A-Za-z0-9._~+\/-]{12,}/i,
+  /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
+  /(?:postgres(?:ql)?):\/\/[^\s:@]+:[^@\s]+@/i,
+  /\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b/,
+  /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|private[_-]?key)\s*[:=]\s*["']?[^\s,;}"']{4,}/i,
+]);
 const allowedTopLevelKeys = new Set([
   "schemaVersion",
   "eventId",
@@ -83,6 +93,9 @@ function nonEmpty(value, field, maxLength = 500) {
   const normalized = value.trim();
   if (!normalized) throw new Error(`${field} is required`);
   if (normalized.length > maxLength) throw new Error(`${field} is too long`);
+  if (credentialLikePatterns.some((pattern) => pattern.test(normalized))) {
+    throw new Error(`${field} contains credential-like material`);
+  }
   return normalized;
 }
 
