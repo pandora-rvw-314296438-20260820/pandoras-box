@@ -245,7 +245,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _SettingsAction(
                   icon: Icons.app_settings_alt_outlined,
                   title: 'Pandora app details',
-                  subtitle: 'Review Android app settings and background controls',
+                  subtitle:
+                      'Review Android app settings and background controls',
                   onTap: () {
                     _openSystemSurface(
                       PandoraSystemSurface.appDetails,
