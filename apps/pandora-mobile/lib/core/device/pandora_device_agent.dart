@@ -17,6 +17,18 @@ enum PandoraDeviceAvailability {
   forbidden,
 }
 
+enum PandoraSystemSurface {
+  androidSettings,
+  homeAppSettings,
+  systemDialer,
+}
+
+String _systemSurfaceToken(PandoraSystemSurface surface) => switch (surface) {
+      PandoraSystemSurface.androidSettings => 'android_settings',
+      PandoraSystemSurface.homeAppSettings => 'home_app_settings',
+      PandoraSystemSurface.systemDialer => 'system_dialer',
+    };
+
 PandoraDeviceAuthority _parseAuthority(Object? value) {
   return switch (value) {
     'public_app' => PandoraDeviceAuthority.publicApp,
@@ -330,6 +342,8 @@ abstract interface class PandoraDeviceAgent {
 
   Future<List<PandoraPermissionState>> getPermissionStates();
 
+  Future<bool> openSystemSurface(PandoraSystemSurface surface);
+
   Future<PandoraSafeDiagnosticResult> runSafeDiagnostic(
     PandoraSafeDiagnosticRequest request,
   );
@@ -355,6 +369,15 @@ class MethodChannelPandoraDeviceAgent implements PandoraDeviceAgent {
       throw const FormatException('permission states must be a list.');
     }
     return List.unmodifiable(raw.map(PandoraPermissionState.fromMap));
+  }
+
+  @override
+  Future<bool> openSystemSurface(PandoraSystemSurface surface) async {
+    final opened = await _channel.invokeMethod<bool>(
+      'openSystemSurface',
+      <String, Object?>{'surface': _systemSurfaceToken(surface)},
+    );
+    return opened ?? false;
   }
 
   @override
