@@ -1,3 +1,6 @@
 "use strict";
 
-module.exports = require("./src/activity-theatre-event.js");
+module.exports = Object.freeze({
+  ...require("./src/activity-theatre-event.js"),
+  ...require("./src/activity-truth-projection.js"),
+});
