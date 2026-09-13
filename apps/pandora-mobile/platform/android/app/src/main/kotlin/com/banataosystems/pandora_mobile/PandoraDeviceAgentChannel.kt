@@ -17,6 +17,7 @@ internal class PandoraDeviceAgentChannel private constructor(
     private val context: Context
 ) {
     private val oemAdapter = PandoraAndroidOemAdapter(context)
+    private val resourceRuntime = PandoraResourceRuntime(context)
 
     companion object {
         private const val CHANNEL_NAME = "pandora/device_agent"
@@ -31,10 +32,25 @@ internal class PandoraDeviceAgentChannel private constructor(
         when (call.method) {
             "getCapabilityManifest" -> result.success(capabilityManifest())
             "getPermissionStates" -> result.success(permissionStates())
+            "getResourceSnapshot" -> result.success(resourceRuntime.snapshot())
+            "runResourceBenchmark" -> runResourceBenchmark(call, result)
             "openCommunicationComposer" -> openCommunicationComposer(call, result)
             "openSystemSurface" -> openSystemSurface(call, result)
             "runSafeDiagnostic" -> runSafeDiagnostic(call, result)
             else -> result.notImplemented()
+        }
+    }
+
+    private fun runResourceBenchmark(call: MethodCall, result: MethodChannel.Result) {
+        val durationMs = call.argument<Int>("durationMs")
+        try {
+            result.success(resourceRuntime.runBenchmark(durationMs))
+        } catch (_: IllegalArgumentException) {
+            result.error(
+                "INVALID_RESOURCE_BENCHMARK",
+                "Pandora resource benchmarks are bounded to the allowlisted local duration range.",
+                null
+            )
         }
     }
 
@@ -361,8 +377,8 @@ internal class PandoraDeviceAgentChannel private constructor(
                 capability(
                     "resource.introspection",
                     "public_app",
-                    "implementation_pending",
-                    "Live resource introspection and benchmarking belong to M4-009.",
+                    "available",
+                    "Live non-identifying CPU/GPU/RAM/storage/battery/thermal/process/network telemetry and bounded local benchmarks are available through public Android APIs; physical-device verification remains required.",
                     false
                 ),
                 capability(
@@ -467,6 +483,7 @@ internal class PandoraDeviceAgentChannel private constructor(
 
     private val observedPermissions = listOf(
         "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_CONTACTS",
