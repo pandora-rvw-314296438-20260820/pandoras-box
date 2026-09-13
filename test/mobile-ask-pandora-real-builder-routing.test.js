@@ -18,7 +18,7 @@ test('Ask Pandora fallback stays universal when intelligence is unavailable', ()
 test('ProjectOS handoffs are admission receipts and are never submitted twice', () => {
   assert.equal(source.includes('message: handoff.request'), false);
   assert.equal(source.includes("_keys.create('intelligence-handoff')"), false);
-  assert.equal(source.includes('doing so would create duplicate work under a different idempotency key'), true);
+  assert.equal(source.includes('owns exactly one dispatch'), true);
   assert.equal(source.includes('initialIntent: handoff.request'), false);
 });
 
@@ -27,11 +27,31 @@ test('Ask Pandora never presents the static prototype as a real build result', (
   assert.equal(source.includes('BuildProgressScreen('), false);
 });
 
-test('existing-project intelligence handoffs stay in Pandora Chat without a second mutation', () => {
+test('explicit selected-project changes execute through the real builder without leaving chat', () => {
   assert.equal(source.includes('message: handoff.request'), false);
-  assert.equal(source.includes('projectId: handoff.projectId'), false);
+  assert.equal(source.includes("handoff?.source == 'project_workspace_change'"), true);
+  assert.equal(source.includes('experience.loadExperience(handoffProjectId)'), true);
+  assert.equal(source.includes("projection.state.name == 'build'"), true);
+  assert.equal(source.includes("idempotencyKey: '$executionKey:initial-build'"), true);
+  assert.equal(source.includes('Build started with Gemini.'), true);
+  assert.equal(source.includes('projection.activeBuildJobId != null'), true);
+  assert.equal(source.includes('experience.submitChange('), true);
+  assert.equal(source.includes('experience.understanding('), true);
+  assert.equal(source.includes('experience.requestBuild('), true);
   assert.equal(source.includes('ProjectWorkspaceV2Screen('), false);
-  assert.equal(source.includes('initialChange: handoff.request'), false);
+  assert.equal(source.includes('initialChange: handoff!.request'), false);
+  assert.equal(source.includes("handoff?.source == 'projectos_intake'"), false);
+  assert.equal(source.includes('keep this chat open while Pandora works'), true);
+});
+
+test('in-chat execution keeps one stable admission identity after mutation acceptance', () => {
+  assert.equal(source.includes("_keys.create('pandora-chat-project-change')"), true);
+  assert.equal(source.includes("idempotencyKey: '$executionKey:intent'"), true);
+  assert.equal(source.includes("idempotencyKey: '$executionKey:build:$intentId'"), true);
+  assert.equal(source.includes('var mutationAccepted = false;'), true);
+  assert.equal(source.includes('mutationAccepted = true;'), true);
+  assert.equal(source.includes('_outcomeUnknown = true;'), true);
+  assert.equal(source.includes('will not retry it automatically'), true);
 });
 
 const workspace = fs.readFileSync(
@@ -39,13 +59,13 @@ const workspace = fs.readFileSync(
   'utf8',
 );
 
-test('workspace consumes an initial Ask Pandora change only after the authoritative projection allows change', () => {
+test('workspace can still consume an initial project change when opened explicitly elsewhere', () => {
   assert.equal(workspace.includes('final String? initialChange;'), true);
   assert.equal(workspace.includes('next.canChange'), true);
   assert.equal(workspace.includes('unawaited(_requestInitialChange(initialChange))'), true);
 });
 
-test('routed initial changes retry safely with one stable admission key per workspace attempt', () => {
+test('routed initial workspace changes retry safely with one stable admission key per workspace attempt', () => {
   assert.equal(workspace.includes('bool _initialChangeSubmitting = false;'), true);
   assert.equal(workspace.includes('String? _initialChangeIdempotencyKey;'), true);
   assert.equal(workspace.includes('idempotencyKey: _initialChangeIdempotencyKey'), true);

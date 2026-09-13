@@ -19,12 +19,17 @@ const api = await readFile(
   'utf8',
 );
 
-test('video regression: actionable ProjectOS admission remains single-shot in Universal Chat', () => {
+test('video regression: selected-project execution remains single-shot and stays in Universal Chat', () => {
   assert.doesNotMatch(mobile, /message: handoff\.request/);
   assert.doesNotMatch(mobile, /intelligence-handoff/);
   assert.doesNotMatch(mobile, /CreateProjectExperienceScreen/);
   assert.doesNotMatch(mobile, /ProjectWorkspaceV2Screen/);
-  assert.match(mobile, /already performed the governed dispatch/);
+  assert.match(mobile, /handoff\?\.source == 'project_workspace_change'/);
+  assert.match(mobile, /experience\.submitChange\(/);
+  assert.match(mobile, /experience\.understanding\(/);
+  assert.match(mobile, /experience\.requestBuild\(/);
+  assert.match(mobile, /keep this chat open while Pandora works/);
+  assert.match(mobile, /owns exactly one dispatch/);
 });
 
 test('repository router preserves verified Pandora repos and fails closed on degraded PLP', () => {
@@ -52,7 +57,7 @@ test('target resolution grants no mutation authority and handoff remains Project
   assert.match(routing, /authorization,[\s\S]*one-time claim,[\s\S]*provider readback,[\s\S]*evidence/i);
   assert.match(routing, /'projectRequired',false/);
   assert.match(routing, /'source','projectos_intake'/);
-  assert.match(api, /pandora_chat_universal_dispatch_v7/);
+  assert.match(api, /pandora_chat_universal_dispatch_v9/);
 });
 
 test('canonical GitHub transport supports all three exact repository ids and remains Vault-backed', () => {

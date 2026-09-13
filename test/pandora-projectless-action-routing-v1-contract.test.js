@@ -29,7 +29,7 @@ test('explicit owner/repo actions route before model fallback without creating a
 });
 
 test('mobile uses v6 and hides the internal ProjectOS inbox from user project context', () => {
-  assert.match(api,/pandora_chat_universal_dispatch_v7/);
+  assert.match(api,/pandora_chat_universal_dispatch_v9/);
   assert.match(api,/neq\('project_key', 'projectos-inbox'\)/);
 });
 
@@ -38,10 +38,13 @@ test('mobile handoffs stay in Universal Chat, never create a Project implicitly,
   assert.doesNotMatch(screen,/initialIntent: handoff\.request/);
   assert.doesNotMatch(screen,/message: handoff\.request/);
   assert.doesNotMatch(screen,/intelligence-handoff/);
-  assert.match(screen,/already performed the governed dispatch/);
+  assert.match(screen,/owns exactly one dispatch/);
 });
 
-test('model fallback is forbidden from manufacturing a Project prerequisite for existing targets', () => {
+test('model fallback is universal and cannot manufacture a Project prerequisite', () => {
   assert.match(intelligence,/Never use project\.create as a prerequisite for reading, auditing, reviewing, fixing, deploying/);
-  assert.match(intelligence,/Only classify create_project when the owner explicitly asks to create a new persistent Project or a new system/);
+  assert.match(intelligence,/A Project is optional persistent context, never a prerequisite for general conversation or capability work/);
+  assert.match(intelligence,/Do not invent a Project, build, preview or publish intent for non-software requests/);
+  assert.match(intelligence,/intent must be chat, clarify, act, or other/);
+  assert.match(intelligence,/toolProposals must be an empty array in this fallback/);
 });

@@ -53,6 +53,9 @@ jobs:
       - name: Run focused release-contract tests
         run: node --test test/canonical-release-evidence.test.js
 
+      - name: Gate owner audit-to-build release journey
+        run: node --test test/pandora-owner-journey-release-gate.test.js
+
       - name: Run the complete repository check
         run: npm run check
 
