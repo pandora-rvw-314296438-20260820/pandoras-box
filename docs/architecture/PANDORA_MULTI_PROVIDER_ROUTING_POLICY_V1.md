@@ -40,7 +40,7 @@ Low-confidence or generic invalid-output fallback is never triggered by a model'
 
 ## Session continuity and recovery
 
-A provider/model selection becomes sticky for the thread/session. Preference cannot silently move a healthy sticky session to a different provider/model. When an eligible classified provider failure requires a different provider/model, M3 may open the recovery boundary automatically; the transition is explicit in routing evidence, increments the recovery epoch and returns the new continuity state for service-owned persistence. Callers may disable automatic provider-failure recovery explicitly.
+A provider/model selection becomes sticky for the thread/session. Preference cannot silently move a healthy sticky session to a different provider/model. Recovery candidates remain excluded during normal candidate selection. Only after the sticky provider actually returns a fallback-eligible classified failure may M3 open the recovery boundary automatically; that transition is explicit in routing evidence, increments the recovery epoch and returns the new continuity state for service-owned persistence. Callers may disable automatic provider-failure recovery explicitly.
 
 The primary database stores provider-neutral continuity metadata in `private.pandora_intelligence_thread_routing_state`, keyed 1:1 to the existing public intelligence thread. It stores only provider/model/version/policy/reasoning/stickiness/recovery metadata and an optional compatible message reference. It does not duplicate conversation content and is service-role-only.
 

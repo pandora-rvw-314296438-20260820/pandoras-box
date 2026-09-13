@@ -71,6 +71,7 @@ test('low-confidence fallback requires a trusted evaluator and ignores model sel
 test('sticky session automatically enters recovery only after eligible provider failure', async () => {
   const r = router({ p1: failure('timeout', true, []), p2: success('p2') });
   const session = createSessionRoutingState({ provider: 'p1', model: 'm1', stickinessMode: 'sticky', recoveryEpoch: 4 });
+  assert.deepEqual(r.candidates(request('req-session'), { session, preferredProvider: 'p1' }).map((item) => item.provider), ['p1']);
   const result = await r.execute(request('req-session'), { session, preferredProvider: 'p1' });
   assert.equal(result.routedProvider, 'p2');
   assert.equal(result.routingDecision.recoveryRequired, true);

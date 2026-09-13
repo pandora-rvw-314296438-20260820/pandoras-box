@@ -96,8 +96,7 @@ class ModelRouter {
       let recoveryRequired = false;
       if (!sessionResult.compatible) {
         recoveryRequired = true;
-        const providerFailureRecoveryAllowed = options.allowProviderFailureRecovery !== false;
-        if (options.allowRecoveryBoundary !== true && !providerFailureRecoveryAllowed) reasons.push(String(sessionResult.reason ?? 'session_incompatible'));
+        if (options.allowRecoveryBoundary !== true) reasons.push(String(sessionResult.reason ?? 'session_incompatible'));
       }
       if (reasons.length) {
         excluded.push(Object.freeze({ provider, model: String(model.modelId), executionBoundary: modelExecutionBoundary(model), reasons: Object.freeze([...new Set(reasons)]) }));
@@ -206,7 +205,17 @@ class ModelRouter {
         const code = typeof failure.code === 'string' ? failure.code : 'provider_error';
         attempts.push({ requestId, attemptKey, provider, model, code, retryable: failure.retryable === true, crossProviderEligible: fallbackEligible(error), recoveryEpoch: Number(options.session?.recoveryEpoch ?? 0) });
         if (!fallbackEligible(error)) throw error;
-        if (options.session && candidate.recoveryRequired === false && options.allowRecoveryBoundary !== true && options.allowProviderFailureRecovery === false) throw error;
+        if (options.session && candidate.recoveryRequired === false && options.allowRecoveryBoundary !== true) {
+          if (options.allowProviderFailureRecovery === false) throw error;
+          const remainingRecoveryAttempts = maxNewAttempts - newAttempts;
+          if (remainingRecoveryAttempts <= 0) throw error;
+          return this.execute(request, {
+            ...options,
+            allowRecoveryBoundary: true,
+            attemptHistory: attempts,
+            maxProviderAttempts: remainingRecoveryAttempts,
+          });
+        }
       }
     }
     if (lastFailure) throw lastFailure;
