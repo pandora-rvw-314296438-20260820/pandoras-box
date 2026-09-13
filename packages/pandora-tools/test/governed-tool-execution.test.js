@@ -182,7 +182,74 @@ test("exact current-user authority satisfies publish approval without a second p
   assert.equal(grants.length, 1);
   assert.equal(grants[0].authority_basis, "explicit_current_user_instruction");
   assert.match(grants[0].authority_fingerprint, /^[0-9a-f]{64}$/);
-  assert.equal(grants[0].one_time, false);
+  assert.equal(grants[0].one_time, true);
+});
+
+test("authorization fingerprint binds cost privacy destination and protected-app scope", () => {
+  const proposal = publishProposal();
+  const binding = T.approvalBindingFromAction({
+    proposal,
+    organization_id: ORG,
+    project_id: PROJECT,
+    actor_id: ACTOR,
+    environment: "production",
+    target_resource: "production",
+    project_version: "v1",
+    project_state_hash: "state-v1",
+    risk: T.RISK_LEVELS.HIGH,
+    policy_version: T.POLICY_VERSION,
+  });
+  const definition = T.TOOL_REGISTRY.request_publish;
+  const first = publishContext({
+    destination_or_audience: "public",
+    data_sensitivity: "internal",
+    authority_cost: { unit: "credit", maximum: 5 },
+    protected_app_scope: null,
+  });
+  const second = publishContext({
+    destination_or_audience: "public",
+    data_sensitivity: "confidential",
+    authority_cost: { unit: "credit", maximum: 6 },
+    protected_app_scope: "protected-zone",
+  });
+  const one = T.authorizationFingerprint(binding, definition, proposal, first);
+  const two = T.authorizationFingerprint(binding, definition, proposal, second);
+  assert.match(one, /^[0-9a-f]{64}$/);
+  assert.match(two, /^[0-9a-f]{64}$/);
+  assert.notEqual(one, two);
+});
+
+test("authority scope drift during evaluation fails closed before provider execution", async () => {
+  let calls = 0;
+  const adapters = new T.ExecutionAdapterRegistry().register("DeploymentExecutor", {
+    productionConcurrency: { durability: "durable", mode: "compare_and_set", owner: "deployment-provider" },
+    async execute() { calls += 1; },
+  });
+  const gateway = new T.PandoraToolGateway(durableMemoryDeps(adapters));
+  const ctx = publishContext({ authority_cost: { unit: "credit", maximum: 5 } });
+  const executor = new T.PandoraAuthorityToolExecutor({
+    gateway,
+    now: fixedNow,
+    authorityEvaluator: {
+      async evaluate(request) {
+        ctx.authority_cost = { unit: "credit", maximum: 6 };
+        return {
+          schema_version: T.AUTHORITY_SCHEMA_VERSION,
+          decision: T.AUTHORITY_DECISIONS.AUTO_EXECUTE,
+          authority_basis: "explicit_current_user_instruction",
+          authorization_fingerprint: request.authorization_fingerprint,
+          action_hash: request.action_hash,
+          policy_version: request.policy_version,
+          risk: request.risk,
+          request_id: request.request_id,
+          issued_at: "2026-09-13T23:55:00Z",
+          expires_at: "2026-09-14T00:30:00Z",
+        };
+      },
+    },
+  });
+  await assert.rejects(executor.handle(publishProposal(), ctx), (error) => error?.code === "AUTHORITY_SCOPE_DRIFT");
+  assert.equal(calls, 0);
 });
 
 test("prediction cannot be converted into authority even when fingerprint is exact", async () => {
