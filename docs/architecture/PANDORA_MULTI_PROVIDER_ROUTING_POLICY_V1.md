@@ -32,13 +32,15 @@ The boundary describes where Pandora permits model execution to occur. It is not
 
 ## Fallback boundary
 
-Cross-provider fallback is allowed for explicitly normalized provider-side failures marked cross-provider eligible: `provider_unavailable`, `timeout`, `rate_limited`, `quota_exhausted`, `unsupported_capability`, `invalid_output`, and sanitized `provider_error`. Quota exhaustion is intentionally cross-provider eligible even when same-provider retry is not. Authentication/authorization, invalid client requests, secret/configuration failures, Pandora policy denials, and other unclassified failures remain fail-closed and cannot silently move to another provider.
+Cross-provider fallback is allowed only for explicitly classified model/provider failures: `provider_unavailable`, `timeout`, `rate_limited`, `quota_exhausted`, `unsupported_capability`, `structured_output_invalid`, trusted-evaluator `invalid_output` or `low_confidence`, and retryable sanitized `provider_error`. Authentication/authorization, invalid client requests, secret/configuration failures, Pandora policy denials, and other unclassified failures remain fail-closed and cannot silently move to another provider. An explicit `crossProviderEligible=false` always blocks fallback.
 
-The router carries provider/model attempt history and obeys the request attempt budget. Already-attempted provider/model pairs are excluded so Gemini/Kimi/OpenAI loops cannot recur. The router prioritizes cross-provider diversity before lower-priority same-provider model downgrades, so a provider outage or exhausted credit pool fails over promptly. Same-provider HTTP retry/backoff remains transport-owned.
+Every attempt is bound to the exact model request ID plus provider/model identity. Resume history with a mismatched request identity fails closed, and an already-attempted provider/model pair is excluded so retry loops cannot recur. Attempt count remains bounded by the request budget and `maxProviderAttempts`; same-provider HTTP retry/backoff remains transport-owned.
+
+Low-confidence or generic invalid-output fallback is never triggered by a model's self-reported confidence. It requires a trusted caller-supplied evaluator. Model adapters return normalized text/structured output/tool proposals only; fallback does not execute tools. Only the accepted model result can proceed to the Tool Gateway, where canonical action identity, authority, durable idempotency, ambiguous-mutation reconciliation and provider readback remain separately enforced.
 
 ## Session continuity and recovery
 
-A provider/model selection becomes sticky for the thread/session. Preference cannot silently move a sticky session to a different provider/model. A cross-provider transition requires an explicit recovery boundary, increments a recovery epoch and returns the new continuity state for service-owned persistence.
+A provider/model selection becomes sticky for the thread/session. Preference cannot silently move a healthy sticky session to a different provider/model. When an eligible classified provider failure requires a different provider/model, M3 may open the recovery boundary automatically; the transition is explicit in routing evidence, increments the recovery epoch and returns the new continuity state for service-owned persistence. Callers may disable automatic provider-failure recovery explicitly.
 
 The primary database stores provider-neutral continuity metadata in `private.pandora_intelligence_thread_routing_state`, keyed 1:1 to the existing public intelligence thread. It stores only provider/model/version/policy/reasoning/stickiness/recovery metadata and an optional compatible message reference. It does not duplicate conversation content and is service-role-only.
 
