@@ -129,7 +129,12 @@ class ModelRouter {
   /** @param {Record<string,unknown>} request @param {RouterOptions} options */
   candidates(request, options = {}) { return this.candidatesDetailed(request, options).candidates.map(item => item.model); }
 
-  /** Route a model request using the frozen M1 intent/capability handoff without letting M1 choose providers or grant authority. */
+  /**
+   * Route a model request using the frozen M1 intent/capability handoff without letting M1 choose providers or grant authority.
+   * @param {Record<string,unknown>} request
+   * @param {unknown} intentResolution
+   * @param {RouterOptions} options
+   */
   async executeResolved(request, intentResolution, options = {}) {
     assertNoCredentialMaterial(intentResolution);
     const prepared = prepareIntentResolvedRouting(this.registry, request, intentResolution, options);
