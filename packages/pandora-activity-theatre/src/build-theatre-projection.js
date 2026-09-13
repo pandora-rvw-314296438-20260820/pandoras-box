@@ -28,6 +28,7 @@ const BUILD_THEATRE_PHASES = Object.freeze({
 });
 
 const UNIVERSAL_ONLY_LABELS = Object.freeze({
+  verifying: "Verifying",
   needs_you: "Needs You",
   retrying: "Retrying",
   fallback: "Fallback",
@@ -37,14 +38,33 @@ const UNIVERSAL_ONLY_LABELS = Object.freeze({
   cancelled: "Cancelled",
 });
 
-const PHASE_REQUIRED_STATES = new Set([
-  "understanding",
-  "planning",
-  "acting",
-  "checking",
-  "verifying",
-  "result",
-]);
+const PHASE_REQUIRED_STATES = new Set(["understanding", "planning", "acting", "checking", "result"]);
+const OPTIONAL_PHASE_STATES = new Set(["verifying"]);
+
+const LEGACY_BUILD_EVENT_PROJECTION = Object.freeze({
+  build_admitted: Object.freeze({ state: "planning", workflow: "build", phase: "planning" }),
+  stream_started: Object.freeze({ state: "acting", workflow: "build", phase: "building" }),
+  file_started: Object.freeze({ state: "acting", workflow: "build", phase: "building" }),
+  code_chunk: Object.freeze({ state: "acting", workflow: "build", phase: "building" }),
+  file_completed: Object.freeze({ state: "acting", workflow: "build", phase: "building" }),
+  generation_completed: Object.freeze({ state: "acting", workflow: "build", phase: "building" }),
+  verification: Object.freeze({ state: "verifying", workflow: "build", phase: null }),
+  preview_ready: Object.freeze({ state: "result", workflow: "build", phase: "preview_ready", requiresVerifiedResult: true }),
+  needs_you: Object.freeze({ state: "needs_you", workflow: "build", phase: null, requiresNeedsYouBoundary: true }),
+  build_completed: Object.freeze({ state: "verifying", workflow: "build", phase: null, builderCompletionIsNotResult: true }),
+  build_failed: Object.freeze({ state: "failed", workflow: "build", phase: null }),
+  stream_error: Object.freeze({ state: "failed", workflow: "build", phase: null }),
+  compile_started: Object.freeze({ state: "acting", workflow: "build", phase: "building" }),
+  compile_diagnostic: Object.freeze({ state: "acting", workflow: "build", phase: "building" }),
+  compile_completed: Object.freeze({ state: "acting", workflow: "build", phase: "building" }),
+  test_started: Object.freeze({ state: "checking", workflow: "build", phase: "testing" }),
+  test_result: Object.freeze({ state: "checking", workflow: "build", phase: "testing" }),
+  test_completed: Object.freeze({ state: "checking", workflow: "build", phase: "testing" }),
+  repair_started: Object.freeze({ state: "acting", workflow: "edit", phase: "rebuilding" }),
+  repair_completed: Object.freeze({ state: "verifying", workflow: "edit", phase: "verifying" }),
+});
+
+const LEGACY_DYNAMIC_EVENT_TYPES = new Set(["job_state", "build_step", "command_started", "stdout_chunk", "stderr_chunk", "command_completed"]);
 
 function normalizeWorkflow(value) {
   if (typeof value !== "string") throw new Error("Build Theatre workflow is required");
@@ -72,9 +92,12 @@ function projectBuildTheatreEvent(input, options = {}) {
 
   if (PHASE_REQUIRED_STATES.has(event.state)) {
     const definition = normalizePhase(workflow, options.phase);
-    if (definition.state !== event.state) {
-      throw new Error(`Build Theatre phase ${definition.phase} cannot override canonical state ${event.state}`);
-    }
+    if (definition.state !== event.state) throw new Error(`Build Theatre phase ${definition.phase} cannot override canonical state ${event.state}`);
+    phase = definition.phase;
+    label = definition.label;
+  } else if (OPTIONAL_PHASE_STATES.has(event.state) && options.phase != null) {
+    const definition = normalizePhase(workflow, options.phase);
+    if (definition.state !== event.state) throw new Error(`Build Theatre phase ${definition.phase} cannot override canonical state ${event.state}`);
     phase = definition.phase;
     label = definition.label;
   } else if (options.phase != null) {
@@ -98,8 +121,21 @@ function projectBuildTheatreEvent(input, options = {}) {
   });
 }
 
+function legacyBuildEventProjection(eventType) {
+  if (typeof eventType !== "string" || !eventType.trim()) throw new Error("legacy Build Theatre event type is required");
+  const normalized = eventType.trim().toLowerCase();
+  if (LEGACY_DYNAMIC_EVENT_TYPES.has(normalized)) {
+    throw new Error(`${normalized} requires canonical runtime admission from its safe payload; static projection is forbidden`);
+  }
+  const projection = LEGACY_BUILD_EVENT_PROJECTION[normalized];
+  if (!projection) throw new Error(`unsupported legacy Build Theatre event type: ${normalized}`);
+  return projection;
+}
+
 module.exports = {
   BUILD_THEATRE_PHASES,
   BUILD_THEATRE_WORKFLOWS,
+  LEGACY_BUILD_EVENT_PROJECTION,
+  legacyBuildEventProjection,
   projectBuildTheatreEvent,
 };
