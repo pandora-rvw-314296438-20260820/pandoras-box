@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../platform/pandora_native_io.dart';
@@ -6,8 +8,8 @@ class PandoraIntelligenceApi {
   PandoraIntelligenceApi({
     required SupabaseClient client,
     required String organizationId,
-  })  : _client = client,
-        _organizationId = organizationId;
+  }) : _client = client,
+       _organizationId = organizationId;
 
   final SupabaseClient _client;
   final String _organizationId;
@@ -135,7 +137,16 @@ class PandoraIntelligenceApi {
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
   }) async {
     _requireSession();
-    if (textAttachment == null && imageAttachment == null) {
+    final auditAttachments =
+        textAttachment == null &&
+            imageAttachment == null &&
+            projectId != null &&
+            _isRepositoryAuditRequest(message)
+        ? await _repositoryAuditAttachments(projectId: projectId)
+        : const <Map<String, Object?>>[];
+    if (textAttachment == null &&
+        imageAttachment == null &&
+        auditAttachments.isEmpty) {
       final capabilityTurn = await _dispatchCapability(
         message: message,
         threadId: threadId,
@@ -144,6 +155,7 @@ class PandoraIntelligenceApi {
       if (capabilityTurn != null) return capabilityTurn;
     }
     final attachments = <Map<String, Object?>>[
+      ...auditAttachments,
       if (textAttachment != null)
         <String, Object?>{
           'kind': 'text',
@@ -232,6 +244,73 @@ class PandoraIntelligenceApi {
     }
   }
 
+  bool _isRepositoryAuditRequest(String message) {
+    final value = message.trim();
+    final deep = RegExp(
+      r'\b(audit|analy[sz]e)\b|\b(inspect|review|scan)\b.*\b(entire|full|whole|repository|repo|project|codebase|source|all)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    if (!deep) return false;
+
+    final directAction = RegExp(
+      r'^\s*(?:okay[,\s]+|great[,\s]+|please\s+|can you\s+|could you\s+|would you\s+|i need you to\s+|i want you to\s+|go ahead(?: and)?\s+)*(?:build|fix|change|update|repair|edit|merge|branch|commit|deploy|publish|continue|finish|run|implement|work|proceed|create|write|apply|configure|install|remove|restore|improve|upgrade|add)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final sequenceAction = RegExp(
+      r'\b(audit|analy[sz]e|inspect|review|scan)\b.*(?:\band(?:\s+then)?\b|\bthen\b|\bafter(?:wards?| that)?\b|[,;])\s*(?:please\s+)?(?:build|fix|change|update|repair|edit|merge|branch|commit|deploy|publish|continue|finish|run|implement|work|proceed|create|write|apply|configure|install|remove|restore|improve|upgrade|add)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    return !directAction && !sequenceAction;
+  }
+
+  Future<List<Map<String, Object?>>> _repositoryAuditAttachments({
+    required String projectId,
+  }) async {
+    try {
+      final response = await _client.rpc(
+        'pandora_chat_repository_snapshot_v1',
+        params: <String, Object?>{
+          'p_organization_id': _organizationId,
+          'p_project_id': projectId,
+          'p_max_bytes': 70000,
+          'p_max_files': 80,
+        },
+      );
+      final snapshot = _map(response);
+      if (snapshot['ok'] != true) {
+        throw const PandoraIntelligenceException(
+          'Pandora could not read the selected repository for this audit.',
+        );
+      }
+      final encoded = jsonEncode(snapshot);
+      const chunkSize = 29000;
+      final partCount = (encoded.length + chunkSize - 1) ~/ chunkSize;
+      if (partCount < 1 || partCount > 4) {
+        throw const PandoraIntelligenceException(
+          'The selected repository is too large for a safe audit turn.',
+        );
+      }
+      final parts = <Map<String, Object?>>[];
+      for (var index = 0; index < partCount; index += 1) {
+        final start = index * chunkSize;
+        final end = (start + chunkSize).clamp(0, encoded.length).toInt();
+        final body = encoded.substring(start, end);
+        parts.add(<String, Object?>{
+          'kind': 'text',
+          'name': 'pandora-repository-audit-${index + 1}-of-$partCount.json',
+          'mimeType': 'application/json',
+          'text':
+              'Pandora-verified repository snapshot part ${index + 1} of $partCount. Read all parts in order. Audit the supplied project/repository evidence now. If emptyRepository is true, explicitly state that the repository has no committed source yet and audit the supplied project specification/runtime state without inventing code. If truncated is true, explicitly call the source audit bounded rather than claiming every source file was inspected.\n$body',
+        });
+      }
+      return parts;
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not read the selected repository for this audit.',
+      );
+    }
+  }
+
   Future<PandoraIntelligenceTurn?> _dispatchCapability({
     required String message,
     String? threadId,
@@ -240,7 +319,7 @@ class PandoraIntelligenceApi {
     if (message.trim().isEmpty) return null;
     try {
       final response = await _client.rpc(
-        'pandora_chat_universal_dispatch_v8',
+        'pandora_chat_universal_dispatch_v9',
         params: <String, Object?>{
           'p_organization_id': _organizationId,
           'p_message': message.trim(),
@@ -289,8 +368,8 @@ class PandoraCapabilityRegistry {
       projectRequired: json['projectRequired'] == true,
       providers: rawProviders is List
           ? rawProviders
-              .map((value) => PandoraCapabilityProvider.fromJson(_map(value)))
-              .toList(growable: false)
+                .map((value) => PandoraCapabilityProvider.fromJson(_map(value)))
+                .toList(growable: false)
           : const <PandoraCapabilityProvider>[],
     );
   }
@@ -356,14 +435,15 @@ class PandoraCapabilityProvider {
       accountVerified: account['verified'] == true,
       accountLabel: _optionalText(account['label']),
       scopesVerified: json['scopesVerified'] == true,
-      lastVerifiedAt: _optionalDate(json['lastVerifiedAt']) ??
+      lastVerifiedAt:
+          _optionalDate(json['lastVerifiedAt']) ??
           _optionalDate(health['lastVerifiedAt']),
       failureCode: _optionalText(failure['code']),
       failureMessage: _optionalText(failure['message']),
       actions: rawActions is List
           ? rawActions
-              .map((value) => PandoraCapabilityAction.fromJson(_map(value)))
-              .toList(growable: false)
+                .map((value) => PandoraCapabilityAction.fromJson(_map(value)))
+                .toList(growable: false)
           : const <PandoraCapabilityAction>[],
     );
   }
@@ -503,6 +583,7 @@ class PandoraIntelligenceTurn {
           ? PandoraIntelligenceHandoff(
               request: _requiredText(handoffJson['request']),
               projectId: _optionalText(handoffJson['projectId']),
+              source: _optionalText(handoffJson['source']),
             )
           : null,
     );
@@ -510,10 +591,15 @@ class PandoraIntelligenceTurn {
 }
 
 class PandoraIntelligenceHandoff {
-  const PandoraIntelligenceHandoff({required this.request, this.projectId});
+  const PandoraIntelligenceHandoff({
+    required this.request,
+    this.projectId,
+    this.source,
+  });
 
   final String request;
   final String? projectId;
+  final String? source;
 }
 
 class PandoraIntelligenceException implements Exception {

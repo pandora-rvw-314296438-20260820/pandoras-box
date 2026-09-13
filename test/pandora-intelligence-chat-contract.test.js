@@ -38,7 +38,7 @@ test('fallback intelligence is universal and capability-neutral', () => {
 });
 
 test('mobile chat dispatches universal capabilities before model fallback without a Project gate', () => {
-  assert.match(mobile, /pandora_chat_universal_dispatch_v8/);
+  assert.match(mobile, /pandora_chat_universal_dispatch_v9/);
   assert.match(
     mobile,
     /final capabilityTurn = await _dispatchCapability\([\s\S]*?projectId: projectId,[\s\S]*?if \(capabilityTurn != null\) return capabilityTurn;/,
