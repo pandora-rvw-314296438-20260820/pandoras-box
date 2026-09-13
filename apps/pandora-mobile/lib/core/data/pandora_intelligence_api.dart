@@ -252,9 +252,10 @@ class PandoraIntelligenceApi {
       if (payload['handled'] != true) return null;
       return PandoraIntelligenceTurn.fromJson(payload);
     } on PostgrestException {
-      throw const PandoraIntelligenceException(
-        'Pandora could not verify that capability right now.',
-      );
+      // Capability routing is an optimization, not the chat availability boundary.
+      // Fall back to the authenticated intelligence Edge Function so transient
+      // RPC/runtime drift cannot strand a normal owner request.
+      return null;
     }
   }
 
