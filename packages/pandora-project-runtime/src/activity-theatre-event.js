@@ -46,7 +46,6 @@ const allowedTopLevelKeys = new Set([
   "parentEventId",
   "blocker",
   "outcome",
-  "metadata",
 ]);
 const allowedProvenanceKeys = new Set([
   "sourceType",
@@ -160,12 +159,6 @@ function normalizeOutcome(input, state) {
   });
 }
 
-function normalizeMetadata(value) {
-  if (value == null) return Object.freeze({});
-  const metadata = plainObject(value, "metadata");
-  return Object.freeze({ ...metadata });
-}
-
 function normalizeActivityEvent(input) {
   const event = plainObject(input, "event");
   assertKnownKeys(event, allowedTopLevelKeys, "event");
@@ -197,7 +190,6 @@ function normalizeActivityEvent(input) {
     parentEventId: optionalOpaqueId(event.parentEventId, "parentEventId"),
     blocker: normalizeBlocker(event.blocker, state),
     outcome: normalizeOutcome(event.outcome, state),
-    metadata: normalizeMetadata(event.metadata),
   };
 
   return Object.freeze(normalized);
