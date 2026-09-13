@@ -41,7 +41,10 @@ test('mobile handoffs stay in Universal Chat, never create a Project implicitly,
   assert.match(screen,/already performed the governed dispatch/);
 });
 
-test('model fallback is forbidden from manufacturing a Project prerequisite for existing targets', () => {
+test('model fallback is universal and cannot manufacture a Project prerequisite', () => {
   assert.match(intelligence,/Never use project\.create as a prerequisite for reading, auditing, reviewing, fixing, deploying/);
-  assert.match(intelligence,/Only classify create_project when the owner explicitly asks to create a new persistent Project or a new system/);
+  assert.match(intelligence,/A Project is optional persistent context, never a prerequisite for general conversation or capability work/);
+  assert.match(intelligence,/Do not invent a Project, build, preview or publish intent for non-software requests/);
+  assert.match(intelligence,/intent must be chat, clarify, act, or other/);
+  assert.match(intelligence,/toolProposals must be an empty array in this fallback/);
 });

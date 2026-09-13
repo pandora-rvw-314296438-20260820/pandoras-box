@@ -23,11 +23,11 @@ Preserved stale surfaces: `docs/status/HISTORICAL_STATUS_SURFACES.json`
 
 `RECOVERY_STATUS.md`, `DEPLOYMENT_TARGET.md`, the checked-in Control Tower status/release JSON files, and dated roadmap execution sections are historical evidence. They must not determine current state or authorize work.
 
-## Canonical roadmap
+## Product direction and execution authority
 
-Current roadmap and completion authority: `docs/roadmaps/PANDORAS_BOX_CANONICAL_ROADMAP_V2.md`.
+Current product doctrine: `PROJECT_CUSTOM_INSTRUCTION.md` (Pandora universal personal AI operating layer). Software building is one capability and must never become the default interpretation of a general owner request.
 
-It is the single source for Phase 0–9 completion status and cross-cutting product acceptance. Older roadmap files remain historical requirement/design evidence and must not override current provider truth or the canonical status pack.
+Current execution/dependency authority is the authoritative Pandora Device execution plan maintained by the coordinator. The checked-in `docs/roadmaps/PANDORAS_BOX_CANONICAL_ROADMAP_V2.md` is historical implementation/status evidence from the earlier builder-centered product phase; it must not override the active doctrine, current execution plan, provider truth, or authenticated canonical status pack.
 
 ## Recovery rules
 

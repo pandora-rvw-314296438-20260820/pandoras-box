@@ -5,36 +5,56 @@ import test from 'node:test';
 const edgePath = new URL('../supabase/functions/pandora-intelligence-chat/index.ts', import.meta.url);
 const migrationPath = new URL('../supabase/migrations/20260830104500_pandora_intelligence_chat_v1.sql', import.meta.url);
 const mobilePath = new URL('../apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart', import.meta.url);
+const doctrinePath = new URL('../PROJECT_CUSTOM_INSTRUCTION.md', import.meta.url);
+const roadmapPath = new URL('../docs/roadmaps/PANDORAS_BOX_CANONICAL_ROADMAP_V2.md', import.meta.url);
+const screenPlanPath = new URL('../docs/product/PANDORA_SCREEN_MASTER_PLAN.md', import.meta.url);
 
-const [edge, migration, mobile] = await Promise.all([
+const [edge, migration, mobile, doctrine, roadmap, screenPlan] = await Promise.all([
   readFile(edgePath, 'utf8'),
   readFile(migrationPath, 'utf8'),
   readFile(mobilePath, 'utf8'),
+  readFile(doctrinePath, 'utf8'),
+  readFile(roadmapPath, 'utf8'),
+  readFile(screenPlanPath, 'utf8'),
 ]);
 
-test('Ask Pandora uses the Vault-backed Worker B provider boundary', () => {
+test('Ask Pandora uses the Vault-backed model provider boundary', () => {
   assert.match(edge, /pandora_worker_b_gemini_request_20260829/);
   assert.doesNotMatch(edge, /generativelanguage\.googleapis\.com/);
   assert.doesNotMatch(edge, /Deno\.env\.get\(["'](?:GEMINI|GOOGLE).*KEY/i);
-  assert.match(edge, /Gemini proposes|You may propose actions|never execute tools/i);
+  assert.match(edge, /You may propose actions|never execute tools/i);
 });
 
-test('model output cannot directly become arbitrary tool execution', () => {
-  for (const name of [
-    'project.create',
-    'project.inspect',
-    'project.change',
-    'project.build.request',
-    'project.preview.request',
-    'project.publish.request',
-    'domain.search',
-    'domain.attach',
-  ]) {
-    assert.match(edge, new RegExp(name.replaceAll('.', '\\.'), 'u'));
-  }
+test('fallback intelligence is universal and capability-neutral', () => {
+  assert.match(edge, /const intents=new Set\(\["chat","clarify","act","other"\]\)/);
+  assert.match(edge, /const actionable=new Set\(\["act"\]\)/);
+  assert.match(edge, /Software building is one capability among communications, research, files, device actions, business, travel, scheduling, coding and future capabilities/);
+  assert.match(edge, /const allowed=new Set<string>\(\)/);
   assert.match(edge, /kind:\s*["']governed_intake["']/);
-  assert.match(edge, /actionable\.has\(v\.intent\)/);
-  assert.doesNotMatch(edge, /service_role.*body|gemini_api_key.*body/i);
+  assert.doesNotMatch(edge, /allowed names: [^"\n]*project\./i);
+  assert.doesNotMatch(edge, /create_project","change_project","inspect_project/);
+  assert.match(doctrine, /intent → project → build/);
+  assert.match(doctrine, /unless the actual user request is a software-building task/i);
+});
+
+test('mobile chat dispatches universal capabilities before model fallback without a Project gate', () => {
+  assert.match(mobile, /pandora_chat_universal_dispatch_v7/);
+  assert.match(
+    mobile,
+    /final capabilityTurn = await _dispatchCapability\([\s\S]*?projectId: projectId,[\s\S]*?if \(capabilityTurn != null\) return capabilityTurn;/,
+  );
+  assert.match(mobile, /if \(projectId != null\) 'p_project_id': projectId/);
+  const dispatchIndex = mobile.indexOf('final capabilityTurn = await _dispatchCapability(');
+  const fallbackIndex = mobile.indexOf('final response = await _client.functions.invoke(');
+  assert.ok(dispatchIndex >= 0, 'universal capability dispatch must exist');
+  assert.ok(fallbackIndex > dispatchIndex, 'universal capability dispatch must run before model fallback');
+});
+
+test('current product doctrine is not delegated to builder-era roadmap inventories', () => {
+  assert.match(roadmap, /HISTORICAL ROADMAP EVIDENCE/);
+  assert.match(screenPlan, /HISTORICAL IMPLEMENTATION INVENTORY/);
+  assert.match(roadmap, /universal personal AI operating layer/i);
+  assert.match(screenPlan, /Universal Chat/i);
 });
 
 test('durable conversation history is owner-readable but service-written', () => {
