@@ -213,8 +213,21 @@ test('public Activity Theatre text fields reject credential-like material withou
     );
   }
 
+  assert.throws(
+    () => normalizeActivityEvent(base({ message: 'password=NotARealSecret1234' })),
+    /contains credential-like material/,
+  );
+
   const safe = normalizeActivityEvent(base({
-    message: 'API token expired; requesting account reauthorization without exposing the token value.',
+    message: 'Provider status: token: expired; secret: unavailable; password = required; access_token: revoked.',
+    provenance: { ...base().provenance, evidenceRef: 'runtime://job-1/events/1?token=redacted' },
+    executionId: 'token:expired',
   }));
-  assert.match(safe.message, /token expired/);
+  assert.match(safe.message, /token: expired/);
+  assert.match(safe.message, /secret: unavailable/);
+  assert.match(safe.message, /password = required/);
+  assert.match(safe.message, /access_token: revoked/);
+  assert.match(safe.provenance.evidenceRef, /token=redacted/);
+  assert.equal(safe.executionId, 'token:expired');
 });
+
