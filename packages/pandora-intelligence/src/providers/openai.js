@@ -60,6 +60,10 @@ function isRecord(value) { return !!value && typeof value === 'object' && !Array
 function requiredText(value, field) { if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${field} is required`); return value.trim(); }
 /** @param {unknown} value @param {string} field */
 function requireRecord(value, field) { if (!isRecord(value)) throw invalidRequest(`${field} must be an object`, 'invalid_shape'); return /** @type {Record<string,unknown>} */ (value); }
+/** @param {unknown} value @param {string} field */
+function requireProviderRecord(value, field) { if (!isRecord(value)) throw providerFailure('provider_error', false, `OpenAI returned malformed ${field}`, 'malformed_response'); return /** @type {Record<string,unknown>} */ (value); }
+/** @param {unknown} value @param {string} field */
+function requireProviderText(value, field) { if (typeof value !== 'string' || !value.trim()) throw providerFailure('provider_error', false, `OpenAI returned malformed ${field}`, 'malformed_response'); return value.trim(); }
 
 /** @param {Record<string, unknown>} request */
 function mapOpenAIReasoningEffort(request) {
@@ -259,15 +263,15 @@ function normalizeToolCalls(value) {
   if (value == null) return [];
   if (!Array.isArray(value)) throw providerFailure('provider_error', false, 'OpenAI returned malformed tool calls', 'tool_calls_malformed');
   return value.map((item, index) => {
-    const call = requireRecord(item, `response.tool_calls[${index}]`);
-    const fn = requireRecord(call.function, `response.tool_calls[${index}].function`);
+    const call = requireProviderRecord(item, `tool_calls[${index}]`);
+    const fn = requireProviderRecord(call.function, `tool_calls[${index}].function`);
     const rawArguments = typeof fn.arguments === 'string' ? fn.arguments : JSON.stringify(fn.arguments ?? {});
     /** @type {unknown} */
     let parsed;
     try { parsed = JSON.parse(rawArguments); }
     catch { throw providerFailure('structured_output_invalid', true, 'OpenAI returned invalid tool arguments', 'tool_arguments_invalid'); }
     if (!isRecord(parsed)) throw providerFailure('structured_output_invalid', true, 'OpenAI tool arguments must be an object', 'tool_arguments_invalid');
-    return Object.freeze({ id: requiredText(call.id, `response.tool_calls[${index}].id`), name: requiredText(fn.name, `response.tool_calls[${index}].function.name`), arguments: Object.freeze(/** @type {Record<string,unknown>} */ (parsed)) });
+    return Object.freeze({ id: requireProviderText(call.id, `tool_calls[${index}].id`), name: requireProviderText(fn.name, `tool_calls[${index}].function.name`), arguments: Object.freeze(/** @type {Record<string,unknown>} */ (parsed)) });
   });
 }
 
