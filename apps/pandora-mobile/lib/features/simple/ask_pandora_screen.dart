@@ -254,12 +254,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         _outcomeUnknown = false;
       });
 
-      // `intelligence.chat` already performed the governed dispatch. A handoff
-      // is the ProjectOS admission receipt for that same request, not a second
-      // command. Never resubmit it through the legacy owner `/ask` mutation:
-      // doing so would create duplicate work under a different idempotency key.
-      // Execution progress and terminal evidence are rendered from the
-      // authoritative intake/build stream in this conversation.
+      // `intelligence.chat` owns exactly one dispatch for this turn. Actionable
+      // work continues through Pandora's capability runtime under standing
+      // authority; never resubmit the same turn through the legacy `/ask` path.
+      // Progress and verified terminal evidence stay in this conversation.
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -675,7 +673,9 @@ class _ConversationState extends State<_Conversation> {
       widget.pendingMessage != null && widget.pendingMessage!.isNotEmpty;
 
   int get _renderedItemCount =>
-      widget.messages.length + (_hasPending ? 1 : 0) + (widget.thinking ? 1 : 0);
+      widget.messages.length +
+      (_hasPending ? 1 : 0) +
+      (widget.thinking ? 1 : 0);
 
   @override
   void initState() {
