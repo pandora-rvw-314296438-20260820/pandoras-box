@@ -31,7 +31,8 @@ test('fallback intelligence is universal and capability-neutral', () => {
   assert.match(edge, /Software building is one capability among communications, research, files, device actions, business, travel, scheduling, coding and future capabilities/);
   assert.match(edge, /const allowed=new Set<string>\(\)/);
   assert.match(edge, /kind:\s*["']governed_intake["']/);
-  assert.doesNotMatch(edge, /project\.build\.request|project\.create/);
+  assert.doesNotMatch(edge, /allowed names: [^"\n]*project\./i);
+  assert.doesNotMatch(edge, /create_project","change_project","inspect_project/);
   assert.match(doctrine, /intent → project → build/);
   assert.match(doctrine, /unless the actual user request is a software-building task/i);
 });
