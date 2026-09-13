@@ -65,7 +65,7 @@ test('state-change handoff fails closed without readback/idempotency invariants'
     riskAuthority: { ...base.riskAuthority, consequential: true, authorityRequirement: 'explicit_current_or_matching_standing_policy' },
     capabilityToolConstraints: { ...base.capabilityToolConstraints, allowedEffectClass: 'state_change', requireGovernedMutationBoundary: true, requireReadbackAfterStateChange: false, reuseIdempotencyOnRetry: true },
   });
-  await assert.rejects(() => router().executeResolved(request(), unsafe), /require provider readback/);
+  await assert.rejects(() => router().executeResolved(request(), unsafe), /provider readback and idempotency/);
 });
 
 test('hard M1 privacy change overrides sticky provider continuity', async () => {
