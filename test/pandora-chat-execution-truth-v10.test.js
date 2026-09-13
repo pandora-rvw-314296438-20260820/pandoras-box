@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const migrationPath = new URL(
-  '../supabase/migrations/20260913083000_pandora_chat_execution_truth_v10.sql',
+  '../supabase/migrations/20260913083557_pandora_chat_execution_truth_v10.sql',
   import.meta.url,
 );
 const edgePath = new URL(
