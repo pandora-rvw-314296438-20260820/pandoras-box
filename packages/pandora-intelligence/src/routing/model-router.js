@@ -137,7 +137,7 @@ class ModelRouter {
     return Object.freeze({ ...result, routingDecision });
   }
 
-  /** @param {Record<string,unknown>} request @param {RouterOptions} options */
+  /** @param {Record<string,unknown>} request @param {RouterOptions} options @returns {Promise<Readonly<Record<string,unknown>>>} */
   async execute(request, options = {}) {
     assertNoCredentialMaterial(request);
     const requestId = requiredText(request.requestId, 'request.requestId');
