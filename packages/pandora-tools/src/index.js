@@ -5,6 +5,7 @@ module.exports = {
   ...require("./errors"),
   ...require("./path-safety"),
   ...require("./registry"),
+  ...require("./capability-registry"),
   ...require("./validation"),
   ...require("./policy"),
   ...require("./approvals"),
@@ -23,4 +24,6 @@ module.exports = {
   ...require("./receipts"),
   ...require("./lineage"),
   ...require("./gateway"),
+  ...require("./authority-execution"),
+  ...require("./tool-chain"),
 };

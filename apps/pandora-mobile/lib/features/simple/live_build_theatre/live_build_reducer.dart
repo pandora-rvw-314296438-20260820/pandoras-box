@@ -282,7 +282,9 @@ class LiveBuildTheatreReducer {
           stage = LiveBuildStage.needsYou;
           break;
         case LiveBuildEventKind.buildCompleted:
-          stage = LiveBuildStage.completed;
+          // Builder completion is not independently verified. Keep the
+          // Theatre non-terminal until trusted verification/preview evidence.
+          stage = LiveBuildStage.checking;
           break;
         case LiveBuildEventKind.buildFailed:
         case LiveBuildEventKind.streamError:
@@ -401,7 +403,7 @@ LiveBuildStage _stageFromPayload(
       .toLowerCase();
   // Pre-execution / budget / primitive failures and blocked work must never
   // project as Building (Theatre truth from #492/#493 + #491 status discipline).
-  if (stage.contains('needs_you') || stage.contains('approval')) {
+  if (stage.contains('needs_you')) {
     return LiveBuildStage.needsYou;
   }
   if (stage.contains('blocked') ||

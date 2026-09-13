@@ -35,6 +35,7 @@ _MAIN = (
     / "MainActivity.kt"
 )
 _MANIFEST_TOOL = _ROOT / "tool" / "configure_validation_android.py"
+_SETTINGS = _ROOT / "lib" / "features" / "settings" / "settings_screen.dart"
 
 
 class DeviceAgentContractTest(unittest.TestCase):
@@ -47,6 +48,7 @@ class DeviceAgentContractTest(unittest.TestCase):
         for method in (
             '"getCapabilityManifest"',
             '"getPermissionStates"',
+            '"openSystemSurface"',
             '"runSafeDiagnostic"',
         ):
             self.assertIn(method, source)
@@ -85,6 +87,49 @@ class DeviceAgentContractTest(unittest.TestCase):
             "android.permission.BLUETOOTH_SCAN",
         ):
             self.assertNotIn(permission, source)
+
+    def test_m4_002_recovery_surfaces_are_allowlisted(self) -> None:
+        source = _AGENT.read_text(encoding="utf-8")
+        for bounded_surface in (
+            '"android_settings"',
+            '"home_app_settings"',
+            '"system_dialer"',
+            "Settings.ACTION_SETTINGS",
+            "Settings.ACTION_HOME_SETTINGS",
+            "Intent.ACTION_DIAL",
+        ):
+            self.assertIn(bounded_surface, source)
+        self.assertNotIn("Intent.ACTION_CALL", source)
+        self.assertNotIn("Intent.ACTION_CALL_PRIVILEGED", source)
+        self.assertIn("UNSUPPORTED_SYSTEM_SURFACE", source)
+
+    def test_m4_002_home_manifest_is_candidate_not_kiosk(self) -> None:
+        source = _MANIFEST_TOOL.read_text(encoding="utf-8")
+        self.assertIn("_HOME_CATEGORY = 'android.intent.category.HOME'", source)
+        self.assertIn("_DEFAULT_CATEGORY = 'android.intent.category.DEFAULT'", source)
+        self.assertIn("_LAUNCHER_CATEGORY = 'android.intent.category.LAUNCHER'", source)
+        self.assertIn("without forcing default HOME", source)
+        for forbidden in (
+            "android:lockTaskMode",
+            "addPersistentPreferredActivity",
+            "setLockTaskPackages",
+            "DevicePolicyManager",
+        ):
+            self.assertNotIn(forbidden, source)
+
+    def test_m4_002_settings_keep_android_recovery_visible(self) -> None:
+        source = _SETTINGS.read_text(encoding="utf-8")
+        for visible_control in (
+            "Android recovery",
+            "Android settings",
+            "Home app settings",
+            "Phone dialer",
+            "PandoraSystemSurface.androidSettings",
+            "PandoraSystemSurface.homeAppSettings",
+            "PandoraSystemSurface.systemDialer",
+        ):
+            self.assertIn(visible_control, source)
+        self.assertIn("without placing a call", source)
 
 
 if __name__ == "__main__":

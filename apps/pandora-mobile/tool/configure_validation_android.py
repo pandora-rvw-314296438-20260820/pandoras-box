@@ -16,6 +16,18 @@ _PANDORA_ICON = 'android:icon="@drawable/pandora_launcher_icon"'
 _MANIFEST_OPEN = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
 _INTERNET_PERMISSION_NAME = 'android.permission.INTERNET'
 _INTERNET_PERMISSION = '<uses-permission android:name="android.permission.INTERNET"/>'
+_HOME_CATEGORY = 'android.intent.category.HOME'
+_DEFAULT_CATEGORY = 'android.intent.category.DEFAULT'
+_LAUNCHER_CATEGORY = 'android.intent.category.LAUNCHER'
+_LAUNCHER_FILTER = '''            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>'''
+_HOME_FILTER = '''            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.HOME"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>'''
 _CANONICAL_MARK_SHA256 = (
     '8a35b74baec47b960a42bb74587f9c531d6cbf8d45f16061836a9e63f00efcc5'
 )
@@ -109,8 +121,28 @@ def configure_manifest(manifest: Path) -> int:
         )
         return 1
 
+    if text.count(_HOME_CATEGORY) != 0 or text.count(_DEFAULT_CATEGORY) != 0:
+        print(
+            'Generated Android manifest already declares HOME/DEFAULT routing; '
+            'refusing an ambiguous launcher mutation.',
+            file=sys.stderr,
+        )
+        return 1
+    if text.count(_LAUNCHER_FILTER) != 1:
+        print(
+            'Expected exactly one generated Flutter launcher intent filter; '
+            'refusing an ambiguous HOME mutation.',
+            file=sys.stderr,
+        )
+        return 1
+
     updated = text.replace(_GENERATED_LABEL, _VALIDATION_LABEL, 1)
     updated = updated.replace(_GENERATED_ICON, _PANDORA_ICON, 1)
+    updated = updated.replace(
+        _LAUNCHER_FILTER,
+        f'{_LAUNCHER_FILTER}\n{_HOME_FILTER}',
+        1,
+    )
     if internet_mentions == 0:
         if updated.count(_MANIFEST_OPEN) != 1:
             print(
@@ -145,6 +177,15 @@ def configure_manifest(manifest: Path) -> int:
     if _INTERNET_PERMISSION not in verified:
         print('Android INTERNET permission is not in the approved form.', file=sys.stderr)
         return 1
+    if verified.count(_HOME_CATEGORY) != 1:
+        print('Android HOME eligibility verification failed.', file=sys.stderr)
+        return 1
+    if verified.count(_DEFAULT_CATEGORY) != 1:
+        print('Android HOME DEFAULT category verification failed.', file=sys.stderr)
+        return 1
+    if verified.count(_LAUNCHER_CATEGORY) != 1:
+        print('Android launcher recovery entry verification failed.', file=sys.stderr)
+        return 1
 
     icon_text = launcher_icon.read_text(encoding='utf-8')
     for required in ('@drawable/pandora_product_mark', '#FF171717'):
@@ -158,6 +199,7 @@ def configure_manifest(manifest: Path) -> int:
     print('Configured Android application label: Pandora')
     print('Configured Android launcher icon: canonical Pandora spiral apple')
     print('Configured Android permission: android.permission.INTERNET')
+    print('Configured Android HOME eligibility without forcing default HOME')
     return 0
 
 
