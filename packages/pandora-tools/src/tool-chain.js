@@ -2,6 +2,7 @@
 
 const { TOOL_DECISIONS } = require("./contracts");
 const { PandoraToolError } = require("./errors");
+const { snapshotToolContext, mergeStepContext } = require("./context-snapshot");
 
 const TOOL_CHAIN_STATES = Object.freeze({
   COMPLETED: "completed",
@@ -32,6 +33,8 @@ class PandoraToolChainExecutor {
       throw new PandoraToolError("invalid_request", "TOOL_CHAIN_TOO_LARGE", "Tool chain exceeds the configured step limit");
     }
 
+    const trustedContext = snapshotToolContext(context);
+
     const results = [];
     for (let index = 0; index < steps.length; index += 1) {
       if (signal?.aborted === true) {
@@ -47,10 +50,7 @@ class PandoraToolChainExecutor {
       if (!step || typeof step !== "object" || Array.isArray(step) || !step.proposal) {
         throw new PandoraToolError("invalid_request", "TOOL_CHAIN_STEP_INVALID", `Tool chain step ${index} is invalid`);
       }
-      const stepContext = Object.freeze({
-        ...context,
-        ...(step.context || {}),
-      });
+      const stepContext = mergeStepContext(trustedContext, step.context, index);
       const result = await this.executor.handle(step.proposal, stepContext);
       results.push(Object.freeze({ index, id: step.id || null, result }));
 
