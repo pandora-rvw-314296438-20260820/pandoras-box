@@ -171,12 +171,19 @@ function normalizeProvenance(input) {
   if (!ACTIVITY_EVENT_SOURCE_TYPE_SET.has(sourceType)) {
     throw new Error(`unsupported provenance.sourceType: ${sourceType}`);
   }
+  const sourceId = opaqueId(provenance.sourceId, "provenance.sourceId");
+  const sourceEventId = optionalOpaqueId(provenance.sourceEventId, "provenance.sourceEventId");
+  const observedAt = isoTimestamp(provenance.observedAt, "provenance.observedAt");
+  const evidenceRef = optionalText(provenance.evidenceRef, "provenance.evidenceRef", 500);
+  if (!sourceEventId && !evidenceRef) {
+    throw new Error("provenance requires sourceEventId or evidenceRef linking to a real source event");
+  }
   return Object.freeze({
     sourceType,
-    sourceId: opaqueId(provenance.sourceId, "provenance.sourceId"),
-    sourceEventId: optionalOpaqueId(provenance.sourceEventId, "provenance.sourceEventId"),
-    observedAt: isoTimestamp(provenance.observedAt, "provenance.observedAt"),
-    evidenceRef: optionalText(provenance.evidenceRef, "provenance.evidenceRef", 500),
+    sourceId,
+    sourceEventId,
+    observedAt,
+    evidenceRef,
   });
 }
 
