@@ -151,8 +151,6 @@ jobs:
         run: |
           set -euo pipefail
           for file in \
-            lib/core/device/pandora_device_agent.dart \
-            test/core/device/pandora_device_agent_test.dart \
             lib/features/simple/project_experience_v2.dart \
             lib/features/simple/project_build_conversation.dart \
             lib/features/simple/project_workspace_v2_view.dart
@@ -166,8 +164,6 @@ jobs:
         working-directory: .pandora-mobile-build
         run: >-
           dart format
-          lib/core/device/pandora_device_agent.dart
-          test/core/device/pandora_device_agent_test.dart
           lib/core/platform/pandora_web_preview_web.dart
           lib/app/pandora_chat_shell.dart
           lib/features/plugins/plugins_screen.dart
@@ -179,8 +175,6 @@ jobs:
         with:
           name: pandora-mobile-web-formatter-canonical
           path: |
-            .pandora-mobile-build/lib/core/device/pandora_device_agent.dart
-            .pandora-mobile-build/test/core/device/pandora_device_agent_test.dart
             .pandora-mobile-build/lib/core/platform/pandora_web_preview_web.dart
             .pandora-mobile-build/lib/app/pandora_chat_shell.dart
             .pandora-mobile-build/lib/features/plugins/plugins_screen.dart
