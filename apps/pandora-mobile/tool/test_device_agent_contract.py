@@ -47,6 +47,7 @@ class DeviceAgentContractTest(unittest.TestCase):
         for method in (
             '"getCapabilityManifest"',
             '"getPermissionStates"',
+            '"openSystemSurface"',
             '"runSafeDiagnostic"',
         ):
             self.assertIn(method, source)
@@ -85,6 +86,35 @@ class DeviceAgentContractTest(unittest.TestCase):
             "android.permission.BLUETOOTH_SCAN",
         ):
             self.assertNotIn(permission, source)
+
+    def test_m4_002_recovery_surfaces_are_allowlisted(self) -> None:
+        source = _AGENT.read_text(encoding="utf-8")
+        for bounded_surface in (
+            '"android_settings"',
+            '"home_app_settings"',
+            '"system_dialer"',
+            "Settings.ACTION_SETTINGS",
+            "Settings.ACTION_HOME_SETTINGS",
+            "Intent.ACTION_DIAL",
+        ):
+            self.assertIn(bounded_surface, source)
+        self.assertNotIn("Intent.ACTION_CALL", source)
+        self.assertNotIn("Intent.ACTION_CALL_PRIVILEGED", source)
+        self.assertIn("UNSUPPORTED_SYSTEM_SURFACE", source)
+
+    def test_m4_002_home_manifest_is_candidate_not_kiosk(self) -> None:
+        source = _MANIFEST_TOOL.read_text(encoding="utf-8")
+        self.assertIn("_HOME_CATEGORY = 'android.intent.category.HOME'", source)
+        self.assertIn("_DEFAULT_CATEGORY = 'android.intent.category.DEFAULT'", source)
+        self.assertIn("_LAUNCHER_CATEGORY = 'android.intent.category.LAUNCHER'", source)
+        self.assertIn("without forcing default HOME", source)
+        for forbidden in (
+            "android:lockTaskMode",
+            "addPersistentPreferredActivity",
+            "setLockTaskPackages",
+            "DevicePolicyManager",
+        ):
+            self.assertNotIn(forbidden, source)
 
 
 if __name__ == "__main__":
