@@ -98,22 +98,23 @@ void main() {
   test(
     'builder completion remains non-terminal until trusted preview evidence',
     () {
-    final afterBuild = reducer.reduce(<LiveBuildEvent>[
-      _event(1, LiveBuildEventKind.buildAdmitted),
-      _event(2, LiveBuildEventKind.buildCompleted),
-    ]);
-    expect(afterBuild.stage, LiveBuildStage.checking);
-    expect(afterBuild.statusLabel, 'Checking the application');
-    expect(afterBuild.statusLabel, isNot('Ready'));
+      final afterBuild = reducer.reduce(<LiveBuildEvent>[
+        _event(1, LiveBuildEventKind.buildAdmitted),
+        _event(2, LiveBuildEventKind.buildCompleted),
+      ]);
+      expect(afterBuild.stage, LiveBuildStage.checking);
+      expect(afterBuild.statusLabel, 'Checking the application');
+      expect(afterBuild.statusLabel, isNot('Ready'));
 
-    final afterPreview = reducer.reduce(<LiveBuildEvent>[
-      _event(1, LiveBuildEventKind.buildAdmitted),
-      _event(2, LiveBuildEventKind.buildCompleted),
-      _event(3, LiveBuildEventKind.previewReady),
-    ]);
-    expect(afterPreview.stage, LiveBuildStage.previewReady);
-    expect(afterPreview.statusLabel, 'Preview ready');
-  });
+      final afterPreview = reducer.reduce(<LiveBuildEvent>[
+        _event(1, LiveBuildEventKind.buildAdmitted),
+        _event(2, LiveBuildEventKind.buildCompleted),
+        _event(3, LiveBuildEventKind.previewReady),
+      ]);
+      expect(afterPreview.stage, LiveBuildStage.previewReady);
+      expect(afterPreview.statusLabel, 'Preview ready');
+    },
+  );
 
   test('approval-like text alone cannot fabricate Needs You', () {
     final state = reducer.reduce(<LiveBuildEvent>[
