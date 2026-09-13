@@ -19,6 +19,12 @@ const CAPABILITY_KEYS = Object.freeze([
   'copywriting',
 ]);
 
+const EXECUTION_BOUNDARIES = Object.freeze([
+  'device',
+  'pandora_trusted_cloud',
+  'external_provider',
+]);
+
 class ModelCapabilityRegistry {
   constructor() {
     /** @type {Map<string, Readonly<Record<string, unknown>>>} */
@@ -94,6 +100,12 @@ function normalizeDeclaration(input) {
   if (!Array.isArray(input.outputModes) || input.outputModes.length === 0) {
     throw new TypeError('outputModes is required');
   }
+  const executionBoundary = input.executionBoundary == null
+    ? 'external_provider'
+    : String(input.executionBoundary);
+  if (!EXECUTION_BOUNDARIES.includes(executionBoundary)) {
+    throw new TypeError(`executionBoundary must be one of: ${EXECUTION_BOUNDARIES.join(', ')}`);
+  }
 
   /** @type {Record<string, unknown>} */
   const sourceCapabilities =
@@ -111,6 +123,7 @@ function normalizeDeclaration(input) {
     provider: input.provider,
     modelId: input.modelId,
     capabilities: Object.freeze(capabilities),
+    executionBoundary,
     latencyClass: input.latencyClass,
     costClass: input.costClass,
     reliabilityClass: input.reliabilityClass,
@@ -125,6 +138,7 @@ function normalizeDeclaration(input) {
 
 module.exports = {
   CAPABILITY_KEYS,
+  EXECUTION_BOUNDARIES,
   ModelCapabilityRegistry,
   normalizeDeclaration,
 };
