@@ -27,8 +27,10 @@ test('selected-project repository reads are Vault-backed, GET-only, and project-
 
 test('repository snapshot is exact-head, bounded, text-only, and excludes credential-shaped files', () => {
   assert.match(migration, /pandora_chat_repository_snapshot_v1/);
-  assert.match(migration, /'\/git\/trees\/'\|\|v_default_branch\|\|'\?recursive=1'/);
-  assert.match(migration, /v_head_sha := nullif\(v_tree_body->>'sha',''\)/);
+  assert.match(migration, /'\/branches\/'\|\|v_default_branch/);
+  assert.match(migration, /v_head_sha := nullif\(v_branch_body#>>'\{commit,sha\}',''\)/);
+  assert.match(migration, /v_tree_sha := nullif\(v_commit_body#>>'\{tree,sha\}',''\)/);
+  assert.match(migration, /'\/git\/trees\/'\|\|v_tree_sha\|\|'\?recursive=1'/);
   assert.match(migration, /p_max_bytes integer default 110000/);
   assert.match(migration, /p_max_files integer default 80/);
   assert.match(migration, /\.env/);
