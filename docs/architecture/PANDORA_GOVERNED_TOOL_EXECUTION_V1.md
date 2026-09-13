@@ -38,6 +38,10 @@ An authorizing decision is bound to:
 - execution adapter;
 - target resource;
 - environment;
+- destination/audience when applicable;
+- data-sensitivity scope when applicable;
+- bounded cost/budget context when applicable;
+- destructive, production and protected-app scope;
 - current risk;
 - Tool Gateway policy version;
 - project version and state hash;
@@ -45,9 +49,9 @@ An authorizing decision is bound to:
 
 The authorization fingerprint hashes those bindings. A current-user decision additionally binds to the exact request ID. A standing-policy decision requires an active policy identity and `standing_policy_match=true`.
 
-The authority decision is converted into a reusable-for-the-same-action approval grant with the exact action hash. This is intentionally **not** a second user approval. It is durable evidence that the current instruction or standing policy already covered the action.
+The authority decision is converted into an action-bound approval grant. Current-user authority is one-time evidence for that exact action; an active matching standing policy may be reusable only for the same fingerprinted action scope. This is intentionally **not** a second user approval. It is durable evidence that the current instruction or standing policy already covered the action.
 
-The unchanged Tool Gateway then independently re-resolves current state and re-validates the generated grant. Any organization/project/environment/risk/version/state/action drift fails closed before provider execution.
+The unchanged Tool Gateway then independently re-resolves current state and re-validates the generated grant. Any organization/project/environment/risk/version/state/action drift fails closed before provider execution. Authority-scope drift while an evaluator is running also fails closed before a grant is stored.
 
 ## Continuous chain behavior
 
@@ -82,8 +86,9 @@ Source acceptance requires:
 1. routine read/query/test/build chains continue without repeated approval prompts;
 2. exact current-user authority can satisfy an existing approval boundary without a second prompt;
 3. exact matching active standing authority can do the same;
-4. prediction or tampered authority evidence fails closed before provider execution;
-5. unresolved approval/deny/failure/cancellation stops the chain;
-6. ambiguous mutations stop at `verification_required`;
-7. existing Tool Gateway enforcement remains unchanged underneath;
-8. exact-head repository CI passes before merge.
+4. destination/data-sensitivity/cost/destructive/production/protected-app authority dimensions are part of the exact authorization fingerprint when applicable;
+5. prediction or tampered authority evidence fails closed before provider execution;
+6. unresolved approval/deny/failure/cancellation stops the chain;
+7. ambiguous mutations stop at `verification_required`;
+8. existing Tool Gateway enforcement remains unchanged underneath;
+9. exact-head repository CI passes before merge.
