@@ -26,13 +26,13 @@ enum PandoraSystemSurface {
 }
 
 String _systemSurfaceToken(PandoraSystemSurface surface) => switch (surface) {
-  PandoraSystemSurface.androidSettings => 'android_settings',
-  PandoraSystemSurface.homeAppSettings => 'home_app_settings',
-  PandoraSystemSurface.systemDialer => 'system_dialer',
-  PandoraSystemSurface.appDetails => 'app_details',
-  PandoraSystemSurface.batteryOptimizationSettings =>
-    'battery_optimization_settings',
-};
+      PandoraSystemSurface.androidSettings => 'android_settings',
+      PandoraSystemSurface.homeAppSettings => 'home_app_settings',
+      PandoraSystemSurface.systemDialer => 'system_dialer',
+      PandoraSystemSurface.appDetails => 'app_details',
+      PandoraSystemSurface.batteryOptimizationSettings =>
+        'battery_optimization_settings',
+    };
 
 PandoraDeviceAuthority _parseAuthority(Object? value) {
   return switch (value) {
@@ -370,9 +370,8 @@ class PandoraOemReliabilityState {
 
     final xiaomiFamily = _requiredBool(map, 'xiaomiFamily');
     final autostartManagement = _requiredString(map, 'autostartManagement');
-    final expectedAutostartManagement = xiaomiFamily
-        ? 'manual_oem_control'
-        : 'public_api_unavailable';
+    final expectedAutostartManagement =
+        xiaomiFamily ? 'manual_oem_control' : 'public_api_unavailable';
     if (autostartManagement != expectedAutostartManagement) {
       throw const FormatException('OEM autostart boundary is not truthful.');
     }
@@ -425,12 +424,12 @@ class PandoraSafeDiagnosticRequest {
   final PandoraSafeDiagnosticKind kind;
 
   Map<String, Object?> toMap() => {
-    'kind': switch (kind) {
-      PandoraSafeDiagnosticKind.capabilityManifest => 'capability_manifest',
-      PandoraSafeDiagnosticKind.permissionState => 'permission_state',
-      PandoraSafeDiagnosticKind.oemReliability => 'oem_reliability',
-    },
-  };
+        'kind': switch (kind) {
+          PandoraSafeDiagnosticKind.capabilityManifest => 'capability_manifest',
+          PandoraSafeDiagnosticKind.permissionState => 'permission_state',
+          PandoraSafeDiagnosticKind.oemReliability => 'oem_reliability',
+        },
+      };
 }
 
 class PandoraSafeDiagnosticResult {
@@ -451,8 +450,8 @@ class PandoraSafeDiagnosticResult {
       'permission_state' => PandoraSafeDiagnosticKind.permissionState,
       'oem_reliability' => PandoraSafeDiagnosticKind.oemReliability,
       final value => throw FormatException(
-        'Unknown safe diagnostic result kind: $value',
-      ),
+          'Unknown safe diagnostic result kind: $value',
+        ),
     };
     final status = _requiredString(map, 'status');
     if (status != 'completed') {
