@@ -31,6 +31,10 @@ test('explicit selected-project changes execute through the real builder without
   assert.equal(source.includes('message: handoff.request'), false);
   assert.equal(source.includes("handoff?.source == 'project_workspace_change'"), true);
   assert.equal(source.includes('experience.loadExperience(handoffProjectId)'), true);
+  assert.equal(source.includes("projection.state.name == 'build'"), true);
+  assert.equal(source.includes("idempotencyKey: '$executionKey:initial-build'"), true);
+  assert.equal(source.includes('Build started with Gemini.'), true);
+  assert.equal(source.includes('projection.activeBuildJobId != null'), true);
   assert.equal(source.includes('experience.submitChange('), true);
   assert.equal(source.includes('experience.understanding('), true);
   assert.equal(source.includes('experience.requestBuild('), true);
