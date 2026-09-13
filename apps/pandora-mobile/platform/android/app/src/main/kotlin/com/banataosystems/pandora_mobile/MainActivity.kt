@@ -70,6 +70,10 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        PandoraDeviceAgentChannel.install(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger
+        )
         flutterEngine.platformViewsController.registry.registerViewFactory(
             "pandora/exact_preview",
             PandoraExactPreviewFactory(flutterEngine.dartExecutor.binaryMessenger)

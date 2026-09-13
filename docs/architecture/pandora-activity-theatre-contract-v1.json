@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "pandora-activity-theatre-contract-v1",
+  "status": "frozen",
+  "effectiveDate": "2026-09-13",
+  "purpose": "Freeze universal truthful, interruptible Activity Theatre semantics shared by Chat, background jobs and specialized Build Theatre projections.",
+  "ownership": {
+    "package": "@pandora/activity-theatre",
+    "neutral": true,
+    "projectRuntimeMayConsume": true,
+    "projectRuntimeDoesNotOwnUniversalContract": true,
+    "buildTheatreRelation": "specialized_projection"
+  },
+  "eventAdmission": {
+    "meaningfulRealEventsOnly": true,
+    "syntheticProgressForbidden": true,
+    "fakePercentagesForbidden": true,
+    "inventedStagesForbidden": true,
+    "sourceEventOrTypedEvidenceRequired": true,
+    "admissionAuthority": "single_writer_per_job_epoch",
+    "offlineAdmission": "local_writer_may_admit_when_authoritative_for_current_job_epoch",
+    "writerHandoffRequiresEpochAdvance": true,
+    "duplicateEventIdentityRejected": true
+  },
+  "identity": {
+    "jobIdRequired": true,
+    "eventIdRequired": true,
+    "sequenceRequired": true,
+    "writerEpochRequired": true,
+    "parentEventIdSupported": true,
+    "attemptIdDoesNotReplaceJobId": true,
+    "identitySurvivesReconnectReplayAndOfflineSync": true
+  },
+  "time": {
+    "occurredAtRequired": true,
+    "admittedAtRequired": true,
+    "observedAtRequiredForProvenance": true,
+    "timestampsOffsetAwareIso8601": true,
+    "occurredAtMayPrecedeAdmission": true,
+    "admittedAtCannotPrecedeOccurredAt": true,
+    "timelineSequenceIsCanonicalOrdering": true
+  },
+  "provenance": {
+    "sourceTypeRequired": true,
+    "sourceIdRequired": true,
+    "sourceEventIdOrEvidenceRequired": true,
+    "typedEvidenceReferences": true,
+    "allowedEvidenceTypes": [
+      "runtime_event",
+      "provider_receipt",
+      "device_event",
+      "tool_receipt",
+      "test_receipt",
+      "artifact",
+      "verification_receipt",
+      "policy_decision",
+      "user_control"
+    ],
+    "providerAttemptSuccessDoesNotImplyJobResult": true,
+    "verificationEvidenceRequiredForResult": true
+  },
+  "states": {
+    "public": [
+      "understanding",
+      "planning",
+      "acting",
+      "checking",
+      "needs_you",
+      "retrying",
+      "fallback",
+      "verifying",
+      "paused",
+      "resuming",
+      "result",
+      "failed",
+      "cancelled"
+    ],
+    "terminal": ["result", "failed", "cancelled"],
+    "postTerminalEventsForbidden": true,
+    "resultRequiresVerifiedOverallJobOutcome": true,
+    "failedRequiresFailureEvidence": true,
+    "cancelledRequiresAcceptedCancellationOrAuthoritativeCancellationEvidence": true
+  },
+  "controls": {
+    "acceptedTypes": ["pause", "resume", "cancel", "redirect", "constraint"],
+    "acceptedControlRequiresUserControlEvidence": true,
+    "requestedControlIsNotAcceptedControl": true,
+    "pauseRequiresAcceptedControlOrAuthoritativeRuntimeReason": true,
+    "resumingRequiresPriorPausedState": true,
+    "cancelledRequiresAcceptedCancelOrAuthoritativeCancellation": true,
+    "controlReadbackRequiredWhenAcceptanceIsAmbiguous": true
+  },
+  "needsYou": {
+    "realUserBoundaryOnly": true,
+    "requiresExactRequiredAction": true,
+    "requiresBlockerReason": true,
+    "allowedReasonsMustConformToStandingAuthorityPolicy": true,
+    "routineWaitingIsNotNeedsYou": true,
+    "providerFallbackInsideAuthorityIsNotNeedsYou": true,
+    "voluntaryPauseIsNotNeedsYou": true
+  },
+  "retryAndFallback": {
+    "retryRequiresPriorAttemptEvidence": true,
+    "fallbackRequiresPriorAttemptOrCapabilityEvidence": true,
+    "authorityScopeMayNotExpand": true,
+    "consequentialRetryReusesIdempotencyIdentity": true,
+    "ambiguousEffectRequiresReadbackBeforeRetry": true,
+    "attemptSuccessRemainsAttemptScoped": true
+  },
+  "replay": {
+    "durableReplayRequired": true,
+    "replayMustBeCompleteFromKnownCursorOrCheckpoint": true,
+    "gapDetectionRequired": true,
+    "duplicatesMustBeIdempotentlyRejectedOrCollapsed": true,
+    "reconnectMayNotInventMissingEvents": true,
+    "offlineSyncPreservesOriginalOccurrenceTimeAndIdentity": true
+  },
+  "privacy": {
+    "rawPromptsForbiddenInPublicProjection": true,
+    "rawToolArgsForbiddenInPublicProjection": true,
+    "credentialsSecretsTokensOtpsForbidden": true,
+    "privateProviderPayloadsForbidden": true,
+    "publicFieldsFailClosedOnCredentialLikeMaterial": true,
+    "evidenceRefsMustBePrivacySafe": true,
+    "advancedModeStillRespectsRedaction": true
+  },
+  "verification": {
+    "overallJobResultRequiresVerifierOrEquivalentReadback": true,
+    "providerSuccessAloneInsufficient": true,
+    "modelClaimAloneInsufficient": true,
+    "artifactCreationAloneInsufficientWhenVerificationApplies": true,
+    "authorizationIsNotCompletion": true,
+    "physicalDeviceSuccessRequiresPhysicalEvidence": true
+  },
+  "buildTheatre": {
+    "specializedProjectionOnly": true,
+    "usesSameCanonicalEvents": true,
+    "mayAddBuildSpecificLabels": true,
+    "mayNotFabricateBuildProgress": true,
+    "buildResultRequiresSameVerificationRules": true,
+    "publishResultRequiresLiveReadbackWhenApplicable": true
+  },
+  "handoffs": {
+    "M1-004": "Transport admitted canonical events to Chat in real time without changing truth semantics.",
+    "M1-005": "Implement live user control acceptance and state-preserving interruption on this contract.",
+    "M1-007": "Implement durable reconnect/checkpoint behavior preserving canonical event identity and idempotency.",
+    "M2-001": "Implement the universal event schema and validators conforming to this frozen contract.",
+    "M2-002": "Render chronological human-readable Theatre projections from admitted canonical events.",
+    "M2-003": "Enforce provenance and truth-state invariants and reject fabricated progress.",
+    "M2-005": "Implement Needs You strictly as a real user-boundary state under M0-003 authority semantics.",
+    "M2-006": "Map Build Theatre to the same canonical substrate as a specialized projection."
+  }
+}
