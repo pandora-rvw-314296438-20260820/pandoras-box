@@ -42,7 +42,9 @@ class PandoraCommunicationRequest {
       throw const FormatException('Call handoffs cannot include an SMS body.');
     }
     if (message != null && message!.length > 2000) {
-      throw const FormatException('SMS body exceeds the bounded handoff limit.');
+      throw const FormatException(
+        'SMS body exceeds the bounded handoff limit.',
+      );
     }
 
     return <String, Object?>{
@@ -74,7 +76,9 @@ class PandoraCommunicationHandoffResult {
 
   factory PandoraCommunicationHandoffResult.fromMap(Object? raw) {
     if (raw is! Map) {
-      throw const FormatException('Communication handoff result must be a map.');
+      throw const FormatException(
+        'Communication handoff result must be a map.',
+      );
     }
     final map = <String, Object?>{};
     for (final entry in raw.entries) {
