@@ -8,8 +8,8 @@ class PandoraIntelligenceApi {
   PandoraIntelligenceApi({
     required SupabaseClient client,
     required String organizationId,
-  }) : _client = client,
-       _organizationId = organizationId;
+  })  : _client = client,
+        _organizationId = organizationId;
 
   final SupabaseClient _client;
   final String _organizationId;
@@ -137,8 +137,7 @@ class PandoraIntelligenceApi {
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
   }) async {
     _requireSession();
-    final auditAttachments =
-        textAttachment == null &&
+    final auditAttachments = textAttachment == null &&
             imageAttachment == null &&
             projectId != null &&
             _isRepositoryAuditRequest(message)
@@ -368,8 +367,8 @@ class PandoraCapabilityRegistry {
       projectRequired: json['projectRequired'] == true,
       providers: rawProviders is List
           ? rawProviders
-                .map((value) => PandoraCapabilityProvider.fromJson(_map(value)))
-                .toList(growable: false)
+              .map((value) => PandoraCapabilityProvider.fromJson(_map(value)))
+              .toList(growable: false)
           : const <PandoraCapabilityProvider>[],
     );
   }
@@ -435,15 +434,14 @@ class PandoraCapabilityProvider {
       accountVerified: account['verified'] == true,
       accountLabel: _optionalText(account['label']),
       scopesVerified: json['scopesVerified'] == true,
-      lastVerifiedAt:
-          _optionalDate(json['lastVerifiedAt']) ??
+      lastVerifiedAt: _optionalDate(json['lastVerifiedAt']) ??
           _optionalDate(health['lastVerifiedAt']),
       failureCode: _optionalText(failure['code']),
       failureMessage: _optionalText(failure['message']),
       actions: rawActions is List
           ? rawActions
-                .map((value) => PandoraCapabilityAction.fromJson(_map(value)))
-                .toList(growable: false)
+              .map((value) => PandoraCapabilityAction.fromJson(_map(value)))
+              .toList(growable: false)
           : const <PandoraCapabilityAction>[],
     );
   }
