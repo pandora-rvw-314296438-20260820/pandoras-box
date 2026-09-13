@@ -148,7 +148,7 @@ function publicText(value, field, maxLength) {
 
 function opaqueId(value, field) {
   const normalized = nonEmpty(value, field, 200);
-  assertNoCredentialLikeMaterial(normalized, field);
+  assertNoCredentialLikeMaterial(normalized, field, { inspectNamedAssignments: true });
   if (!opaqueIdPattern.test(normalized)) {
     throw new Error(`${field} must be an opaque identifier using letters, digits, dot, colon, underscore or hyphen`);
   }
