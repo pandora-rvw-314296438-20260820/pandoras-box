@@ -16,6 +16,8 @@ import io.flutter.plugin.common.MethodChannel
 internal class PandoraDeviceAgentChannel private constructor(
     private val context: Context
 ) {
+    private val oemAdapter = PandoraAndroidOemAdapter(context)
+
     companion object {
         private const val CHANNEL_NAME = "pandora/device_agent"
 
@@ -37,7 +39,19 @@ internal class PandoraDeviceAgentChannel private constructor(
     }
 
     private fun openSystemSurface(call: MethodCall, result: MethodChannel.Result) {
-        val intent = when (call.argument<String>("surface")) {
+        val surface = call.argument<String>("surface")
+        when (surface) {
+            "app_details" -> {
+                result.success(oemAdapter.openAppDetails())
+                return
+            }
+            "battery_optimization_settings" -> {
+                result.success(oemAdapter.openBatteryOptimizationSettings())
+                return
+            }
+        }
+
+        val intent = when (surface) {
             "android_settings" -> Intent(Settings.ACTION_SETTINGS)
             "home_app_settings" -> Intent(Settings.ACTION_HOME_SETTINGS)
             "system_dialer" -> Intent(Intent.ACTION_DIAL)
@@ -182,6 +196,13 @@ internal class PandoraDeviceAgentChannel private constructor(
                     "kind" to "permission_state",
                     "status" to "completed",
                     "result" to permissionStates()
+                )
+            )
+            "oem_reliability" -> result.success(
+                mapOf(
+                    "kind" to "oem_reliability",
+                    "status" to "completed",
+                    "result" to oemAdapter.reliabilityState()
                 )
             )
             else -> result.error(
@@ -333,8 +354,8 @@ internal class PandoraDeviceAgentChannel private constructor(
                 capability(
                     "background.oem_reliability",
                     "public_app",
-                    "implementation_pending",
-                    "OEM-specific reliability belongs behind the M4-008 adapter.",
+                    "available",
+                    "Public Android/OEM reliability state and safe settings handoffs are available; Xiaomi/HyperOS autostart remains a manual OEM-controlled boundary and physical verification is required.",
                     false
                 ),
                 capability(
