@@ -164,6 +164,7 @@ jobs:
         working-directory: .pandora-mobile-build
         run: >-
           dart format
+          lib/core/device/pandora_resource_runtime.dart
           lib/core/platform/pandora_web_preview_web.dart
           lib/app/pandora_chat_shell.dart
           lib/features/plugins/plugins_screen.dart
@@ -175,6 +176,7 @@ jobs:
         with:
           name: pandora-mobile-web-formatter-canonical
           path: |
+            .pandora-mobile-build/lib/core/device/pandora_resource_runtime.dart
             .pandora-mobile-build/lib/core/platform/pandora_web_preview_web.dart
             .pandora-mobile-build/lib/app/pandora_chat_shell.dart
             .pandora-mobile-build/lib/features/plugins/plugins_screen.dart
