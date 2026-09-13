@@ -242,6 +242,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     );
                   },
                 ),
+                _SettingsAction(
+                  icon: Icons.app_settings_alt_outlined,
+                  title: 'Pandora app details',
+                  subtitle:
+                      'Review Android app settings and background controls',
+                  onTap: () {
+                    _openSystemSurface(
+                      PandoraSystemSurface.appDetails,
+                      'Pandora app details',
+                    );
+                  },
+                ),
+                _SettingsAction(
+                  icon: Icons.battery_saver_outlined,
+                  title: 'Battery optimization',
+                  subtitle:
+                      'Review Android battery policy; Xiaomi/HyperOS autostart remains user-controlled',
+                  onTap: () {
+                    _openSystemSurface(
+                      PandoraSystemSurface.batteryOptimizationSettings,
+                      'battery optimization settings',
+                    );
+                  },
+                ),
               ],
             ),
             const SizedBox(height: PandoraSpacing.xl),

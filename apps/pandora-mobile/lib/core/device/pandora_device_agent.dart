@@ -21,12 +21,17 @@ enum PandoraSystemSurface {
   androidSettings,
   homeAppSettings,
   systemDialer,
+  appDetails,
+  batteryOptimizationSettings,
 }
 
 String _systemSurfaceToken(PandoraSystemSurface surface) => switch (surface) {
       PandoraSystemSurface.androidSettings => 'android_settings',
       PandoraSystemSurface.homeAppSettings => 'home_app_settings',
       PandoraSystemSurface.systemDialer => 'system_dialer',
+      PandoraSystemSurface.appDetails => 'app_details',
+      PandoraSystemSurface.batteryOptimizationSettings =>
+        'battery_optimization_settings',
     };
 
 PandoraDeviceAuthority _parseAuthority(Object? value) {
@@ -79,6 +84,15 @@ bool _requiredBool(Map<String, Object?> map, String key) {
   final value = map[key];
   if (value is! bool) {
     throw FormatException('$key must be a boolean.');
+  }
+  return value;
+}
+
+bool? _nullableBool(Map<String, Object?> map, String key) {
+  final value = map[key];
+  if (value == null) return null;
+  if (value is! bool) {
+    throw FormatException('$key must be a boolean or null.');
   }
   return value;
 }
@@ -290,7 +304,119 @@ class PandoraPermissionState {
   }
 }
 
-enum PandoraSafeDiagnosticKind { capabilityManifest, permissionState }
+class PandoraOemReliabilityState {
+  const PandoraOemReliabilityState({
+    required this.schemaVersion,
+    required this.adapterId,
+    required this.manufacturer,
+    required this.brand,
+    required this.xiaomiFamily,
+    required this.backgroundRestrictionSupported,
+    required this.backgroundRestricted,
+    required this.batteryOptimizationStateSupported,
+    required this.ignoringBatteryOptimizations,
+    required this.autostartManagement,
+    required this.appDetailsSurfaceAvailable,
+    required this.batteryOptimizationSurfaceAvailable,
+    required this.normalOperationRequiresDesktop,
+    required this.rootRequired,
+    required this.bootloaderUnlockRequired,
+    required this.hiddenOemApiRequired,
+  });
+
+  final String schemaVersion;
+  final String adapterId;
+  final String manufacturer;
+  final String brand;
+  final bool xiaomiFamily;
+  final bool backgroundRestrictionSupported;
+  final bool? backgroundRestricted;
+  final bool batteryOptimizationStateSupported;
+  final bool? ignoringBatteryOptimizations;
+  final String autostartManagement;
+  final bool appDetailsSurfaceAvailable;
+  final bool batteryOptimizationSurfaceAvailable;
+  final bool normalOperationRequiresDesktop;
+  final bool rootRequired;
+  final bool bootloaderUnlockRequired;
+  final bool hiddenOemApiRequired;
+
+  factory PandoraOemReliabilityState.fromMap(Object? raw) {
+    final map = _stringMap(raw, 'OEM reliability state');
+    final schemaVersion = _requiredString(map, 'schemaVersion');
+    if (schemaVersion != '1.0.0') {
+      throw FormatException(
+        'Unsupported OEM reliability schema: $schemaVersion',
+      );
+    }
+    final normalOperationRequiresDesktop = _requiredBool(
+      map,
+      'normalOperationRequiresDesktop',
+    );
+    final rootRequired = _requiredBool(map, 'rootRequired');
+    final bootloaderUnlockRequired = _requiredBool(
+      map,
+      'bootloaderUnlockRequired',
+    );
+    final hiddenOemApiRequired = _requiredBool(map, 'hiddenOemApiRequired');
+    if (normalOperationRequiresDesktop ||
+        rootRequired ||
+        bootloaderUnlockRequired ||
+        hiddenOemApiRequired) {
+      throw const FormatException(
+        'OEM reliability must remain phone-only and use public Android APIs.',
+      );
+    }
+
+    final xiaomiFamily = _requiredBool(map, 'xiaomiFamily');
+    final autostartManagement = _requiredString(map, 'autostartManagement');
+    final expectedAutostartManagement =
+        xiaomiFamily ? 'manual_oem_control' : 'public_api_unavailable';
+    if (autostartManagement != expectedAutostartManagement) {
+      throw const FormatException('OEM autostart boundary is not truthful.');
+    }
+
+    return PandoraOemReliabilityState(
+      schemaVersion: schemaVersion,
+      adapterId: _requiredString(map, 'adapterId'),
+      manufacturer: _requiredString(map, 'manufacturer'),
+      brand: _requiredString(map, 'brand'),
+      xiaomiFamily: xiaomiFamily,
+      backgroundRestrictionSupported: _requiredBool(
+        map,
+        'backgroundRestrictionSupported',
+      ),
+      backgroundRestricted: _nullableBool(map, 'backgroundRestricted'),
+      batteryOptimizationStateSupported: _requiredBool(
+        map,
+        'batteryOptimizationStateSupported',
+      ),
+      ignoringBatteryOptimizations: _nullableBool(
+        map,
+        'ignoringBatteryOptimizations',
+      ),
+      autostartManagement: autostartManagement,
+      appDetailsSurfaceAvailable: _requiredBool(
+        map,
+        'appDetailsSurfaceAvailable',
+      ),
+      batteryOptimizationSurfaceAvailable: _requiredBool(
+        map,
+        'batteryOptimizationSurfaceAvailable',
+      ),
+      normalOperationRequiresDesktop: normalOperationRequiresDesktop,
+      rootRequired: rootRequired,
+      bootloaderUnlockRequired: bootloaderUnlockRequired,
+      hiddenOemApiRequired: hiddenOemApiRequired,
+    );
+  }
+}
+
+enum PandoraSafeDiagnosticKind {
+  capabilityManifest,
+  permissionState,
+  oemReliability,
+}
 
 class PandoraSafeDiagnosticRequest {
   const PandoraSafeDiagnosticRequest(this.kind);
@@ -301,6 +427,7 @@ class PandoraSafeDiagnosticRequest {
         'kind': switch (kind) {
           PandoraSafeDiagnosticKind.capabilityManifest => 'capability_manifest',
           PandoraSafeDiagnosticKind.permissionState => 'permission_state',
+          PandoraSafeDiagnosticKind.oemReliability => 'oem_reliability',
         },
       };
 }
@@ -321,6 +448,7 @@ class PandoraSafeDiagnosticResult {
     final kind = switch (_requiredString(map, 'kind')) {
       'capability_manifest' => PandoraSafeDiagnosticKind.capabilityManifest,
       'permission_state' => PandoraSafeDiagnosticKind.permissionState,
+      'oem_reliability' => PandoraSafeDiagnosticKind.oemReliability,
       final value => throw FormatException(
           'Unknown safe diagnostic result kind: $value',
         ),
