@@ -12,6 +12,7 @@ const {
   normalizeActivityEvent,
   validateActivityTimeline,
 } = require('../packages/pandora-project-runtime/activity-theatre-event.js');
+const runtimePackage = require('../packages/pandora-project-runtime');
 
 const base = (overrides = {}) => ({
   schemaVersion: ACTIVITY_EVENT_SCHEMA_VERSION,
@@ -31,6 +32,12 @@ const base = (overrides = {}) => ({
   domain: 'communications',
   capability: 'sms.resolve-recipient',
   ...overrides,
+});
+
+test('normal package entrypoint exports the canonical Activity Theatre contract', () => {
+  assert.equal(runtimePackage.ACTIVITY_EVENT_SCHEMA_VERSION, ACTIVITY_EVENT_SCHEMA_VERSION);
+  assert.equal(runtimePackage.normalizeActivityEvent, normalizeActivityEvent);
+  assert.equal(runtimePackage.validateActivityTimeline, validateActivityTimeline);
 });
 
 test('canonical taxonomy exactly matches the universal Activity Theatre contract', () => {
