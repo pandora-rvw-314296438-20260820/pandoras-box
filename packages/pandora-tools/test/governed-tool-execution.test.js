@@ -322,6 +322,51 @@ test("standing policy requires explicit match identity and exact action fingerpr
   assert.equal(calls, 1);
 });
 
+test("standing-policy grant is one-time so later revocation cannot be bypassed by grant reuse", async () => {
+  let calls = 0;
+  const adapters = new T.ExecutionAdapterRegistry().register("DeploymentExecutor", {
+    productionConcurrency: { durability: "durable", mode: "compare_and_set", owner: "deployment-provider" },
+    async execute() { calls += 1; return { output: { status: "published" } }; },
+  });
+  const deps = durableMemoryDeps(adapters);
+  const gateway = new T.PandoraToolGateway(deps);
+  const executor = new T.PandoraAuthorityToolExecutor({
+    gateway,
+    now: fixedNow,
+    authorityEvaluator: {
+      async evaluate(request) {
+        return {
+          schema_version: T.AUTHORITY_SCHEMA_VERSION,
+          decision: T.AUTHORITY_DECISIONS.STANDING_AUTHORIZED,
+          authority_basis: "active_explicit_standing_policy",
+          standing_policy_id: "policy-deploy-production",
+          standing_policy_match: true,
+          authorization_fingerprint: request.authorization_fingerprint,
+          action_hash: request.action_hash,
+          policy_version: request.policy_version,
+          risk: request.risk,
+          issued_at: "2026-09-13T23:55:00Z",
+          expires_at: "2026-09-14T00:30:00Z",
+          reason_code: "STANDING_POLICY_MATCHED",
+        };
+      },
+    },
+  });
+
+  const first = await executor.handle(publishProposal(), publishContext());
+  assert.equal(first.executed, true);
+  assert.equal(calls, 1);
+  const grants = [...deps.approvalStore.records.values()];
+  assert.equal(grants.length, 1);
+  assert.equal(grants[0].one_time, true);
+
+  await assert.rejects(
+    gateway.handle(publishProposal(), publishContext({ approval_id: grants[0].approval_id })),
+    (error) => error?.code === "APPROVAL_ALREADY_CONSUMED",
+  );
+  assert.equal(calls, 1);
+});
+
 test("tampered authority fingerprint fails closed before provider execution", async () => {
   let calls = 0;
   const adapters = new T.ExecutionAdapterRegistry().register("DeploymentExecutor", {
