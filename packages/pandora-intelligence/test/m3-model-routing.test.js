@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   GEMINI_MODEL_CAPABILITY_DECLARATIONS,
+  KIMI_K3_CAPABILITY_DECLARATION,
   ModelCapabilityRegistry,
   ModelRouter,
   OPENAI_MODEL_CAPABILITY_DECLARATIONS,
@@ -103,6 +104,7 @@ test('current Gemini and OpenAI profiles route through one registry and future p
   const registry = new ModelCapabilityRegistry();
   for (const item of GEMINI_MODEL_CAPABILITY_DECLARATIONS) registry.register(item);
   for (const item of OPENAI_MODEL_CAPABILITY_DECLARATIONS) registry.register(item);
+  registry.register(KIMI_K3_CAPABILITY_DECLARATION);
   registry.register(syntheticModel('future-provider', 'future-v1', { executionBoundary: 'pandora_trusted_cloud', costClass: 'low' }));
   const router = new ModelRouter({ registry, adapters: { gemini: adapter('gemini'), openai: adapter('openai'), 'future-provider': adapter('future-provider') } });
   const openai = await router.execute(request({ budget: { maxAttempts: 1 } }), { preferredProvider: 'openai' });
@@ -110,6 +112,7 @@ test('current Gemini and OpenAI profiles route through one registry and future p
   assert.equal(openai.routingDecision.selectedExecutionBoundary, 'external_provider');
   const gemini = await router.execute(request({ requestId: 'req-gemini', budget: { maxAttempts: 1 } }), { preferredProvider: 'gemini' });
   assert.equal(gemini.routedProvider, 'gemini');
+  assert.equal(KIMI_K3_CAPABILITY_DECLARATION.executionBoundary, 'external_provider');
   const futurePolicy = createRoutingPolicy({ allowedExecutionBoundaries: ['pandora_trusted_cloud'] });
   const future = await router.execute(request({ requestId: 'req-future', budget: { maxAttempts: 1 } }), { policy: futurePolicy });
   assert.equal(future.routedProvider, 'future-provider');
