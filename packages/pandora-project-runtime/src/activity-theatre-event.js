@@ -32,13 +32,16 @@ const ACTIVITY_EVENT_SOURCE_TYPE_SET = new Set(ACTIVITY_EVENT_SOURCE_TYPES);
 
 const opaqueIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
 const credentialLikePatterns = Object.freeze([
+  /Authorization\s*:\s*(?:Bearer|Basic)\s+[^\s]+/i,
   /gh[pousr]_[A-Za-z0-9_]{20,}/,
   /\bsk-[A-Za-z0-9_-]{20,}\b/,
+  /(?:sbp|vcp|sb_secret|vercel)_[A-Za-z0-9_-]{12,}/i,
   /AIza[0-9A-Za-z_-]{20,}/,
   /\bBearer\s+[A-Za-z0-9._~+\/-]{12,}/i,
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
   /(?:postgres(?:ql)?):\/\/[^\s:@]+:[^@\s]+@/i,
-  /\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b/,
+  /https?:\/\/[^/\s:@]+:[^@\s/]+@/i,
+  /\beyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\b/,
   /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|private[_-]?key)\s*[:=]\s*["']?[^\s,;}"']{4,}/i,
 ]);
 const allowedTopLevelKeys = new Set([
