@@ -13,6 +13,7 @@ const {
   trafficPreference,
   weightedPerformanceScore,
 } = require('./adaptive.js');
+const { EXECUTION_BOUNDARIES } = require('../capabilities/registry.js');
 
 /** @type {Readonly<Record<string, number>>} */
 const COST_RANK = Object.freeze({ low: 1, medium: 2, high: 3 });
@@ -30,6 +31,26 @@ function stringList(value, field) {
     if (typeof item !== 'string' || !item.trim()) throw new TypeError(`${field}[${index}] must be a non-empty string`);
     return item.trim();
   });
+}
+/** @param {unknown} value @param {Readonly<Record<string, number>>} ranks @param {string} field */
+function executionBoundaryList(value, field) {
+  const values = stringList(value, field);
+  for (const item of values) {
+    if (!EXECUTION_BOUNDARIES.includes(item)) throw new TypeError(`${field} contains unsupported execution boundary: ${item}`);
+  }
+  return values;
+}
+/** @param {unknown} value */
+function normalizeTaskExecutionBoundaries(value) {
+  if (value == null) return Object.freeze({});
+  if (!isRecord(value)) throw new TypeError('taskExecutionBoundaries must be an object');
+  /** @type {Record<string, readonly string[]>} */
+  const output = {};
+  for (const [task, raw] of Object.entries(/** @type {Record<string, unknown>} */ (value))) {
+    if (!task.trim()) throw new TypeError('taskExecutionBoundaries keys must be non-empty');
+    output[task] = Object.freeze(executionBoundaryList(raw, `taskExecutionBoundaries.${task}`));
+  }
+  return Object.freeze(output);
 }
 /** @param {unknown} value @param {Readonly<Record<string, number>>} ranks @param {string} field */
 function rankedValue(value, ranks, field) {
@@ -248,6 +269,8 @@ function createRoutingPolicy(input = {}) {
     deniedProviders: Object.freeze(stringList(input.deniedProviders, 'deniedProviders')),
     allowedModels: Object.freeze(stringList(input.allowedModels, 'allowedModels')),
     deniedModels: Object.freeze(stringList(input.deniedModels, 'deniedModels')),
+    allowedExecutionBoundaries: Object.freeze(executionBoundaryList(input.allowedExecutionBoundaries, 'allowedExecutionBoundaries')),
+    taskExecutionBoundaries: normalizeTaskExecutionBoundaries(input.taskExecutionBoundaries),
     providerControls: normalizeControls(input.providerControls, 'providerControls'),
     modelControls: normalizeControls(input.modelControls, 'modelControls'),
     circuits: normalizeCircuits(input.circuits),
@@ -316,6 +339,18 @@ function modelEligibility(model, policy, context = {}) {
   applyControl(controls.provider, task, 'provider', reasons);
   applyControl(controls.model, task, 'model', reasons);
 
+  const taskExecutionBoundaries = isRecord(policy.taskExecutionBoundaries)
+    ? /** @type {Readonly<Record<string, readonly string[]>>} */ (policy.taskExecutionBoundaries)
+    : {};
+  const globalExecutionBoundaries = Array.isArray(policy.allowedExecutionBoundaries)
+    ? /** @type {readonly string[]} */ (policy.allowedExecutionBoundaries)
+    : [];
+  const allowedExecutionBoundaries = taskExecutionBoundaries[task] ?? taskExecutionBoundaries['*'] ?? globalExecutionBoundaries;
+  const executionBoundary = EXECUTION_BOUNDARIES.includes(String(model.executionBoundary))
+    ? String(model.executionBoundary)
+    : 'external_provider';
+  if (allowedExecutionBoundaries.length && !allowedExecutionBoundaries.includes(executionBoundary)) reasons.push('privacy_boundary_not_allowed');
+
   const circuits = isRecord(policy.circuits) ? /** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */ (policy.circuits) : {};
   const explicitCircuit = circuits[`${provider}:${modelId}`] ?? circuits[ provider ] ?? null;
   const healthSignals = isRecord(policy.healthSignals) ? /** @type {Readonly<Record<string, Readonly<Record<string, unknown>>>>} */ (policy.healthSignals) : {};
@@ -345,7 +380,7 @@ function modelEligibility(model, policy, context = {}) {
   const ceilings = [context.requestMaxCostUsd, policy.maxEstimatedCostUsd].filter((value) => typeof value === 'number').map(Number);
   const costCeiling = ceilings.length ? Math.min(...ceilings) : null;
   if (estimatedCostUsd != null && costCeiling != null && estimatedCostUsd > costCeiling) reasons.push('estimated_cost_ceiling');
-  return Object.freeze({ allowed: reasons.length === 0, reasons: Object.freeze(reasons), metrics, estimatedCostUsd, costCeiling, circuitState });
+  return Object.freeze({ allowed: reasons.length === 0, reasons: Object.freeze(reasons), metrics, estimatedCostUsd, costCeiling, circuitState, executionBoundary, allowedExecutionBoundaries });
 }
 
 /** @param {Readonly<Record<string, unknown>>} model @param {Readonly<Record<string, unknown>>} policy */
