@@ -8,6 +8,7 @@ import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import 'pandora_simple_ui.dart';
+import 'project_experience_v2.dart';
 
 class AskPandoraScreen extends StatefulWidget {
   const AskPandoraScreen({
@@ -254,12 +255,40 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         _outcomeUnknown = false;
       });
 
-      // `intelligence.chat` already performed the governed dispatch. A handoff
-      // is the ProjectOS admission receipt for that same request, not a second
-      // command. Never resubmit it through the legacy owner `/ask` mutation:
-      // doing so would create duplicate work under a different idempotency key.
-      // Execution progress and terminal evidence are rendered from the
-      // authoritative intake/build stream in this conversation.
+      final handoff = turn.handoff;
+      final experience = dependencies.projectExperienceRepository;
+      final handoffProjectId = handoff?.projectId?.trim();
+      if (handoff?.source == 'project_workspace_change' &&
+          experience != null &&
+          handoffProjectId != null &&
+          handoffProjectId.isNotEmpty) {
+        try {
+          final snapshot = await experience.runtime(handoffProjectId);
+          if (!mounted) return;
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ProjectWorkspaceV2Screen(
+                project: snapshot.project,
+                initialChange: handoff!.request,
+              ),
+            ),
+          );
+        } catch (_) {
+          if (mounted) {
+            setState(() {
+              _error =
+                  'Pandora could not open the project runtime for that request.';
+            });
+          }
+        }
+        return;
+      }
+
+      // `intelligence.chat` owns exactly one dispatch for this turn. Only an
+      // explicit project_workspace_change handoff enters the existing real
+      // workspace/change engine. ProjectOS intake receipts remain in Chat and
+      // are never resubmitted as a second mutation.
+      // Progress and verified terminal evidence stay authoritative.
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -652,7 +681,7 @@ class _ObsidianSuggestion extends StatelessWidget {
       );
 }
 
-class _Conversation extends StatelessWidget {
+class _Conversation extends StatefulWidget {
   const _Conversation({
     required this.messages,
     required this.pendingMessage,
@@ -664,19 +693,77 @@ class _Conversation extends StatelessWidget {
   final bool thinking;
 
   @override
+  State<_Conversation> createState() => _ConversationState();
+}
+
+class _ConversationState extends State<_Conversation> {
+  final ScrollController _scrollController = ScrollController();
+  late int _lastRenderedItemCount;
+
+  bool get _hasPending =>
+      widget.pendingMessage != null && widget.pendingMessage!.isNotEmpty;
+
+  int get _renderedItemCount =>
+      widget.messages.length +
+      (_hasPending ? 1 : 0) +
+      (widget.thinking ? 1 : 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _lastRenderedItemCount = _renderedItemCount;
+    _scheduleScrollToLatest(jump: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _Conversation oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextCount = _renderedItemCount;
+    if (nextCount != _lastRenderedItemCount) {
+      _lastRenderedItemCount = nextCount;
+      _scheduleScrollToLatest();
+    }
+  }
+
+  void _scheduleScrollToLatest({bool jump = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final target = _scrollController.position.maxScrollExtent;
+      if (jump) {
+        _scrollController.jumpTo(target);
+      } else {
+        _scrollController.animateTo(
+          target,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final hasPending = pendingMessage != null && pendingMessage!.isNotEmpty;
-    final count = messages.length + (hasPending ? 1 : 0) + (thinking ? 1 : 0);
+    final count = _renderedItemCount;
     return ListView.builder(
+      controller: _scrollController,
+      reverse: false,
       padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       itemCount: count,
       itemBuilder: (context, index) {
         Widget child;
-        if (index < messages.length) {
-          child = _ChatBubble(message: messages[index]);
-        } else if (hasPending && index == messages.length) {
-          child = _ChatBubble(message: _ChatMessage.user(pendingMessage!));
+        if (index < widget.messages.length) {
+          child = _ChatBubble(message: widget.messages[index]);
+        } else if (_hasPending && index == widget.messages.length) {
+          child = _ChatBubble(
+            message: _ChatMessage.user(widget.pendingMessage!),
+          );
         } else {
           child = const _PandoraThinkingBubble();
         }
@@ -952,24 +1039,21 @@ class _Composer extends StatelessWidget {
                         menuChildren: [
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                              'ask-pandora-menu-camera',
-                            ),
+                                'ask-pandora-menu-camera'),
                             label: 'Camera',
                             icon: Icons.camera_alt_outlined,
                             onPressed: onCamera,
                           ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                              'ask-pandora-menu-photos',
-                            ),
+                                'ask-pandora-menu-photos'),
                             label: 'Photos',
                             icon: Icons.photo_outlined,
                             onPressed: onPhotos,
                           ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                              'ask-pandora-menu-files',
-                            ),
+                                'ask-pandora-menu-files'),
                             label: 'Files',
                             icon: Icons.insert_drive_file_outlined,
                             onPressed: onAttach,

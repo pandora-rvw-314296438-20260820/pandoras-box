@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../platform/pandora_native_io.dart';
@@ -53,11 +55,12 @@ class PandoraIntelligenceApi {
           )
           .eq('organization_id', _organizationId)
           .eq('thread_id', threadId)
-          .order('created_at')
+          .order('created_at', ascending: false)
           .limit(safeLimit);
-      return (rows as List<dynamic>)
+      final latest = (rows as List<dynamic>)
           .map((row) => PandoraIntelligenceMessage.fromJson(_map(row)))
           .toList(growable: false);
+      return latest.reversed.toList(growable: false);
     } on PostgrestException {
       throw const PandoraIntelligenceException(
         'Pandora could not load that conversation.',
@@ -134,7 +137,15 @@ class PandoraIntelligenceApi {
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
   }) async {
     _requireSession();
-    if (textAttachment == null && imageAttachment == null) {
+    final auditAttachments = textAttachment == null &&
+            imageAttachment == null &&
+            projectId != null &&
+            _isRepositoryAuditRequest(message)
+        ? await _repositoryAuditAttachments(projectId: projectId)
+        : const <Map<String, Object?>>[];
+    if (textAttachment == null &&
+        imageAttachment == null &&
+        auditAttachments.isEmpty) {
       final capabilityTurn = await _dispatchCapability(
         message: message,
         threadId: threadId,
@@ -143,6 +154,7 @@ class PandoraIntelligenceApi {
       if (capabilityTurn != null) return capabilityTurn;
     }
     final attachments = <Map<String, Object?>>[
+      ...auditAttachments,
       if (textAttachment != null)
         <String, Object?>{
           'kind': 'text',
@@ -231,6 +243,73 @@ class PandoraIntelligenceApi {
     }
   }
 
+  bool _isRepositoryAuditRequest(String message) {
+    final value = message.trim();
+    final deep = RegExp(
+      r'\b(audit|analy[sz]e)\b|\b(inspect|review|scan)\b.*\b(entire|full|whole|repository|repo|project|codebase|source|all)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    if (!deep) return false;
+
+    final directAction = RegExp(
+      r'^\s*(?:okay[,\s]+|great[,\s]+|please\s+|can you\s+|could you\s+|would you\s+|i need you to\s+|i want you to\s+|go ahead(?: and)?\s+)*(?:build|fix|change|update|repair|edit|merge|branch|commit|deploy|publish|continue|finish|run|implement|work|proceed|create|write|apply|configure|install|remove|restore|improve|upgrade|add)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final sequenceAction = RegExp(
+      r'\b(audit|analy[sz]e|inspect|review|scan)\b.*(?:\band(?:\s+then)?\b|\bthen\b|\bafter(?:wards?| that)?\b|[,;])\s*(?:please\s+)?(?:build|fix|change|update|repair|edit|merge|branch|commit|deploy|publish|continue|finish|run|implement|work|proceed|create|write|apply|configure|install|remove|restore|improve|upgrade|add)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    return !directAction && !sequenceAction;
+  }
+
+  Future<List<Map<String, Object?>>> _repositoryAuditAttachments({
+    required String projectId,
+  }) async {
+    try {
+      final response = await _client.rpc(
+        'pandora_chat_repository_snapshot_v1',
+        params: <String, Object?>{
+          'p_organization_id': _organizationId,
+          'p_project_id': projectId,
+          'p_max_bytes': 70000,
+          'p_max_files': 80,
+        },
+      );
+      final snapshot = _map(response);
+      if (snapshot['ok'] != true) {
+        throw const PandoraIntelligenceException(
+          'Pandora could not read the selected repository for this audit.',
+        );
+      }
+      final encoded = jsonEncode(snapshot);
+      const chunkSize = 29000;
+      final partCount = (encoded.length + chunkSize - 1) ~/ chunkSize;
+      if (partCount < 1 || partCount > 4) {
+        throw const PandoraIntelligenceException(
+          'The selected repository is too large for a safe audit turn.',
+        );
+      }
+      final parts = <Map<String, Object?>>[];
+      for (var index = 0; index < partCount; index += 1) {
+        final start = index * chunkSize;
+        final end = (start + chunkSize).clamp(0, encoded.length).toInt();
+        final body = encoded.substring(start, end);
+        parts.add(<String, Object?>{
+          'kind': 'text',
+          'name': 'pandora-repository-audit-${index + 1}-of-$partCount.json',
+          'mimeType': 'application/json',
+          'text':
+              'Pandora-verified repository snapshot part ${index + 1} of $partCount. Read all parts in order. Audit the supplied project/repository evidence now. If emptyRepository is true, explicitly state that the repository has no committed source yet and audit the supplied project specification/runtime state without inventing code. If truncated is true, explicitly call the source audit bounded rather than claiming every source file was inspected.\n$body',
+        });
+      }
+      return parts;
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not read the selected repository for this audit.',
+      );
+    }
+  }
+
   Future<PandoraIntelligenceTurn?> _dispatchCapability({
     required String message,
     String? threadId,
@@ -239,7 +318,7 @@ class PandoraIntelligenceApi {
     if (message.trim().isEmpty) return null;
     try {
       final response = await _client.rpc(
-        'pandora_chat_universal_dispatch_v7',
+        'pandora_chat_universal_dispatch_v9',
         params: <String, Object?>{
           'p_organization_id': _organizationId,
           'p_message': message.trim(),
@@ -251,9 +330,10 @@ class PandoraIntelligenceApi {
       if (payload['handled'] != true) return null;
       return PandoraIntelligenceTurn.fromJson(payload);
     } on PostgrestException {
-      throw const PandoraIntelligenceException(
-        'Pandora could not verify that capability right now.',
-      );
+      // Capability routing is an optimization, not the chat availability boundary.
+      // Fall back to the authenticated intelligence Edge Function so transient
+      // RPC/runtime drift cannot strand a normal owner request.
+      return null;
     }
   }
 
@@ -501,6 +581,7 @@ class PandoraIntelligenceTurn {
           ? PandoraIntelligenceHandoff(
               request: _requiredText(handoffJson['request']),
               projectId: _optionalText(handoffJson['projectId']),
+              source: _optionalText(handoffJson['source']),
             )
           : null,
     );
@@ -508,10 +589,15 @@ class PandoraIntelligenceTurn {
 }
 
 class PandoraIntelligenceHandoff {
-  const PandoraIntelligenceHandoff({required this.request, this.projectId});
+  const PandoraIntelligenceHandoff({
+    required this.request,
+    this.projectId,
+    this.source,
+  });
 
   final String request;
   final String? projectId;
+  final String? source;
 }
 
 class PandoraIntelligenceException implements Exception {

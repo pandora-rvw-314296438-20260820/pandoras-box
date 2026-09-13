@@ -30,10 +30,17 @@ test('provider reads are bounded and mutations remain ProjectOS governed', () =>
   assert.match(migration, /pandora_capability_gateway/);
 });
 
-test('mobile chat invokes the capability gateway and fails closed on capability lookup errors', () => {
-  assert.match(mobile, /pandora_chat_universal_dispatch_v7/);
+test('mobile chat falls back to intelligence when capability preflight is unavailable', () => {
+  assert.match(mobile, /pandora_chat_universal_dispatch_v9/);
   assert.match(mobile, /if \(message\.trim\(\)\.isEmpty\) return null/);
-  assert.match(mobile, /textAttachment == null && imageAttachment == null/);
-  assert.match(mobile, /Pandora could not verify that capability right now/);
+  assert.match(
+    mobile,
+    /textAttachment == null &&\s*imageAttachment == null &&\s*auditAttachments\.isEmpty/,
+  );
+  assert.doesNotMatch(mobile, /Pandora could not verify that capability right now/);
+  assert.match(
+    mobile,
+    /Future<PandoraIntelligenceTurn\?> _dispatchCapability[\s\S]*on PostgrestException \{[\s\S]*return null;/,
+  );
   assert.match(mobile, /if \(capabilityTurn != null\) return capabilityTurn/);
 });
