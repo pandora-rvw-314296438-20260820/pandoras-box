@@ -1,0 +1,70 @@
+name: PR 550 one-shot package-context Dart formatter
+
+on:
+  pull_request:
+    paths:
+      - apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart
+      - apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
+      - .github/workflows/pr550-dart-format-artifact.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format-and-commit:
+    if: github.event.pull_request.number == 550 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: true
+          fetch-depth: 1
+
+      - name: Set up Flutter 3.47.0
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - name: Materialize canonical package-context formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse --abbrev-ref HEAD)" = "${{ github.event.pull_request.head.ref }}"
+          rm -rf .pandora-mobile-format
+          mkdir .pandora-mobile-format
+          cd .pandora-mobile-format
+          flutter create --platforms=android,web --org com.banataosystems --project-name pandora_mobile .
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R ../apps/pandora-mobile/lib ./lib
+          cp -R ../apps/pandora-mobile/test ./test
+          cp -R ../apps/pandora-mobile/assets ./assets
+          cp -R ../apps/pandora-mobile/platform ./platform
+          cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
+          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+          dart format \
+            lib/core/data/pandora_intelligence_api.dart \
+            lib/features/simple/ask_pandora_screen.dart
+          cp lib/core/data/pandora_intelligence_api.dart \
+            ../apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart
+          cp lib/features/simple/ask_pandora_screen.dart \
+            ../apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
+          cd ..
+          rm -rf .pandora-mobile-format
+          rm .github/workflows/pr550-dart-format-artifact.yml
+          git diff --check
+          git config user.name "pandora-rvw-314296438-20260820"
+          git config user.email "plpboracay@gmail.com"
+          git add \
+            apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart \
+            apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart \
+            .github/workflows/pr550-dart-format-artifact.yml
+          git commit -m "style(chat): apply package-context Dart formatting"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
