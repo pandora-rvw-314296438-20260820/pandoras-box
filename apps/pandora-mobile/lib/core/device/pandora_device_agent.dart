@@ -34,8 +34,7 @@ PandoraDeviceAvailability _parseAvailability(Object? value) {
     'available' => PandoraDeviceAvailability.available,
     'unsupported' => PandoraDeviceAvailability.unsupported,
     'permission_required' => PandoraDeviceAvailability.permissionRequired,
-    'implementation_pending' =>
-      PandoraDeviceAvailability.implementationPending,
+    'implementation_pending' => PandoraDeviceAvailability.implementationPending,
     'forbidden' => PandoraDeviceAvailability.forbidden,
     _ => throw FormatException('Unknown device availability: $value'),
   };
@@ -99,8 +98,10 @@ class PandoraDeviceCapability {
     final map = _stringMap(raw, 'device capability');
     final authority = _parseAuthority(map['authority']);
     final availability = _parseAvailability(map['availability']);
-    final normalOperationDependency =
-        _requiredBool(map, 'normalOperationDependency');
+    final normalOperationDependency = _requiredBool(
+      map,
+      'normalOperationDependency',
+    );
 
     if (availability == PandoraDeviceAvailability.forbidden &&
         authority != PandoraDeviceAuthority.policyDenied) {
@@ -173,11 +174,15 @@ class PandoraDeviceCapabilityManifest {
       throw FormatException('Unsupported device platform: $platform');
     }
 
-    final normalOperationRequiresDesktop =
-        _requiredBool(map, 'normalOperationRequiresDesktop');
+    final normalOperationRequiresDesktop = _requiredBool(
+      map,
+      'normalOperationRequiresDesktop',
+    );
     final rootRequired = _requiredBool(map, 'rootRequired');
-    final bootloaderUnlockRequired =
-        _requiredBool(map, 'bootloaderUnlockRequired');
+    final bootloaderUnlockRequired = _requiredBool(
+      map,
+      'bootloaderUnlockRequired',
+    );
     if (normalOperationRequiresDesktop) {
       throw const FormatException(
         'Normal Pandora operation must not require a desktop.',
@@ -189,16 +194,19 @@ class PandoraDeviceCapabilityManifest {
       );
     }
 
-    final protectedAppAccessPolicy =
-        _requiredString(map, 'protectedAppAccessPolicy');
-    if (protectedAppAccessPolicy !=
-        'deny_private_app_data_and_credentials') {
+    final protectedAppAccessPolicy = _requiredString(
+      map,
+      'protectedAppAccessPolicy',
+    );
+    if (protectedAppAccessPolicy != 'deny_private_app_data_and_credentials') {
       throw const FormatException(
         'Protected-app access policy is not fail-closed.',
       );
     }
-    final developmentBridgePolicy =
-        _requiredString(map, 'developmentBridgePolicy');
+    final developmentBridgePolicy = _requiredString(
+      map,
+      'developmentBridgePolicy',
+    );
     if (developmentBridgePolicy != 'optional_not_trust_dependency') {
       throw const FormatException(
         'Development bridge must remain optional and outside the trust root.',
@@ -221,8 +229,7 @@ class PandoraDeviceCapabilityManifest {
       }
     }
 
-    final deviceOwnerProvisioned =
-        _requiredBool(map, 'deviceOwnerProvisioned');
+    final deviceOwnerProvisioned = _requiredBool(map, 'deviceOwnerProvisioned');
     if (!deviceOwnerProvisioned &&
         capabilities.any(
           (capability) =>
@@ -271,10 +278,7 @@ class PandoraPermissionState {
   }
 }
 
-enum PandoraSafeDiagnosticKind {
-  capabilityManifest,
-  permissionState,
-}
+enum PandoraSafeDiagnosticKind { capabilityManifest, permissionState }
 
 class PandoraSafeDiagnosticRequest {
   const PandoraSafeDiagnosticRequest(this.kind);
@@ -282,12 +286,11 @@ class PandoraSafeDiagnosticRequest {
   final PandoraSafeDiagnosticKind kind;
 
   Map<String, Object?> toMap() => {
-        'kind': switch (kind) {
-          PandoraSafeDiagnosticKind.capabilityManifest =>
-            'capability_manifest',
-          PandoraSafeDiagnosticKind.permissionState => 'permission_state',
-        },
-      };
+    'kind': switch (kind) {
+      PandoraSafeDiagnosticKind.capabilityManifest => 'capability_manifest',
+      PandoraSafeDiagnosticKind.permissionState => 'permission_state',
+    },
+  };
 }
 
 class PandoraSafeDiagnosticResult {
@@ -306,8 +309,9 @@ class PandoraSafeDiagnosticResult {
     final kind = switch (_requiredString(map, 'kind')) {
       'capability_manifest' => PandoraSafeDiagnosticKind.capabilityManifest,
       'permission_state' => PandoraSafeDiagnosticKind.permissionState,
-      final value =>
-        throw FormatException('Unknown safe diagnostic result kind: $value'),
+      final value => throw FormatException(
+        'Unknown safe diagnostic result kind: $value',
+      ),
     };
     final status = _requiredString(map, 'status');
     if (status != 'completed') {
@@ -333,8 +337,7 @@ abstract interface class PandoraDeviceAgent {
 
 class MethodChannelPandoraDeviceAgent implements PandoraDeviceAgent {
   MethodChannelPandoraDeviceAgent({
-    MethodChannel channel =
-        const MethodChannel('pandora/device_agent'),
+    MethodChannel channel = const MethodChannel('pandora/device_agent'),
   }) : _channel = channel;
 
   final MethodChannel _channel;
