@@ -286,11 +286,11 @@ class PandoraSafeDiagnosticRequest {
   final PandoraSafeDiagnosticKind kind;
 
   Map<String, Object?> toMap() => {
-    'kind': switch (kind) {
-      PandoraSafeDiagnosticKind.capabilityManifest => 'capability_manifest',
-      PandoraSafeDiagnosticKind.permissionState => 'permission_state',
-    },
-  };
+        'kind': switch (kind) {
+          PandoraSafeDiagnosticKind.capabilityManifest => 'capability_manifest',
+          PandoraSafeDiagnosticKind.permissionState => 'permission_state',
+        },
+      };
 }
 
 class PandoraSafeDiagnosticResult {
@@ -310,8 +310,8 @@ class PandoraSafeDiagnosticResult {
       'capability_manifest' => PandoraSafeDiagnosticKind.capabilityManifest,
       'permission_state' => PandoraSafeDiagnosticKind.permissionState,
       final value => throw FormatException(
-        'Unknown safe diagnostic result kind: $value',
-      ),
+          'Unknown safe diagnostic result kind: $value',
+        ),
     };
     final status = _requiredString(map, 'status');
     if (status != 'completed') {
