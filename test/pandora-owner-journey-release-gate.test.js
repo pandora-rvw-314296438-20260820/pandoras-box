@@ -34,12 +34,15 @@ test('owner read-only audit never terminates as a ProjectOS intake receipt', () 
   );
 });
 
-test('Build it / Fix it / Improve it on a selected project enters the real workspace runtime', () => {
+test('Build it / Fix it / Improve it executes from Universal Chat without automatic navigation', () => {
   assert.match(migration, /'intent','project_workspace_change'/);
   assert.match(migration, /'source','project_workspace_change'/);
   assert.match(ask, /handoff\?\.source == 'project_workspace_change'/);
-  assert.match(ask, /ProjectWorkspaceV2Screen\(/);
-  assert.match(ask, /initialChange: handoff!\.request/);
+  assert.match(ask, /experience\.submitChange\(/);
+  assert.match(ask, /experience\.understanding\(/);
+  assert.match(ask, /experience\.requestBuild\(/);
+  assert.match(ask, /keep this chat open while Pandora works/);
+  assert.doesNotMatch(ask, /ProjectWorkspaceV2Screen\(/);
   assert.doesNotMatch(ask, /message: handoff\.request/);
 });
 
