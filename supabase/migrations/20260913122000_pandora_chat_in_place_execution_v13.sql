@@ -153,7 +153,7 @@ begin
   select pg_get_functiondef(
     'public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid)'::regprocedure
   ) into v_definition;
-  if position('I won''t open another screen' in v_definition) = 0 then
+  if position('handle this change here in chat' in v_definition) = 0 then
     raise exception 'pandora_chat_v13_in_place_reply_missing' using errcode='55000';
   end if;
   if position('workspace-change-v3-chat-in-place' in v_definition) = 0 then
