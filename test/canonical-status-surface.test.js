@@ -29,7 +29,7 @@ test('every stale status surface is integrity-bound and classified historical', 
   }
 });
 
-test('dated custom-instruction and mirror-manifest state cannot masquerade as current truth', () => {
+test('active master instruction cannot masquerade as current operational truth', () => {
   const instructionPath = 'PROJECT_CUSTOM_INSTRUCTION.md';
   const manifestPath = 'docs/operating-contracts/GITHUB_PANDORA_MIRROR_MANIFEST.csv';
   const instruction = readFileSync(path.join(root, instructionPath), 'utf8');
@@ -39,18 +39,24 @@ test('dated custom-instruction and mirror-manifest state cannot masquerade as cu
   );
 
   assert.equal(
-    classified.get(instructionPath)?.classification,
-    'normative_instruction_with_historical_operational_sections',
+    classified.has(instructionPath),
+    false,
+    'active master instruction must not be classified as a historical status surface',
   );
   assert.equal(
     classified.get(manifestPath)?.classification,
     'historical_mirror_integrity_snapshot',
   );
-  assert.match(instruction, /Operational-status notice/);
-  assert.match(instruction, /Historical verified-state snapshot \(2026-08-08\)/);
-  assert.match(instruction, /Historical dependency-ordered roadmap \(2026-08-08\)/);
-  assert.match(instruction, /Historical immediate highest-value safe action \(2026-08-08\)/);
-  assert.match(instruction, /authenticated `\/api\/operator\/status`/);
+  assert.match(instruction, /## STATUS AUTHORITY/);
+  assert.match(
+    instruction,
+    /not\*\* a current implementation, deployment, release, blocker, or production-status surface/i,
+  );
+  assert.match(instruction, /authenticated `GET \/api\/operator\/status` canonical pack/);
+  assert.match(
+    instruction,
+    /documented → implemented → tested → deployed → production-verified/,
+  );
   assert.doesNotMatch(instruction, /Pandora Memory is the operating source of truth/);
 
   assert.match(manifest, /# classification: historical_only/);
