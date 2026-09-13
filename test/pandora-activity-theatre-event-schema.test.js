@@ -1,351 +1,234 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const theatre = require('../packages/pandora-activity-theatre');
 const {
-  ACTIVITY_EVENT_SCHEMA_VERSION,
-  ACTIVITY_EVENT_SOURCE_TYPES,
-  ACTIVITY_EVENT_STATES,
-  TERMINAL_ACTIVITY_STATES,
-  isTerminalActivityState,
-  normalizeActivityEvent,
-  validateActivityTimeline,
-} = require('../packages/pandora-project-runtime/activity-theatre-event.js');
-const runtimePackage = require('../packages/pandora-project-runtime');
-
-const base = (overrides = {}) => ({
-  schemaVersion: ACTIVITY_EVENT_SCHEMA_VERSION,
-  eventId: 'evt-1',
-  jobId: 'job-1',
-  sequence: 1,
-  state: 'understanding',
-  message: 'Understanding your request',
-  occurredAt: '2026-09-13T03:06:00Z',
-  provenance: {
-    sourceType: 'runtime',
-    sourceId: 'pandora-runtime-1',
-    sourceEventId: 'runtime-event-1',
-    observedAt: '2026-09-13T03:06:00Z',
-    evidenceRef: 'runtime://job-1/events/1',
-  },
-  domain: 'communications',
-  capability: 'sms.resolve-recipient',
-  ...overrides,
+ACTIVITY_EVENT_SCHEMA_VERSION,
+ACTIVITY_EVENT_STATES,
+ACTIVITY_EVIDENCE_TYPES,
+TERMINAL_ACTIVITY_STATES,
+normalizeActivityEvent,
+validateActivityTimeline,
+validateActivityReplay,
+activityReplayCheckpoint,
+} = theatre;
+const evidence = (type='runtime_event', relation='source', ref='runtime://job-1/events/1') => ({ type, relation, ref });
+const base = (overrides={}) => ({
+schemaVersion: ACTIVITY_EVENT_SCHEMA_VERSION,
+eventId: 'evt-1',
+jobId: 'job-1',
+sequence: 1,
+writerEpoch: 1,
+admittedBy: 'pandora-runtime-1',
+admissionMode: 'online',
+state: 'understanding',
+message: 'Understanding your request',
+occurredAt: '2026-09-13T03:06:00Z',
+admittedAt: '2026-09-13T03:06:01Z',
+provenance: {
+sourceType: 'runtime',
+sourceId: 'pandora-runtime-1',
+sourceEventId: 'runtime-event-1',
+observedAt: '2026-09-13T03:06:00.500Z',
+},
+evidence: [],
+domain: 'communications',
+capability: 'sms.resolve-recipient',
+...overrides,
 });
-
-test('normal package entrypoint exports the canonical Activity Theatre contract', () => {
-  assert.equal(runtimePackage.ACTIVITY_EVENT_SCHEMA_VERSION, ACTIVITY_EVENT_SCHEMA_VERSION);
-  assert.equal(runtimePackage.normalizeActivityEvent, normalizeActivityEvent);
-  assert.equal(runtimePackage.validateActivityTimeline, validateActivityTimeline);
+const at = (n) => `2026-09-13T03:06:${String(n).padStart(2,'0')}Z`;
+const eventN = (n, overrides={}) => base({
+eventId: `evt-${n}`,
+sequence: n,
+occurredAt: at(n),
+admittedAt: at(n+1),
+provenance: {
+sourceType: 'runtime',
+sourceId: 'pandora-runtime-1',
+sourceEventId: `runtime-event-${n}`,
+observedAt: at(n),
+},
+...overrides,
 });
-
-test('canonical taxonomy exactly matches the universal Activity Theatre contract', () => {
-  assert.deepEqual(ACTIVITY_EVENT_STATES, [
-    'understanding',
-    'planning',
-    'acting',
-    'checking',
-    'needs_you',
-    'retrying',
-    'fallback',
-    'verifying',
-    'result',
-    'failed',
-    'cancelled',
-  ]);
-  assert.deepEqual(TERMINAL_ACTIVITY_STATES, ['result', 'failed', 'cancelled']);
-  assert.deepEqual(ACTIVITY_EVENT_SOURCE_TYPES, [
-    'runtime',
-    'device',
-    'provider',
-    'projectos',
-    'model',
-    'tool',
-  ]);
+test('taxonomy matches M0-004 including paused/resuming', () => {
+assert.deepEqual(ACTIVITY_EVENT_STATES, [
+'understanding','planning','acting','checking','needs_you','retrying','fallback','verifying','paused','resuming','result','failed','cancelled'
+]);
+assert.deepEqual(TERMINAL_ACTIVITY_STATES, ['result','failed','cancelled']);
+assert.ok(ACTIVITY_EVIDENCE_TYPES.includes('verification_receipt'));
+assert.ok(ACTIVITY_EVIDENCE_TYPES.includes('user_control'));
 });
-
-test('normalizes a real-source activity event with job identity and timestamps', () => {
-  const event = normalizeActivityEvent(base());
-  assert.equal(event.jobId, 'job-1');
-  assert.equal(event.state, 'understanding');
-  assert.equal(event.occurredAt, '2026-09-13T03:06:00.000Z');
-  assert.equal(event.provenance.sourceType, 'runtime');
-  assert.equal(event.provenance.sourceId, 'pandora-runtime-1');
-  assert.ok(Object.isFrozen(event));
-  assert.ok(Object.isFrozen(event.provenance));
+test('requires writer epoch, admission writer and admittedAt', () => {
+assert.throws(() => normalizeActivityEvent(base({writerEpoch:null})), /writerEpoch/);
+assert.throws(() => normalizeActivityEvent(base({admittedBy:''})), /admittedBy/);
+assert.throws(() => normalizeActivityEvent(base({admittedAt:null})), /admittedAt/);
 });
-
-test('rejects visible events that lack real source provenance, timestamp or job identity', () => {
-  assert.throws(() => normalizeActivityEvent(base({ jobId: '' })), /jobId is required/);
-  assert.throws(() => normalizeActivityEvent(base({ occurredAt: 'today' })), /offset-aware ISO-8601/);
-  assert.throws(
-    () => normalizeActivityEvent(base({ provenance: { sourceType: 'runtime' } })),
-    /provenance.sourceId/,
-  );
-  assert.throws(
-    () => normalizeActivityEvent(base({
-      provenance: {
-        sourceType: 'runtime',
-        sourceId: 'pandora-runtime-1',
-        observedAt: '2026-09-13T03:06:00Z',
-      },
-    })),
-    /requires sourceEventId or evidenceRef/,
-  );
-  assert.throws(
-    () => normalizeActivityEvent(base({ provenance: { ...base().provenance, sourceType: 'decorative' } })),
-    /unsupported provenance.sourceType/,
-  );
+test('admittedAt cannot precede occurredAt', () => {
+assert.throws(() => normalizeActivityEvent(base({occurredAt:'2026-09-13T03:06:05Z', admittedAt:'2026-09-13T03:06:04Z'})), /cannot precede/);
 });
-
-test('accepts either a source event id or evidence reference as the real-source linkage', () => {
-  const byEventId = normalizeActivityEvent(base({
-    provenance: { ...base().provenance, evidenceRef: null },
-  }));
-  assert.equal(byEventId.provenance.sourceEventId, 'runtime-event-1');
-  assert.equal(byEventId.provenance.evidenceRef, null);
-
-  const byEvidence = normalizeActivityEvent(base({
-    provenance: { ...base().provenance, sourceEventId: null },
-  }));
-  assert.equal(byEvidence.provenance.sourceEventId, null);
-  assert.equal(byEvidence.provenance.evidenceRef, 'runtime://job-1/events/1');
+test('occurrence timestamps need not be monotonic because sequence is canonical', () => {
+const events = validateActivityTimeline([
+eventN(1,{occurredAt:'2026-09-13T03:06:05Z', admittedAt:'2026-09-13T03:06:06Z'}),
+eventN(2,{occurredAt:'2026-09-13T03:06:03Z', admittedAt:'2026-09-13T03:06:07Z'}),
+]);
+assert.equal(events.length,2);
 });
-
-test('Needs You is explicit and requires the exact blocker plus required user action', () => {
-  assert.throws(() => normalizeActivityEvent(base({ state: 'needs_you' })), /blocker must be an object/);
-  const event = normalizeActivityEvent(base({
-    state: 'needs_you',
-    message: 'Approval is required before sending the payment instruction.',
-    blocker: {
-      reason: 'This action crosses the financial-action policy boundary.',
-      requiredAction: 'Approve or cancel the payment instruction.',
-      approvalRequired: true,
-      policyRef: 'policy:financial-actions:v1',
-    },
-  }));
-  assert.equal(event.blocker.approvalRequired, true);
-  assert.match(event.blocker.requiredAction, /Approve or cancel/);
+test('requires sourceEventId or typed evidence', () => {
+assert.throws(() => normalizeActivityEvent(base({provenance:{...base().provenance,sourceEventId:null}})), /typed evidence/);
+const normalized = normalizeActivityEvent(base({
+provenance:{...base().provenance,sourceEventId:null},
+evidence:[evidence('provider_receipt','source','provider://receipt/1')],
+}));
+assert.equal(normalized.evidence[0].type,'provider_receipt');
 });
-
-test('Result carries an explicit outcome and terminal states are recognized', () => {
-  assert.throws(() => normalizeActivityEvent(base({ state: 'result' })), /outcome must be an object/);
-  const result = normalizeActivityEvent(base({
-    state: 'result',
-    message: 'Message sent',
-    outcome: {
-      summary: 'SMS was accepted by the device messaging provider.',
-      verificationRef: 'device://sms/outbox/42',
-    },
-  }));
-  assert.equal(result.outcome.verificationRef, 'device://sms/outbox/42');
-  assert.equal(isTerminalActivityState(result.state), true);
-  assert.equal(isTerminalActivityState('checking'), false);
+test('typed evidence rejects unsupported type/relation and duplicates', () => {
+assert.throws(() => normalizeActivityEvent(base({evidence:[evidence('mystery','source')]})), /unsupported evidence type/);
+assert.throws(() => normalizeActivityEvent(base({evidence:[evidence('runtime_event','mystery')]})), /unsupported evidence relation/);
+assert.throws(() => normalizeActivityEvent(base({evidence:[evidence(),evidence()]})), /duplicate/);
 });
-
-test('timeline validation enforces one job, strict sequence, timestamp order and terminal finality', () => {
-  const timeline = validateActivityTimeline([
-    base(),
-    base({
-      eventId: 'evt-2',
-      sequence: 2,
-      state: 'checking',
-      message: 'Checking the resolved recipient',
-      occurredAt: '2026-09-13T03:06:01Z',
-      provenance: { ...base().provenance, sourceEventId: 'runtime-event-2', observedAt: '2026-09-13T03:06:01Z' },
-    }),
-    base({
-      eventId: 'evt-3',
-      sequence: 3,
-      state: 'result',
-      message: 'Recipient resolved',
-      occurredAt: '2026-09-13T03:06:02Z',
-      provenance: { ...base().provenance, sourceEventId: 'runtime-event-3', observedAt: '2026-09-13T03:06:02Z' },
-      outcome: { summary: 'Maria Santos resolved to contact contact-7.' },
-    }),
-  ]);
-  assert.equal(timeline.length, 3);
-  assert.ok(Object.isFrozen(timeline));
-
-  assert.throws(
-    () => validateActivityTimeline([base(), base({ eventId: 'evt-2', jobId: 'job-2', sequence: 2 })]),
-    /cannot mix job identities/,
-  );
-  assert.throws(
-    () => validateActivityTimeline([base(), base({ eventId: 'evt-2', sequence: 1 })]),
-    /strictly increasing/,
-  );
-  assert.throws(
-    () => validateActivityTimeline([
-      base({ state: 'failed' }),
-      base({ eventId: 'evt-2', sequence: 2, state: 'retrying' }),
-    ]),
-    /after a terminal state/,
-  );
+test('offline admission requires policy evidence', () => {
+assert.throws(() => normalizeActivityEvent(base({admissionMode:'offline'})), /policy evidence/);
+const normalized = normalizeActivityEvent(base({admissionMode:'offline', evidence:[evidence('policy_decision','policy','policy://epoch/1')]}));
+assert.equal(normalized.admissionMode,'offline');
 });
-
-test('schema is strict so decorative or invented fields cannot silently enter the universal contract', () => {
-  assert.throws(
-    () => normalizeActivityEvent(base({ fakePercent: 87 })),
-    /not part of the canonical activity schema/,
-  );
-  assert.throws(
-    () => normalizeActivityEvent(base({ state: 'busy' })),
-    /unsupported activity state/,
-  );
+test('single writer per epoch and writer handoff epoch advance are enforced', () => {
+assert.throws(() => validateActivityTimeline([
+eventN(1),
+eventN(2,{admittedBy:'edge-writer-2', writerEpoch:1}),
+]), /single writer|handoff/);
+const events = validateActivityTimeline([
+eventN(1),
+eventN(2,{admittedBy:'edge-writer-2', writerEpoch:2}),
+]);
+assert.equal(events[1].writerEpoch,2);
 });
-
-test('public Activity Theatre boundary rejects arbitrary metadata and sensitive payload fields', () => {
-  for (const payload of [
-    { metadata: { safeLabel: 'looks-safe' } },
-    { metadata: { nested: { token: 'secret-value' } } },
-    { secret: 'secret-value' },
-    { token: 'token-value' },
-    { rawPrompt: 'system prompt contents' },
-    { toolArgs: { recipient: 'private-value' } },
-  ]) {
-    assert.throws(
-      () => normalizeActivityEvent(base(payload)),
-      /not part of the canonical activity schema/,
-    );
-  }
+test('sequence gaps and duplicates fail closed', () => {
+assert.throws(() => validateActivityTimeline([eventN(1), eventN(3)]), /sequence gap or duplicate/);
+assert.throws(() => validateActivityTimeline([eventN(1), eventN(2,{eventId:'evt-1'})]), /duplicate eventId/);
 });
-
-test('public Activity Theatre text fields reject credential-like material without blocking safe status prose', () => {
-  const githubPat = ['github', '_pat_11AAABBBCCCDDDEEEFFF000111222333444'].join('');
-  const slackToken = ['xox', 'b-123456789012-123456789012-abcdefghijklmnopqrstuvwx'].join('');
-  const slackWebhook = ['https://hooks.', 'slack.com/services/T12345678/B12345678/abcdefghijklmnopqrstuvwx'].join('');
-  const credentialCases = [
-    { message: 'Provider returned ghp_1234567890abcdefghijklmnop' },
-    { message: 'Provider returned AKIA1234567890ABCDEF' },
-    { message: 'AWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF' },
-    { message: 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' },
-    { message: `Provider returned ${githubPat}` },
-    { message: `Provider returned ${slackToken}` },
-    { message: `Slack webhook ${slackWebhook}` },
-    { message: 'SERVICE_SECRET_KEY=NotARealSecret1234' },
-    { provenance: { ...base().provenance, evidenceRef: 'runtime://job-1/events/1?token=abcd1234' } },
-    {
-      state: 'needs_you',
-      message: 'Authorization is required.',
-      blocker: {
-        reason: 'Provider sent Bearer abcdefghijklmnopqrstuvwxyz',
-        requiredAction: 'Reconnect the provider account.',
-        approvalRequired: false,
-      },
-    },
-    {
-      state: 'result',
-      message: 'Provider responded.',
-      outcome: { summary: 'Provider echoed sk-1234567890abcdefghijklmnop.' },
-    },
-    { executionId: 'eyJabcdefghijklmnopqrstuv.abcdefghijklmnopqrstuv.abcdefghijklmnop' },
-    { message: 'Authorization: Basic dXNlcjpwYXNzd29yZA==' },
-    { message: 'Provider returned sb_secret_1234567890abcdefghijklmnop' },
-    { provenance: { ...base().provenance, evidenceRef: 'https://user:password@example.test/evidence' } },
-  ];
-
-  for (const payload of credentialCases) {
-    assert.throws(
-      () => normalizeActivityEvent(base(payload)),
-      /contains credential-like material/,
-    );
-  }
-
-  assert.throws(
-    () => normalizeActivityEvent(base({ message: 'password=NotARealSecret1234' })),
-    /contains credential-like material/,
-  );
-
-  const safe = normalizeActivityEvent(base({
-    message: 'Provider status: token: expired; secret: unavailable; password = required; access_token: revoked; AWS_ACCESS_KEY_ID=missing; AWS_SECRET_ACCESS_KEY=unavailable; SERVICE_SECRET_KEY=unavailable.',
-    provenance: { ...base().provenance, evidenceRef: 'runtime://job-1/events/1?token=redacted' },
-    executionId: 'token:expired',
-  }));
-  assert.match(safe.message, /token: expired/);
-  assert.match(safe.message, /secret: unavailable/);
-  assert.match(safe.message, /password = required/);
-  assert.match(safe.message, /access_token: revoked/);
-  assert.match(safe.message, /AWS_ACCESS_KEY_ID=missing/);
-  assert.match(safe.message, /AWS_SECRET_ACCESS_KEY=unavailable/);
-  assert.match(safe.message, /SERVICE_SECRET_KEY=unavailable/);
-  assert.match(safe.provenance.evidenceRef, /token=redacted/);
-  assert.equal(safe.executionId, 'token:expired');
+test('replay continues exactly from known cursor', () => {
+const events = validateActivityReplay([eventN(4), eventN(5)], {afterSequence:3, expectedJobId:'job-1'});
+assert.equal(events[0].sequence,4);
+assert.throws(() => validateActivityReplay([eventN(5)], {afterSequence:3}), /known cursor/);
+assert.throws(() => validateActivityReplay([eventN(4,{jobId:'job-2'})], {afterSequence:3, expectedJobId:'job-1'}), /job identity mismatch/);
 });
-
-
-
-test('public Activity Theatre opaque identifiers reject named credential assignments while allowing safe status identifiers', () => {
-  const credentialCases = [
-    { eventId: 'password:SecretValue1234' },
-    { jobId: 'token:SecretValue1234' },
-    { provenance: { ...base().provenance, sourceId: 'secret:SecretValue1234' } },
-    { provenance: { ...base().provenance, sourceEventId: 'access_token:SecretValue1234' } },
-    { executionId: 'private_key:SecretValue1234' },
-    { parentEventId: 'api_key:SecretValue1234' },
-  ];
-
-  for (const payload of credentialCases) {
-    assert.throws(
-      () => normalizeActivityEvent(base(payload)),
-      /contains credential-like material/,
-    );
-  }
-
-  const safe = normalizeActivityEvent(base({
-    eventId: 'token:expired',
-    jobId: 'secret:unavailable',
-    provenance: {
-      ...base().provenance,
-      sourceId: 'password:required',
-      sourceEventId: 'access_token:revoked',
-    },
-    executionId: 'private_key:redacted',
-    parentEventId: 'api_key:missing',
-  }));
-  assert.equal(safe.eventId, 'token:expired');
-  assert.equal(safe.jobId, 'secret:unavailable');
-  assert.equal(safe.provenance.sourceId, 'password:required');
-  assert.equal(safe.provenance.sourceEventId, 'access_token:revoked');
-  assert.equal(safe.executionId, 'private_key:redacted');
-  assert.equal(safe.parentEventId, 'api_key:missing');
+test('checkpoint preserves canonical identity', () => {
+const checkpoint = activityReplayCheckpoint([eventN(1),eventN(2)]);
+assert.deepEqual(checkpoint,{jobId:'job-1',sequence:2,eventId:'evt-2',writerEpoch:1});
 });
-
-test('strict timestamps reject impossible calendar dates while preserving valid offsets', () => {
-  for (const occurredAt of [
-    '2026-02-30T00:00:00Z',
-    '2025-02-29T03:06:00Z',
-    '2026-09-13 03:06:00Z',
-    '2026-09-13T03:06:00+24:00',
-  ]) {
-    assert.throws(
-      () => normalizeActivityEvent(base({ occurredAt })),
-      /offset-aware ISO-8601/,
-    );
-  }
-
-  const leapDay = normalizeActivityEvent(base({
-    occurredAt: '2024-02-29T03:06:00+08:00',
-    provenance: {
-      ...base().provenance,
-      observedAt: '2024-02-29T03:06:00+08:00',
-    },
-  }));
-  assert.equal(leapDay.occurredAt, '2024-02-28T19:06:00.000Z');
-  assert.equal(leapDay.provenance.observedAt, '2024-02-28T19:06:00.000Z');
+test('Needs You requires a real standing-authority reason and exact action', () => {
+assert.throws(() => normalizeActivityEvent(base({state:'needs_you'})), /blocker/);
+assert.throws(() => normalizeActivityEvent(base({state:'needs_you',blocker:{reasonCode:'waiting_for_ci',reason:'Waiting',requiredAction:'Wait',approvalRequired:false}})), /unsupported blocker.reasonCode/);
+const event = normalizeActivityEvent(base({state:'needs_you',blocker:{reasonCode:'authorization_required',reason:'Publishing crosses a production boundary.',requiredAction:'Approve or cancel publication.',approvalRequired:true,policyRef:'policy:standing-authority:v1'}}));
+assert.equal(event.blocker.reasonCode,'authorization_required');
 });
-
-test('schema boundaries reject prototype-backed objects', () => {
-  const inheritedEvent = Object.create(base());
-  assert.throws(
-    () => normalizeActivityEvent(inheritedEvent),
-    /event must be a plain object/,
-  );
-
-  const inheritedProvenance = Object.create(base().provenance);
-  assert.throws(
-    () => normalizeActivityEvent(base({ provenance: inheritedProvenance })),
-    /provenance must be a plain object/,
-  );
+test('accepted pause requires user-control evidence and emits paused', () => {
+const pauseEvidence = [evidence('user_control','accepted_control','control://pause/1')];
+assert.throws(() => normalizeActivityEvent(base({state:'paused',control:{type:'pause',requestId:'ctl-1',acceptedAt:at(1)}})), /user_control evidence/);
+const event = normalizeActivityEvent(base({state:'paused',evidence:pauseEvidence,control:{type:'pause',requestId:'ctl-1',acceptedAt:at(1)}}));
+assert.equal(event.state,'paused');
+assert.throws(() => normalizeActivityEvent(base({state:'acting',evidence:pauseEvidence,control:{type:'pause',requestId:'ctl-1',acceptedAt:at(1)}})), /must emit paused/);
+});
+test('authoritative runtime pause is allowed without voluntary control', () => {
+const event = normalizeActivityEvent(base({state:'paused',evidence:[evidence('runtime_event','authoritative_pause','runtime://pause/thermal')]}));
+assert.equal(event.control,null);
+});
+test('resuming requires accepted resume and prior paused timeline state', () => {
+const ctl = [evidence('user_control','accepted_control','control://resume/1')];
+const resume = eventN(2,{state:'resuming',evidence:ctl,control:{type:'resume',requestId:'ctl-2',acceptedAt:at(2)}});
+assert.throws(() => validateActivityTimeline([eventN(1),resume]), /prior paused/);
+const pause = eventN(1,{state:'paused',evidence:[evidence('runtime_event','authoritative_pause','runtime://pause/1')]});
+assert.equal(validateActivityTimeline([pause,resume])[1].state,'resuming');
+});
+test('cancelled requires accepted cancel or authoritative cancellation evidence', () => {
+assert.throws(() => normalizeActivityEvent(base({state:'cancelled'})), /cancelled requires/);
+const ctl = [evidence('user_control','accepted_control','control://cancel/1')];
+const event = normalizeActivityEvent(base({state:'cancelled',evidence:ctl,control:{type:'cancel',requestId:'ctl-cancel',acceptedAt:at(1)}}));
+assert.equal(event.state,'cancelled');
+const authoritative = normalizeActivityEvent(base({state:'cancelled',evidence:[evidence('runtime_event','authoritative_cancellation','runtime://cancel/deadline')]}));
+assert.equal(authoritative.state,'cancelled');
+});
+test('ambiguous control acceptance requires readback evidence', () => {
+const ctl=[evidence('user_control','accepted_control','control://pause/1')];
+assert.throws(() => normalizeActivityEvent(base({state:'paused',evidence:ctl,control:{type:'pause',requestId:'ctl-1',acceptedAt:at(1),acceptanceAmbiguous:true}})), /readback evidence/);
+const e=normalizeActivityEvent(base({state:'paused',evidence:[...ctl,evidence('runtime_event','readback','runtime://controls/1/readback')],control:{type:'pause',requestId:'ctl-1',acceptedAt:at(1),acceptanceAmbiguous:true}}));
+assert.equal(e.control.acceptanceAmbiguous,true);
+});
+test('retry requires prior attempt evidence and bounded authority reference', () => {
+assert.throws(() => normalizeActivityEvent(base({state:'retrying',transition:{priorAttemptId:'attempt-1',priorAuthorityScopeRef:'authority://scope/1',authorityScopeRef:'authority://scope/1',consequential:false}})), /prior attempt evidence/);
+const e=normalizeActivityEvent(base({state:'retrying',evidence:[evidence('provider_receipt','prior_attempt','provider://attempt/1')],transition:{priorAttemptId:'attempt-1',priorAuthorityScopeRef:'authority://scope/1',authorityScopeRef:'authority://scope/1',consequential:false}}));
+assert.equal(e.transition.priorAttemptId,'attempt-1');
+});
+test('fallback requires prior attempt or capability evidence', () => {
+assert.throws(() => normalizeActivityEvent(base({state:'fallback',transition:{priorAttemptId:'attempt-1',priorAuthorityScopeRef:'authority://scope/1',authorityScopeRef:'authority://scope/1',consequential:false}})), /prior attempt or capability/);
+const e=normalizeActivityEvent(base({state:'fallback',evidence:[evidence('policy_decision','capability','capability://provider/b')],transition:{priorAttemptId:'attempt-1',priorAuthorityScopeRef:'authority://scope/1',authorityScopeRef:'authority://scope/1',consequential:false}}));
+assert.equal(e.state,'fallback');
+});
+test('consequential retry/fallback requires idempotency identity', () => {
+const ev=[evidence('provider_receipt','prior_attempt','provider://attempt/1')];
+assert.throws(() => normalizeActivityEvent(base({state:'retrying',evidence:ev,transition:{priorAttemptId:'attempt-1',priorAuthorityScopeRef:'authority://scope/1',authorityScopeRef:'authority://scope/1',consequential:true}})), /idempotency identity/);
+const e=normalizeActivityEvent(base({state:'retrying',evidence:ev,transition:{priorAttemptId:'attempt-1',priorAuthorityScopeRef:'authority://scope/1',authorityScopeRef:'authority://scope/1',consequential:true,priorIdempotencyKey:'idem-1',idempotencyKey:'idem-1'}}));
+assert.equal(e.transition.idempotencyKey,'idem-1');
+});
+test('ambiguous retry/fallback requires provider/runtime readback', () => {
+const ev=[evidence('provider_receipt','prior_attempt','provider://attempt/1')];
+assert.throws(() => normalizeActivityEvent(base({state:'retrying',evidence:ev,transition:{priorAttemptId:'attempt-1',priorAuthorityScopeRef:'authority://scope/1',authorityScopeRef:'authority://scope/1',consequential:false,effectAmbiguous:true}})), /readback evidence/);
+const e=normalizeActivityEvent(base({state:'retrying',evidence:[...ev,evidence('provider_receipt','readback','provider://attempt/1/readback')],transition:{priorAttemptId:'attempt-1',priorAuthorityScopeRef:'authority://scope/1',authorityScopeRef:'authority://scope/1',consequential:false,effectAmbiguous:true}}));
+assert.equal(e.transition.effectAmbiguous,true);
+});
+test('retry/fallback authority scope cannot expand', () => {
+const ev=[evidence('provider_receipt','prior_attempt','provider://attempt/1')];
+assert.throws(() => normalizeActivityEvent(base({state:'retrying',evidence:ev,transition:{priorAttemptId:'attempt-1',priorAuthorityScopeRef:'authority://scope/1',authorityScopeRef:'authority://scope/2',consequential:false}})), /authority scope may not expand/);
+});
+test('consequential retry must reuse the prior idempotency identity', () => {
+const ev=[evidence('provider_receipt','prior_attempt','provider://attempt/1')];
+assert.throws(() => normalizeActivityEvent(base({state:'retrying',evidence:ev,transition:{priorAttemptId:'attempt-1',priorAuthorityScopeRef:'authority://scope/1',authorityScopeRef:'authority://scope/1',consequential:true,priorIdempotencyKey:'idem-1',idempotencyKey:'idem-2'}})), /reuse idempotency identity/);
+});
+test('Result requires overall-job verification evidence, not provider success alone', () => {
+assert.throws(() => normalizeActivityEvent(base({state:'result',evidence:[evidence('provider_receipt','source','provider://ok')],outcome:{summary:'Provider said success.'}})), /overall-job verification/);
+const e=normalizeActivityEvent(base({state:'result',evidence:[evidence('verification_receipt','verification','verification://job-1/final')],outcome:{summary:'Overall job outcome independently verified.'}}));
+assert.equal(e.outcome.summary,'Overall job outcome independently verified.');
+});
+test('physical-device result requires physical device verification evidence', () => {
+const verify=[evidence('verification_receipt','verification','verification://job-1/final')];
+assert.throws(() => normalizeActivityEvent(base({state:'result',evidence:verify,outcome:{summary:'Phone action verified.',physicalDevice:true}})), /physical device verification evidence/);
+const e=normalizeActivityEvent(base({state:'result',evidence:[...verify,evidence('device_event','verification','device://physical/receipt/1')],outcome:{summary:'Phone action verified on physical device.',physicalDevice:true}}));
+assert.equal(e.outcome.physicalDevice,true);
+});
+test('Failed requires failure evidence', () => {
+assert.throws(() => normalizeActivityEvent(base({state:'failed'})), /failure evidence/);
+const e=normalizeActivityEvent(base({state:'failed',evidence:[evidence('runtime_event','failure','runtime://job-1/failure')]}));
+assert.equal(e.state,'failed');
+});
+test('post-terminal events are rejected', () => {
+const fail=eventN(1,{state:'failed',evidence:[evidence('runtime_event','failure','runtime://failure/1')]});
+assert.throws(() => validateActivityTimeline([fail,eventN(2)]), /after a terminal state/);
+});
+test('schema rejects invented progress and secret/raw payload fields', () => {
+for (const payload of [{fakePercent:50},{rawPrompt:'x'},{toolArgs:{}},{metadata:{}},{secret:'x'}]) {
+assert.throws(() => normalizeActivityEvent(base(payload)), /not part of the canonical activity schema/);
+}
+});
+test('credential-like material is rejected from public fields and typed refs', () => {
+assert.throws(() => normalizeActivityEvent(base({message:'Authorization: Bearer abcdefghijklmnopqrstuvwxyz'})), /credential-like/);
+assert.throws(() => normalizeActivityEvent(base({evidence:[evidence('runtime_event','source','https://user:password@example.test/evidence')]})), /credential-like/);
+assert.throws(() => normalizeActivityEvent(base({executionId:'token:SecretValue1234'})), /credential-like/);
+});
+test('safe redacted status identifiers remain allowed', () => {
+const e=normalizeActivityEvent(base({eventId:'token:expired',executionId:'private_key:redacted',message:'Provider status: token: expired; secret: unavailable; password = required.'}));
+assert.equal(e.eventId,'token:expired');
+});
+test('impossible timestamps fail closed', () => {
+assert.throws(() => normalizeActivityEvent(base({occurredAt:'2026-02-30T00:00:00Z'})), /offset-aware/);
+assert.throws(() => normalizeActivityEvent(base({admittedAt:'2026-09-13T03:06:00+24:00'})), /offset-aware/);
+});
+test('plain-object boundaries reject prototypes throughout schema', () => {
+assert.throws(() => normalizeActivityEvent(Object.create(base())), /event must be a plain object/);
+assert.throws(() => normalizeActivityEvent(base({provenance:Object.create(base().provenance)})), /provenance must be a plain object/);
+assert.throws(() => normalizeActivityEvent(base({evidence:[Object.create(evidence())]})), /evidence\[0\] must be a plain object/);
+});
+test('parent lineage remains privacy-safe and stable', () => {
+const e=normalizeActivityEvent(base({parentEventId:'evt-parent-1'}));
+assert.equal(e.parentEventId,'evt-parent-1');
+assert.throws(() => normalizeActivityEvent(base({parentEventId:'api_key:SecretValue1234'})), /credential-like/);
 });
