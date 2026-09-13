@@ -1,9 +1,12 @@
 package com.banataosystems.pandora_mobile
 
 import android.app.admin.DevicePolicyManager
+import android.app.role.RoleManager
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
@@ -26,6 +29,7 @@ internal class PandoraDeviceAgentChannel private constructor(
         when (call.method) {
             "getCapabilityManifest" -> result.success(capabilityManifest())
             "getPermissionStates" -> result.success(permissionStates())
+            "openCommunicationComposer" -> openCommunicationComposer(call, result)
             "openSystemSurface" -> openSystemSurface(call, result)
             "runSafeDiagnostic" -> runSafeDiagnostic(call, result)
             else -> result.notImplemented()
@@ -56,6 +60,102 @@ internal class PandoraDeviceAgentChannel private constructor(
             result.success(true)
         } catch (_: RuntimeException) {
             result.success(false)
+        }
+    }
+
+    private data class RoleState(val availability: String, val reason: String)
+
+    private fun openCommunicationComposer(call: MethodCall, result: MethodChannel.Result) {
+        val kind = call.argument<String>("kind")
+        val recipient = call.argument<String>("recipient")?.trim().orEmpty()
+        val message = call.argument<String>("message")
+
+        if (!Regex("^[0-9+*#(). -]{1,64}$").matches(recipient)) {
+            result.error(
+                "INVALID_COMMUNICATION_TARGET",
+                "Pandora only accepts a bounded phone-number target for communication handoff.",
+                null
+            )
+            return
+        }
+        if (kind == "call" && message != null) {
+            result.error(
+                "INVALID_COMMUNICATION_REQUEST",
+                "Call handoffs cannot include an SMS body.",
+                null
+            )
+            return
+        }
+        if (message != null && message.length > 2000) {
+            result.error(
+                "INVALID_COMMUNICATION_REQUEST",
+                "SMS body exceeds the bounded handoff limit.",
+                null
+            )
+            return
+        }
+
+        val handoff = when (kind) {
+            "call" -> "system_dialer"
+            "sms" -> "system_sms_composer"
+            else -> {
+                result.error(
+                    "UNSUPPORTED_COMMUNICATION_KIND",
+                    "Pandora only supports allowlisted call or SMS composer handoffs.",
+                    null
+                )
+                return
+            }
+        }
+        val intent = when (kind) {
+            "call" -> Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", recipient, null))
+            else -> Intent(Intent.ACTION_SENDTO, Uri.fromParts("smsto", recipient, null)).apply {
+                if (message != null) putExtra("sms_body", message)
+            }
+        }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        val status = try {
+            context.startActivity(intent)
+            "opened"
+        } catch (_: ActivityNotFoundException) {
+            "unavailable"
+        } catch (_: SecurityException) {
+            "unavailable"
+        }
+        result.success(
+            mapOf(
+                "kind" to kind,
+                "status" to status,
+                "handoff" to handoff,
+                "userConfirmationRequired" to true
+            )
+        )
+    }
+
+    private fun androidRoleState(roleName: String, label: String): RoleState {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return RoleState(
+                "unsupported",
+                "Android $label role reporting requires Android 10 or newer."
+            )
+        }
+        val manager = context.getSystemService(RoleManager::class.java)
+        if (manager == null || !manager.isRoleAvailable(roleName)) {
+            return RoleState(
+                "unsupported",
+                "Android reports that the $label role is unavailable on this device."
+            )
+        }
+        return if (manager.isRoleHeld(roleName)) {
+            RoleState(
+                "available",
+                "Pandora currently holds the Android $label role."
+            )
+        } else {
+            RoleState(
+                "permission_required",
+                "The Android $label role is available but not held; changing it requires explicit user consent."
+            )
         }
     }
 
@@ -94,6 +194,8 @@ internal class PandoraDeviceAgentChannel private constructor(
 
     private fun capabilityManifest(): Map<String, Any?> {
         val deviceOwnerProvisioned = isDeviceOwner()
+        val dialerRole = androidRoleState(RoleManager.ROLE_DIALER, "dialer")
+        val smsRole = androidRoleState(RoleManager.ROLE_SMS, "SMS")
         return mapOf(
             "schemaVersion" to "1.0.0",
             "platform" to "android",
@@ -174,16 +276,30 @@ internal class PandoraDeviceAgentChannel private constructor(
                 ),
                 capability(
                     "phone.calls",
-                    "runtime_permission",
-                    "implementation_pending",
-                    "Calls and phone-role behavior belong to M4-003.",
+                    "public_app",
+                    "available",
+                    "Pandora hands call initiation to the system dialer with ACTION_DIAL; the user confirms the call and Pandora does not require CALL_PHONE.",
                     false
                 ),
                 capability(
                     "phone.sms",
-                    "runtime_permission",
-                    "implementation_pending",
-                    "SMS and role behavior belong to M4-003.",
+                    "public_app",
+                    "available",
+                    "Pandora hands SMS composition to the system messaging app with ACTION_SENDTO smsto; the user confirms send and Pandora does not require SEND_SMS.",
+                    false
+                ),
+                capability(
+                    "phone.dialer_role",
+                    "android_role",
+                    dialerRole.availability,
+                    dialerRole.reason,
+                    false
+                ),
+                capability(
+                    "phone.sms_role",
+                    "android_role",
+                    smsRole.availability,
+                    smsRole.reason,
                     false
                 ),
                 capability(
