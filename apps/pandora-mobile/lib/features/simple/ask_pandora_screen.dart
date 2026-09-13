@@ -8,6 +8,7 @@ import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import 'pandora_simple_ui.dart';
+import 'project_experience_v2.dart';
 
 class AskPandoraScreen extends StatefulWidget {
   const AskPandoraScreen({
@@ -254,10 +255,40 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         _outcomeUnknown = false;
       });
 
-      // `intelligence.chat` owns exactly one dispatch for this turn. Actionable
-      // work continues through Pandora's capability runtime under standing
-      // authority; never resubmit the same turn through the legacy `/ask` path.
-      // Progress and verified terminal evidence stay in this conversation.
+      final handoff = turn.handoff;
+      final experience = dependencies.projectExperienceRepository;
+      final handoffProjectId = handoff?.projectId?.trim();
+      if (handoff?.source == 'project_workspace_change' &&
+          experience != null &&
+          handoffProjectId != null &&
+          handoffProjectId.isNotEmpty) {
+        try {
+          final snapshot = await experience.runtime(handoffProjectId);
+          if (!mounted) return;
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ProjectWorkspaceV2Screen(
+                project: snapshot.project,
+                initialChange: handoff!.request,
+              ),
+            ),
+          );
+        } catch (_) {
+          if (mounted) {
+            setState(() {
+              _error =
+                  'Pandora could not open the project runtime for that request.';
+            });
+          }
+        }
+        return;
+      }
+
+      // `intelligence.chat` owns exactly one dispatch for this turn. Only an
+      // explicit project_workspace_change handoff enters the existing real
+      // workspace/change engine. ProjectOS intake receipts remain in Chat and
+      // are never resubmitted as a second mutation.
+      // Progress and verified terminal evidence stay authoritative.
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -1008,24 +1039,21 @@ class _Composer extends StatelessWidget {
                         menuChildren: [
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                              'ask-pandora-menu-camera',
-                            ),
+                                'ask-pandora-menu-camera'),
                             label: 'Camera',
                             icon: Icons.camera_alt_outlined,
                             onPressed: onCamera,
                           ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                              'ask-pandora-menu-photos',
-                            ),
+                                'ask-pandora-menu-photos'),
                             label: 'Photos',
                             icon: Icons.photo_outlined,
                             onPressed: onPhotos,
                           ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                              'ask-pandora-menu-files',
-                            ),
+                                'ask-pandora-menu-files'),
                             label: 'Files',
                             icon: Icons.insert_drive_file_outlined,
                             onPressed: onAttach,
