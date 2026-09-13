@@ -11,6 +11,7 @@ module.exports = {
   ...require('./prompts/trusted-context-bundle.js'),
   ...require('./providers/gemini.js'),
   ...require('./providers/kimi.js'),
+  ...require('./providers/openai.js'),
   ...require('./routing/adaptive.js'),
   ...require('./routing/session.js'),
   ...require('./routing/policy.js'),
