@@ -72,11 +72,13 @@ async function evaluateProviderResult(evaluator, result, context) {
   if (typeof evaluator !== 'function') throw new TypeError('resultEvaluator must be a function');
   const raw = await evaluator(result, context);
   assertNoCredentialMaterial(raw);
-  if (!isRecord(raw) || typeof raw.accepted !== 'boolean') throw new TypeError('resultEvaluator must return { accepted: boolean, code?, reason? }');
-  if (raw.accepted) return Object.freeze({ accepted: true, code: null, reason: null });
-  const code = raw.code == null ? 'low_confidence' : String(raw.code);
+  if (!isRecord(raw)) throw new TypeError('resultEvaluator must return { accepted: boolean, code?, reason? }');
+  const evaluation = /** @type {Readonly<Record<string,unknown>>} */ (raw);
+  if (typeof evaluation.accepted !== 'boolean') throw new TypeError('resultEvaluator must return { accepted: boolean, code?, reason? }');
+  if (evaluation.accepted) return Object.freeze({ accepted: true, code: null, reason: null });
+  const code = evaluation.code == null ? 'low_confidence' : String(evaluation.code);
   if (!RESULT_REJECTION_CODES.has(code)) throw new TypeError('resultEvaluator rejection code must be low_confidence or invalid_output');
-  const reason = typeof raw.reason === 'string' && raw.reason.trim() ? raw.reason.trim().slice(0, 160) : code;
+  const reason = typeof evaluation.reason === 'string' && evaluation.reason.trim() ? evaluation.reason.trim().slice(0, 160) : code;
   return Object.freeze({ accepted: false, code, reason });
 }
 
