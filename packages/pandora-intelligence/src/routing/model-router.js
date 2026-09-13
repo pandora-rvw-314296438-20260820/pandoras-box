@@ -2,6 +2,7 @@
 
 const { assertNoCredentialMaterial } = require('../security/secret-boundary.js');
 const { modelEligibility, reasoningPolicyFor, routingPolicyScoreDetailed } = require('./policy.js');
+const { intentRoutingAudit, prepareIntentResolvedRouting } = require('./intent-capability-constraints.js');
 const { createRecoveryRoutingState, createSessionRoutingState, sessionCompatibility } = require('./session.js');
 
 /** @type {Readonly<Record<string, number>>} */
@@ -127,6 +128,16 @@ class ModelRouter {
 
   /** @param {Record<string,unknown>} request @param {RouterOptions} options */
   candidates(request, options = {}) { return this.candidatesDetailed(request, options).candidates.map(item => item.model); }
+
+  /** Route a model request using the frozen M1 intent/capability handoff without letting M1 choose providers or grant authority. */
+  async executeResolved(request, intentResolution, options = {}) {
+    assertNoCredentialMaterial(intentResolution);
+    const prepared = prepareIntentResolvedRouting(this.registry, request, intentResolution, options);
+    const result = await this.execute(prepared.request, prepared.options);
+    const routingDecision = Object.freeze({ ...result.routingDecision, intentResolution: intentRoutingAudit(prepared.constraints, prepared.hardConstraintRecovery) });
+    assertNoCredentialMaterial(routingDecision);
+    return Object.freeze({ ...result, routingDecision });
+  }
 
   /** @param {Record<string,unknown>} request @param {RouterOptions} options */
   async execute(request, options = {}) {
