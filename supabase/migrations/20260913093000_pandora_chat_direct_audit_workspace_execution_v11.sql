@@ -27,7 +27,9 @@ begin
   end if;
   if not (
     v_suffix = ''
-    or v_suffix ~ '^/git/trees/[0-9A-Za-z._-]{1,200}[?]recursive=1$'
+    or v_suffix ~ '^/branches/[0-9A-Za-z._-]{1,200}$'
+    or v_suffix ~ '^/git/commits/[0-9a-f]{40}$'
+    or v_suffix ~ '^/git/trees/[0-9a-f]{40}[?]recursive=1$'
     or v_suffix ~ '^/git/blobs/[0-9a-f]{40}$'
   ) then
     raise exception 'pandora_project_github_path_not_allowed' using errcode='22023';
@@ -107,12 +109,17 @@ declare
   v_project public.projectos_projects%rowtype;
   v_repo_response jsonb;
   v_repo_body jsonb;
+  v_branch_response jsonb;
+  v_branch_body jsonb;
+  v_commit_response jsonb;
+  v_commit_body jsonb;
   v_tree_response jsonb;
   v_tree_body jsonb;
   v_blob_response jsonb;
   v_blob_body jsonb;
   v_default_branch text;
   v_head_sha text;
+  v_tree_sha text;
   v_files jsonb := '[]'::jsonb;
   v_inventory jsonb := '[]'::jsonb;
   v_total_files integer := 0;
@@ -169,25 +176,61 @@ begin
     );
   end if;
 
-  v_tree_response := private.pandora_project_github_read_v1(
+  v_branch_response := private.pandora_project_github_read_v1(
     p_organization_id,
     v_project.repository,
-    '/git/trees/'||v_default_branch||'?recursive=1'
+    '/branches/'||v_default_branch
   );
-  if coalesce((v_tree_response->>'status')::integer,0) not between 200 and 299
-     or v_tree_response->'body' is null then
+  if coalesce((v_branch_response->>'status')::integer,0) not between 200 and 299
+     or v_branch_response->'body' is null then
     return jsonb_build_object(
-      'ok',false,'reason','repository_tree_failed',
-      'repository',v_project.repository,'httpStatus',coalesce((v_tree_response->>'status')::integer,0)
+      'ok',false,'reason','repository_branch_failed',
+      'repository',v_project.repository,'httpStatus',coalesce((v_branch_response->>'status')::integer,0)
     );
   end if;
-  v_tree_body := v_tree_response->'body';
-  v_head_sha := nullif(v_tree_body->>'sha','');
+  v_branch_body := v_branch_response->'body';
+  v_head_sha := nullif(v_branch_body#>>'{commit,sha}','');
   if v_head_sha is null or v_head_sha !~ '^[0-9a-f]{40}$' then
     return jsonb_build_object(
       'ok',false,'reason','repository_head_unverified','repository',v_project.repository
     );
   end if;
+
+  v_commit_response := private.pandora_project_github_read_v1(
+    p_organization_id,
+    v_project.repository,
+    '/git/commits/'||v_head_sha
+  );
+  if coalesce((v_commit_response->>'status')::integer,0) not between 200 and 299
+     or v_commit_response->'body' is null then
+    return jsonb_build_object(
+      'ok',false,'reason','repository_commit_failed',
+      'repository',v_project.repository,'headSha',v_head_sha,
+      'httpStatus',coalesce((v_commit_response->>'status')::integer,0)
+    );
+  end if;
+  v_commit_body := v_commit_response->'body';
+  v_tree_sha := nullif(v_commit_body#>>'{tree,sha}','');
+  if v_tree_sha is null or v_tree_sha !~ '^[0-9a-f]{40}$' then
+    return jsonb_build_object(
+      'ok',false,'reason','repository_tree_unverified','repository',v_project.repository,'headSha',v_head_sha
+    );
+  end if;
+
+  v_tree_response := private.pandora_project_github_read_v1(
+    p_organization_id,
+    v_project.repository,
+    '/git/trees/'||v_tree_sha||'?recursive=1'
+  );
+  if coalesce((v_tree_response->>'status')::integer,0) not between 200 and 299
+     or v_tree_response->'body' is null then
+    return jsonb_build_object(
+      'ok',false,'reason','repository_tree_failed',
+      'repository',v_project.repository,'headSha',v_head_sha,
+      'httpStatus',coalesce((v_tree_response->>'status')::integer,0)
+    );
+  end if;
+  v_tree_body := v_tree_response->'body';
 
   select count(*) into v_total_files
   from jsonb_array_elements(coalesce(v_tree_body->'tree','[]'::jsonb)) e
@@ -286,6 +329,7 @@ begin
     'repository',v_project.repository,
     'defaultBranch',v_default_branch,
     'headSha',v_head_sha,
+    'treeSha',v_tree_sha,
     'allFileCount',v_total_files,
     'eligibleTextFileCount',v_eligible_files,
     'includedFileCount',v_included_files,
