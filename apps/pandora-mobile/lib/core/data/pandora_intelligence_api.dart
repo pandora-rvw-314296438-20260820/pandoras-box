@@ -249,11 +249,17 @@ class PandoraIntelligenceApi {
       r'\b(audit|analy[sz]e)\b|\b(inspect|review|scan)\b.*\b(entire|full|whole|repository|repo|project|codebase|source|all)\b',
       caseSensitive: false,
     ).hasMatch(value);
-    final mutating = RegExp(
-      r'\b(fix|change|update|repair|edit|merge|branch|commit|deploy|publish|build|continue|finish|run|implement|work|proceed|create|write|apply|configure|install|remove|restore|improve|upgrade|add)\b|go ahead|do it',
+    if (!deep) return false;
+
+    final directAction = RegExp(
+      r'^\s*(?:okay[,\s]+|great[,\s]+|please\s+|can you\s+|could you\s+|would you\s+|i need you to\s+|i want you to\s+|go ahead(?: and)?\s+)*(?:build|fix|change|update|repair|edit|merge|branch|commit|deploy|publish|continue|finish|run|implement|work|proceed|create|write|apply|configure|install|remove|restore|improve|upgrade|add)\b',
       caseSensitive: false,
     ).hasMatch(value);
-    return deep && !mutating;
+    final sequenceAction = RegExp(
+      r'\b(audit|analy[sz]e|inspect|review|scan)\b.*(?:\band(?:\s+then)?\b|\bthen\b|\bafter(?:wards?| that)?\b|[,;])\s*(?:please\s+)?(?:build|fix|change|update|repair|edit|merge|branch|commit|deploy|publish|continue|finish|run|implement|work|proceed|create|write|apply|configure|install|remove|restore|improve|upgrade|add)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    return !directAction && !sequenceAction;
   }
 
   Future<List<Map<String, Object?>>> _repositoryAuditAttachments({

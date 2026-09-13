@@ -29,7 +29,7 @@ test('explicit owner/repo actions route before model fallback without creating a
 });
 
 test('mobile uses v6 and hides the internal ProjectOS inbox from user project context', () => {
-  assert.match(api,/pandora_chat_universal_dispatch_v8/);
+  assert.match(api,/pandora_chat_universal_dispatch_v9/);
   assert.match(api,/neq\('project_key', 'projectos-inbox'\)/);
 });
 

@@ -24,8 +24,8 @@ test('chat stays chronological and opens on the newest turn', () => {
   assert.match(api, /return latest\.reversed\.toList\(growable: false\)/);
 });
 
-test('mobile uses standing-authority dispatch v8', () => {
-  assert.match(api, /pandora_chat_universal_dispatch_v8/);
+test('mobile uses speech-act dispatch v9 over standing-authority v8', () => {
+  assert.match(api, /pandora_chat_universal_dispatch_v9/);
   assert.doesNotMatch(api, /pandora_chat_universal_dispatch_v7/);
   assert.match(migration, /create or replace function public\.pandora_chat_universal_dispatch_v8/);
 });

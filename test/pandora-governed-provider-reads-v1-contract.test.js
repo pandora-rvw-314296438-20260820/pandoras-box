@@ -44,6 +44,6 @@ test("chat read lane emits verified evidence and fails closed", () => {
 });
 
 test("mobile invokes the governed universal dispatch", () => {
-  assert.match(mobile, /pandora_chat_universal_dispatch_v8/);
+  assert.match(mobile, /pandora_chat_universal_dispatch_v9/);
   assert.doesNotMatch(mobile, /pandora_chat_universal_dispatch_v2/);
 });

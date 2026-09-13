@@ -31,7 +31,7 @@ test('provider reads are bounded and mutations remain ProjectOS governed', () =>
 });
 
 test('mobile chat falls back to intelligence when capability preflight is unavailable', () => {
-  assert.match(mobile, /pandora_chat_universal_dispatch_v8/);
+  assert.match(mobile, /pandora_chat_universal_dispatch_v9/);
   assert.match(mobile, /if \(message\.trim\(\)\.isEmpty\) return null/);
   assert.match(mobile, /textAttachment == null && imageAttachment == null/);
   assert.doesNotMatch(mobile, /Pandora could not verify that capability right now/);

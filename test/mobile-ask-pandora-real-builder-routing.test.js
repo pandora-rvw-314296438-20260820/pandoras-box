@@ -18,7 +18,7 @@ test('Ask Pandora fallback stays universal when intelligence is unavailable', ()
 test('ProjectOS handoffs are admission receipts and are never submitted twice', () => {
   assert.equal(source.includes('message: handoff.request'), false);
   assert.equal(source.includes("_keys.create('intelligence-handoff')"), false);
-  assert.equal(source.includes('capability runtime under standing'), true);
+  assert.equal(source.includes('owns exactly one dispatch'), true);
   assert.equal(source.includes('initialIntent: handoff.request'), false);
 });
 

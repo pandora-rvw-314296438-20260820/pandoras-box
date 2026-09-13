@@ -65,3 +65,10 @@ test('only the explicit workspace-change handoff enters ProjectWorkspaceV2', () 
   assert.match(ask, /initialChange: handoff!\.request/);
   assert.doesNotMatch(ask, /message: handoff\.request/);
 });
+
+
+test('mobile repository audits keep incidental action words read-only but reject explicit action sequences', () => {
+  assert.match(intelligence, /final directAction = RegExp/);
+  assert.match(intelligence, /final sequenceAction = RegExp/);
+  assert.doesNotMatch(intelligence, /final mutating = RegExp/);
+});
