@@ -53,6 +53,8 @@ The authority decision is converted into a unique one-time action-bound approval
 
 The unchanged Tool Gateway then independently re-resolves current state and re-validates the generated grant. Any organization/project/environment/risk/version/state/action drift fails closed before provider execution. Authority-scope drift while an evaluator is running also fails closed before a grant is stored.
 
+The authority executor snapshots and deeply freezes the trusted execution context before any evaluator or Gateway work. Actor capabilities, organization/environment, verification, budget/cost, destination/data sensitivity, domain/network policy and protected-app scope therefore remain the same authority view through evaluator awaits, lineage writes, approval storage and the final Gateway attempt. Caller mutation after authorization cannot widen the execution context.
+
 ## Continuous chain behavior
 
 `PandoraToolChainExecutor` executes ordered tool steps until one of these terminal outcomes:
@@ -65,6 +67,8 @@ The unchanged Tool Gateway then independently re-resolves current state and re-v
 - `cancelled`.
 
 A chain never runs later steps after a real authority boundary, policy denial, failed operation, cancellation, or ambiguous mutation. Ambiguous mutations require readback/reconciliation before retry.
+
+The chain snapshots its trusted base context once. A step may supply only a step-local `tool_call_id`; it cannot override actor/capabilities, organization, project authority, environment, budget, verification, network/domain policy or any other trusted execution field.
 
 ## Security invariants
 
