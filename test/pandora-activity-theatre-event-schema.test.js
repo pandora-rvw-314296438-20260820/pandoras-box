@@ -215,6 +215,9 @@ test('public Activity Theatre boundary rejects arbitrary metadata and sensitive 
 test('public Activity Theatre text fields reject credential-like material without blocking safe status prose', () => {
   const credentialCases = [
     { message: 'Provider returned ghp_1234567890abcdefghijklmnop' },
+    { message: 'Provider returned AKIA1234567890ABCDEF' },
+    { message: 'AWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF' },
+    { message: 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' },
     { provenance: { ...base().provenance, evidenceRef: 'runtime://job-1/events/1?token=abcd1234' } },
     {
       state: 'needs_you',
@@ -249,7 +252,7 @@ test('public Activity Theatre text fields reject credential-like material withou
   );
 
   const safe = normalizeActivityEvent(base({
-    message: 'Provider status: token: expired; secret: unavailable; password = required; access_token: revoked.',
+    message: 'Provider status: token: expired; secret: unavailable; password = required; access_token: revoked; AWS_ACCESS_KEY_ID=missing; AWS_SECRET_ACCESS_KEY=unavailable.',
     provenance: { ...base().provenance, evidenceRef: 'runtime://job-1/events/1?token=redacted' },
     executionId: 'token:expired',
   }));
@@ -257,6 +260,8 @@ test('public Activity Theatre text fields reject credential-like material withou
   assert.match(safe.message, /secret: unavailable/);
   assert.match(safe.message, /password = required/);
   assert.match(safe.message, /access_token: revoked/);
+  assert.match(safe.message, /AWS_ACCESS_KEY_ID=missing/);
+  assert.match(safe.message, /AWS_SECRET_ACCESS_KEY=unavailable/);
   assert.match(safe.provenance.evidenceRef, /token=redacted/);
   assert.equal(safe.executionId, 'token:expired');
 });
