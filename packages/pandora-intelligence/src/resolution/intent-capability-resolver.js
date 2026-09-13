@@ -31,6 +31,7 @@ const DOMAIN_RULES = Object.freeze({
   ],
   coding_building: [
     [6, /\b(?:app|website|web app|software|code|codebase|repository|repo|api|database|schema|function|endpoint|frontend|backend|checkout|bug|pull request|\bpr\b|branch)\b/i, 'software.object'],
+    [8, /\b(?:booking|ordering|reservation|inventory|payment|checkout|crm|pos)\s+(?:system|platform|app)\b/i, 'software.solution_system'],
     [4, /\b(?:implement|refactor|compile|debug|deploy|merge|commit)\b/i, 'software.action'],
     [3, /\b(?:build|fix|change|update|create|make)\b.{0,50}\b(?:app|website|software|code|repo|repository|api|database|checkout|bug|feature)\b/i, 'software.change_object'],
   ],
@@ -48,7 +49,7 @@ const DOMAIN_RULES = Object.freeze({
     [3, /\b(?:forecast|analy[sz]e|optimi[sz]e|strategy|promotion)\b/i, 'business.analysis'],
   ],
   travel: [
-    [6, /\b(?:travel|trip|flights?|hotels?|airbnb|airport|visa|itinerary|destination|booking|reservation|tour)\b/i, 'travel.object'],
+    [6, /\b(?:travel|trip|flights?|hotels?|airbnb|airport|visa|itinerary|destination|tour|(?:flight|hotel|travel|tour)\s+(?:booking|reservation))\b/i, 'travel.object'],
     [3, /\b(?:book|reserve|plan)\b.{0,35}\b(?:flight|hotel|trip|travel|room|tour)\b/i, 'travel.action'],
   ],
   scheduling: [
