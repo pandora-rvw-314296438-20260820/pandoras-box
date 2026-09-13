@@ -98,6 +98,14 @@ test('OpenAI transport failures are classified without raw provider payload leak
   assert.throws(() => normalizeOpenAIHttpResponse({ status: 503, ok: false, error: { kind: 'provider_unavailable', retryable: true } }, 'gpt-5.6-terra'), (error) => error.code === 'provider_unavailable' && error.retryable === true);
 });
 
+test('OpenAI adapter classifies malformed provider tool-call shapes as provider failures', async () => {
+  const adapter = new OpenAIProviderAdapter({ transport: { async createChatCompletion() {
+    return { status: 200, ok: true, body: { choices: [{ message: { content: '', tool_calls: [{ id: 'call_1', type: 'function', function: null }] }, finish_reason: 'tool_calls' }], usage: {} } };
+  } } });
+  const request = createModelRequest({ requestId: 'req-malformed-tool', task: 'classify_task', outputMode: 'text', context: {}, budget: { maxAttempts: 1 }, metadata: {} });
+  await assert.rejects(() => adapter.execute(request, declaration()), (error) => error.code === 'provider_error' && error.retryable === false && error.details.kind === 'malformed_response');
+});
+
 test('OpenAI adapter rejects undeclared models, oversized output budgets and credential material', async () => {
   const adapter = new OpenAIProviderAdapter({ transport: { async createChatCompletion() { throw new Error('transport should not be called'); } } });
   await assert.rejects(() => adapter.execute(structuredRequest(), { ...declaration(), modelId: 'gpt-6-astra' }), (error) => error.code === 'unsupported_capability' && error.retryable === false);
