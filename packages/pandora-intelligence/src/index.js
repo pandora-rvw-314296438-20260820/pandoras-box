@@ -15,6 +15,7 @@ module.exports = {
   ...require('./routing/adaptive.js'),
   ...require('./routing/session.js'),
   ...require('./routing/intent-capability-constraints.js'),
+  ...require('./routing/fallback-policy.js'),
   ...require('./routing/policy.js'),
   ...require('./routing/model-router.js'),
   ...require('./skills/registry.js'),
