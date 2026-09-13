@@ -165,20 +165,53 @@ test('schema is strict so decorative or invented fields cannot silently enter th
   );
 });
 
-test('public Activity Theatre events reject arbitrary metadata and sensitive payload fields', () => {
-  const rejected = [
-    { metadata: { phase: 'hidden', token: 'secret-value' } },
-    { metadata: { nested: { toolArgs: { password: 'secret-value' } } } },
-    { secret: 'secret-value' },
-    { token: 'secret-value' },
-    { rawPrompt: 'internal system prompt' },
-    { toolArgs: { destination: 'external-provider', apiKey: 'secret-value' } },
-  ];
 
-  for (const payload of rejected) {
+test('public Activity Theatre boundary rejects arbitrary metadata and sensitive payload fields', () => {
+  for (const payload of [
+    { metadata: { safeLabel: 'looks-safe' } },
+    { metadata: { nested: { token: 'secret-value' } } },
+    { secret: 'secret-value' },
+    { token: 'token-value' },
+    { rawPrompt: 'system prompt contents' },
+    { toolArgs: { recipient: 'private-value' } },
+  ]) {
     assert.throws(
       () => normalizeActivityEvent(base(payload)),
       /not part of the canonical activity schema/,
     );
   }
+});
+
+test('public Activity Theatre text fields reject credential-like material without blocking safe status prose', () => {
+  const credentialCases = [
+    { message: 'Provider returned ghp_1234567890abcdefghijklmnop' },
+    { provenance: { ...base().provenance, evidenceRef: 'runtime://job-1/events/1?token=abcd1234' } },
+    {
+      state: 'needs_you',
+      message: 'Authorization is required.',
+      blocker: {
+        reason: 'Provider sent Bearer abcdefghijklmnopqrstuvwxyz',
+        requiredAction: 'Reconnect the provider account.',
+        approvalRequired: false,
+      },
+    },
+    {
+      state: 'result',
+      message: 'Provider responded.',
+      outcome: { summary: 'Provider echoed sk-1234567890abcdefghijklmnop.' },
+    },
+    { executionId: 'eyJabcdefghijklmnopqrstuv.abcdefghijklmnopqrstuv.abcdefghijklmnop' },
+  ];
+
+  for (const payload of credentialCases) {
+    assert.throws(
+      () => normalizeActivityEvent(base(payload)),
+      /contains credential-like material/,
+    );
+  }
+
+  const safe = normalizeActivityEvent(base({
+    message: 'API token expired; requesting account reauthorization without exposing the token value.',
+  }));
+  assert.match(safe.message, /token expired/);
 });
