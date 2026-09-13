@@ -132,7 +132,9 @@ class ModelRouter {
     assertNoCredentialMaterial(intentResolution);
     const prepared = prepareIntentResolvedRouting(this.registry, request, intentResolution, options);
     const result = await this.execute(prepared.request, prepared.options);
-    const routingDecision = Object.freeze({ ...result.routingDecision, intentResolution: intentRoutingAudit(prepared.constraints, prepared.hardConstraintRecovery) });
+    if (!isRecord(result.routingDecision)) throw new TypeError('model routing result must include routingDecision');
+    const baseRoutingDecision = /** @type {Readonly<Record<string,unknown>>} */ (result.routingDecision);
+    const routingDecision = Object.freeze({ ...baseRoutingDecision, intentResolution: intentRoutingAudit(prepared.constraints, prepared.hardConstraintRecovery) });
     assertNoCredentialMaterial(routingDecision);
     return Object.freeze({ ...result, routingDecision });
   }
