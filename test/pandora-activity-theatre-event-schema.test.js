@@ -213,11 +213,18 @@ test('public Activity Theatre boundary rejects arbitrary metadata and sensitive 
 });
 
 test('public Activity Theatre text fields reject credential-like material without blocking safe status prose', () => {
+  const githubPat = ['github', '_pat_11AAABBBCCCDDDEEEFFF000111222333444'].join('');
+  const slackToken = ['xox', 'b-123456789012-123456789012-abcdefghijklmnopqrstuvwx'].join('');
+  const slackWebhook = ['https://hooks.', 'slack.com/services/T12345678/B12345678/abcdefghijklmnopqrstuvwx'].join('');
   const credentialCases = [
     { message: 'Provider returned ghp_1234567890abcdefghijklmnop' },
     { message: 'Provider returned AKIA1234567890ABCDEF' },
     { message: 'AWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF' },
     { message: 'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' },
+    { message: `Provider returned ${githubPat}` },
+    { message: `Provider returned ${slackToken}` },
+    { message: `Slack webhook ${slackWebhook}` },
+    { message: 'SERVICE_SECRET_KEY=NotARealSecret1234' },
     { provenance: { ...base().provenance, evidenceRef: 'runtime://job-1/events/1?token=abcd1234' } },
     {
       state: 'needs_you',
@@ -252,7 +259,7 @@ test('public Activity Theatre text fields reject credential-like material withou
   );
 
   const safe = normalizeActivityEvent(base({
-    message: 'Provider status: token: expired; secret: unavailable; password = required; access_token: revoked; AWS_ACCESS_KEY_ID=missing; AWS_SECRET_ACCESS_KEY=unavailable.',
+    message: 'Provider status: token: expired; secret: unavailable; password = required; access_token: revoked; AWS_ACCESS_KEY_ID=missing; AWS_SECRET_ACCESS_KEY=unavailable; SERVICE_SECRET_KEY=unavailable.',
     provenance: { ...base().provenance, evidenceRef: 'runtime://job-1/events/1?token=redacted' },
     executionId: 'token:expired',
   }));
@@ -262,6 +269,7 @@ test('public Activity Theatre text fields reject credential-like material withou
   assert.match(safe.message, /access_token: revoked/);
   assert.match(safe.message, /AWS_ACCESS_KEY_ID=missing/);
   assert.match(safe.message, /AWS_SECRET_ACCESS_KEY=unavailable/);
+  assert.match(safe.message, /SERVICE_SECRET_KEY=unavailable/);
   assert.match(safe.provenance.evidenceRef, /token=redacted/);
   assert.equal(safe.executionId, 'token:expired');
 });
