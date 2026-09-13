@@ -95,7 +95,9 @@ void main() {
     expect(state.failed, isTrue);
   });
 
-  test('builder completion remains non-terminal until trusted preview evidence', () {
+  test(
+    'builder completion remains non-terminal until trusted preview evidence',
+    () {
     final afterBuild = reducer.reduce(<LiveBuildEvent>[
       _event(1, LiveBuildEventKind.buildAdmitted),
       _event(2, LiveBuildEventKind.buildCompleted),
