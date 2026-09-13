@@ -8,7 +8,6 @@ import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import 'pandora_simple_ui.dart';
-import 'project_experience_v2.dart';
 
 class AskPandoraScreen extends StatefulWidget {
   const AskPandoraScreen({
@@ -262,33 +261,106 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
           experience != null &&
           handoffProjectId != null &&
           handoffProjectId.isNotEmpty) {
+        final actionRequest = handoff!.request.trim();
+        if (actionRequest.length < 4) {
+          setState(() => _error = 'Pandora needs a clearer project change.');
+          return;
+        }
+
+        var mutationAccepted = false;
+        final executionKey =
+            _submissionKey ??= _keys.create('pandora-chat-project-change');
         try {
-          final snapshot = await experience.runtime(handoffProjectId);
+          final projection = await experience.loadExperience(handoffProjectId);
           if (!mounted) return;
-          await Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => ProjectWorkspaceV2Screen(
-                project: snapshot.project,
-                initialChange: handoff!.request,
-              ),
-            ),
-          );
-        } catch (_) {
-          if (mounted) {
+          if (projection.canChange != true) {
+            _submissionKey = null;
             setState(() {
               _error =
-                  'Pandora could not open the project runtime for that request.';
+                  'This project is not ready for a change yet. Pandora kept you in chat and did not start a duplicate build.';
             });
+            return;
           }
+
+          final intentId = await experience.submitChange(
+            projectId: handoffProjectId,
+            changeText: actionRequest,
+            idempotencyKey: '$executionKey:intent',
+          );
+          mutationAccepted = true;
+
+          var understandingReady = false;
+          var rejected = false;
+          for (var attempt = 0; attempt < 45; attempt += 1) {
+            final understanding = await experience.understanding(
+              projectId: handoffProjectId,
+              expectedSourceIntentId: intentId,
+            );
+            if (understanding.isReady) {
+              understandingReady = true;
+              break;
+            }
+            if (understanding.state.name == 'rejected') {
+              rejected = true;
+              break;
+            }
+            await Future<void>.delayed(const Duration(seconds: 2));
+          }
+          if (!mounted) return;
+          if (rejected) {
+            _submissionKey = null;
+            setState(() {
+              _error =
+                  'Pandora needs a different instruction before it can build that change.';
+            });
+            return;
+          }
+          if (!understandingReady) {
+            setState(() {
+              _outcomeUnknown = true;
+              _error =
+                  'Your change is saved and still being prepared. Pandora will not submit it twice. Check Activity before retrying.';
+            });
+            return;
+          }
+
+          final start = await experience.requestBuild(
+            projectId: handoffProjectId,
+            idempotencyKey: '$executionKey:build:$intentId',
+          );
+          if (!mounted) return;
+          setState(() {
+            _messages.add(
+              _ChatMessage.pandora(
+                start.streamId.trim().isNotEmpty
+                    ? 'Build started. I’ll keep this chat open while Pandora works. Open the project only when you want to inspect the result.'
+                    : 'Pandora accepted the change, but the build stream is not available yet. Check Activity before retrying.',
+              ),
+            );
+            _submissionKey = null;
+            _outcomeUnknown = false;
+          });
+        } catch (_) {
+          if (!mounted) return;
+          setState(() {
+            if (mutationAccepted) {
+              _outcomeUnknown = true;
+              _error =
+                  'Your change may already be saved. Pandora will not retry it automatically. Check Activity before sending it again.';
+            } else {
+              _submissionKey = null;
+              _error = 'Pandora could not start that project change right now.';
+            }
+          });
         }
         return;
       }
 
-      // `intelligence.chat` owns exactly one dispatch for this turn. Only an
-      // explicit project_workspace_change handoff enters the existing real
-      // workspace/change engine. ProjectOS intake receipts remain in Chat and
-      // are never resubmitted as a second mutation.
-      // Progress and verified terminal evidence stay authoritative.
+      // `intelligence.chat` owns exactly one dispatch for this turn. Explicit
+      // selected-project changes execute through the real project runtime in
+      // this chat. They never navigate away, never reopen ProjectOS intake,
+      // and never resubmit the owner instruction as a second intelligence turn.
+      // Progress and verified terminal evidence remain authoritative.
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
       setState(() {

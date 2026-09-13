@@ -19,13 +19,16 @@ const api = await readFile(
   'utf8',
 );
 
-test('video regression: actionable ProjectOS admission remains single-shot in Universal Chat', () => {
+test('video regression: selected-project execution remains single-shot and stays in Universal Chat', () => {
   assert.doesNotMatch(mobile, /message: handoff\.request/);
   assert.doesNotMatch(mobile, /intelligence-handoff/);
   assert.doesNotMatch(mobile, /CreateProjectExperienceScreen/);
+  assert.doesNotMatch(mobile, /ProjectWorkspaceV2Screen/);
   assert.match(mobile, /handoff\?\.source == 'project_workspace_change'/);
-  assert.match(mobile, /ProjectWorkspaceV2Screen/);
-  assert.match(mobile, /initialChange: handoff!\.request/);
+  assert.match(mobile, /experience\.submitChange\(/);
+  assert.match(mobile, /experience\.understanding\(/);
+  assert.match(mobile, /experience\.requestBuild\(/);
+  assert.match(mobile, /keep this chat open while Pandora works/);
   assert.match(mobile, /owns exactly one dispatch/);
 });
 
