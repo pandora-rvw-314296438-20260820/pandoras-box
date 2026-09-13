@@ -164,3 +164,21 @@ test('schema is strict so decorative or invented fields cannot silently enter th
     /unsupported activity state/,
   );
 });
+
+test('public Activity Theatre events reject arbitrary metadata and sensitive payload fields', () => {
+  const rejected = [
+    { metadata: { phase: 'hidden', token: 'secret-value' } },
+    { metadata: { nested: { toolArgs: { password: 'secret-value' } } } },
+    { secret: 'secret-value' },
+    { token: 'secret-value' },
+    { rawPrompt: 'internal system prompt' },
+    { toolArgs: { destination: 'external-provider', apiKey: 'secret-value' } },
+  ];
+
+  for (const payload of rejected) {
+    assert.throws(
+      () => normalizeActivityEvent(base(payload)),
+      /not part of the canonical activity schema/,
+    );
+  }
+});
