@@ -81,7 +81,7 @@ Source acceptance requires:
 
 1. routine read/query/test/build chains continue without repeated approval prompts;
 2. exact current-user authority can satisfy an existing approval boundary without a second prompt;
-2. exact matching active standing authority can do the same;
+3. exact matching active standing authority can do the same;
 4. prediction or tampered authority evidence fails closed before provider execution;
 5. unresolved approval/deny/failure/cancellation stops the chain;
 6. ambiguous mutations stop at `verification_required`;

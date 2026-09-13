@@ -51,7 +51,7 @@ const RESTRICTIVE_AUTHORITY_BASES = Object.freeze([
   "provider_permission",
 ]);
 
-const RSK_ORDER = Object.freeze({
+const RISK_ORDER = Object.freeze({
   [RISK_LEVELS.LOW]: 1,
   [RISK_LEVELS.MEDIUM]: 2,
   [RISK_LEVELS.HIGH]: 3,
@@ -60,7 +60,7 @@ const RSK_ORDER = Object.freeze({
 
 function asDate(value, field) {
   const date = value instanceof Date ? value : new Date(value);
-  if (!Number.isFinite(date.getTime()) {
+  if (!Number.isFinite(date.getTime())) {
     throw new PandoraToolError("approval_required", "AUTHORITY_TIME_INVALID", `${field} is invalid`);
   }
   return date;
@@ -233,7 +233,7 @@ class PandoraAuthorityToolExecutor {
     }
 
     const now = this.now();
-    const toolCallId = context.tool_call_id || new randomUUID();
+    const toolCallId = context.tool_call_id || randomUUID();
     const { definition, proposal } = validateToolProposal(rawProposal, {
       authorizedSubpaths: context.authorized_subpaths || [""],
     });
@@ -243,7 +243,7 @@ class PandoraAuthorityToolExecutor {
     const resolved = await this.gateway.resourceResolver.resolve({
       organization_id: context.organization_id,
       project_id: args.project_id,
-    environment: args.environment,
+      environment: args.environment,
       actor: context.actor,
       tool: definition.name,
     });
@@ -261,7 +261,7 @@ class PandoraAuthorityToolExecutor {
 
     const binding = approvalBindingFromAction({
       proposal,
-    organization_id: context.organization_id,
+      organization_id: context.organization_id,
       project_id: project.id,
       actor_id: context.actor.id,
       environment: context.environment,

@@ -25,7 +25,7 @@ function durableMemoryDeps(adapterRegistry) {
     resourceResolver: {
       async resolve({ environment }) {
         return {
-          project: {id: PROJECT, organization_id: ORG, version_id: "v1" },
+          project: { id: PROJECT, organization_id: ORG, version_id: "v1" },
           resource: { id: environment, project_id: PROJECT, organization_id: ORG },
           target_resource: environment,
           project_version: "v1",
@@ -50,7 +50,7 @@ function context(capabilities, environment = "preview", extra = {}) {
     actor: { id: ACTOR, organization_id: ORG, capabilities },
     environment,
     authorized_requirement_refs: ["REQ-M3-005"],
-    rate_limit: {max_calls: 50, window_ms: 60_000 },
+    rate_limit: { max_calls: 50, window_ms: 60_000 },
     ...extra,
   };
 }
@@ -136,7 +136,7 @@ test("routine read chain executes continuously without approval prompts", async 
   const adapters = new T.ExecutionAdapterRegistry().register("WorkspaceExecutor", {
     async execute(request) {
       calls.push(request.arguments.path);
-      return { output: {path: request.arguments.path } };
+      return { output: { path: request.arguments.path } };
     },
   });
   const gateway = new T.PandoraToolGateway(durableMemoryDeps(adapters));
@@ -328,4 +328,48 @@ test("chain stops at unresolved approval boundary and does not execute later ste
     context: publishContext(),
     steps: [
       { id: "publish", proposal: publishProposal() },
-      { id: "later-read", proposal: readProposal("src/later.js", "later"), context: context(["workspace.files.read"]) yô°(€€€t°(€ô¤ì((€…ÍÍ•ÉÐ¹•ÅÕ…°¡É•ÍÕ±Ð¹ÍÑ…Ñ”°P¹Q==1}!%9}MQQL¹9M}AAI=Y0¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡É•ÍÕ±Ð¹‰±½­•‘}ÍÑ•À°€À¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡ÁÕ‰±¥Í¡…±±Ì°€À¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡É•…‘…±±Ì°€À¤ì)ô¤ì()Ñ•ÍÐ ‰¡…¥¸ÍÑ½ÁÌ½¸…µ‰¥Õ½ÕÌµÕÑ…Ñ¥½¸…¹É•ÅÕ¥É•ÌÉ•…‘‰…¬‰•™½É”É•ÑÉäˆ°…Íå¹Œ€ ¤€ôøì(€½¹ÍÐ…‘…ÁÑ•ÉÌ€ô¹•ÜP¹á•ÕÑ¥½¹‘…ÁÑ•ÉI•¥ÍÑÉä ¤¹É•¥ÍÑ•È ‰	Õ¥±‘á•ÕÑ½Èˆ°ì(€€€…Íå¹Œ•á•ÕÑ” ¤ì(€€€€€½¹ÍÐ•ÉÉ½È€ô¹•ÜÉÉ½È ‰ÁÉ½Ù¥‘•È½¹¹•Ñ¥½¸±½ÍÐ…™Ñ•È‘¥ÍÁ…Ñ ˆ¤ì(€€€€€•ÉÉ½È¹µÕÑ…Ñ¥½¹}µ…å}¡…Ù•}½µµ¥ÑÑ•€ôÑÉÕ”ì(€€€€€Ñ¡É½Ü•ÉÉ½Èì(€€€ô°(€ô¤ì(€½¹ÍÐ…Ñ•Ý…ä€ô¹•ÜP¹A…¹‘½É…Q½½±…Ñ•Ý…ä¡‘ÕÉ…‰±•5•µ½Éå•ÁÌ¡…‘…ÁÑ•ÉÌ¤¤ì(€½¹ÍÐ¡…¥¸€ô¹•ÜP¹A…¹‘½É…Q½½±¡…¥¹á•ÕÑ½È¡ì(€€€•á•ÕÑ½Èè¹•ÜP¹A…¹‘½É…ÕÑ¡½É¥ÑåQ½½±á•ÕÑ½È¡ì…Ñ•Ý…ä°¹½Üè™¥á•‘9½Üô¤°(€ô¤ì((€½¹ÍÐÁÉ½Á½Í…°€ôì(€€€Ñ½½°è€‰É•ÅÕ•ÍÑ}‰Õ¥±ˆ°(€€€Ù•ÉÍ¥½¸è€Ä°(€€€…ÉÕµ•¹ÑÌèì(€€€€€ÁÉ½©•Ñ}¥èAI=)P°(€€€€€•¹Ù¥É½¹µ•¹Ðè€‰ÁÉ•Ù¥•Üˆ°(€€€€€Ù•ÉÍ¥½¹}¥è€‰ØÄˆ°(€€€€€É•ÅÕ•ÍÑ}¥è€‰É•ÅÕ•ÍÐµ‰Õ¥±´Äˆ°(€€€€€¥‘•µÁ½Ñ•¹å}­•äè€‰¥‘•´µ‰Õ¥±´Äˆ°(€€€ô°(€€€É•ÅÕ¥É•µ•¹Ñ}É•™Ìèl‰IDµ4Ì´ÀÀÔ‰t°(€€€É•…Í½¸è€‰‰Õ¥±ˆ°(€ôì((€½¹ÍÐÉ•ÍÕ±Ð€ô…Ý…¥Ð¡…¥¸¹ÉÕ¸¡ì(€€€½¹Ñ•áÐè½¹Ñ•áÐ¡l‰‰Õ¥±¹•á•ÕÑ”‰t°€‰ÁÉ•Ù¥•Üˆ°ì‰Õ‘•ÐèìÉ•µ…¥¹¥¹}Õ¹¥ÑÌè€ÄÀÀôô¤°(€€€ÍÑ•ÁÌèmì¥è€‰‰Õ¥±ˆ°ÁÉ½Á½Í…°õt°(€ô¤ì((€…ÍÍ•ÉÐ¹•ÅÕ…°¡É•ÍÕ±Ð¹ÍÑ…Ñ”°P¹Q==1}!%9}MQQL¹YI%%Q%=9}IEU%I¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡É•ÍÕ±Ð¹‰±½­•‘}ÍÑ•À°€À¤ì)ô¤ì
+      { id: "later-read", proposal: readProposal("src/later.js", "later"), context: context(["workspace.files.read"]) },
+    ],
+  });
+
+  assert.equal(result.state, T.TOOL_CHAIN_STATES.NEEDS_APPROVAL);
+  assert.equal(result.blocked_step, 0);
+  assert.equal(publishCalls, 0);
+  assert.equal(readCalls, 0);
+});
+
+test("chain stops on ambiguous mutation and requires readback before retry", async () => {
+  const adapters = new T.ExecutionAdapterRegistry().register("BuildExecutor", {
+    async execute() {
+      const error = new Error("provider connection lost after dispatch");
+      error.mutation_may_have_committed = true;
+      throw error;
+    },
+  });
+  const gateway = new T.PandoraToolGateway(durableMemoryDeps(adapters));
+  const chain = new T.PandoraToolChainExecutor({
+    executor: new T.PandoraAuthorityToolExecutor({ gateway, now: fixedNow }),
+  });
+
+  const proposal = {
+    tool: "request_build",
+    version: 1,
+    arguments: {
+      project_id: PROJECT,
+      environment: "preview",
+      version_id: "v1",
+      request_id: "request-build-1",
+      idempotency_key: "idem-build-1",
+    },
+    requirement_refs: ["REQ-M3-005"],
+    reason: "build",
+  };
+
+  const result = await chain.run({
+    context: context(["build.execute"], "preview", { budget: { remaining_units: 100 } }),
+    steps: [{ id: "build", proposal }],
+  });
+
+  assert.equal(result.state, T.TOOL_CHAIN_STATES.VERIFICATION_REQUIRED);
+  assert.equal(result.blocked_step, 0);
+});
