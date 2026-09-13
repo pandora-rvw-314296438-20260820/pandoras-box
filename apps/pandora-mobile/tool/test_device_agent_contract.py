@@ -35,6 +35,7 @@ _MAIN = (
     / "MainActivity.kt"
 )
 _MANIFEST_TOOL = _ROOT / "tool" / "configure_validation_android.py"
+_SETTINGS = _ROOT / "lib" / "features" / "settings" / "settings_screen.dart"
 
 
 class DeviceAgentContractTest(unittest.TestCase):
@@ -115,6 +116,20 @@ class DeviceAgentContractTest(unittest.TestCase):
             "DevicePolicyManager",
         ):
             self.assertNotIn(forbidden, source)
+
+    def test_m4_002_settings_keep_android_recovery_visible(self) -> None:
+        source = _SETTINGS.read_text(encoding="utf-8")
+        for visible_control in (
+            "Android recovery",
+            "Android settings",
+            "Home app settings",
+            "Phone dialer",
+            "PandoraSystemSurface.androidSettings",
+            "PandoraSystemSurface.homeAppSettings",
+            "PandoraSystemSurface.systemDialer",
+        ):
+            self.assertIn(visible_control, source)
+        self.assertIn("without placing a call", source)
 
 
 if __name__ == "__main__":
