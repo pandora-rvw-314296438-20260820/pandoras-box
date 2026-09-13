@@ -22,7 +22,7 @@ test('Ask Pandora uses the Vault-backed model provider boundary', () => {
   assert.match(edge, /pandora_worker_b_gemini_request_20260829/);
   assert.doesNotMatch(edge, /generativelanguage\.googleapis\.com/);
   assert.doesNotMatch(edge, /Deno\.env\.get\(["'](?:GEMINI|GOOGLE).*KEY/i);
-  assert.match(edge, /You may propose actions|never execute tools/i);
+  assert.match(edge, /credentials and side effects stay inside Pandora's capability runtime and Worker C/i);
 });
 
 test('fallback intelligence is universal and capability-neutral', () => {
@@ -38,7 +38,7 @@ test('fallback intelligence is universal and capability-neutral', () => {
 });
 
 test('mobile chat dispatches universal capabilities before model fallback without a Project gate', () => {
-  assert.match(mobile, /pandora_chat_universal_dispatch_v7/);
+  assert.match(mobile, /pandora_chat_universal_dispatch_v8/);
   assert.match(
     mobile,
     /final capabilityTurn = await _dispatchCapability\([\s\S]*?projectId: projectId,[\s\S]*?if \(capabilityTurn != null\) return capabilityTurn;/,

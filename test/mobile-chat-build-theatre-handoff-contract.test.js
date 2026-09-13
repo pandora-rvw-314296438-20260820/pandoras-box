@@ -29,7 +29,7 @@ test("Pandora Chat stateful capability requests hand off only after ProjectOS in
 });
 
 test("mobile treats the ProjectOS handoff as an admission receipt, not a second command", () => {
-  assert.match(ask, /intelligence\.chat` already performed the governed dispatch/);
+  assert.match(ask, /intelligence\.chat` owns exactly one dispatch/);
   assert.doesNotMatch(ask, /ProjectWorkspaceV2Screen\(/);
   assert.doesNotMatch(ask, /message: handoff\.request/);
   assert.doesNotMatch(ask, /intelligence-handoff/);

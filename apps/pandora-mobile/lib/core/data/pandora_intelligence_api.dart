@@ -53,11 +53,12 @@ class PandoraIntelligenceApi {
           )
           .eq('organization_id', _organizationId)
           .eq('thread_id', threadId)
-          .order('created_at')
+          .order('created_at', ascending: false)
           .limit(safeLimit);
-      return (rows as List<dynamic>)
+      final latest = (rows as List<dynamic>)
           .map((row) => PandoraIntelligenceMessage.fromJson(_map(row)))
           .toList(growable: false);
+      return latest.reversed.toList(growable: false);
     } on PostgrestException {
       throw const PandoraIntelligenceException(
         'Pandora could not load that conversation.',
@@ -239,7 +240,7 @@ class PandoraIntelligenceApi {
     if (message.trim().isEmpty) return null;
     try {
       final response = await _client.rpc(
-        'pandora_chat_universal_dispatch_v7',
+        'pandora_chat_universal_dispatch_v8',
         params: <String, Object?>{
           'p_organization_id': _organizationId,
           'p_message': message.trim(),

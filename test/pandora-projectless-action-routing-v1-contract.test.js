@@ -29,7 +29,7 @@ test('explicit owner/repo actions route before model fallback without creating a
 });
 
 test('mobile uses v6 and hides the internal ProjectOS inbox from user project context', () => {
-  assert.match(api,/pandora_chat_universal_dispatch_v7/);
+  assert.match(api,/pandora_chat_universal_dispatch_v8/);
   assert.match(api,/neq\('project_key', 'projectos-inbox'\)/);
 });
 
@@ -38,7 +38,7 @@ test('mobile handoffs stay in Universal Chat, never create a Project implicitly,
   assert.doesNotMatch(screen,/initialIntent: handoff\.request/);
   assert.doesNotMatch(screen,/message: handoff\.request/);
   assert.doesNotMatch(screen,/intelligence-handoff/);
-  assert.match(screen,/already performed the governed dispatch/);
+  assert.match(screen,/owns exactly one dispatch/);
 });
 
 test('model fallback is universal and cannot manufacture a Project prerequisite', () => {

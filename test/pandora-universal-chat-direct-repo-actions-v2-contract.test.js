@@ -24,7 +24,7 @@ test('video regression: actionable ProjectOS admission remains single-shot in Un
   assert.doesNotMatch(mobile, /intelligence-handoff/);
   assert.doesNotMatch(mobile, /CreateProjectExperienceScreen/);
   assert.doesNotMatch(mobile, /ProjectWorkspaceV2Screen/);
-  assert.match(mobile, /already performed the governed dispatch/);
+  assert.match(mobile, /owns exactly one dispatch/);
 });
 
 test('repository router preserves verified Pandora repos and fails closed on degraded PLP', () => {
@@ -52,7 +52,7 @@ test('target resolution grants no mutation authority and handoff remains Project
   assert.match(routing, /authorization,[\s\S]*one-time claim,[\s\S]*provider readback,[\s\S]*evidence/i);
   assert.match(routing, /'projectRequired',false/);
   assert.match(routing, /'source','projectos_intake'/);
-  assert.match(api, /pandora_chat_universal_dispatch_v7/);
+  assert.match(api, /pandora_chat_universal_dispatch_v8/);
 });
 
 test('canonical GitHub transport supports all three exact repository ids and remains Vault-backed', () => {
