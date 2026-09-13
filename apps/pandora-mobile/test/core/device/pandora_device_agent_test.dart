@@ -19,8 +19,7 @@ Map<String, Object?> _manifest({
     'bootloaderUnlockRequired': bootloaderUnlockRequired,
     'protectedAppAccessPolicy': 'deny_private_app_data_and_credentials',
     'developmentBridgePolicy': 'optional_not_trust_dependency',
-    'capabilities':
-        capabilities ??
+    'capabilities': capabilities ??
         [
           {
             'id': 'device.identity',
@@ -182,24 +181,25 @@ void main() {
       bool root = false,
       bool bootloader = false,
       bool hiddenApi = false,
-    }) => {
-      'schemaVersion': '1.0.0',
-      'adapterId': 'xiaomi_public_v1',
-      'manufacturer': 'Xiaomi',
-      'brand': 'Redmi',
-      'xiaomiFamily': true,
-      'backgroundRestrictionSupported': true,
-      'backgroundRestricted': false,
-      'batteryOptimizationStateSupported': true,
-      'ignoringBatteryOptimizations': false,
-      'autostartManagement': 'manual_oem_control',
-      'appDetailsSurfaceAvailable': true,
-      'batteryOptimizationSurfaceAvailable': true,
-      'normalOperationRequiresDesktop': desktop,
-      'rootRequired': root,
-      'bootloaderUnlockRequired': bootloader,
-      'hiddenOemApiRequired': hiddenApi,
-    };
+    }) =>
+        {
+          'schemaVersion': '1.0.0',
+          'adapterId': 'xiaomi_public_v1',
+          'manufacturer': 'Xiaomi',
+          'brand': 'Redmi',
+          'xiaomiFamily': true,
+          'backgroundRestrictionSupported': true,
+          'backgroundRestricted': false,
+          'batteryOptimizationStateSupported': true,
+          'ignoringBatteryOptimizations': false,
+          'autostartManagement': 'manual_oem_control',
+          'appDetailsSurfaceAvailable': true,
+          'batteryOptimizationSurfaceAvailable': true,
+          'normalOperationRequiresDesktop': desktop,
+          'rootRequired': root,
+          'bootloaderUnlockRequired': bootloader,
+          'hiddenOemApiRequired': hiddenApi,
+        };
 
     for (final invalid in [
       state(desktop: true),
