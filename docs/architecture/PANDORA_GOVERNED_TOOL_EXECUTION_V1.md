@@ -49,7 +49,7 @@ An authorizing decision is bound to:
 
 The authorization fingerprint hashes those bindings. A current-user decision additionally binds to the exact request ID. A standing-policy decision requires an active policy identity and `standing_policy_match=true`.
 
-The authority decision is converted into an action-bound approval grant. Current-user authority is one-time evidence for that exact action; an active matching standing policy may be reusable only for the same fingerprinted action scope. This is intentionally **not** a second user approval. It is durable evidence that the current instruction or standing policy already covered the action.
+The authority decision is converted into a one-time action-bound approval grant. This applies to both current-user and standing-policy authority. Repeating a consequential action therefore re-enters the trusted authority evaluator, so a revoked, narrowed or expired standing policy cannot be bypassed by reusing an older derived grant. This is intentionally **not** a second user approval; it is durable evidence that authority covered that one exact execution.
 
 The unchanged Tool Gateway then independently re-resolves current state and re-validates the generated grant. Any organization/project/environment/risk/version/state/action drift fails closed before provider execution. Authority-scope drift while an evaluator is running also fails closed before a grant is stored.
 
