@@ -1,0 +1,44 @@
+name: PR 550 Dart format artifact
+
+on:
+  pull_request:
+    paths:
+      - apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart
+      - apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
+      - .github/workflows/pr550-dart-format-artifact.yml
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Set up Flutter 3.47.0
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - name: Format changed Dart files
+        run: |
+          dart format \
+            apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart \
+            apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
+
+      - name: Upload canonical formatter output
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pr550-dart-format-${{ github.event.pull_request.head.sha }}
+          path: |
+            apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart
+            apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
+          if-no-files-found: error
+          retention-days: 1
