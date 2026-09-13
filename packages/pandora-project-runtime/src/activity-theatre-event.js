@@ -35,6 +35,9 @@ const timestampPattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\
 const highConfidenceCredentialPatterns = Object.freeze([
   /Authorization\s*:\s*(?:Bearer|Basic)\s+[^\s]+/i,
   /gh[pousr]_[A-Za-z0-9_]{20,}/,
+  /\bgithub_pat_[A-Za-z0-9_]{20,}\b/,
+  /\b(?:xox[a-z]-|xapp-)[A-Za-z0-9-]{10,}\b/i,
+  /https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9/_-]{20,}/i,
   /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/,
   /\bsk-[A-Za-z0-9_-]{20,}\b/,
   /(?:sbp|vcp|sb_secret|vercel)_[A-Za-z0-9_-]{12,}/i,
@@ -46,7 +49,7 @@ const highConfidenceCredentialPatterns = Object.freeze([
   /\beyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\b/,
 
 ]);
-const credentialAssignmentPattern = /(?:api[_-]?key|access[_-]?key[_-]?id|secret[_-]?access[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|private[_-]?key)\s*[:=]\s*["']?([^\s,;}"']{4,})/gi;
+const credentialAssignmentPattern = /(?:api[_-]?key|access[_-]?key[_-]?id|secret[_-]?access[_-]?key|secret[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|private[_-]?key)\s*[:=]\s*["']?([^\s,;}"']{4,})/gi;
 const safeCredentialStatusValues = new Set([
   "disabled",
   "expired",
