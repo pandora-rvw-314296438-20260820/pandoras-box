@@ -27,9 +27,12 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Format changed Dart files
+      - name: Format changed Dart files and print exact diff
         run: |
           dart format \
+            apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart \
+            apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
+          git diff -- \
             apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart \
             apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
 
