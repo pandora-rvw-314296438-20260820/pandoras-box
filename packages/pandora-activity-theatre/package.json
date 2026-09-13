@@ -1,0 +1,8 @@
+{
+  "name": "@pandora/activity-theatre",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "index.js",
+  "description": "Neutral canonical Pandora Activity Theatre event, control, evidence and replay contract"
+}
