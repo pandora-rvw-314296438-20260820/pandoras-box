@@ -5,6 +5,7 @@ module.exports = {
   ...require("./errors"),
   ...require("./path-safety"),
   ...require("./registry"),
+  ...require("./capability-registry"),
   ...require("./validation"),
   ...require("./policy"),
   ...require("./approvals"),
