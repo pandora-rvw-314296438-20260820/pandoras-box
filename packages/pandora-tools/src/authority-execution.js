@@ -205,7 +205,7 @@ function createAuthorityGrant(binding, authority) {
     approved_by: `authority:${authority.authority_basis}`,
     approved_at: authority.issued_at,
     expires_at: authority.expires_at,
-    one_time: authority.authority_basis === "active_explicit_standing_policy" ? false : true,
+    one_time: true,
   });
   return Object.freeze({
     ...grant,
