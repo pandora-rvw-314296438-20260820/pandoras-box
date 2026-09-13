@@ -19,7 +19,8 @@ Map<String, Object?> _manifest({
     'bootloaderUnlockRequired': bootloaderUnlockRequired,
     'protectedAppAccessPolicy': 'deny_private_app_data_and_credentials',
     'developmentBridgePolicy': 'optional_not_trust_dependency',
-    'capabilities': capabilities ??
+    'capabilities':
+        capabilities ??
         [
           {
             'id': 'device.identity',
