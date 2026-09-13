@@ -22,7 +22,7 @@ test('Ask Pandora uses the Vault-backed model provider boundary', () => {
   assert.match(edge, /pandora_worker_b_gemini_request_20260829/);
   assert.doesNotMatch(edge, /generativelanguage\.googleapis\.com/);
   assert.doesNotMatch(edge, /Deno\.env\.get\(["'](?:GEMINI|GOOGLE).*KEY/i);
-  assert.match(edge, /You may propose actions|never execute tools/i);
+  assert.match(edge, /credentials and side effects stay inside Pandora's capability runtime and Worker C/i);
 });
 
 test('fallback intelligence is universal and capability-neutral', () => {
