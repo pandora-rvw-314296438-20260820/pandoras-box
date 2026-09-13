@@ -95,6 +95,20 @@ test('attempt-scoped and verification-in-progress language is not misclassified 
   }
 });
 
+test('common fix and update completion claims cannot bypass result truth', () => {
+  for (const message of ['The fix is complete', 'Update completed', 'Change is successful', 'Successfully deployed release']) {
+    assert.equal(messageClaimsOverallResult(message), true);
+    assert.throws(() => assertActivityMessageTruth(base({message})), /requires verified result state/);
+  }
+});
+
+test('sub-operation completion may be shown when the same message explicitly continues verification', () => {
+  for (const message of ['Deployment completed; verifying live routing.', 'Build finished - checking the artifact.', 'Update completed — validating the final result.']) {
+    assert.equal(messageClaimsOverallResult(message), false);
+    assert.equal(assertActivityMessageTruth(base({message})).message, message);
+  }
+});
+
 test('100% complete is both a measurement and an overall-result claim', () => {
   const event = base({message:'100% complete'});
   assert.throws(() => assertActivityMessageTruth(event), /verified result state/);

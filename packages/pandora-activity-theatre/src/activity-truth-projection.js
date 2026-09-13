@@ -17,10 +17,11 @@ const MEASUREMENT_EVIDENCE_TYPES = new Set([
 const percentageClaimPattern = /(?:^|[^\d])(?:100(?:\.0+)?|\d{1,2}(?:\.\d+)?)\s*(?:%|percent\b)/i;
 const stageClaimPattern = /(?:\b(?:stage|phase|step)\s+\d+(?:\s*(?:of|\/)\s*\d+)?\b|\b(?:stage|phase)\s*[:=-]\s*[A-Za-z0-9][A-Za-z0-9 _.-]{0,60})/i;
 const ratioClaimPattern = /\b\d+\s*(?:of|\/)\s*\d+\s+(?:items?|files?|tasks?|steps?|checks?|tests?|stages?|phases?)\b/i;
-const leadingResultClaimPattern = /^(?:the\s+)?(?:job|task|request|work|operation|build|deployment|publication|release)\s+(?:is\s+|was\s+|has\s+been\s+)?(?:done|complete|completed|finished|successful|verified|live)\b/i;
-const leadingSucceededPattern = /^(?:the\s+)?(?:job|task|request|work|operation|build|deployment|publication|release)\s+(?:succeeded|completed|finished)\b/i;
+const leadingResultClaimPattern = /^(?:the\s+)?(?:job|task|request|work|operation|build|deployment|publication|release|fix|update|change)\s+(?:is\s+|was\s+|has\s+been\s+)?(?:done|complete|completed|finished|successful|verified|live)\b/i;
+const leadingSucceededPattern = /^(?:the\s+)?(?:job|task|request|work|operation|build|deployment|publication|release|fix|update|change)\s+(?:succeeded|completed|finished)\b/i;
 const standaloneResultClaimPattern = /^(?:done|complete|completed|finished|success|successful|succeeded|fixed|published|deployed|verified|live)\b(?:[.!:]|$)/i;
-const successfulMutationPattern = /^(?:(?:the\s+)?(?:fix|publish|publication|deployment|build|release)\s+(?:was\s+)?(?:successful|completed|finished|verified)|(?:fixed|published|deployed|released|built)\s+successfully)\b/i;
+const successfulMutationPattern = /^(?:(?:the\s+)?(?:fix|update|change|publish|publication|deployment|build|release)\s+(?:was\s+)?(?:successful|completed|finished|verified)|(?:fixed|published|deployed|released|built|updated)\s+successfully|successfully\s+(?:fixed|published|deployed|released|built|updated))\b/i;
+const ongoingVerificationSuffixPattern = /(?:;|—|-)\s*(?:now\s+)?(?:verifying|checking|validating|confirming)\b/i;
 const completePercentPattern = /^100(?:\.0+)?\s*%\s*(?:complete|completed|done|finished)\b/i;
 
 function plainObject(value, field) {
@@ -36,6 +37,7 @@ function messageClaimsMeasurement(message) {
 
 function messageClaimsOverallResult(message) {
   const normalized = String(message || "").trim();
+  if (ongoingVerificationSuffixPattern.test(normalized)) return false;
   return leadingResultClaimPattern.test(normalized)
     || leadingSucceededPattern.test(normalized)
     || standaloneResultClaimPattern.test(normalized)
