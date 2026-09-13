@@ -273,6 +273,44 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         try {
           final projection = await experience.loadExperience(handoffProjectId);
           if (!mounted) return;
+
+          final initialBuildReady = projection.state.name == 'build' &&
+              projection.currentVersionId == null &&
+              projection.candidateVersionId == null &&
+              projection.activeBuildJobId == null;
+          if (initialBuildReady) {
+            mutationAccepted = true;
+            final start = await experience.requestBuild(
+              projectId: handoffProjectId,
+              idempotencyKey: '$executionKey:initial-build',
+            );
+            if (!mounted) return;
+            setState(() {
+              _messages.add(
+                _ChatMessage.pandora(
+                  start.streamId.trim().isNotEmpty
+                      ? 'Build started with Gemini. I’ll keep this chat open while Pandora generates and verifies the real source.'
+                      : 'The build request was accepted, but its live stream is not available yet. Check Activity before retrying.',
+                ),
+              );
+              _submissionKey = null;
+              _outcomeUnknown = false;
+            });
+            return;
+          }
+
+          if (projection.activeBuildJobId != null) {
+            _submissionKey = null;
+            setState(() {
+              _messages.add(
+                _ChatMessage.pandora(
+                  'A real build is already running for this project. I won’t start a duplicate.',
+                ),
+              );
+            });
+            return;
+          }
+
           if (projection.canChange != true) {
             _submissionKey = null;
             setState(() {
