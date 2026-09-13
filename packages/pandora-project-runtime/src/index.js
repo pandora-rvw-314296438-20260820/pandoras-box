@@ -3,6 +3,7 @@
 
 const { createHash } = require("node:crypto");
 const { domainToASCII } = require("node:url");
+const activityTheatreEvent = require("./activity-theatre-event.js");
 
 const RUNTIME_ENVIRONMENTS = Object.freeze(["development", "preview", "production"]);
 const RUNTIME_TYPES = Object.freeze(["static_site", "web_app", "mobile_support"]);
@@ -208,4 +209,4 @@ class ApplicationDatabaseProvider {
   async recover() { throw new Error("not implemented"); }
 }
 
-module.exports = { ApplicationDatabaseProvider, DEPLOYMENT_STATES, DOMAIN_STATES, DeploymentProvider, PRODUCTION_STATES, RUNTIME_ENVIRONMENTS, RUNTIME_ERROR_KINDS, RUNTIME_TYPES, assertExactLineage, assertProductionPrecondition, canonicalJson, deploymentStateFromProvider, domainStateFromFacts, normalizeDeploymentRequest, normalizeDomain, normalizeProviderError, operationIdempotencyKey, ownerSafeStatus, redactProviderData, runtimeSourceIdentity, shouldReconcileDeployment };
+module.exports = { ...activityTheatreEvent, ApplicationDatabaseProvider, DEPLOYMENT_STATES, DOMAIN_STATES, DeploymentProvider, PRODUCTION_STATES, RUNTIME_ENVIRONMENTS, RUNTIME_ERROR_KINDS, RUNTIME_TYPES, assertExactLineage, assertProductionPrecondition, canonicalJson, deploymentStateFromProvider, domainStateFromFacts, normalizeDeploymentRequest, normalizeDomain, normalizeProviderError, operationIdempotencyKey, ownerSafeStatus, redactProviderData, runtimeSourceIdentity, shouldReconcileDeployment };
