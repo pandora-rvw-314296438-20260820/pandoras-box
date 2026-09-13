@@ -274,8 +274,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
           final projection = await experience.loadExperience(handoffProjectId);
           if (!mounted) return;
 
-          final initialBuildReady =
-              projection.state.name == 'build' &&
+          final initialBuildReady = projection.state.name == 'build' &&
               projection.currentVersionId == null &&
               projection.candidateVersionId == null &&
               projection.activeBuildJobId == null;
