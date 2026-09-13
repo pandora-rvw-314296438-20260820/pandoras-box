@@ -275,6 +275,43 @@ test('public Activity Theatre text fields reject credential-like material withou
 });
 
 
+
+test('public Activity Theatre opaque identifiers reject named credential assignments while allowing safe status identifiers', () => {
+  const credentialCases = [
+    { eventId: 'password:SecretValue1234' },
+    { jobId: 'token:SecretValue1234' },
+    { provenance: { ...base().provenance, sourceId: 'secret:SecretValue1234' } },
+    { provenance: { ...base().provenance, sourceEventId: 'access_token:SecretValue1234' } },
+    { executionId: 'private_key:SecretValue1234' },
+    { parentEventId: 'api_key:SecretValue1234' },
+  ];
+
+  for (const payload of credentialCases) {
+    assert.throws(
+      () => normalizeActivityEvent(base(payload)),
+      /contains credential-like material/,
+    );
+  }
+
+  const safe = normalizeActivityEvent(base({
+    eventId: 'token:expired',
+    jobId: 'secret:unavailable',
+    provenance: {
+      ...base().provenance,
+      sourceId: 'password:required',
+      sourceEventId: 'access_token:revoked',
+    },
+    executionId: 'private_key:redacted',
+    parentEventId: 'api_key:missing',
+  }));
+  assert.equal(safe.eventId, 'token:expired');
+  assert.equal(safe.jobId, 'secret:unavailable');
+  assert.equal(safe.provenance.sourceId, 'password:required');
+  assert.equal(safe.provenance.sourceEventId, 'access_token:revoked');
+  assert.equal(safe.executionId, 'private_key:redacted');
+  assert.equal(safe.parentEventId, 'api_key:missing');
+});
+
 test('strict timestamps reject impossible calendar dates while preserving valid offsets', () => {
   for (const occurredAt of [
     '2026-02-30T00:00:00Z',
