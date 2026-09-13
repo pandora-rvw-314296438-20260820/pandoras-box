@@ -33,6 +33,7 @@ const KIMI_K3_CAPABILITY_DECLARATION = Object.freeze({
     summarization: true,
     copywriting: true,
   }),
+  executionBoundary: 'external_provider',
   latencyClass: 'standard',
   costClass: 'high',
   reliabilityClass: 'standard',
