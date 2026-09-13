@@ -32,7 +32,7 @@ function stringList(value, field) {
     return item.trim();
   });
 }
-/** @param {unknown} value @param {Readonly<Record<string, number>>} ranks @param {string} field */
+/** @param {unknown} value @param {string} field */
 function executionBoundaryList(value, field) {
   const values = stringList(value, field);
   for (const item of values) {
