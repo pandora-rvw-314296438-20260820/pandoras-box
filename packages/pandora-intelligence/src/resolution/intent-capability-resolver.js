@@ -1,11 +1,19 @@
 'use strict';
 
+/** @typedef {'communication'|'research'|'coding_building'|'files'|'device_operations'|'business'|'travel'|'scheduling'|'future_capability'|'general_assistance'} IntentDomain */
+/** @typedef {'no_action'|'read_only'|'state_change'} ActionMode */
+/** @typedef {'device'|'pandora_trusted_cloud'|'external_provider'} ExecutionBoundary */
+/** @typedef {'device'|'device_first'|'best_available'} ExecutionPlacement */
+/** @typedef {{id: string}} SelectedProject */
+/** @typedef {{request?: unknown, prompt?: unknown, text?: unknown, selectedProject?: unknown, project?: unknown}} ResolverInput */
+
 const RESOLVER_CONTRACT_VERSION = 'pandora-intent-capability-resolution-v1';
 const DOMAINS = Object.freeze([
   'communication', 'research', 'coding_building', 'files', 'device_operations',
   'business', 'travel', 'scheduling', 'future_capability', 'general_assistance',
 ]);
 const ACTION_MODES = Object.freeze(['no_action', 'read_only', 'state_change']);
+/** @type {readonly ExecutionBoundary[]} */
 const EXECUTION_BOUNDARIES = Object.freeze(['device', 'pandora_trusted_cloud', 'external_provider']);
 const MODEL_CAPABILITY_KEYS = Object.freeze([
   'reasoning', 'coding', 'multimodal', 'imageUnderstanding', 'structuredOutput',
@@ -60,6 +68,7 @@ const GENERIC_BUILDER = /\b(?:build|create|make|fix|change|update)\b/i;
 const PROJECT_REFERENCE = /\b(?:this (?:app|website|project|repo|repository|codebase)|the (?:app|website|project|repo|repository|codebase)|repo|repository|project|codebase|approved plan|it)\b/i;
 const PRIVATE = /\b(?:private|confidential|sensitive|local[- ]only|keep (?:it )?local|do not send (?:it )?outside|on[- ]device only)\b/i;
 
+/** @param {ResolverInput} input */
 function resolveIntentCapabilities(input) {
   if (!input || typeof input !== 'object') throw new TypeError('resolver input is required');
   const request = normalizeText(input.request ?? input.prompt ?? input.text);
@@ -82,13 +91,15 @@ function resolveIntentCapabilities(input) {
   const planning = PLANNING.test(request) && !/\b(?:according to|execute|do it|go ahead|apply|now)\b/i.test(request);
   const actionMode = resolveActionMode({ request, intent, planning });
   const projectContextUsed = Boolean(selectedProject && intent === 'coding_building' && (softwareDirect || projectAction));
-  const contextBinding = projectContextUsed
+  const contextBinding = projectContextUsed && selectedProject
     ? { kind: 'project', projectId: selectedProject.id, reason: softwareDirect ? 'explicit_software_project_context' : 'selected_project_action_reference' }
     : { kind: 'none', projectId: null, reason: null };
 
+  /** @type {ExecutionBoundary[]} */
   const allowedExecutionBoundaries = PRIVATE.test(request)
     ? ['device', 'pandora_trusted_cloud']
     : [...EXECUTION_BOUNDARIES];
+  /** @type {ExecutionPlacement} */
   const preferredExecution = intent === 'device_operations' ? 'device' : intent === 'files' ? 'device_first' : 'best_available';
   const risk = resolveRisk(request, actionMode);
   const requiredCapabilities = capabilitiesFor(intent, actionMode);
@@ -155,13 +166,16 @@ function resolveIntentCapabilities(input) {
   };
 }
 
+/** @param {string} request */
 function scoreDomains(request) {
-  const scores = Object.fromEntries(DOMAINS.map((domain) => [domain, 0]));
+  /** @type {Record<IntentDomain, number>} */
+  const scores = { communication: 0, research: 0, coding_building: 0, files: 0, device_operations: 0, business: 0, travel: 0, scheduling: 0, future_capability: 0, general_assistance: 0 };
+  /** @type {string[]} */
   const matched = [];
   for (const [domain, rules] of Object.entries(DOMAIN_RULES)) {
-    for (const [weight, pattern, label] of rules) {
+    for (const [weight, pattern, label] of /** @type {[number, RegExp, string][]} */ (/** @type {unknown} */ (rules))) {
       if (pattern.test(request)) {
-        scores[domain] += weight;
+        scores[/** @type {IntentDomain} */ (domain)] += weight;
         matched.push(label);
       }
     }
@@ -169,6 +183,7 @@ function scoreDomains(request) {
   return { scores, matched };
 }
 
+/** @param {{request: string, intent: IntentDomain, planning: boolean}} input @returns {ActionMode} */
 function resolveActionMode({ request, intent, planning }) {
   if (planning) return READ.test(request) && /\b(?:existing|current|repo|repository|file|document|website|app|code)\b/i.test(request) ? 'read_only' : 'no_action';
   if (intent === 'research') return 'read_only';
@@ -184,7 +199,9 @@ function resolveActionMode({ request, intent, planning }) {
   return 'no_action';
 }
 
+/** @param {string} request @param {ActionMode} actionMode */
 function resolveRisk(request, actionMode) {
+  /** @type {string[]} */
   const consequenceSignals = [];
   if (/\b(?:publish|production|go live|public release|release publicly|deploy to prod)\b/i.test(request)) consequenceSignals.push('public_release');
   if (/\b(?:send|forward|reply|post|book|reserve|sign|submit)\b/i.test(request)) consequenceSignals.push('external_commitment');
@@ -200,6 +217,7 @@ function resolveRisk(request, actionMode) {
   };
 }
 
+/** @param {IntentDomain} intent @param {ActionMode} actionMode @returns {string[]} */
 function capabilitiesFor(intent, actionMode) {
   const table = {
     communication: actionMode === 'state_change' ? ['communication.compose', 'communication.send'] : ['communication.compose'],
@@ -216,6 +234,7 @@ function capabilitiesFor(intent, actionMode) {
   return table[intent];
 }
 
+/** @param {IntentDomain} intent @param {ActionMode} actionMode @returns {string[]} */
 function modelCapabilitiesFor(intent, actionMode) {
   const table = {
     communication: ['reasoning', 'copywriting'],
@@ -232,30 +251,37 @@ function modelCapabilitiesFor(intent, actionMode) {
   return table[intent];
 }
 
+/** @param {unknown} project @returns {SelectedProject | null} */
 function normalizeProject(project) {
   if (!project) return null;
   if (typeof project === 'string') return { id: project };
-  const id = project.id ?? project.projectId ?? project.slug ?? project.name;
+  if (typeof project !== 'object') return null;
+  const candidate = /** @type {Record<string, unknown>} */ (project);
+  const id = candidate.id ?? candidate.projectId ?? candidate.slug ?? candidate.name;
   return id ? { id: String(id) } : null;
 }
 
+/** @param {unknown} value @returns {string} */
 function normalizeText(value) {
   if (typeof value !== 'string') return '';
   return value.trim().replace(/\s+/g, ' ');
 }
 
+/** @param {Record<IntentDomain, number>} scores @returns {{domain: IntentDomain, score: number}[]} */
 function rank(scores) {
   return Object.entries(scores)
-    .map(([domain, score]) => ({ domain, score }))
+    .map(([domain, score]) => ({ domain: /** @type {IntentDomain} */ (domain), score }))
     .sort((a, b) => b.score - a.score || DOMAINS.indexOf(a.domain) - DOMAINS.indexOf(b.domain));
 }
 
+/** @param {number} winner @param {number} runnerUp @param {IntentDomain} intent */
 function confidenceFor(winner, runnerUp, intent) {
   if (intent === 'general_assistance' && winner <= 0) return 0.55;
   const margin = Math.max(0, winner - runnerUp);
   return Math.max(0.55, Math.min(0.99, Number((0.62 + winner * 0.035 + margin * 0.02).toFixed(2))));
 }
 
+/** @template T @param {T[]} values @returns {T[]} */
 function unique(values) { return [...new Set(values)]; }
 
 module.exports = {
