@@ -319,6 +319,7 @@ set search_path = pg_catalog, public, private, vault, auth, extensions, pg_temp
 as $$
 declare
   v_uid uuid := auth.uid();
+  v_role text;
   v_message text := trim(coalesce(p_message,''));
   v_thread_id uuid := p_thread_id;
   v_deep_audit boolean;
@@ -328,6 +329,15 @@ declare
 begin
   if v_uid is null then
     raise exception 'pandora_chat_sign_in_required' using errcode='42501';
+  end if;
+  select m.role into v_role
+  from public.memberships m
+  where m.organization_id=p_organization_id
+    and m.user_id=v_uid
+    and m.status='active'
+  limit 1;
+  if v_role not in ('owner','admin') then
+    raise exception 'pandora_chat_owner_required' using errcode='42501';
   end if;
   if v_message='' or length(v_message)>8000 then
     raise exception 'pandora_chat_invalid_message' using errcode='22023';
