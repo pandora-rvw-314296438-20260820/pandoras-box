@@ -22,6 +22,7 @@ const OPENAI_MODEL_CAPABILITY_DECLARATIONS = Object.freeze([
   openAIModel('gpt-5.6-terra', 'standard', 'medium', 'high'),
   openAIModel('gpt-5.6-sol', 'standard', 'high', 'high'),
 ]);
+const OPENAI_MODEL_IDS = Object.freeze(OPENAI_MODEL_CAPABILITY_DECLARATIONS.map((item) => item.modelId));
 
 /** @param {string} modelId @param {string} latencyClass @param {string} costClass @param {string} reliabilityClass */
 function openAIModel(modelId, latencyClass, costClass, reliabilityClass) {
@@ -285,6 +286,7 @@ class OpenAIProviderAdapter {
   async execute(request, declaration) {
     assertNoCredentialMaterial(request);
     const model = requiredText(declaration.modelId, 'modelId');
+    if (!OPENAI_MODEL_IDS.includes(model)) throw createModelError({ code: 'unsupported_capability', message: `unsupported OpenAI model: ${model}`, provider: OPENAI_PROVIDER_ID, model, retryable: false, retryAfterMs: null, details: { kind: 'model_not_configured' } });
     const requestId = requiredText(request.requestId, 'requestId');
     try {
       const body = buildOpenAIChatBody(request);
@@ -338,6 +340,7 @@ function providerFailure(code, retryable, message, kind, retryAfterMs = null) { 
 module.exports = {
   OPENAI_COMMON_CAPABILITIES,
   OPENAI_MODEL_CAPABILITY_DECLARATIONS,
+  OPENAI_MODEL_IDS,
   OPENAI_PROVIDER_ID,
   OPENAI_TRANSPORT_MAX_COMPLETION_TOKENS,
   OpenAIProviderAdapter,
