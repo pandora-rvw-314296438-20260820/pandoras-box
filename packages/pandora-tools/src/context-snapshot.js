@@ -2,7 +2,7 @@
 
 const { PandoraToolError } = require("./errors");
 
-const SAFE_STEP_CONTEXT_KEYS = Object.freeze(new Set(["tool_call_id"]));
+const SAFE_STEP_CONTEXT_KEYS = Object.freeze(["tool_call_id"]);
 
 function snapshotValue(value, path = "context") {
   if (value === null || value === undefined) return value;
@@ -59,7 +59,7 @@ function mergeStepContext(trustedContext, rawStepContext, index) {
   }
   const keys = Object.keys(rawStepContext);
   for (const key of keys) {
-    if (!SAFE_STEP_CONTEXT_KEYS.has(key)) {
+    if (!SAFE_STEP_CONTEXT_KEYS.includes(key)) {
       throw new PandoraToolError(
         "policy_denied",
         "TOOL_CHAIN_STEP_CONTEXT_FORBIDDEN",
@@ -74,4 +74,4 @@ function mergeStepContext(trustedContext, rawStepContext, index) {
   });
 }
 
-module.exports = { SAFE_STEP_CONTEXT_KEYS, snapshotToolContext, mergeStepContext };
+module.exports = { snapshotToolContext, mergeStepContext };
