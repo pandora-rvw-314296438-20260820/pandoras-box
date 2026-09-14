@@ -39,11 +39,33 @@ class PandoraDeviceCommunicationCommand {
       r'^(?:please\s+)?(?:text|sms)\s+(.+?)\s*$',
       caseSensitive: false,
     ).firstMatch(input);
-    if (text == null) return null;
+    final reply = RegExp(
+      r'^(?:please\s+)?reply\s+to\s+(.+?)\s*$',
+      caseSensitive: false,
+    ).firstMatch(input);
+    final smsMatch = text ?? reply;
+    if (smsMatch == null) return null;
 
-    var rest = (text.group(1) ?? '').trim();
-    rest = rest.replaceFirst(RegExp(r'^to\s+', caseSensitive: false), '');
+    var rest = (smsMatch.group(1) ?? '').trim();
+    if (text != null) {
+      rest = rest.replaceFirst(RegExp(r'^to\s+', caseSensitive: false), '');
+    }
     if (rest.isEmpty) return null;
+
+    final saying = RegExp(
+      r'^(.+?)\s+saying\s+(.+)$',
+      caseSensitive: false,
+    ).firstMatch(rest);
+    if (saying != null) {
+      final recipient = _cleanRecipientLabel(saying.group(1) ?? '');
+      final body = (saying.group(2) ?? '').trim();
+      if (recipient.isEmpty) return null;
+      return PandoraDeviceCommunicationCommand(
+        kind: PandoraCommunicationKind.sms,
+        recipient: recipient,
+        message: body.isEmpty ? null : body,
+      );
+    }
 
     final quoted = RegExp(r'^(.+?)\s+["“](.*)["”]\s*$').firstMatch(rest);
     if (quoted != null) {
