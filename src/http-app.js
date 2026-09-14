@@ -927,7 +927,7 @@ function createHttpApp(config = loadRuntimeConfig(), runtimeSecurityResolver = n
         }));
         response.status(500).json({
             ok: false,
-            error: { code: 'INTERNAL_ERROR', message: 'An internal ProjectOS error occurred.' },
+            error: { code: 'INTERNAL_ERROR', message: 'An internal Pandora runtime error occurred.' },
         });
     });
     return app;

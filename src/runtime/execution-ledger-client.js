@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ExecutionLedgerClient = exports.ExecutionLedgerFinalizationError = exports.ExecutionLedgerError = void 0;
 const zod_1 = require("zod");
-const mandatory_intake_js_1 = require("./mandatory-intake.js");
 const plan_memory_context_js_1 = require("./plan-memory-context.js");
 const plan_context_ledger_client_js_1 = require("./plan-context-ledger-client.js");
 const source_authority_js_1 = require("./source-authority.js");
@@ -294,10 +293,10 @@ class ExecutionLedgerClient {
         this.timeoutMs = boundedPositiveInteger(options.timeoutMs, DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
         this.maxResponseBytes = boundedPositiveInteger(options.maxResponseBytes, DEFAULT_MAX_RESPONSE_BYTES, DEFAULT_MAX_RESPONSE_BYTES);
         this.fetchFn = options.fetchFn || globalThis.fetch;
-        this.enforceMandatoryIntake = (0, mandatory_intake_js_1.shouldEnforceMandatoryIntake)();
-        this.intakeProvider = options.intakeProvider === undefined
-            ? (this.enforceMandatoryIntake ? new mandatory_intake_js_1.ProjectOSExecutionIntakeProvider() : undefined)
-            : options.intakeProvider || undefined;
+        // ProjectOS is retired from the active runtime. A legacy intake adapter may
+        // be injected explicitly for offline reconciliation tests, but production
+        // execution never creates or requires ProjectOS intake.
+        this.intakeProvider = options.intakeProvider || undefined;
         const automaticContext = (0, plan_memory_context_js_1.shouldHydratePlanMemoryContext)();
         this.contextProvider = options.contextProvider === undefined
             ? (automaticContext ? new plan_memory_context_js_1.PandoraPlanMemoryContextProvider() : undefined)
@@ -321,11 +320,8 @@ class ExecutionLedgerClient {
                 intakeId = intake.intakeId;
             }
             catch (error) {
-                throw new ExecutionLedgerError(`Mandatory ProjectOS intake failed: ${error instanceof Error ? error.name : 'unknown'}`, 503);
+                throw new ExecutionLedgerError(`Optional legacy intake adapter failed: ${error instanceof Error ? error.name : 'unknown'}`, 503);
             }
-        }
-        if (this.enforceMandatoryIntake && !intakeId) {
-            throw new ExecutionLedgerError('Mandatory ProjectOS intake is required', 503);
         }
         if (intakeId && !zod_1.z.string().uuid().safeParse(intakeId).success) {
             throw new ExecutionLedgerError('Execution intake ID is invalid', 400);
@@ -336,9 +332,8 @@ class ExecutionLedgerClient {
             intakeId,
         };
         this.assertRequestSize(createPayload);
-        // Intake is intentionally completed before Memory retrieval. Keep provider args immutable:
-        // the accepted ProjectOS control workspace remains the plan identity, while Memory hydration
-        // receives its own canonical project scope derived from the fail-closed source authority policy.
+        // Optional legacy intake metadata, when explicitly injected for reconciliation, may scope Memory hydration.
+        // Normal production execution remains Pandora-native and has no intake dependency.
         const memoryProjectKey = intake?.projectKey
             ? (0, source_authority_js_1.memoryProjectKeyForProjectOsIntake)(intake.projectKey)
             : undefined;
