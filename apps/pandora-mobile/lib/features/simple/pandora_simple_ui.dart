@@ -244,32 +244,35 @@ class _NotificationButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Tooltip(
         message: 'Open Needs You',
-        child: InkResponse(
-          radius: 28,
-          onTap: onPressed,
-          child: SizedBox.square(
-            dimension: 48,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                const Icon(
-                  Icons.notifications_none_rounded,
-                  color: PandoraSimpleColors.ink,
-                  size: 29,
-                ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    width: 9,
-                    height: 9,
-                    decoration: const BoxDecoration(
-                      color: PandoraSimpleColors.red,
-                      shape: BoxShape.circle,
+        child: Material(
+          color: Colors.transparent,
+          child: InkResponse(
+            radius: 28,
+            onTap: onPressed,
+            child: SizedBox.square(
+              dimension: 48,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    Icons.notifications_none_rounded,
+                    color: PandoraSimpleColors.ink,
+                    size: 29,
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: const BoxDecoration(
+                        color: PandoraSimpleColors.red,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -963,7 +966,9 @@ class PandoraEmptyTruth extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       color: PandoraSimpleColors.ink,
+                      fontSize: 16.5,
                       fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -971,7 +976,9 @@ class PandoraEmptyTruth extends StatelessWidget {
                     message,
                     style: const TextStyle(
                       color: PandoraSimpleColors.muted,
+                      fontSize: 14,
                       height: 1.35,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                   if (actionLabel != null) ...[

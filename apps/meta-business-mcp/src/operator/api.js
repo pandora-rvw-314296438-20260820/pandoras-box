@@ -378,7 +378,7 @@ function createOperatorApiApp(options) {
                     ok: false,
                     error: {
                         code: 'APPROVER_ROLE_REQUIRED',
-                        message: 'Plan approval requires a ProjectOS owner or admin session.',
+                        message: 'Plan approval requires a Pandora owner or admin session.',
                     },
                 });
                 return;

@@ -213,6 +213,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     setState(() {
       _submitting = true;
       _pendingMessage = objective;
+      _objective.clear();
       _error = null;
     });
     try {
@@ -239,7 +240,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
           _messages.add(_ChatMessage.user(objective));
           _messages.add(_ChatMessage.pandora(receipt.reply));
           _pendingMessage = null;
-          _objective.clear();
           _attachment = null;
           _imageAttachment = null;
           _submissionKey = null;
@@ -260,7 +260,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         _messages.add(_ChatMessage.user(objective));
         _messages.add(_ChatMessage.pandora(turn.reply));
         _pendingMessage = null;
-        _objective.clear();
         _attachment = null;
         _imageAttachment = null;
         _outcomeUnknown = false;
@@ -460,7 +459,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 : 'I need $recipientLabel\'s phone number before I can open Messages. No message was sent.',
           ),
         );
-        _objective.clear();
         _attachment = null;
         _imageAttachment = null;
         _submissionKey = null;
@@ -477,7 +475,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
             'Tell me the message you want to send. I will open the system composer and you will confirm Send yourself.',
           ),
         );
-        _objective.clear();
         _attachment = null;
         _imageAttachment = null;
         _submissionKey = null;
@@ -505,7 +502,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                   : 'The system message composer is unavailable. No message was sent.',
             ),
           );
-          _objective.clear();
           _submissionKey = null;
           _outcomeUnknown = false;
         });
@@ -521,7 +517,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 : 'Messages opened for ${command.recipient}. Review the message and tap Send yourself.',
           ),
         );
-        _objective.clear();
         _attachment = null;
         _imageAttachment = null;
         _submissionKey = null;
@@ -544,7 +539,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 : 'Android could not open Messages. No message was sent.',
           ),
         );
-        _objective.clear();
         _attachment = null;
         _imageAttachment = null;
         _submissionKey = null;
@@ -1342,8 +1336,9 @@ class _Composer extends StatelessWidget {
                           keyboardType: TextInputType.multiline,
                           textInputAction: TextInputAction.newline,
                           textCapitalization: TextCapitalization.sentences,
-                          decoration: const InputDecoration(
-                            hintText: 'Message Pandora',
+                          decoration: InputDecoration(
+                            hintText:
+                                submitting ? 'Follow up' : 'Message Pandora',
                             counterText: '',
                             filled: false,
                             border: InputBorder.none,
