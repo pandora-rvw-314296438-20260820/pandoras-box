@@ -70,7 +70,7 @@ test('Gemini Kimi and OpenAI share owner trust gates and customer response stays
   must(edge,'["owner","admin"]');
   must(edge,'consume_runtime_rate_limit');
   must(edge,'provider:result.provider,model:result.model');
-  const start=edge.indexOf('return res({ok:true,threadId:tid');
+  const start=edge.indexOf('return res({ok:true,activityJobId:i.activityJobId,threadId:tid');
   const end=edge.indexOf('}catch(e)',start);
   assert.ok(start>=0&&end>start);
   const publicSuccess=edge.slice(start,end);
