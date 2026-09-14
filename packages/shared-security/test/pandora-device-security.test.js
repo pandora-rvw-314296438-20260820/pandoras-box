@@ -128,3 +128,18 @@ test('M7-007 audit records are attributable without leaking secrets or personal 
   assert.ok(!serialized.includes('provider-secret'));
   assert.ok(!serialized.includes('owner@example.com'));
 });
+
+test('package root declarations expose every M7 security API', () => {
+  const { readFileSync } = require('node:fs');
+  const { join } = require('node:path');
+  const declarations = readFileSync(join(__dirname, '../dist/index.d.ts'), 'utf8');
+  const exported = declarations.match(/export \{([^}]+)\};/)?.[1]
+    .split(',').map((name) => name.trim()) ?? [];
+  for (const symbol of [
+    'PROTECTED_APP_CLASSES', 'FINANCIAL_RISK_TIERS', 'classifyFinancialAction',
+    'evaluateProtectedAppAction', 'evaluateDeviceIntegrityBaseline',
+    'canStartDestructiveProvisioning', 'buildConsequentialActionAuditRecord'
+  ]) {
+    assert.ok(exported.includes(symbol), symbol);
+  }
+});
