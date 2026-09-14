@@ -52,6 +52,11 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
             '<uses-permission android:name="android.permission.INTERNET"/>',
             updated,
         )
+        self.assertEqual(updated.count('android.permission.ACCESS_NETWORK_STATE'), 1)
+        self.assertIn(
+            '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>',
+            updated,
+        )
         self.assertIn('android:label="Pandora"', updated)
         self.assertNotIn('android:label="pandora_mobile"', updated)
         self.assertIn('android:icon="@drawable/pandora_launcher_icon"', updated)
@@ -84,6 +89,18 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
         result, _, _, _ = self._run(manifest)
         self.assertEqual(result.returncode, 1)
         self.assertIn('at most one Android INTERNET permission', result.stderr)
+
+    def test_refuses_duplicate_network_state_permission(self) -> None:
+        permission = (
+            '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>'
+        )
+        manifest = _BASE_MANIFEST.replace(
+            '\n    <application',
+            f'\n    {permission}\n    {permission}\n    <application',
+        )
+        result, _, _, _ = self._run(manifest)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('at most one Android ACCESS_NETWORK_STATE permission', result.stderr)
 
     def test_refuses_cleartext_traffic(self) -> None:
         manifest = _BASE_MANIFEST.replace(

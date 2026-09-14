@@ -8,18 +8,38 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 internal class PandoraDeviceAgentChannel private constructor(
     private val context: Context
 ) {
     private val oemAdapter = PandoraAndroidOemAdapter(context)
+    private val resourceRuntime = PandoraResourceRuntime(context)
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val resourceExecutor = ThreadPoolExecutor(
+        1,
+        1,
+        0L,
+        TimeUnit.MILLISECONDS,
+        ArrayBlockingQueue(RESOURCE_QUEUE_CAPACITY),
+        { runnable ->
+            Thread(runnable, "pandora-resource-runtime").apply { isDaemon = true }
+        },
+        ThreadPoolExecutor.AbortPolicy()
+    )
 
     companion object {
         private const val CHANNEL_NAME = "pandora/device_agent"
+        private const val RESOURCE_QUEUE_CAPACITY = 4
 
         fun install(context: Context, messenger: BinaryMessenger) {
             val agent = PandoraDeviceAgentChannel(context.applicationContext)
@@ -31,10 +51,82 @@ internal class PandoraDeviceAgentChannel private constructor(
         when (call.method) {
             "getCapabilityManifest" -> result.success(capabilityManifest())
             "getPermissionStates" -> result.success(permissionStates())
+            "getResourceSnapshot" -> runResourceSnapshot(result)
+            "runResourceBenchmark" -> runResourceBenchmark(call, result)
             "openCommunicationComposer" -> openCommunicationComposer(call, result)
             "openSystemSurface" -> openSystemSurface(call, result)
             "runSafeDiagnostic" -> runSafeDiagnostic(call, result)
             else -> result.notImplemented()
+        }
+    }
+
+    private fun runResourceSnapshot(result: MethodChannel.Result) {
+        try {
+            resourceExecutor.execute {
+                val snapshot = try {
+                    resourceRuntime.snapshot()
+                } catch (_: RuntimeException) {
+                    null
+                }
+                mainHandler.post {
+                    if (snapshot == null) {
+                        result.error(
+                            "RESOURCE_SNAPSHOT_FAILED",
+                            "Pandora could not read the bounded device resource snapshot.",
+                            null
+                        )
+                    } else {
+                        result.success(snapshot)
+                    }
+                }
+            }
+        } catch (_: RejectedExecutionException) {
+            result.error(
+                "RESOURCE_RUNTIME_BUSY",
+                "Pandora resource diagnostics are busy; retry after the current bounded work completes.",
+                null
+            )
+        }
+    }
+
+    private fun runResourceBenchmark(call: MethodCall, result: MethodChannel.Result) {
+        val durationMs = call.argument<Int>("durationMs")
+        try {
+            resourceExecutor.execute {
+                val outcome = try {
+                    Result.success(resourceRuntime.runBenchmark(durationMs))
+                } catch (error: IllegalArgumentException) {
+                    Result.failure<Map<String, Any?>>(error)
+                } catch (error: RuntimeException) {
+                    Result.failure<Map<String, Any?>>(error)
+                }
+                mainHandler.post {
+                    outcome.fold(
+                        onSuccess = result::success,
+                        onFailure = { error ->
+                            if (error is IllegalArgumentException) {
+                                result.error(
+                                    "INVALID_RESOURCE_BENCHMARK",
+                                    "Pandora resource benchmarks are bounded to the allowlisted local duration range.",
+                                    null
+                                )
+                            } else {
+                                result.error(
+                                    "RESOURCE_BENCHMARK_FAILED",
+                                    "Pandora could not complete the bounded local resource benchmark.",
+                                    null
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+        } catch (_: RejectedExecutionException) {
+            result.error(
+                "RESOURCE_RUNTIME_BUSY",
+                "Pandora resource diagnostics are busy; retry after the current bounded work completes.",
+                null
+            )
         }
     }
 
@@ -361,8 +453,8 @@ internal class PandoraDeviceAgentChannel private constructor(
                 capability(
                     "resource.introspection",
                     "public_app",
-                    "implementation_pending",
-                    "Live resource introspection and benchmarking belong to M4-009.",
+                    "available",
+                    "Live non-identifying CPU/GPU/RAM/storage/battery/thermal/process/network telemetry and bounded local benchmarks are available through public Android APIs; physical-device verification remains required.",
                     false
                 ),
                 capability(
@@ -467,6 +559,7 @@ internal class PandoraDeviceAgentChannel private constructor(
 
     private val observedPermissions = listOf(
         "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_CONTACTS",
