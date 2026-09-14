@@ -35,15 +35,17 @@ test("device diagnostics are first-class discovery tools but fail closed until M
   }
 });
 
-test("resource introspection and safe benchmarks remain truthful implementation-pending M4-009 capabilities", () => {
+test("implemented M4-009 resource tools are discoverable as available phone-local reads without project gateway authority", () => {
   const registry = T.createDefaultCapabilityRegistry();
   for (const id of ["tool.device.get_resource_snapshot", "tool.device.run_resource_benchmark"]) {
     const item = registry.get(id);
     assert.ok(item);
     assert.equal(item.scope, "device");
-    assert.equal(item.availability, "implementation_pending");
+    assert.equal(item.availability, "available");
     assert.equal(item.gatewayExecutable, false);
+    assert.equal(item.executionAdapter, "DeviceAgentExecutor");
     assert.equal(item.metadata.implementationOwner, "M4-009");
+    assert.equal(item.metadata.executionBoundary, "android_local_read");
   }
 });
 
@@ -81,11 +83,12 @@ test("runtime narrowing restores declared project execution but cannot promote p
   const back = registry.applyRuntimeAvailability("tool.read_file", "available", { reason: "workspace online" });
   assert.equal(back.gatewayExecutable, true);
 
-  assert.throws(
-    () => registry.applyRuntimeAvailability("tool.device.get_resource_snapshot", "available", { reason: "unverified" }),
-    /cannot promote capability beyond declared availability/,
-  );
-  assert.equal(registry.get("tool.device.get_resource_snapshot").availability, "implementation_pending");
+  const resourceDown = registry.applyRuntimeAvailability("tool.device.get_resource_snapshot", "unsupported", { reason: "device disconnected" });
+  assert.equal(resourceDown.availability, "unsupported");
+  assert.equal(resourceDown.gatewayExecutable, false);
+  const resourceBack = registry.applyRuntimeAvailability("tool.device.get_resource_snapshot", "available", { reason: "device reconnected and capability manifest confirmed" });
+  assert.equal(resourceBack.availability, "available");
+  assert.equal(resourceBack.gatewayExecutable, false);
 });
 
 test("bulk registration is atomic and malformed descriptor types fail closed", () => {
