@@ -8,7 +8,9 @@ import '../settings/settings_screen.dart';
 import '../team/team_screen.dart';
 import 'advanced_mode_screen.dart';
 import 'domains_screen.dart';
+import 'offline_evidence_screen.dart';
 import 'pandora_simple_ui.dart';
+import 'simple_briefing_screen.dart';
 import 'simple_safety_screen.dart';
 
 void _openMore(BuildContext context, Widget screen) {
@@ -53,10 +55,27 @@ class MoreScreen extends StatelessWidget {
                   ),
                   const _TileDivider(),
                   _MoreTile(
+                    icon: Icons.today_outlined,
+                    title: 'Daily briefing',
+                    subtitle: 'What needs you and what Pandora recommends next',
+                    onTap: () =>
+                        _openMore(context, const SimpleBriefingScreen()),
+                  ),
+                  const _TileDivider(),
+                  _MoreTile(
                     icon: Icons.history_rounded,
                     title: 'Activity',
                     subtitle: 'What Pandora actually did',
                     onTap: () => _openMore(context, const ActivityScreen()),
+                  ),
+                  const _TileDivider(),
+                  _MoreTile(
+                    icon: Icons.offline_pin_outlined,
+                    title: 'Saved evidence',
+                    subtitle:
+                        'Last-known proof you can review without changing anything',
+                    onTap: () =>
+                        _openMore(context, const OfflineEvidenceScreen()),
                   ),
                   const _TileDivider(),
                   _MoreTile(
@@ -165,32 +184,36 @@ class _MoreTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => ListTile(
-        minVerticalPadding: 14,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-        leading: PandoraIconBadge(icon: icon, size: 40),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: PandoraSimpleColors.ink,
-            fontSize: 15.5,
-            fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: ListTile(
+          minVerticalPadding: 14,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+          leading: PandoraIconBadge(icon: icon, size: 40),
+          title: Text(
+            title,
+            style: const TextStyle(
+              color: PandoraSimpleColors.ink,
+              fontSize: 15.5,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 3),
-          child: Text(
-            subtitle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: pandoraSimpleMutedText,
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Text(
+              subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: pandoraSimpleMutedText,
+            ),
           ),
+          trailing: const Icon(
+            Icons.arrow_forward_ios_rounded,
+            color: PandoraSimpleColors.muted,
+            size: 15,
+          ),
+          onTap: onTap,
         ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios_rounded,
-          color: PandoraSimpleColors.muted,
-          size: 15,
-        ),
-        onTap: onTap,
       );
 }
