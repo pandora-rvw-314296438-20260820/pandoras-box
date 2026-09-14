@@ -1,13 +1,12 @@
 {
-    "mode": "remote_history_receipts_without_replaying_applied_surfaces",
-    "reason": "Provider migration identities from 2026-09-10 through 2026-09-12 are already live but absent from source under their provider versions; no-op receipts restore version parity without replaying live SQL.",
+    "mode": "remote_history_source_reconciliation",
     "entries": [
         {
             "name": "revoke_anon_dangerous_table_grants_20260910",
             "version": "20260910051901",
-            "replayMode": "history_receipt_noop",
+            "replayMode": "provider_exact_executable",
             "canonicalPath": null,
-            "reconciliation": "provider_only_history_identity_no_canonical_source",
+            "reconciliation": "provider_only_security_executable_source_authority",
             "providerSqlBytes": 1187,
             "originalSqlSha256": "5ca5a487d4bc8918f513485d07a901dce586dbdf38b48946b3c43e5ec760b4fb",
             "originalStatementCount": 1
@@ -326,8 +325,8 @@
             "name": "pandora_vercel_chat_live_read_v1",
             "version": "20260912190059",
             "replayMode": "history_receipt_noop",
-            "canonicalPath": null,
-            "reconciliation": "provider_only_history_identity_no_canonical_source",
+            "canonicalPath": "supabase/migrations/20260911131000_pandora_universal_capability_router_v2.sql",
+            "reconciliation": "promotion_wrapper_canonical_router_preserved_without_replay",
             "providerSqlBytes": 1617,
             "originalSqlSha256": "527596d813549d16121cc79d36274ac1d5cf4e65c966b8394f23c3231ee74b87",
             "originalStatementCount": 1
@@ -368,5 +367,10 @@
     "missingCount": 36,
     "schemaVersion": 1,
     "observedMainSha": "1b2f7885b11a64386451633ea2fb04b0472a037b",
-    "providerOnlyCount": 2
+    "providerOnlyCount": 1,
+    "historyReceiptCount": 35,
+    "providerHistoryMutated": false,
+    "executableProviderOnlyCount": 1,
+    "productionLiveSchemaReplayed": false,
+    "freshEnvironmentSecurityHardeningExecutable": true
 }
