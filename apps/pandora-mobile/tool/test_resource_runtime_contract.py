@@ -131,7 +131,11 @@ class ResourceRuntimeContractTest(unittest.TestCase):
         source = _CHANNEL.read_text(encoding="utf-8")
 
         for required in (
-            "Executors.newSingleThreadExecutor",
+            "ThreadPoolExecutor(",
+            "ArrayBlockingQueue(RESOURCE_QUEUE_CAPACITY)",
+            "ThreadPoolExecutor.AbortPolicy()",
+            "RejectedExecutionException",
+            '"RESOURCE_RUNTIME_BUSY"',
             'Thread(runnable, "pandora-resource-runtime")',
             "Handler(Looper.getMainLooper())",
             "resourceExecutor.execute",
@@ -144,5 +148,7 @@ class ResourceRuntimeContractTest(unittest.TestCase):
             '"getResourceSnapshot" -> result.success(resourceRuntime.snapshot())',
             source,
         )
+        self.assertNotIn("Executors.newSingleThreadExecutor", source)
+        self.assertIn("RESOURCE_QUEUE_CAPACITY = 4", source)
 if __name__ == "__main__":
     unittest.main()
