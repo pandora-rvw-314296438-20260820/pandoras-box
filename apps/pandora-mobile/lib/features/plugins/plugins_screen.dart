@@ -507,13 +507,13 @@ class _PluginsScreenState extends State<PluginsScreen> {
   ) {
     final prompt = switch (action) {
       _PluginAction.manage =>
-        'Manage ${plugin.name}. First verify the live connection, account identity, current scopes and capabilities. Use bounded reads when authorized. Route every consequential change through ProjectOS and show me only the approval or blocker that actually needs me.',
+        'Manage ${plugin.name}. First verify the live connection, account identity, current scopes and capabilities. Use bounded reads when authorized. Use Pandora's governed Tool Gateway for consequential changes and show me only the approval or blocker that actually needs me.',
       _PluginAction.connect =>
         'Connect ${plugin.name}. Check the live authorization state, exact account and scopes required. If owner authorization is required, show the secure Needs You step. Do not claim this plugin is connected until provider readback verifies it.',
       _PluginAction.reconnect =>
         'Reconnect ${plugin.name}. Verify the current failure first, preserve existing safe state, request only the authorization actually required, then read back provider health. Do not claim recovery until the provider is verified usable.',
       _PluginAction.disconnect =>
-        'Disconnect ${plugin.name}. Treat this as a consequential governed action. Show the exact account and capabilities that would be removed, require the appropriate ProjectOS authorization, then verify provider state after the change. Do not disconnect anything else.',
+        'Disconnect ${plugin.name}. Treat this as a consequential governed action. Show the exact account and capabilities that would be removed, require only the authorization boundary that actually applies, then verify provider state after the change. Do not disconnect anything else.',
     };
     Navigator.of(context).push(
       MaterialPageRoute<void>(
