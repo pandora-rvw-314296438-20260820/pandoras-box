@@ -25,6 +25,8 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
 import java.util.Locale
 
 private fun normalizedPreviewMimeType(path: String, declared: String): String {
@@ -67,6 +69,12 @@ class MainActivity : FlutterActivity() {
     private val phoneContactRequest = 3106
     private val maxDocumentBytes = 32 * 1024
     private val maxImageBytes = 600 * 1024
+    private val supportedTextMimeTypes = setOf(
+        "text/plain",
+        "text/markdown",
+        "text/csv",
+        "application/json"
+    )
     private var pendingResult: MethodChannel.Result? = null
     private var pendingSaveBytes: ByteArray? = null
 
@@ -236,11 +244,34 @@ class MainActivity : FlutterActivity() {
         return path.split("/").none { it.isBlank() || it == "." || it == ".." || it.length > 255 }
     }
 
+    private fun isSafeDocumentName(name: String): Boolean =
+        name.isNotBlank() && name.length <= 180 && name.none {
+            it.code < 32 || it == '/' || it == '\\'
+        }
+
+    private fun isSafeMimeType(mimeType: String): Boolean =
+        mimeType.length in 3..127 &&
+            Regex("^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,63}/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,63}$")
+                .matches(mimeType)
+
+    private fun selectedTextMimeType(uri: Uri, name: String): String? {
+        val declared = contentResolver.getType(uri)
+            ?.substringBefore(';')?.trim()?.lowercase(Locale.ROOT)
+        if (declared in supportedTextMimeTypes) return declared
+        return when (name.substringAfterLast('.', "").lowercase(Locale.ROOT)) {
+            "txt" -> "text/plain"
+            "md", "markdown" -> "text/markdown"
+            "csv" -> "text/csv"
+            "json" -> "application/json"
+            else -> null
+        }
+    }
+
     private fun saveBinaryDocument(call: MethodCall, result: MethodChannel.Result) {
         val name = call.argument<String>("name")?.trim().orEmpty()
         val mimeType = call.argument<String>("mimeType")?.trim().orEmpty()
         val bytes = call.argument<ByteArray>("data")
-        if (name.isBlank() || name.length > 180 || mimeType.isBlank() || bytes == null || bytes.isEmpty() || bytes.size > 16 * 1024 * 1024) {
+        if (!isSafeDocumentName(name) || !isSafeMimeType(mimeType) || bytes == null || bytes.isEmpty() || bytes.size > 16 * 1024 * 1024) {
             result.error("INVALID_SAVE_DOCUMENT", "Pandora could not prepare that file for saving.", null)
             return
         }
@@ -281,7 +312,7 @@ class MainActivity : FlutterActivity() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "*/*"
-            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("text/plain", "text/markdown", "text/csv", "application/json"))
+            putExtra(Intent.EXTRA_MIME_TYPES, supportedTextMimeTypes.toTypedArray())
         }
         launchForResult(intent, documentRequest, result, "DOCUMENT_PICKER_UNAVAILABLE", "No system document picker is available.")
     }
@@ -383,9 +414,17 @@ class MainActivity : FlutterActivity() {
     private fun readDocument(uri: Uri?, result: MethodChannel.Result) {
         if (uri == null) { result.success(null); return }
         try {
-            val name = queryDisplayName(uri) ?: "attachment.txt"
-            val mimeType = contentResolver.getType(uri) ?: "text/plain"
-            val text = contentResolver.openInputStream(uri).use { input ->
+            val name = (queryDisplayName(uri) ?: "attachment.txt").trim()
+            if (!isSafeDocumentName(name)) {
+                result.error("DOCUMENT_NAME_UNSAFE", "The selected document name is not safe to process.", null)
+                return
+            }
+            val mimeType = selectedTextMimeType(uri, name)
+            if (mimeType == null) {
+                result.error("DOCUMENT_TYPE_UNSUPPORTED", "Pandora only reads user-selected TXT, Markdown, CSV, or JSON documents.", null)
+                return
+            }
+            val bytes = contentResolver.openInputStream(uri).use { input ->
                 if (input == null) throw IllegalStateException("The selected document cannot be opened.")
                 val output = ByteArrayOutputStream()
                 val buffer = ByteArray(4096)
@@ -394,14 +433,27 @@ class MainActivity : FlutterActivity() {
                     val count = input.read(buffer)
                     if (count < 0) break
                     total += count
-                    if (total > maxDocumentBytes) throw IllegalArgumentException("The selected document is larger than 32 KB.")
+                    if (total > maxDocumentBytes) {
+                        result.error("DOCUMENT_TOO_LARGE", "The selected document is larger than 32 KB.", null)
+                        return
+                    }
                     output.write(buffer, 0, count)
                 }
-                output.toString(Charsets.UTF_8.name())
+                output.toByteArray()
+            }
+            val text = Charsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(bytes)).toString()
+            if (text.any { it == '\u0000' || (it.code < 32 && it != '\n' && it != '\r' && it != '\t') }) {
+                result.error("DOCUMENT_TEXT_UNSAFE", "The selected document contains unsupported control data.", null)
+                return
             }
             result.success(mapOf("name" to name, "mimeType" to mimeType, "text" to text))
-        } catch (error: IllegalArgumentException) {
-            result.error("DOCUMENT_TOO_LARGE", error.message, null)
+        } catch (_: java.nio.charset.CharacterCodingException) {
+            result.error("DOCUMENT_ENCODING_UNSUPPORTED", "The selected document is not valid UTF-8 text.", null)
+        } catch (_: SecurityException) {
+            result.error("DOCUMENT_SELECTION_DENIED", "Android did not grant access to the selected document.", null)
         } catch (_: Exception) {
             result.error("DOCUMENT_READ_FAILED", "The selected text document could not be read.", null)
         }
