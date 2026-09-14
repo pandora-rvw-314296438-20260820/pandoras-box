@@ -38,6 +38,17 @@ void main() {
     expect(command.messageIsReady, isTrue);
   });
 
+  test('smart-quoted SMS preserves natural-language body', () {
+    final command = PandoraDeviceCommunicationCommand.tryParse(
+      'Text Maria “On my way”',
+    );
+
+    expect(command, isNotNull);
+    expect(command!.recipient, 'Maria');
+    expect(command.message, 'On my way');
+    expect(command.messageIsReady, isTrue);
+  });
+
   test('named SMS target fails closed pending contact resolution', () {
     final command = PandoraDeviceCommunicationCommand.tryParse(
       'Text Nocom "Pandora test"',
