@@ -448,26 +448,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     PandoraDeviceCommunicationCommand command,
   ) async {
     final isCall = command.kind == PandoraCommunicationKind.call;
-    final recipientLabel = command.recipient.trim();
-
-    if (!command.recipientIsBounded) {
-      setState(() {
-        _messages.add(_ChatMessage.user(objective));
-        _messages.add(
-          _ChatMessage.pandora(
-            isCall
-                ? 'I need $recipientLabel\'s phone number before I can open the system dialer. No call was placed.'
-                : 'I need $recipientLabel\'s phone number before I can open Messages. No message was sent.',
-          ),
-        );
-        _objective.clear();
-        _attachment = null;
-        _imageAttachment = null;
-        _submissionKey = null;
-        _outcomeUnknown = false;
-      });
-      return;
-    }
+    final requestedRecipient = command.recipient.trim();
 
     if (!isCall && !command.messageIsReady) {
       setState(() {
@@ -486,11 +467,43 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       return;
     }
 
+    var resolvedRecipient = requestedRecipient;
+    var resolvedLabel = requestedRecipient;
+    if (!command.recipientIsBounded) {
+      final selection = await PandoraNativeIo.pickPhoneContact();
+      if (!mounted) return;
+      if (selection == null ||
+          !PandoraCommunicationRequest.isSupportedRecipient(
+            selection.phoneNumber,
+          )) {
+        setState(() {
+          _messages.add(_ChatMessage.user(objective));
+          _messages.add(
+            _ChatMessage.pandora(
+              isCall
+                  ? 'I could not resolve $requestedRecipient to a phone number you selected. No call was placed.'
+                  : 'I could not resolve $requestedRecipient to a phone number you selected. No message was sent.',
+            ),
+          );
+          _objective.clear();
+          _attachment = null;
+          _imageAttachment = null;
+          _submissionKey = null;
+          _outcomeUnknown = false;
+        });
+        return;
+      }
+      resolvedRecipient = selection.phoneNumber.trim();
+      resolvedLabel = selection.displayName.trim().isEmpty
+          ? requestedRecipient
+          : selection.displayName.trim();
+    }
+
     try {
       final request = isCall
-          ? PandoraCommunicationRequest.call(command.recipient)
+          ? PandoraCommunicationRequest.call(resolvedRecipient)
           : PandoraCommunicationRequest.sms(
-              command.recipient,
+              resolvedRecipient,
               message: command.message,
             );
       final handoff = await _communications.open(request);
@@ -517,8 +530,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         _messages.add(
           _ChatMessage.pandora(
             isCall
-                ? 'System dialer opened for ${command.recipient}. Review the number and tap Call yourself.'
-                : 'Messages opened for ${command.recipient}. Review the message and tap Send yourself.',
+                ? 'System dialer opened for $resolvedLabel ($resolvedRecipient). Review the number and tap Call yourself.'
+                : 'Messages opened for $resolvedLabel ($resolvedRecipient). Review the message and tap Send yourself.',
           ),
         );
         _objective.clear();

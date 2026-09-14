@@ -26,6 +26,25 @@ class PandoraImageAttachment {
   final String dataBase64;
 }
 
+class PandoraPhoneContactSelection {
+  const PandoraPhoneContactSelection(
+      {required this.displayName, required this.phoneNumber});
+  final String displayName;
+  final String phoneNumber;
+  factory PandoraPhoneContactSelection.fromMap(Map<Object?, Object?> value) {
+    final displayName = value['displayName'];
+    final phoneNumber = value['phoneNumber'];
+    if (phoneNumber is! String || phoneNumber.trim().isEmpty) {
+      throw const FormatException(
+          'Selected contact has no usable phone number.');
+    }
+    return PandoraPhoneContactSelection(
+      displayName: displayName is String ? displayName.trim() : '',
+      phoneNumber: phoneNumber.trim(),
+    );
+  }
+}
+
 abstract final class PandoraNativeIo {
   static const MethodChannel _channel = MethodChannel('pandora/native_io');
 
@@ -96,6 +115,21 @@ abstract final class PandoraNativeIo {
       return false;
     } on PlatformException {
       return false;
+    }
+  }
+
+  static Future<PandoraPhoneContactSelection?> pickPhoneContact() async {
+    try {
+      final value =
+          await _channel.invokeMapMethod<Object?, Object?>('pickPhoneContact');
+      if (value == null) return null;
+      return PandoraPhoneContactSelection.fromMap(value);
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    } on FormatException {
+      return null;
     }
   }
 

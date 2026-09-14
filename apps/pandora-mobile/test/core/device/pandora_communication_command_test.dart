@@ -49,4 +49,16 @@ void main() {
     expect(command.recipientIsBounded, isFalse);
     expect(command.message, 'Pandora test');
   });
+  test('reply to named contact is routed as SMS with explicit body', () {
+    final command = PandoraDeviceCommunicationCommand.tryParse(
+      'Reply to Maria "On my way"',
+    );
+
+    expect(command, isNotNull);
+    expect(command!.kind, PandoraCommunicationKind.sms);
+    expect(command.recipient, 'Maria');
+    expect(command.recipientIsBounded, isFalse);
+    expect(command.message, 'On my way');
+    expect(command.messageIsReady, isTrue);
+  });
 }
