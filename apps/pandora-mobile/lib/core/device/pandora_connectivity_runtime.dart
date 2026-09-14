@@ -40,8 +40,17 @@ String _connectivityString(Map<String, Object?> map, String key) {
 
 void _rejectConnectivityIdentifiers(Object? value) {
   const forbidden = {
-    'androidId', 'serial', 'ssid', 'bssid', 'ipAddress', 'ipAddresses',
-    'dns', 'dnsServers', 'macAddress', 'imei', 'imsi',
+    'androidId',
+    'serial',
+    'ssid',
+    'bssid',
+    'ipAddress',
+    'ipAddresses',
+    'dns',
+    'dnsServers',
+    'macAddress',
+    'imei',
+    'imsi',
   };
   if (value is Map) {
     for (final entry in value.entries) {
@@ -102,7 +111,12 @@ class PandoraConnectivityState {
     }
     final rawTransports = _connectivityMap(map['transports'], 'transports');
     const requiredTransports = {
-      'wifi', 'cellular', 'bluetooth', 'ethernet', 'vpn', 'usb',
+      'wifi',
+      'cellular',
+      'bluetooth',
+      'ethernet',
+      'vpn',
+      'usb',
     };
     final transports = <String, bool>{};
     for (final key in requiredTransports) {

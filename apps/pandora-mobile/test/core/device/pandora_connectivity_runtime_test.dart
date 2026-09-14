@@ -11,7 +11,8 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
-  test('connectivity state accepts bounded non-identifying transport truth', () {
+  test('connectivity state accepts bounded non-identifying transport truth',
+      () {
     final state = PandoraConnectivityState.fromMap(<String, Object?>{
       'schemaVersion': '1.0.0',
       'capturedAtElapsedRealtimeMs': 42,
