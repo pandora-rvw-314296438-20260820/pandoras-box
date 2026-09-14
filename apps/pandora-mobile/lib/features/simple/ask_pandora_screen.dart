@@ -240,7 +240,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
           _messages.add(_ChatMessage.user(objective));
           _messages.add(_ChatMessage.pandora(receipt.reply));
           _pendingMessage = null;
-            _attachment = null;
+          _attachment = null;
           _imageAttachment = null;
           _submissionKey = null;
         });
@@ -286,7 +286,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
           final projection = await experience.loadExperience(handoffProjectId);
           if (!mounted) return;
 
-          final initialBuildReady = projection.state.name == 'build' &&
+          final initialBuildReady =
+              projection.state.name == 'build' &&
               projection.currentVersionId == null &&
               projection.candidateVersionId == null &&
               projection.activeBuildJobId == null;
@@ -326,8 +327,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
           if (projection.canChange != true) {
             _submissionKey = null;
             setState(() {
-              _error =
-                  'This project is not ready for a change yet. Pandora kept you in chat and did not start a duplicate build.';
+              _error = 'This project is not ready for a change yet. Pandora kept you in chat and did not start a duplicate build.';
             });
             return;
           }
@@ -360,16 +360,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
           if (rejected) {
             _submissionKey = null;
             setState(() {
-              _error =
-                  'Pandora needs a different instruction before it can build that change.';
+              _error = 'Pandora needs a different instruction before it can build that change.';
             });
             return;
           }
           if (!understandingReady) {
             setState(() {
               _outcomeUnknown = true;
-              _error =
-                  'Your change is saved and still being prepared. Pandora will not submit it twice. Check Activity before retrying.';
+              _error = 'Your change is saved and still being prepared. Pandora will not submit it twice. Check Activity before retrying.';
             });
             return;
           }
@@ -395,8 +393,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
           setState(() {
             if (mutationAccepted) {
               _outcomeUnknown = true;
-              _error =
-                  'Your change may already be saved. Pandora will not retry it automatically. Check Activity before sending it again.';
+              _error = 'Your change may already be saved. Pandora will not retry it automatically. Check Activity before sending it again.';
             } else {
               _submissionKey = null;
               _error = 'Pandora could not start that project change right now.';
@@ -447,25 +444,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     PandoraDeviceCommunicationCommand command,
   ) async {
     final isCall = command.kind == PandoraCommunicationKind.call;
-    final recipientLabel = command.recipient.trim();
-
-    if (!command.recipientIsBounded) {
-      setState(() {
-        _messages.add(_ChatMessage.user(objective));
-        _messages.add(
-          _ChatMessage.pandora(
-            isCall
-                ? 'I need $recipientLabel\'s phone number before I can open the system dialer. No call was placed.'
-                : 'I need $recipientLabel\'s phone number before I can open Messages. No message was sent.',
-          ),
-        );
-        _attachment = null;
-        _imageAttachment = null;
-        _submissionKey = null;
-        _outcomeUnknown = false;
-      });
-      return;
-    }
+    final requestedRecipient = command.recipient.trim();
 
     if (!isCall && !command.messageIsReady) {
       setState(() {
@@ -483,11 +462,42 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       return;
     }
 
+    var resolvedRecipient = requestedRecipient;
+    var resolvedLabel = requestedRecipient;
+    if (!command.recipientIsBounded) {
+      final selection = await PandoraNativeIo.pickPhoneContact();
+      if (!mounted) return;
+      if (selection == null ||
+          !PandoraCommunicationRequest.isSupportedRecipient(
+            selection.phoneNumber,
+          )) {
+        setState(() {
+          _messages.add(_ChatMessage.user(objective));
+          _messages.add(
+            _ChatMessage.pandora(
+              isCall
+                  ? 'I could not resolve $requestedRecipient to a phone number you selected. No call was placed.'
+                  : 'I could not resolve $requestedRecipient to a phone number you selected. No message was sent.',
+            ),
+          );
+          _attachment = null;
+          _imageAttachment = null;
+          _submissionKey = null;
+          _outcomeUnknown = false;
+        });
+        return;
+      }
+      resolvedRecipient = selection.phoneNumber.trim();
+      resolvedLabel = selection.displayName.trim().isEmpty
+          ? requestedRecipient
+          : selection.displayName.trim();
+    }
+
     try {
       final request = isCall
-          ? PandoraCommunicationRequest.call(command.recipient)
+          ? PandoraCommunicationRequest.call(resolvedRecipient)
           : PandoraCommunicationRequest.sms(
-              command.recipient,
+              resolvedRecipient,
               message: command.message,
             );
       final handoff = await _communications.open(request);
@@ -497,12 +507,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
           _messages.add(_ChatMessage.user(objective));
           _messages.add(
             _ChatMessage.pandora(
-              isCall
-                  ? 'The system dialer is unavailable. No call was placed.'
-                  : 'The system message composer is unavailable. No message was sent.',
+              isCall ? 'The system dialer is unavailable. No call was placed.' : 'The system message composer is unavailable. No message was sent.',
             ),
           );
-            _submissionKey = null;
+          _submissionKey = null;
           _outcomeUnknown = false;
         });
         return;
@@ -513,8 +521,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         _messages.add(
           _ChatMessage.pandora(
             isCall
-                ? 'System dialer opened for ${command.recipient}. Review the number and tap Call yourself.'
-                : 'Messages opened for ${command.recipient}. Review the message and tap Send yourself.',
+                ? 'System dialer opened for $resolvedLabel ($resolvedRecipient). Review the number and tap Call yourself.'
+                : 'Messages opened for $resolvedLabel ($resolvedRecipient). Review the message and tap Send yourself.',
           ),
         );
         _attachment = null;
@@ -635,69 +643,70 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: PandoraSimpleColors.canvas,
-        resizeToAvoidBottomInset: true,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              _ChatHeader(
-                active: _threadId != null ||
-                    _messages.isNotEmpty ||
-                    _pendingMessage != null,
-                onNewChat: newChat,
-                onSearchChats: widget.onSearchChats,
-                onMore: widget.onMore,
-              ),
-              Expanded(
-                child: _loadingThread
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: PandoraSimpleColors.muted,
-                        ),
-                      )
-                    : _messages.isEmpty && _pendingMessage == null
-                        ? _EmptyConversation(
-                            suggestions: _suggestions,
-                            onSuggestion: _useSuggestion,
-                            disabled: _outcomeUnknown || _submitting,
-                          )
-                        : _Conversation(
-                            messages: _messages,
-                            pendingMessage: _pendingMessage,
-                            thinking: _submitting,
-                          ),
-              ),
-              _Composer(
-                controller: _objective,
-                focusNode: _objectiveFocus,
-                attachment: _attachment,
-                imageAttachment: _imageAttachment,
-                projectContext: _projectContext,
-                serviceContext: _serviceContext,
-                error: _error,
-                submitting: _submitting,
-                disabled: _outcomeUnknown,
-                onChanged: () {
-                  if (_error != null) setState(() => _error = null);
-                },
-                onCamera: () => _pickImage(camera: true),
-                onPhotos: () => _pickImage(camera: false),
-                onAttach: _attach,
-                onServices: _pickServiceContext,
-                onProjectContext: _pickProjectContext,
-                onDictate: _dictate,
-                onSubmit: _submit,
-                onRemoveAttachment: () => setState(() => _attachment = null),
-                onRemoveImage: () => setState(() => _imageAttachment = null),
-                onRemoveServiceContext: _removeServiceContext,
-                onRemoveProjectContext: _removeProjectContext,
-              ),
-            ],
+    backgroundColor: PandoraSimpleColors.canvas,
+    resizeToAvoidBottomInset: true,
+    body: SafeArea(
+      bottom: false,
+      child: Column(
+        children: [
+          _ChatHeader(
+            active:
+                _threadId != null ||
+                _messages.isNotEmpty ||
+                _pendingMessage != null,
+            onNewChat: newChat,
+            onSearchChats: widget.onSearchChats,
+            onMore: widget.onMore,
           ),
-        ),
-      );
+          Expanded(
+            child: _loadingThread
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: PandoraSimpleColors.muted,
+                    ),
+                  )
+                : _messages.isEmpty && _pendingMessage == null
+                ? _EmptyConversation(
+                    suggestions: _suggestions,
+                    onSuggestion: _useSuggestion,
+                    disabled: _outcomeUnknown || _submitting,
+                  )
+                : _Conversation(
+                    messages: _messages,
+                    pendingMessage: _pendingMessage,
+                    thinking: _submitting,
+                  ),
+          ),
+          _Composer(
+            controller: _objective,
+            focusNode: _objectiveFocus,
+            attachment: _attachment,
+            imageAttachment: _imageAttachment,
+            projectContext: _projectContext,
+            serviceContext: _serviceContext,
+            error: _error,
+            submitting: _submitting,
+            disabled: _outcomeUnknown,
+            onChanged: () {
+              if (_error != null) setState(() => _error = null);
+            },
+            onCamera: () => _pickImage(camera: true),
+            onPhotos: () => _pickImage(camera: false),
+            onAttach: _attach,
+            onServices: _pickServiceContext,
+            onProjectContext: _pickProjectContext,
+            onDictate: _dictate,
+            onSubmit: _submit,
+            onRemoveAttachment: () => setState(() => _attachment = null),
+            onRemoveImage: () => setState(() => _imageAttachment = null),
+            onRemoveServiceContext: _removeServiceContext,
+            onRemoveProjectContext: _removeProjectContext,
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 enum _ChatOverflowAction { newChat, searchChats, more }
@@ -717,75 +726,75 @@ class _ChatHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PandoraPageHeader(
-        title: '',
-        actions: [
-          if (!active)
-            IconButton(
-              key: const ValueKey<String>('pandora-temporary-chat'),
-              tooltip: 'Temporary chat',
-              onPressed: onNewChat,
-              icon: const Icon(Icons.history_toggle_off_rounded),
-              color: PandoraSimpleColors.ink,
-            )
-          else
-            PopupMenuButton<_ChatOverflowAction>(
-              key: const ValueKey<String>('pandora-chat-overflow'),
-              tooltip: 'More',
-              icon: const Icon(Icons.more_vert_rounded),
-              color: PandoraSimpleColors.surface,
-              onSelected: (action) {
-                switch (action) {
-                  case _ChatOverflowAction.newChat:
-                    onNewChat();
-                    break;
-                  case _ChatOverflowAction.searchChats:
-                    onSearchChats?.call();
-                    break;
-                  case _ChatOverflowAction.more:
-                    onMore?.call();
-                    break;
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem<_ChatOverflowAction>(
-                  key: ValueKey<String>('pandora-chat-menu-new'),
-                  value: _ChatOverflowAction.newChat,
-                  child: Row(
-                    children: [
-                      Icon(Icons.add_comment_outlined, size: 20),
-                      SizedBox(width: 12),
-                      Text('New chat'),
-                    ],
-                  ),
-                ),
-                if (onSearchChats != null)
-                  const PopupMenuItem<_ChatOverflowAction>(
-                    key: ValueKey<String>('pandora-chat-menu-search'),
-                    value: _ChatOverflowAction.searchChats,
-                    child: Row(
-                      children: [
-                        Icon(Icons.search_rounded, size: 20),
-                        SizedBox(width: 12),
-                        Text('Search chats'),
-                      ],
-                    ),
-                  ),
-                if (onMore != null)
-                  const PopupMenuItem<_ChatOverflowAction>(
-                    key: ValueKey<String>('pandora-chat-menu-more'),
-                    value: _ChatOverflowAction.more,
-                    child: Row(
-                      children: [
-                        Icon(Icons.more_horiz_rounded, size: 20),
-                        SizedBox(width: 12),
-                        Text('More'),
-                      ],
-                    ),
-                  ),
-              ],
+    title: '',
+    actions: [
+      if (!active)
+        IconButton(
+          key: const ValueKey<String>('pandora-temporary-chat'),
+          tooltip: 'Temporary chat',
+          onPressed: onNewChat,
+          icon: const Icon(Icons.history_toggle_off_rounded),
+          color: PandoraSimpleColors.ink,
+        )
+      else
+        PopupMenuButton<_ChatOverflowAction>(
+          key: const ValueKey<String>('pandora-chat-overflow'),
+          tooltip: 'More',
+          icon: const Icon(Icons.more_vert_rounded),
+          color: PandoraSimpleColors.surface,
+          onSelected: (action) {
+            switch (action) {
+              case _ChatOverflowAction.newChat:
+                onNewChat();
+                break;
+              case _ChatOverflowAction.searchChats:
+                onSearchChats?.call();
+                break;
+              case _ChatOverflowAction.more:
+                onMore?.call();
+                break;
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem<_ChatOverflowAction>(
+              key: ValueKey<String>('pandora-chat-menu-new'),
+              value: _ChatOverflowAction.newChat,
+              child: Row(
+                children: [
+                  Icon(Icons.add_comment_outlined, size: 20),
+                  SizedBox(width: 12),
+                  Text('New chat'),
+                ],
+              ),
             ),
-        ],
-      );
+            if (onSearchChats != null)
+              const PopupMenuItem<_ChatOverflowAction>(
+                key: ValueKey<String>('pandora-chat-menu-search'),
+                value: _ChatOverflowAction.searchChats,
+                child: Row(
+                  children: [
+                    Icon(Icons.search_rounded, size: 20),
+                    SizedBox(width: 12),
+                    Text('Search chats'),
+                  ],
+                ),
+              ),
+            if (onMore != null)
+              const PopupMenuItem<_ChatOverflowAction>(
+                key: ValueKey<String>('pandora-chat-menu-more'),
+                value: _ChatOverflowAction.more,
+                child: Row(
+                  children: [
+                    Icon(Icons.more_horiz_rounded, size: 20),
+                    SizedBox(width: 12),
+                    Text('More'),
+                  ],
+                ),
+              ),
+          ],
+        ),
+    ],
+  );
 }
 
 class _EmptyConversation extends StatelessWidget {
@@ -801,62 +810,60 @@ class _EmptyConversation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - 42),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const PandoraMark(size: 54, color: Colors.white),
-                const SizedBox(height: 18),
-                const Text(
-                  'What can I help with?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -.35,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  child: const Text(
-                    'Ask a question, describe a change, or tell Pandora what you want to build.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: PandoraSimpleColors.muted,
-                      fontSize: 14,
-                      height: 1.45,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 30),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 320),
-                  child: Column(
-                    children: [
-                      for (var index = 0;
-                          index < suggestions.length;
-                          index++) ...[
-                        _ObsidianSuggestion(
-                          label: suggestions[index],
-                          enabled: !disabled,
-                          onPressed: () => onSuggestion(suggestions[index]),
-                        ),
-                        if (index != suggestions.length - 1)
-                          const SizedBox(height: 12),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
+    builder: (context, constraints) => SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: constraints.maxHeight - 42),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const PandoraMark(size: 54, color: Colors.white),
+            const SizedBox(height: 18),
+            const Text(
+              'What can I help with?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: PandoraSimpleColors.ink,
+                fontSize: 22,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -.35,
+              ),
             ),
-          ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: const Text(
+                'Ask a question, describe a change, or tell Pandora what you want to build.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: PandoraSimpleColors.muted,
+                  fontSize: 14,
+                  height: 1.45,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 320),
+              child: Column(
+                children: [
+                  for (var index = 0; index < suggestions.length; index++) ...[
+                    _ObsidianSuggestion(
+                      label: suggestions[index],
+                      enabled: !disabled,
+                      onPressed: () => onSuggestion(suggestions[index]),
+                    ),
+                    if (index != suggestions.length - 1)
+                      const SizedBox(height: 12),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _ObsidianSuggestion extends StatelessWidget {
@@ -872,40 +879,40 @@ class _ObsidianSuggestion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: const Color(0x990F0F0F),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: PandoraSimpleColors.line),
-        ),
-        child: InkWell(
-          onTap: enabled ? onPressed : null,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: enabled
-                          ? const Color(0xFFE2E2E2)
-                          : PandoraSimpleColors.muted,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+    color: const Color(0x990F0F0F),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: const BorderSide(color: PandoraSimpleColors.line),
+    ),
+    child: InkWell(
+      onTap: enabled ? onPressed : null,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: enabled
+                      ? const Color(0xFFE2E2E2)
+                      : PandoraSimpleColors.muted,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 17,
-                  color: Color(0xFF555555),
-                ),
-              ],
+              ),
             ),
-          ),
+            const Icon(
+              Icons.arrow_forward_rounded,
+              size: 17,
+              color: Color(0xFF555555),
+            ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _Conversation extends StatefulWidget {
@@ -1063,24 +1070,24 @@ class _PandoraThinkingBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          PandoraMark(size: 24, color: Colors.white),
-          SizedBox(width: 11),
-          SizedBox.square(
-            dimension: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 1.8,
-              color: PandoraSimpleColors.muted,
-            ),
-          ),
-          SizedBox(width: 9),
-          Text(
-            'Thinking…',
-            style: TextStyle(color: PandoraSimpleColors.muted, fontSize: 14),
-          ),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      PandoraMark(size: 24, color: Colors.white),
+      SizedBox(width: 11),
+      SizedBox.square(
+        dimension: 16,
+        child: CircularProgressIndicator(
+          strokeWidth: 1.8,
+          color: PandoraSimpleColors.muted,
+        ),
+      ),
+      SizedBox(width: 9),
+      Text(
+        'Thinking…',
+        style: TextStyle(color: PandoraSimpleColors.muted, fontSize: 14),
+      ),
+    ],
+  );
 }
 
 class _Composer extends StatelessWidget {
@@ -1132,281 +1139,272 @@ class _Composer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-          color: PandoraSimpleColors.canvas,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (error != null) ...[
-                Container(
-                  margin: const EdgeInsets.fromLTRB(2, 0, 2, 8),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF1F0),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFF7D5D1)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 1),
-                        child: Icon(
-                          Icons.info_outline_rounded,
-                          size: 17,
-                          color: Color(0xFFB42318),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          error!,
-                          style: const TextStyle(
-                            color: Color(0xFF8F2D24),
-                            fontSize: 12.5,
-                            height: 1.35,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              if (attachment != null ||
-                  imageAttachment != null ||
-                  projectContext != null ||
-                  serviceContext != null) ...[
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    if (attachment != null)
-                      InputChip(
-                        avatar:
-                            const Icon(Icons.description_outlined, size: 17),
-                        label: Text(attachment!.name),
-                        onDeleted:
-                            submitting || disabled ? null : onRemoveAttachment,
-                      ),
-                    if (imageAttachment != null)
-                      InputChip(
-                        avatar: const Icon(Icons.image_outlined, size: 17),
-                        label: Text(imageAttachment!.name),
-                        onDeleted:
-                            submitting || disabled ? null : onRemoveImage,
-                      ),
-                    if (serviceContext != null)
-                      InputChip(
-                        key: const ValueKey<String>(
-                            'ask-pandora-service-context'),
-                        avatar: const Icon(Icons.extension_outlined, size: 17),
-                        label: Text(
-                          '${serviceContext!.label} · ${serviceContext!.state}',
-                        ),
-                        onDeleted: submitting || disabled
-                            ? null
-                            : onRemoveServiceContext,
-                      ),
-                    if (projectContext != null)
-                      InputChip(
-                        key: const ValueKey<String>(
-                            'ask-pandora-project-context'),
-                        avatar: const Icon(Icons.workspaces_outline, size: 17),
-                        label: Text(projectContext!.name),
-                        onDeleted: submitting || disabled
-                            ? null
-                            : onRemoveProjectContext,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-              ],
-              DecoratedBox(
-                key: const ValueKey<String>('ask-pandora-composer'),
-                decoration: BoxDecoration(
-                  color: PandoraSimpleColors.surface,
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: PandoraSimpleColors.line),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0xB3000000),
-                      blurRadius: 24,
-                      offset: Offset(0, 4),
+    top: false,
+    child: Container(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+      color: PandoraSimpleColors.canvas,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (error != null) ...[
+            Container(
+              margin: const EdgeInsets.fromLTRB(2, 0, 2, 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF1F0),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFF7D5D1)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 1),
+                    child: Icon(
+                      Icons.info_outline_rounded,
+                      size: 17,
+                      color: Color(0xFFB42318),
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      error!,
+                      style: const TextStyle(
+                        color: Color(0xFF8F2D24),
+                        fontSize: 12.5,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (attachment != null ||
+              imageAttachment != null ||
+              projectContext != null ||
+              serviceContext != null) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                if (attachment != null)
+                  InputChip(
+                    avatar: const Icon(Icons.description_outlined, size: 17),
+                    label: Text(attachment!.name),
+                    onDeleted: submitting || disabled
+                        ? null
+                        : onRemoveAttachment,
+                  ),
+                if (imageAttachment != null)
+                  InputChip(
+                    avatar: const Icon(Icons.image_outlined, size: 17),
+                    label: Text(imageAttachment!.name),
+                    onDeleted: submitting || disabled ? null : onRemoveImage,
+                  ),
+                if (serviceContext != null)
+                  InputChip(
+                    key: const ValueKey<String>('ask-pandora-service-context'),
+                    avatar: const Icon(Icons.extension_outlined, size: 17),
+                    label: Text(
+                      '${serviceContext!.label} · ${serviceContext!.state}',
+                    ),
+                    onDeleted: submitting || disabled
+                        ? null
+                        : onRemoveServiceContext,
+                  ),
+                if (projectContext != null)
+                  InputChip(
+                    key: const ValueKey<String>('ask-pandora-project-context'),
+                    avatar: const Icon(Icons.workspaces_outline, size: 17),
+                    label: Text(projectContext!.name),
+                    onDeleted: submitting || disabled
+                        ? null
+                        : onRemoveProjectContext,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+          ],
+          DecoratedBox(
+            key: const ValueKey<String>('ask-pandora-composer'),
+            decoration: BoxDecoration(
+              color: PandoraSimpleColors.surface,
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: PandoraSimpleColors.line),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0xB3000000),
+                  blurRadius: 24,
+                  offset: Offset(0, 4),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      MenuAnchor(
-                        alignmentOffset: const Offset(0, -8),
-                        style: MenuStyle(
-                          backgroundColor: const WidgetStatePropertyAll(
-                            PandoraSimpleColors.surface,
-                          ),
-                          elevation: const WidgetStatePropertyAll(10),
-                          padding: const WidgetStatePropertyAll(
-                            EdgeInsets.symmetric(vertical: 8),
-                          ),
-                          shape: WidgetStatePropertyAll(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                              side: const BorderSide(
-                                color: PandoraSimpleColors.line,
-                              ),
-                            ),
-                          ),
-                        ),
-                        menuChildren: [
-                          _ComposerMenuItem(
-                            key: const ValueKey<String>(
-                                'ask-pandora-menu-camera'),
-                            label: 'Camera',
-                            icon: Icons.camera_alt_outlined,
-                            onPressed: onCamera,
-                          ),
-                          _ComposerMenuItem(
-                            key: const ValueKey<String>(
-                                'ask-pandora-menu-photos'),
-                            label: 'Photos',
-                            icon: Icons.photo_outlined,
-                            onPressed: onPhotos,
-                          ),
-                          _ComposerMenuItem(
-                            key: const ValueKey<String>(
-                                'ask-pandora-menu-files'),
-                            label: 'Files',
-                            icon: Icons.insert_drive_file_outlined,
-                            onPressed: onAttach,
-                          ),
-                          _ComposerMenuItem(
-                            key: const ValueKey<String>(
-                              'ask-pandora-menu-services',
-                            ),
-                            label: 'Services',
-                            icon: Icons.extension_outlined,
-                            onPressed: onServices,
-                          ),
-                          _ComposerMenuItem(
-                            key: const ValueKey<String>(
-                              'ask-pandora-menu-project-context',
-                            ),
-                            label: 'Project context',
-                            icon: Icons.workspaces_outline,
-                            onPressed: onProjectContext,
-                          ),
-                        ],
-                        builder: (context, controller, child) =>
-                            SizedBox.square(
-                          dimension: 44,
-                          child: IconButton(
-                            key: const ValueKey<String>('ask-pandora-plus'),
-                            tooltip: 'Open menu',
-                            padding: EdgeInsets.zero,
-                            onPressed: disabled || submitting
-                                ? null
-                                : () {
-                                    if (controller.isOpen) {
-                                      controller.close();
-                                    } else {
-                                      controller.open();
-                                    }
-                                  },
-                            icon: const Icon(Icons.view_in_ar_outlined),
-                            color: PandoraSimpleColors.ink,
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  MenuAnchor(
+                    alignmentOffset: const Offset(0, -8),
+                    style: MenuStyle(
+                      backgroundColor: const WidgetStatePropertyAll(
+                        PandoraSimpleColors.surface,
+                      ),
+                      elevation: const WidgetStatePropertyAll(10),
+                      padding: const WidgetStatePropertyAll(
+                        EdgeInsets.symmetric(vertical: 8),
+                      ),
+                      shape: WidgetStatePropertyAll(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          side: const BorderSide(
+                            color: PandoraSimpleColors.line,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 2),
-                      Expanded(
-                        child: TextField(
-                          key: const ValueKey<String>('ask-pandora-objective'),
-                          controller: controller,
-                          focusNode: focusNode,
-                          readOnly: disabled,
-                          minLines: 1,
-                          maxLines: 6,
-                          maxLength: 4000,
-                          keyboardType: TextInputType.multiline,
-                          textInputAction: TextInputAction.newline,
-                          textCapitalization: TextCapitalization.sentences,
-                          decoration: InputDecoration(
-                            hintText: submitting ? 'Follow up' : 'Message Pandora',
-                            counterText: '',
-                            filled: false,
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            contentPadding: EdgeInsets.fromLTRB(4, 11, 4, 10),
-                          ),
-                          style: const TextStyle(
-                            color: PandoraSimpleColors.ink,
-                            fontSize: 16,
-                            height: 1.35,
-                          ),
-                          onChanged: (_) => onChanged(),
-                        ),
+                    ),
+                    menuChildren: [
+                      _ComposerMenuItem(
+                        key: const ValueKey<String>('ask-pandora-menu-camera'),
+                        label: 'Camera',
+                        icon: Icons.camera_alt_outlined,
+                        onPressed: onCamera,
                       ),
-                      const SizedBox(width: 2),
-                      SizedBox.square(
-                        dimension: 44,
-                        child: IconButton(
-                          key: const ValueKey<String>('ask-pandora-voice'),
-                          tooltip: 'Voice input',
-                          padding: EdgeInsets.zero,
-                          onPressed: disabled || submitting ? null : onDictate,
-                          icon: const Icon(Icons.mic_none_rounded),
-                          color: PandoraSimpleColors.ink,
-                        ),
+                      _ComposerMenuItem(
+                        key: const ValueKey<String>('ask-pandora-menu-photos'),
+                        label: 'Photos',
+                        icon: Icons.photo_outlined,
+                        onPressed: onPhotos,
                       ),
-                      const SizedBox(width: 2),
-                      SizedBox.square(
-                        dimension: 44,
-                        child: FilledButton(
-                          key: const ValueKey<String>('ask-pandora-submit'),
-                          onPressed: disabled || submitting ? null : onSubmit,
-                          style: FilledButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            backgroundColor: Colors.white,
-                            disabledBackgroundColor: const Color(0xFF1F1F1F),
-                            shape: const CircleBorder(),
-                          ),
-                          child: submitting
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.arrow_upward_rounded,
-                                  color: Colors.black,
-                                  size: 22,
-                                ),
+                      _ComposerMenuItem(
+                        key: const ValueKey<String>('ask-pandora-menu-files'),
+                        label: 'Files',
+                        icon: Icons.insert_drive_file_outlined,
+                        onPressed: onAttach,
+                      ),
+                      _ComposerMenuItem(
+                        key: const ValueKey<String>(
+                          'ask-pandora-menu-services',
                         ),
+                        label: 'Services',
+                        icon: Icons.extension_outlined,
+                        onPressed: onServices,
+                      ),
+                      _ComposerMenuItem(
+                        key: const ValueKey<String>(
+                          'ask-pandora-menu-project-context',
+                        ),
+                        label: 'Project context',
+                        icon: Icons.workspaces_outline,
+                        onPressed: onProjectContext,
                       ),
                     ],
+                    builder: (context, controller, child) => SizedBox.square(
+                      dimension: 44,
+                      child: IconButton(
+                        key: const ValueKey<String>('ask-pandora-plus'),
+                        tooltip: 'Open menu',
+                        padding: EdgeInsets.zero,
+                        onPressed: disabled || submitting
+                            ? null
+                            : () {
+                                if (controller.isOpen) {
+                                  controller.close();
+                                } else {
+                                  controller.open();
+                                }
+                              },
+                        icon: const Icon(Icons.view_in_ar_outlined),
+                        color: PandoraSimpleColors.ink,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 2),
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey<String>('ask-pandora-objective'),
+                      controller: controller,
+                      focusNode: focusNode,
+                      readOnly: disabled,
+                      minLines: 1,
+                      maxLines: 6,
+                      maxLength: 4000,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        hintText: submitting ? 'Follow up' : 'Message Pandora',
+                        counterText: '',
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.fromLTRB(4, 11, 4, 10),
+                      ),
+                      style: const TextStyle(
+                        color: PandoraSimpleColors.ink,
+                        fontSize: 16,
+                        height: 1.35,
+                      ),
+                      onChanged: (_) => onChanged(),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  SizedBox.square(
+                    dimension: 44,
+                    child: IconButton(
+                      key: const ValueKey<String>('ask-pandora-voice'),
+                      tooltip: 'Voice input',
+                      padding: EdgeInsets.zero,
+                      onPressed: disabled || submitting ? null : onDictate,
+                      icon: const Icon(Icons.mic_none_rounded),
+                      color: PandoraSimpleColors.ink,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  SizedBox.square(
+                    dimension: 44,
+                    child: FilledButton(
+                      key: const ValueKey<String>('ask-pandora-submit'),
+                      onPressed: disabled || submitting ? null : onSubmit,
+                      style: FilledButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        backgroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFF1F1F1F),
+                        shape: const CircleBorder(),
+                      ),
+                      child: submitting
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.arrow_upward_rounded,
+                              color: Colors.black,
+                              size: 22,
+                            ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
-              const Text(
-                'Pandora can make mistakes. Review important changes before publishing.',
-                textAlign: TextAlign.center,
-                style:
-                    TextStyle(color: PandoraSimpleColors.muted, fontSize: 10.5),
-              ),
-            ],
+            ),
           ),
-        ),
-      );
+          const SizedBox(height: 6),
+          const Text(
+            'Pandora can make mistakes. Review important changes before publishing.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: PandoraSimpleColors.muted, fontSize: 10.5),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ServiceContextSheet extends StatelessWidget {
@@ -1416,71 +1414,71 @@ class _ServiceContextSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SafeArea(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 520),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
-                child: Text(
-                  'Services',
-                  style: TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 520),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+            child: Text(
+              'Services',
+              style: TextStyle(
+                color: PandoraSimpleColors.ink,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
               ),
-              Expanded(
-                child: providers.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No verified service state is available.',
-                          style: TextStyle(color: PandoraSimpleColors.muted),
+            ),
+          ),
+          Expanded(
+            child: providers.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No verified service state is available.',
+                      style: TextStyle(color: PandoraSimpleColors.muted),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+                    itemCount: providers.length,
+                    separatorBuilder: (_, __) => const Divider(
+                      height: 1,
+                      color: PandoraSimpleColors.line,
+                    ),
+                    itemBuilder: (context, index) {
+                      final provider = providers[index];
+                      return ListTile(
+                        title: Text(
+                          provider.label,
+                          style: const TextStyle(
+                            color: PandoraSimpleColors.ink,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
-                        itemCount: providers.length,
-                        separatorBuilder: (_, __) => const Divider(
-                          height: 1,
-                          color: PandoraSimpleColors.line,
+                        subtitle: Text(
+                          provider.state,
+                          style: const TextStyle(
+                            color: PandoraSimpleColors.muted,
+                          ),
                         ),
-                        itemBuilder: (context, index) {
-                          final provider = providers[index];
-                          return ListTile(
-                            title: Text(
-                              provider.label,
-                              style: const TextStyle(
+                        trailing: provider.canUseNow
+                            ? const Icon(
+                                Icons.check_circle_outline,
                                 color: PandoraSimpleColors.ink,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            subtitle: Text(
-                              provider.state,
-                              style: const TextStyle(
+                              )
+                            : const Icon(
+                                Icons.info_outline_rounded,
                                 color: PandoraSimpleColors.muted,
                               ),
-                            ),
-                            trailing: provider.canUseNow
-                                ? const Icon(
-                                    Icons.check_circle_outline,
-                                    color: PandoraSimpleColors.ink,
-                                  )
-                                : const Icon(
-                                    Icons.info_outline_rounded,
-                                    color: PandoraSimpleColors.muted,
-                                  ),
-                            onTap: () => Navigator.of(context).pop(provider),
-                          );
-                        },
-                      ),
-              ),
-            ],
+                        onTap: () => Navigator.of(context).pop(provider),
+                      );
+                    },
+                  ),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 class _ProjectContextSheet extends StatelessWidget {
@@ -1490,64 +1488,64 @@ class _ProjectContextSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SafeArea(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 560),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
-                child: Text(
-                  'Project context',
-                  style: TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 560),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+            child: Text(
+              'Project context',
+              style: TextStyle(
+                color: PandoraSimpleColors.ink,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
               ),
-              Expanded(
-                child: projects.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No existing projects are available.',
-                          style: TextStyle(color: PandoraSimpleColors.muted),
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
-                        itemCount: projects.length,
-                        separatorBuilder: (_, __) => const Divider(
-                          height: 1,
-                          color: PandoraSimpleColors.line,
-                        ),
-                        itemBuilder: (context, index) {
-                          final project = projects[index];
-                          return ListTile(
-                            title: Text(
-                              project.name,
-                              style: const TextStyle(
-                                color: PandoraSimpleColors.ink,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            subtitle: Text(
-                              project.repository ?? project.projectKey,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: PandoraSimpleColors.muted,
-                              ),
-                            ),
-                            onTap: () => Navigator.of(context).pop(project),
-                          );
-                        },
-                      ),
-              ),
-            ],
+            ),
           ),
-        ),
-      );
+          Expanded(
+            child: projects.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No existing projects are available.',
+                      style: TextStyle(color: PandoraSimpleColors.muted),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+                    itemCount: projects.length,
+                    separatorBuilder: (_, __) => const Divider(
+                      height: 1,
+                      color: PandoraSimpleColors.line,
+                    ),
+                    itemBuilder: (context, index) {
+                      final project = projects[index];
+                      return ListTile(
+                        title: Text(
+                          project.name,
+                          style: const TextStyle(
+                            color: PandoraSimpleColors.ink,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          project.repository ?? project.projectKey,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: PandoraSimpleColors.muted,
+                          ),
+                        ),
+                        onTap: () => Navigator.of(context).pop(project),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ComposerMenuItem extends StatelessWidget {
@@ -1564,20 +1562,19 @@ class _ComposerMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MenuItemButton(
-        onPressed: onPressed,
-        leadingIcon: Icon(icon, size: 21),
-        style: ButtonStyle(
-          padding: const WidgetStatePropertyAll(
-            EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          ),
-          foregroundColor:
-              const WidgetStatePropertyAll(PandoraSimpleColors.ink),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-        ),
-      );
+    onPressed: onPressed,
+    leadingIcon: Icon(icon, size: 21),
+    style: ButtonStyle(
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      ),
+      foregroundColor: const WidgetStatePropertyAll(PandoraSimpleColors.ink),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+    ),
+  );
 }
 
 class _ChatMessage {
