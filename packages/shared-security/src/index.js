@@ -174,3 +174,8 @@ function authorizeExternalWrite(input) {
         requiresLegalReview,
     };
 }
+
+// Pandora device/protected-app security boundary (M7).
+// Kept in a separate module so device security can evolve without coupling to provider-specific policy.
+const pandoraDeviceSecurity = require("./pandora-device-security");
+Object.assign(exports, pandoraDeviceSecurity);
