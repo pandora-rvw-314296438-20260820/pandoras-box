@@ -51,6 +51,6 @@ The Android bootstrap and local permission-request plumbing must be reconciled a
 
 ## Physical acceptance
 
-M7-006 is not Done until an exact-source Redmi run proves at least: grant, deny, deny-without-repeat-loop, revocation from app settings, re-read after revocation, capability fail-closed behavior, clear Needs You copy, and recovery after an explicit user grant.
+M7-006 is not Done until an exact-source Redmi run proves at least: grant, deny, deny-without-repeat-loop, reny, deny-without-repeat-loop, revocation from app settings, re-read after revocation, capability fail-closed behavior, clear Needs You copy, and recovery after an explicit user grant.
 
 CI cannot substitute for that physical evidence.
