@@ -21,6 +21,19 @@ _AGENT = (
     / "pandora_mobile"
     / "PandoraDeviceAgentChannel.kt"
 )
+_ACTIVITY = (
+    _ROOT
+    / "platform"
+    / "android"
+    / "app"
+    / "src"
+    / "main"
+    / "kotlin"
+    / "com"
+    / "banataosystems"
+    / "pandora_mobile"
+    / "MainActivity.kt"
+)
 _MANIFEST_TOOL = _ROOT / "tool" / "configure_validation_android.py"
 _DART = _ROOT / "lib" / "core" / "device" / "pandora_communications.dart"
 
@@ -77,6 +90,18 @@ class CommunicationsContractTest(unittest.TestCase):
             "android.permission.SEND_SMS",
         ):
             self.assertNotIn(forbidden, source)
+
+    def test_named_contact_resolution_uses_system_picker_without_broad_permission(self) -> None:
+        activity = _ACTIVITY.read_text(encoding="utf-8")
+        manifest_tool = _MANIFEST_TOOL.read_text(encoding="utf-8")
+        for required in (
+            '"pickPhoneContact"',
+            "Intent.ACTION_PICK",
+            "ContactsContract.CommonDataKinds.Phone.CONTENT_URI",
+            "ContactsContract.CommonDataKinds.Phone.NUMBER",
+        ):
+            self.assertIn(required, activity)
+        self.assertNotIn("android.permission.READ_CONTACTS", manifest_tool)
 
     def test_dart_contract_has_no_direct_execution_bypass(self) -> None:
         source = _DART.read_text(encoding="utf-8")
