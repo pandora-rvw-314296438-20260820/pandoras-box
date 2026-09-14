@@ -57,6 +57,17 @@ const supplementalRemoteHistoryReceiptManifest = JSON.parse(
     'utf8',
   ),
 );
+const r040RemoteHistoryReceiptManifest = JSON.parse(
+  readFileSync(
+    join(
+      repositoryRoot,
+      'docs',
+      'status',
+      'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_20260914.json',
+    ),
+    'utf8',
+  ),
+);
 const legacyRemoteHistoryReceiptFiles = new Set(
   remoteHistoryReceiptManifest.entries.map(
     (entry) => `${entry.version}_${entry.name}.sql`,
@@ -67,13 +78,20 @@ const supplementalRemoteHistoryReceiptFiles = new Set(
     (entry) => `${entry.version}_${entry.name}.sql`,
   ),
 );
+const r040RemoteHistoryReceiptFiles = new Set(
+  r040RemoteHistoryReceiptManifest.entries.map(
+    (entry) => `${entry.version}_${entry.name}.sql`,
+  ),
+);
 const remoteHistoryReceiptManifests = [
   remoteHistoryReceiptManifest,
   supplementalRemoteHistoryReceiptManifest,
+  r040RemoteHistoryReceiptManifest,
 ];
 const remoteHistoryReceiptFiles = new Set([
   ...legacyRemoteHistoryReceiptFiles,
   ...supplementalRemoteHistoryReceiptFiles,
+  ...r040RemoteHistoryReceiptFiles,
 ]);
 
 function sha256(value) {
