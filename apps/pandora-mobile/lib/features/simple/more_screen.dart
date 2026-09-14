@@ -1,24 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../core/data/pandora_user_admin_api.dart';
-import '../../core/design/pandora_tokens.dart';
-import '../../core/widgets/pandora_mark.dart';
-import '../../core/widgets/pandora_page.dart';
-import '../../core/widgets/pandora_surface.dart';
 import '../activity/activity_screen.dart';
-import '../command/command_screen.dart';
 import '../connections/connections_screen.dart';
-import '../diagnostics/developer_diagnostics_screen.dart';
-import '../home/home_screen.dart';
 import '../intelligence/owner_intelligence_screen.dart';
-import '../projects/projects_screen.dart';
-import '../safety/safety_screen.dart';
 import '../settings/settings_screen.dart';
 import '../team/team_screen.dart';
 import 'advanced_mode_screen.dart';
 import 'domains_screen.dart';
-import 'offline_evidence_screen.dart';
-import 'simple_briefing_screen.dart';
+import 'pandora_simple_ui.dart';
 import 'simple_safety_screen.dart';
 
 void _openMore(BuildContext context, Widget screen) {
@@ -31,136 +21,101 @@ class MoreScreen extends StatelessWidget {
   final PandoraUserAdminGateway? teamGateway;
 
   @override
-  Widget build(BuildContext context) => PandoraPage(
-        title: 'More',
-        subtitle:
-            'Business intelligence, history, safety, and professional tools.',
+  Widget build(BuildContext context) => PandoraSimplePage(
+        header: const PandoraOwnerHeader(
+          title: 'More',
+          subtitle: 'A few useful places. Everything else stays out of the way.',
+          leadingMark: false,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const _ModeCard(),
-            const SizedBox(height: PandoraSpacing.md),
-            PandoraSurface(
-              title: 'Business & history',
+            const _SectionLabel('Essentials'),
+            const SizedBox(height: 8),
+            PandoraSimpleCard(
+              shadow: false,
+              padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   _MoreTile(
                     icon: Icons.language_rounded,
                     title: 'Domains',
-                    subtitle: 'Your addresses and publishing status',
+                    subtitle: 'Addresses and publishing status',
                     onTap: () => _openMore(context, const DomainsScreen()),
                   ),
+                  const _TileDivider(),
                   _MoreTile(
-                    icon: Icons.query_stats_outlined,
+                    icon: Icons.query_stats_rounded,
                     title: 'Business',
-                    subtitle: 'Signals, recommendations, and business insights',
+                    subtitle: 'Useful signals and recommendations',
                     onTap: () =>
                         _openMore(context, const OwnerIntelligenceScreen()),
                   ),
-                  _MoreTile(
-                    icon: Icons.today_outlined,
-                    title: 'Daily briefing',
-                    subtitle: 'What needs you and what Pandora recommends next',
-                    onTap: () =>
-                        _openMore(context, const SimpleBriefingScreen()),
-                  ),
+                  const _TileDivider(),
                   _MoreTile(
                     icon: Icons.history_rounded,
                     title: 'Activity',
-                    subtitle: 'Verified recent work and results',
+                    subtitle: 'What Pandora actually did',
                     onTap: () => _openMore(context, const ActivityScreen()),
                   ),
+                  const _TileDivider(),
                   _MoreTile(
-                    icon: Icons.offline_pin_outlined,
-                    title: 'Saved evidence',
-                    subtitle:
-                        'Last-known proof you can review without changing anything',
-                    onTap: () =>
-                        _openMore(context, const OfflineEvidenceScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.shield_outlined,
-                    title: 'Verify & Safety',
-                    subtitle: 'Four clear protection layers, without a score',
-                    onTap: () => _openMore(context, const SimpleSafetyScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.workspaces_outline,
-                    title: 'Systems',
-                    subtitle: 'Your systems, progress, blockers, and proof',
-                    onTap: () => _openMore(context, const ProjectsScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.cable_outlined,
+                    icon: Icons.cable_rounded,
                     title: 'Connections',
-                    subtitle: 'Connected services, health, and safe actions',
+                    subtitle: 'Connected services and their health',
                     onTap: () => _openMore(context, const ConnectionsScreen()),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: PandoraSpacing.md),
-            PandoraSurface(
-              title: 'Professional mode',
-              subtitle:
-                  'Technical details stay here until you intentionally open them.',
+            const SizedBox(height: 22),
+            const _SectionLabel('People & safety'),
+            const SizedBox(height: 8),
+            PandoraSimpleCard(
+              shadow: false,
+              padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   _MoreTile(
-                    icon: Icons.tune_rounded,
-                    title: 'Advanced Mode',
-                    subtitle:
-                        'Code, changes, database, deployments, jobs, versions, evidence, runtime, and settings',
-                    onTap: () => _openMore(context, const AdvancedModeScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.terminal_rounded,
-                    title: 'Advanced requests',
-                    subtitle: 'Advanced requests with technical controls',
-                    onTap: () => _openMore(context, const CommandScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.dashboard_customize_outlined,
-                    title: 'Detailed owner view',
-                    subtitle: 'The detailed operational owner view',
-                    onTap: () => _openMore(context, const HomeScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.security_outlined,
-                    title: 'Safety details',
-                    subtitle:
-                        'Detailed safety evidence, audit history, and connection checks',
-                    onTap: () => _openMore(context, const SafetyScreen()),
-                  ),
-                  _MoreTile(
-                    icon: Icons.developer_mode_outlined,
-                    title: 'Developer details',
-                    subtitle: 'Bounded technical diagnostics',
+                    icon: Icons.groups_rounded,
+                    title: 'Team',
+                    subtitle: 'People who can work with you',
                     onTap: () =>
-                        _openMore(context, const DeveloperDiagnosticsScreen()),
+                        _openMore(context, TeamScreen(gateway: teamGateway)),
+                  ),
+                  const _TileDivider(),
+                  _MoreTile(
+                    icon: Icons.shield_rounded,
+                    title: 'Safety',
+                    subtitle: 'Only the protection details you need',
+                    onTap: () =>
+                        _openMore(context, const SimpleSafetyScreen()),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: PandoraSpacing.md),
-            PandoraSurface(
-              title: 'Account',
-              child: Column(
-                children: [
-                  _MoreTile(
-                    icon: Icons.groups_outlined,
-                    title: 'Team',
-                    subtitle: 'Invite people and manage their access',
-                    onTap: () =>
-                        _openMore(context, TeamScreen(gateway: teamGateway)),
-                  ),
-                  _MoreTile(
-                    icon: Icons.settings_outlined,
-                    title: 'Settings',
-                    subtitle: 'Appearance, account, security, and app identity',
-                    onTap: () => _openMore(context, const SettingsScreen()),
-                  ),
-                ],
+            const SizedBox(height: 22),
+            const _SectionLabel('When you need more'),
+            const SizedBox(height: 8),
+            PandoraSimpleCard(
+              shadow: false,
+              padding: EdgeInsets.zero,
+              child: _MoreTile(
+                icon: Icons.tune_rounded,
+                title: 'Professional tools',
+                subtitle: 'Code, versions, runtime, evidence and diagnostics',
+                onTap: () => _openMore(context, const AdvancedModeScreen()),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Center(
+              child: TextButton.icon(
+                onPressed: () => _openMore(context, const SettingsScreen()),
+                icon: const Icon(Icons.settings_outlined, size: 18),
+                label: const Text('Settings'),
+                style: TextButton.styleFrom(
+                  foregroundColor: PandoraSimpleColors.muted,
+                ),
               ),
             ),
           ],
@@ -168,35 +123,31 @@ class MoreScreen extends StatelessWidget {
       );
 }
 
-class _ModeCard extends StatelessWidget {
-  const _ModeCard();
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.label);
+
+  final String label;
 
   @override
-  Widget build(BuildContext context) => PandoraSurface(
-        child: Row(
-          children: [
-            const PandoraMark(size: 44),
-            const SizedBox(width: PandoraSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Simple Mode',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: PandoraSpacing.xxs),
-                  Text(
-                    'Business outcomes first. Technical complexity stays behind Pandora.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+  Widget build(BuildContext context) => Text(
+        label,
+        style: const TextStyle(
+          color: PandoraSimpleColors.muted,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: .8,
         ),
+      );
+}
+
+class _TileDivider extends StatelessWidget {
+  const _TileDivider();
+
+  @override
+  Widget build(BuildContext context) => const Divider(
+        height: 1,
+        indent: 68,
+        color: PandoraSimpleColors.line,
       );
 }
 
@@ -215,11 +166,31 @@ class _MoreTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: Icon(icon),
-        title: Text(title),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right_rounded),
+        minVerticalPadding: 14,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+        leading: PandoraIconBadge(icon: icon, size: 40),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: PandoraSimpleColors.ink,
+            fontSize: 15.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 3),
+          child: Text(
+            subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: pandoraSimpleMutedText,
+          ),
+        ),
+        trailing: const Icon(
+          Icons.arrow_forward_ios_rounded,
+          color: PandoraSimpleColors.muted,
+          size: 15,
+        ),
         onTap: onTap,
       );
 }
