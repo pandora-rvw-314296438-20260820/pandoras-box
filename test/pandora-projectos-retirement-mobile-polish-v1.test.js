@@ -35,7 +35,7 @@ test('mobile composer consumes sent text immediately and preserves a typed follo
   const submit = chat.slice(start, end);
   assert.equal((submit.match(/_objective\.clear\(\);/g) ?? []).length, 1);
   assert.ok(submit.indexOf('_objective.clear();') < submit.indexOf('intelligence.chat('));
-  assert.match(chat, /hintText: submitting \? 'Follow up' : 'Message Pandora'/);
+  assert.match(chat, /hintText:\s*submitting\s*\?\s*'Follow up'\s*:\s*'Message Pandora'/s);
 });
 
 test('mobile navigation uses the Pandora menu glyph instead of the stock hamburger', () => {
