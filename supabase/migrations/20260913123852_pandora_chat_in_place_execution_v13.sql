@@ -1,0 +1,13 @@
+-- Pandora remote migration history receipt.
+-- Version: 20260913123852
+-- Name: pandora_chat_in_place_execution_v13
+-- Original SQL SHA-256: c1b999701ebaae700d5687c0b42273939342330ab475b16529094f611c01b45b
+-- Original statement count: 1
+-- Provider SQL bytes: 6082
+-- Canonical executable authority: supabase/migrations/20260913122000_pandora_chat_in_place_execution_v13.sql
+-- Canonical Git blob: 40b507a5eb61d6bf0eb9bdc374ac6e6f20b81568
+-- Canonical SQL SHA-256: 5faf1fcbd218f45cc258ceb858c2acabc0f09be47a5cf691c21a77d0d8e24a9f
+-- Canonical SQL bytes: 6083
+-- Reconciliation: provider body equals canonical executable SQL except for the canonical trailing newline.
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live executable SQL.
+select 1;

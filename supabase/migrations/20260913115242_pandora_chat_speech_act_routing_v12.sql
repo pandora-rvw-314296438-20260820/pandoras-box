@@ -1,0 +1,13 @@
+-- Pandora remote migration history receipt.
+-- Version: 20260913115242
+-- Name: pandora_chat_speech_act_routing_v12
+-- Original SQL SHA-256: f3eceacef6f7bd5f5a7b84e3c04e740eb7da2ee8fd2fd313731931ee1005e92c
+-- Original statement count: 1
+-- Provider SQL bytes: 12593
+-- Canonical executable authority: supabase/migrations/20260913102500_pandora_chat_speech_act_routing_v12.sql
+-- Canonical Git blob: c1d0f0faed2e227dd3de0863794182f93619ce37
+-- Canonical SQL SHA-256: 9b0c977ee4e93b47eb918d209ae895af237f2e2fb213fb32b15569e02c9862a2
+-- Canonical SQL bytes: 13063
+-- Reconciliation: provider body matches canonical executable behavior; canonical source adds only its explanatory safety/UX comment header and trailing newline.
+-- Replay mode: history_receipt_noop; provider history is represented without replaying already-live executable SQL.
+select 1;
