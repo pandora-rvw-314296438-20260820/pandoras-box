@@ -127,5 +127,22 @@ class ResourceRuntimeContractTest(unittest.TestCase):
             self.assertNotIn(forbidden, manifest_tool)
 
 
+    def test_resource_work_runs_off_main_looper_and_completes_on_main(self) -> None:
+        source = _CHANNEL.read_text(encoding="utf-8")
+
+        for required in (
+            "Executors.newSingleThreadExecutor",
+            'Thread(runnable, "pandora-resource-runtime")',
+            "Handler(Looper.getMainLooper())",
+            "resourceExecutor.execute",
+            "mainHandler.post",
+            '"getResourceSnapshot" -> runResourceSnapshot(result)',
+        ):
+            self.assertIn(required, source)
+
+        self.assertNotIn(
+            '"getResourceSnapshot" -> result.success(resourceRuntime.snapshot())',
+            source,
+        )
 if __name__ == "__main__":
     unittest.main()
