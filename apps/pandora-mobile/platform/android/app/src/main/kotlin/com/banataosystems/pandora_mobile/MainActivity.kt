@@ -72,8 +72,11 @@ class MainActivity : FlutterActivity() {
     private val supportedTextMimeTypes = setOf(
         "text/plain",
         "text/markdown",
+        "text/x-markdown",
+        "application/x-markdown",
         "text/csv",
-        "application/json"
+        "application/json",
+        "text/json"
     )
     private var pendingResult: MethodChannel.Result? = null
     private var pendingSaveBytes: ByteArray? = null
@@ -258,6 +261,9 @@ class MainActivity : FlutterActivity() {
         val declared = contentResolver.getType(uri)
             ?.substringBefore(';')?.trim()?.lowercase(Locale.ROOT)
         if (declared in supportedTextMimeTypes) return declared
+        if (declared != null && declared.isNotBlank() && declared != "application/octet-stream") {
+            return null
+        }
         return when (name.substringAfterLast('.', "").lowercase(Locale.ROOT)) {
             "txt" -> "text/plain"
             "md", "markdown" -> "text/markdown"

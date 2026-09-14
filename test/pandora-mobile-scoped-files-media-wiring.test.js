@@ -31,6 +31,8 @@ test("scoped reads use Android document pickers and strict bounded text decoding
   assert.match(main, /maxDocumentBytes = 32 \* 1024/);
   assert.match(main, /CodingErrorAction\.REPORT/);
   assert.match(main, /DOCUMENT_TYPE_UNSUPPORTED/);
+  assert.match(main, /declared != null && declared\.isNotBlank\(\)/);
+  assert.match(main, /declared != "application\/octet-stream"/);
   assert.match(main, /DOCUMENT_ENCODING_UNSUPPORTED/);
   assert.doesNotMatch(main, /takePersistableUriPermission/);
 });
