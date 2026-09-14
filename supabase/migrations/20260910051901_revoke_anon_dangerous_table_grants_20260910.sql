@@ -1,10 +1,38 @@
--- Pandora remote migration history receipt.
--- Version: 20260910051901
--- Name: revoke_anon_dangerous_table_grants_20260910
--- Original SQL SHA-256: 5ca5a487d4bc8918f513485d07a901dce586dbdf38b48946b3c43e5ec760b4fb
--- Original statement count: 1
--- Provider SQL bytes: 1187
--- Provider-only history identity: no same-name canonical source file was present at reconciliation base 1b2f7885b11a64386451633ea2fb04b0472a037b.
--- Reconciliation: provider-only history identity preserved without replay.
--- Replay mode: history_receipt_noop; provider history is represented without replaying already-live executable SQL.
-select 1;
+-- Harden: anon must not hold write/TRUNCATE/REFERENCES/TRIGGER on public tables.
+-- TRUNCATE bypasses RLS; these grants are default leftovers and are not required for PostgREST.
+do $$ 
+declare
+  r record;
+begin
+  for r in
+    select table_schema, table_name
+    from information_schema.role_table_grants
+    where table_schema = 'public'
+      and grantee = 'anon'
+      and privilege_type in ('INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER')
+    group by 1, 2
+  loop
+    execute format(
+      'revoke insert, update, delete, truncate, references, trigger on table %I.%I from anon',
+      r.table_schema,
+      r.table_name
+    );
+  end loop;
+
+  -- Also strip TRUNCATE/REFERENCES/TRIGGER from authenticated (unused by PostgREST; TRUNCATE bypasses RLS).
+  for r in
+    select table_schema, table_name
+    from information_schema.role_table_grants
+    where table_schema = 'public'
+      and grantee = 'authenticated'
+      and privilege_type in ('TRUNCATE','REFERENCES','TRIGGER')
+    group by 1, 2
+  loop
+    execute format(
+      'revoke truncate, references, trigger on table %I.%I from authenticated',
+      r.table_schema,
+      r.table_name
+    );
+  end loop;
+end $$;
+
