@@ -44,7 +44,8 @@ class PandoraPageHeader extends StatelessWidget {
                     key: const ValueKey<String>('pandora-side-panel-open'),
                     tooltip: 'Open navigation',
                     onPressed: openDrawer,
-                    icon: const Icon(Icons.menu_rounded),
+                    padding: const EdgeInsets.all(4),
+                    icon: const _PandoraMenuGlyph(),
                   )
                 : const SizedBox(width: 48),
           ),
@@ -86,4 +87,59 @@ class PandoraPageHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PandoraMenuGlyph extends StatelessWidget {
+  const _PandoraMenuGlyph();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final foreground = scheme.onSurface;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: foreground.withValues(alpha: .06),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: foreground.withValues(alpha: .10)),
+      ),
+      child: SizedBox.square(
+        dimension: 40,
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 16,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _MenuBar(width: 20, color: foreground),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _MenuBar(width: 14, color: foreground),
+                ),
+                _MenuBar(width: 17, color: foreground),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MenuBar extends StatelessWidget {
+  const _MenuBar({required this.width, required this.color});
+
+  final double width;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: width,
+        height: 2,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(99),
+        ),
+      );
 }
