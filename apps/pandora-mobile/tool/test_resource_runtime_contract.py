@@ -76,6 +76,9 @@ class ResourceRuntimeContractTest(unittest.TestCase):
         self.assertIn("MAX_BENCHMARK_DURATION_MS = 100", source)
         self.assertIn('"persistentMutation" to false', source)
         self.assertIn('"arbitraryCommandAccepted" to false', source)
+        self.assertIn("SystemClock.currentThreadTimeMillis()", source)
+        self.assertIn('"cpuTimeScope" to "benchmark_worker_thread"', source)
+        self.assertNotIn("Process.getElapsedCpuTime()", source)
         self.assertNotIn("command:", source)
         self.assertNotIn('call.argument<String>("command")', source)
 
@@ -110,6 +113,9 @@ class ResourceRuntimeContractTest(unittest.TestCase):
             self.assertIn(required, source)
 
         self.assertIn("maxDurationMs = 100", source)
+        self.assertIn("benchmark_worker_thread", source)
+        self.assertIn("estimatedDownstreamKbps", source)
+        self.assertIn("estimatedUpstreamKbps", source)
         self.assertIn("'getResourceSnapshot'", source)
         self.assertIn("'runResourceBenchmark'", source)
 
@@ -150,5 +156,12 @@ class ResourceRuntimeContractTest(unittest.TestCase):
         )
         self.assertNotIn("Executors.newSingleThreadExecutor", source)
         self.assertIn("RESOURCE_QUEUE_CAPACITY = 4", source)
+
+    def test_network_bandwidth_is_explicitly_estimated(self) -> None:
+        source = _RESOURCE.read_text(encoding="utf-8")
+        self.assertIn('"estimatedDownstreamKbps"', source)
+        self.assertIn('"estimatedUpstreamKbps"', source)
+        self.assertNotIn('"downstreamKbps"', source)
+        self.assertNotIn('"upstreamKbps"', source)
 if __name__ == "__main__":
     unittest.main()

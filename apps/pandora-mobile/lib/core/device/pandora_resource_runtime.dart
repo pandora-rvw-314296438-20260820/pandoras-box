@@ -46,10 +46,7 @@ num _resourceNum(Map<String, Object?> map, String key) {
   return value;
 }
 
-Map<String, Object?> _resourceSection(
-  Map<String, Object?> map,
-  String key,
-) {
+Map<String, Object?> _resourceSection(Map<String, Object?> map, String key) {
   return Map.unmodifiable(_resourceMap(map[key], key));
 }
 
@@ -87,10 +84,7 @@ void _rejectIdentifiers(Map<String, Object?> map) {
   walk(map);
 }
 
-void _validateHeadroom(
-  Map<String, Object?> section,
-  String key,
-) {
+void _validateHeadroom(Map<String, Object?> section, String key) {
   final value = section[key];
   if (value == null) return;
   if (value is! num || !value.isFinite || value < 0 || value > 100) {
@@ -142,6 +136,20 @@ class PandoraResourceSnapshot {
     _validateHeadroom(cpu, 'headroomPercent');
     _validateHeadroom(gpu, 'headroomPercent');
 
+    final network = _resourceSection(map, 'network');
+    if (network.containsKey('downstreamKbps') ||
+        network.containsKey('upstreamKbps')) {
+      throw const FormatException(
+        'Network bandwidth fields must be explicitly labeled as estimates.',
+      );
+    }
+    for (final key in ['estimatedDownstreamKbps', 'estimatedUpstreamKbps']) {
+      final value = network[key];
+      if (value != null && (value is! num || !value.isFinite || value < 0)) {
+        throw FormatException('$key must be null or a non-negative estimate.');
+      }
+    }
+
     final capturedAt = _resourceInt(map, 'capturedAtElapsedRealtimeMs');
     if (capturedAt < 0) {
       throw const FormatException(
@@ -159,7 +167,7 @@ class PandoraResourceSnapshot {
       battery: _resourceSection(map, 'battery'),
       thermal: _resourceSection(map, 'thermal'),
       process: _resourceSection(map, 'process'),
-      network: _resourceSection(map, 'network'),
+      network: network,
     );
   }
 }
@@ -192,6 +200,7 @@ class PandoraResourceBenchmarkResult {
     required this.requestedDurationMs,
     required this.wallDurationMs,
     required this.cpuTimeMs,
+    required this.cpuTimeScope,
     required this.iterations,
     required this.checksum,
     required this.thermalStatusBefore,
@@ -203,6 +212,7 @@ class PandoraResourceBenchmarkResult {
   final int requestedDurationMs;
   final num wallDurationMs;
   final int cpuTimeMs;
+  final String cpuTimeScope;
   final int iterations;
   final int checksum;
   final String thermalStatusBefore;
@@ -229,10 +239,17 @@ class PandoraResourceBenchmarkResult {
     if (requestedDurationMs < PandoraResourceBenchmarkRequest.minDurationMs ||
         requestedDurationMs > PandoraResourceBenchmarkRequest.maxDurationMs) {
       throw const FormatException(
-          'Resource benchmark duration is out of bounds.');
+        'Resource benchmark duration is out of bounds.',
+      );
     }
     final wallDurationMs = _resourceNum(map, 'wallDurationMs');
     final cpuTimeMs = _resourceInt(map, 'cpuTimeMs');
+    final cpuTimeScope = _resourceString(map, 'cpuTimeScope');
+    if (cpuTimeScope != 'benchmark_worker_thread') {
+      throw const FormatException(
+        'Resource benchmark CPU time must be scoped to the benchmark worker thread.',
+      );
+    }
     final iterations = _resourceInt(map, 'iterations');
     final checksum = _resourceInt(map, 'checksum');
     if (wallDurationMs < 0 || cpuTimeMs < 0 || iterations <= 0) {
@@ -245,6 +262,7 @@ class PandoraResourceBenchmarkResult {
       requestedDurationMs: requestedDurationMs,
       wallDurationMs: wallDurationMs,
       cpuTimeMs: cpuTimeMs,
+      cpuTimeScope: cpuTimeScope,
       iterations: iterations,
       checksum: checksum,
       thermalStatusBefore: _resourceString(map, 'thermalStatusBefore'),
