@@ -186,3 +186,11 @@ exports.evaluateProtectedAppAction = pandoraDeviceSecurity.evaluateProtectedAppA
 exports.evaluateDeviceIntegrityBaseline = pandoraDeviceSecurity.evaluateDeviceIntegrityBaseline;
 exports.canStartDestructiveProvisioning = pandoraDeviceSecurity.canStartDestructiveProvisioning;
 exports.buildConsequentialActionAuditRecord = pandoraDeviceSecurity.buildConsequentialActionAuditRecord;
+
+// Pandora least-privilege device permission boundary (M7-006).
+const pandoraDevicePermissions = require("./pandora-device-permissions");
+exports.PERMISSION_GATE_SCHEMA_VERSION = pandoraDevicePermissions.PERMISSION_GATE_SCHEMA_VERSION;
+exports.PERMISSION_AUTHORITY_MODES = pandoraDevicePermissions.PERMISSION_AUTHORITY_MODES;
+exports.PERMISSION_GATE_DECISIONS = pandoraDevicePermissions.PERMISSION_GATE_DECISIONS;
+exports.evaluateDevicePermissionGate = pandoraDevicePermissions.evaluateDevicePermissionGate;
+exports.permissionDecisionNeedsYou = pandoraDevicePermissions.permissionDecisionNeedsYou;
