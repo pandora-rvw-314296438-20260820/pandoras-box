@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
+import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
@@ -63,6 +64,7 @@ class MainActivity : FlutterActivity() {
     private val photoRequest = 3103
     private val cameraRequest = 3104
     private val saveDocumentRequest = 3105
+    private val phoneContactRequest = 3106
     private val maxDocumentBytes = 32 * 1024
     private val maxImageBytes = 600 * 1024
     private var pendingResult: MethodChannel.Result? = null
@@ -92,6 +94,7 @@ class MainActivity : FlutterActivity() {
             "pickTextDocument" -> startDocumentPicker(result)
             "pickPhoto" -> startPhotoPicker(result)
             "takePhoto" -> startCamera(result)
+            "pickPhoneContact" -> startPhoneContactPicker(result)
             "openExternalUrl" -> openExternalUrl(call, result)
             "openPreviewBundle" -> openPreviewBundle(call, result)
             "saveBinaryDocument" -> saveBinaryDocument(call, result)
@@ -255,6 +258,16 @@ class MainActivity : FlutterActivity() {
         startActivityForResult(intent, saveDocumentRequest)
     }
 
+    private fun startPhoneContactPicker(result: MethodChannel.Result) {
+        val intent = Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)
+        if (intent.resolveActivity(packageManager) == null) {
+            result.error("CONTACT_PICKER_UNAVAILABLE", "No system contact picker is available.", null)
+            return
+        }
+        pendingResult = result
+        startActivityForResult(intent, phoneContactRequest)
+    }
+
     private fun startSpeech(result: MethodChannel.Result) {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -306,7 +319,7 @@ class MainActivity : FlutterActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         val result = pendingResult ?: return
-        if (requestCode !in setOf(speechRequest, documentRequest, photoRequest, cameraRequest, saveDocumentRequest)) return
+        if (requestCode !in setOf(speechRequest, documentRequest, photoRequest, cameraRequest, saveDocumentRequest, phoneContactRequest)) return
         if (requestCode == saveDocumentRequest) {
             pendingResult = null
             val bytes = pendingSaveBytes
@@ -338,6 +351,32 @@ class MainActivity : FlutterActivity() {
             documentRequest -> readDocument(data.data, result)
             photoRequest -> readPhoto(data.data, result)
             cameraRequest -> readCamera(data, result)
+            phoneContactRequest -> readPhoneContact(data.data, result)
+        }
+    }
+
+    private fun readPhoneContact(uri: Uri?, result: MethodChannel.Result) {
+        if (uri == null) { result.success(null); return }
+        try {
+            val projection = arrayOf(
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                ContactsContract.CommonDataKinds.Phone.NUMBER
+            )
+            contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (!cursor.moveToFirst()) { result.success(null); return }
+                val nameIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                val numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                val number = if (numberIndex >= 0) cursor.getString(numberIndex)?.trim().orEmpty() else ""
+                if (number.isBlank()) { result.success(null); return }
+                val displayName = if (nameIndex >= 0) cursor.getString(nameIndex)?.trim().orEmpty() else ""
+                result.success(mapOf("displayName" to displayName, "phoneNumber" to number))
+                return
+            }
+            result.success(null)
+        } catch (_: SecurityException) {
+            result.error("CONTACT_SELECTION_DENIED", "Android did not grant access to the selected contact.", null)
+        } catch (_: Exception) {
+            result.error("CONTACT_SELECTION_FAILED", "The selected contact could not be resolved.", null)
         }
     }
 
