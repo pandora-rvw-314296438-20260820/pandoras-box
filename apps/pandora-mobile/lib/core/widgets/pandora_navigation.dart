@@ -63,6 +63,7 @@ class PandoraPageHeader extends StatelessWidget {
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                           letterSpacing: -.2,
+                          decoration: TextDecoration.none,
                         ),
                   ),
                 ),
