@@ -431,9 +431,9 @@ internal class PandoraDeviceAgentChannel private constructor(
                 ),
                 capability(
                     "files.scoped_access",
-                    "runtime_permission",
-                    "implementation_pending",
-                    "Scoped files and media capability belongs to M4-006.",
+                    "public_app",
+                    "available",
+                    "Android Storage Access Framework limits reads to user-selected text documents/photos and writes to a user-selected save destination; Pandora requests no broad storage or media permission.",
                     false
                 ),
                 capability(
