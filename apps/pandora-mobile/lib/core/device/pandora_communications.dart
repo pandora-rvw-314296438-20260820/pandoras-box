@@ -31,9 +31,15 @@ class PandoraCommunicationRequest {
 
   static final RegExp _recipientPattern = RegExp(r'^[0-9+*#(). -]{1,64}$');
 
+  static bool isSupportedRecipient(String recipient) {
+    final normalized = recipient.trim();
+    return _recipientPattern.hasMatch(normalized) &&
+        RegExp(r'\d').allMatches(normalized).length >= 3;
+  }
+
   Map<String, Object?> toMap() {
     final normalizedRecipient = recipient.trim();
-    if (!_recipientPattern.hasMatch(normalizedRecipient)) {
+    if (!isSupportedRecipient(normalizedRecipient)) {
       throw const FormatException(
         'Communication recipient must be a bounded phone-number target.',
       );

@@ -45,7 +45,10 @@ test('explicit selected-project changes execute through the real builder without
 });
 
 test('in-chat execution keeps one stable admission identity after mutation acceptance', () => {
-  assert.equal(source.includes("_keys.create('pandora-chat-project-change')"), true);
+  assert.match(
+    source,
+    /_keys\.create\(\s*['"]pandora-chat-project-change['"]\s*,?\s*\)/,
+  );
   assert.equal(source.includes("idempotencyKey: '$executionKey:intent'"), true);
   assert.equal(source.includes("idempotencyKey: '$executionKey:build:$intentId'"), true);
   assert.equal(source.includes('var mutationAccepted = false;'), true);
