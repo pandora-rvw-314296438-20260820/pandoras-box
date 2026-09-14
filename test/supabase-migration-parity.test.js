@@ -68,6 +68,17 @@ const r040RemoteHistoryReceiptManifest = JSON.parse(
     'utf8',
   ),
 );
+const r040RemainderRemoteHistoryReceiptManifest = JSON.parse(
+  readFileSync(
+    join(
+      repositoryRoot,
+      'docs',
+      'status',
+      'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_REMAINDER_20260914.json',
+    ),
+    'utf8',
+  ),
+);
 const legacyRemoteHistoryReceiptFiles = new Set(
   remoteHistoryReceiptManifest.entries.map(
     (entry) => `${entry.version}_${entry.name}.sql`,
@@ -83,15 +94,22 @@ const r040RemoteHistoryReceiptFiles = new Set(
     (entry) => `${entry.version}_${entry.name}.sql`,
   ),
 );
+const r040RemainderRemoteHistoryReceiptFiles = new Set(
+  r040RemainderRemoteHistoryReceiptManifest.entries.map(
+    (entry) => `${entry.version}_${entry.name}.sql`,
+  ),
+);
 const remoteHistoryReceiptManifests = [
   remoteHistoryReceiptManifest,
   supplementalRemoteHistoryReceiptManifest,
   r040RemoteHistoryReceiptManifest,
+  r040RemainderRemoteHistoryReceiptManifest,
 ];
 const remoteHistoryReceiptFiles = new Set([
   ...legacyRemoteHistoryReceiptFiles,
   ...supplementalRemoteHistoryReceiptFiles,
   ...r040RemoteHistoryReceiptFiles,
+  ...r040RemainderRemoteHistoryReceiptFiles,
 ]);
 
 function sha256(value) {
