@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "projectRef": "jcyqixttuebxqqfkjonq",
+  "repository": "pandora-rvw-314296438-20260820/pandoras-box",
+  "mode": "remote_history_receipts_without_replaying_applied_surfaces",
+  "reason": "Provider v11-v13 migration identities are already live but use provider timestamps that differ from canonical executable source timestamps; history-only receipts restore version parity without replaying live SQL.",
+  "observedMainSha": "12a44c058ec4861930f107602f836c7963729446",
+  "entries": [
+    {
+      "version": "20260913115101",
+      "name": "pandora_chat_direct_audit_workspace_execution_v11",
+      "replayMode": "history_receipt_noop",
+      "originalSqlSha256": "0d032180fe09aa5a33122025227fc70741233e9769115ec1f1abcacd149af7ef",
+      "originalStatementCount": 1,
+      "providerSqlBytes": 18824,
+      "canonicalPath": "supabase/migrations/20260913093000_pandora_chat_direct_audit_workspace_execution_v11.sql",
+      "canonicalGitBlob": "ff7a8a7e2ade626f22aae6ce6615c856b3ef9c09",
+      "canonicalSqlSha256": "5054b056d899ffbb55cf31b48849b6f4b431b0af711f067979822b54619ff48c",
+      "canonicalSqlBytes": 18825,
+      "reconciliation": "trailing_newline_only"
+    },
+    {
+      "version": "20260913115242",
+      "name": "pandora_chat_speech_act_routing_v12",
+      "replayMode": "history_receipt_noop",
+      "originalSqlSha256": "f3eceacef6f7bd5f5a7b84e3c04e740eb7da2ee8fd2fd313731931ee1005e92c",
+      "originalStatementCount": 1,
+      "providerSqlBytes": 12593,
+      "canonicalPath": "supabase/migrations/20260913102500_pandora_chat_speech_act_routing_v12.sql",
+      "canonicalGitBlob": "c1d0f0faed2e227dd3de0863794182f93619ce37",
+      "canonicalSqlSha256": "9b0c977ee4e93b47eb918d209ae895af237f2e2fb213fb32b15569e02c9862a2",
+      "canonicalSqlBytes": 13063,
+      "reconciliation": "comment_header_plus_trailing_newline"
+    },
+    {
+      "version": "20260913123852",
+      "name": "pandora_chat_in_place_execution_v13",
+      "replayMode": "history_receipt_noop",
+      "originalSqlSha256": "c1b999701ebaae700d5687c0b42273939342330ab475b16529094f611c01b45b",
+      "originalStatementCount": 1,
+      "providerSqlBytes": 6082,
+      "canonicalPath": "supabase/migrations/20260913122000_pandora_chat_in_place_execution_v13.sql",
+      "canonicalGitBlob": "40b507a5eb61d6bf0eb9bdc374ac6e6f20b81568",
+      "canonicalSqlSha256": "5faf1fcbd218f45cc258ceb858c2acabc0f09be47a5cf691c21a77d0d8e24a9f",
+      "canonicalSqlBytes": 6083,
+      "reconciliation": "trailing_newline_only"
+    },
+    {
+      "version": "20260913125207",
+      "name": "pandora_chat_in_place_execution_v13",
+      "replayMode": "history_receipt_noop",
+      "originalSqlSha256": "5faf1fcbd218f45cc258ceb858c2acabc0f09be47a5cf691c21a77d0d8e24a9f",
+      "originalStatementCount": 1,
+      "providerSqlBytes": 6083,
+      "canonicalPath": "supabase/migrations/20260913122000_pandora_chat_in_place_execution_v13.sql",
+      "canonicalGitBlob": "40b507a5eb61d6bf0eb9bdc374ac6e6f20b81568",
+      "canonicalSqlSha256": "5faf1fcbd218f45cc258ceb858c2acabc0f09be47a5cf691c21a77d0d8e24a9f",
+      "canonicalSqlBytes": 6083,
+      "reconciliation": "exact_canonical_duplicate_history_identity"
+    }
+  ]
+}
