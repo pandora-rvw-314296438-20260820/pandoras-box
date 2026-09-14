@@ -7,7 +7,6 @@ import '../activity/activity_screen.dart';
 import '../diagnostics/developer_diagnostics_screen.dart';
 import '../projects/projects_screen.dart';
 import '../safety/safety_screen.dart';
-import '../settings/settings_screen.dart';
 
 class AdvancedModeScreen extends StatelessWidget {
   const AdvancedModeScreen({super.key});
@@ -100,17 +99,6 @@ class AdvancedModeScreen extends StatelessWidget {
                         _open(context, const DeveloperDiagnosticsScreen()),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: PandoraSpacing.md),
-            PandoraSurface(
-              title: 'Account',
-              child: _AdvancedTile(
-                icon: Icons.settings_outlined,
-                title: 'Settings',
-                subtitle:
-                    'Account, security, appearance, and application identity settings.',
-                onTap: () => _open(context, const SettingsScreen()),
               ),
             ),
           ],
