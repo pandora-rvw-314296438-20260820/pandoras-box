@@ -123,7 +123,7 @@ internal object PandoraConnectivityChannel {
             Intent(Settings.ACTION_NETWORK_OPERATOR_SETTINGS)
         }
         "bluetooth" -> Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
-        "usb" -> Intent(Settings.ACTION_TETHER_SETTINGS)
+        "usb" -> Intent(Settings.ACTION_WIRELESS_SETTINGS)
         else -> Intent(Settings.ACTION_WIRELESS_SETTINGS)
     }
 

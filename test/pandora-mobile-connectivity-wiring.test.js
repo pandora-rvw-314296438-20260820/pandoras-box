@@ -46,13 +46,12 @@ test("connectivity changes are user-mediated settings handoffs only", () => {
     "Settings.Panel.ACTION_INTERNET_CONNECTIVITY",
     "Settings.Panel.ACTION_WIFI",
     "Settings.ACTION_BLUETOOTH_SETTINGS",
-    "Settings.ACTION_TETHER_SETTINGS",
     '"userActionRequired" to true',
     '"silentMutation" to false',
   ]) {
     assert.ok(native.includes(required), `missing ${required}`);
   }
-  for (const forbidden of ["setWifiEnabled", "startTethering", "setDataEnabled", ".enable()", ".disable()"]) {
+  for (const forbidden of ["ACTION_TETHER_SETTINGS", "android.settings.TETHER_SETTINGS", "setWifiEnabled", "startTethering", "setDataEnabled", ".enable()", ".disable()"]) {
     assert.ok(!native.includes(forbidden), `silent mutation path found: ${forbidden}`);
   }
   assert.match(activity, /PandoraConnectivityChannel\.install\(/);
