@@ -87,6 +87,10 @@ class MainActivity : FlutterActivity() {
             applicationContext,
             flutterEngine.dartExecutor.binaryMessenger
         )
+        PandoraConnectivityChannel.install(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger
+        )
         flutterEngine.platformViewsController.registry.registerViewFactory(
             "pandora/exact_preview",
             PandoraExactPreviewFactory(flutterEngine.dartExecutor.binaryMessenger)
