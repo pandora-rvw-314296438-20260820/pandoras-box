@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
@@ -16,7 +16,9 @@ const command = readFileSync(
 );
 
 test("Ask Pandora dispatches explicit device communications before model chat", () => {
-  const parse = ask.indexOf("PandoraDeviceCommunicationCommand.tryParse(objective)");
+  const parse = ask.search(
+    /PandoraDeviceCommunicationCommand\.tryParse\(\s*objective\s*,?\s*\)/,
+  );
   const cloud = ask.indexOf("final turn = await intelligence.chat(");
   assert.ok(parse >= 0, "device communication pre-router missing");
   assert.ok(cloud > parse, "device communication must be resolved before model chat");

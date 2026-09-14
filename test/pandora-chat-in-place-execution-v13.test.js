@@ -33,7 +33,10 @@ test('Universal Chat consumes the project action without automatic navigation', 
 });
 
 test('in-place execution is idempotent and fails closed after an uncertain mutation', () => {
-  assert.match(ask, /_keys\.create\('pandora-chat-project-change'\)/);
+  assert.match(
+    ask,
+    /_keys\.create\(\s*'pandora-chat-project-change'\s*,?\s*\)/,
+  );
   assert.match(ask, /idempotencyKey: '\$executionKey:intent'/);
   assert.match(ask, /idempotencyKey: '\$executionKey:build:\$intentId'/);
   assert.match(ask, /mutationAccepted = true/);
