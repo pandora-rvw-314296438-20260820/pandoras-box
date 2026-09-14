@@ -29,12 +29,29 @@ test('fallback intelligence is universal and capability-neutral', () => {
   assert.match(edge, /const intents=new Set\(\["chat","clarify","act","other"\]\)/);
   assert.match(edge, /const actionable=new Set\(\["act"\]\)/);
   assert.match(edge, /Software building is one capability among communications, research, files, device actions, business, travel, scheduling, coding and future capabilities/);
-  assert.match(edge, /const allowed=new Set<string>\(\)/);
+  assert.match(edge, /const deviceReadTools=new Set\(\["tool\.device\.get_resource_snapshot","tool\.device\.run_resource_benchmark"\]\)/);
+  assert.match(edge, /const allowed=allowDeviceTools\?deviceReadTools:new Set<string>\(\)/);
   assert.match(edge, /kind:\s*["']governed_intake["']/);
   assert.doesNotMatch(edge, /allowed names: [^"\n]*project\./i);
   assert.doesNotMatch(edge, /create_project","change_project","inspect_project/);
   assert.match(doctrine, /intent → project → build/);
   assert.match(doctrine, /unless the actual user request is a software-building task/i);
+});
+
+test('device resource fallback is an allowlisted single-hop continuation', () => {
+  assert.match(edge, /deviceReadEligible/);
+  assert.match(edge, /allowDeviceTools=!i\.resumeDeviceTools&&deviceReadEligible\(i\.message\)/);
+  assert.match(edge, /resumeDeviceTools/);
+  assert.match(edge, /deviceToolResults/);
+  assert.match(edge, /DEVICE_TOOL_CONTINUATION_INVALID/);
+  assert.match(edge, /Authenticated Pandora Android Device Agent results/);
+  assert.match(edge, /toolProposals must be empty; never request another device tool/i);
+  assert.doesNotMatch(edge, /tool\.device\.shell/);
+  assert.doesNotMatch(edge, /tool\.device\.protected/);
+  assert.match(mobile, /DeviceAgentExecutor/);
+  assert.match(mobile, /deviceToolContinuationRequired/);
+  assert.match(mobile, /resumeDeviceTools/);
+  assert.match(mobile, /deviceToolResults/);
 });
 
 test('mobile chat dispatches universal capabilities before model fallback without a Project gate', () => {

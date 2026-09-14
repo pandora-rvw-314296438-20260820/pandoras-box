@@ -2,17 +2,21 @@ import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../device/pandora_device_tool_executor.dart';
 import '../platform/pandora_native_io.dart';
 
 class PandoraIntelligenceApi {
   PandoraIntelligenceApi({
     required SupabaseClient client,
     required String organizationId,
+    DeviceAgentExecutor? deviceAgentExecutor,
   })  : _client = client,
-        _organizationId = organizationId;
+        _organizationId = organizationId,
+        _deviceAgentExecutor = deviceAgentExecutor ?? DeviceAgentExecutor();
 
   final SupabaseClient _client;
   final String _organizationId;
+  final DeviceAgentExecutor _deviceAgentExecutor;
 
   static const functionName = 'pandora-intelligence-chat';
 
@@ -143,7 +147,9 @@ class PandoraIntelligenceApi {
             _isRepositoryAuditRequest(message)
         ? await _repositoryAuditAttachments(projectId: projectId)
         : const <Map<String, Object?>>[];
-    if (textAttachment == null &&
+    final localDeviceResourceRequest = _isLocalDeviceResourceRequest(message);
+    if (!localDeviceResourceRequest &&
+        textAttachment == null &&
         imageAttachment == null &&
         auditAttachments.isEmpty) {
       final capabilityTurn = await _dispatchCapability(
@@ -184,7 +190,7 @@ class PandoraIntelligenceApi {
           if (attachments.isNotEmpty) 'attachments': attachments,
         },
       );
-      final payload = _map(response.data);
+      var payload = _map(response.data);
       if (response.status < 200 ||
           response.status >= 300 ||
           payload['ok'] != true) {
@@ -193,6 +199,61 @@ class PandoraIntelligenceApi {
             payload['plainMessage'],
             fallback: 'Pandora intelligence is temporarily unavailable.',
           ),
+        );
+      }
+
+      final continuationRequired =
+          payload['deviceToolContinuationRequired'] == true;
+      final proposals = _deviceToolProposals(payload['toolProposals']);
+      if (continuationRequired) {
+        if (proposals.isEmpty) {
+          throw const PandoraIntelligenceException(
+            'Pandora returned an invalid device-reading request.',
+          );
+        }
+        final results = <Map<String, Object?>>[];
+        for (final proposal in proposals) {
+          try {
+            final result = await _deviceAgentExecutor.execute(proposal);
+            results.add(result.toJson());
+          } on PandoraDeviceToolException catch (error) {
+            throw PandoraIntelligenceException(error.message);
+          }
+        }
+        final continuation = await _client.functions.invoke(
+          functionName,
+          method: HttpMethod.post,
+          headers: <String, String>{'x-organization-id': _organizationId},
+          body: <String, Object?>{
+            'message': message.trim(),
+            'threadId': _requiredText(payload['threadId']),
+            if (projectId != null) 'projectId': projectId,
+            'mode': mode.name,
+            if (attachments.isNotEmpty) 'attachments': attachments,
+            'resumeDeviceTools': true,
+            'deviceToolResults': results,
+          },
+        );
+        payload = _map(continuation.data);
+        if (continuation.status < 200 ||
+            continuation.status >= 300 ||
+            payload['ok'] != true) {
+          throw PandoraIntelligenceException(
+            _text(
+              payload['plainMessage'],
+              fallback: 'Pandora could not finish the live device reading.',
+            ),
+          );
+        }
+        if (payload['deviceToolContinuationRequired'] == true ||
+            _deviceToolProposals(payload['toolProposals']).isNotEmpty) {
+          throw const PandoraIntelligenceException(
+            'Pandora attempted an invalid repeated device-reading request.',
+          );
+        }
+      } else if (proposals.isNotEmpty) {
+        throw const PandoraIntelligenceException(
+          'Pandora returned an unbound device-reading request.',
         );
       }
       return PandoraIntelligenceTurn.fromJson(payload);
@@ -241,6 +302,27 @@ class PandoraIntelligenceApi {
         'Pandora could not verify project context right now.',
       );
     }
+  }
+
+  bool _isLocalDeviceResourceRequest(String message) {
+    final value = message.trim();
+    final resource = RegExp(
+      r'\b(cpu|gpu|ram|memory|storage|battery|thermal|temperature|heat|headroom|benchmark|performance|resources?|process(?:es)?|network (?:state|status|speed|bandwidth))\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final inspect = RegExp(
+      r'\b(check|inspect|show|read|measure|benchmark|status|usage|headroom|temperature|health|hot|slow|fast)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final deviceContext = RegExp(
+      r'\b(phone|device|android|pandora|local|on-device|my|this|current)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final direct = RegExp(
+      r'^\s*(check|inspect|show|read|measure|benchmark)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    return resource && inspect && (deviceContext || direct);
   }
 
   bool _isRepositoryAuditRequest(String message) {
@@ -335,6 +417,31 @@ class PandoraIntelligenceApi {
       // RPC/runtime drift cannot strand a normal owner request.
       return null;
     }
+  }
+
+  List<PandoraDeviceToolProposal> _deviceToolProposals(Object? raw) {
+    if (raw == null) return const <PandoraDeviceToolProposal>[];
+    if (raw is! List || raw.length > 2) {
+      throw const PandoraIntelligenceException(
+        'Pandora returned invalid device tool metadata.',
+      );
+    }
+    final proposals = <PandoraDeviceToolProposal>[];
+    final names = <String>{};
+    for (final item in raw) {
+      try {
+        final proposal = PandoraDeviceToolProposal.fromJson(item);
+        if (!names.add(proposal.name)) {
+          throw const PandoraIntelligenceException(
+            'Pandora returned a duplicate device-reading request.',
+          );
+        }
+        proposals.add(proposal);
+      } on PandoraDeviceToolException catch (error) {
+        throw PandoraIntelligenceException(error.message);
+      }
+    }
+    return List.unmodifiable(proposals);
   }
 
   void _requireSession() {

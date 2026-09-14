@@ -56,11 +56,11 @@ M3-004 registers Device Agent inspection/diagnostic work as first-class tool des
 - `tool.device.get_resource_snapshot`
 - `tool.device.run_resource_benchmark`
 
-The first three correspond to existing M4-001 Device Agent read-only surfaces. Resource snapshot and benchmark remain `implementation_pending` because M4-009 owns live CPU/RAM/storage/battery/thermal/process/network introspection and safe benchmarking.
+The first three correspond to existing M4-001 Device Agent read-only surfaces. M4-009 now implements resource snapshot and bounded benchmark locally on Android, so those two descriptors are `available` when the Device Agent runtime is present. They remain phone-local reads, not project Tool Gateway operations.
 
-All five use `DeviceAgentExecutor` as the intended adapter identity but remain `gatewayExecutable=false` in M3-004. The current Tool Gateway is project-resource-bound; pretending it can execute a phone-scoped tool would create false authority and fake readiness.
+All five use `DeviceAgentExecutor` as the adapter identity and remain `gatewayExecutable=false`: the project Tool Gateway is project-resource-bound, while these reads execute only inside the authenticated Pandora Android app through an allowlisted Device Agent executor. The M4-009 continuation contract permits only resource snapshot and bounded benchmark, validates typed results locally, then resumes the same authenticated intelligence turn. Device disconnect, unsupported public APIs, malformed results, or unlisted methods fail closed.
 
-**M3-005 owns binding device-scoped tool execution into the governed runtime.** Until that adapter path exists, discovery is truthful and execution fails closed.
+**M3-005 remains the authority owner for governed execution semantics.** This phone-local read path does not create mutation authority, provider credentials, arbitrary shell, or project-resource authority.
 
 ## Live Device Agent capability truth
 
@@ -95,6 +95,6 @@ M3-004 source acceptance requires:
 3. Device Agent inspection and diagnostics are first-class device-scoped tool descriptors;
 4. live Device Agent capability states can be represented truthfully;
 5. runtime state can narrow availability but cannot grant execution authority;
-6. resource introspection/benchmarks remain pending until M4-009;
-7. device-scoped execution remains fail-closed until M3-005 binds the governed adapter path;
+6. implemented resource introspection/benchmarks advertise available only through the bounded Android-local read boundary;
+7. device-scoped reads fail closed when the Device Agent is unavailable or returns invalid data, and never become project-gateway mutation authority;
 8. focused tests and repository CI pass on the exact candidate head.
