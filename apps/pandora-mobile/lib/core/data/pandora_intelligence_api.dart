@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../platform/pandora_native_io.dart';
+import 'pandora_activity_stream_api.dart';
 
 class PandoraIntelligenceApi {
   PandoraIntelligenceApi({
@@ -128,6 +130,41 @@ class PandoraIntelligenceApi {
     }
   }
 
+  Future<PandoraIntelligenceExecution> startChatExecution({
+    required String message,
+    required String requestId,
+    String? threadId,
+    String? projectId,
+    PandoraTextAttachment? textAttachment,
+    PandoraImageAttachment? imageAttachment,
+    PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
+  }) async {
+    _requireSession();
+    final activity = PandoraActivityStreamApi(
+      client: _client,
+      organizationId: _organizationId,
+    );
+    final jobId = await activity.beginJob(
+      requestId: requestId,
+      threadId: threadId,
+      projectId: projectId,
+    );
+    final turn = chat(
+      message: message,
+      threadId: threadId,
+      projectId: projectId,
+      textAttachment: textAttachment,
+      imageAttachment: imageAttachment,
+      mode: mode,
+      activityJobId: jobId,
+    );
+    return PandoraIntelligenceExecution(
+      jobId: jobId,
+      events: activity.watchJob(jobId),
+      turn: turn,
+    );
+  }
+
   Future<PandoraIntelligenceTurn> chat({
     required String message,
     String? threadId,
@@ -135,6 +172,7 @@ class PandoraIntelligenceApi {
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
+    String? activityJobId,
   }) async {
     _requireSession();
     final auditAttachments = textAttachment == null &&
@@ -143,7 +181,8 @@ class PandoraIntelligenceApi {
             _isRepositoryAuditRequest(message)
         ? await _repositoryAuditAttachments(projectId: projectId)
         : const <Map<String, Object?>>[];
-    if (textAttachment == null &&
+    if (activityJobId == null &&
+        textAttachment == null &&
         imageAttachment == null &&
         auditAttachments.isEmpty) {
       final capabilityTurn = await _dispatchCapability(
@@ -180,6 +219,7 @@ class PandoraIntelligenceApi {
           'message': message.trim(),
           if (threadId != null) 'threadId': threadId,
           if (projectId != null) 'projectId': projectId,
+          if (activityJobId != null) 'activityJobId': activityJobId,
           'mode': mode.name,
           if (attachments.isNotEmpty) 'attachments': attachments,
         },
@@ -547,6 +587,18 @@ class PandoraIntelligenceMessage {
         content: _requiredText(json['content']),
         createdAt: _date(json['created_at']),
       );
+}
+
+class PandoraIntelligenceExecution {
+  const PandoraIntelligenceExecution({
+    required this.jobId,
+    required this.events,
+    required this.turn,
+  });
+
+  final String jobId;
+  final Stream<Map<String, dynamic>> events;
+  final Future<PandoraIntelligenceTurn> turn;
 }
 
 class PandoraIntelligenceTurn {
