@@ -18,6 +18,7 @@ module.exports = {
   ...require('./routing/fallback-policy.js'),
   ...require('./routing/policy.js'),
   ...require('./routing/model-router.js'),
+  ...require('./runtime/index.js'),
   ...require('./skills/registry.js'),
   ...require('./skills/agent-catalog-adapter.js'),
   ...require('./knowledge/registry.js'),
