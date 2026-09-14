@@ -963,7 +963,9 @@ class PandoraEmptyTruth extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       color: PandoraSimpleColors.ink,
+                      fontSize: 16.5,
                       fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -971,7 +973,9 @@ class PandoraEmptyTruth extends StatelessWidget {
                     message,
                     style: const TextStyle(
                       color: PandoraSimpleColors.muted,
+                      fontSize: 14,
                       height: 1.35,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                   if (actionLabel != null) ...[
