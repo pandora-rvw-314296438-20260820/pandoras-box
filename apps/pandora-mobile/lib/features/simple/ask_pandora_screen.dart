@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -51,6 +53,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   PandoraCapabilityProvider? _serviceContext;
   String? _threadId;
   String? _pendingMessage;
+  StreamSubscription<Map<String, dynamic>>? _activitySubscription;
+  String? _activeActivityJobId;
+  String? _liveActivityMessage;
   bool _submitting = false;
   bool _loadingThread = false;
   bool _outcomeUnknown = false;
@@ -69,9 +74,38 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
 
   @override
   void dispose() {
+    unawaited(_activitySubscription?.cancel());
     _objective.dispose();
     _objectiveFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _watchActivity(PandoraIntelligenceExecution execution) async {
+    await _activitySubscription?.cancel();
+    _activeActivityJobId = execution.jobId;
+    _activitySubscription = execution.events.listen(
+      (event) {
+        if (!mounted || _activeActivityJobId != execution.jobId) return;
+        final message = event['message'];
+        final state = event['state'];
+        if (message is String && message.trim().isNotEmpty) {
+          setState(() => _liveActivityMessage = message.trim());
+        }
+        if (state == 'result' || state == 'failed' || state == 'cancelled') {
+          _activeActivityJobId = null;
+          final subscription = _activitySubscription;
+          _activitySubscription = null;
+          if (subscription != null) unawaited(subscription.cancel());
+        }
+      },
+      onError: (Object _, StackTrace __) {
+        if (!mounted || _activeActivityJobId != execution.jobId) return;
+        setState(() {
+          _error =
+              'Live Activity disconnected. Pandora kept the persisted activity history for recovery.';
+        });
+      },
+    );
   }
 
   Future<void> _dictate() async {
@@ -215,6 +249,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       _pendingMessage = objective;
       _objective.clear();
       _error = null;
+      _liveActivityMessage = null;
     });
     try {
       final dependencies = PandoraDependencies.of(context);
@@ -247,13 +282,18 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         return;
       }
 
-      final turn = await intelligence.chat(
+      final turnRequestId =
+          _submissionKey ??= _keys.create('pandora-chat-turn');
+      final execution = await intelligence.startChatExecution(
         message: objective,
+        requestId: turnRequestId,
         threadId: _threadId,
         projectId: _projectContext?.id,
         textAttachment: _attachment,
         imageAttachment: _imageAttachment,
       );
+      await _watchActivity(execution);
+      final turn = await execution.turn;
       if (!mounted) return;
       setState(() {
         _threadId = turn.threadId;
@@ -263,6 +303,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         _attachment = null;
         _imageAttachment = null;
         _outcomeUnknown = false;
+        _liveActivityMessage = null;
       });
 
       final handoff = turn.handoff;
@@ -680,6 +721,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                             messages: _messages,
                             pendingMessage: _pendingMessage,
                             thinking: _submitting,
+                            activityMessage: _liveActivityMessage,
                           ),
               ),
               _Composer(
@@ -926,11 +968,13 @@ class _Conversation extends StatefulWidget {
     required this.messages,
     required this.pendingMessage,
     required this.thinking,
+    required this.activityMessage,
   });
 
   final List<_ChatMessage> messages;
   final String? pendingMessage;
   final bool thinking;
+  final String? activityMessage;
 
   @override
   State<_Conversation> createState() => _ConversationState();
@@ -1005,7 +1049,7 @@ class _ConversationState extends State<_Conversation> {
             message: _ChatMessage.user(widget.pendingMessage!),
           );
         } else {
-          child = const _PandoraThinkingBubble();
+          child = _PandoraThinkingBubble(message: widget.activityMessage);
         }
         return Padding(
           padding: EdgeInsets.only(bottom: index == count - 1 ? 0 : 18),
@@ -1072,25 +1116,34 @@ class _ChatBubble extends StatelessWidget {
 }
 
 class _PandoraThinkingBubble extends StatelessWidget {
-  const _PandoraThinkingBubble();
+  const _PandoraThinkingBubble({this.message});
+
+  final String? message;
 
   @override
-  Widget build(BuildContext context) => const Row(
+  Widget build(BuildContext context) => Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          PandoraMark(size: 24, color: Colors.white),
-          SizedBox(width: 11),
-          SizedBox.square(
+          const PandoraMark(size: 24, color: Colors.white),
+          const SizedBox(width: 11),
+          const SizedBox.square(
             dimension: 16,
             child: CircularProgressIndicator(
               strokeWidth: 1.8,
               color: PandoraSimpleColors.muted,
             ),
           ),
-          SizedBox(width: 9),
-          Text(
-            'Thinking…',
-            style: TextStyle(color: PandoraSimpleColors.muted, fontSize: 14),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              message?.trim().isNotEmpty == true
+                  ? message!.trim()
+                  : 'Thinking?',
+              style: const TextStyle(
+                color: PandoraSimpleColors.muted,
+                fontSize: 14,
+              ),
+            ),
           ),
         ],
       );

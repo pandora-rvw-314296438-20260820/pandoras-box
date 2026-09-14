@@ -19,7 +19,7 @@ test("Ask Pandora dispatches explicit device communications before model chat", 
   const parse = ask.search(
     /PandoraDeviceCommunicationCommand\.tryParse\(\s*objective\s*,?\s*\)/,
   );
-  const cloud = ask.indexOf("final turn = await intelligence.chat(");
+  const cloud = ask.indexOf("final execution = await intelligence.startChatExecution(");
   assert.ok(parse >= 0, "device communication pre-router missing");
   assert.ok(cloud > parse, "device communication must be resolved before model chat");
   assert.match(ask, /_communications\.open\(/);
