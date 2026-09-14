@@ -228,7 +228,8 @@ class PandoraResourceBenchmarkResult {
     final requestedDurationMs = _resourceInt(map, 'requestedDurationMs');
     if (requestedDurationMs < PandoraResourceBenchmarkRequest.minDurationMs ||
         requestedDurationMs > PandoraResourceBenchmarkRequest.maxDurationMs) {
-      throw const FormatException('Resource benchmark duration is out of bounds.');
+      throw const FormatException(
+          'Resource benchmark duration is out of bounds.');
     }
     final wallDurationMs = _resourceNum(map, 'wallDurationMs');
     final cpuTimeMs = _resourceInt(map, 'cpuTimeMs');
