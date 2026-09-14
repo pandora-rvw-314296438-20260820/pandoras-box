@@ -18,11 +18,12 @@ class PandoraCommunicationRequest {
   factory PandoraCommunicationRequest.sms(
     String recipient, {
     String? message,
-  }) => PandoraCommunicationRequest._(
-    kind: PandoraCommunicationKind.sms,
-    recipient: recipient,
-    message: message,
-  );
+  }) =>
+      PandoraCommunicationRequest._(
+        kind: PandoraCommunicationKind.sms,
+        recipient: recipient,
+        message: message,
+      );
 
   final PandoraCommunicationKind kind;
   final String recipient;
