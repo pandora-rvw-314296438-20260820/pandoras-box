@@ -48,7 +48,7 @@ class PandoraDeviceCommunicationCommand {
           recipient: recipient,
           message: body.isEmpty ? null : body);
     }
-    final quoted = RegExp(r'^(.+?)\s+"(.*)"\s*$').firstMatch(rest);
+    final quoted = RegExp(r'^(.+?)\s+[\"“](.*)[\"”]\s*$').firstMatch(rest);
     if (quoted != null) {
       final recipient = _cleanRecipientLabel(quoted.group(1) ?? '');
       final body = (quoted.group(2) ?? '').trim();
