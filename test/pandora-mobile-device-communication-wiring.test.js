@@ -26,9 +26,11 @@ test("Ask Pandora dispatches explicit device communications before model chat", 
   assert.match(ask, /userConfirmationRequired/);
 });
 
-test("named recipients fail closed instead of fabricating execution", () => {
+test("named recipients resolve only through bounded system contact selection", () => {
   assert.match(command, /recipientIsBounded/);
-  assert.match(ask, /need .*phone number/i);
+  assert.match(ask, /PandoraNativeIo\.pickPhoneContact\(\)/);
+  assert.match(ask, /userConfirmationRequired/);
   assert.match(ask, /No call was placed|No message was sent/);
   assert.doesNotMatch(ask, /Calling .* now/);
+  assert.doesNotMatch(ask, /sendDirect|placeCallDirect/);
 });
