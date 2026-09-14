@@ -240,7 +240,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
           _messages.add(_ChatMessage.user(objective));
           _messages.add(_ChatMessage.pandora(receipt.reply));
           _pendingMessage = null;
-            _attachment = null;
+          _attachment = null;
           _imageAttachment = null;
           _submissionKey = null;
         });
@@ -502,7 +502,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                   : 'The system message composer is unavailable. No message was sent.',
             ),
           );
-            _submissionKey = null;
+          _submissionKey = null;
           _outcomeUnknown = false;
         });
         return;
@@ -1337,7 +1337,8 @@ class _Composer extends StatelessWidget {
                           textInputAction: TextInputAction.newline,
                           textCapitalization: TextCapitalization.sentences,
                           decoration: InputDecoration(
-                            hintText: submitting ? 'Follow up' : 'Message Pandora',
+                            hintText:
+                                submitting ? 'Follow up' : 'Message Pandora',
                             counterText: '',
                             filled: false,
                             border: InputBorder.none,

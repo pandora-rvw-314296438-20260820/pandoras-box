@@ -24,7 +24,8 @@ class MoreScreen extends StatelessWidget {
   Widget build(BuildContext context) => PandoraSimplePage(
         header: const PandoraOwnerHeader(
           title: 'More',
-          subtitle: 'A few useful places. Everything else stays out of the way.',
+          subtitle:
+              'A few useful places. Everything else stays out of the way.',
           leadingMark: false,
         ),
         child: Column(
@@ -88,8 +89,7 @@ class MoreScreen extends StatelessWidget {
                     icon: Icons.shield_rounded,
                     title: 'Safety',
                     subtitle: 'Only the protection details you need',
-                    onTap: () =>
-                        _openMore(context, const SimpleSafetyScreen()),
+                    onTap: () => _openMore(context, const SimpleSafetyScreen()),
                   ),
                 ],
               ),
@@ -144,11 +144,8 @@ class _TileDivider extends StatelessWidget {
   const _TileDivider();
 
   @override
-  Widget build(BuildContext context) => const Divider(
-        height: 1,
-        indent: 68,
-        color: PandoraSimpleColors.line,
-      );
+  Widget build(BuildContext context) =>
+      const Divider(height: 1, indent: 68, color: PandoraSimpleColors.line);
 }
 
 class _MoreTile extends StatelessWidget {
