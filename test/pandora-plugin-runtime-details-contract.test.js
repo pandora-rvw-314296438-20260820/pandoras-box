@@ -57,7 +57,7 @@ test('Plugins UX exposes real runtime detail and governed lifecycle actions', as
   assert.match(plugins, /'Capabilities'/);
   assert.match(plugins, /'Reconnect'/);
   assert.match(plugins, /'Disconnect'/);
-  assert.match(plugins, /ProjectOS authorization/);
+  assert.match(plugins, /governed Tool Gateway/);
   assert.match(plugins, /Do not claim this plugin is connected until provider readback verifies it/);
   assert.doesNotMatch(plugins, /hard-coded connected list[^.]*connected/i);
 });
