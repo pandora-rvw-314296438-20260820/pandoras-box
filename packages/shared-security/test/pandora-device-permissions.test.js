@@ -168,7 +168,7 @@ test("M7-006 implementation availability and policy authorization both fail clos
 test("M7-006 Needs You projection is emitted only for a real Android user boundary", () => {
   const needs = permission.permissionDecisionNeedsYou(
     permission.evaluateDevicePermissionGate({
-      ....base,
+      ...base,
       authority: "runtime_permission",
       permissionStateFresh: true,
       manifestDeclared: true,
