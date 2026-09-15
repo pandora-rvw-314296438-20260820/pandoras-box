@@ -141,12 +141,16 @@ class PandoraIntelligenceApi {
       client: _client,
       organizationId: _organizationId,
     );
-    await activity.requestControl(
-      jobId: jobId,
-      requestId: requestId,
-      type: type,
-      instruction: instruction,
-    );
+    try {
+      await activity.requestControl(
+        jobId: jobId,
+        requestId: requestId,
+        type: type,
+        instruction: instruction,
+      );
+    } on PandoraActivityStreamException catch (error) {
+      throw PandoraIntelligenceException(error.message);
+    }
   }
 
   Future<PandoraIntelligenceExecution> startChatExecution({
