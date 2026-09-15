@@ -145,3 +145,221 @@ class PandoraCommunicationsClient {
     return PandoraCommunicationHandoffResult.fromMap(raw);
   }
 }
+
+enum PandoraDirectCommunicationState {
+  permissionRequired,
+  permanentlyDenied,
+  restricted,
+  subscriptionRequired,
+  dispatching,
+  submitted,
+  sent,
+  delivered,
+  deliveryFailed,
+  initiated,
+  failed,
+  fallbackRequired,
+}
+
+PandoraDirectCommunicationState _parseDirectState(Object? value) =>
+    switch (value) {
+      'permission_required' =>
+        PandoraDirectCommunicationState.permissionRequired,
+      'permanently_denied' => PandoraDirectCommunicationState.permanentlyDenied,
+      'restricted' => PandoraDirectCommunicationState.restricted,
+      'subscription_required' =>
+        PandoraDirectCommunicationState.subscriptionRequired,
+      'dispatching' => PandoraDirectCommunicationState.dispatching,
+      'submitted' => PandoraDirectCommunicationState.submitted,
+      'sent' => PandoraDirectCommunicationState.sent,
+      'delivered' => PandoraDirectCommunicationState.delivered,
+      'delivery_failed' => PandoraDirectCommunicationState.deliveryFailed,
+      'initiated' => PandoraDirectCommunicationState.initiated,
+      'failed' => PandoraDirectCommunicationState.failed,
+      'fallback_required' => PandoraDirectCommunicationState.fallbackRequired,
+      _ => throw FormatException('Unknown direct communication state: $value'),
+    };
+
+class PandoraDirectCommunicationRequest {
+  const PandoraDirectCommunicationRequest({
+    required this.operationId,
+    required this.kind,
+    required this.recipient,
+    required this.authorizedByCurrentIntent,
+    this.message,
+    this.subscriptionId,
+  });
+
+  final String operationId;
+  final PandoraCommunicationKind kind;
+  final String recipient;
+  final bool authorizedByCurrentIntent;
+  final String? message;
+  final int? subscriptionId;
+
+  Map<String, Object?> toMap() {
+    final normalizedId = operationId.trim();
+    if (!RegExp(r'^[A-Za-z0-9._:-]{8,128}$').hasMatch(normalizedId)) {
+      throw const FormatException(
+          'Direct communication operation id is invalid.');
+    }
+    final normalizedRecipient = recipient.trim();
+    if (!PandoraCommunicationRequest.isSupportedRecipient(
+        normalizedRecipient)) {
+      throw const FormatException('Direct communication recipient is invalid.');
+    }
+    if (!authorizedByCurrentIntent) {
+      throw const FormatException(
+        'Direct communication requires current explicit intent or scoped standing authority.',
+      );
+    }
+    if (kind == PandoraCommunicationKind.sms) {
+      if (message == null ||
+          message!.trim().isEmpty ||
+          message!.length > 2000) {
+        throw const FormatException('Direct SMS body is invalid.');
+      }
+    } else if (message != null) {
+      throw const FormatException('Direct calls cannot include an SMS body.');
+    }
+    if (subscriptionId != null && subscriptionId! < 0) {
+      throw const FormatException(
+          'Direct communication subscription id is invalid.');
+    }
+    return <String, Object?>{
+      'operationId': normalizedId,
+      'kind': switch (kind) {
+        PandoraCommunicationKind.call => 'call',
+        PandoraCommunicationKind.sms => 'sms',
+      },
+      'recipient': normalizedRecipient,
+      'authorizedByCurrentIntent': true,
+      if (message != null) 'message': message,
+      if (subscriptionId != null) 'subscriptionId': subscriptionId,
+    };
+  }
+}
+
+class PandoraDirectCommunicationResult {
+  const PandoraDirectCommunicationResult({
+    required this.operationId,
+    required this.kind,
+    required this.state,
+    required this.terminal,
+    required this.acceptedByPlatform,
+    required this.duplicatePrevented,
+    this.requiredPermission,
+    this.failure,
+    required this.updatedAtEpochMs,
+  });
+
+  final String operationId;
+  final PandoraCommunicationKind kind;
+  final PandoraDirectCommunicationState state;
+  final bool terminal;
+  final bool acceptedByPlatform;
+  final bool duplicatePrevented;
+  final String? requiredPermission;
+  final String? failure;
+  final int updatedAtEpochMs;
+
+  factory PandoraDirectCommunicationResult.fromMap(Object? raw) {
+    if (raw is! Map) {
+      throw const FormatException('Direct communication result must be a map.');
+    }
+    final map = <String, Object?>{};
+    for (final entry in raw.entries) {
+      if (entry.key is! String) {
+        throw const FormatException(
+          'Direct communication result has a non-string key.',
+        );
+      }
+      map[entry.key as String] = entry.value;
+    }
+    final kind = switch (map['kind']) {
+      'call' => PandoraCommunicationKind.call,
+      'sms' => PandoraCommunicationKind.sms,
+      _ => throw const FormatException('Unknown direct communication kind.'),
+    };
+    final state = _parseDirectState(map['state']);
+    final terminal = map['terminal'];
+    final accepted = map['acceptedByPlatform'];
+    if (terminal is! bool || accepted is! bool) {
+      throw const FormatException(
+          'Direct communication truth flags are invalid.');
+    }
+    final terminalExpected = const <PandoraDirectCommunicationState>{
+      PandoraDirectCommunicationState.delivered,
+      PandoraDirectCommunicationState.deliveryFailed,
+      PandoraDirectCommunicationState.initiated,
+      PandoraDirectCommunicationState.failed,
+      PandoraDirectCommunicationState.fallbackRequired,
+    }.contains(state);
+    if (terminal != terminalExpected) {
+      throw const FormatException(
+          'Direct communication terminal flag contradicts state.');
+    }
+    final acceptedRequired = const <PandoraDirectCommunicationState>{
+      PandoraDirectCommunicationState.submitted,
+      PandoraDirectCommunicationState.sent,
+      PandoraDirectCommunicationState.delivered,
+      PandoraDirectCommunicationState.deliveryFailed,
+      PandoraDirectCommunicationState.initiated,
+    }.contains(state);
+    final acceptedForbidden = const <PandoraDirectCommunicationState>{
+      PandoraDirectCommunicationState.permissionRequired,
+      PandoraDirectCommunicationState.permanentlyDenied,
+      PandoraDirectCommunicationState.restricted,
+      PandoraDirectCommunicationState.subscriptionRequired,
+      PandoraDirectCommunicationState.dispatching,
+      PandoraDirectCommunicationState.fallbackRequired,
+    }.contains(state);
+    if ((acceptedRequired && !accepted) || (acceptedForbidden && accepted)) {
+      throw const FormatException(
+          'Direct communication platform-acceptance flag contradicts state.');
+    }
+    final operationId = map['operationId'];
+    final updated = map['updatedAtEpochMs'];
+    final duplicate = map['duplicatePrevented'] ?? false;
+    if (operationId is! String ||
+        operationId.isEmpty ||
+        updated is! int ||
+        duplicate is! bool) {
+      throw const FormatException(
+          'Direct communication identity/evidence is invalid.');
+    }
+    return PandoraDirectCommunicationResult(
+      operationId: operationId,
+      kind: kind,
+      state: state,
+      terminal: terminal,
+      acceptedByPlatform: accepted,
+      duplicatePrevented: duplicate,
+      requiredPermission: map['requiredPermission'] as String?,
+      failure: map['failure'] as String?,
+      updatedAtEpochMs: updated,
+    );
+  }
+}
+
+extension PandoraDirectCommunicationsClient on PandoraCommunicationsClient {
+  Future<PandoraDirectCommunicationResult> executeDirect(
+    PandoraDirectCommunicationRequest request,
+  ) async {
+    final raw = await _channel.invokeMethod<Object?>(
+      'executeDirectCommunication',
+      request.toMap(),
+    );
+    return PandoraDirectCommunicationResult.fromMap(raw);
+  }
+
+  Future<PandoraDirectCommunicationResult?> getDirectStatus(
+    String operationId,
+  ) async {
+    final raw = await _channel.invokeMethod<Object?>(
+      'getDirectCommunicationStatus',
+      <String, Object?>{'operationId': operationId.trim()},
+    );
+    return raw == null ? null : PandoraDirectCommunicationResult.fromMap(raw);
+  }
+}

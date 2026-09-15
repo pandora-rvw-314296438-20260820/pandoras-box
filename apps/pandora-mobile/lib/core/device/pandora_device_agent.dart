@@ -288,19 +288,111 @@ class PandoraPermissionState {
     required this.permission,
     required this.declared,
     required this.granted,
+    required this.stateFresh,
+    required this.requestable,
+    required this.userFixed,
+    required this.revocationControlSurface,
   });
 
   final String permission;
   final bool declared;
   final bool granted;
+  final bool stateFresh;
+  final bool requestable;
+  final bool userFixed;
+  final String revocationControlSurface;
 
   factory PandoraPermissionState.fromMap(Object? raw) {
     final map = _stringMap(raw, 'permission state');
-    return PandoraPermissionState(
+    final state = PandoraPermissionState(
       permission: _requiredString(map, 'permission'),
       declared: _requiredBool(map, 'declared'),
       granted: _requiredBool(map, 'granted'),
+      stateFresh: _requiredBool(map, 'stateFresh'),
+      requestable: _requiredBool(map, 'requestable'),
+      userFixed: _requiredBool(map, 'userFixed'),
+      revocationControlSurface: _requiredString(
+        map,
+        'revocationControlSurface',
+      ),
     );
+    if (!state.stateFresh) {
+      throw const FormatException('permission state must be freshly read.');
+    }
+    if (state.revocationControlSurface != 'app_details') {
+      throw const FormatException(
+        'runtime permission revocation must remain user-controlled in app details.',
+      );
+    }
+    if (state.requestable &&
+        (!state.declared || state.granted || state.userFixed)) {
+      throw const FormatException(
+        'requestable permission state contradicts Android authority.',
+      );
+    }
+    return state;
+  }
+}
+
+class PandoraRuntimePermissionResult {
+  const PandoraRuntimePermissionResult({
+    required this.permission,
+    required this.status,
+    required this.granted,
+    required this.userActionSurface,
+    required this.automaticRetryAllowed,
+    required this.recheckRequired,
+  });
+
+  final String permission;
+  final String status;
+  final bool granted;
+  final String? userActionSurface;
+  final bool automaticRetryAllowed;
+  final bool recheckRequired;
+
+  factory PandoraRuntimePermissionResult.fromMap(Object? raw) {
+    final map = _stringMap(raw, 'runtime permission result');
+    final status = _requiredString(map, 'status');
+    const allowedStatuses = <String>{
+      'not_declared',
+      'already_granted',
+      'granted',
+      'denied',
+      'permanently_denied',
+      'prompt_unavailable',
+    };
+    if (!allowedStatuses.contains(status)) {
+      throw FormatException('Unknown runtime permission status: $status');
+    }
+    final surface = map['userActionSurface'];
+    if (surface != null &&
+        surface != 'runtime_permission_dialog' &&
+        surface != 'app_details') {
+      throw const FormatException(
+        'runtime permission result has an unsupported user action surface.',
+      );
+    }
+    final result = PandoraRuntimePermissionResult(
+      permission: _requiredString(map, 'permission'),
+      status: status,
+      granted: _requiredBool(map, 'granted'),
+      userActionSurface: surface as String?,
+      automaticRetryAllowed: _requiredBool(map, 'automaticRetryAllowed'),
+      recheckRequired: _requiredBool(map, 'recheckRequired'),
+    );
+    if (result.automaticRetryAllowed || !result.recheckRequired) {
+      throw const FormatException(
+        'runtime permission results must require fresh readback and forbid automatic retry.',
+      );
+    }
+    if (result.granted !=
+        (result.status == 'granted' || result.status == 'already_granted')) {
+      throw const FormatException(
+        'runtime permission result grant state contradicts status.',
+      );
+    }
+    return result;
   }
 }
 
@@ -470,6 +562,11 @@ abstract interface class PandoraDeviceAgent {
 
   Future<List<PandoraPermissionState>> getPermissionStates();
 
+  Future<PandoraRuntimePermissionResult> requestRuntimePermission(
+    String permission, {
+    required bool userInitiated,
+  });
+
   Future<bool> openSystemSurface(PandoraSystemSurface surface);
 
   Future<PandoraSafeDiagnosticResult> runSafeDiagnostic(
@@ -497,6 +594,21 @@ class MethodChannelPandoraDeviceAgent implements PandoraDeviceAgent {
       throw const FormatException('permission states must be a list.');
     }
     return List.unmodifiable(raw.map(PandoraPermissionState.fromMap));
+  }
+
+  @override
+  Future<PandoraRuntimePermissionResult> requestRuntimePermission(
+    String permission, {
+    required bool userInitiated,
+  }) async {
+    final raw = await _channel.invokeMethod<Object?>(
+      'requestRuntimePermission',
+      <String, Object?>{
+        'permission': permission,
+        'userInitiated': userInitiated,
+      },
+    );
+    return PandoraRuntimePermissionResult.fromMap(raw);
   }
 
   @override

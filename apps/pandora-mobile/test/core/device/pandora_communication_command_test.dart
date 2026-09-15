@@ -26,6 +26,19 @@ void main() {
     },
   );
 
+  test('send colon syntax carries named recipient and explicit body', () {
+    final command = PandoraDeviceCommunicationCommand.tryParse(
+      'Send Nocom: I?m on my way',
+    );
+
+    expect(command, isNotNull);
+    expect(command!.kind, PandoraCommunicationKind.sms);
+    expect(command.recipient, 'Nocom');
+    expect(command.recipientIsBounded, isFalse);
+    expect(command.message, 'I?m on my way');
+    expect(command.messageIsReady, isTrue);
+  });
+
   test('quoted SMS carries bounded recipient and body', () {
     final command = PandoraDeviceCommunicationCommand.tryParse(
       'Text +639175550123 "Pandora test"',
