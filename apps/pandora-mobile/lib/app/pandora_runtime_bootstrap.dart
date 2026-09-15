@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/data/domain_registrar_api.dart';
+import '../core/data/pandora_activity_history_api.dart';
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/data/pandora_repository.dart';
 import '../core/data/project_experience_api.dart';
@@ -20,6 +21,7 @@ class PandoraRuntimeBootstrap {
   const PandoraRuntimeBootstrap._({
     required this.auth,
     required this.repository,
+    required this.activityHistory,
     required this.intelligence,
     required this.projectRuntime,
     required this.projectExperience,
@@ -31,6 +33,7 @@ class PandoraRuntimeBootstrap {
 
   final PandoraAuth auth;
   final PandoraRepository repository;
+  final PandoraActivityHistorySource activityHistory;
   final PandoraIntelligenceApi intelligence;
   final ProjectRuntimeApi projectRuntime;
   final ProjectExperienceApi projectExperience;
@@ -89,6 +92,10 @@ class PandoraRuntimeBootstrap {
     return PandoraRuntimeBootstrap._(
       auth: SupabasePandoraAuth(supabase),
       repository: RemotePandoraRepository(client: ownerClient),
+      activityHistory: SupabasePandoraActivityHistorySource(
+        client: supabase,
+        organizationId: PandoraConfig.organizationId,
+      ),
       intelligence: PandoraIntelligenceApi(
         client: supabase,
         organizationId: PandoraConfig.organizationId,

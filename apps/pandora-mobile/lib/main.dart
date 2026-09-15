@@ -31,6 +31,7 @@ Future<void> main() async {
     PandoraApp(
       auth: runtime.auth,
       repository: runtime.repository,
+      activityHistory: runtime.activityHistory,
       intelligence: runtime.intelligence,
       projectRuntime: runtime.projectRuntime,
       projectExperience: runtime.projectExperience,

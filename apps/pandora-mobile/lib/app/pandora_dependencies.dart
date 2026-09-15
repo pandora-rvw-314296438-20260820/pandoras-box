@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../core/data/domain_registrar_api.dart';
+import '../core/data/pandora_activity_history_api.dart';
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/data/pandora_repository.dart';
 import '../core/data/project_experience_api.dart';
@@ -16,6 +17,7 @@ class PandoraDependencies extends InheritedWidget {
     required this.auth,
     required this.repository,
     required this.diagnostics,
+    this.activityHistory,
     this.intelligence,
     this.projectRuntime,
     this.projectExperience,
@@ -27,6 +29,7 @@ class PandoraDependencies extends InheritedWidget {
 
   final PandoraAuth auth;
   final PandoraRepository repository;
+  final PandoraActivityHistorySource? activityHistory;
   final PandoraIntelligenceApi? intelligence;
   final ProjectRuntimeApi? projectRuntime;
   final ProjectExperienceApi? projectExperience;
@@ -46,6 +49,7 @@ class PandoraDependencies extends InheritedWidget {
   bool updateShouldNotify(PandoraDependencies oldWidget) =>
       auth != oldWidget.auth ||
       repository != oldWidget.repository ||
+      activityHistory != oldWidget.activityHistory ||
       intelligence != oldWidget.intelligence ||
       projectRuntime != oldWidget.projectRuntime ||
       projectExperience != oldWidget.projectExperience ||
