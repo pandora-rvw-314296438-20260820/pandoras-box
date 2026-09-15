@@ -22,7 +22,7 @@ type EmitActivityInput = {
   sourceId?: string;
   sourceEventId: string;
   evidence?: EvidenceRef[];
-  blocker?: ActivityBlocker | null;\n  control?: { type: 'pause' | 'resume' | 'cancel' | 'redirect' | 'constraint'; requestId: string; acceptedAt: string } | null;
+  blocker?: ActivityBlocker | null;\n  control?: { type: 'pause' | 'resume' | 'cancel' | 'redirect' | 'constraint'; requestId: string; acceptedAt: string } | null;\n  controlId?: string | null;
   transition?: {
     priorAttemptId: string;
     priorAuthorityScopeRef: string;
@@ -91,9 +91,9 @@ export async function finishActivityControl(admin: AdminClient, jobId: string | 
 export async function emitAcceptedActivityControl(admin: AdminClient, jobId: string | null, control: ActivityControl) {
   const ref = `control:${control.controlId}:${control.controlType}`;
   if (control.controlType === 'cancel') {
-    return emitActivity(admin, jobId, { state: 'cancelled', message: "Cancelled the active job at the user's request.", sourceType: 'runtime', sourceId: 'pandora-intelligence-chat', sourceEventId: `control-cancel:${control.controlId}`, evidence: [{ type: 'user_control', relation: 'accepted_control', ref }], control: { type: 'cancel', requestId: control.requestId, acceptedAt: control.acceptedAt } });
+    return emitActivity(admin, jobId, { state: 'cancelled', message: "Cancelled the active job at the user's request.", sourceType: 'runtime', sourceId: 'pandora-intelligence-chat', sourceEventId: `control-cancel:${control.controlId}`, evidence: [{ type: 'user_control', relation: 'accepted_control', ref }], control: { type: 'cancel', requestId: control.requestId, acceptedAt: control.acceptedAt }, controlId: control.controlId });
   }
-  return emitActivity(admin, jobId, { state: 'planning', message: control.controlType === 'redirect' ? 'Applied a user redirect to the active job.' : 'Applied a user constraint to the active job.', sourceType: 'runtime', sourceId: 'pandora-intelligence-chat', sourceEventId: `control-${control.controlType}:${control.controlId}`, evidence: [{ type: 'user_control', relation: 'accepted_control', ref }], control: { type: control.controlType, requestId: control.requestId, acceptedAt: control.acceptedAt } });
+  return emitActivity(admin, jobId, { state: 'planning', message: control.controlType === 'redirect' ? 'Applied a user redirect to the active job.' : 'Applied a user constraint to the active job.', sourceType: 'runtime', sourceId: 'pandora-intelligence-chat', sourceEventId: `control-${control.controlType}:${control.controlId}`, evidence: [{ type: 'user_control', relation: 'accepted_control', ref }], control: { type: control.controlType, requestId: control.requestId, acceptedAt: control.acceptedAt }, controlId: control.controlId });
 }
 
 export async function emitActivity(admin: AdminClient, jobId: string | null, input: EmitActivityInput) {
@@ -109,8 +109,10 @@ export async function emitActivity(admin: AdminClient, jobId: string | null, inp
   const sourceId = input.sourceId ?? 'pandora-intelligence-chat';
   if (writerEpoch < 1 || !idPattern.test(admittedBy) || !idPattern.test(sourceId) || !idPattern.test(input.sourceEventId)) throw Error('ACTIVITY_SOURCE_ID_INVALID');
   const event = { schemaVersion: 1, eventId: crypto.randomUUID(), jobId, sequence, writerEpoch, admittedBy, admissionMode: 'online', state: input.state, message: input.message, occurredAt: now, admittedAt: now, provenance: { sourceType, sourceId, sourceEventId: input.sourceEventId, observedAt: now }, evidence: input.evidence ?? [], domain: 'chat', capability: 'intelligence.chat', executionId: jobId, transition: input.transition ?? null, blocker: input.blocker ?? null, control: input.control ?? null, outcome: input.outcome ?? null };
-  const admitted = await admin.rpc('pandora_activity_admit_event_v1', { p_job_id: jobId, p_event: event });
-  if (admitted.error) throw Error('ACTIVITY_ADMISSION_FAILED');
+  const admitted = input.controlId
+    ? await admin.rpc('pandora_activity_control_apply_v1', { p_job_id: jobId, p_control_id: input.controlId, p_event: event })
+    : await admin.rpc('pandora_activity_admit_event_v1', { p_job_id: jobId, p_event: event });
+  if (admitted.error) throw Error(input.controlId ? 'ACTIVITY_CONTROL_APPLY_FAILED' : 'ACTIVITY_ADMISSION_FAILED');
   return event;
 }
 
