@@ -183,8 +183,10 @@ class PandoraActivityStreamApi {
           sequence != cursor + 1 ||
           epoch < 1 ||
           admittedBy.isEmpty ||
-          !const <String>{'online', 'offline'}
-              .contains(_text(event['admissionMode'])) ||
+          !const <String>{
+            'online',
+            'offline',
+          }.contains(_text(event['admissionMode'])) ||
           state.isEmpty ||
           _text(event['message']).isEmpty) {
         throw const PandoraActivityStreamException(
@@ -243,47 +245,82 @@ class PandoraActivityStreamApi {
     }
     if (terminalState != null) return;
 
-    final live = _client
-        .from('pandora_activity_events')
-        .stream(primaryKey: const <String>['job_id', 'sequence'])
-        .eq('job_id', jobId)
-        .order('sequence');
+    var reconnectAttempts = 0;
+    while (terminalState == null) {
+      final cursorAtSubscribe = cursor;
+      try {
+        final live = _client
+            .from('pandora_activity_events')
+            .stream(primaryKey: const <String>['job_id', 'sequence'])
+            .eq('job_id', jobId)
+            .order('sequence');
 
-    await for (final rows in live) {
-      final pending = rows
-          .map((row) => _map(row))
-          .where((row) => _int(row['sequence']) > cursor)
-          .toList(growable: false)
-        ..sort(
-          (a, b) => _int(a['sequence']).compareTo(_int(b['sequence'])),
+        await for (final rows in live) {
+          final pending = rows
+              .map((row) => _map(row))
+              .where((row) => _int(row['sequence']) > cursor)
+              .toList(growable: false)
+            ..sort(
+              (a, b) => _int(a['sequence']).compareTo(_int(b['sequence'])),
+            );
+
+          if (pending.isNotEmpty &&
+              _int(pending.first['sequence']) != cursor + 1) {
+            for (final event in await catchUp()) {
+              yield event;
+            }
+            if (terminalState != null) return;
+            continue;
+          }
+
+          for (final row in pending) {
+            final sequence = _int(row['sequence']);
+            if (sequence != cursor + 1) {
+              for (final event in await catchUp()) {
+                yield event;
+              }
+              if (terminalState != null) return;
+              break;
+            }
+            final event = _map(row['event']);
+            if (event.isEmpty || _int(event['sequence']) != sequence) {
+              throw const PandoraActivityStreamException(
+                'Pandora received an unreadable activity event.',
+              );
+            }
+            yield pandoraActivityPublicProjection(validateEvent(event));
+            if (terminalState != null) return;
+          }
+        }
+        if (terminalState != null) return;
+      } on PandoraActivityStreamException catch (error) {
+        if (error.message != 'Pandora could not replay activity right now.') {
+          rethrow;
+        }
+      } catch (_) {
+        // Reconcile below from the last admitted sequence before reconnecting.
+      }
+
+      if (cursor > cursorAtSubscribe) reconnectAttempts = 0;
+      reconnectAttempts += 1;
+      if (reconnectAttempts > 8) {
+        throw const PandoraActivityStreamException(
+          'Live Activity could not reconnect safely. Persisted history remains available.',
         );
-
-      if (pending.isNotEmpty && _int(pending.first['sequence']) != cursor + 1) {
+      }
+      await Future<void>.delayed(
+        Duration(milliseconds: reconnectAttempts * 250),
+      );
+      try {
         for (final event in await catchUp()) {
           yield event;
         }
-        if (terminalState != null) return;
-        continue;
-      }
-
-      for (final row in pending) {
-        final sequence = _int(row['sequence']);
-        if (sequence != cursor + 1) {
-          for (final event in await catchUp()) {
-            yield event;
-          }
-          if (terminalState != null) return;
-          break;
+      } on PandoraActivityStreamException catch (error) {
+        if (error.message != 'Pandora could not replay activity right now.') {
+          rethrow;
         }
-        final event = _map(row['event']);
-        if (event.isEmpty || _int(event['sequence']) != sequence) {
-          throw const PandoraActivityStreamException(
-            'Pandora received an unreadable activity event.',
-          );
-        }
-        yield pandoraActivityPublicProjection(validateEvent(event));
-        if (terminalState != null) return;
       }
+      if (terminalState != null) return;
     }
   }
 }
