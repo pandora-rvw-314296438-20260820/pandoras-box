@@ -10,7 +10,9 @@ class PandoraActivityStreamException implements Exception {
   String toString() => message;
 }
 
-enum PandoraActivityControlType { cancel, redirect, constraint }\n\nclass PandoraActivityReplayPage {
+enum PandoraActivityControlType { cancel, redirect, constraint }
+
+class PandoraActivityReplayPage {
   const PandoraActivityReplayPage({
     required this.events,
     required this.watermarkSequence,
