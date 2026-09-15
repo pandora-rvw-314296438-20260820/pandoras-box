@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "pandora-device-permission-broker-v1",
+  "status": "policy-contract-runtime-binding-pending",
+  "trustedStateSource": "android_os_runtime_readback_only",
+  "authorityModes": [
+    "public_app",
+    "runtime_permission",
+    "android_role",
+    "device_owner",
+    "development_only",
+    "policy_denied"
+  ],
+  "runtimePermission": {
+    "manifestDeclarationRequired": true,
+    "currentGrantRequired": true,
+    "freshStateRequired": true,
+    "cachedGrantAccepted": false,
+    "userInitiatedPromptOnly": true,
+    "backgroundPromptAllowed": false,
+    "revocationControlSurface": "app_details",
+    "recheckBeforeEveryUse": true
+  },
+  "androidRole": {
+    "freshStateRequired": true,
+    "userControlled": true,
+    "silentRoleAcquisitionAllowed": false
+  },
+  "deviceOwner": {
+    "freshStateRequired": true,
+    "mustBeActuallyProvisioned": true,
+    "policyMayNotPretendProvisioning": true
+  },
+  "forbidden": [
+    "silent_permission_grant",
+    "automatic_regrant_after_revocation",
+    "broad_permission_pregrant",
+    "permission_state_from_model_or_client",
+    "background_permission_prompt",
+    "permission_retry_loop"
+  ],
+  "needsYouOnlyForRealUserBoundary": true,
+  "acceptanceBoundary": "This contract proves fail-closed permission policy only. Android runtime wiring and exact-source Redmi permission grant, denial, revocation and recovery evidence remain required before M7-006 is Done."
+}
