@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../core/activity/pandora_activity_projection.dart';
+import '../../core/activity/pandora_activity_timeline_controller.dart';
+import '../../core/activity/pandora_activity_timeline_view.dart';
 import '../../core/data/pandora_activity_stream_api.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/data/pandora_repository.dart';
@@ -54,9 +57,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   PandoraCapabilityProvider? _serviceContext;
   String? _threadId;
   String? _pendingMessage;
-  StreamSubscription<Map<String, dynamic>>? _activitySubscription;
+  final PandoraActivityTimelineController _activityController =
+      PandoraActivityTimelineController();
   String? _activeActivityJobId;
-  String? _liveActivityMessage;
   bool _submitting = false;
   bool _loadingThread = false;
   bool _outcomeUnknown = false;
@@ -66,6 +69,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   @override
   void initState() {
     super.initState();
+    _activityController.addListener(_handleActivityTimelineChanged);
     final initial = widget.initialPrompt?.trim();
     if (initial != null && initial.isNotEmpty) {
       _objective.text = initial;
@@ -73,39 +77,31 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     }
   }
 
+  void _handleActivityTimelineChanged() {
+    if (!mounted) return;
+    setState(() {
+      if (_activeActivityJobId != null &&
+          _activityController.jobId == _activeActivityJobId &&
+          _activityController.isTerminal) {
+        _activeActivityJobId = null;
+      }
+    });
+  }
+
   @override
   void dispose() {
-    unawaited(_activitySubscription?.cancel());
+    _activityController.removeListener(_handleActivityTimelineChanged);
+    _activityController.dispose();
     _objective.dispose();
     _objectiveFocus.dispose();
     super.dispose();
   }
 
   Future<void> _watchActivity(PandoraIntelligenceExecution execution) async {
-    await _activitySubscription?.cancel();
     _activeActivityJobId = execution.jobId;
-    _activitySubscription = execution.events.listen(
-      (event) {
-        if (!mounted || _activeActivityJobId != execution.jobId) return;
-        final message = event['message'];
-        final state = event['state'];
-        if (message is String && message.trim().isNotEmpty) {
-          setState(() => _liveActivityMessage = message.trim());
-        }
-        if (state == 'result' || state == 'failed' || state == 'cancelled') {
-          _activeActivityJobId = null;
-          final subscription = _activitySubscription;
-          _activitySubscription = null;
-          if (subscription != null) unawaited(subscription.cancel());
-        }
-      },
-      onError: (Object _, StackTrace __) {
-        if (!mounted || _activeActivityJobId != execution.jobId) return;
-        setState(() {
-          _error =
-              'Live Activity disconnected. Pandora kept the persisted activity history for recovery.';
-        });
-      },
+    await _activityController.bind(
+      jobId: execution.jobId,
+      stream: execution.events,
     );
   }
 
@@ -283,12 +279,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     }
     final requestId = _keys.create('pandora-chat-control');
     _objective.clear();
-    setState(() {
-      _error = null;
-      _liveActivityMessage = type == PandoraActivityControlType.cancel
-          ? 'Cancellation requested.'
-          : 'Update sent to the active job.';
-    });
+    setState(() => _error = null);
     try {
       await intelligence.controlActivityJob(
         jobId: jobId,
@@ -312,15 +303,17 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       _objectiveFocus.requestFocus();
       return;
     }
+    final dependencies = PandoraDependencies.of(context);
+    await _activityController.clear();
+    if (!mounted) return;
+    _activeActivityJobId = null;
     setState(() {
       _submitting = true;
       _pendingMessage = objective;
       _objective.clear();
       _error = null;
-      _liveActivityMessage = null;
     });
     try {
-      final dependencies = PandoraDependencies.of(context);
       final deviceCommunication = PandoraDeviceCommunicationCommand.tryParse(
         objective,
       );
@@ -371,7 +364,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         _attachment = null;
         _imageAttachment = null;
         _outcomeUnknown = false;
-        _liveActivityMessage = null;
       });
 
       final handoff = turn.handoff;
@@ -679,6 +671,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
 
   void newChat() {
     if (_submitting) return;
+    _activeActivityJobId = null;
+    unawaited(_activityController.clear());
     setState(() {
       _messages.clear();
       _objective.clear();
@@ -699,6 +693,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     if (_submitting || _loadingThread || threadId == _threadId) return;
     final intelligence = PandoraDependencies.of(context).intelligence;
     if (intelligence == null) return;
+    _activeActivityJobId = null;
+    await _activityController.clear();
     setState(() {
       _loadingThread = true;
       _error = null;
@@ -789,7 +785,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                             messages: _messages,
                             pendingMessage: _pendingMessage,
                             thinking: _submitting,
-                            activityMessage: _liveActivityMessage,
+                            activityEvents: _activityController.events,
+                            activityError: _activityController.publicError,
                           ),
               ),
               _Composer(
@@ -1036,13 +1033,15 @@ class _Conversation extends StatefulWidget {
     required this.messages,
     required this.pendingMessage,
     required this.thinking,
-    required this.activityMessage,
+    required this.activityEvents,
+    this.activityError,
   });
 
   final List<_ChatMessage> messages;
   final String? pendingMessage;
   final bool thinking;
-  final String? activityMessage;
+  final List<PandoraActivityProjection> activityEvents;
+  final String? activityError;
 
   @override
   State<_Conversation> createState() => _ConversationState();
@@ -1054,11 +1053,13 @@ class _ConversationState extends State<_Conversation> {
 
   bool get _hasPending =>
       widget.pendingMessage != null && widget.pendingMessage!.isNotEmpty;
+  bool get _hasActivity => widget.activityEvents.isNotEmpty;
+  bool get _hasActivitySlot => _hasActivity || widget.activityError != null;
 
   int get _renderedItemCount =>
       widget.messages.length +
       (_hasPending ? 1 : 0) +
-      (widget.thinking ? 1 : 0);
+      ((widget.thinking || _hasActivitySlot) ? 1 : 0);
 
   @override
   void initState() {
@@ -1071,7 +1072,10 @@ class _ConversationState extends State<_Conversation> {
   void didUpdateWidget(covariant _Conversation oldWidget) {
     super.didUpdateWidget(oldWidget);
     final nextCount = _renderedItemCount;
-    if (nextCount != _lastRenderedItemCount) {
+    final activityChanged =
+        oldWidget.activityEvents.length != widget.activityEvents.length ||
+            oldWidget.activityError != widget.activityError;
+    if (nextCount != _lastRenderedItemCount || activityChanged) {
       _lastRenderedItemCount = nextCount;
       _scheduleScrollToLatest();
     }
@@ -1101,31 +1105,80 @@ class _ConversationState extends State<_Conversation> {
 
   @override
   Widget build(BuildContext context) {
-    final count = _renderedItemCount;
-    return ListView.builder(
+    final items = <Widget>[];
+    final activitySlot = _hasActivitySlot
+        ? _ActivityTimelineSlot(
+            events: widget.activityEvents,
+            error: widget.activityError,
+          )
+        : const _PandoraThinkingBubble();
+
+    if (!widget.thinking &&
+        _hasActivitySlot &&
+        widget.messages.isNotEmpty &&
+        !widget.messages.last.isUser) {
+      for (final message in widget.messages.take(widget.messages.length - 1)) {
+        items.add(_ChatBubble(message: message));
+      }
+      items.add(activitySlot);
+      items.add(_ChatBubble(message: widget.messages.last));
+    } else {
+      for (final message in widget.messages) {
+        items.add(_ChatBubble(message: message));
+      }
+      if (_hasPending) {
+        items.add(
+            _ChatBubble(message: _ChatMessage.user(widget.pendingMessage!)));
+      }
+      if (widget.thinking || _hasActivitySlot) items.add(activitySlot);
+    }
+
+    return ListView.separated(
       controller: _scrollController,
       reverse: false,
       padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      itemCount: count,
-      itemBuilder: (context, index) {
-        Widget child;
-        if (index < widget.messages.length) {
-          child = _ChatBubble(message: widget.messages[index]);
-        } else if (_hasPending && index == widget.messages.length) {
-          child = _ChatBubble(
-            message: _ChatMessage.user(widget.pendingMessage!),
-          );
-        } else {
-          child = _PandoraThinkingBubble(message: widget.activityMessage);
-        }
-        return Padding(
-          padding: EdgeInsets.only(bottom: index == count - 1 ? 0 : 18),
-          child: child,
-        );
-      },
+      itemCount: items.length,
+      itemBuilder: (context, index) => items[index],
+      separatorBuilder: (_, __) => const SizedBox(height: 18),
     );
   }
+}
+
+class _ActivityTimelineSlot extends StatelessWidget {
+  const _ActivityTimelineSlot({required this.events, this.error});
+
+  final List<PandoraActivityProjection> events;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        key: const ValueKey<String>('ask-pandora-activity-theatre'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (events.isNotEmpty) PandoraActivityTimelineView(events: events),
+            if (error != null) ...[
+              if (events.isNotEmpty) const SizedBox(height: 8),
+              Semantics(
+                container: true,
+                label: error,
+                child: Text(
+                  error!,
+                  key: const ValueKey<String>(
+                    'ask-pandora-activity-integrity-error',
+                  ),
+                  style: const TextStyle(
+                    color: PandoraSimpleColors.muted,
+                    fontSize: 12.5,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
 }
 
 class _ChatBubble extends StatelessWidget {
@@ -1184,9 +1237,7 @@ class _ChatBubble extends StatelessWidget {
 }
 
 class _PandoraThinkingBubble extends StatelessWidget {
-  const _PandoraThinkingBubble({this.message});
-
-  final String? message;
+  const _PandoraThinkingBubble();
 
   @override
   Widget build(BuildContext context) => Row(
@@ -1204,9 +1255,7 @@ class _PandoraThinkingBubble extends StatelessWidget {
           const SizedBox(width: 9),
           Expanded(
             child: Text(
-              message?.trim().isNotEmpty == true
-                  ? message!.trim()
-                  : 'Thinking?',
+              'Waiting for verified activity…',
               style: const TextStyle(
                 color: PandoraSimpleColors.muted,
                 fontSize: 14,
