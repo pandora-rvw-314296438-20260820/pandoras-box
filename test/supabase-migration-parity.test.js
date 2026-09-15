@@ -306,7 +306,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260913102500_pandora_chat_speech_act_routing_v12.sql',
     '20260913122000_pandora_chat_in_place_execution_v13.sql',
     '20260914050000_pandora_projectos_retirement_v1.sql',
-    '20260914100000_pandora_activity_realtime_transport_v1.sql',\n    '20260915001000_pandora_activity_controls_v1.sql'
+    '20260914100000_pandora_activity_realtime_transport_v1.sql',
+    '20260915001000_pandora_activity_controls_v1.sql'
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -577,7 +578,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260913102500_pandora_chat_speech_act_routing_v12.sql',
     '20260913122000_pandora_chat_in_place_execution_v13.sql',
     '20260914050000_pandora_projectos_retirement_v1.sql',
-    '20260914100000_pandora_activity_realtime_transport_v1.sql',\n    '20260915001000_pandora_activity_controls_v1.sql'
+    '20260914100000_pandora_activity_realtime_transport_v1.sql',
+    '20260915001000_pandora_activity_controls_v1.sql'
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -800,7 +802,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260913102500_pandora_chat_speech_act_routing_v12.sql',
     '20260913122000_pandora_chat_in_place_execution_v13.sql',
     '20260914050000_pandora_projectos_retirement_v1.sql',
-    '20260914100000_pandora_activity_realtime_transport_v1.sql',\n    '20260915001000_pandora_activity_controls_v1.sql'
+    '20260914100000_pandora_activity_realtime_transport_v1.sql',
+    '20260915001000_pandora_activity_controls_v1.sql'
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
