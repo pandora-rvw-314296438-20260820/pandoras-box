@@ -26,8 +26,12 @@ const chatPath = new URL(
   '../apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart',
   import.meta.url,
 );
+const timelineControllerPath = new URL(
+  '../apps/pandora-mobile/lib/core/activity/pandora_activity_timeline_controller.dart',
+  import.meta.url,
+);
 
-const [migration, edge, edgeActivity, mobileApi, intelligence, chat] =
+const [migration, edge, edgeActivity, mobileApi, intelligence, chat, timelineController] =
   await Promise.all([
     readFile(migrationPath, 'utf8'),
     readFile(edgePath, 'utf8'),
@@ -35,6 +39,7 @@ const [migration, edge, edgeActivity, mobileApi, intelligence, chat] =
     readFile(mobileApiPath, 'utf8'),
     readFile(intelligencePath, 'utf8'),
     readFile(chatPath, 'utf8'),
+    readFile(timelineControllerPath, 'utf8'),
   ]);
 test('M1-004 creates neutral durable activity transport with replay and realtime', () => {
   assert.match(migration, /create table if not exists public\.pandora_activity_jobs/);
@@ -134,6 +139,9 @@ test('Chat subscribes before awaiting the final intelligence turn', () => {
   const awaitTurnAt = chat.indexOf('final turn = await execution.turn');
   assert.ok(subscribeAt >= 0);
   assert.ok(awaitTurnAt > subscribeAt);
-  assert.match(chat, /execution\.events\.listen\(/);
-  assert.match(chat, /state == 'result' \|\| state == 'failed' \|\| state == 'cancelled'/);
+  assert.match(chat, /await _activityController\.bind\(/);
+  assert.match(chat, /stream: execution\.events/);
+  assert.match(timelineController, /stream\.listen\(/);
+  assert.match(timelineController, /if \(_reducer\.isTerminal\)/);
+  assert.doesNotMatch(chat, /execution\.events\.listen\(/);
 });
