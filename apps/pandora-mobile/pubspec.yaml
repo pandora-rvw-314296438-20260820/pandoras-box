@@ -12,6 +12,7 @@ dependencies:
   url_launcher: 6.3.2
   supabase_flutter: 2.15.4
   shared_preferences: 2.5.5
+  crypto: 3.0.7
 dev_dependencies:
   flutter_test:
     sdk: flutter
