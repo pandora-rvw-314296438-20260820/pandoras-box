@@ -268,7 +268,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         : _looksLikeActiveConstraint(normalized)
             ? PandoraActivityControlType.constraint
             : PandoraActivityControlType.redirect;
-    var instruction = type == PandoraActivityControlType.cancel ? null : normalized;
+    var instruction =
+        type == PandoraActivityControlType.cancel ? null : normalized;
     if (type == PandoraActivityControlType.constraint &&
         instruction != null &&
         instruction.toLowerCase().startsWith('constraint:')) {
