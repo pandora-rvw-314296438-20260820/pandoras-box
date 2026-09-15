@@ -74,6 +74,12 @@ begin
 
   select * into v_job from public.pandora_activity_jobs where id=p_job_id and organization_id=p_organization_id and requested_by=v_uid for update;
   if not found then raise exception 'pandora_activity_job_not_found' using errcode='22023'; end if;
+
+  select * into v_control from public.pandora_activity_controls where job_id=v_job.id and request_id=trim(p_request_id);
+  if found then
+    if v_control.control_type<>v_type or coalesce(v_control.instruction,'')<>coalesce(v_instruction,'') then raise exception 'pandora_activity_control_idempotency_conflict' using errcode='23505'; end if;
+    return jsonb_build_object('controlId',v_control.id,'jobId',v_control.job_id,'requestId',v_control.request_id,'controlSequence',v_control.control_sequence,'controlType',v_control.control_type,'status',v_control.status,'requestedAt',v_control.requested_at);
+  end if;
   if v_job.terminal_state is not null then raise exception 'pandora_activity_job_terminal' using errcode='55000'; end if;
 
   insert into public.pandora_activity_controls(job_id,organization_id,requested_by,request_id,control_type,instruction)
