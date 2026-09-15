@@ -1,6 +1,9 @@
 -- Pandora M1-005 durable interruption/control transport v1
 -- Controls are user-authored, owner-scoped, idempotent, and never direct client writes to Activity events.
 
+alter table public.pandora_activity_jobs
+  add column if not exists controls_sealed_at timestamptz;
+
 create table if not exists public.pandora_activity_controls (
   id uuid primary key default gen_random_uuid(),
   job_id uuid not null references public.pandora_activity_jobs(id) on delete cascade,
@@ -81,6 +84,7 @@ begin
     return jsonb_build_object('controlId',v_control.id,'jobId',v_control.job_id,'requestId',v_control.request_id,'controlSequence',v_control.control_sequence,'controlType',v_control.control_type,'status',v_control.status,'requestedAt',v_control.requested_at);
   end if;
   if v_job.terminal_state is not null then raise exception 'pandora_activity_job_terminal' using errcode='55000'; end if;
+  if v_job.controls_sealed_at is not null then raise exception 'pandora_activity_control_window_closed' using errcode='55000'; end if;
 
   insert into public.pandora_activity_controls(job_id,organization_id,requested_by,request_id,control_type,instruction)
   values (v_job.id,v_job.organization_id,v_uid,trim(p_request_id),v_type,v_instruction)
@@ -120,6 +124,30 @@ $body$;
 revoke all on function public.pandora_activity_control_claim_v1(uuid) from public, anon, authenticated;
 grant execute on function public.pandora_activity_control_claim_v1(uuid) to service_role;
 
+create or replace function public.pandora_activity_control_seal_v1(p_job_id uuid) returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, auth
+as $body$
+declare
+  v_job public.pandora_activity_jobs%rowtype;
+  v_pending boolean;
+begin
+  if coalesce(auth.role(),'') <> 'service_role' then raise exception 'pandora_activity_service_role_required' using errcode='42501'; end if;
+  select * into v_job from public.pandora_activity_jobs where id=p_job_id for update;
+  if not found then raise exception 'pandora_activity_job_not_found' using errcode='22023'; end if;
+  if v_job.terminal_state is not null then return jsonb_build_object('jobId',v_job.id,'sealed',true,'terminalState',v_job.terminal_state); end if;
+  if v_job.controls_sealed_at is not null then return jsonb_build_object('jobId',v_job.id,'sealed',true,'sealedAt',v_job.controls_sealed_at); end if;
+  select exists(select 1 from public.pandora_activity_controls where job_id=p_job_id and status in ('requested','accepted')) into v_pending;
+  if v_pending then return jsonb_build_object('jobId',v_job.id,'sealed',false,'controlPending',true); end if;
+  update public.pandora_activity_jobs set controls_sealed_at=now(),updated_at=now() where id=v_job.id returning * into v_job;
+  return jsonb_build_object('jobId',v_job.id,'sealed',true,'sealedAt',v_job.controls_sealed_at);
+end;
+$body$;
+
+revoke all on function public.pandora_activity_control_seal_v1(uuid) from public, anon, authenticated;
+grant execute on function public.pandora_activity_control_seal_v1(uuid) to service_role;
+
 create or replace function public.pandora_activity_control_apply_v1(p_job_id uuid,p_control_id uuid,p_event jsonb) returns jsonb
 language plpgsql
 security definer
@@ -130,6 +158,8 @@ declare
   v_admitted jsonb;
 begin
   if coalesce(auth.role(),'') <> 'service_role' then raise exception 'pandora_activity_service_role_required' using errcode='42501'; end if;
+  perform 1 from public.pandora_activity_jobs where id=p_job_id for update;
+  if not found then raise exception 'pandora_activity_job_not_found' using errcode='22023'; end if;
   select * into v_control from public.pandora_activity_controls where id=p_control_id and job_id=p_job_id for update;
   if not found then raise exception 'pandora_activity_control_not_found' using errcode='22023'; end if;
   if v_control.status='applied' then return jsonb_build_object('controlId',v_control.id,'status',v_control.status,'appliedAt',v_control.applied_at); end if;
