@@ -1475,7 +1475,9 @@ class _Composer extends StatelessWidget {
                       InputChip(
                         key: const ValueKey<String>(
                             'ask-pandora-character-context'),
-                        avatar: const Icon(Icons.face_retouching_natural_outlined, size: 17),
+                        avatar: const Icon(
+                            Icons.face_retouching_natural_outlined,
+                            size: 17),
                         label: Text('Character · ${characterContext!.name}'),
                         onDeleted: submitting || disabled
                             ? null
