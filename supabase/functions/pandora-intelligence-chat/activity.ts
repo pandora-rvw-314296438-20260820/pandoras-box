@@ -22,7 +22,9 @@ type EmitActivityInput = {
   sourceId?: string;
   sourceEventId: string;
   evidence?: EvidenceRef[];
-  blocker?: ActivityBlocker | null;\n  control?: { type: 'pause' | 'resume' | 'cancel' | 'redirect' | 'constraint'; requestId: string; acceptedAt: string } | null;\n  controlId?: string | null;
+  blocker?: ActivityBlocker | null;
+  control?: { type: 'pause' | 'resume' | 'cancel' | 'redirect' | 'constraint'; requestId: string; acceptedAt: string } | null;
+  controlId?: string | null;
   transition?: {
     priorAttemptId: string;
     priorAuthorityScopeRef: string;
