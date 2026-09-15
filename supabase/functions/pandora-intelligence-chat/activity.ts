@@ -84,6 +84,14 @@ export async function claimActivityControls(admin: AdminClient, jobId: string | 
   return controls;
 }
 
+export async function sealActivityControls(admin: AdminClient, jobId: string | null): Promise<boolean> {
+  if (!jobId) return true;
+  const result = await admin.rpc('pandora_activity_control_seal_v1', { p_job_id: jobId });
+  if (result.error) throw Error('ACTIVITY_CONTROL_SEAL_FAILED');
+  const value = result.data as Json | null;
+  return value?.sealed === true;
+}
+
 export async function finishActivityControl(admin: AdminClient, jobId: string | null, controlId: string, applied: boolean, rejectionCode: string | null = null) {
   if (!jobId) return;
   const result = await admin.rpc('pandora_activity_control_finish_v1', { p_job_id: jobId, p_control_id: controlId, p_applied: applied, p_rejection_code: rejectionCode });
