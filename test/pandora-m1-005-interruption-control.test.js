@@ -22,8 +22,11 @@ test('durable controls are owner-scoped, idempotent and service-applied', () => 
   assert.match(migration, /pandora_activity_control_request_v1/);
   assert.match(migration, /pandora_activity_control_claim_v1/);
   assert.match(migration, /pandora_activity_control_finish_v1/);
+  assert.match(migration, /pandora_activity_control_apply_v1/);
+  assert.match(migration, /pandora_activity_control_credential_material_rejected/);
   assert.match(migration, /grant execute on function public\.pandora_activity_control_request_v1[\s\S]*to authenticated/);
   assert.match(migration, /grant execute on function public\.pandora_activity_control_claim_v1[\s\S]*to service_role/);
+  assert.match(migration, /grant execute on function public\.pandora_activity_control_apply_v1[\s\S]*to service_role/);
   assert.doesNotMatch(migration, /grant (insert|update|delete) on table public\.pandora_activity_(controls|events) to authenticated/i);
 });
 
@@ -32,7 +35,8 @@ test('accepted controls create canonical user-control evidence without public ra
   assert.match(activity, /finishActivityControl/);
   assert.match(activity, /emitAcceptedActivityControl/);
   assert.match(activity, /type: 'user_control'/);
-  assert.match(activity, /relation: 'control'/);
+  assert.match(activity, /relation: 'accepted_control'/);
+  assert.match(activity, /control: \{ type: 'cancel', requestId: control\.requestId, acceptedAt: control\.acceptedAt \}/);
   assert.match(activity, /state: 'cancelled'/);
   assert.doesNotMatch(activity, /message:\s*control\.instruction/);
 });
