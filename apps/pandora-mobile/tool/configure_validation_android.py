@@ -18,6 +18,17 @@ _INTERNET_PERMISSION_NAME = 'android.permission.INTERNET'
 _INTERNET_PERMISSION = '<uses-permission android:name="android.permission.INTERNET"/>'
 _NETWORK_PERMISSION_NAME = 'android.permission.ACCESS_NETWORK_STATE'
 _NETWORK_PERMISSION = '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>'
+_CALL_PERMISSION_NAME = 'android.permission.CALL_PHONE'
+_CALL_PERMISSION = '<uses-permission android:name="android.permission.CALL_PHONE"/>'
+_SMS_PERMISSION_NAME = 'android.permission.SEND_SMS'
+_SMS_PERMISSION = '<uses-permission android:name="android.permission.SEND_SMS"/>'
+_CONTACTS_PERMISSION_NAME = 'android.permission.READ_CONTACTS'
+_CONTACTS_PERMISSION = '<uses-permission android:name="android.permission.READ_CONTACTS"/>'
+_GENERATED_LAUNCH_MODE = 'android:launchMode="singleTop"'
+_HOME_LAUNCH_MODE = 'android:launchMode="singleTask"'
+_GENERATED_EMPTY_TASK_AFFINITY = 'android:taskAffinity=""'
+_APPLICATION_CLOSE = '    </application>'
+_SMS_STATUS_RECEIVER = '        <receiver android:name=".PandoraSmsStatusReceiver" android:exported="false"/>'
 _HOME_CATEGORY = 'android.intent.category.HOME'
 _DEFAULT_CATEGORY = 'android.intent.category.DEFAULT'
 _LAUNCHER_CATEGORY = 'android.intent.category.LAUNCHER'
@@ -139,6 +150,23 @@ def configure_manifest(manifest: Path) -> int:
         )
         return 1
 
+    for permission_name, permission_xml, label in (
+        (_CALL_PERMISSION_NAME, _CALL_PERMISSION, 'CALL_PHONE'),
+        (_SMS_PERMISSION_NAME, _SMS_PERMISSION, 'SEND_SMS'),
+        (_CONTACTS_PERMISSION_NAME, _CONTACTS_PERMISSION, 'READ_CONTACTS'),
+    ):
+        mentions = text.count(permission_name)
+        if mentions > 1:
+            print(f'Expected at most one Android {label} permission; refusing an ambiguous manifest mutation.', file=sys.stderr)
+            return 1
+        if mentions == 1 and permission_xml not in text:
+            print(f'Android {label} permission exists in an unexpected form; refusing to rewrite it implicitly.', file=sys.stderr)
+            return 1
+
+    if text.count('.PandoraSmsStatusReceiver') != 0:
+        print('Generated Android manifest already declares the Pandora SMS status receiver.', file=sys.stderr)
+        return 1
+
     if text.count(_HOME_CATEGORY) != 0 or text.count(_DEFAULT_CATEGORY) != 0:
         print(
             'Generated Android manifest already declares HOME/DEFAULT routing; '
@@ -153,8 +181,22 @@ def configure_manifest(manifest: Path) -> int:
             file=sys.stderr,
         )
         return 1
+    if text.count(_GENERATED_LAUNCH_MODE) != 1:
+        print(
+            'Expected exactly one generated singleTop launch mode; refusing an ambiguous HOME task mutation.',
+            file=sys.stderr,
+        )
+        return 1
+    if text.count(_GENERATED_EMPTY_TASK_AFFINITY) != 1:
+        print(
+            'Expected exactly one generated empty task affinity; refusing an ambiguous HOME task mutation.',
+            file=sys.stderr,
+        )
+        return 1
 
     updated = text.replace(_GENERATED_LABEL, _VALIDATION_LABEL, 1)
+    updated = updated.replace(_GENERATED_LAUNCH_MODE, _HOME_LAUNCH_MODE, 1)
+    updated = updated.replace(f' {_GENERATED_EMPTY_TASK_AFFINITY}', '', 1)
     updated = updated.replace(_GENERATED_ICON, _PANDORA_ICON, 1)
     updated = updated.replace(
         _LAUNCHER_FILTER,
@@ -189,6 +231,27 @@ def configure_manifest(manifest: Path) -> int:
             1,
         )
 
+    for permission_name, permission_xml in (
+        (_CALL_PERMISSION_NAME, _CALL_PERMISSION),
+        (_SMS_PERMISSION_NAME, _SMS_PERMISSION),
+        (_CONTACTS_PERMISSION_NAME, _CONTACTS_PERMISSION),
+    ):
+        if text.count(permission_name) == 0:
+            updated = updated.replace(
+                _MANIFEST_OPEN,
+                f'{_MANIFEST_OPEN}\n    {permission_xml}',
+                1,
+            )
+
+    if updated.count(_APPLICATION_CLOSE) != 1:
+        print('Expected exactly one Android application close tag; refusing receiver mutation.', file=sys.stderr)
+        return 1
+    updated = updated.replace(
+        _APPLICATION_CLOSE,
+        f'{_SMS_STATUS_RECEIVER}\n{_APPLICATION_CLOSE}',
+        1,
+    )
+
     manifest.write_text(updated, encoding='utf-8')
     try:
         launcher_icon, copied_mark = _write_launcher_icon(manifest)
@@ -215,6 +278,17 @@ def configure_manifest(manifest: Path) -> int:
     if _NETWORK_PERMISSION not in verified:
         print('Android ACCESS_NETWORK_STATE permission is not in the approved form.', file=sys.stderr)
         return 1
+    for permission_name, permission_xml, label in (
+        (_CALL_PERMISSION_NAME, _CALL_PERMISSION, 'CALL_PHONE'),
+        (_SMS_PERMISSION_NAME, _SMS_PERMISSION, 'SEND_SMS'),
+        (_CONTACTS_PERMISSION_NAME, _CONTACTS_PERMISSION, 'READ_CONTACTS'),
+    ):
+        if verified.count(permission_name) != 1 or permission_xml not in verified:
+            print(f'Android {label} permission verification failed.', file=sys.stderr)
+            return 1
+    if verified.count('.PandoraSmsStatusReceiver') != 1 or _SMS_STATUS_RECEIVER not in verified:
+        print('Android Pandora SMS status receiver verification failed.', file=sys.stderr)
+        return 1
     if verified.count(_HOME_CATEGORY) != 1:
         print('Android HOME eligibility verification failed.', file=sys.stderr)
         return 1
@@ -223,6 +297,12 @@ def configure_manifest(manifest: Path) -> int:
         return 1
     if verified.count(_LAUNCHER_CATEGORY) != 1:
         print('Android launcher recovery entry verification failed.', file=sys.stderr)
+        return 1
+    if verified.count(_HOME_LAUNCH_MODE) != 1 or _GENERATED_LAUNCH_MODE in verified:
+        print('Android HOME task launch-mode verification failed.', file=sys.stderr)
+        return 1
+    if _GENERATED_EMPTY_TASK_AFFINITY in verified:
+        print('Android HOME task affinity verification failed.', file=sys.stderr)
         return 1
 
     icon_text = launcher_icon.read_text(encoding='utf-8')
@@ -238,6 +318,11 @@ def configure_manifest(manifest: Path) -> int:
     print('Configured Android launcher icon: canonical Pandora spiral apple')
     print('Configured Android permission: android.permission.INTERNET')
     print('Configured Android permission: android.permission.ACCESS_NETWORK_STATE')
+    print('Configured Android permission: android.permission.CALL_PHONE')
+    print('Configured Android permission: android.permission.SEND_SMS')
+    print('Configured Android permission: android.permission.READ_CONTACTS')
+    print('Configured Android HOME root task: singleTask with normal app affinity')
+    print('Configured Android SMS callback receiver: non-exported')
     print('Configured Android HOME eligibility without forcing default HOME')
     return 0
 
