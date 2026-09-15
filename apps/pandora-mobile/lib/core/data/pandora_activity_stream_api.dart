@@ -10,6 +10,8 @@ class PandoraActivityStreamException implements Exception {
   String toString() => message;
 }
 
+enum PandoraActivityControlType { cancel, redirect, constraint }
+
 class PandoraActivityReplayPage {
   const PandoraActivityReplayPage({
     required this.events,
@@ -70,6 +72,58 @@ class PandoraActivityStreamApi {
     } on PostgrestException {
       throw const PandoraActivityStreamException(
         'Pandora could not create an activity stream.',
+      );
+    }
+  }
+
+  Future<void> requestControl({
+    required String jobId,
+    required String requestId,
+    required PandoraActivityControlType type,
+    String? instruction,
+  }) async {
+    if (_client.auth.currentSession == null) {
+      throw const PandoraActivityStreamException('Please sign in again.');
+    }
+    final normalizedJobId = jobId.trim();
+    final normalizedRequestId = requestId.trim();
+    final normalizedInstruction = instruction?.trim();
+    if (normalizedJobId.isEmpty ||
+        normalizedRequestId.length < 8 ||
+        normalizedRequestId.length > 200 ||
+        ((type == PandoraActivityControlType.redirect ||
+                type == PandoraActivityControlType.constraint) &&
+            (normalizedInstruction == null ||
+                normalizedInstruction.isEmpty ||
+                normalizedInstruction.length > 2000)) ||
+        (type == PandoraActivityControlType.cancel &&
+            normalizedInstruction != null &&
+            normalizedInstruction.isNotEmpty)) {
+      throw const PandoraActivityStreamException(
+        'Pandora could not submit that live update.',
+      );
+    }
+    try {
+      final response = await _client.rpc(
+        'pandora_activity_control_request_v1',
+        params: <String, Object?>{
+          'p_organization_id': _organizationId,
+          'p_job_id': normalizedJobId,
+          'p_request_id': normalizedRequestId,
+          'p_control_type': type.name,
+          'p_instruction': type == PandoraActivityControlType.cancel
+              ? null
+              : normalizedInstruction,
+        },
+      );
+      if (_text(_map(response)['controlId']).isEmpty) {
+        throw const PandoraActivityStreamException(
+          'Pandora could not submit that live update.',
+        );
+      }
+    } on PostgrestException {
+      throw const PandoraActivityStreamException(
+        'Pandora could not submit that live update.',
       );
     }
   }

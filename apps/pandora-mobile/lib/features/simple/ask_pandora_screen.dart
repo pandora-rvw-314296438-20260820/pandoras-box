@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../core/data/pandora_activity_stream_api.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/device/pandora_communication_command.dart';
@@ -237,8 +238,75 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     }
   }
 
+  bool _looksLikeActiveConstraint(String value) {
+    final lower = value.trim().toLowerCase();
+    return lower.startsWith('constraint:') ||
+        lower.startsWith('do not ') ||
+        lower.startsWith("don't ") ||
+        lower.startsWith('only ') ||
+        lower.startsWith('make sure ') ||
+        lower.startsWith('must not ') ||
+        lower.startsWith('avoid ');
+  }
+
+  bool _looksLikeActiveCancel(String value) {
+    final lower = value.trim().toLowerCase();
+    return lower == 'cancel' ||
+        lower == 'stop' ||
+        lower == 'stop this' ||
+        lower == 'cancel this' ||
+        lower == 'never mind' ||
+        lower == 'nevermind';
+  }
+
+  Future<void> _submitActiveControl(String objective) async {
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    final jobId = _activeActivityJobId;
+    if (intelligence == null || jobId == null) return;
+    final normalized = objective.trim();
+    final type = normalized.isEmpty || _looksLikeActiveCancel(normalized)
+        ? PandoraActivityControlType.cancel
+        : _looksLikeActiveConstraint(normalized)
+            ? PandoraActivityControlType.constraint
+            : PandoraActivityControlType.redirect;
+    var instruction =
+        type == PandoraActivityControlType.cancel ? null : normalized;
+    if (type == PandoraActivityControlType.constraint &&
+        instruction != null &&
+        instruction.toLowerCase().startsWith('constraint:')) {
+      instruction = instruction.substring('constraint:'.length).trim();
+    }
+    if (type != PandoraActivityControlType.cancel &&
+        (instruction == null || instruction.isEmpty)) {
+      setState(() => _error = 'Add the update you want Pandora to apply.');
+      return;
+    }
+    final requestId = _keys.create('pandora-chat-control');
+    _objective.clear();
+    setState(() {
+      _error = null;
+      _liveActivityMessage = type == PandoraActivityControlType.cancel
+          ? 'Cancellation requested.'
+          : 'Update sent to the active job.';
+    });
+    try {
+      await intelligence.controlActivityJob(
+        jobId: jobId,
+        requestId: requestId,
+        type: type,
+        instruction: instruction,
+      );
+    } on PandoraIntelligenceException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
+  }
+
   Future<void> _submit() async {
     final objective = _objective.text.trim();
+    if (_submitting && _activeActivityJobId != null) {
+      await _submitActiveControl(objective);
+      return;
+    }
     if (objective.isEmpty) {
       setState(() => _error = 'Message Pandora first.');
       _objectiveFocus.requestFocus();
@@ -1433,31 +1501,33 @@ class _Composer extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 2),
-                      SizedBox.square(
-                        dimension: 44,
-                        child: FilledButton(
-                          key: const ValueKey<String>('ask-pandora-submit'),
-                          onPressed: disabled || submitting ? null : onSubmit,
-                          style: FilledButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            backgroundColor: Colors.white,
-                            disabledBackgroundColor: const Color(0xFF1F1F1F),
-                            shape: const CircleBorder(),
-                          ),
-                          child: submitting
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.arrow_upward_rounded,
-                                  color: Colors.black,
-                                  size: 22,
-                                ),
-                        ),
+                      ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: controller,
+                        builder: (context, value, child) {
+                          final cancelReady =
+                              submitting && value.text.trim().isEmpty;
+                          return SizedBox.square(
+                            dimension: 44,
+                            child: FilledButton(
+                              key: const ValueKey<String>('ask-pandora-submit'),
+                              onPressed: disabled ? null : onSubmit,
+                              style: FilledButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                backgroundColor: Colors.white,
+                                disabledBackgroundColor:
+                                    const Color(0xFF1F1F1F),
+                                shape: const CircleBorder(),
+                              ),
+                              child: Icon(
+                                cancelReady
+                                    ? Icons.stop_rounded
+                                    : Icons.arrow_upward_rounded,
+                                color: Colors.black,
+                                size: 22,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

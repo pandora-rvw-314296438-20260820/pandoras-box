@@ -130,6 +130,29 @@ class PandoraIntelligenceApi {
     }
   }
 
+  Future<void> controlActivityJob({
+    required String jobId,
+    required String requestId,
+    required PandoraActivityControlType type,
+    String? instruction,
+  }) async {
+    _requireSession();
+    final activity = PandoraActivityStreamApi(
+      client: _client,
+      organizationId: _organizationId,
+    );
+    try {
+      await activity.requestControl(
+        jobId: jobId,
+        requestId: requestId,
+        type: type,
+        instruction: instruction,
+      );
+    } on PandoraActivityStreamException catch (error) {
+      throw PandoraIntelligenceException(error.message);
+    }
+  }
+
   Future<PandoraIntelligenceExecution> startChatExecution({
     required String message,
     required String requestId,
