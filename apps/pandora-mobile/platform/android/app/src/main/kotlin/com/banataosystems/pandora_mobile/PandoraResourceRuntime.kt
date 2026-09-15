@@ -48,7 +48,7 @@ internal class PandoraResourceRuntime(
         }
 
         val beforeThermal = currentThermalStatus()
-        val startCpuMs = Process.getElapsedCpuTime()
+        val startCpuMs = SystemClock.currentThreadTimeMillis()
         val startedNs = SystemClock.elapsedRealtimeNanos()
         val deadlineNs = startedNs + requestedDurationMs * 1_000_000L
         var iterations = 0L
@@ -58,7 +58,7 @@ internal class PandoraResourceRuntime(
             iterations += 1L
         }
         val finishedNs = SystemClock.elapsedRealtimeNanos()
-        val afterCpuMs = Process.getElapsedCpuTime()
+        val afterCpuMs = SystemClock.currentThreadTimeMillis()
         val afterThermal = currentThermalStatus()
 
         return mapOf(
@@ -67,6 +67,7 @@ internal class PandoraResourceRuntime(
             "requestedDurationMs" to requestedDurationMs,
             "wallDurationMs" to ((finishedNs - startedNs) / 1_000_000.0),
             "cpuTimeMs" to (afterCpuMs - startCpuMs).coerceAtLeast(0L),
+            "cpuTimeScope" to "benchmark_worker_thread",
             "iterations" to iterations,
             "checksum" to checksum,
             "thermalStatusBefore" to beforeThermal,
@@ -259,8 +260,8 @@ internal class PandoraResourceRuntime(
                 "validated" to null,
                 "metered" to null,
                 "transports" to emptyList<String>(),
-                "downstreamKbps" to null,
-                "upstreamKbps" to null
+                "estimatedDownstreamKbps" to null,
+                "estimatedUpstreamKbps" to null
             )
         }
 
@@ -274,8 +275,8 @@ internal class PandoraResourceRuntime(
                 "validated" to false,
                 "metered" to manager?.isActiveNetworkMetered,
                 "transports" to emptyList<String>(),
-                "downstreamKbps" to null,
-                "upstreamKbps" to null
+                "estimatedDownstreamKbps" to null,
+                "estimatedUpstreamKbps" to null
             )
         }
 
@@ -294,8 +295,8 @@ internal class PandoraResourceRuntime(
             "captivePortal" to capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_CAPTIVE_PORTAL),
             "metered" to manager.isActiveNetworkMetered,
             "transports" to transports,
-            "downstreamKbps" to capabilities.linkDownstreamBandwidthKbps,
-            "upstreamKbps" to capabilities.linkUpstreamBandwidthKbps
+            "estimatedDownstreamKbps" to capabilities.linkDownstreamBandwidthKbps,
+            "estimatedUpstreamKbps" to capabilities.linkUpstreamBandwidthKbps
         )
     }
 
