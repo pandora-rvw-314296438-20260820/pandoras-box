@@ -2,56 +2,56 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/core/device/pandora_device_compatibility_profile.dart';
 
 Map<String, Object?> _profile() => {
-  'schemaVersion': '1.0.0',
-  'platform': 'android',
-  'sdkInt': 36,
-  'cpu': {
-    'supportedAbis': ['arm64-v8a'],
-    'logicalProcessors': 8,
-    'source': 'android_public_runtime',
-  },
-  'memory': {'totalBytes': 8000000000, 'source': 'activity_manager_public'},
-  'storage': {
-    'scope': 'app_data_filesystem',
-    'totalBytes': 128000000000,
-    'availableBytes': 64000000000,
-    'source': 'statfs_public',
-  },
-  'accelerators': {
-    'npu': {
-      'availability': 'unknown',
-      'evidence': 'not_probed_by_stable_public_api',
-    },
-  },
-  'roles': {
-    'deviceOwnerProvisioned': false,
-    'homeRoleHeld': true,
-    'dialerRoleAvailability': 'available',
-    'smsRoleAvailability': 'permission_required',
-  },
-  'sensors': {
-    'cameraHardware': true,
-    'microphoneHardware': true,
-    'telephonyHardware': true,
-    'bluetoothHardware': true,
-    'hardwarePresenceOnly': true,
-  },
-  'oem': {
-    'adapterId': 'xiaomi_public_v1',
-    'manufacturer': 'Xiaomi',
-    'brand': 'Redmi',
-    'xiaomiFamily': true,
-    'autostartManagement': 'manual_oem_control',
-  },
-  'constraints': {
-    'normalOperationRequiresDesktop': false,
-    'rootRequired': false,
-    'bootloaderUnlockRequired': false,
-    'hiddenOemApiRequired': false,
-    'protectedAppAccessPolicy': 'deny_private_app_data_and_credentials',
-    'developmentBridgePolicy': 'optional_not_trust_dependency',
-  },
-};
+      'schemaVersion': '1.0.0',
+      'platform': 'android',
+      'sdkInt': 36,
+      'cpu': {
+        'supportedAbis': ['arm64-v8a'],
+        'logicalProcessors': 8,
+        'source': 'android_public_runtime',
+      },
+      'memory': {'totalBytes': 8000000000, 'source': 'activity_manager_public'},
+      'storage': {
+        'scope': 'app_data_filesystem',
+        'totalBytes': 128000000000,
+        'availableBytes': 64000000000,
+        'source': 'statfs_public',
+      },
+      'accelerators': {
+        'npu': {
+          'availability': 'unknown',
+          'evidence': 'not_probed_by_stable_public_api',
+        },
+      },
+      'roles': {
+        'deviceOwnerProvisioned': false,
+        'homeRoleHeld': true,
+        'dialerRoleAvailability': 'available',
+        'smsRoleAvailability': 'permission_required',
+      },
+      'sensors': {
+        'cameraHardware': true,
+        'microphoneHardware': true,
+        'telephonyHardware': true,
+        'bluetoothHardware': true,
+        'hardwarePresenceOnly': true,
+      },
+      'oem': {
+        'adapterId': 'xiaomi_public_v1',
+        'manufacturer': 'Xiaomi',
+        'brand': 'Redmi',
+        'xiaomiFamily': true,
+        'autostartManagement': 'manual_oem_control',
+      },
+      'constraints': {
+        'normalOperationRequiresDesktop': false,
+        'rootRequired': false,
+        'bootloaderUnlockRequired': false,
+        'hiddenOemApiRequired': false,
+        'protectedAppAccessPolicy': 'deny_private_app_data_and_credentials',
+        'developmentBridgePolicy': 'optional_not_trust_dependency',
+      },
+    };
 void main() {
   test('parses portable public compatibility profile', () {
     final profile = PandoraDeviceCompatibilityProfile.fromMap(_profile());
