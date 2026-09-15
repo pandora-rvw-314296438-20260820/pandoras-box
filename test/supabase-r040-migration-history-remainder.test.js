@@ -10,7 +10,7 @@ const manifest = JSON.parse(readFileSync(join(
   root,
   'docs',
   'status',
-  'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_REMAINDER_20260914.json',
+  'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_REMAINDER_20260915.json',
 ), 'utf8'));
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
@@ -20,16 +20,16 @@ test('R-040 remainder preserves provider history and executable provider-only se
   assert.equal(manifest.projectRef, 'jcyqixttuebxqqfkjonq');
   assert.equal(manifest.repository, 'pandora-rvw-314296438-20260820/pandoras-box');
   assert.equal(manifest.mode, 'remote_history_source_reconciliation');
-  assert.equal(manifest.observedMainSha, '1b2f7885b11a64386451633ea2fb04b0472a037b');
-  assert.equal(manifest.missingCount, 36);
-  assert.equal(manifest.entries.length, 36);
-  assert.equal(manifest.historyReceiptCount, 35);
+  assert.equal(manifest.observedMainSha, '83758d53da31359a82731d5f5f25e4a40f39f64c');
+  assert.equal(manifest.missingCount, 40);
+  assert.equal(manifest.entries.length, 40);
+  assert.equal(manifest.historyReceiptCount, 39);
   assert.equal(manifest.providerOnlyCount, 1);
   assert.equal(manifest.executableProviderOnlyCount, 1);
   assert.equal(manifest.providerHistoryMutated, false);
   assert.equal(manifest.productionLiveSchemaReplayed, false);
   assert.equal(manifest.freshEnvironmentSecurityHardeningExecutable, true);
-  assert.equal(new Set(manifest.entries.map((entry) => entry.version)).size, 36);
+  assert.equal(new Set(manifest.entries.map((entry) => entry.version)).size, 40);
   assert.deepEqual(
     manifest.entries.map((entry) => entry.version),
     [...manifest.entries.map((entry) => entry.version)].sort(),
@@ -73,10 +73,20 @@ test('R-040 remainder preserves provider history and executable provider-only se
       assert.doesNotMatch(migration, /Replay mode: history_receipt_noop/);
     }
   }
-  assert.equal(receiptCount, 35);
+  assert.equal(receiptCount, 39);
   assert.equal(executableCount, 1);
 
   const liveRead = manifest.entries.find((entry) => entry.version === '20260912190059');
   assert.equal(liveRead.canonicalPath, 'supabase/migrations/20260911131000_pandora_universal_capability_router_v2.sql');
   assert.equal(liveRead.reconciliation, 'promotion_wrapper_canonical_router_preserved_without_replay');
+  const normalizedExact = new Set(['20260915041615','20260915041659','20260915041750','20260915041841']);
+  for (const version of normalizedExact) {
+    const entry = manifest.entries.find((candidate) => candidate.version === version);
+    assert.equal(entry.replayMode, 'history_receipt_noop');
+    assert.equal(entry.reconciliation, 'same_name_canonical_authority_exact_provider_body_preserved_without_replay');
+    const canonical = readFileSync(join(root, entry.canonicalPath), 'utf8');
+    const providerBody = canonical.endsWith('\n') ? canonical.slice(0, -1) : canonical;
+    assert.equal(Buffer.byteLength(providerBody), entry.providerSqlBytes, version);
+    assert.equal(sha256(providerBody), entry.originalSqlSha256, version);
+  }
 });

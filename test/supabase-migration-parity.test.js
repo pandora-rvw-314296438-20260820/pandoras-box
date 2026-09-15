@@ -74,7 +74,7 @@ const r040RemainderRemoteHistoryReceiptManifest = JSON.parse(
       repositoryRoot,
       'docs',
       'status',
-      'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_REMAINDER_20260914.json',
+      'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_REMAINDER_20260915.json',
     ),
     'utf8',
   ),
