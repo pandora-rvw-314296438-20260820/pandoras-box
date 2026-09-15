@@ -36,11 +36,7 @@ Map<String, Object?> _snapshot() => {
         'plugged': 'battery',
         'temperatureCelsius': 32.4,
       },
-      'thermal': {
-        'status': 'none',
-        'headroomSupported': true,
-        'headroom': 0.4,
-      },
+      'thermal': {'status': 'none', 'headroomSupported': true, 'headroom': 0.4},
       'process': {
         'pid': 123,
         'totalPssBytes': 12345678,
@@ -56,8 +52,8 @@ Map<String, Object?> _snapshot() => {
         'captivePortal': false,
         'metered': false,
         'transports': ['wifi'],
-        'downstreamKbps': 100000,
-        'upstreamKbps': 50000,
+        'estimatedDownstreamKbps': 100000,
+        'estimatedUpstreamKbps': 50000,
       },
     };
 
@@ -67,6 +63,7 @@ Map<String, Object?> _benchmark() => {
       'requestedDurationMs': 40,
       'wallDurationMs': 40.2,
       'cpuTimeMs': 39,
+      'cpuTimeScope': 'benchmark_worker_thread',
       'iterations': 100000,
       'checksum': 123456,
       'thermalStatusBefore': 'none',
@@ -85,6 +82,8 @@ void main() {
     expect(snapshot.capturedAtElapsedRealtimeMs, 1234);
     expect(snapshot.cpu['headroomPercent'], 42.5);
     expect(snapshot.network['validated'], isTrue);
+    expect(snapshot.network['estimatedDownstreamKbps'], 100000);
+    expect(snapshot.network.containsKey('downstreamKbps'), isFalse);
     expect(snapshot.network.containsKey('ssid'), isFalse);
     expect(snapshot.network.containsKey('bssid'), isFalse);
   });
@@ -130,11 +129,32 @@ void main() {
     }
   });
 
-  test('resource benchmark request is strictly bounded', () {
-    expect(
-      const PandoraResourceBenchmarkRequest().toMap(),
-      {'durationMs': 40},
+  test('rejects ambiguous or invalid network bandwidth telemetry', () {
+    final ambiguous = _snapshot();
+    final ambiguousNetwork = Map<String, Object?>.from(
+      ambiguous['network']! as Map,
     );
+    ambiguousNetwork['downstreamKbps'] = 100000;
+    ambiguous['network'] = ambiguousNetwork;
+    expect(
+      () => PandoraResourceSnapshot.fromMap(ambiguous),
+      throwsFormatException,
+    );
+
+    final invalid = _snapshot();
+    final invalidNetwork = Map<String, Object?>.from(
+      invalid['network']! as Map,
+    );
+    invalidNetwork['estimatedUpstreamKbps'] = -1;
+    invalid['network'] = invalidNetwork;
+    expect(
+      () => PandoraResourceSnapshot.fromMap(invalid),
+      throwsFormatException,
+    );
+  });
+
+  test('resource benchmark request is strictly bounded', () {
+    expect(const PandoraResourceBenchmarkRequest().toMap(), {'durationMs': 40});
     expect(
       () => const PandoraResourceBenchmarkRequest(durationMs: 24).toMap(),
       throwsRangeError,
@@ -150,7 +170,17 @@ void main() {
 
     expect(result.kind, 'cpu_integer_mix_v1');
     expect(result.requestedDurationMs, 40);
+    expect(result.cpuTimeScope, 'benchmark_worker_thread');
     expect(result.iterations, greaterThan(0));
+  });
+
+  test('rejects benchmark CPU time without worker-thread scope', () {
+    final invalid = _benchmark();
+    invalid['cpuTimeScope'] = 'process';
+    expect(
+      () => PandoraResourceBenchmarkResult.fromMap(invalid),
+      throwsFormatException,
+    );
   });
 
   test('rejects benchmark mutation, command, desktop or root claims', () {
