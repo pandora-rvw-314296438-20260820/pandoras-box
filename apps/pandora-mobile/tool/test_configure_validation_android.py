@@ -15,7 +15,7 @@ _SCRIPT = Path(__file__).with_name('configure_validation_android.py')
 _CANONICAL_MARK_SHA256 = (
     '8a35b74baec47b960a42bb74587f9c531d6cbf8d45f16061836a9e63f00efcc5'
 )
-_BASE_MANIFEST = """<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n    <application android:label=\"pandora_mobile\" android:name=\"${applicationName}\" android:icon=\"@mipmap/ic_launcher\">\n        <activity android:name=\".MainActivity\" android:exported=\"true\">\n            <intent-filter>\n                <action android:name=\"android.intent.action.MAIN\"/>\n                <category android:name=\"android.intent.category.LAUNCHER\"/>\n            </intent-filter>\n        </activity>\n    </application>\n</manifest>\n"""
+_BASE_MANIFEST = """<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n    <application android:label=\"pandora_mobile\" android:name=\"${applicationName}\" android:icon=\"@mipmap/ic_launcher\">\n        <activity android:name=\".MainActivity\" android:exported=\"true\" android:launchMode=\"singleTop\" android:taskAffinity=\"\">\n            <intent-filter>\n                <action android:name=\"android.intent.action.MAIN\"/>\n                <category android:name=\"android.intent.category.LAUNCHER\"/>\n            </intent-filter>\n        </activity>\n    </application>\n</manifest>\n"""
 
 
 class ConfigureValidationAndroidTest(unittest.TestCase):
@@ -141,9 +141,15 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
         self.assertEqual(updated.count('android.intent.category.DEFAULT'), 1)
         self.assertEqual(updated.count('android.intent.category.LAUNCHER'), 1)
         self.assertEqual(updated.count('android.intent.action.MAIN'), 2)
-        self.assertNotIn('android.permission.CALL_PHONE', updated)
+        self.assertIn('<uses-permission android:name="android.permission.CALL_PHONE"/>', updated)
+        self.assertIn('<uses-permission android:name="android.permission.SEND_SMS"/>', updated)
+        self.assertIn('<uses-permission android:name="android.permission.READ_CONTACTS"/>', updated)
+        self.assertIn('<receiver android:name=".PandoraSmsStatusReceiver" android:exported="false"/>', updated)
         self.assertNotIn('android.permission.READ_SMS', updated)
-        self.assertNotIn('android.permission.SEND_SMS', updated)
+        self.assertEqual(updated.count('android.permission.READ_CONTACTS'), 1)
+        self.assertIn('android:launchMode="singleTask"', updated)
+        self.assertNotIn('android:launchMode="singleTop"', updated)
+        self.assertNotIn('android:taskAffinity=""', updated)
         self.assertNotIn('android:lockTaskMode', updated)
         self.assertIn('without forcing default HOME', result.stdout)
 
