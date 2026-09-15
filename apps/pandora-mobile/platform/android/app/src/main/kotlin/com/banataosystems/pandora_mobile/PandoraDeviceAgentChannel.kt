@@ -26,6 +26,7 @@ internal class PandoraDeviceAgentChannel private constructor(
     private val resourceRuntime = PandoraResourceRuntime(context)
     private val deviceCompatibilityProfile = PandoraDeviceCompatibilityProfile(context, oemAdapter)
     private val provisioningBootstrap = PandoraProvisioningBootstrap(context, oemAdapter)
+    private val signedUpdateChannel = PandoraSignedUpdateChannel(context)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val resourceExecutor = ThreadPoolExecutor(
         1,
@@ -54,6 +55,8 @@ internal class PandoraDeviceAgentChannel private constructor(
             "getCapabilityManifest" -> result.success(capabilityManifest())
             "getCompatibilityProfile" -> result.success(compatibilityProfile())
             "getProvisioningBootstrap" -> result.success(provisioningBootstrap())
+            "getSignedUpdatePolicy" -> result.success(signedUpdateChannel.policySnapshot(isDeviceOwner()))
+            "verifySignedUpdateBundle" -> runSignedUpdateVerification(call, result)
             "getPermissionStates" -> result.success(permissionStates())
             "getResourceSnapshot" -> runResourceSnapshot(result)
             "runResourceBenchmark" -> runResourceBenchmark(call, result)
@@ -61,6 +64,64 @@ internal class PandoraDeviceAgentChannel private constructor(
             "openSystemSurface" -> openSystemSurface(call, result)
             "runSafeDiagnostic" -> runSafeDiagnostic(call, result)
             else -> result.notImplemented()
+        }
+    }
+
+    private fun runSignedUpdateVerification(call: MethodCall, result: MethodChannel.Result) {
+        val raw = call.arguments
+        if (raw !is Map<*, *>) {
+            result.error(
+                "INVALID_SIGNED_UPDATE_REQUEST",
+                "Pandora requires a bounded signed update verification request.",
+                null
+            )
+            return
+        }
+        val arguments = mutableMapOf<String, Any?>()
+        for ((key, value) in raw) {
+            if (key !is String) {
+                result.error(
+                    "INVALID_SIGNED_UPDATE_REQUEST",
+                    "Pandora signed update requests require string keys.",
+                    null
+                )
+                return
+            }
+            arguments[key] = value
+        }
+        try {
+            resourceExecutor.execute {
+                val outcome = try {
+                    Result.success(
+                        signedUpdateChannel.verifyBundle(
+                            arguments,
+                            deviceOwnerProvisioned = isDeviceOwner()
+                        )
+                    )
+                } catch (error: IllegalArgumentException) {
+                    Result.failure<Map<String, Any?>>(error)
+                } catch (error: RuntimeException) {
+                    Result.failure<Map<String, Any?>>(error)
+                }
+                mainHandler.post {
+                    outcome.fold(
+                        onSuccess = result::success,
+                        onFailure = {
+                            result.error(
+                                "SIGNED_UPDATE_REJECTED",
+                                "Pandora rejected the staged update because its trust evidence could not be verified.",
+                                null
+                            )
+                        }
+                    )
+                }
+            }
+        } catch (_: RejectedExecutionException) {
+            result.error(
+                "DEVICE_AGENT_BUSY",
+                "Pandora device verification is busy; retry after the current bounded work completes.",
+                null
+            )
         }
     }
 
