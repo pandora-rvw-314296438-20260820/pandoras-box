@@ -24,6 +24,7 @@ internal class PandoraDeviceAgentChannel private constructor(
 ) {
     private val oemAdapter = PandoraAndroidOemAdapter(context)
     private val resourceRuntime = PandoraResourceRuntime(context)
+    private val deviceCompatibilityProfile = PandoraDeviceCompatibilityProfile(context, oemAdapter)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val resourceExecutor = ThreadPoolExecutor(
         1,
@@ -50,6 +51,7 @@ internal class PandoraDeviceAgentChannel private constructor(
     private fun handleCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "getCapabilityManifest" -> result.success(capabilityManifest())
+            "getCompatibilityProfile" -> result.success(compatibilityProfile())
             "getPermissionStates" -> result.success(permissionStates())
             "getResourceSnapshot" -> runResourceSnapshot(result)
             "runResourceBenchmark" -> runResourceBenchmark(call, result)
@@ -303,6 +305,17 @@ internal class PandoraDeviceAgentChannel private constructor(
                 null
             )
         }
+    }
+
+    private fun compatibilityProfile(): Map<String, Any?> {
+        val dialerRole = androidRoleState(RoleManager.ROLE_DIALER, "dialer")
+        val smsRole = androidRoleState(RoleManager.ROLE_SMS, "SMS")
+        return deviceCompatibilityProfile.snapshot(
+            deviceOwnerProvisioned = isDeviceOwner(),
+            homeRoleHeld = isDefaultHome(),
+            dialerRoleAvailability = dialerRole.availability,
+            smsRoleAvailability = smsRole.availability
+        )
     }
 
     private fun capabilityManifest(): Map<String, Any?> {
