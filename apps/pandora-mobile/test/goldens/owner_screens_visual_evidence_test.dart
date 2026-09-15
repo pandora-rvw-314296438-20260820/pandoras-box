@@ -190,7 +190,9 @@ class _FixtureActivityHistorySource implements PandoraActivityHistorySource {
   Future<PandoraActivityHistoryPage> search(
     PandoraActivityHistoryQuery query,
   ) async {
-    final now = _visualRunReference;
+    // History shows absolute event time in this reviewed golden. Keep this
+    // synthetic fixture clock fixed so CI wall-clock time cannot move pixels.
+    final now = DateTime.utc(2026, 9, 15, 12, 52);
     PandoraActivityHistoryRecord item({
       required String eventId,
       required String jobId,
