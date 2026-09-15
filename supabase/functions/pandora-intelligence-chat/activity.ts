@@ -48,7 +48,24 @@ export type ActivityControl = {
   acceptedAt: string;
 };
 
+export type ActivityExecutionReadback = {
+  mode: 'execute' | 'observe' | 'reconcile';
+  jobId: string;
+  claimId: string | null;
+  generation: number;
+  checkpoint: string | null;
+  checkpointRef?: string | null;
+  effectState: 'none' | 'ambiguous' | 'verified';
+  executionState?: string | null;
+  terminalState: string | null;
+  result?: Json | null;
+  errorCode?: string | null;
+  updatedAt?: string | null;
+};
+
 const idPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/;
+const sha256Pattern = /^[0-9a-f]{64}$/;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function requireActivityJob(admin: AdminClient, jobId: string | null, organizationId: string, userId: string) {
   if (!jobId) return null;
@@ -63,6 +80,62 @@ export async function bindActivityThread(admin: AdminClient, jobId: string | nul
   if (update.error || !update.data) throw Error('ACTIVITY_JOB_BIND_FAILED');
 }
 
+function parseExecutionReadback(value: unknown): ActivityExecutionReadback {
+  const row = value && typeof value === 'object' && !Array.isArray(value) ? value as Json : {};
+  const mode = String(row.mode ?? '');
+  const jobId = String(row.jobId ?? '');
+  const claimId = row.claimId == null ? null : String(row.claimId);
+  const generation = Number(row.generation ?? 0);
+  const checkpoint = row.checkpoint == null ? null : String(row.checkpoint);
+  const checkpointRef = row.checkpointRef == null ? null : String(row.checkpointRef);
+  const effectState = String(row.effectState ?? 'none');
+  const executionState = row.executionState == null ? null : String(row.executionState);
+  const terminalState = row.terminalState == null ? null : String(row.terminalState);
+  const result = row.result && typeof row.result === 'object' && !Array.isArray(row.result) ? row.result as Json : null;
+  const errorCode = row.errorCode == null ? null : String(row.errorCode);
+  const updatedAt = row.updatedAt == null ? null : String(row.updatedAt);
+  if (!['execute','observe','reconcile'].includes(mode) || (jobId && !uuidPattern.test(jobId)) || (claimId && !uuidPattern.test(claimId)) || !Number.isInteger(generation) || generation < 0 || !['none','ambiguous','verified'].includes(effectState)) throw Error('ACTIVITY_EXECUTION_READBACK_INVALID');
+  return { mode: mode as ActivityExecutionReadback['mode'], jobId, claimId, generation, checkpoint, checkpointRef, effectState: effectState as ActivityExecutionReadback['effectState'], executionState, terminalState, result, errorCode, updatedAt };
+}
+
+export async function claimActivityExecution(admin: AdminClient, jobId: string | null, requestFingerprint: string, claimId: string): Promise<ActivityExecutionReadback> {
+  if (!jobId) return { mode: 'execute', jobId: '', claimId: null, generation: 0, checkpoint: null, effectState: 'none', terminalState: null };
+  if (!sha256Pattern.test(requestFingerprint) || !uuidPattern.test(claimId)) throw Error('ACTIVITY_EXECUTION_CLAIM_INVALID');
+  const result = await admin.rpc('pandora_activity_execution_claim_v1', { p_job_id: jobId, p_request_fingerprint: requestFingerprint, p_claim_id: claimId });
+  if (result.error) throw Error(String(result.error.message ?? '').includes('idempotency_conflict') ? 'ACTIVITY_EXECUTION_IDEMPOTENCY_CONFLICT' : 'ACTIVITY_EXECUTION_CLAIM_FAILED');
+  return parseExecutionReadback(result.data);
+}
+
+export async function checkpointActivityExecution(admin: AdminClient, jobId: string | null, claimId: string | null, checkpoint: string, checkpointRef: string | null = null, effectState: 'none' | 'ambiguous' | 'verified' = 'none', resultPayload: Json | null = null) {
+  if (!jobId || !claimId) return;
+  const result = await admin.rpc('pandora_activity_execution_checkpoint_v1', { p_job_id: jobId, p_claim_id: claimId, p_checkpoint: checkpoint, p_checkpoint_ref: checkpointRef, p_effect_state: effectState, p_result: resultPayload });
+  if (result.error) throw Error(String(result.error.message ?? '').includes('claim_stale') ? 'ACTIVITY_EXECUTION_CLAIM_STALE' : 'ACTIVITY_EXECUTION_CHECKPOINT_FAILED');
+}
+
+export async function finishActivityExecution(admin: AdminClient, jobId: string | null, claimId: string | null, state: 'complete' | 'failed' | 'cancelled', resultPayload: Json | null = null, errorCode: string | null = null) {
+  if (!jobId || !claimId) return;
+  const result = await admin.rpc('pandora_activity_execution_finish_v1', { p_job_id: jobId, p_claim_id: claimId, p_state: state, p_result: resultPayload, p_error_code: errorCode });
+  if (result.error) throw Error(String(result.error.message ?? '').includes('claim_stale') ? 'ACTIVITY_EXECUTION_CLAIM_STALE' : 'ACTIVITY_EXECUTION_FINISH_FAILED');
+}
+
+export async function readActivityExecution(admin: AdminClient, jobId: string | null, requestFingerprint: string): Promise<ActivityExecutionReadback | null> {
+  if (!jobId) return null;
+  if (!sha256Pattern.test(requestFingerprint)) throw Error('ACTIVITY_EXECUTION_READBACK_INVALID');
+  const result = await admin.rpc('pandora_activity_execution_readback_v1', { p_job_id: jobId, p_request_fingerprint: requestFingerprint });
+  if (result.error) throw Error(String(result.error.message ?? '').includes('idempotency_conflict') ? 'ACTIVITY_EXECUTION_IDEMPOTENCY_CONFLICT' : 'ACTIVITY_EXECUTION_READBACK_FAILED');
+  return parseExecutionReadback(result.data);
+}
+
+export async function waitForActivityExecutionReadback(admin: AdminClient, jobId: string | null, requestFingerprint: string, timeoutMs = 12000, pollIntervalMs = 300): Promise<ActivityExecutionReadback | null> {
+  if (!jobId) return null;
+  const deadline = Date.now() + Math.max(0, timeoutMs);
+  let latest = await readActivityExecution(admin, jobId, requestFingerprint);
+  while (latest?.mode === 'observe' && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, Math.max(50, pollIntervalMs)));
+    latest = await readActivityExecution(admin, jobId, requestFingerprint);
+  }
+  return latest;
+}
 export async function claimActivityControls(admin: AdminClient, jobId: string | null, limit = 8): Promise<ActivityControl[]> {
   if (!jobId) return [];
   const controls: ActivityControl[] = [];
