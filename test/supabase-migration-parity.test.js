@@ -68,6 +68,17 @@ const r040RemoteHistoryReceiptManifest = JSON.parse(
     'utf8',
   ),
 );
+const r040RemainderRemoteHistoryReceiptManifest = JSON.parse(
+  readFileSync(
+    join(
+      repositoryRoot,
+      'docs',
+      'status',
+      'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_REMAINDER_20260914.json',
+    ),
+    'utf8',
+  ),
+);
 const legacyRemoteHistoryReceiptFiles = new Set(
   remoteHistoryReceiptManifest.entries.map(
     (entry) => `${entry.version}_${entry.name}.sql`,
@@ -83,15 +94,22 @@ const r040RemoteHistoryReceiptFiles = new Set(
     (entry) => `${entry.version}_${entry.name}.sql`,
   ),
 );
+const r040RemainderRemoteHistoryReceiptFiles = new Set(
+  r040RemainderRemoteHistoryReceiptManifest.entries
+    .filter((entry) => entry.replayMode === 'history_receipt_noop')
+    .map((entry) => `${entry.version}_${entry.name}.sql`),
+);
 const remoteHistoryReceiptManifests = [
   remoteHistoryReceiptManifest,
   supplementalRemoteHistoryReceiptManifest,
   r040RemoteHistoryReceiptManifest,
+  r040RemainderRemoteHistoryReceiptManifest,
 ];
 const remoteHistoryReceiptFiles = new Set([
   ...legacyRemoteHistoryReceiptFiles,
   ...supplementalRemoteHistoryReceiptFiles,
   ...r040RemoteHistoryReceiptFiles,
+  ...r040RemainderRemoteHistoryReceiptFiles,
 ]);
 
 function sha256(value) {
@@ -267,6 +285,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260909042500_projectos_ruleset_protection_reconciliation_v1.sql',
     '20260909070800_pandora_base44_publish_rollout_gate_v1.sql',
     '20260909093400_pandora_preview_not_live_projection_v1.sql',
+    '20260910051901_revoke_anon_dangerous_table_grants_20260910.sql',
     '20260910075705_pandora_theatre_preexecution_primitive_truth_v1.sql',
     '20260910081625_pandora_worker_e_catalog_trust_bootstrap_v1.sql',
     '20260910103000_pandora_stream_event_impact_classified_v1.sql',
@@ -540,6 +559,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260909042500_projectos_ruleset_protection_reconciliation_v1.sql',
     '20260909070800_pandora_base44_publish_rollout_gate_v1.sql',
     '20260909093400_pandora_preview_not_live_projection_v1.sql',
+    '20260910051901_revoke_anon_dangerous_table_grants_20260910.sql',
     '20260910075705_pandora_theatre_preexecution_primitive_truth_v1.sql',
     '20260910081625_pandora_worker_e_catalog_trust_bootstrap_v1.sql',
     '20260910103000_pandora_stream_event_impact_classified_v1.sql',
@@ -765,6 +785,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260909042500_projectos_ruleset_protection_reconciliation_v1.sql',
     '20260909070800_pandora_base44_publish_rollout_gate_v1.sql',
     '20260909093400_pandora_preview_not_live_projection_v1.sql',
+    '20260910051901_revoke_anon_dangerous_table_grants_20260910.sql',
     '20260910075705_pandora_theatre_preexecution_primitive_truth_v1.sql',
     '20260910081625_pandora_worker_e_catalog_trust_bootstrap_v1.sql',
     '20260910103000_pandora_stream_event_impact_classified_v1.sql',
