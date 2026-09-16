@@ -11,7 +11,7 @@ const edge = fs.readFileSync(
   "utf8",
 );
 const migration = fs.readFileSync(
-  path.join(root, "supabase/migrations/20260916073000_r058_trusted_coordinator_gate.sql"),
+  path.join(root, "supabase/migrations/20260916103635_r058_trusted_coordinator_gate.sql"),
   "utf8",
 );
 const packageJson = fs.readFileSync(path.join(root, "package.json"), "utf8");
@@ -20,8 +20,8 @@ const canonicalWorkflow = fs.readFileSync(
   "utf8",
 );
 
-test("R-058 runtime is HOLD-capable but PASS and merge stay disabled until the Sheet fence exists", () => {
-  assert.match(edge, /const PASS_ENABLED = false;/);
+test("R-058 runtime enables PASS only through the effective Sheet fence while merge stays externally fenced", () => {
+  assert.match(edge, /const PASS_ENABLED = true;/);
   assert.match(edge, /PASS_DISABLED_UNTIL_SHEET_FENCE/);
   assert.match(edge, /MERGE_DISABLED_UNTIL_SHEET_FENCE/);
   assert.doesNotMatch(edge, /mergePull\s*\(/);
@@ -78,7 +78,7 @@ test("database mutation RPCs are service-role-only and still require the coordin
 
 test("D-041 effective Sheet snapshot promotion is fenced across publish, promotion, expiry, and merge", () => {
   const fenceMigration = fs.readFileSync(
-    path.join(root, "supabase/migrations/20260916084500_r058_effective_sheet_snapshot_fence.sql"),
+    path.join(root, "supabase/migrations/20260916103837_r058_effective_sheet_snapshot_fence.sql"),
     "utf8",
   );
   assert.match(fenceMigration, /fence_state in \('idle','promoting','publishing','merging'\)/);

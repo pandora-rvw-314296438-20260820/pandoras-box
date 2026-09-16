@@ -12,7 +12,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const INSTALLATION_ID = 158056492;
 const MAX_BODY_BYTES = 48 * 1024;
-const PASS_ENABLED = false;
+const PASS_ENABLED = true;
 
 type JsonRecord = Record<string, unknown>;
 function rec(value: unknown): JsonRecord {
