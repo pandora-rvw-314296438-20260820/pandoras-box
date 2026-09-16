@@ -72,7 +72,7 @@ internal class PandoraDirectCommunications(private val context: Context) {
         return if (kind == "sms") {
             executeSms(operationId, recipient, message!!, subscriptionId, permission)
         } else {
-            executeCall(operationId, recipient, permission)
+            executeCall(operationId, recipient, subscriptionId, permission)
         }
     }
 
@@ -150,12 +150,33 @@ internal class PandoraDirectCommunications(private val context: Context) {
         }
     }
 
-    private fun executeCall(operationId: String, recipient: String, permission: String): Map<String, Any?> {
+    private fun executeCall(
+        operationId: String,
+        recipient: String,
+        subscriptionId: Int?,
+        permission: String
+    ): Map<String, Any?> {
         if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_CALLING)) {
             return PandoraCommunicationStateStore.record(context, operationId, "call", "failed", "telephony_unavailable")
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             return PandoraCommunicationStateStore.record(context, operationId, "call", "fallback_required", "emergency_guard_requires_android_10")
+        }
+        if (subscriptionId != null) {
+            val defaultVoiceSubscriptionId = try {
+                SubscriptionManager.getDefaultVoiceSubscriptionId()
+            } catch (_: UnsupportedOperationException) {
+                SubscriptionManager.INVALID_SUBSCRIPTION_ID
+            }
+            if (defaultVoiceSubscriptionId != subscriptionId) {
+                return PandoraCommunicationStateStore.record(
+                    context,
+                    operationId,
+                    "call",
+                    "fallback_required",
+                    "explicit_call_subscription_requires_phone_ui"
+                )
+            }
         }
         val telephony = context.getSystemService(TelephonyManager::class.java)
             ?: return PandoraCommunicationStateStore.record(context, operationId, "call", "failed", "telephony_manager_unavailable")
