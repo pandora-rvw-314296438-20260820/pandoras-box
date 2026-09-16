@@ -172,7 +172,7 @@ function githubProvider(token: string) {
       return await githubJson(token, `check-runs/${checkRunId}`);
     },
     async createCheck(payload: JsonRecord) {
-      return await githubJson(token, `commits/${String(payload.head_sha)}/check-runs`, {
+      return await githubJson(token, "check-runs", {
         method: "POST",
         body: JSON.stringify(payload),
       }, true);

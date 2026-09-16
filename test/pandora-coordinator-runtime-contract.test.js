@@ -33,6 +33,11 @@ test("trusted runtime mints only the fixed GitHub App installation token with mi
   assert.doesNotMatch(edge, /GITHUB_TOKEN|Github_supabase|mcpmaster_github_account_1_pat/);
 });
 
+test("GitHub App creates checks through the repository check-runs endpoint", () => {
+  assert.match(edge, /githubJson\(token, "check-runs", \{/);
+  assert.doesNotMatch(edge, /commits\/\$\{String\(payload\.head_sha\)\}\/check-runs/);
+});
+
 test("coordinator HTTP entrypoint requires a non-browser internal-key path", () => {
   assert.match(edge, /x-pandora-coordinator-key/);
   assert.match(edge, /request\.headers\.get\("origin"\)/);
