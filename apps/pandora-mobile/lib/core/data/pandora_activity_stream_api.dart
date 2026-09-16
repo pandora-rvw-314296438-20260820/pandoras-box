@@ -90,10 +90,12 @@ class PandoraActivityStreamApi {
     final safeOperation = operationId.trim();
     final safeCapability = capability.trim();
     final safeStage = stage.trim();
-    final validOperation = RegExp(r'^[A-Za-z0-9._:-]{8,128}$').hasMatch(safeOperation);
+    final validOperation =
+        RegExp(r'^[A-Za-z0-9._:-]{8,128}$').hasMatch(safeOperation);
     if (safeJob.isEmpty ||
         !validOperation ||
-        !const <String>{'calendar.events', 'reminder.local'}.contains(safeCapability) ||
+        !const <String>{'calendar.events', 'reminder.local'}
+            .contains(safeCapability) ||
         !const <String>{
           'acting',
           'verifying',
