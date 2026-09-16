@@ -57,6 +57,17 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
             '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>',
             updated,
         )
+        for permission in (
+            'android.permission.READ_CALENDAR',
+            'android.permission.WRITE_CALENDAR',
+            'android.permission.POST_NOTIFICATIONS',
+            'android.permission.SCHEDULE_EXACT_ALARM',
+        ):
+            self.assertEqual(updated.count(permission), 1)
+        self.assertIn(
+            '<receiver android:name=".PandoraLocalReminderReceiver" android:exported="false"/>',
+            updated,
+        )
         self.assertIn('android:label="Pandora"', updated)
         self.assertNotIn('android:label="pandora_mobile"', updated)
         self.assertIn('android:icon="@drawable/pandora_launcher_icon"', updated)
