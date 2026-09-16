@@ -1,5 +1,6 @@
 package com.banataosystems.pandora_mobile
 
+import android.Manifest
 import android.app.admin.DevicePolicyManager
 import android.app.role.RoleManager
 import android.content.ActivityNotFoundException
@@ -391,6 +392,21 @@ internal class PandoraDeviceAgentChannel private constructor(
         val deviceOwnerProvisioned = isDeviceOwner()
         val dialerRole = androidRoleState(RoleManager.ROLE_DIALER, "dialer")
         val smsRole = androidRoleState(RoleManager.ROLE_SMS, "SMS")
+        val declaredPermissions = requestedPermissions()
+        val calendarPermissionsReady = listOf(
+            Manifest.permission.READ_CALENDAR,
+            Manifest.permission.WRITE_CALENDAR
+        ).all { permission ->
+            declaredPermissions.contains(permission) &&
+                context.packageManager.checkPermission(permission, context.packageName) ==
+                PackageManager.PERMISSION_GRANTED
+        }
+        val reminderNotificationsReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            (declaredPermissions.contains(Manifest.permission.POST_NOTIFICATIONS) &&
+                context.packageManager.checkPermission(
+                    Manifest.permission.POST_NOTIFICATIONS,
+                    context.packageName
+                ) == PackageManager.PERMISSION_GRANTED)
         return mapOf(
             "schemaVersion" to "1.0.0",
             "platform" to "android",
@@ -516,6 +532,26 @@ internal class PandoraDeviceAgentChannel private constructor(
                     "public_app",
                     "available",
                     "Android Storage Access Framework limits reads to user-selected text documents/photos and writes to a user-selected save destination; Pandora requests no broad storage or media permission.",
+                    false
+                ),
+                capability(
+                    "calendar.events",
+                    "runtime_permission",
+                    if (calendarPermissionsReady) "available" else "permission_required",
+                    if (calendarPermissionsReady)
+                        "Android Calendar Provider read/write is available with fresh permission checks and provider readback."
+                    else
+                        "Calendar access requires declared and granted READ_CALENDAR plus WRITE_CALENDAR permissions.",
+                    false
+                ),
+                capability(
+                    "reminder.local",
+                    "runtime_permission",
+                    if (reminderNotificationsReady) "available" else "permission_required",
+                    if (reminderNotificationsReady)
+                        "Local Android reminders can notify offline; exact timing still requires Android exact-alarm special access when explicitly requested."
+                    else
+                        "Local reminder notifications require POST_NOTIFICATIONS on Android 13 or newer.",
                     false
                 ),
                 capability(
@@ -646,6 +682,9 @@ internal class PandoraDeviceAgentChannel private constructor(
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_CONTACTS",
         "android.permission.WRITE_CONTACTS",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.READ_SMS",
         "android.permission.SEND_SMS",
         "android.permission.CALL_PHONE",

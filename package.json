@@ -40,7 +40,7 @@
         "meta:staging:smoke": "npm run build:meta && node apps/meta-business-mcp/dist/staging-cli.js smoke",
         "test:pandora-tools": "node --test packages/pandora-tools/test/*.test.js",
         "aws-deploy-complete": "aws/deploy-complete.sh",
-        "check:supabase:types": "npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-intelligence-chat/index.ts supabase/functions/pandora-intelligence-review-attestation/index.ts supabase/functions/pandora-project-runtime/index.ts supabase/functions/pandora-vercel-runtime-webhook/index.ts supabase/functions/pandora-source-convergence-worker/index.ts supabase/functions/pandora-project-source-generator/index.ts supabase/functions/pandora-project-spec-compiler/index.ts supabase/functions/pandora-user-admin/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts",
+        "check:supabase:types": "npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-coordinator-gate/index.ts supabase/functions/pandora-intelligence-chat/index.ts supabase/functions/pandora-intelligence-review-attestation/index.ts supabase/functions/pandora-project-runtime/index.ts supabase/functions/pandora-vercel-runtime-webhook/index.ts supabase/functions/pandora-source-convergence-worker/index.ts supabase/functions/pandora-project-source-generator/index.ts supabase/functions/pandora-project-spec-compiler/index.ts supabase/functions/pandora-user-admin/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts",
         "build:shared-security": "tsc -p packages/shared-security/tsconfig.json",
         "check:supabase:replay": "node scripts/replay-supabase-migrations.mjs",
         "meta:staging:validate": "npm run build:meta && node apps/meta-business-mcp/dist/staging-cli.js validate",
@@ -96,27 +96,27 @@
     ],
     "description": "Pandoras-Box control plane with the MCPMaster secure provider gateway runtime",
     "dependencies": {
-        "ws": "^8.21.3",
-        "zod": "^3.25.76",
-        "cors": "^2.8.6",
-        "three": "^0.186.0",
-        "helmet": "^8.1.0",
-        "express": "^5.2.1",
-        "telegraf": "^4.15.0",
-        "node-fetch": "^3.3.2",
-        "@vercel/oidc": "^3.8.7",
+        "@modelcontextprotocol/sdk": "^1.30.0",
         "@slack/web-api": "^8.1.1",
-        "@modelcontextprotocol/sdk": "^1.30.0"
+        "@vercel/oidc": "^3.8.7",
+        "cors": "^2.8.6",
+        "express": "^5.2.1",
+        "helmet": "^8.1.0",
+        "node-fetch": "^3.3.2",
+        "telegraf": "^4.15.0",
+        "three": "^0.186.0",
+        "ws": "^8.21.3",
+        "zod": "^3.25.76"
     },
     "devDependencies": {
-        "ts-node": "^10.9.0",
-        "@types/ws": "^8.5.10",
-        "typescript": "^5.3.0",
+        "@electric-sql/pglite": "0.5.8",
         "@types/cors": "^2.8.19",
-        "@types/node": "^24.0.0",
-        "@types/three": "^0.186.0",
-        "@vercel/node": "5.10.2",
         "@types/express": "^5.0.6",
-        "@electric-sql/pglite": "0.5.8"
+        "@types/node": "^26.5.1",
+        "@types/three": "^0.158.3",
+        "@types/ws": "^8.5.10",
+        "@vercel/node": "13.0.0",
+        "ts-node": "^10.9.0",
+        "typescript": "^5.3.0"
     }
 }
