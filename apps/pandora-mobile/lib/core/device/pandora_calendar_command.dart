@@ -361,9 +361,8 @@ class PandoraCalendarCommand {
     if (!inferredPm && !inferredAm) {
       return _ResolvedTime.ambiguous('Is that $hour AM or $hour PM?');
     }
-    final normalizedHour = inferredPm
-        ? (hour == 12 ? 12 : hour + 12)
-        : (hour == 12 ? 0 : hour);
+    final normalizedHour =
+        inferredPm ? (hour == 12 ? 12 : hour + 12) : (hour == 12 ? 0 : hour);
     return _ResolvedTime(normalizedHour * 60 + minute);
   }
 
