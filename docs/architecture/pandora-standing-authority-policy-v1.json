@@ -1,0 +1,265 @@
+{
+  "schemaVersion": "pandora-standing-authority-policy-v1",
+  "status": "frozen",
+  "effectiveDate": "2026-09-13",
+  "purpose": "Autonomous by default inside established authority; approval-gated only when genuinely consequential.",
+  "principles": {
+    "autonomousInsideAuthority": true,
+    "approvalOnlyWhenConsequentialAndNotAlreadyAuthorized": true,
+    "writeDoesNotAutomaticallyMeanConsequential": true,
+    "predictionNeverGrantsAuthority": true,
+    "authorizationDoesNotImplySuccess": true,
+    "verifiedOutcomeStillRequired": true,
+    "needsYouOnlyForRealUserBoundary": true,
+    "fallbackNeverExpandsAuthority": true,
+    "ambiguousWriteRequiresReadbackBeforeRetry": true
+  },
+  "authoritySources": {
+    "grantingOrder": [
+      "explicit_current_user_instruction",
+      "active_explicit_standing_policy"
+    ],
+    "nonGranting": [
+      "model_proposal",
+      "memory_pattern",
+      "prediction",
+      "recommendation",
+      "provider_capability",
+      "prior_success"
+    ],
+    "restrictiveConstraintsMayOnlyNarrowAuthority": [
+      "safety_policy",
+      "security_boundary",
+      "protected_app_boundary",
+      "organization_policy",
+      "provider_permission"
+    ],
+    "narrowerNewerExplicitInstructionOverridesBroaderStandingPolicy": true,
+    "revocationTakesEffectImmediately": true
+  },
+  "decisionClasses": {
+    "auto_execute": "Proceed without a new approval prompt because the action is non-consequential or is already explicitly authorized inside the current request.",
+    "standing_authorized": "Proceed without a new approval prompt because an active explicit standing policy matches every applicable scope dimension.",
+    "needs_approval": "Stop at a real authorization boundary because a consequential action lacks sufficient current or standing authority, or authority is ambiguous, stale, expired, revoked, or out of scope.",
+    "deny": "Do not execute because the requested behavior crosses a non-overridable security/safety/protected-app boundary or attempts credential/OTP/security bypass."
+  },
+  "consequenceSignals": [
+    "destructive_or_irreversible",
+    "production_or_public_release",
+    "external_communication_or_commitment",
+    "money_movement_purchase_or_financial_commitment",
+    "account_permission_identity_or_security_change",
+    "protected_app_sensitive_action",
+    "privacy_sensitive_disclosure",
+    "material_cost_commitment",
+    "legal_or_regulated_commitment",
+    "persistent_external_resource_with_material_impact"
+  ],
+  "standingPolicyContract": {
+    "requiredBindings": [
+      "principal",
+      "capability",
+      "operation",
+      "environment",
+      "provider_or_execution_boundary",
+      "resource_or_account_scope",
+      "data_sensitivity_ceiling",
+      "cost_ceiling",
+      "validity_window"
+    ],
+    "conditionalBindings": [
+      "destination_or_audience",
+      "protected_app_scope",
+      "destructive_allowed",
+      "production_allowed",
+      "financial_limit",
+      "legal_or_regulated_scope"
+    ],
+    "allApplicableBindingsMustMatch": true,
+    "expiredOrRevokedPolicyDoesNotAuthorize": true,
+    "ambiguousScopeFailsClosedToNeedsApproval": true,
+    "authorizationFingerprintRequired": true,
+    "authorizationFingerprintFields": [
+      "principal",
+      "capability",
+      "operation",
+      "provider_or_execution_boundary",
+      "resource_or_account_scope",
+      "environment",
+      "destination_or_audience",
+      "data_sensitivity",
+      "cost",
+      "destructive",
+      "production",
+      "protected_app"
+    ],
+    "consequentialSideEffectsRequireIdempotency": true,
+    "postActionVerificationRequired": true
+  },
+  "needsYou": {
+    "allowedReasons": [
+      "authorization_required",
+      "missing_consequential_user_choice",
+      "account_connection_or_reauthentication_required",
+      "protected_app_user_presence_required",
+      "user_only_recovery_or_conflict_resolution",
+      "external_blocker_only_user_can_resolve"
+    ],
+    "notReasons": [
+      "routine_read_or_search",
+      "model_call_or_model_selection",
+      "internal_planning",
+      "test_build_or_dry_run",
+      "waiting_for_ci_or_cloud_work",
+      "bounded_retry_inside_authority",
+      "automatic_provider_or_model_fallback_inside_authority",
+      "nonconsequential_inspection_or_verification"
+    ],
+    "notEquivalentToVoluntaryPause": true
+  },
+  "fallbackAndRetry": {
+    "modelProviderFallbackMayBeAutomaticInsideSameAuthorityScope": true,
+    "directProviderFallbackUsesSameAuthorityPolicy": true,
+    "fallbackMayNotIncreaseCostPrivacyOrSideEffectScopeBeyondAuthority": true,
+    "consequentialRetryReusesIdempotencyIdentity": true,
+    "ambiguousEffectRequiresProviderReadbackBeforeRetry": true,
+    "providerSuccessDoesNotCreateAuthorityForLaterActions": true
+  },
+  "protectedAndFinancial": {
+    "credentialOrOtpBypassAlwaysDenied": true,
+    "protectedAppSecurityBypassAlwaysDenied": true,
+    "financialAndSecurityCriticalActionsRequireExplicitCurrentOrStandingAuthority": true,
+    "standingPolicyMustBeSpecificEnoughForFinancialOrSecurityCriticalAction": true,
+    "protectedAppControlsStillApplyWhenAuthorized": true
+  },
+  "learningBoundary": {
+    "factsPatternsAndPredictionsMayInformSuggestions": true,
+    "learnedInferenceCannotCreateOrExpandStandingPolicy": true,
+    "proposedAutomationRequiresExplicitAuthorizationBeforeBecomingPolicy": true
+  },
+  "approvalMatrix": [
+    {
+      "id": "routine_read",
+      "action": "read_or_search",
+      "consequential": false,
+      "authorityBasis": "none_required",
+      "expectedDecision": "auto_execute"
+    },
+    {
+      "id": "model_call",
+      "action": "model_call",
+      "consequential": false,
+      "authorityBasis": "none_required",
+      "expectedDecision": "auto_execute"
+    },
+    {
+      "id": "test_or_dry_run",
+      "action": "test_build_or_dry_run",
+      "consequential": false,
+      "authorityBasis": "none_required",
+      "expectedDecision": "auto_execute"
+    },
+    {
+      "id": "local_reversible_change_current_request",
+      "action": "reversible_local_change",
+      "consequential": false,
+      "authorityBasis": "explicit_current_user_instruction",
+      "expectedDecision": "auto_execute"
+    },
+    {
+      "id": "bounded_provider_write_current_request",
+      "action": "bounded_provider_write",
+      "consequential": true,
+      "authorityBasis": "explicit_current_user_instruction",
+      "expectedDecision": "auto_execute"
+    },
+    {
+      "id": "bounded_provider_write_standing_policy",
+      "action": "bounded_provider_write",
+      "consequential": true,
+      "authorityBasis": "active_explicit_standing_policy",
+      "standingPolicyMatches": true,
+      "expectedDecision": "standing_authorized"
+    },
+    {
+      "id": "production_publish_no_authority",
+      "action": "production_or_public_release",
+      "consequential": true,
+      "authorityBasis": "none",
+      "expectedDecision": "needs_approval"
+    },
+    {
+      "id": "production_publish_explicit_request",
+      "action": "production_or_public_release",
+      "consequential": true,
+      "authorityBasis": "explicit_current_user_instruction",
+      "expectedDecision": "auto_execute"
+    },
+    {
+      "id": "external_message_standing_policy_scope_match",
+      "action": "external_communication_or_commitment",
+      "consequential": true,
+      "authorityBasis": "active_explicit_standing_policy",
+      "standingPolicyMatches": true,
+      "expectedDecision": "standing_authorized"
+    },
+    {
+      "id": "external_message_standing_policy_scope_mismatch",
+      "action": "external_communication_or_commitment",
+      "consequential": true,
+      "authorityBasis": "active_explicit_standing_policy",
+      "standingPolicyMatches": false,
+      "expectedDecision": "needs_approval"
+    },
+    {
+      "id": "financial_transfer_without_authority",
+      "action": "money_movement_purchase_or_financial_commitment",
+      "consequential": true,
+      "authorityBasis": "none",
+      "expectedDecision": "needs_approval"
+    },
+    {
+      "id": "financial_transfer_specific_standing_policy",
+      "action": "money_movement_purchase_or_financial_commitment",
+      "consequential": true,
+      "authorityBasis": "active_explicit_standing_policy",
+      "standingPolicyMatches": true,
+      "expectedDecision": "standing_authorized"
+    },
+    {
+      "id": "prediction_is_not_permission",
+      "action": "bounded_provider_write",
+      "consequential": true,
+      "authorityBasis": "prediction",
+      "expectedDecision": "needs_approval"
+    },
+    {
+      "id": "expired_policy_is_not_permission",
+      "action": "bounded_provider_write",
+      "consequential": true,
+      "authorityBasis": "expired_standing_policy",
+      "expectedDecision": "needs_approval"
+    },
+    {
+      "id": "credential_or_otp_bypass",
+      "action": "credential_or_otp_bypass",
+      "consequential": true,
+      "authorityBasis": "explicit_current_user_instruction",
+      "expectedDecision": "deny"
+    },
+    {
+      "id": "protected_app_security_bypass",
+      "action": "protected_app_security_bypass",
+      "consequential": true,
+      "authorityBasis": "active_explicit_standing_policy",
+      "standingPolicyMatches": true,
+      "expectedDecision": "deny"
+    }
+  ],
+  "handoffs": {
+    "M3-005": "Implement continuous routine tool-chain execution using this authority decision contract.",
+    "M7-001": "Define and enforce protected-app zones without weakening this authority boundary.",
+    "M7-003": "Keep secrets off-device and issue scoped authority without treating credentials as permission.",
+    "M7-004": "Implement financial action risk tiers and protected execution using explicit-current or sufficiently specific standing authority."
+  }
+}

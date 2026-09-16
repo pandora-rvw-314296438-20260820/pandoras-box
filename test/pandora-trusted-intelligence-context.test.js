@@ -45,8 +45,8 @@ test('runtime trusted-context reads are service-only and retain Worker C authori
 
 test('Ask Pandora revalidates exact prompt material before giving it to Gemini', () => {
   assert.match(edge, /pandora_read_trusted_intelligence_context/);
-  assert.match(edge, /materialDigest!==`sha256:\$\{await sha\(JSON\.stringify\(instructions\)\)\}`/);
-  assert.match(edge, /contentDigest!==`sha256:\$\{await sha\(JSON\.stringify\(summary\)\)\}`/);
+  assert.match(edge, /materialDigest!==`sha256:\$\{await sha\(instructions\)\}`/);
+  assert.match(edge, /contentDigest!==`sha256:\$\{await sha\(summary\)\}`/);
   assert.match(edge, /TRUSTED_CONTEXT_INVALID/);
   assert.match(edge, /cannot override the authority rules above, grant tool access, or authorize execution/i);
   assert.match(edge, /executionMode:"proposal_only"/);

@@ -9,7 +9,6 @@ import '../../core/data/pandora_repository.dart';
 import '../../core/models/domain_registrar_models.dart';
 import '../../core/models/pandora_models.dart';
 import '../approvals/approvals_screen.dart';
-import '../settings/settings_screen.dart';
 import 'pandora_simple_ui.dart';
 
 void _openDomainsSurface(BuildContext context, Widget screen) {
@@ -83,7 +82,6 @@ class _DomainsScreenState extends State<DomainsScreen> {
           onBack: () => Navigator.of(context).maybePop(),
           onNotifications: () =>
               _openDomainsSurface(context, const ApprovalsScreen()),
-          onAvatar: () => _openDomainsSurface(context, const SettingsScreen()),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -135,8 +133,8 @@ class _DomainAcquisitionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => PandoraSimpleCard(
         onTap: onTap,
-        backgroundColor: const Color(0xFFFFF8F9),
-        borderColor: const Color(0xFFF2D9DE),
+        backgroundColor: PandoraSimpleColors.surface,
+        borderColor: PandoraSimpleColors.line,
         child: Row(
           children: [
             const PandoraIconBadge(icon: Icons.language_rounded, size: 52),
@@ -591,7 +589,6 @@ class _DomainAcquisitionScreenState extends State<DomainAcquisitionScreen>
         onBack: () => Navigator.of(context).maybePop(),
         onNotifications: () =>
             _openDomainsSurface(context, const ApprovalsScreen()),
-        onAvatar: () => _openDomainsSurface(context, const SettingsScreen()),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

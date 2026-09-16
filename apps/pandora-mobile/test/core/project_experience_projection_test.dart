@@ -46,25 +46,20 @@ Map<String, Object?> projectionJson({
     };
 
 void main() {
-  test('LIVE remains primary while a background build is active', () {
+  test('LIVE stays Live-capable while background work shows Working', () {
     final projection = ProjectExperienceProjection.fromJson(
-      projectionJson(
-        activeBuildJobId: '66666666-6666-4666-8666-666666666666',
-      ),
+      projectionJson(activeBuildJobId: '66666666-6666-4666-8666-666666666666'),
     );
 
     expect(projection.state, ProjectExperienceState.live);
     expect(projection.isLive, isTrue);
     expect(projection.isUpdating, isTrue);
-    expect(projection.statusLabel, 'Building');
+    expect(projection.statusLabel, 'Working');
   });
 
   test('verified preview is Ready until production deployment exists', () {
     final projection = ProjectExperienceProjection.fromJson(
-      projectionJson(
-        productionVersionId: null,
-        productionDeploymentId: null,
-      ),
+      projectionJson(productionVersionId: null, productionDeploymentId: null),
     );
 
     expect(projection.state, ProjectExperienceState.live);
@@ -84,7 +79,7 @@ void main() {
     expect(projection.canUndo, isFalse);
     expect(projection.canPublish, isFalse);
     expect(projection.canRollback, isFalse);
-    expect(projection.statusLabel, 'Preparing');
+    expect(projection.statusLabel, 'Working');
   });
 
   test('transition sequence and timestamp define monotonic freshness', () {
@@ -92,20 +87,93 @@ void main() {
       projectionJson(transitionSequence: 7),
     );
     final laterSequence = ProjectExperienceProjection.fromJson(
-      projectionJson(
-        transitionSequence: 8,
-        updatedAt: '2026-08-31T06:00:00Z',
-      ),
+      projectionJson(transitionSequence: 8, updatedAt: '2026-08-31T06:00:00Z'),
     );
     final sameSequenceNewerUpdate = ProjectExperienceProjection.fromJson(
-      projectionJson(
-        transitionSequence: 7,
-        updatedAt: '2026-08-31T08:00:00Z',
-      ),
+      projectionJson(transitionSequence: 7, updatedAt: '2026-08-31T08:00:00Z'),
     );
 
     expect(laterSequence.isNewerThan(current), isTrue);
     expect(sameSequenceNewerUpdate.isNewerThan(current), isTrue);
     expect(current.isNewerThan(laterSequence), isFalse);
+  });
+
+  test(
+    'Simple status vocabulary is Working|Ready|Live|Needs You|Problem only',
+    () {
+      const allowed = {'Working', 'Ready', 'Live', 'Needs You', 'Problem'};
+      final cases = <Map<String, Object?>>[
+        projectionJson(),
+        projectionJson(
+          activeBuildJobId: '66666666-6666-4666-8666-666666666666',
+        ),
+        projectionJson(productionVersionId: null, productionDeploymentId: null),
+        projectionJson(state: 'REVIEW'),
+        projectionJson(state: 'BUILD'),
+        projectionJson(state: 'PUBLISH'),
+        projectionJson(state: 'FUTURE_STATE'),
+        <String, Object?>{...projectionJson(), 'needs_you': true},
+        <String, Object?>{
+          ...projectionJson(),
+          'safe_failure_code': 'budget_exhausted',
+          'safe_failure_message': 'Spend budget blocked this start.',
+          'build_phase': 'building',
+        },
+        <String, Object?>{
+          ...projectionJson(
+            activeBuildJobId: '66666666-6666-4666-8666-666666666666',
+          ),
+          'build_phase': 'trusted_primitive_failed',
+        },
+        <String, Object?>{
+          ...projectionJson(
+            activeBuildJobId: '66666666-6666-4666-8666-666666666666',
+          ),
+          'build_phase': 'blocked',
+        },
+        <String, Object?>{...projectionJson(), 'build_phase': 'needs_you'},
+      ];
+      for (final json in cases) {
+        final label = ProjectExperienceProjection.fromJson(json).statusLabel;
+        expect(
+          allowed,
+          contains(label),
+          reason: 'unexpected label $label for $json',
+        );
+        expect(label, isNot('Building'));
+        expect(label, isNot('Preparing'));
+        expect(label, isNot('Checking'));
+      }
+    },
+  );
+
+  test('blocked and primitive failures are Problem, never Building', () {
+    final blocked = ProjectExperienceProjection.fromJson(<String, Object?>{
+      ...projectionJson(
+        activeBuildJobId: '66666666-6666-4666-8666-666666666666',
+      ),
+      'build_phase': 'blocked',
+    });
+    expect(blocked.statusLabel, 'Problem');
+
+    final primitive = ProjectExperienceProjection.fromJson(<String, Object?>{
+      ...projectionJson(
+        activeBuildJobId: '66666666-6666-4666-8666-666666666666',
+      ),
+      'build_phase': 'trusted_primitive_failed',
+    });
+    expect(primitive.statusLabel, 'Problem');
+  });
+
+  test('Ready is not Live without verified production', () {
+    final ready = ProjectExperienceProjection.fromJson(
+      projectionJson(productionVersionId: null, productionDeploymentId: null),
+    );
+    expect(ready.statusLabel, 'Ready');
+    expect(ready.isLive, isFalse);
+
+    final live = ProjectExperienceProjection.fromJson(projectionJson());
+    expect(live.statusLabel, 'Live');
+    expect(live.isLive, isTrue);
   });
 }

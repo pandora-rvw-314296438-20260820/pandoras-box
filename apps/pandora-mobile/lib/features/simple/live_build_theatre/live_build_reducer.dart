@@ -260,7 +260,12 @@ class LiveBuildTheatreReducer {
           } else {
             stage = _stageFromPayload(event.safePayload, fallback: stage);
           }
-          if (status == 'failed') {
+          if (status == 'needs_you') {
+            needsYou = true;
+            stage = LiveBuildStage.needsYou;
+          } else if (status == 'failed' ||
+              status == 'blocked' ||
+              status == 'error') {
             failed = true;
             stage = LiveBuildStage.problem;
           }
@@ -277,7 +282,9 @@ class LiveBuildTheatreReducer {
           stage = LiveBuildStage.needsYou;
           break;
         case LiveBuildEventKind.buildCompleted:
-          stage = LiveBuildStage.completed;
+          // Builder completion is not independently verified. Keep the
+          // Theatre non-terminal until trusted verification/preview evidence.
+          stage = LiveBuildStage.checking;
           break;
         case LiveBuildEventKind.buildFailed:
         case LiveBuildEventKind.streamError:
@@ -394,6 +401,22 @@ LiveBuildStage _stageFromPayload(
           _payloadText(payload, 'step_kind') ??
           '')
       .toLowerCase();
+  // Pre-execution / budget / primitive failures and blocked work must never
+  // project as Building (Theatre truth from #492/#493 + #491 status discipline).
+  if (stage.contains('needs_you')) {
+    return LiveBuildStage.needsYou;
+  }
+  if (stage.contains('blocked') ||
+      stage.contains('failed') ||
+      stage.contains('error') ||
+      stage.contains('problem') ||
+      stage.contains('budget') ||
+      stage.contains('trusted_primitive') ||
+      stage.contains('pricing') ||
+      stage.contains('pre_execution') ||
+      stage.contains('preexecution')) {
+    return LiveBuildStage.problem;
+  }
   if (stage.contains('repair') || stage.contains('correct')) {
     return LiveBuildStage.correcting;
   }

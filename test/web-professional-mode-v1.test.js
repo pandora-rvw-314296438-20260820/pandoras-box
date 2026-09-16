@@ -64,11 +64,32 @@ test('Professional mode does not create a second backend authority', () => {
   assert.doesNotMatch(professional, /service[_-]?role|Github_supabase|OPENAI_API_KEY|MOONSHOT_API_KEY/i);
 });
 
-test('unbacked Professional pages refuse to fabricate data', () => {
-  assert.ok(professional.includes('Dedicated Memory data is not bridged into this web view yet'));
-  assert.ok(professional.includes('Authoritative business analytics are not connected to this web mode yet'));
-  assert.ok(professional.includes('A bounded owner-safe Library index is not connected yet'));
-  assert.ok(professional.includes('Pandora will not invent revenue, cost, retention, adoption, ROI'));
+test('Professional Memory consumes only the bounded canonical status envelope', () => {
+  assert.match(professional, /state\.projection\?\.evidence\?\.memory/);
+  assert.match(professional, /memory\.healthStatus/);
+  assert.match(professional, /memory\.authentication/);
+  assert.match(professional, /memory\.approvedRecordIds/);
+  assert.match(professional, /memory\.freshestRecordAt/);
+  assert.match(professional, /memory\.conflicts/);
+  assert.ok(professional.includes('mcpmaster-pandoras-box'));
+  assert.ok(professional.includes('Memory contents remain bounded'));
+  assert.ok(professional.includes('does not render raw memory contents, proposed evidence bodies, candidate payloads or promotion internals'));
+});
+
+test('Professional Library consumes only the bounded operator Library index', () => {
+  assert.match(professional, /state\.library/);
+  assert.ok(professional.includes('Immutable artifact metadata and project-version lineage'));
+  assert.ok(professional.includes('Metadata only'));
+  assert.ok(professional.includes('does not expose storage paths, raw provenance, source payloads, deployment URLs, provider deployment IDs or artifact bytes'));
+});
+
+test('Professional Business consumes the shared bounded owner contract', () => {
+  assert.match(professional, /state\.business/);
+  assert.match(professional, /pandora-owner-business-v1/);
+  assert.ok(professional.includes('No cross-currency totals'));
+  assert.ok(professional.includes('Commercial outcomes are not inferred'));
+  assert.ok(professional.includes('Revenue, ROI, adoption, retention, and customer outcomes remain explicitly unavailable'));
+  assert.doesNotMatch(professional, /Authoritative business analytics are not connected to this web mode yet/);
 });
 
 test('Connect exposes posture but explicitly keeps credentials out of the browser', () => {
@@ -94,9 +115,9 @@ test('Admin remains the protected existing advanced control tower', () => {
 test('Professional Mode assets are composed under one distinct revision', () => {
   assert.ok(first.includes('owner-professional.js'));
   assert.ok(screens.includes('PandorasOwnerProfessional'));
-  assert.ok(first.includes('web-publish-truth-v2-20260907-1'));
+  assert.ok(first.includes('web-theatre-status-truth-v1-20260910-1'));
   assert.ok(index.includes('owner-experience.css?v=web-professional-mode-v1-20260907-1'));
-  assert.ok(index.includes('bootstrap.js?v=web-publish-truth-v2-20260907-1'));
+  assert.ok(index.includes('bootstrap.js?v=web-theatre-status-truth-v1-20260910-1'));
 });
 
 test('shared project workspace returns to the active presentation mode', () => {

@@ -32,7 +32,7 @@ test("Simple Home makes customer intent and current projects the interface", () 
   assert.equal(home.includes("PandoraV2IntentSurface"), true);
   assert.equal(home.includes("CreateProjectExperienceScreen"), true);
   assert.equal(home.includes("'Your projects'"), true);
-  assert.equal(home.includes("'Needs you'"), true);
+  assert.equal(home.includes("'Needs You'"), true);
   assert.equal(home.includes("DomainsScreen"), false);
   assert.equal(home.includes("What do you want Pandora to do?"), false);
   assert.equal(home.includes("class _IntentCard"), false);

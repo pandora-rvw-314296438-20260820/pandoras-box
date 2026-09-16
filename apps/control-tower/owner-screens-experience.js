@@ -140,13 +140,82 @@ function renderNeeds() {
   </div>`;
 }
 
+function businessMoney(micros, currency) {
+  try {
+    const value = BigInt(String(micros ?? '0'));
+    const cents = (value + 5000n) / 10000n;
+    const whole = cents / 100n;
+    const fraction = String(cents % 100n).padStart(2, '0');
+    return `${String(currency || 'USD').toUpperCase()} ${whole.toLocaleString()}.${fraction}`;
+  } catch {
+    return '—';
+  }
+}
+
+function businessCostFact(cost) {
+  const charged = BigInt(String(cost?.chargedMicros || '0'));
+  const billed = BigInt(String(cost?.billedMicros || '0'));
+  const estimated = BigInt(String(cost?.estimatedMicros || '0'));
+  if (charged > 0n) return { label: 'Charged', value: businessMoney(cost.chargedMicros, cost.currency) };
+  if (billed > 0n) return { label: 'Billed', value: businessMoney(cost.billedMicros, cost.currency) };
+  return { label: estimated > 0n ? 'Estimated' : 'Recorded cost', value: businessMoney(cost.estimatedMicros, cost.currency) };
+}
+
+function businessProjectRow(project) {
+  const objective = project.objective;
+  const costFacts = Array.isArray(project.costs) ? project.costs.map(businessCostFact) : [];
+  const budgets = Array.isArray(project.budgets) ? project.budgets : [];
+  const facts = [
+    ...costFacts.map((fact) => `${fact.label}: ${fact.value}`),
+    ...budgets.map((budget) => `Budget ${budget.currency}: ${businessMoney(budget.spentMicros, budget.currency)} of ${businessMoney(budget.hardLimitMicros, budget.currency)}`),
+  ];
+  return `<article class="owner-card owner-need-card">
+    <div class="owner-need-mark">${esc(projectInitials(project.name))}</div>
+    <div class="owner-need-copy">
+      <span>${esc(project.status || 'Recorded')}</span>
+      <strong>${esc(project.name)}</strong>
+      <p>${esc(objective?.objective || 'No current business objective recorded')}</p>
+      <small>${esc(objective?.successMetric ? `Metric: ${objective.successMetric}${objective.baseline || objective.target ? ` · ${objective.baseline || '—'} → ${objective.target || '—'}` : ''}` : 'Success metric not recorded')}</small>
+      ${facts.length ? `<small>${esc(facts.join(' · '))}</small>` : '<small>No cost or budget facts recorded for this project.</small>'}
+    </div>
+  </article>`;
+}
+
 function renderBusiness() {
+  const item = state.business;
+  const data = item?.data;
+  if (item?.loading && !data) {
+    return `<div class="owner-screen"><div class="owner-page-intro"><span class="owner-kicker">Commercial truth</span><h1>Business</h1><p>Pandora is checking recorded objectives, budgets, and cost facts.</p></div><section class="owner-card owner-skeleton-card"><div class="owner-skeleton wide"></div><div class="owner-skeleton medium"></div></section></div>`;
+  }
+  if (!data || data.contractVersion !== 'pandora-owner-business-v1') {
+    return `<div class="owner-screen">
+      <div class="owner-page-intro"><span class="owner-kicker">Commercial truth</span><h1>Business</h1><p>Objectives, budgets, and costs appear only from Pandora’s protected owner contract.</p></div>
+      <section class="owner-card owner-business-empty"><span class="owner-business-icon">${icons.business}</span><div><h2>Business facts are unavailable</h2><p>${esc(item?.error || 'Pandora could not read the bounded Business contract right now.')}</p></div></section>
+    </div>`;
+  }
+
+  const costs = Array.isArray(data.costs) ? data.costs : [];
+  const budgets = Array.isArray(data.budgets) ? data.budgets : [];
+  const projects = Array.isArray(data.projects) ? data.projects.filter((project) => project.objective || project.costs?.length || project.budgets?.length).slice(0, 12) : [];
+  const exhausted = budgets.reduce((total, budget) => total + Number(budget.exhaustedCount || 0), 0);
+  const costCards = costs.length
+    ? costs.map((cost) => {
+        const fact = businessCostFact(cost);
+        return `<article class="owner-card professional-metric"><span>${esc(fact.label)} · ${esc(cost.currency)}</span><strong>${esc(fact.value)}</strong><small>${esc(String(cost.entryCount || 0))} recorded cost entr${Number(cost.entryCount) === 1 ? 'y' : 'ies'}</small></article>`;
+      }).join('')
+    : '<div class="owner-card owner-empty compact"><h3>No cost entries recorded</h3><p>Pandora will not estimate spend when the cost ledger is empty.</p></div>';
+
   return `<div class="owner-screen">
-    <div class="owner-page-intro"><span class="owner-kicker">Commercial truth</span><h1>Business</h1><p>Customer, usage, revenue, cost and validation signals appear only when an authoritative business source is connected.</p></div>
-    <section class="owner-card owner-business-empty">
-      <span class="owner-business-icon">${icons.business}</span>
-      <div><h2>Business data is not connected to this owner view yet</h2><p>Pandora will not invent revenue, ROI, adoption, retention, cost, or customer outcomes. This surface stays explicit until verified business sources are available.</p></div>
+    <div class="owner-page-intro"><span class="owner-kicker">Commercial truth</span><h1>Business</h1><p>Recorded objectives, budgets, and cost ledger facts. No inferred revenue, ROI, adoption, retention, or customer outcomes.</p></div>
+    <section class="professional-metrics-grid" aria-label="Business overview">
+      <article class="owner-card professional-metric"><span>Projects</span><strong>${esc(data.counts?.projects ?? '—')}</strong><small>non-archived</small></article>
+      <article class="owner-card professional-metric"><span>With objectives</span><strong>${esc(data.counts?.projectsWithObjectives ?? '—')}</strong><small>recorded ProjectSpec truth</small></article>
+      <article class="owner-card professional-metric"><span>Cost entries</span><strong>${esc(data.counts?.costEntries ?? '—')}</strong><small>append-only ledger</small></article>
+      <article class="owner-card professional-metric"><span>Exhausted budgets</span><strong>${esc(exhausted)}</strong><small>recorded hard-limit state</small></article>
     </section>
+    <section class="owner-section"><div class="professional-section-head"><div><span class="owner-kicker">Cost ledger</span><h2>Recorded spend by currency</h2></div><span>No cross-currency totals</span></div><div class="professional-metrics-grid">${costCards}</div></section>
+    <section class="owner-section"><div class="professional-section-head"><div><span class="owner-kicker">Projects</span><h2>Objectives and economics</h2></div><span>${projects.length} shown</span></div><div class="owner-needs-list">${projects.length ? projects.map(businessProjectRow).join('') : '<div class="owner-card owner-empty"><h3>No project business facts to show</h3><p>Objectives, costs, and budgets will appear here when recorded.</p></div>'}</div></section>
+    <section class="owner-card professional-boundary-note"><span>${icons.shield}</span><div><strong>Outcome metrics are still unavailable</strong><p>Revenue, ROI, adoption, retention, and customer outcomes remain unavailable until a bounded first-party measurement source is connected. Pandora does not infer them from spend or objectives.</p></div></section>
   </div>`;
 }
 

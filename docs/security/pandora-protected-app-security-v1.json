@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "pandora-protected-app-security-v1",
+  "status": "implemented-contract-physical-acceptance-pending",
+  "productionBaseline": {"stockFirmware":true,"lockedBootloader":true,"rootAllowed":false,"customRomAllowed":false,"verifiedBootTrusted":true,"preserveGoogleSystemServices":true,"preserveBiometrics":true,"preserveSimTelephony":true,"preserveImsDependencies":true,"physicalVerificationRequired":true,"trustedEvidenceContextRequired":true},
+  "protectedClasses": ["financial","authenticator","password_manager","identity_security","security_sensitive"],
+  "allowedHandoffs": ["launch","open_supported_deep_link","show_instructions"],
+  "forbidden": ["credential_extract","credential_scrape","otp_read","otp_bypass","authenticator_secret_export","biometric_bypass","device_integrity_bypass","protected_screen_scrape","silent_financial_transfer"],
+  "authorityFactSource": "trusted_runtime_policy_context_only",
+  "currentExplicitOnly": ["account_security_change","authenticator_migration","password_export"],
+  "standingAuthorityRequires": ["scope_match","bounds_verified","financial_limit_match","recipient_match","account_match","provider_match","validity_match"],
+  "deepLinkHandoffRequires": ["allowlisted_target","side_effect_free_verified","sensitive_payload_absent"],
+  "consequentialExecutionRequires": ["explicit_or_bounded_standing_authority","user_presence","provider_controls_verified","post_action_verification"],
+  "financialRiskTiers": {"F0":"information_only","F1":"protected_app_handoff","F2":"account_or_payee_change","F3":"money_movement_or_purchase","F4":"security_bypass_forbidden"},
+  "destructiveProvisioningRequires": ["trusted_policy_context","authenticator_recovery_verified","password_manager_recovery_verified","protected_app_recovery_verified","backup_export_verified","sim_esim_recovery_verified","known_good_rollback_available","explicit_destructive_authority"],
+  "auditRequiredFields": ["actor","authority_basis","job_action_identity","capability_operation","redacted_input_scope","idempotency_key_hash","outcome","verification_state","provider_readback","evidence_ids","timestamps"],
+  "auditRedaction": ["secret_key_names","secret_value_patterns","personal_fields_default_redaction","unsafe_object_keys_hashed","unsafe_evidence_ids_hashed","raw_idempotency_keys_never_stored","personal_value_patterns","unsafe_urls_hashed","cycle_and_depth_bounds"],
+  "auditOutputPolicy": {"rawSecretMaterialAllowed":false,"redactionPolicyVersion":"pandora-device-audit-redaction-v2"},
+  "acceptanceBoundary": "CI proves policy behavior only. Redmi, GCash/bank/authenticator, telephony, IMS/VoLTE, mobile-data and HyperOS acceptance require the final exact-source physical APK run."
+}

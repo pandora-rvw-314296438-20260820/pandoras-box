@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "pandora-universal-architecture-v1",
+  "status": "frozen",
+  "effectiveDate": "2026-09-13",
+  "canonicalFlow": [
+    "user",
+    "pandora",
+    "pandora_ai",
+    "capability_router",
+    "device_cloud_models_services",
+    "activity_theatre",
+    "verified_result",
+    "memory",
+    "learning_anticipation_optimization"
+  ],
+  "controlSurfaces": {
+    "primary": ["text_chat", "natural_language_voice"],
+    "sameRuntime": true,
+    "builderDefault": false
+  },
+  "jobIdentity": {
+    "owner": "pandora",
+    "scope": "provider_project_device_neutral",
+    "createdAt": "meaningful_work_admission",
+    "conversationIdsAreCorrelationOnly": true,
+    "projectIdsAreOptionalCorrelationOnly": true,
+    "attemptIdsAreNotJobIds": true,
+    "attemptIdentifiers": [
+      "execution_plan_id",
+      "dispatch_id",
+      "provider_operation_id",
+      "build_job_id",
+      "device_operation_id"
+    ]
+  },
+  "capabilityRouting": {
+    "projectRequired": false,
+    "softwareBuildIsOneCapability": true,
+    "resolverOwnsCapabilitySelection": true,
+    "modelsMayProposeButDoNotSelfAuthorize": true,
+    "selectionDimensions": [
+      "capability",
+      "quality",
+      "latency",
+      "reliability",
+      "cost",
+      "privacy",
+      "availability",
+      "verified_historical_performance"
+    ]
+  },
+  "executionFabric": {
+    "governedDefault": true,
+    "projectOSForGovernedProviderWork": true,
+    "deviceAgentForPhoneWork": true,
+    "edgeRuntimeForLocalWork": true,
+    "directProviderWritesAreFallbackOnly": true,
+    "ambiguousWriteRequiresReadbackBeforeRetry": true,
+    "consequentialSideEffectsRequireIdempotency": true
+  },
+  "activityTheatre": {
+    "ownership": "pandora_neutral_runtime_contract",
+    "projectSemanticsRequired": false,
+    "providerSemanticsRequired": false,
+    "deviceSemanticsRequired": false,
+    "meaningfulEventsOnly": true,
+    "truthfulAndInterruptible": true,
+    "durableStableReplayIdentity": true,
+    "buildTheatreRelation": "specialized_projection",
+    "terminalResultRequiresVerifiedOutcome": true,
+    "attemptSuccessDoesNotImplyJobResult": true,
+    "rawSecretsPromptsToolArgsLogsForbiddenInPublicProjection": true
+  },
+  "result": {
+    "verifiedBeforeCompletionClaim": true,
+    "providerSuccessAloneIsInsufficient": true,
+    "rollbackEvidenceRequiredWhenApplicable": true
+  },
+  "memoryHandoff": {
+    "afterVerifiedOutcome": true,
+    "classesRemainDistinct": [
+      "facts",
+      "patterns",
+      "policies",
+      "procedures",
+      "failures",
+      "outcomes",
+      "provider_performance"
+    ],
+    "predictionNeverBecomesPermission": true,
+    "newAuthoritativeEvidenceOverridesStaleMemory": true
+  },
+  "deviceAndEdge": {
+    "deviceAgentMediatesPhoneCapabilities": true,
+    "remoteModelsDoNotReceiveUnrestrictedRoot": true,
+    "localJobsWorkOfflineWhenCapabilityAllows": true,
+    "jobAndEventIdentitySurvivesOfflineToCloudSync": true,
+    "oemSpecificBehaviorBehindAdapters": true,
+    "protectedAppsRemainProtected": true
+  },
+  "security": {
+    "credentialsNeverEnterModelContext": true,
+    "protectedAppBoundariesPreserved": true,
+    "standingAuthorityDoesNotEqualUnlimitedAuthority": true,
+    "authorizationScopeIsServerSide": true
+  },
+  "specialization": {
+    "buildTheatreDoesNotOwnUniversalActivityTheatre": true,
+    "projectRuntimeMayConsumeUniversalContracts": true,
+    "projectRuntimeMayNotBeRequiredByNonProjectJobs": true
+  },
+  "handoffs": {
+    "M0-003": "freeze standing-authority and consequential-action policy",
+    "M0-004": "freeze detailed universal Activity Theatre UX/event semantics on this neutral boundary",
+    "M0-005": "freeze typed Memory semantics and promotion rules",
+    "M1": "implement universal chat runtime, jobs, interruption and reconnect",
+    "M2": "implement universal Activity Theatre substrate and Build Theatre compatibility",
+    "M3": "implement capability/model/tool resolution and bounded fallback",
+    "M4": "implement Device Agent and direct governed phone capabilities",
+    "M5": "implement Memory retrieval, learning and outcome feedback",
+    "M6": "implement edge runtime, offline storage/sync and resource optimization",
+    "M7": "implement authority/security/protected-app controls"
+  }
+}

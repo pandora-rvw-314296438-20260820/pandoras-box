@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/models/pandora_models.dart';
+import '../../core/widgets/pandora_navigation.dart';
 import 'pandora_v2_ui.dart';
 import 'project_create_experience.dart';
 import 'project_experience_v2.dart';
@@ -93,17 +94,24 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   String _state(ProjectSummary project) {
     if (project.blocker != null && project.blocker!.trim().isNotEmpty) {
-      return 'Needs you';
+      return 'Needs You';
     }
     final live = project.evidenceState(EvidenceStage.productionVerified) ==
             EvidenceClaimState.verified &&
         project.freshness.isFresh;
     if (live) return 'Live';
     final status = project.status.toLowerCase();
-    if (status.contains('ready') ||
-        status.contains('review') ||
-        status.contains('approval')) {
-      return 'Ready for review';
+    if (status.contains('fail') ||
+        status.contains('error') ||
+        status.contains('blocked') ||
+        status.contains('problem')) {
+      return 'Problem';
+    }
+    if (status.contains('needs_you') || status.contains('approval')) {
+      return 'Needs You';
+    }
+    if (status.contains('ready') || status.contains('review')) {
+      return 'Ready';
     }
     return 'Working';
   }
@@ -116,26 +124,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Work',
-                      style: TextStyle(
-                        color: PandoraV2Colors.ink,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -1.1,
-                      ),
-                    ),
-                  ),
-                  IconButton.filled(
-                    tooltip: 'Create',
-                    style: IconButton.styleFrom(
-                      backgroundColor: PandoraV2Colors.ink,
-                      foregroundColor: Colors.white,
-                    ),
+              PandoraPageHeader(
+                title: 'Projects',
+                actions: [
+                  IconButton(
+                    tooltip: 'Create project',
                     onPressed: _create,
                     icon: const Icon(Icons.add_rounded),
                   ),
@@ -167,25 +160,28 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   onAction: _create,
                 )
               else
-                for (final project in _projects)
-                  PandoraV2ObjectWindow(
-                    title: project.name,
-                    subtitle: _state(project),
-                    detail: projectPurposeForDisplay(project.purpose).isEmpty
-                        ? null
-                        : projectPurposeForDisplay(project.purpose),
-                    onTap:
-                        _openingId == project.id ? null : () => _open(project),
-                    trailing: _openingId == project.id
-                        ? const SizedBox.square(
-                            dimension: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: PandoraV2Colors.ink,
-                            ),
-                          )
-                        : null,
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    childAspectRatio: 1,
                   ),
+                  itemCount: _projects.length,
+                  itemBuilder: (context, index) {
+                    final project = _projects[index];
+                    return _ObsidianProjectCard(
+                      project: project,
+                      state: _state(project),
+                      busy: _openingId == project.id,
+                      onTap: _openingId == project.id
+                          ? null
+                          : () => _open(project),
+                    );
+                  },
+                ),
               if (_error != null && _projects.isNotEmpty) ...[
                 const SizedBox(height: 18),
                 PandoraV2InlineMessage(
@@ -200,4 +196,93 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           ),
         ),
       );
+}
+
+class _ObsidianProjectCard extends StatelessWidget {
+  const _ObsidianProjectCard({
+    required this.project,
+    required this.state,
+    required this.busy,
+    required this.onTap,
+  });
+
+  final ProjectSummary project;
+  final String state;
+  final bool busy;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final detail = projectPurposeForDisplay(project.purpose);
+    return Material(
+      color: const Color(0x66141414),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: PandoraV2Colors.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF171717),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF2A2A2A)),
+                    ),
+                    child: busy
+                        ? const SizedBox.square(
+                            dimension: 17,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.8,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.language_rounded, size: 18),
+                  ),
+                  const Spacer(),
+                  const Icon(
+                    Icons.more_horiz_rounded,
+                    size: 18,
+                    color: PandoraV2Colors.muted,
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                project.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                detail.isEmpty ? state : '$state • $detail',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PandoraV2Colors.muted,
+                  fontSize: 11.5,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

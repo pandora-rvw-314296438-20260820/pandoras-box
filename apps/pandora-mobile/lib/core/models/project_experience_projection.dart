@@ -197,24 +197,36 @@ class ProjectExperienceProjection {
   bool get hasSafeFailure =>
       safeFailureCode != null || safeFailureMessage != null;
 
+  /// Simple Mode status only: Working | Ready | Live | Needs You | Problem.
+  /// Theatre stage rails stay separate; blocked/failed never read as Building.
   String get statusLabel {
     if (needsYou) return 'Needs You';
     if (hasSafeFailure) return 'Problem';
 
-    switch (buildPhase) {
-      case 'understanding':
-        return 'Preparing';
-      case 'building':
-      case 'connecting':
-        return 'Building';
-      case 'checking':
-      case 'previewing':
-      case 'publishing':
-        return 'Checking';
-      case 'needs_you':
+    final phase = (buildPhase ?? '').trim().toLowerCase();
+    if (phase.isNotEmpty) {
+      if (phase == 'needs_you' || phase.contains('approval')) {
         return 'Needs You';
-      case 'rolling_back':
-        return 'Checking';
+      }
+      if (phase.contains('blocked') ||
+          phase.contains('failed') ||
+          phase.contains('error') ||
+          phase.contains('problem') ||
+          phase.contains('budget') ||
+          phase.contains('trusted_primitive') ||
+          phase.contains('pre_execution') ||
+          phase.contains('preexecution')) {
+        return 'Problem';
+      }
+      if (phase == 'preview_ready' || phase == 'updated_preview') {
+        return 'Ready';
+      }
+      if (phase == 'live') {
+        return isLive ? 'Live' : 'Ready';
+      }
+      // Active theatre phases (understanding/building/checking/publishing/…)
+      // collapse to Working — never Preparing/Building/Checking badges.
+      return 'Working';
     }
 
     switch (state) {
@@ -222,20 +234,17 @@ class ProjectExperienceProjection {
       case ProjectExperienceState.understand:
       case ProjectExperienceState.focus:
       case ProjectExperienceState.change:
-        return 'Preparing';
       case ProjectExperienceState.build:
       case ProjectExperienceState.rebuild:
-        return 'Building';
+      case ProjectExperienceState.publish:
+      case ProjectExperienceState.unknown:
+        return 'Working';
       case ProjectExperienceState.review:
         return 'Ready';
       case ProjectExperienceState.live:
-        if (isUpdating) return 'Building';
+        if (isUpdating) return 'Working';
         if (isLive) return 'Live';
         return currentVerified ? 'Ready' : 'Working';
-      case ProjectExperienceState.publish:
-        return 'Checking';
-      case ProjectExperienceState.unknown:
-        return 'Preparing';
     }
   }
 

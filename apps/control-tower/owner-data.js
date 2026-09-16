@@ -54,6 +54,12 @@ const state = {
   logs: [],
   chain: null,
   metrics: null,
+  business: {
+    data: null,
+    loading: false,
+    error: null,
+    loadedAt: null,
+  },
   session: window.MCPMasterAuth?.session?.() || {},
   loading: true,
   refreshing: false,
@@ -73,6 +79,14 @@ const state = {
     clarifyingQuestion: '',
     handoff: null,
     sending: false,
+    error: null,
+  },
+  library: {
+    loading: false,
+    loadedAt: null,
+    generatedAt: null,
+    artifacts: [],
+    releases: [],
     error: null,
   },
   projectWorkspace: {

@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ExecutionLedgerClient = exports.ExecutionLedgerFinalizationError = exports.ExecutionLedgerError = void 0;
 const zod_1 = require("zod");
-const mandatory_intake_js_1 = require("./mandatory-intake.js");
 const plan_memory_context_js_1 = require("./plan-memory-context.js");
 const plan_context_ledger_client_js_1 = require("./plan-context-ledger-client.js");
 const source_authority_js_1 = require("./source-authority.js");
@@ -133,7 +132,7 @@ class ExecutionLedgerFinalizationError extends ExecutionLedgerError {
         const failure = Object.freeze({
             schemaVersion: '1.0.0',
             safeErrorCode: 'execution_finalization_ambiguous',
-            summary: 'ProjectOS execution outcome requires durable ledger reconciliation',
+            summary: 'Pandora execution outcome requires durable ledger reconciliation',
             planId: input.planId,
             expectedStatus: input.expectedStatus,
             observedStatus: input.observedStatus ?? null,
@@ -294,10 +293,10 @@ class ExecutionLedgerClient {
         this.timeoutMs = boundedPositiveInteger(options.timeoutMs, DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
         this.maxResponseBytes = boundedPositiveInteger(options.maxResponseBytes, DEFAULT_MAX_RESPONSE_BYTES, DEFAULT_MAX_RESPONSE_BYTES);
         this.fetchFn = options.fetchFn || globalThis.fetch;
-        this.enforceMandatoryIntake = (0, mandatory_intake_js_1.shouldEnforceMandatoryIntake)();
-        this.intakeProvider = options.intakeProvider === undefined
-            ? (this.enforceMandatoryIntake ? new mandatory_intake_js_1.ProjectOSExecutionIntakeProvider() : undefined)
-            : options.intakeProvider || undefined;
+        this.enforceMandatoryIntake = false;
+        // ProjectOS is retired from the active runtime. A legacy intake provider may only
+        // be injected explicitly for bounded reconciliation of historical evidence.
+        this.intakeProvider = options.intakeProvider || undefined;
         const automaticContext = (0, plan_memory_context_js_1.shouldHydratePlanMemoryContext)();
         this.contextProvider = options.contextProvider === undefined
             ? (automaticContext ? new plan_memory_context_js_1.PandoraPlanMemoryContextProvider() : undefined)
@@ -321,11 +320,8 @@ class ExecutionLedgerClient {
                 intakeId = intake.intakeId;
             }
             catch (error) {
-                throw new ExecutionLedgerError(`Mandatory ProjectOS intake failed: ${error instanceof Error ? error.name : 'unknown'}`, 503);
+                throw new ExecutionLedgerError(`Explicit legacy intake reconciliation failed: ${error instanceof Error ? error.name : 'unknown'}`, 503);
             }
-        }
-        if (this.enforceMandatoryIntake && !intakeId) {
-            throw new ExecutionLedgerError('Mandatory ProjectOS intake is required', 503);
         }
         if (intakeId && !zod_1.z.string().uuid().safeParse(intakeId).success) {
             throw new ExecutionLedgerError('Execution intake ID is invalid', 400);

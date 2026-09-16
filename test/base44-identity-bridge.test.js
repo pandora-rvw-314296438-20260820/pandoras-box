@@ -1,0 +1,11 @@
+"use strict";
+const fs=require("node:fs"),test=require("node:test"),assert=require("node:assert/strict");
+const m=fs.readFileSync("supabase/migrations/20260910123000_pandora_base44_identity_bridge_v1.sql","utf8");
+const b=fs.readFileSync("supabase/functions/pandora-base44-bridge/index.ts","utf8");
+const c=fs.readFileSync("supabase/config.toml","utf8");
+test("exact Base44 origin and app only",()=>{assert.match(b,/https:\/\/build-with-pandora\.base44\.app/);assert.match(b,/6a94ecfadf75736cd4ebf7e1/);assert.doesNotMatch(b,/\*\.base44\.app/);assert.doesNotMatch(b,/https:\/\/app\.base44\.com/)});
+test("Base44 bearer validated before Pandora mapping",()=>{assert.match(b,/entities\/User\/me/);assert.match(b,/base44User\(auth\)/);assert.match(b,/pandora_base44_resolve_identity_v1/);assert.match(b,/consume_runtime_rate_limit/)});
+test("bridge is GET OPTIONS only",()=>{assert.match(b,/req\.method!==\"GET\"/);assert.match(b,/GET, OPTIONS/);assert.doesNotMatch(b,/req\.method===\"POST\"/)});
+test("custom auth config is explicit",()=>assert.match(c,/\[functions\.pandora-base44-bridge\][\s\S]*verify_jwt = false[\s\S]*enabled = false/));
+test("identity mapping private and service-only",()=>{assert.match(m,/private\.pandora_base44_identity_links/);assert.match(m,/revoke all[\s\S]*anon, authenticated/);assert.match(m,/grant execute[\s\S]*service_role/)});
+test("theatre truth remains canonical",()=>{assert.match(b,/mode:\"idle\"[\s\S]*ownerStage:null[\s\S]*progressPercent:null/);assert.match(b,/source:\"pandora_build_theatre_projection\"/);assert.match(b,/preview_url/);assert.match(b,/live_url/)});

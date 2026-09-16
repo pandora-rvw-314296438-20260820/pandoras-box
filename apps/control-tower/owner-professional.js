@@ -155,15 +155,75 @@ function professionalConnect() {
   return professionalShell('Connect', 'GitHub, Supabase, Vercel, PostHog, model providers and installed connectors without credential exposure.', body);
 }
 
+function compactMemoryId(value) {
+  const id = String(value || '');
+  return id.length > 16 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id || 'Unavailable';
+}
+
 function professionalMemory() {
+  const memory = state.projection?.evidence?.memory;
+  if (!state.live || !memory || memory.ok !== true) {
+    return professionalShell(
+      'Memory',
+      'Canonical Memory health, freshness, approved lineage and conflicts from Pandora’s protected status authority.',
+      unavailable(
+        'Protected Memory status is unavailable',
+        state.error?.message || 'Pandora could not verify the bounded Memory status envelope for this protected session.',
+        icons.clock,
+      ),
+    );
+  }
+
+  const approved = Array.isArray(memory.approvedRecordIds) ? memory.approvedRecordIds : [];
+  const conflicts = Array.isArray(memory.conflicts) ? memory.conflicts : [];
+  const connected = memory.healthStatus === 'projectos-connected';
+  const fresh = memory.fresh === true && memory.contextState === 'healthy';
+  const body = `
+    <section class="professional-metrics-grid" aria-label="Memory authority overview">
+      ${metricCard('Connection', connected ? 'Connected' : cleanName(memory.healthStatus || 'Unavailable'), 'Pandora Memory health', connected ? 'success' : 'warning')}
+      ${metricCard('Context', cleanName(memory.contextState || 'Unavailable'), fresh ? 'approved canon is current' : 'degraded or stale', fresh ? 'success' : 'warning')}
+      ${metricCard('Approved canon', approved.length, 'record IDs in current context')}
+      ${metricCard('Conflicts', conflicts.length, conflicts.length ? 'requires resolution' : 'none reported', conflicts.length ? 'warning' : 'success')}
+    </section>
+    <section class="professional-two-column">
+      <div class="owner-card professional-health-card">
+        <div class="professional-card-head"><span class="owner-kicker">Memory plane</span><h2>Protected status</h2></div>
+        <div class="professional-health-list">
+          <div class="professional-health-row"><span>Health</span>${badge(connected ? 'Connected' : cleanName(memory.healthStatus || 'Unavailable'), connected ? 'success' : 'warning')}</div>
+          <div class="professional-health-row"><span>Authentication</span>${badge(memory.authentication ? cleanName(memory.authentication) : 'Unavailable', memory.authentication ? 'success' : 'warning')}</div>
+          <div class="professional-health-row"><span>Canonical context</span>${badge(fresh ? 'Current' : cleanName(memory.contextState || 'Unavailable'), fresh ? 'success' : 'warning')}</div>
+          <div class="professional-health-row"><span>Freshest approved record</span><strong>${esc(memory.freshestRecordAt ? timeAgo(memory.freshestRecordAt) : 'Unavailable')}</strong></div>
+        </div>
+      </div>
+      <div class="owner-card professional-runtime-availability">
+        <span class="owner-kicker">Scope</span><h2>Canonical control-plane context</h2>
+        <p>This protected status envelope is scoped to <strong>mcpmaster-pandoras-box</strong>. It proves Memory health and approved lineage for the control plane; it is not a fabricated portfolio-wide memory index.</p>
+        ${badge(fresh ? 'Fresh approved context' : 'Degraded context', fresh ? 'success' : 'warning')}
+      </div>
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Approved lineage</span><h2>Canonical record IDs</h2></div><span>${approved.length} approved</span></div>
+      <div class="owner-card professional-verification-list">
+        ${approved.length
+          ? approved.slice(0, 25).map((id) => `<div class="professional-verification-row"><span><strong>${esc(compactMemoryId(id))}</strong><small>Approved canonical Memory record</small></span>${badge('Approved', 'success')}</div>`).join('')
+          : '<div class="owner-empty compact"><h3>No approved canonical record IDs returned</h3><p>Pandora will not infer Memory contents when the protected status pack does not return approved lineage.</p></div>'}
+      </div>
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Contradictions</span><h2>Memory conflicts</h2></div><span>${conflicts.length} reported</span></div>
+      <div class="owner-card professional-verification-list">
+        ${conflicts.length
+          ? conflicts.map((conflict) => `<div class="professional-verification-row"><span><strong>${esc(conflict.subject || 'Memory conflict')}</strong><small>${esc(conflict.reason || 'Reason unavailable')}</small></span>${badge('Resolve', 'warning')}</div>`).join('')
+          : '<div class="owner-empty compact"><h3>No conflicts reported</h3><p>The current bounded canonical context has no unresolved Memory conflicts.</p></div>'}
+      </div>
+    </section>
+    <section class="owner-card professional-boundary-note">
+      <span>${icons.shield}</span><div><strong>Memory contents remain bounded</strong><p>This page does not render raw memory contents, proposed evidence bodies, candidate payloads or promotion internals. Those are not exposed by the canonical owner-safe status contract.</p></div>
+    </section>`;
   return professionalShell(
     'Memory',
-    'Project context, decisions, learned patterns, evidence candidates, promotion state, health and lineage.',
-    unavailable(
-      'Dedicated Memory data is not bridged into this web view yet',
-      'Pandora will not synthesize project memories or evidence promotion state from unrelated operator logs. This page stays explicit until the dedicated Memory plane has a bounded owner-safe web contract.',
-      icons.clock,
-    ),
+    'Canonical Memory health, freshness, approved lineage and conflicts from Pandora’s protected status authority.',
+    body,
   );
 }
 
@@ -202,27 +262,167 @@ function professionalVerify() {
   return professionalShell('Verify', 'Canonical status, audit validity, protected controls and exact-source verification posture.', body);
 }
 
+function professionalBusinessMoney(micros, currency) {
+  try {
+    const value = BigInt(String(micros ?? '0'));
+    const cents = (value + 5000n) / 10000n;
+    const whole = cents / 100n;
+    const fraction = String(cents % 100n).padStart(2, '0');
+    return `${String(currency || 'USD').toUpperCase()} ${whole.toLocaleString()}.${fraction}`;
+  } catch {
+    return '—';
+  }
+}
+
+function professionalCostFact(cost) {
+  const charged = BigInt(String(cost?.chargedMicros || '0'));
+  const billed = BigInt(String(cost?.billedMicros || '0'));
+  const estimated = BigInt(String(cost?.estimatedMicros || '0'));
+  if (charged > 0n) return { label: 'Charged', value: professionalBusinessMoney(cost.chargedMicros, cost.currency) };
+  if (billed > 0n) return { label: 'Billed', value: professionalBusinessMoney(cost.billedMicros, cost.currency) };
+  return { label: estimated > 0n ? 'Estimated' : 'Recorded cost', value: professionalBusinessMoney(cost.estimatedMicros, cost.currency) };
+}
+
+function professionalBusinessProject(project) {
+  const objective = project.objective;
+  const costFacts = Array.isArray(project.costs) ? project.costs.map(professionalCostFact) : [];
+  const budgetFacts = Array.isArray(project.budgets) ? project.budgets : [];
+  const economics = [
+    ...costFacts.map((fact) => `${fact.label} ${fact.value}`),
+    ...budgetFacts.map((budget) => `${budget.currency} budget ${professionalBusinessMoney(budget.spentMicros, budget.currency)} / ${professionalBusinessMoney(budget.hardLimitMicros, budget.currency)}`),
+  ];
+  return `<article class="owner-card professional-callout">
+    <div>
+      <span class="owner-kicker">${esc(project.status || 'Recorded')}</span>
+      <h2>${esc(project.name)}</h2>
+      <p>${esc(objective?.objective || 'No current business objective recorded')}</p>
+      <small>${esc(objective?.successMetric ? `Metric: ${objective.successMetric}${objective.baseline || objective.target ? ` · ${objective.baseline || '—'} → ${objective.target || '—'}` : ''}` : 'Success metric not recorded')}</small>
+    </div>
+    <div><strong>${esc(economics.join(' · ') || 'No cost or budget facts recorded')}</strong></div>
+  </article>`;
+}
+
 function professionalBusiness() {
+  const item = state.business;
+  const data = item?.data;
+  if (item?.loading && !data) {
+    return professionalShell(
+      'Business',
+      'Recorded objectives, budgets and append-only cost facts from Pandora’s protected owner contract.',
+      '<section class="owner-card owner-skeleton-card"><div class="owner-skeleton wide"></div><div class="owner-skeleton medium"></div></section>',
+    );
+  }
+  if (!data || data.contractVersion !== 'pandora-owner-business-v1') {
+    return professionalShell(
+      'Business',
+      'Recorded objectives, budgets and append-only cost facts from Pandora’s protected owner contract.',
+      unavailable('Protected Business facts are unavailable', item?.error || 'Pandora could not read the bounded Business contract right now.', icons.business),
+    );
+  }
+
+  const costs = Array.isArray(data.costs) ? data.costs : [];
+  const budgets = Array.isArray(data.budgets) ? data.budgets : [];
+  const projects = Array.isArray(data.projects)
+    ? data.projects.filter((project) => project.objective || project.costs?.length || project.budgets?.length).slice(0, 25)
+    : [];
+  const exhausted = budgets.reduce((sum, budget) => sum + Number(budget.exhaustedCount || 0), 0);
+  const activeBudgets = budgets.reduce((sum, budget) => sum + Number(budget.activeCount || 0), 0);
+  const costCards = costs.length
+    ? costs.map((cost) => {
+        const fact = professionalCostFact(cost);
+        return metricCard(`${fact.label} · ${cost.currency}`, fact.value, `${cost.entryCount || 0} ledger entries`);
+      }).join('')
+    : metricCard('Recorded cost', '—', 'No cost entries');
+
+  const body = `
+    <section class="professional-metrics-grid" aria-label="Business authority overview">
+      ${metricCard('Projects', data.counts?.projects ?? '—', 'non-archived')}
+      ${metricCard('With objectives', data.counts?.projectsWithObjectives ?? '—', 'ProjectSpec business truth')}
+      ${metricCard('Budget limits', data.counts?.budgetLimits ?? '—', `${activeBudgets} active · ${exhausted} exhausted`, exhausted ? 'warning' : 'neutral')}
+      ${metricCard('Cost entries', data.counts?.costEntries ?? '—', 'append-only ledger')}
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Economics</span><h2>Recorded spend by currency</h2></div><span>No cross-currency totals</span></div>
+      <div class="professional-metrics-grid">${costCards}</div>
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Objectives</span><h2>Project business truth</h2></div><span>${projects.length} shown</span></div>
+      <div class="professional-build-list">${projects.length ? projects.map(professionalBusinessProject).join('') : '<div class="owner-card owner-empty"><h3>No project business facts to show</h3><p>Objectives, costs, and budgets will appear here only when recorded.</p></div>'}</div>
+    </section>
+    <section class="owner-card professional-boundary-note">
+      <span>${icons.shield}</span><div><strong>Commercial outcomes are not inferred</strong><p>Revenue, ROI, adoption, retention, and customer outcomes remain explicitly unavailable until a bounded first-party measurement source is connected. Spend, budgets, and objectives are not treated as proof of business success.</p></div>
+    </section>`;
+
   return professionalShell(
     'Business',
-    'Commercial analytics and validation operations from connected first-party sources only.',
-    unavailable(
-      'Authoritative business analytics are not connected to this web mode yet',
-      'Pandora will not invent revenue, cost, retention, adoption, ROI, pilots, customer outcomes or validation scores. Connect an authoritative business source before this page renders those metrics.',
-      icons.business,
-    ),
+    'Recorded objectives, budgets and append-only cost facts from Pandora’s protected owner contract.',
+    body,
   );
 }
 
 function professionalLibrary() {
+  const session = window.MCPMasterAuth?.session?.() || state.session || {};
+  if (!session.authenticated) {
+    return professionalShell(
+      'Library',
+      'Immutable artifact metadata and project-version lineage from Pandora’s member-RLS control plane.',
+      unavailable('Sign in to view Library', 'Library metadata is protected and is not retained in the owner surface after sign-out.', icons.projects),
+    );
+  }
+  const library = state.library || {};
+  if (library.loading && !library.loadedAt) {
+    return professionalShell(
+      'Library',
+      'Immutable artifact metadata and project-version lineage from Pandora’s member-RLS control plane.',
+      '<div class="owner-card owner-workspace-loading"><span class="owner-spinner"></span><h2>Loading bounded Library index</h2><p>Pandora is reading member-safe artifact and release metadata.</p></div>',
+    );
+  }
+  if (library.error) {
+    return professionalShell(
+      'Library',
+      'Immutable artifact metadata and project-version lineage from Pandora’s member-RLS control plane.',
+      unavailable('Library index is unavailable', library.error.message || 'Pandora could not load the bounded Library index.', icons.projects),
+    );
+  }
+  const artifacts = Array.isArray(library.artifacts) ? library.artifacts : [];
+  const releases = Array.isArray(library.releases) ? library.releases : [];
+  const body = `
+    <section class="professional-metrics-grid" aria-label="Library overview">
+      ${metricCard('Artifacts', artifacts.length, 'latest immutable artifact versions')}
+      ${metricCard('Project versions', releases.length, 'latest release/version lineage')}
+      ${metricCard('Updated', library.generatedAt ? timeAgo(library.generatedAt) : 'Unavailable', 'bounded index refresh')}
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Artifacts</span><h2>Immutable artifact versions</h2></div><span>${artifacts.length} shown</span></div>
+      <div class="owner-card professional-verification-list">
+        ${artifacts.length ? artifacts.map((artifact) => `<div class="professional-verification-row">
+          <span>
+            <strong>${esc(artifact.projectName || 'Project')} · ${esc(artifact.logicalKey || 'artifact')}</strong>
+            <small>${esc(cleanName(artifact.artifactKind || 'other'))} · v${esc(artifact.version ?? '—')} · ${esc(formatBytes(artifact.byteSize))} · ${esc(artifact.mediaType || 'media type unavailable')} · ${esc(compactDigest(artifact.sha256))} · ${esc(artifact.createdAt ? timeAgo(artifact.createdAt) : 'time unavailable')}</small>
+          </span>
+          ${badge('Immutable', 'success')}
+        </div>`).join('') : '<div class="owner-empty compact"><h3>No artifact versions returned</h3><p>The bounded member-safe index currently contains no artifact versions.</p></div>'}
+      </div>
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Versions & releases</span><h2>Project version lineage</h2></div><span>${releases.length} shown</span></div>
+      <div class="owner-card professional-verification-list">
+        ${releases.length ? releases.map((release) => `<div class="professional-verification-row">
+          <span>
+            <strong>${esc(release.projectName || 'Project')} · version ${esc(release.sequenceNo ?? '—')}</strong>
+            <small>${esc(cleanName(release.lifecycleStatus || 'unknown'))} · ${esc(cleanName(release.kind || 'preview'))} · artifact ${esc(compactDigest(release.artifactDigest))} · source ${esc(release.sourceCommit ? release.sourceCommit.slice(0, 10) : compactDigest(release.sourceSha256))} · ${esc(release.createdAt ? timeAgo(release.createdAt) : 'time unavailable')}</small>
+          </span>
+          ${badge(cleanName(release.lifecycleStatus || 'unknown'), ['live','preview_ready','verified'].includes(String(release.lifecycleStatus || '').toLowerCase()) ? 'success' : 'neutral')}
+        </div>`).join('') : '<div class="owner-empty compact"><h3>No project versions returned</h3><p>The bounded member-safe index currently contains no project-version lineage.</p></div>'}
+      </div>
+    </section>
+    <section class="owner-card professional-boundary-note">
+      <span>${icons.shield}</span><div><strong>Metadata only</strong><p>Library v1 does not expose storage paths, raw provenance, source payloads, deployment URLs, provider deployment IDs or artifact bytes. Artifact download remains outside this bounded contract.</p></div>
+    </section>`;
   return professionalShell(
     'Library',
-    'Artifacts, generated files, specs, reports, evidence, releases and searchable project knowledge.',
-    unavailable(
-      'A bounded owner-safe Library index is not connected yet',
-      'Repository files and audit logs are not treated as a substitute for a real Library index. This surface remains unavailable until artifact metadata and access rules are exposed through a dedicated contract.',
-      icons.projects,
-    ),
+    'Immutable artifact metadata and project-version lineage from Pandora’s member-RLS control plane.',
+    body,
   );
 }
 

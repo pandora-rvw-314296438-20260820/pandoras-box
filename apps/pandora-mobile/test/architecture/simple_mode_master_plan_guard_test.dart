@@ -32,11 +32,14 @@ void main() {
   });
 
   test('professional safety details remain behind More', () {
-    final source =
+    final more =
         File('lib/features/simple/more_screen.dart').readAsStringSync();
-    expect(source, contains('const SimpleSafetyScreen()'));
-    expect(source, contains("title: 'Safety details'"));
-    expect(source, contains('const SafetyScreen()'));
+    final advanced = File('lib/features/simple/advanced_mode_screen.dart')
+        .readAsStringSync();
+    expect(more, contains('const SimpleSafetyScreen()'));
+    expect(more, contains("title: 'Professional tools'"));
+    expect(advanced, contains("title: 'Evidence'"));
+    expect(advanced, contains('const SafetyScreen()'));
   });
 
   test('owner journeys cover the remaining source-level master-plan gaps', () {

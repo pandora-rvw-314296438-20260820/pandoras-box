@@ -1,7 +1,7 @@
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   void (async () => {
     const advanced = new URLSearchParams(window.location.search).get('advanced') === '1';
-    const assetVersion = 'web-publish-truth-v2-20260907-1';
+    const assetVersion = 'web-theatre-status-truth-v1-20260910-1';
     const versioned = (asset) => `${asset}?v=${assetVersion}`;
 
     if (advanced) {

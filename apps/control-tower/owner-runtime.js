@@ -36,13 +36,20 @@ async function refresh({ announce = false } = {}) {
   state.refreshing = true;
   state.loading = !state.projection;
   state.error = null;
+  state.business.loading = true;
+  state.business.error = null;
   rerender();
   try {
     state.projection = await loadProjection();
     rerender();
-    const [health, tools, connections, metrics, plans, logs, chain] = await Promise.all([
+    const businessPromise = window.MCPMasterAuth?.edgeRequest
+      ? window.MCPMasterAuth.edgeRequest('pandora-owner-api', ['business'], { method: 'GET' })
+          .then((data) => ({ data, error: null }))
+          .catch((error) => ({ data: null, error }))
+      : Promise.resolve({ data: null, error: new Error('Business owner contract is unavailable') });
+    const [health, tools, connections, metrics, plans, logs, chain, businessResult] = await Promise.all([
       request('/health'), request('/tools'), request('/connections'), request('/metrics'),
-      request('/plans?limit=100'), request('/logs?limit=100'), request('/logs/verify'),
+      request('/plans?limit=100'), request('/logs?limit=100'), request('/logs/verify'), businessPromise,
     ]);
     const candidate = {
       projection: state.projection,
@@ -62,6 +69,16 @@ async function refresh({ announce = false } = {}) {
     state.plans = candidate.plans;
     state.logs = candidate.logs;
     state.chain = candidate.chain;
+    const businessData = businessResult?.data;
+    if (businessData?.contractVersion === 'pandora-owner-business-v1') {
+      state.business.data = businessData;
+      state.business.error = null;
+      state.business.loadedAt = businessData.observedAt || new Date().toISOString();
+    } else {
+      state.business.data = null;
+      state.business.error = businessResult?.error?.message || 'Business data is unavailable.';
+      state.business.loadedAt = null;
+    }
     state.live = readiness(candidate);
     if (!state.live) {
       state.connections = [];
@@ -73,6 +90,9 @@ async function refresh({ announce = false } = {}) {
     if (announce) showToast('Status refreshed from connected services.', 'success');
   } catch (error) {
     state.live = false;
+    state.business.data = null;
+    state.business.error = error?.message || 'Business data is unavailable.';
+    state.business.loadedAt = null;
     state.connections = [];
     state.plans = [];
     state.logs = [];
@@ -81,6 +101,7 @@ async function refresh({ announce = false } = {}) {
   } finally {
     state.loading = false;
     state.refreshing = false;
+    state.business.loading = false;
     rerender();
   }
 }

@@ -175,6 +175,85 @@ function textValue(value: unknown, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
+const BUILD_THEATRE_STAGE_CONTRACT = Object.freeze({
+  build: Object.freeze([
+    "understanding",
+    "planning",
+    "building",
+    "testing",
+    "preview_ready",
+  ]),
+  edit: Object.freeze([
+    "edit_requested",
+    "rebuilding",
+    "verifying",
+    "updated_preview",
+  ]),
+  publish: Object.freeze([
+    "preparing",
+    "deploying",
+    "verifying_live",
+    "live",
+  ]),
+});
+
+function numberValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function buildTheatreSummary(experienceValue: unknown, theatreValue: unknown) {
+  const experience = asRecord(experienceValue);
+  const theatre = asRecord(theatreValue);
+  const buildJobId = textValue(theatre.build_job_id);
+
+  if (buildJobId) {
+    return {
+      source: "pandora_build_theatre_projection",
+      mode: "active",
+      buildJobId,
+      ownerState: textValue(theatre.owner_state) || null,
+      ownerStage: textValue(theatre.owner_stage) || null,
+      progressPercent: numberValue(theatre.progress_percent),
+      publicMessage: textValue(
+        theatre.public_message,
+        textValue(experience.public_message, "Pandora is working."),
+      ),
+      previewUrl: textValue(theatre.preview_url) || null,
+      liveUrl: textValue(theatre.live_url) || null,
+      needsYou: theatre.needs_you === true,
+      retryAvailable: theatre.retry_available === true,
+      lastEventAt: textValue(theatre.last_event_at) || null,
+      updatedAt: textValue(theatre.updated_at) || null,
+      stageContract: BUILD_THEATRE_STAGE_CONTRACT,
+    };
+  }
+
+  return {
+    source: "pandora_project_experience_projection",
+    mode: "idle",
+    buildJobId: null,
+    ownerState: textValue(experience.experience_state, "START"),
+    ownerStage: null,
+    progressPercent: null,
+    publicMessage: textValue(
+      experience.public_message,
+      "What do you want to build?",
+    ),
+    previewUrl: null,
+    liveUrl: null,
+    needsYou: experience.needs_you === true,
+    retryAvailable: experience.retry_available === true,
+    lastEventAt: textValue(experience.last_transition_at) || null,
+    updatedAt: textValue(experience.updated_at) || null,
+    stageContract: BUILD_THEATRE_STAGE_CONTRACT,
+  };
+}
+
 function intValue(value: string | null, fallback: number, max: number) {
   if (value === null || !value.trim()) return fallback;
   const parsed = Number(value);
@@ -405,17 +484,33 @@ function releaseSummary(value: unknown) {
   };
 }
 
+function ownerVisibleProject(value: unknown) {
+  const project = asRecord(value);
+  const config = asRecord(project.config);
+  if (config.ownerVisible === false) return false;
+  if (config.ownerVisible === true) return true;
+  const systemRole = textValue(config.systemRole).toLowerCase();
+  if (systemRole === "pandora_control_plane") return false;
+  const key = textValue(project.project_key).toLowerCase();
+  const name = textValue(project.name).toLowerCase();
+  if (key === "projectos-inbox") return false;
+  if (/^worker-[a-z0-9-]*proof/.test(key)) return false;
+  if (["provider-integration-verifier", "supabase-state-verifier", "pandora-alpha-workboard", "pandora-memory-maximization", "pandora-memory-supabase-source-parity-recovery"].includes(key)) return false;
+  if (name.includes("worker") && name.includes("proof")) return false;
+  return true;
+}
+
 async function loadProjectSummaries(context: UserContext) {
   const { data: rows, error: projectsError } = await context.client
     .from("projectos_projects")
     .select(
-      "id, project_key, name, repository, status, objective, current_phase_key, progress_percent, last_reconciled_at, updated_at",
+      "id, project_key, name, repository, status, objective, current_phase_key, progress_percent, last_reconciled_at, updated_at, config",
     )
     .eq("organization_id", context.organizationId)
     .neq("status", "archived")
     .order("updated_at", { ascending: false });
   if (projectsError) throw new Error("BACKEND_READ_FAILED");
-  const projectRows = (rows || []) as JsonRecord[];
+  const projectRows = ((rows || []) as JsonRecord[]).filter(ownerVisibleProject);
   const projectIds = projectRows.map((row) => textValue(row.id)).filter(
     Boolean,
   );
@@ -580,6 +675,203 @@ async function loadDomainSummaries(context: UserContext, projectItems: unknown[]
   }).filter((item) => item.id && item.domain);
 }
 
+
+const BUSINESS_PROJECT_LIMIT = 500;
+const BUSINESS_ROW_LIMIT = 5000;
+
+function microsValue(value: unknown) {
+  const text = String(value ?? "0").trim();
+  if (!/^[0-9]+$/.test(text)) throw new Error("BUSINESS_DATA_INVALID");
+  return BigInt(text);
+}
+
+function microsText(value: bigint) {
+  return value.toString();
+}
+
+async function business(context: UserContext) {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const [projectsResult, objectivesResult, budgetsResult, costsResult] = await Promise.all([
+    admin.from("projectos_projects")
+      .select("id,project_key,name,status,repository,updated_at", { count: "exact" })
+      .eq("organization_id", context.organizationId)
+      .neq("status", "archived")
+      .order("updated_at", { ascending: false })
+      .limit(BUSINESS_PROJECT_LIMIT),
+    admin.from("pandora_project_business_objectives")
+      .select("project_id,objective,desired_outcome,success_metric,baseline,target,created_at", { count: "exact" })
+      .eq("organization_id", context.organizationId)
+      .order("created_at", { ascending: false })
+      .limit(BUSINESS_ROW_LIMIT),
+    admin.from("pandora_budget_limits")
+      .select("project_id,currency,warning_limit_micros,hard_limit_micros,reserved_micros,spent_micros,status", { count: "exact" })
+      .eq("organization_id", context.organizationId)
+      .order("updated_at", { ascending: false })
+      .limit(BUSINESS_ROW_LIMIT),
+    admin.from("pandora_cost_entries")
+      .select("project_id,currency,estimated_cost_micros,billed_cost_micros,charged_cost_micros,credit_micros,occurred_at", { count: "exact" })
+      .eq("organization_id", context.organizationId)
+      .order("occurred_at", { ascending: false })
+      .limit(BUSINESS_ROW_LIMIT),
+  ]);
+  if (projectsResult.error || objectivesResult.error || budgetsResult.error || costsResult.error) {
+    throw new Error("BACKEND_READ_FAILED");
+  }
+
+  const projectCount = projectsResult.count ?? 0;
+  const objectiveCount = objectivesResult.count ?? 0;
+  const budgetCount = budgetsResult.count ?? 0;
+  const costEntryCount = costsResult.count ?? 0;
+  const projectsComplete = projectCount <= BUSINESS_PROJECT_LIMIT;
+  const objectivesComplete = objectiveCount <= BUSINESS_ROW_LIMIT;
+  const budgetsComplete = budgetCount <= BUSINESS_ROW_LIMIT;
+  const costsComplete = costEntryCount <= BUSINESS_ROW_LIMIT;
+
+  const projects = projectsComplete ? (projectsResult.data || []) as JsonRecord[] : [];
+  const objectives = objectivesComplete ? (objectivesResult.data || []) as JsonRecord[] : [];
+  const budgets = budgetsComplete ? (budgetsResult.data || []) as JsonRecord[] : [];
+  const costs = costsComplete ? (costsResult.data || []) as JsonRecord[] : [];
+
+  const latestObjective = new Map<string, JsonRecord>();
+  for (const row of objectives) {
+    const projectId = textValue(row.project_id);
+    if (projectId && !latestObjective.has(projectId)) latestObjective.set(projectId, row);
+  }
+
+  type CostBucket = { estimated: bigint; billed: bigint; charged: bigint; credits: bigint; entries: number; latestAt: string | null };
+  type BudgetBucket = { hard: bigint; warning: bigint; spent: bigint; reserved: bigint; active: number; exhausted: number; closed: number };
+  const portfolioCosts = new Map<string, CostBucket>();
+  const portfolioBudgets = new Map<string, BudgetBucket>();
+  const projectCosts = new Map<string, Map<string, CostBucket>>();
+  const projectBudgets = new Map<string, Map<string, BudgetBucket>>();
+
+  const costBucket = (map: Map<string, CostBucket>, currency: string) => {
+    const existing = map.get(currency);
+    if (existing) return existing;
+    const created: CostBucket = { estimated: 0n, billed: 0n, charged: 0n, credits: 0n, entries: 0, latestAt: null };
+    map.set(currency, created);
+    return created;
+  };
+  const budgetBucket = (map: Map<string, BudgetBucket>, currency: string) => {
+    const existing = map.get(currency);
+    if (existing) return existing;
+    const created: BudgetBucket = { hard: 0n, warning: 0n, spent: 0n, reserved: 0n, active: 0, exhausted: 0, closed: 0 };
+    map.set(currency, created);
+    return created;
+  };
+
+  for (const row of costs) {
+    const projectId = textValue(row.project_id);
+    const currency = textValue(row.currency, "USD").toUpperCase();
+    if (!projectId || !/^[A-Z]{3}$/.test(currency)) throw new Error("BUSINESS_DATA_INVALID");
+    const projectMap = projectCosts.get(projectId) || new Map<string, CostBucket>();
+    projectCosts.set(projectId, projectMap);
+    for (const bucket of [costBucket(portfolioCosts, currency), costBucket(projectMap, currency)]) {
+      bucket.estimated += microsValue(row.estimated_cost_micros);
+      bucket.billed += microsValue(row.billed_cost_micros);
+      bucket.charged += microsValue(row.charged_cost_micros);
+      bucket.credits += microsValue(row.credit_micros);
+      bucket.entries += 1;
+      const observedAt = textValue(row.occurred_at);
+      if (observedAt && (!bucket.latestAt || observedAt > bucket.latestAt)) bucket.latestAt = observedAt;
+    }
+  }
+
+  for (const row of budgets) {
+    const projectId = textValue(row.project_id);
+    const currency = textValue(row.currency, "USD").toUpperCase();
+    const status = textValue(row.status, "active");
+    if (!projectId || !/^[A-Z]{3}$/.test(currency) || !["active","exhausted","closed"].includes(status)) {
+      throw new Error("BUSINESS_DATA_INVALID");
+    }
+    const projectMap = projectBudgets.get(projectId) || new Map<string, BudgetBucket>();
+    projectBudgets.set(projectId, projectMap);
+    for (const bucket of [budgetBucket(portfolioBudgets, currency), budgetBucket(projectMap, currency)]) {
+      bucket.hard += microsValue(row.hard_limit_micros);
+      bucket.warning += microsValue(row.warning_limit_micros);
+      bucket.spent += microsValue(row.spent_micros);
+      bucket.reserved += microsValue(row.reserved_micros);
+      if (status === "active") bucket.active += 1;
+      else if (status === "exhausted") bucket.exhausted += 1;
+      else bucket.closed += 1;
+    }
+  }
+
+  const costRows = (map: Map<string, CostBucket>) => [...map.entries()].sort(([a],[b]) => a.localeCompare(b)).map(([currency, bucket]) => ({
+    currency,
+    estimatedMicros: microsText(bucket.estimated),
+    billedMicros: microsText(bucket.billed),
+    chargedMicros: microsText(bucket.charged),
+    creditMicros: microsText(bucket.credits),
+    entryCount: bucket.entries,
+    latestAt: bucket.latestAt,
+  }));
+  const budgetRows = (map: Map<string, BudgetBucket>) => [...map.entries()].sort(([a],[b]) => a.localeCompare(b)).map(([currency, bucket]) => ({
+    currency,
+    hardLimitMicros: microsText(bucket.hard),
+    warningLimitMicros: microsText(bucket.warning),
+    spentMicros: microsText(bucket.spent),
+    reservedMicros: microsText(bucket.reserved),
+    activeCount: bucket.active,
+    exhaustedCount: bucket.exhausted,
+    closedCount: bucket.closed,
+  }));
+
+  const projectItems = projects.map((project) => {
+    const projectId = textValue(project.id);
+    const objective = latestObjective.get(projectId);
+    return {
+      projectId,
+      projectKey: textValue(project.project_key),
+      name: textValue(project.name, "Project"),
+      status: textValue(project.status, "unknown"),
+      repository: textValue(project.repository) || null,
+      objective: objective ? {
+        objective: textValue(objective.objective),
+        desiredOutcome: textValue(objective.desired_outcome) || null,
+        successMetric: textValue(objective.success_metric) || null,
+        baseline: textValue(objective.baseline) || null,
+        target: textValue(objective.target) || null,
+        recordedAt: objective.created_at ?? null,
+      } : null,
+      costs: costsComplete ? costRows(projectCosts.get(projectId) || new Map()) : [],
+      budgets: budgetsComplete ? budgetRows(projectBudgets.get(projectId) || new Map()) : [],
+    };
+  });
+
+  return {
+    contractVersion: "pandora-owner-business-v1",
+    observedAt: new Date().toISOString(),
+    completeness: {
+      projects: projectsComplete,
+      objectives: objectivesComplete,
+      budgets: budgetsComplete,
+      costs: costsComplete,
+    },
+    counts: {
+      projects: projectCount,
+      objectives: objectiveCount,
+      projectsWithObjectives: objectivesComplete ? latestObjective.size : null,
+      budgetLimits: budgetCount,
+      costEntries: costEntryCount,
+    },
+    costs: costsComplete ? costRows(portfolioCosts) : [],
+    budgets: budgetsComplete ? budgetRows(portfolioBudgets) : [],
+    projects: projectItems,
+    unavailable: {
+      revenue: true,
+      roi: true,
+      adoption: true,
+      retention: true,
+      customerOutcomes: true,
+      reason: "No bounded first-party measurement source is part of this owner Business contract yet.",
+    },
+  };
+}
+
 async function home(context: UserContext) {
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -674,7 +966,7 @@ async function project(context: UserContext, identifier: string) {
   const { data: projectRow, error } = await query.maybeSingle();
   if (error) throw new Error("BACKEND_READ_FAILED");
   if (!projectRow) throw new Error("PROJECT_NOT_FOUND");
-  const [phases, tasks, evidence, projection] = await Promise.all([
+  const [phases, tasks, evidence, projection, experience, theatre] = await Promise.all([
     context.client.from("projectos_phases").select(
       "id, phase_key, name, sequence, status, exit_criteria, started_at, completed_at",
     )
@@ -702,8 +994,25 @@ async function project(context: UserContext, identifier: string) {
       .eq("organization_id", context.organizationId)
       .eq("project_id", projectRow.id)
       .maybeSingle(),
+    context.client.from("pandora_project_experience_projection")
+      .select(
+        "experience_state, active_build_job_id, build_phase, public_message, needs_you, retry_available, last_transition_at, updated_at",
+      )
+      .eq("organization_id", context.organizationId)
+      .eq("project_id", projectRow.id)
+      .maybeSingle(),
+    context.client.from("pandora_build_theatre_projection")
+      .select(
+        "build_job_id, owner_state, owner_stage, progress_percent, public_message, preview_url, live_url, needs_you, retry_available, last_event_at, updated_at",
+      )
+      .eq("organization_id", context.organizationId)
+      .eq("project_id", projectRow.id)
+      .maybeSingle(),
   ]);
-  if (phases.error || tasks.error || evidence.error || projection.error) {
+  if (
+    phases.error || tasks.error || evidence.error || projection.error ||
+    experience.error || theatre.error
+  ) {
     throw new Error("BACKEND_READ_FAILED");
   }
   const evidenceRows = (evidence.data || []) as JsonRecord[];
@@ -732,6 +1041,7 @@ async function project(context: UserContext, identifier: string) {
       .map(releaseSummary)
       .slice(0, 10),
     currentState: projection.data?.projection || null,
+    buildTheatre: buildTheatreSummary(experience.data, theatre.data),
     operations,
   };
 }
@@ -1157,8 +1467,8 @@ async function approvals(context: UserContext, limit: number) {
     },
   );
   if (planError) throw new Error("BACKEND_READ_FAILED");
-  const governed = (Array.isArray(plans) ? plans : [])
-    .map(asRecord)
+  const planRows = (Array.isArray(plans) ? plans : []).map(asRecord);
+  const workerGoverned = planRows
     .filter((plan) =>
       plan.tool === "projectos.worker.verify" &&
       plan.risk === "write" && plan.status === "pending_approval"
@@ -1188,7 +1498,43 @@ async function approvals(context: UserContext, limit: number) {
         memoryContextReady: plan.memoryContextRecorded === true,
       },
     }));
-  return [...governed, ...ordinary].slice(0, limit);
+  const genericGoverned = planRows
+    .filter((plan) =>
+      plan.tool !== "projectos.worker.verify" &&
+      plan.risk !== "read" && plan.status === "pending_approval"
+    )
+    .map((plan) => {
+      const tool = textValue(plan.tool, "governed action");
+      const plainTool = tool.replace(/[._-]+/g, " ");
+      return {
+        id: textValue(plan.planId),
+        projectId: textValue(plan.projectId) || null,
+        whatWillHappen: `Allow Pandora to proceed with the exact governed plan for ${plainTool}.`,
+        whyINeedYou: "This consequential plan cannot proceed without your explicit approval.",
+        whatWillChange:
+          "Approval records permission only. Execution remains a separate governed step with claim, provider readback, and evidence.",
+        whatCouldGoWrong:
+          "A stale, expired, mismatched, or unverified plan remains blocked instead of being guessed or replayed.",
+        howWeCanUndoIt:
+          "Approval alone changes no provider state; rollback is required only if a later execution actually changes something.",
+        riskLevel: ownerRiskLabel(textValue(plan.risk, "WRITE")),
+        reversible: true,
+        extraIdentityCheckRequired: false,
+        decision: "pending",
+        expiresAt: plan.expiresAt ?? null,
+        createdAt: plan.createdAt ?? null,
+        advanced: {
+          kind: "execution_plan",
+          intakeId: plan.intakeId ?? null,
+          projectKey: plan.projectKey ?? null,
+          tool,
+          args: plan.args ?? null,
+          payloadHash: plan.payloadHash ?? null,
+          memoryContextReady: plan.memoryContextRecorded === true,
+        },
+      };
+    });
+  return [...workerGoverned, ...genericGoverned, ...ordinary].slice(0, limit);
 }
 
 async function activity(context: UserContext, limit: number) {
@@ -2082,6 +2428,58 @@ async function decide(
       },
     };
   }
+
+  const genericDecision = await context.client.rpc("decide_execution_plan_v1", {
+    p_organization_id: context.organizationId,
+    p_plan_id: approvalId,
+    p_decision: requested === "approved" ? "approve" : "deny",
+  });
+  if (genericDecision.error) {
+    const genericError = textValue(
+      asRecord(genericDecision.error).message,
+    ).toLowerCase();
+    if (
+      genericError.includes("cannot") || genericError.includes("expired") ||
+      genericError.includes("mismatch") || genericError.includes("does not require")
+    ) {
+      throw new Error("APPROVAL_CONFLICT");
+    }
+    throw new Error("APPROVAL_DECISION_FAILED");
+  }
+  const generic = asRecord(genericDecision.data);
+  if (generic.kind === "execution_plan") {
+    return {
+      ok: true,
+      decision: requested,
+      approval: {
+        id: approvalId,
+        projectId: textValue(generic.projectId) || null,
+        whatWillHappen: "Record your decision on the exact consequential ProjectOS plan.",
+        whyINeedYou: "This plan requires explicit owner permission before any execution can be claimed.",
+        whatWillChange:
+          "The plan permission state changes. No provider mutation is executed by this approval call.",
+        whatCouldGoWrong:
+          "Expired, stale, terminal, or mismatched plans remain blocked.",
+        howWeCanUndoIt:
+          "A later provider change, if any, must still carry its own rollback and verification evidence.",
+        riskLevel: ownerRiskLabel(textValue(generic.risk, "WRITE")),
+        reversible: true,
+        extraIdentityCheckRequired: false,
+        decision: requested,
+        expiresAt: null,
+        createdAt: null,
+        advanced: {
+          kind: "execution_plan",
+          planId: generic.planId ?? approvalId,
+          intakeId: generic.intakeId ?? null,
+          status: generic.status ?? null,
+          tool: generic.tool ?? null,
+          idempotentReplay: generic.idempotentReplay === true,
+        },
+      },
+    };
+  }
+
   const { data, error } = await context.client.rpc("decide_approval", {
     approval_id: approvalId,
     requested_decision: requested,
@@ -2135,6 +2533,9 @@ Deno.serve(async (req: Request) => {
     }
     if (req.method === "GET" && route === "/projects") {
       return send(await projects(context));
+    }
+    if (req.method === "GET" && route === "/business") {
+      return send(await business(context));
     }
     if (req.method === "GET" && /^\/projects\/[^/]+\/operations$/.test(route)) {
       const projectRecord = await resolveMemoryProject(
