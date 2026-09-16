@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -15,6 +16,8 @@ class PandoraIntelligenceApi {
   final String _organizationId;
 
   static const functionName = 'pandora-intelligence-chat';
+
+  String createJobId() => _uuidV4();
 
   Future<List<PandoraIntelligenceThread>> recentThreads({
     int limit = 30,
@@ -132,6 +135,7 @@ class PandoraIntelligenceApi {
     required String message,
     String? threadId,
     String? projectId,
+    String? jobId,
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
@@ -180,6 +184,7 @@ class PandoraIntelligenceApi {
           'message': message.trim(),
           if (threadId != null) 'threadId': threadId,
           if (projectId != null) 'projectId': projectId,
+          if (jobId != null) 'jobId': jobId,
           'mode': mode.name,
           if (attachments.isNotEmpty) 'attachments': attachments,
         },
@@ -557,6 +562,7 @@ class PandoraIntelligenceTurn {
     required this.confidence,
     required this.needsClarification,
     this.clarifyingQuestion,
+    this.jobId,
     this.handoff,
   });
 
@@ -566,6 +572,7 @@ class PandoraIntelligenceTurn {
   final double confidence;
   final bool needsClarification;
   final String? clarifyingQuestion;
+  final String? jobId;
   final PandoraIntelligenceHandoff? handoff;
 
   factory PandoraIntelligenceTurn.fromJson(Map<String, dynamic> json) {
@@ -577,6 +584,7 @@ class PandoraIntelligenceTurn {
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0,
       needsClarification: json['needsClarification'] == true,
       clarifyingQuestion: _optionalText(json['clarifyingQuestion']),
+      jobId: _optionalText(json['jobId']),
       handoff: handoffJson['required'] == true
           ? PandoraIntelligenceHandoff(
               request: _requiredText(handoffJson['request']),
@@ -608,6 +616,15 @@ class PandoraIntelligenceException implements Exception {
   String toString() => message;
 }
 
+final Random _uuidRandom = Random.secure();
+
+String _uuidV4() {
+  final bytes = List<int>.generate(16, (_) => _uuidRandom.nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  final hex = bytes.map((value) => value.toRadixString(16).padLeft(2, '0')).join();
+  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+}
 Map<String, dynamic> _map(Object? value) => value is Map
     ? value.map((key, value) => MapEntry(key.toString(), value))
     : <String, dynamic>{};
