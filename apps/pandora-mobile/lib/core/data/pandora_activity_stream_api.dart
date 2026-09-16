@@ -76,6 +76,61 @@ class PandoraActivityStreamApi {
     }
   }
 
+  Future<void> recordDeviceFact({
+    required String jobId,
+    required String operationId,
+    required String capability,
+    required String stage,
+    required DateTime observedAt,
+  }) async {
+    if (_client.auth.currentSession == null) {
+      throw const PandoraActivityStreamException('Please sign in again.');
+    }
+    final safeJob = jobId.trim();
+    final safeOperation = operationId.trim();
+    final safeCapability = capability.trim();
+    final safeStage = stage.trim();
+    final validOperation = RegExp(r'^[A-Za-z0-9._:-]{8,128}$').hasMatch(safeOperation);
+    if (safeJob.isEmpty ||
+        !validOperation ||
+        !const <String>{'calendar.events', 'reminder.local'}.contains(safeCapability) ||
+        !const <String>{
+          'acting',
+          'verifying',
+          'result',
+          'failed',
+          'needs_permission',
+          'needs_special_access',
+          'needs_choice',
+        }.contains(safeStage)) {
+      throw const PandoraActivityStreamException(
+        'Pandora could not record that device activity.',
+      );
+    }
+    try {
+      final response = await _client.rpc(
+        'pandora_activity_device_fact_v1',
+        params: <String, Object?>{
+          'p_organization_id': _organizationId,
+          'p_job_id': safeJob,
+          'p_operation_id': safeOperation,
+          'p_capability': safeCapability,
+          'p_stage': safeStage,
+          'p_observed_at': observedAt.toUtc().toIso8601String(),
+        },
+      );
+      if (_map(response)['ok'] != true) {
+        throw const PandoraActivityStreamException(
+          'Pandora could not record that device activity.',
+        );
+      }
+    } on PostgrestException {
+      throw const PandoraActivityStreamException(
+        'Pandora could not record that device activity.',
+      );
+    }
+  }
+
   Future<void> requestControl({
     required String jobId,
     required String requestId,
