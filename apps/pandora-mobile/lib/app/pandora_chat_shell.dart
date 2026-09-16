@@ -10,6 +10,7 @@ import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
+import '../features/enterprise/enterprise_code_screen.dart';
 import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
 import '../features/simple/enterprise_section_screen.dart';
@@ -489,6 +490,9 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
   Widget _root(int index) => _roots.putIfAbsent(index, () {
+    if (index == 16) {
+      return const EnterpriseCodeScreen();
+    }
     if (index >= 8 && index < _destinations.length) {
       return EnterpriseSectionScreen(
         title: _destinations[index].label,
