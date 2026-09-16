@@ -83,14 +83,13 @@ test('Professional Library consumes only the bounded operator Library index', ()
   assert.ok(professional.includes('does not expose storage paths, raw provenance, source payloads, deployment URLs, provider deployment IDs or artifact bytes'));
 });
 
-test('Professional Business consumes bounded control-plane truth without fabricating outcomes', () => {
-  assert.match(professional, /state\.businessTruth/);
-  assert.ok(professional.includes('Durable business objectives, measurement readiness, economics and budgets'));
-  assert.ok(professional.includes("metricCard('Revenue', 'Not measured'"));
-  assert.ok(professional.includes("metricCard('Retention', 'Not measured'"));
-  assert.ok(professional.includes("metricCard('Paid pilots', 'Not measured'"));
-  assert.ok(professional.includes("metricCard('ROI', 'Unknown'"));
-  assert.ok(professional.includes('Operational economics are not commercial proof'));
+test('Professional Business consumes the shared bounded owner contract', () => {
+  assert.match(professional, /state\.business/);
+  assert.match(professional, /pandora-owner-business-v1/);
+  assert.ok(professional.includes('No cross-currency totals'));
+  assert.ok(professional.includes('Commercial outcomes are not inferred'));
+  assert.ok(professional.includes('Revenue, ROI, adoption, retention, and customer outcomes remain explicitly unavailable'));
+  assert.doesNotMatch(professional, /Authoritative business analytics are not connected to this web mode yet/);
 });
 
 test('Connect exposes posture but explicitly keeps credentials out of the browser', () => {
@@ -116,9 +115,9 @@ test('Admin remains the protected existing advanced control tower', () => {
 test('Professional Mode assets are composed under one distinct revision', () => {
   assert.ok(first.includes('owner-professional.js'));
   assert.ok(screens.includes('PandorasOwnerProfessional'));
-  assert.ok(first.includes('web-publish-truth-v2-20260907-1'));
+  assert.ok(first.includes('web-theatre-status-truth-v1-20260910-1'));
   assert.ok(index.includes('owner-experience.css?v=web-professional-mode-v1-20260907-1'));
-  assert.ok(index.includes('bootstrap.js?v=web-publish-truth-v2-20260907-1'));
+  assert.ok(index.includes('bootstrap.js?v=web-theatre-status-truth-v1-20260910-1'));
 });
 
 test('shared project workspace returns to the active presentation mode', () => {

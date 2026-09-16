@@ -15,7 +15,7 @@ _SCRIPT = Path(__file__).with_name('configure_validation_android.py')
 _CANONICAL_MARK_SHA256 = (
     '8a35b74baec47b960a42bb74587f9c531d6cbf8d45f16061836a9e63f00efcc5'
 )
-_BASE_MANIFEST = """<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n    <application android:label=\"pandora_mobile\" android:name=\"${applicationName}\" android:icon=\"@mipmap/ic_launcher\">\n    </application>\n</manifest>\n"""
+_BASE_MANIFEST = """<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n    <application android:label=\"pandora_mobile\" android:name=\"${applicationName}\" android:icon=\"@mipmap/ic_launcher\">\n        <activity android:name=\".MainActivity\" android:exported=\"true\">\n            <intent-filter>\n                <action android:name=\"android.intent.action.MAIN\"/>\n                <category android:name=\"android.intent.category.LAUNCHER\"/>\n            </intent-filter>\n        </activity>\n    </application>\n</manifest>\n"""
 
 
 class ConfigureValidationAndroidTest(unittest.TestCase):
@@ -52,6 +52,22 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
             '<uses-permission android:name="android.permission.INTERNET"/>',
             updated,
         )
+        self.assertEqual(updated.count('android.permission.ACCESS_NETWORK_STATE'), 1)
+        self.assertIn(
+            '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>',
+            updated,
+        )
+        for permission in (
+            'android.permission.READ_CALENDAR',
+            'android.permission.WRITE_CALENDAR',
+            'android.permission.POST_NOTIFICATIONS',
+            'android.permission.SCHEDULE_EXACT_ALARM',
+        ):
+            self.assertEqual(updated.count(permission), 1)
+        self.assertIn(
+            '<receiver android:name=".PandoraLocalReminderReceiver" android:exported="false"/>',
+            updated,
+        )
         self.assertIn('android:label="Pandora"', updated)
         self.assertNotIn('android:label="pandora_mobile"', updated)
         self.assertIn('android:icon="@drawable/pandora_launcher_icon"', updated)
@@ -85,6 +101,18 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn('at most one Android INTERNET permission', result.stderr)
 
+    def test_refuses_duplicate_network_state_permission(self) -> None:
+        permission = (
+            '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>'
+        )
+        manifest = _BASE_MANIFEST.replace(
+            '\n    <application',
+            f'\n    {permission}\n    {permission}\n    <application',
+        )
+        result, _, _, _ = self._run(manifest)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('at most one Android ACCESS_NETWORK_STATE permission', result.stderr)
+
     def test_refuses_cleartext_traffic(self) -> None:
         manifest = _BASE_MANIFEST.replace(
             'android:icon="@mipmap/ic_launcher"',
@@ -104,6 +132,31 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
         self.assertIn('launcher icon reference', result.stderr)
         self.assertIsNone(icon_text)
         self.assertIsNone(mark_bytes)
+
+    def test_adds_home_candidate_and_preserves_launcher_recovery(self) -> None:
+        result, updated, _, _ = self._run(_BASE_MANIFEST)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(updated.count('android.intent.category.HOME'), 1)
+        self.assertEqual(updated.count('android.intent.category.DEFAULT'), 1)
+        self.assertEqual(updated.count('android.intent.category.LAUNCHER'), 1)
+        self.assertEqual(updated.count('android.intent.action.MAIN'), 2)
+        self.assertNotIn('android.permission.CALL_PHONE', updated)
+        self.assertNotIn('android.permission.READ_SMS', updated)
+        self.assertNotIn('android.permission.SEND_SMS', updated)
+        self.assertNotIn('android:lockTaskMode', updated)
+        self.assertIn('without forcing default HOME', result.stdout)
+
+    def test_refuses_preexisting_home_or_default_routing(self) -> None:
+        manifest = _BASE_MANIFEST.replace(
+            '<category android:name="android.intent.category.LAUNCHER"/>',
+            '<category android:name="android.intent.category.LAUNCHER"/>\n'
+            '                <category android:name="android.intent.category.HOME"/>',
+        )
+        result, _, _, _ = self._run(manifest)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('already declares HOME/DEFAULT routing', result.stderr)
 
 
 if __name__ == '__main__':

@@ -340,9 +340,13 @@ class GitHubMCPServer {
         }
     }
     // Merge pull request
-    async mergePullRequest(owner, repo, pullNumber, commitTitle, commitMessage, mergeMethod = 'merge') {
+    async mergePullRequest(owner, repo, pullNumber, expectedHeadSha, commitTitle, commitMessage, mergeMethod = 'merge') {
         try {
-            const mergeData = { merge_method: mergeMethod };
+            const normalizedExpectedHeadSha = typeof expectedHeadSha === 'string' ? expectedHeadSha.trim() : '';
+            if (!/^[0-9a-fA-F]{40}$/.test(normalizedExpectedHeadSha)) {
+                throw new Error('expectedHeadSha must be an exact 40-character Git commit SHA');
+            }
+            const mergeData = { merge_method: mergeMethod, sha: normalizedExpectedHeadSha };
             if (commitTitle)
                 mergeData.commit_title = commitTitle;
             if (commitMessage)
@@ -611,18 +615,19 @@ exports.githubTools = {
         }
     },
     'github.merge-pull-request': {
-        description: 'Merge a GitHub pull request',
+        description: 'Merge a GitHub pull request only when its current head exactly matches the reviewed SHA',
         parameters: {
             type: 'object',
             properties: {
                 owner: { type: 'string', description: 'Repository owner' },
                 repo: { type: 'string', description: 'Repository name' },
                 pullNumber: { type: 'number', description: 'Pull request number' },
+                expectedHeadSha: { type: 'string', pattern: '^[0-9a-fA-F]{40}$', description: 'Exact reviewed pull request head SHA; GitHub rejects the merge if the head moved' },
                 commitTitle: { type: 'string', description: 'Merge commit title' },
                 commitMessage: { type: 'string', description: 'Merge commit message' },
                 mergeMethod: { type: 'string', enum: ['merge', 'squash', 'rebase'], description: 'Merge method' }
             },
-            required: ['owner', 'repo', 'pullNumber']
+            required: ['owner', 'repo', 'pullNumber', 'expectedHeadSha']
         }
     },
     'github.list-workflow-runs': {
@@ -700,7 +705,7 @@ async function executeGitHubTool(tool, args, config) {
         case 'github.create-pull-request':
             return await github.createPullRequest(args.owner, args.repo, args.title, args.head, args.base, args.body, args.draft);
         case 'github.merge-pull-request':
-            return await github.mergePullRequest(args.owner, args.repo, args.pullNumber, args.commitTitle, args.commitMessage, args.mergeMethod);
+            return await github.mergePullRequest(args.owner, args.repo, args.pullNumber, args.expectedHeadSha, args.commitTitle, args.commitMessage, args.mergeMethod);
         case 'github.list-workflow-runs':
             return await github.listWorkflowRuns(args.owner, args.repo, args.workflowId, args.actor, args.branch, args.event, args.status, args.conclusion, args.perPage);
         case 'github.get-workflow-run':

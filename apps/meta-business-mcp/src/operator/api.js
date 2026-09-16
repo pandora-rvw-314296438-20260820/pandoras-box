@@ -11,7 +11,6 @@ const vercel_connect_user_1 = require("./vercel-connect-user.js");
 const project_change_1 = require("./project-change.js");
 const preview_focus_1 = require("./preview-focus.js");
 const library_index_1 = require("./library-index.js");
-const business_truth_1 = require("./business-truth.js");
 const OPERATOR_ROLES = new Set(['owner', 'admin', 'operator']);
 const APPROVER_ROLES = new Set(['owner', 'admin']);
 const EXECUTOR_ROLES = new Set(['owner', 'admin']);
@@ -216,11 +215,6 @@ function createOperatorApiApp(options) {
         supabaseUrl: options.supabaseUrl,
         publishableKey: options.supabasePublishableKey,
     });
-    const businessTruthExecutor = options.businessTruthExecutor ?? (0, business_truth_1.createBusinessTruthExecutor)({
-        organizationId: options.organizationId,
-        supabaseUrl: options.supabaseUrl,
-        publishableKey: options.supabasePublishableKey,
-    });
     router.use(createOperatorRateLimiter(options.requestsPerMinute));
     router.get('/auth/config', (request, response) => {
         if (!operatorOriginAllowed(request, options.allowedOrigins)) {
@@ -384,7 +378,7 @@ function createOperatorApiApp(options) {
                     ok: false,
                     error: {
                         code: 'APPROVER_ROLE_REQUIRED',
-                        message: 'Plan approval requires a ProjectOS owner or admin session.',
+                        message: 'Plan approval requires a Pandora owner or admin session.',
                     },
                 });
                 return;
@@ -462,26 +456,6 @@ function createOperatorApiApp(options) {
                     message: error instanceof Error
                         ? error.message
                         : 'Pandora could not prepare that project change.',
-                },
-            });
-        }
-    });
-    router.get('/business-truth', async (request, response) => {
-        noStore(response);
-        const current = actor(response);
-        try {
-            const result = await businessTruthExecutor({ actor: current });
-            response.json(result);
-        }
-        catch (error) {
-            const status = Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599
-                ? error.status
-                : 503;
-            response.status(status).json({
-                ok: false,
-                error: {
-                    code: typeof error?.code === 'string' ? error.code : 'BUSINESS_UNAVAILABLE',
-                    message: error instanceof Error ? error.message : 'Pandora could not load bounded Business truth.',
                 },
             });
         }

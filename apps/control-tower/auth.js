@@ -3,6 +3,7 @@ const ALLOWED_EDGE_FUNCTIONS = new Set(['pandora-intelligence-chat']);
 const EDGE_ROUTE_POLICIES = Object.freeze({
   'pandora-owner-api': Object.freeze({
     GET: Object.freeze([
+      /^business$/,
       /^projects$/,
       /^projects\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
     ]),

@@ -262,133 +262,103 @@ function professionalVerify() {
   return professionalShell('Verify', 'Canonical status, audit validity, protected controls and exact-source verification posture.', body);
 }
 
-function formatMoneyMicros(value, currency = 'USD') {
-  const micros = Number(value);
-  if (!Number.isSafeInteger(micros) || micros < 0 || !/^[A-Z]{3}$/.test(String(currency))) return 'Unknown';
-  const amount = micros / 1_000_000;
-  const precision = amount > 0 && amount < 1 ? 6 : 2;
+function professionalBusinessMoney(micros, currency) {
   try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: Math.min(2, precision),
-      maximumFractionDigits: precision,
-    }).format(amount);
+    const value = BigInt(String(micros ?? '0'));
+    const cents = (value + 5000n) / 10000n;
+    const whole = cents / 100n;
+    const fraction = String(cents % 100n).padStart(2, '0');
+    return `${String(currency || 'USD').toUpperCase()} ${whole.toLocaleString()}.${fraction}`;
   } catch {
-    return `${currency} ${amount.toFixed(precision)}`;
+    return '—';
   }
 }
 
-function businessObjectiveRows(project) {
-  const objectives = Array.isArray(project.objectives) ? project.objectives : [];
-  if (!objectives.length) return '<div class="owner-empty compact"><h3>No business objective configured</h3><p>Pandora has no durable ProjectSpec business objective for this project.</p></div>';
-  return objectives.slice(0, 4).map((objective) => `<div class="professional-verification-row">
-    <span>
-      <strong>${esc(objective.objective || 'Business objective')}</strong>
-      <small>${esc(objective.desiredOutcome || 'Desired outcome not specified')} · metric: ${esc(objective.successMetric || 'not configured')} · baseline: ${esc(objective.baseline || 'unknown')} · target: ${esc(objective.target || 'unknown')}</small>
-    </span>
-    ${badge(objective.measurementState === 'configured_not_measured' ? 'Not measured' : 'Metric not configured', 'warning')}
-  </div>`).join('');
+function professionalCostFact(cost) {
+  const charged = BigInt(String(cost?.chargedMicros || '0'));
+  const billed = BigInt(String(cost?.billedMicros || '0'));
+  const estimated = BigInt(String(cost?.estimatedMicros || '0'));
+  if (charged > 0n) return { label: 'Charged', value: professionalBusinessMoney(cost.chargedMicros, cost.currency) };
+  if (billed > 0n) return { label: 'Billed', value: professionalBusinessMoney(cost.billedMicros, cost.currency) };
+  if (estimated > 0n) return { label: 'Estimated', value: professionalBusinessMoney(cost.estimatedMicros, cost.currency) };
+  return { label: 'Unknown cost', value: '�' };
 }
 
-function businessEconomicsRows(project) {
-  const economics = Array.isArray(project.economics) ? project.economics : [];
-  const budgets = Array.isArray(project.budgets) ? project.budgets : [];
-  const rows = [];
-  for (const item of economics) {
-    const internal = item.totalInternalCostMicros != null
-      ? `internal cost ${formatMoneyMicros(item.totalInternalCostMicros, item.currency)}`
-      : `known internal cost ${formatMoneyMicros(item.knownInternalCostMicros, item.currency)} · ${Number(item.unknownCostCount || 0)} unknown entr${Number(item.unknownCostCount || 0) === 1 ? 'y' : 'ies'}`;
-    const charge = item.netCustomerChargeMicros != null
-      ? `recorded customer charge ${formatMoneyMicros(item.netCustomerChargeMicros, item.currency)} after ${formatMoneyMicros(item.creditMicros, item.currency)} credits`
-      : 'recorded customer charge unknown';
-    rows.push(`<div class="professional-verification-row"><span><strong>${esc(item.currency)} economics ledger</strong><small>${esc(internal)} · ${esc(charge)} · ${esc(item.entryCount || 0)} cost entries</small></span>${badge(cleanName(item.confidence || 'unknown'), item.confidence === 'actual' ? 'success' : 'neutral')}</div>`);
-  }
-  for (const item of budgets) {
-    const remaining = item.remainingMicros == null ? 'remaining unknown' : `${formatMoneyMicros(item.remainingMicros, item.currency)} remaining`;
-    const committed = item.spentMicros == null || item.reservedMicros == null
-      ? 'committed amount unknown'
-      : `${formatMoneyMicros(item.spentMicros, item.currency)} spent · ${formatMoneyMicros(item.reservedMicros, item.currency)} reserved`;
-    const warning = Number(item.exhaustedCount || 0) > 0 ? 'Exhausted' : Number(item.nearLimitCount || 0) > 0 ? 'Near limit' : 'Within limit';
-    rows.push(`<div class="professional-verification-row"><span><strong>${esc(item.currency)} budget</strong><small>${esc(committed)} · hard limit ${esc(formatMoneyMicros(item.hardLimitMicros, item.currency))} · ${esc(remaining)}</small></span>${badge(warning, warning === 'Within limit' ? 'success' : 'warning')}</div>`);
-  }
-  return rows.length ? rows.join('') : '<div class="owner-empty compact"><h3>No economics ledger data</h3><p>No bounded cost or budget records were returned for this project.</p></div>';
+function professionalBusinessProject(project) {
+  const objective = project.objective;
+  const costFacts = Array.isArray(project.costs) ? project.costs.map(professionalCostFact) : [];
+  const budgetFacts = Array.isArray(project.budgets) ? project.budgets : [];
+  const economics = [
+    ...costFacts.map((fact) => `${fact.label} ${fact.value}`),
+    ...budgetFacts.map((budget) => `${budget.currency} budget ${professionalBusinessMoney(budget.spentMicros, budget.currency)} / ${professionalBusinessMoney(budget.hardLimitMicros, budget.currency)}`),
+  ];
+  return `<article class="owner-card professional-callout">
+    <div>
+      <span class="owner-kicker">${esc(project.status || 'Recorded')}</span>
+      <h2>${esc(project.name)}</h2>
+      <p>${esc(objective?.objective || 'No current business objective recorded')}</p>
+      <small>${esc(objective?.successMetric ? `Metric: ${objective.successMetric}${objective.baseline || objective.target ? ` · ${objective.baseline || '—'} → ${objective.target || '—'}` : ''}` : 'Success metric not recorded')}</small>
+    </div>
+    <div><strong>${esc(economics.join(' · ') || 'No cost or budget facts recorded')}</strong></div>
+  </article>`;
 }
 
 function professionalBusiness() {
-  const session = window.MCPMasterAuth?.session?.() || state.session || {};
-  if (!session.authenticated) {
+  const item = state.business;
+  const data = item?.data;
+  if (item?.loading && !data) {
     return professionalShell(
       'Business',
-      'Durable business objectives, measurement readiness, economics and budgets from Pandora’s member-RLS control plane.',
-      unavailable('Sign in to view Business truth', 'Business control-plane records are protected and are purged from this owner surface after sign-out.', icons.business),
+      'Recorded objectives, budgets and append-only cost facts from Pandora’s protected owner contract.',
+      '<section class="owner-card owner-skeleton-card"><div class="owner-skeleton wide"></div><div class="owner-skeleton medium"></div></section>',
     );
   }
-  const business = state.businessTruth || {};
-  if (business.loading && !business.loadedAt) {
+  if (!data || data.contractVersion !== 'pandora-owner-business-v1') {
     return professionalShell(
       'Business',
-      'Durable business objectives, measurement readiness, economics and budgets from Pandora’s member-RLS control plane.',
-      '<div class="owner-card owner-workspace-loading"><span class="owner-spinner"></span><h2>Loading bounded Business truth</h2><p>Pandora is reading ProjectSpec objectives, economics entries and budget limits.</p></div>',
+      'Recorded objectives, budgets and append-only cost facts from Pandora’s protected owner contract.',
+      unavailable('Protected Business facts are unavailable', item?.error || 'Pandora could not read the bounded Business contract right now.', icons.business),
     );
   }
-  if (business.error) {
-    return professionalShell(
-      'Business',
-      'Durable business objectives, measurement readiness, economics and budgets from Pandora’s member-RLS control plane.',
-      unavailable('Business truth is unavailable', business.error.message || 'Pandora could not load the bounded Business projection.', icons.business),
-    );
-  }
-  const projects = Array.isArray(business.projects) ? business.projects : [];
-  const objectiveCount = projects.reduce((sum, project) => sum + (Array.isArray(project.objectives) ? project.objectives.length : 0), 0);
-  const costTracked = projects.filter((project) => Array.isArray(project.economics) && project.economics.some((item) => Number(item.entryCount || 0) > 0)).length;
-  const budgetAlerts = projects.reduce((sum, project) => sum + (Array.isArray(project.budgets)
-    ? project.budgets.reduce((inner, item) => inner + Number(item.exhaustedCount || 0) + Number(item.nearLimitCount || 0), 0)
-    : 0), 0);
+
+  const costs = Array.isArray(data.costs) ? data.costs : [];
+  const budgets = Array.isArray(data.budgets) ? data.budgets : [];
+  const projects = Array.isArray(data.projects)
+    ? data.projects.filter((project) => project.objective || project.costs?.length || project.budgets?.length).slice(0, 25)
+    : [];
+  const exhausted = budgets.reduce((sum, budget) => sum + Number(budget.exhaustedCount || 0), 0);
+  const activeBudgets = budgets.reduce((sum, budget) => sum + Number(budget.activeCount || 0), 0);
+  const costCards = costs.length
+    ? costs.map((cost) => {
+        const fact = professionalCostFact(cost);
+        return metricCard(`${fact.label} · ${cost.currency}`, fact.value, `${cost.entryCount || 0} ledger entries`);
+      }).join('')
+    : metricCard('Recorded cost', '—', 'No cost entries');
+
   const body = `
-    <section class="professional-metrics-grid" aria-label="Business truth overview">
-      ${metricCard('Projects', projects.length, 'with durable business/economics records')}
-      ${metricCard('Objectives', objectiveCount, 'ProjectSpec business objectives')}
-      ${metricCard('Cost-tracked', costTracked, 'projects with economics ledger entries')}
-      ${metricCard('Budget alerts', budgetAlerts, budgetAlerts ? 'near/exhausted limits' : 'none in bounded data', budgetAlerts ? 'warning' : 'success')}
-    </section>
-    <section class="professional-metrics-grid" aria-label="Commercial outcome measurement">
-      ${metricCard('Revenue', 'Not measured', 'no provider outcome evidence in this contract')}
-      ${metricCard('Retention', 'Not measured', 'no provider outcome evidence in this contract')}
-      ${metricCard('Paid pilots', 'Not measured', 'no live pilot evidence in this contract')}
-      ${metricCard('ROI', 'Unknown', 'benefit/outcome evidence is incomplete')}
+    <section class="professional-metrics-grid" aria-label="Business authority overview">
+      ${metricCard('Projects', data.counts?.projects ?? '—', 'non-archived')}
+      ${metricCard('With objectives', data.counts?.projectsWithObjectives ?? '—', 'ProjectSpec business truth')}
+      ${metricCard('Budget limits', data.counts?.budgetLimits ?? '—', `${activeBudgets} active · ${exhausted} exhausted`, exhausted ? 'warning' : 'neutral')}
+      ${metricCard('Cost entries', data.counts?.costEntries ?? '—', 'append-only ledger')}
     </section>
     <section class="owner-section">
-      <div class="professional-section-head"><div><span class="owner-kicker">Project truth</span><h2>Objectives, economics and budgets</h2></div><span>${projects.length} projects</span></div>
-      <div class="professional-project-list">
-        ${projects.length ? projects.map((project) => `<article class="owner-card professional-project-card">
-          <div class="professional-project-head"><div><span class="owner-kicker">${esc(project.repository || 'Pandora project')}</span><h3>${esc(project.projectName || 'Project')}</h3></div>${badge(project.measurementState === 'configured_not_measured' ? 'Configured · not measured' : 'Measurement not configured', 'warning')}</div>
-          <div class="professional-verification-list">${businessObjectiveRows(project)}</div>
-          <div class="professional-verification-list">${businessEconomicsRows(project)}</div>
-        </article>`).join('') : '<div class="owner-card owner-empty"><h3>No bounded Business records returned</h3><p>Pandora will not convert missing objectives, economics or provider measurements into zero or success.</p></div>'}
-      </div>
+      <div class="professional-section-head"><div><span class="owner-kicker">Economics</span><h2>Recorded spend by currency</h2></div><span>No cross-currency totals</span></div>
+      <div class="professional-metrics-grid">${costCards}</div>
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Objectives</span><h2>Project business truth</h2></div><span>${projects.length} shown</span></div>
+      <div class="professional-build-list">${projects.length ? projects.map(professionalBusinessProject).join('') : '<div class="owner-card owner-empty"><h3>No project business facts to show</h3><p>Objectives, costs, and budgets will appear here only when recorded.</p></div>'}</div>
     </section>
     <section class="owner-card professional-boundary-note">
-      <span>${icons.shield}</span><div><strong>Operational economics are not commercial proof</strong><p>Recorded customer charge, credits, internal cost and budgets come from the durable control-plane ledger. They are not silently relabeled as revenue, margin, ROI, retention, pilot success or customer outcomes. Those remain not measured until their own authoritative evidence is exposed.</p></div>
+      <span>${icons.shield}</span><div><strong>Commercial outcomes are not inferred</strong><p>Revenue, ROI, adoption, retention, and customer outcomes remain explicitly unavailable until a bounded first-party measurement source is connected. Spend, budgets, and objectives are not treated as proof of business success.</p></div>
     </section>`;
+
   return professionalShell(
     'Business',
-    'Durable business objectives, measurement readiness, economics and budgets from Pandora’s member-RLS control plane.',
+    'Recorded objectives, budgets and append-only cost facts from Pandora’s protected owner contract.',
     body,
   );
-}
-
-function formatBytes(value) {
-  const bytes = Number(value);
-  if (!Number.isFinite(bytes) || bytes < 0) return 'Size unavailable';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
-}
-
-function compactDigest(value) {
-  const digest = String(value || '');
-  return /^[0-9a-f]{64}$/i.test(digest) ? `${digest.slice(0, 10)}…${digest.slice(-6)}` : 'Digest unavailable';
 }
 
 function professionalLibrary() {

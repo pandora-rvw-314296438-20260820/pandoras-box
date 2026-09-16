@@ -39,7 +39,6 @@ class _ProjectBuildConversationScreenState
     extends State<ProjectBuildConversationScreen> {
   Stream<ProjectBuildStreamSnapshot>? _stream;
   Stream<ProjectExperienceProjection>? _experienceStream;
-  bool _autoOpenedResult = false;
   bool _intentExpanded = false;
   bool _wasReconnecting = false;
   final Set<String> _capturedAnalytics = <String>{};
@@ -207,18 +206,6 @@ class _ProjectBuildConversationScreenState
     _experienceStream ??= repository.watchExperience(widget.project.id);
   }
 
-  void _maybeAutoOpenResult(ProjectExperienceProjection projection) {
-    if (_autoOpenedResult || !mounted) return;
-    final resultReady = projection.state == ProjectExperienceState.review &&
-        (projection.currentVersionId != null ||
-            projection.candidateVersionId != null);
-    if (!resultReady) return;
-    _autoOpenedResult = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _openProject();
-    });
-  }
-
   void _openProject() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
@@ -288,9 +275,6 @@ class _ProjectBuildConversationScreenState
                             stream: experienceStream,
                             builder: (context, experienceSnapshot) {
                               final experience = experienceSnapshot.data;
-                              if (experience != null) {
-                                _maybeAutoOpenResult(experience);
-                              }
                               return _LiveBuildProjection(
                                 streamId: widget.buildStart.streamId,
                                 snapshot: streamState,
@@ -333,7 +317,7 @@ class _LiveBuildProjection extends StatelessWidget {
   Widget build(BuildContext context) {
     if (snapshot.requiresReplay) {
       return _ConversationBuildNotice(
-        title: experience?.statusLabel ?? 'Preparing',
+        title: experience?.statusLabel ?? 'Working',
         message: experience?.publicMessage ??
             'Pandora is reconnecting to the same build.',
       );
@@ -355,7 +339,7 @@ class _LiveBuildProjection extends StatelessWidget {
         );
       }
       return _ConversationBuildNotice(
-        title: experience?.statusLabel ?? 'Preparing',
+        title: experience?.statusLabel ?? 'Working',
         message: experience?.publicMessage ??
             'Pandora is preparing the working result.',
       );
@@ -385,6 +369,46 @@ class _LiveBuildProjection extends StatelessWidget {
             const SizedBox(height: 10),
             const Text(
               'Reconnecting to the same build. Your project continues from its saved state.',
+              style: TextStyle(
+                color: PandoraV2Colors.muted,
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
+          ],
+          if (experience?.needsYou == true) ...[
+            const SizedBox(height: 12),
+            PandoraV2InlineMessage(
+              title: 'Needs You',
+              message: experience?.publicMessage ??
+                  'Pandora is waiting for a consequential decision before continuing.',
+            ),
+          ],
+          if (experience?.hasSafeFailure == true) ...[
+            const SizedBox(height: 12),
+            PandoraV2InlineMessage(
+              title: 'Problem',
+              message: experience?.safeFailureMessage ??
+                  experience?.publicMessage ??
+                  'Pandora stopped safely because the current build could not be verified.',
+              danger: true,
+            ),
+          ],
+          if (experience?.retryAvailable == true) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Retry is available from the project controls. Pandora will not retry automatically.',
+              style: TextStyle(
+                color: PandoraV2Colors.muted,
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
+          ],
+          if (experience?.canRollback == true) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Rollback is available from the project controls and remains approval-gated.',
               style: TextStyle(
                 color: PandoraV2Colors.muted,
                 fontSize: 12.5,
@@ -524,6 +548,29 @@ class _BuildExecutionView {
           record(
             'Repair $status${files == null ? '' : ' · $files files'}',
           );
+          break;
+        case 'provider_fallback_started':
+          final from = _text(payload['from_provider']);
+          final to = _text(payload['to_provider']);
+          record(
+            from == null || to == null
+                ? 'Provider fallback started'
+                : 'Provider fallback · $from → $to',
+          );
+          break;
+        case 'provider_fallback_completed':
+          final provider = _text(payload['provider']);
+          record(
+            provider == null
+                ? 'Provider fallback completed'
+                : 'Provider fallback completed · $provider',
+          );
+          break;
+        case 'rollback_started':
+          record('Rollback started');
+          break;
+        case 'rollback_completed':
+          record('Rollback completed');
           break;
         case 'verification':
           record('Verifying the exact build');

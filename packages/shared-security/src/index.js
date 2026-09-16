@@ -174,3 +174,23 @@ function authorizeExternalWrite(input) {
         requiresLegalReview,
     };
 }
+
+
+// Pandora device/protected-app security boundary (M7).
+// Kept in a separate module so device security can evolve without coupling to provider-specific policy.
+const pandoraDeviceSecurity = require("./pandora-device-security");
+exports.PROTECTED_APP_CLASSES = pandoraDeviceSecurity.PROTECTED_APP_CLASSES;
+exports.FINANCIAL_RISK_TIERS = pandoraDeviceSecurity.FINANCIAL_RISK_TIERS;
+exports.classifyFinancialAction = pandoraDeviceSecurity.classifyFinancialAction;
+exports.evaluateProtectedAppAction = pandoraDeviceSecurity.evaluateProtectedAppAction;
+exports.evaluateDeviceIntegrityBaseline = pandoraDeviceSecurity.evaluateDeviceIntegrityBaseline;
+exports.canStartDestructiveProvisioning = pandoraDeviceSecurity.canStartDestructiveProvisioning;
+exports.buildConsequentialActionAuditRecord = pandoraDeviceSecurity.buildConsequentialActionAuditRecord;
+
+// Pandora least-privilege device permission boundary (M7-006).
+const pandoraDevicePermissions = require("./pandora-device-permissions");
+exports.PERMISSION_GATE_SCHEMA_VERSION = pandoraDevicePermissions.PERMISSION_GATE_SCHEMA_VERSION;
+exports.PERMISSION_AUTHORITY_MODES = pandoraDevicePermissions.PERMISSION_AUTHORITY_MODES;
+exports.PERMISSION_GATE_DECISIONS = pandoraDevicePermissions.PERMISSION_GATE_DECISIONS;
+exports.evaluateDevicePermissionGate = pandoraDevicePermissions.evaluateDevicePermissionGate;
+exports.permissionDecisionNeedsYou = pandoraDevicePermissions.permissionDecisionNeedsYou;

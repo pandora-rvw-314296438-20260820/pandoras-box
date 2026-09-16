@@ -47,6 +47,9 @@ test('both canonical production web origins are explicitly allowed without wildc
 
 test('Build Theatre is projection-driven and cannot independently declare Live', () => {
   assert.ok(workspace.includes('item.theatre'));
+  assert.ok(workspace.includes('INITIAL_THEATRE_STAGES'));
+  assert.ok(workspace.includes('PUBLISH_THEATRE_STAGES'));
+  assert.ok(workspace.includes("data-workspace-theatre-progress hidden"));
   assert.ok(workspace.includes("String(experience.experience_state || '').toUpperCase() !== 'LIVE'"));
   assert.ok(workspace.includes('experience.production_deployment_id'));
   assert.ok(workspace.includes('experience.production_version_id'));
@@ -100,7 +103,7 @@ test('Current, Live, and History are first-class workspace views', () => {
 
 test('project workspace assets are loaded under a distinct cache revision', () => {
   assert.ok(first.includes('owner-project-workspace.js'));
-  assert.ok(first.includes('web-publish-truth-v2-20260907-1'));
+  assert.ok(first.includes('web-theatre-status-truth-v1-20260910-1'));
   assert.ok(index.includes('owner-experience.css?v=web-professional-mode-v1-20260907-1'));
-  assert.ok(index.includes('bootstrap.js?v=web-publish-truth-v2-20260907-1'));
+  assert.ok(index.includes('bootstrap.js?v=web-theatre-status-truth-v1-20260910-1'));
 });
