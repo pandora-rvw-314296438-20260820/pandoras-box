@@ -34,7 +34,7 @@ export const REQUIRED_CHECKS = Object.freeze([
     authority: "GITHUB_ACTIONS_PROVIDER",
     producer: "repository_workflow",
     command:
-      "node scripts/verify-canonical-release-evidence.mjs --mode repository && node --test test/canonical-release-evidence.test.js && npm run check && npm test && npm audit --omit=dev --audit-level=high && npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts",
+      "node scripts/verify-canonical-release-evidence.mjs --mode repository && node --test test/canonical-release-evidence.test.js && npm run check && npm test && npm audit --omit=dev --audit-level=high && npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-coordinator-gate/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts",
   }),
   Object.freeze({
     name: "Windows worker contract",
@@ -64,7 +64,7 @@ const CANONICAL_WORKFLOW_COMMANDS = Object.freeze([
   "npm run check",
   "npm test",
   "npm audit --omit=dev --audit-level=high",
-  "npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts",
+  "npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-coordinator-gate/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts",
 ]);
 
 export const ROLLBACK_SEQUENCE = Object.freeze([
