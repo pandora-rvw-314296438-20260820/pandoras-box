@@ -1,4 +1,9 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../local/pandora_local_store.dart';
 
 abstract interface class ProjectBuildStreamCursorStore {
   Future<int> read({
@@ -71,5 +76,84 @@ class SharedPreferencesProjectBuildStreamCursorStore
     if (sequence > current) {
       await prefs.setInt(key, sequence);
     }
+  }
+}
+
+class PandoraLocalProjectBuildStreamCursorStore
+    implements ProjectBuildStreamCursorStore {
+  PandoraLocalProjectBuildStreamCursorStore(
+    this._store, {
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
+
+  final PandoraLocalStore _store;
+  final DateTime Function() _clock;
+
+  String _key({
+    required String userId,
+    required String organizationId,
+    required String projectId,
+    required String streamId,
+  }) {
+    final identity = '$userId|$organizationId|$projectId|$streamId';
+    return 'build_cursor_${sha256.convert(utf8.encode(identity))}';
+  }
+
+  @override
+  Future<int> read({
+    required String userId,
+    required String organizationId,
+    required String projectId,
+    required String streamId,
+  }) async {
+    final record = await _store.getCache(
+      PandoraLocalNamespace.deviceState,
+      _key(
+        userId: userId,
+        organizationId: organizationId,
+        projectId: projectId,
+        streamId: streamId,
+      ),
+    );
+    if (record == null) return 0;
+    try {
+      final decoded = jsonDecode(record.payloadJson);
+      if (decoded is! Map || decoded['sequence'] is! int) return 0;
+      final sequence = decoded['sequence'] as int;
+      return sequence < 0 ? 0 : sequence;
+    } on FormatException {
+      return 0;
+    }
+  }
+
+  @override
+  Future<void> write({
+    required String userId,
+    required String organizationId,
+    required String projectId,
+    required String streamId,
+    required int sequence,
+  }) async {
+    if (sequence < 1) return;
+    final key = _key(
+      userId: userId,
+      organizationId: organizationId,
+      projectId: projectId,
+      streamId: streamId,
+    );
+    final current = await read(
+      userId: userId,
+      organizationId: organizationId,
+      projectId: projectId,
+      streamId: streamId,
+    );
+    if (sequence <= current) return;
+    final now = _clock().toUtc();
+    await _store.putCache(
+      namespace: PandoraLocalNamespace.deviceState,
+      key: key,
+      payload: <String, Object?>{'sequence': sequence},
+      expiresAt: now.add(PandoraLocalDataPolicy.maxRetention),
+    );
   }
 }

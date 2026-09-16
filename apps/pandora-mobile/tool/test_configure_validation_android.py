@@ -69,6 +69,7 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
             updated,
         )
         self.assertIn('android:label="Pandora"', updated)
+        self.assertEqual(updated.count('android:allowBackup="false"'), 1)
         self.assertNotIn('android:label="pandora_mobile"', updated)
         self.assertIn('android:icon="@drawable/pandora_launcher_icon"', updated)
         self.assertNotIn('android:icon="@mipmap/ic_launcher"', updated)
@@ -112,6 +113,15 @@ class ConfigureValidationAndroidTest(unittest.TestCase):
         result, _, _, _ = self._run(manifest)
         self.assertEqual(result.returncode, 1)
         self.assertIn('at most one Android ACCESS_NETWORK_STATE permission', result.stderr)
+
+    def test_refuses_preexisting_backup_policy(self) -> None:
+        manifest = _BASE_MANIFEST.replace(
+            'android:icon="@mipmap/ic_launcher"',
+            'android:icon="@mipmap/ic_launcher" android:allowBackup="true"',
+        )
+        result, _, _, _ = self._run(manifest)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('already declares backup policy', result.stderr)
 
     def test_refuses_cleartext_traffic(self) -> None:
         manifest = _BASE_MANIFEST.replace(
