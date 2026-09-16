@@ -51,6 +51,14 @@ class DirectCommunicationContractTest(unittest.TestCase):
             self.assertIn(required, source)
         self.assertNotIn("Intent.ACTION_CALL_PRIVILEGED", source)
 
+    def test_call_subscription_is_never_silently_ignored(self) -> None:
+        source = _DIRECT.read_text(encoding="utf-8")
+        self.assertIn("executeCall(operationId, recipient, subscriptionId, permission)", source)
+        self.assertIn("SubscriptionManager.getDefaultVoiceSubscriptionId()", source)
+        self.assertIn("defaultVoiceSubscriptionId != subscriptionId", source)
+        self.assertIn('"explicit_call_subscription_requires_phone_ui"', source)
+        self.assertNotIn("Manifest.permission.READ_PHONE_STATE", source)
+
     def test_sms_callback_receiver_is_non_exported_and_privacy_stays_narrow(self) -> None:
         source = _MANIFEST_TOOL.read_text(encoding="utf-8")
         self.assertIn("PandoraSmsStatusReceiver", source)
