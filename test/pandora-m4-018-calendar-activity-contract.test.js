@@ -29,7 +29,7 @@ const executor = read(
  test('mobile calendar facts enter Activity through the bounded RPC only', () => {
   assert.match(activityClient, /pandora_activity_device_fact_v1/);
   assert.doesNotMatch(activityClient, /pandora_activity_admit_event_v1/);
-  assert.match(migration, /p_capability not in \('calendar\.events','reminder\.local'\)/);
+  assert.match(migration, /v_capability not in \('calendar\.events','reminder\.local'\)/);
   assert.match(migration, /v_job\.requested_by <> v_uid/);
   assert.match(migration, /v_operation !~ '\^\[A-Za-z0-9\._:-\]\{8,128\}\$'/);
 });
