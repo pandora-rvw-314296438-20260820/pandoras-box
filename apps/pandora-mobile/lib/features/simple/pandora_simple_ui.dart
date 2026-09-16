@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
 
 import '../../core/widgets/pandora_mark.dart';
+import '../../core/widgets/pandora_navigation.dart';
 
 abstract final class PandoraSimpleColors {
-  static const red = Color(0xFFD40A24);
-  static const deepRed = Color(0xFFB9091F);
-  static const ink = Color(0xFF151515);
-  static const muted = Color(0xFF6E6D69);
-  static const canvas = Color(0xFFF8F8F6);
-  static const surface = Color(0xFFFFFFFF);
-  static const line = Color(0xFFE9E7E3);
-  static const blush = Color(0xFFFFF2F4);
-  static const blueWash = Color(0xFFF1F5FF);
-  static const greenWash = Color(0xFFF0FAF3);
-  static const purpleWash = Color(0xFFF7F1FF);
-  static const amberWash = Color(0xFFFFF7ED);
-  static const green = Color(0xFF26954A);
-  static const blue = Color(0xFF2F6FD7);
-  static const purple = Color(0xFF7A45C5);
-  static const amber = Color(0xFFD77816);
+  static const red = Color(0xFFFFFFFF);
+  static const deepRed = Color(0xFFD8D8D8);
+  static const ink = Color(0xFFFFFFFF);
+  static const muted = Color(0xFF888888);
+  static const canvas = Color(0xFF000000);
+  static const surface = Color(0xFF0A0A0A);
+  static const line = Color(0xFF222222);
+  static const blush = Color(0xFF181010);
+  static const blueWash = Color(0xFF10141A);
+  static const greenWash = Color(0xFF101814);
+  static const purpleWash = Color(0xFF151018);
+  static const amberWash = Color(0xFF18140E);
+  static const green = Color(0xFF66C58A);
+  static const blue = Color(0xFF7EA8F6);
+  static const purple = Color(0xFFB69AE8);
+  static const amber = Color(0xFFE2A85D);
 }
 
 class PandoraSimplePage extends StatelessWidget {
@@ -57,7 +58,7 @@ class PandoraSimplePage extends StatelessWidget {
     return ColoredBox(
       color: PandoraSimpleColors.canvas,
       child: SafeArea(
-        bottom: false,
+        bottom: true,
         child: onRefresh == null
             ? scrollView
             : RefreshIndicator(
@@ -96,6 +97,9 @@ class PandoraOwnerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (PandoraNavigationScope.maybeOf(context) != null) {
+      return PandoraPageHeader(title: title);
+    }
     if (centerBrand) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
@@ -240,32 +244,35 @@ class _NotificationButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Tooltip(
         message: 'Open Needs You',
-        child: InkResponse(
-          radius: 28,
-          onTap: onPressed,
-          child: SizedBox.square(
-            dimension: 48,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                const Icon(
-                  Icons.notifications_none_rounded,
-                  color: PandoraSimpleColors.ink,
-                  size: 29,
-                ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    width: 9,
-                    height: 9,
-                    decoration: const BoxDecoration(
-                      color: PandoraSimpleColors.red,
-                      shape: BoxShape.circle,
+        child: Material(
+          color: Colors.transparent,
+          child: InkResponse(
+            radius: 28,
+            onTap: onPressed,
+            child: SizedBox.square(
+              dimension: 48,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    Icons.notifications_none_rounded,
+                    color: PandoraSimpleColors.ink,
+                    size: 29,
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: const BoxDecoration(
+                        color: PandoraSimpleColors.red,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -496,12 +503,14 @@ class PandoraStatusPill extends StatelessWidget {
               Icon(icon, color: foreground, size: 16),
               const SizedBox(width: 5),
             ],
-            Text(
-              label,
-              style: TextStyle(
-                color: foreground,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -957,7 +966,9 @@ class PandoraEmptyTruth extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       color: PandoraSimpleColors.ink,
+                      fontSize: 16.5,
                       fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -965,7 +976,9 @@ class PandoraEmptyTruth extends StatelessWidget {
                     message,
                     style: const TextStyle(
                       color: PandoraSimpleColors.muted,
+                      fontSize: 14,
                       height: 1.35,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                   if (actionLabel != null) ...[

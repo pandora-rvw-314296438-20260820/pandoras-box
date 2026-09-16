@@ -1,0 +1,150 @@
+name: Pandora Android exact-source prerelease publisher
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact merged main SHA to publish
+        required: true
+        type: string
+      mobile_run_id:
+        description: Successful merged-main Pandora mobile workflow run ID
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      MOBILE_RUN_ID: ${{ inputs.mobile_run_id }}
+    steps:
+      - name: Verify exact merged-main source and workflow run
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$MOBILE_RUN_ID" =~ ^[1-9][0-9]{0,19}$ ]]
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "$main_sha" = "$SOURCE_SHA"
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${MOBILE_RUN_ID}")"
+          test "$(jq -r '.head_sha' <<<"$run_json")" = "$SOURCE_SHA"
+          test "$(jq -r '.head_branch' <<<"$run_json")" = 'main'
+          test "$(jq -r '.event' <<<"$run_json")" = 'push'
+          test "$(jq -r '.conclusion' <<<"$run_json")" = 'success'
+          test "$(jq -r '.path' <<<"$run_json")" = '.github/workflows/pandora-mobile-integration.yml'
+
+      - name: Resolve and download the exact Android validation artifact
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_name="pandora-mobile-android-validation-${SOURCE_SHA}"
+          artifacts="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${MOBILE_RUN_ID}/artifacts?per_page=100")"
+          count="$(jq --arg name "$expected_name" '[.artifacts[] | select(.name==$name and .expired==false)] | length' <<<"$artifacts")"
+          test "$count" = '1'
+          artifact_id="$(jq -r --arg name "$expected_name" '.artifacts[] | select(.name==$name and .expired==false) | .id' <<<"$artifacts")"
+          artifact_digest="$(jq -r --arg name "$expected_name" '.artifacts[] | select(.name==$name and .expired==false) | .digest' <<<"$artifacts")"
+          [[ "$artifact_id" =~ ^[1-9][0-9]{0,19}$ ]]
+          [[ "$artifact_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > android-artifact.zip
+          unzip -q android-artifact.zip -d android-artifact
+          echo "artifact_id=$artifact_id" >> "$GITHUB_OUTPUT"
+          echo "artifact_digest=${artifact_digest#sha256:}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify artifact provenance and package bytes
+        id: verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest=android-artifact/pandora-mobile-artifact-manifest.txt
+          apk="$(find android-artifact -type f -name 'app-debug.apk' -print -quit)"
+          test -f "$manifest"
+          test -n "$apk"
+          test "$(grep '^source_sha=' "$manifest" | cut -d= -f2-)" = "$SOURCE_SHA"
+          test "$(grep '^workflow_run_id=' "$manifest" | cut -d= -f2-)" = "$MOBILE_RUN_ID"
+          test "$(grep '^artifact_class=' "$manifest" | cut -d= -f2-)" = 'validation-candidate'
+          test "$(grep '^production_release=' "$manifest" | cut -d= -f2-)" = 'false'
+          test "$(grep '^physical_device_verified=' "$manifest" | cut -d= -f2-)" = 'false'
+          test "$(grep '^android_package=' "$manifest" | cut -d= -f2-)" = 'com.banataosystems.pandora_mobile'
+          expected_apk_sha="$(grep '^apk_sha256=' "$manifest" | cut -d= -f2-)"
+          actual_apk_sha="$(sha256sum "$apk" | cut -d ' ' -f1)"
+          test "$actual_apk_sha" = "$expected_apk_sha"
+          app_version="$(grep '^app_version=' "$manifest" | cut -d= -f2-)"
+          [[ "$app_version" =~ ^[0-9A-Za-z.+-]+$ ]]
+          short_sha="${SOURCE_SHA:0:12}"
+          safe_version="${app_version//+/-}"
+          asset_name="Pandora-${safe_version}-${short_sha}.apk"
+          cp "$apk" "$asset_name"
+          echo "app_version=$app_version" >> "$GITHUB_OUTPUT"
+          echo "asset_name=$asset_name" >> "$GITHUB_OUTPUT"
+          echo "apk_sha=$actual_apk_sha" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Publish or verify exact prerelease
+        shell: bash
+        env:
+          APP_VERSION: ${{ steps.verify.outputs.app_version }}
+          ASSET_NAME: ${{ steps.verify.outputs.asset_name }}
+          APK_SHA: ${{ steps.verify.outputs.apk_sha }}
+          SHORT_SHA: ${{ steps.verify.outputs.short_sha }}
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact_digest }}
+        run: |
+          set -euo pipefail
+          tag="pandora-mobile-${SHORT_SHA}"
+          title="Pandora Android ${APP_VERSION} · ${SHORT_SHA}"
+          notes_file=release-notes.md
+          cat > "$notes_file" <<EOF
+          Exact merged-main Android validation candidate for ${SOURCE_SHA}.
+
+          - App version: ${APP_VERSION}
+          - Source SHA: ${SOURCE_SHA}
+          - Mobile workflow run: ${MOBILE_RUN_ID}
+          - Workflow artifact ID: ${ARTIFACT_ID}
+          - Workflow artifact digest: sha256:${ARTIFACT_DIGEST}
+          - APK SHA-256: ${APK_SHA}
+          - Package: com.banataosystems.pandora_mobile
+          - Classification: validation candidate / prerelease
+          - Physical-device verification: not yet asserted
+          EOF
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}")"
+            test "$(jq -r '.target_commitish' <<<"$release_json")" = "$SOURCE_SHA"
+            existing="$(jq -r --arg name "$ASSET_NAME" '[.assets[] | select(.name==$name)] | length' <<<"$release_json")"
+            test "$existing" = '1'
+          else
+            gh release create "$tag" "$ASSET_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$SOURCE_SHA" \
+              --prerelease \
+              --title "$title" \
+              --notes-file "$notes_file"
+          fi
+
+          release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}")"
+          test "$(jq -r '.draft' <<<"$release_json")" = 'false'
+          test "$(jq -r '.prerelease' <<<"$release_json")" = 'true'
+          test "$(jq -r '.target_commitish' <<<"$release_json")" = "$SOURCE_SHA"
+          asset_count="$(jq -r --arg name "$ASSET_NAME" '[.assets[] | select(.name==$name and .state=="uploaded")] | length' <<<"$release_json")"
+          test "$asset_count" = '1'
+          asset_digest="$(jq -r --arg name "$ASSET_NAME" '.assets[] | select(.name==$name) | .digest // empty' <<<"$release_json")"
+          if [[ -n "$asset_digest" ]]; then
+            test "$asset_digest" = "sha256:${APK_SHA}"
+          fi
+          release_url="$(jq -r '.html_url' <<<"$release_json")"
+          {
+            echo '### Pandora Android prerelease published'
+            echo "- Source SHA: \`${SOURCE_SHA}\`"
+            echo "- App version: \`${APP_VERSION}\`"
+            echo "- APK SHA-256: \`${APK_SHA}\`"
+            echo "- Release: ${release_url}"
+            echo '- Physical-device production verification remains a separate external receipt.'
+          } >> "$GITHUB_STEP_SUMMARY"

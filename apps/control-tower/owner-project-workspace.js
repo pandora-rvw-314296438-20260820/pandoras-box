@@ -2,15 +2,84 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 const { icons, state, esc, timeAgo } = window.PandorasOwnerData;
 const { button, badge } = window.PandorasOwnerRuntime;
 
-const THEATRE_STAGES = Object.freeze([
+const INITIAL_THEATRE_STAGES = Object.freeze([
   { label: 'Understanding', stages: ['understanding'] },
-  { label: 'Designing', stages: ['designing'] },
+  { label: 'Planning', stages: ['designing', 'planning'] },
   { label: 'Building', stages: ['building', 'connecting'] },
-  { label: 'Checking', stages: ['checking', 'fixing'] },
-  { label: 'Preview', stages: ['preparing_preview', 'preview_ready'] },
-  { label: 'Publishing', stages: ['publishing'] },
+  { label: 'Testing', stages: ['checking', 'testing', 'fixing', 'verifying'] },
+  { label: 'Preview Ready', stages: ['preparing_preview', 'preview_ready'] },
+]);
+
+const EDIT_THEATRE_STAGES = Object.freeze([
+  { label: 'Edit Requested', stages: ['edit_requested'] },
+  { label: 'Rebuilding', stages: ['rebuilding', 'building', 'connecting'] },
+  { label: 'Verifying', stages: ['verifying', 'checking', 'testing', 'fixing'] },
+  { label: 'Updated Preview', stages: ['updated_preview', 'preparing_preview', 'preview_ready'] },
+]);
+
+const PUBLISH_THEATRE_STAGES = Object.freeze([
+  { label: 'Preparing', stages: ['preparing'] },
+  { label: 'Deploying', stages: ['publishing', 'deploying'] },
+  { label: 'Verifying Live', stages: ['verifying_live'] },
   { label: 'Live', stages: ['live'] },
 ]);
+
+const STAGE_LABEL_BY_KEY = Object.freeze({
+  understanding: 'Understanding',
+  designing: 'Planning',
+  planning: 'Planning',
+  building: 'Building',
+  connecting: 'Building',
+  checking: 'Testing',
+  testing: 'Testing',
+  fixing: 'Testing',
+  verifying: 'Verifying',
+  preparing_preview: 'Preview Ready',
+  preview_ready: 'Preview Ready',
+  edit_requested: 'Edit Requested',
+  rebuilding: 'Rebuilding',
+  updated_preview: 'Updated Preview',
+  preparing: 'Preparing',
+  publishing: 'Deploying',
+  deploying: 'Deploying',
+  verifying_live: 'Verifying Live',
+  live: 'Live',
+});
+
+const EDIT_STAGE_KEYS = new Set(['edit_requested', 'rebuilding', 'updated_preview']);
+const PUBLISH_STAGE_KEYS = new Set(['preparing', 'publishing', 'deploying', 'verifying_live', 'live']);
+
+function theatreStageKey(item) {
+  const theatre = item?.theatre || {};
+  return String(theatre.owner_stage || item?.changePhase || '').toLowerCase();
+}
+
+function theatreStagesFor(item) {
+  const kind = String(item?.mutationKind || '').toLowerCase();
+  const stage = theatreStageKey(item);
+  if (kind === 'publish' || PUBLISH_STAGE_KEYS.has(stage)) return PUBLISH_THEATRE_STAGES;
+  if (kind === 'edit' || EDIT_STAGE_KEYS.has(stage)) return EDIT_THEATRE_STAGES;
+  return INITIAL_THEATRE_STAGES;
+}
+
+function theatreStageLabel(stage, item) {
+  const key = String(stage || '').toLowerCase();
+  if (!key) return 'unavailable';
+  if (item && key === 'verifying' && theatreStagesFor(item) === INITIAL_THEATRE_STAGES) return 'Testing';
+  if (item && (key === 'checking' || key === 'testing' || key === 'fixing') && theatreStagesFor(item) === EDIT_THEATRE_STAGES) return 'Verifying';
+  if (STAGE_LABEL_BY_KEY[key]) return STAGE_LABEL_BY_KEY[key];
+  return key.replaceAll('_', ' ');
+}
+
+window.PandorasOwnerTheatre = Object.freeze({
+  INITIAL_THEATRE_STAGES,
+  EDIT_THEATRE_STAGES,
+  PUBLISH_THEATRE_STAGES,
+  STAGE_LABEL_BY_KEY,
+  theatreStagesFor,
+  theatreStageKey,
+  theatreStageLabel,
+});
 
 function workspace() {
   return state.projectWorkspace;
@@ -43,11 +112,8 @@ function ownerState() {
   if (String(experience.experience_state || '').toUpperCase() === 'LIVE') {
     return { label: 'Live', kind: 'success' };
   }
-  if (item.mutationKind === 'publish' && item.mutationPhase === 'checking') {
-    return { label: 'Checking', kind: 'neutral' };
-  }
-  if (item.mutationKind === 'publish' && item.mutationPhase === 'publishing') {
-    return { label: 'Publishing', kind: 'neutral' };
+  if (item.mutationKind === 'publish' && (item.mutationPhase === 'checking' || item.mutationPhase === 'publishing')) {
+    return { label: 'Working', kind: 'neutral' };
   }
   if (experience.can_publish === true && item.runtime?.verification?.publishEligible === true) {
     return { label: 'Ready', kind: 'success' };
@@ -117,25 +183,23 @@ function buildTheatre() {
   const item = workspace();
   const theatre = item.theatre || {};
   const hasTheatre = Boolean(item.theatre);
-  const stage = String(theatre.owner_stage || item.changePhase || '').toLowerCase();
-  const theatreStage = String(theatre.owner_stage || '').toLowerCase();
-  const progress = Number(theatre.progress_percent);
-  const progressFresh = item.changing !== true || !item.changePhase || theatreStage === String(item.changePhase).toLowerCase();
+  const stage = theatreStageKey(item);
+  const stages = theatreStagesFor(item);
   const message = theatre.public_message
     || (item.changing ? 'Pandora is preparing this change.' : 'No active build projection');
   return `<section class="owner-card owner-workspace-theatre ${hasTheatre ? '' : 'owner-workspace-unavailable'}">
     <div class="owner-workspace-theatre-head">
       <div><span class="owner-kicker">Build Theatre</span><h2 data-workspace-theatre-message>${esc(message)}</h2></div>
-      ${Number.isFinite(progress) && progressFresh ? `<strong data-workspace-theatre-progress aria-label="${progress}% projected build activity">${Math.max(0, Math.min(100, progress))}%</strong>` : '<strong data-workspace-theatre-progress hidden></strong>'}
+      <strong data-workspace-theatre-progress hidden></strong>
     </div>
     <div class="owner-theatre-stages" aria-label="Current build stage">
-      ${THEATRE_STAGES.map((entry) => {
+      ${stages.map((entry) => {
         const active = entry.stages.includes(stage);
         return `<div class="owner-theatre-stage ${active ? 'active' : ''}" data-workspace-theatre-stages="${esc(entry.stages.join(','))}"><span></span><small>${entry.label}</small></div>`;
       }).join('')}
     </div>
     <div class="owner-workspace-meta">
-      <span>Stage: <strong data-workspace-theatre-current>${esc(stage ? stage.replaceAll('_', ' ') : 'unavailable')}</strong></span>
+      <span>Stage: <strong data-workspace-theatre-current>${esc(theatreStageLabel(stage, item))}</strong></span>
       <span data-workspace-theatre-updated>${theatre.updated_at ? `Updated ${esc(timeAgo(theatre.updated_at))}` : (hasTheatre ? 'Update time unavailable' : 'Waiting for build activity')}</span>
     </div>
     ${!hasTheatre && !item.changing ? '<p>Pandora has not published a member-safe build activity projection for this project yet.</p>' : ''}

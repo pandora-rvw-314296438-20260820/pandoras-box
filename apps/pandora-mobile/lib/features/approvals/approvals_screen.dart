@@ -151,11 +151,11 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 
   @override
   Widget build(BuildContext context) => PandoraPage(
-        title: 'Approvals',
+        title: 'Needs You',
         subtitle: 'Review only what needs your decision.',
         actions: [
           IconButton(
-            tooltip: 'Refresh Approvals',
+            tooltip: 'Refresh Needs You',
             onPressed: () => _controller?.refresh(),
             icon: const Icon(Icons.refresh_rounded),
           ),

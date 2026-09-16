@@ -1,0 +1,73 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const routing = await readFile(
+  'supabase/migrations/20260912094000_pandora_plp_provider_truth_v3.sql',
+  'utf8',
+);
+const transport = await readFile(
+  'supabase/migrations/20260912100500_pandora_github_memory_repository_binding_v2.sql',
+  'utf8',
+);
+const mobile = await readFile(
+  'apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart',
+  'utf8',
+);
+const api = await readFile(
+  'apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart',
+  'utf8',
+);
+
+test('video regression: selected-project execution remains single-shot and stays in Universal Chat', () => {
+  assert.doesNotMatch(mobile, /message: handoff\.request/);
+  assert.doesNotMatch(mobile, /intelligence-handoff/);
+  assert.doesNotMatch(mobile, /CreateProjectExperienceScreen/);
+  assert.doesNotMatch(mobile, /ProjectWorkspaceV2Screen/);
+  assert.match(mobile, /handoff\?\.source == 'project_workspace_change'/);
+  assert.match(mobile, /experience\.submitChange\(/);
+  assert.match(mobile, /experience\.understanding\(/);
+  assert.match(mobile, /experience\.requestBuild\(/);
+  assert.match(mobile, /keep this chat open while Pandora works/);
+  assert.match(mobile, /owns exactly one dispatch/);
+});
+
+test('repository router preserves verified Pandora repos and fails closed on degraded PLP', () => {
+  assert.match(routing, /pandora-rvw-314296438-20260820\/pandoras-box-memory/);
+  assert.match(routing, /pandora-rvw-314296438-20260820\/pandoras-box/);
+  assert.match(routing, /project_key='plp-boracay'/);
+  assert.match(routing, /projectos_project_resources/);
+  assert.match(routing, /binding_state <> 'verified'/);
+  assert.match(routing, /'state','degraded','resolved',false/);
+  assert.match(routing, /repository_binding_degraded/);
+  assert.match(routing, /'authorityGranted',false/);
+  assert.match(routing, /'handoff',null/);
+});
+
+test('build and short follow-ups reuse only an already resolved same-thread target', () => {
+  assert.match(routing, /build\|continue\|finish\|run\|test\|implement\|work\|proceed/);
+  assert.match(routing, /build it\|build this\|go ahead\|do it\|continue/);
+  assert.match(routing, /structured_response->'repositoryTarget'/);
+  assert.match(routing, /t\.created_by=auth\.uid\(\)/);
+  assert.match(routing, /'resolution','thread_continuation'/);
+});
+
+test('target resolution grants no mutation authority and handoff remains ProjectOS-governed', () => {
+  assert.match(routing, /pandora_governed_mutation_request_v1/);
+  assert.match(routing, /authorization,[\s\S]*one-time claim,[\s\S]*provider readback,[\s\S]*evidence/i);
+  assert.match(routing, /'projectRequired',false/);
+  assert.match(routing, /'source','projectos_intake'/);
+  assert.match(api, /pandora_chat_universal_dispatch_v9/);
+});
+
+test('canonical GitHub transport supports all three exact repository ids and remains Vault-backed', () => {
+  assert.match(transport, /1345495177\|1346392092\|1358856339/);
+  assert.doesNotMatch(transport, /1346543644/);
+  assert.match(transport, /name='Github_supabase'/);
+  assert.match(transport, /pandoras-box-memory/);
+  assert.match(transport, /pandoras-box/);
+  assert.equal(transport.includes('pandora-rvw-314296438-20260820/plp'), true);
+  assert.match(transport, /revoke all on function private\.pandora_integration_github_api_20260825\(text,text,jsonb\) from public,anon,authenticated/);
+  assert.match(transport, /grant execute on function private\.pandora_integration_github_api_20260825\(text,text,jsonb\) to service_role/);
+});
+

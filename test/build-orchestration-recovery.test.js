@@ -75,7 +75,7 @@ test('V2 Build Theatre stops stale owner activity after a terminal failure', () 
   assert.match(buildScreen, /if \(_error != null\) return 'Stopped';/);
   assert.match(buildScreen, /if \(_error == null &&[\s\S]*activity\.latestSequence > 0\)/);
   assert.match(buildScreen, /_initialBuildActivity = null;[\s\S]*_initialBuildJobId = null;[\s\S]*_initialBuildStreamId = null;/);
-  assert.match(buildScreen, /if \(_error != null\) return 'Needs you';/);
+  assert.match(buildScreen, /if \(_error != null\) return 'Needs You';/);
   assert.match(buildScreen, /subtitle: _ownerHeaderStatus/);
 });
 

@@ -29,7 +29,7 @@ jobs:
     env:
       SOURCE_SHA: ${{ github.sha }}
       FLUTTER_VERSION: '3.47.0'
-      EXPECTED_APP_VERSION: '0.4.0-rc.3+9'
+      EXPECTED_APP_VERSION: '0.4.0-rc.4+11'
       ANDROID_ARTIFACT_NAME: pandora-mobile-android-validation-${{ github.sha }}
     steps:
       - name: Check out the exact candidate
@@ -113,7 +113,7 @@ jobs:
           set -euo pipefail
           rm -rf .pandora-mobile-build
           mkdir .pandora-mobile-build
-          cd .pandora-mobile-build
+          cd .pandora-mobile-build || exit 1
           flutter create \
             --platforms=android,web \
             --org com.banataosystems \
@@ -162,14 +162,23 @@ jobs:
       - name: Materialize canonical web formatter repair
         if: ${{ failure() }}
         working-directory: .pandora-mobile-build
-        run: dart format lib/core/platform/pandora_web_preview_web.dart
+        run: >-
+          dart format
+          lib/core/platform/pandora_web_preview_web.dart
+          lib/app/pandora_chat_shell.dart
+          lib/features/plugins/plugins_screen.dart
+          lib/features/simple/ask_pandora_screen.dart
 
       - name: Upload canonical web formatter repair
         if: ${{ failure() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
           name: pandora-mobile-web-formatter-canonical
-          path: .pandora-mobile-build/lib/core/platform/pandora_web_preview_web.dart
+          path: |
+            .pandora-mobile-build/lib/core/platform/pandora_web_preview_web.dart
+            .pandora-mobile-build/lib/app/pandora_chat_shell.dart
+            .pandora-mobile-build/lib/features/plugins/plugins_screen.dart
+            .pandora-mobile-build/lib/features/simple/ask_pandora_screen.dart
           if-no-files-found: error
           retention-days: 1
 
@@ -215,8 +224,8 @@ jobs:
           "$apksigner" verify --verbose --print-certs "$apk" > "$evidence/signing.txt"
           grep -Fq "package: name='com.banataosystems.pandora_mobile'" \
             "$evidence/badging.txt"
-          grep -Fq "versionCode='9'" "$evidence/badging.txt"
-          grep -Fq "versionName='0.4.0-rc.3'" "$evidence/badging.txt"
+          grep -Fq "versionCode='11'" "$evidence/badging.txt"
+          grep -Fq "versionName='0.4.0-rc.4'" "$evidence/badging.txt"
           grep -Fq "application-label:'Pandora'" "$evidence/badging.txt"
           if grep -Eiq \
             'ACCESS_(FINE|COARSE|BACKGROUND)_LOCATION|READ_CONTACTS|WRITE_CONTACTS|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_|CAMERA|RECORD_AUDIO|BLUETOOTH_(SCAN|CONNECT|ADVERTISE)|QUERY_ALL_PACKAGES|REQUEST_INSTALL_PACKAGES|SYSTEM_ALERT_WINDOW' \
@@ -349,7 +358,7 @@ jobs:
     env:
       SOURCE_SHA: ${{ github.sha }}
       FLUTTER_VERSION: '3.47.0'
-      EXPECTED_APP_VERSION: '0.4.0-rc.3+9'
+      EXPECTED_APP_VERSION: '0.4.0-rc.4+11'
     steps:
       - name: Check out the exact candidate
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1

@@ -82,3 +82,10 @@ enabled = false
 [functions.pandora-source-convergence-worker]
 verify_jwt = false
 enabled = false
+
+
+# Receives an external Base44 app-user bearer and validates it server-side
+# against the exact hosted Base44 app before any service-role read.
+[functions.pandora-base44-bridge]
+verify_jwt = false
+enabled = false

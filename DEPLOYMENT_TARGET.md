@@ -1,6 +1,6 @@
 # Canonical deployment target
 
-Updated: 2026-08-28 (Asia/Manila)
+Updated: 2026-09-12 (Asia/Manila)
 
 ## Source of truth
 
@@ -13,12 +13,13 @@ Updated: 2026-08-28 (Asia/Manila)
 
 - Existing Vercel project: `mcpmaster`
 - Project ID: `prj_Y5rZVcq8xJVzHVt4uvfmg9wPvXMk`
-- Team ID: `team_IcdJUnzLi5wUN1GD8ALHyjF7`
+- Team ID: `team_3yw1CN59ce4pj5SwyQGCAqN3`
+- Team slug: `mbanatao`
 - Canonical customer-facing production origin: `https://pandoras-box-system.vercel.app`
 - Compatibility alias: `https://mcpmaster.vercel.app`
 - Additional project aliases may remain while they resolve to the same Vercel project identity.
 
-The Vercel project ID and project name remain unchanged so the existing workload identity and rollback history remain stable. The Git source is the canonical Pandora repository and `main`; do not create a replacement Vercel project merely to rename the product-facing domain.
+The Vercel project ID and project name remain unchanged so the existing workload identity and rollback history remain stable. The Git source is the canonical Pandora repository and `main`; do not create a replacement Vercel project merely to rename the product-facing domain. The Vercel team identity above is provider-read live truth as of 2026-09-12 and supersedes the historical team ID previously stored in this file.
 
 ## Supabase targets
 
@@ -33,10 +34,11 @@ Canonical governed Edge Functions defined by repository configuration must keep 
 
 ## Current provider truth
 
-As verified on 2026-08-28:
+As verified on 2026-09-12:
 
+- Vercel project `mcpmaster` is owned by team `mbanatao` (`team_3yw1CN59ce4pj5SwyQGCAqN3`).
 - Vercel is linked to `pandora-rvw-314296438-20260820/pandoras-box`.
-- Source-triggered deployments from `main` are working on the existing `mcpmaster` Vercel project.
+- Exact-SHA production deployments from canonical merged `main` are supported through the governed Pandora Vercel deployment lane.
 - `pandoras-box-system.vercel.app` and `mcpmaster.vercel.app` resolve within that same project identity.
 - The prior suspended-repository linkage described in older recovery notes is historical and no longer an active repair instruction.
 - `pandora-user-admin` is deployed from canonical merged source with `verify_jwt=true`.

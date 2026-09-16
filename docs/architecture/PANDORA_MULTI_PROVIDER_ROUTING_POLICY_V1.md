@@ -1,6 +1,6 @@
 # Pandora Multi-Provider Routing Policy v1
 
-This document defines the Chat C implementation boundary for Pandora's provider-neutral model router. It does not activate Kimi traffic and does not own provider adapters, secrets, transport retries, telemetry persistence, evaluation, or production rollout.
+This document defines Pandora's provider-neutral model-routing boundary. The router does not itself activate provider traffic and does not own secrets, trusted transport retries, telemetry persistence, evaluation, or production rollout.
 
 ## Eligibility order
 
@@ -8,28 +8,39 @@ The router applies hard constraints before soft optimization:
 
 1. request secret boundary
 2. capability/output/context compatibility
-3. adapter availability
-4. provider/model allow-deny, quarantine and kill switches
-5. session/thread compatibility
-6. circuit/health state
-7. reliability and quality hard floors when sufficient evidence exists
-8. request/policy cost ceilings using an injected estimator or canonical evidence
-9. latency ceiling when sufficient rolling evidence exists
-10. server-owned task/provider/model preference
-11. empirical weighted score with confidence, recency and model-version weighting
-12. deterministic canary preference and bounded exploration only when explicitly configured
+3. privacy execution-boundary compatibility
+4. adapter availability
+5. provider/model allow-deny, quarantine and kill switches
+6. session/thread compatibility
+7. circuit/health state
+8. reliability and quality hard floors when sufficient evidence exists
+9. request/policy cost ceilings using an injected estimator or canonical evidence
+10. latency ceiling when sufficient rolling evidence exists
+11. server-owned task/provider/model preference
+12. empirical weighted score with confidence, recency and model-version weighting
+13. deterministic canary preference and bounded exploration only when explicitly configured
 
 No hard constraint is bypassed by preference, traffic weight, exploration, historical score, or fallback.
 
+## Privacy execution boundary
+
+Every model declaration carries a conservative execution boundary: `device`, `pandora_trusted_cloud`, or `external_provider`. Legacy declarations that predate the field normalize to `external_provider`, which avoids silently treating an unknown remote model as local/private execution.
+
+Routing policy can set a global `allowedExecutionBoundaries` allowlist and narrower per-task `taskExecutionBoundaries`. A task-specific entry wins over the wildcard entry, which wins over the global allowlist. A model outside the effective allowlist is excluded with `privacy_boundary_not_allowed` before preference or empirical scoring is considered. Fallback cannot cross this boundary.
+
+The boundary describes where Pandora permits model execution to occur. It is not a claim about a provider's retention, training, residency, or compliance terms; those require separate authoritative policy evidence. Provider/model declarations therefore describe only capabilities Pandora's current adapter and trusted transport can actually exercise.
+
 ## Fallback boundary
 
-Cross-provider fallback is allowed for explicitly normalized provider-side failures marked cross-provider eligible: `provider_unavailable`, `timeout`, `rate_limited`, `quota_exhausted`, `unsupported_capability`, `invalid_output`, and sanitized `provider_error`. Quota exhaustion is intentionally cross-provider eligible even when same-provider retry is not. Authentication/authorization, invalid client requests, secret/configuration failures, Pandora policy denials, and other unclassified failures remain fail-closed and cannot silently move to another provider.
+Cross-provider fallback is allowed only for explicitly classified model/provider failures: `provider_unavailable`, `timeout`, `rate_limited`, `quota_exhausted`, `unsupported_capability`, `structured_output_invalid`, trusted-evaluator `invalid_output` or `low_confidence`, and retryable sanitized `provider_error`. Authentication/authorization, invalid client requests, secret/configuration failures, Pandora policy denials, and other unclassified failures remain fail-closed and cannot silently move to another provider. An explicit `crossProviderEligible=false` always blocks fallback.
 
-The router carries provider/model attempt history and obeys the request attempt budget. Already-attempted provider/model pairs are excluded so Gemini/Kimi/OpenAI loops cannot recur. The router prioritizes cross-provider diversity before lower-priority same-provider model downgrades, so a provider outage or exhausted credit pool fails over promptly. Same-provider HTTP retry/backoff remains transport-owned.
+Every attempt is bound to the exact model request ID plus provider/model identity. Resume history with a mismatched request identity fails closed, and an already-attempted provider/model pair is excluded so retry loops cannot recur. Attempt count remains bounded by the request budget and `maxProviderAttempts`; same-provider HTTP retry/backoff remains transport-owned.
+
+Low-confidence or generic invalid-output fallback is never triggered by a model's self-reported confidence. It requires a trusted caller-supplied evaluator. Model adapters return normalized text/structured output/tool proposals only; fallback does not execute tools. Only the accepted model result can proceed to the Tool Gateway, where canonical action identity, authority, durable idempotency, ambiguous-mutation reconciliation and provider readback remain separately enforced.
 
 ## Session continuity and recovery
 
-A provider/model selection becomes sticky for the thread/session. Preference cannot silently move a sticky session to a different provider/model. A cross-provider transition requires an explicit recovery boundary, increments a recovery epoch and returns the new continuity state for service-owned persistence.
+A provider/model selection becomes sticky for the thread/session. Preference cannot silently move a healthy sticky session to a different provider/model. Recovery candidates remain excluded during normal candidate selection. Only after the sticky provider actually returns a fallback-eligible classified failure may M3 open the recovery boundary automatically; that transition is explicit in routing evidence, increments the recovery epoch and returns the new continuity state for service-owned persistence. Callers may disable automatic provider-failure recovery explicitly.
 
 The primary database stores provider-neutral continuity metadata in `private.pandora_intelligence_thread_routing_state`, keyed 1:1 to the existing public intelligence thread. It stores only provider/model/version/policy/reasoning/stickiness/recovery metadata and an optional compatible message reference. It does not duplicate conversation content and is service-role-only.
 
@@ -49,7 +60,7 @@ Reasoning selection and cache-aware cost are hooks only: the router consumes ser
 
 ## Audit evidence
 
-Every successful route can return bounded decision evidence containing policy version, selected provider/model, reasoning policy, eligible and excluded candidates with reasons, score components, stickiness/recovery decision and normalized attempt chain. Raw prompts, responses, credentials and raw cohort identifiers are excluded.
+Every successful route can return bounded decision evidence containing policy version, selected provider/model, selected execution boundary, reasoning policy, eligible and excluded candidates with their execution boundary and reasons, score components, stickiness/recovery decision and normalized attempt chain. Raw prompts, responses, credentials and raw cohort identifiers are excluded.
 
 Persistence of model-run telemetry remains Chat D-owned.
 

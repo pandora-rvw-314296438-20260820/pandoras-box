@@ -194,7 +194,7 @@ class _ExactSourceVerificationCardState
               enableSuggestions: false,
               decoration: const InputDecoration(
                 labelText: 'Project ID',
-                helperText: 'Required. The canonical ProjectOS project ID.',
+                helperText: 'Required. The canonical Pandora project ID.',
               ),
             ),
             const SizedBox(height: PandoraSpacing.sm),

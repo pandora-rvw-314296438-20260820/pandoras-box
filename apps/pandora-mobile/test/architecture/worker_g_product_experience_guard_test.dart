@@ -24,7 +24,7 @@ void main() {
     expect(source, contains('What do you want'));
     expect(source, contains('to make happen?'));
     expect(source, contains("'Your projects'"));
-    expect(source, contains("'Needs you'"));
+    expect(source, contains("'Needs You'"));
     expect(source, isNot(contains("title: 'Domains'")));
     expect(source, isNot(contains('DomainsScreen')));
   });

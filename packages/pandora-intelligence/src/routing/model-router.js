@@ -2,16 +2,16 @@
 
 const { assertNoCredentialMaterial } = require('../security/secret-boundary.js');
 const { modelEligibility, reasoningPolicyFor, routingPolicyScoreDetailed } = require('./policy.js');
+const { intentRoutingAudit, prepareIntentResolvedRouting } = require('./intent-capability-constraints.js');
+const { FALLBACK_CODES, evaluateProviderResult, fallbackEligible, modelAttemptKey, normalizeAttemptHistory, resultRejectionError } = require('./fallback-policy.js');
 const { createRecoveryRoutingState, createSessionRoutingState, sessionCompatibility } = require('./session.js');
 
 /** @type {Readonly<Record<string, number>>} */
 const RELIABILITY_RANK = Object.freeze({ high: 3, standard: 2, experimental: 1 });
 /** @type {Readonly<Record<string, number>>} */
 const COST_RANK = Object.freeze({ low: 1, medium: 2, high: 3 });
-const FALLBACK_CODES = Object.freeze(new Set(['provider_unavailable', 'timeout', 'rate_limited']));
-
-/** @typedef {{provider:string,model:string,code?:string|null,retryable?:boolean,recoveryEpoch?:number}} AttemptRecord */
-/** @typedef {{preferredProvider?:string, preferredModel?:string, minContext?:number, policy?:Readonly<Record<string, unknown>>, session?:Readonly<Record<string,unknown>>|null, allowRecoveryBoundary?:boolean, attemptHistory?:readonly AttemptRecord[], cohortKey?:string|null, nowMs?:number, allowCircuitProbe?:boolean, maxProviderAttempts?:number, costEstimator?:(model:Readonly<Record<string,unknown>>,request:Readonly<Record<string,unknown>>)=>number|null}} RouterOptions */
+/** @typedef {{requestId?:string,attemptKey?:string,provider:string,model:string,code?:string|null,retryable?:boolean,crossProviderEligible?:boolean,recoveryEpoch?:number}} AttemptRecord */
+/** @typedef {{preferredProvider?:string, preferredModel?:string, minContext?:number, policy?:Readonly<Record<string, unknown>>, session?:Readonly<Record<string,unknown>>|null, allowRecoveryBoundary?:boolean, allowProviderFailureRecovery?:boolean, attemptHistory?:readonly AttemptRecord[], cohortKey?:string|null, nowMs?:number, allowCircuitProbe?:boolean, maxProviderAttempts?:number, costEstimator?:(model:Readonly<Record<string,unknown>>,request:Readonly<Record<string,unknown>>)=>number|null, resultEvaluator?:((result:Readonly<Record<string,unknown>>,context:Readonly<Record<string,unknown>>)=>unknown|Promise<unknown>)}} RouterOptions */
 
 /** @param {unknown} value */
 function isRecord(value) { return !!value && typeof value === 'object' && !Array.isArray(value); }
@@ -19,6 +19,8 @@ function isRecord(value) { return !!value && typeof value === 'object' && !Array
 function requiredText(value, field) { if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${field} is required`); return value.trim(); }
 /** @param {Readonly<Record<string,unknown>>} model */
 function modelKey(model) { return `${String(model.provider)}:${String(model.modelId)}`; }
+/** @param {Readonly<Record<string,unknown>>} model */
+function modelExecutionBoundary(model) { return typeof model.executionBoundary === 'string' && model.executionBoundary.trim() ? model.executionBoundary.trim() : 'external_provider'; }
 /** @param {Readonly<Record<string,unknown>>} model */
 function modelVersion(model) {
   if (typeof model.modelVersion === 'string' && model.modelVersion.trim()) return model.modelVersion.trim();
@@ -30,13 +32,6 @@ function modelVersion(model) {
 }
 /** @param {unknown} value */
 function positiveIntegerOrNull(value) { return Number.isInteger(value) && Number(value) > 0 ? Number(value) : null; }
-
-/** @param {unknown} error */
-function fallbackEligible(error) {
-  if (!isRecord(error)) return false;
-  const failure = /** @type {Readonly<Record<string,unknown>>} */ (error);
-  return failure.retryable === true && typeof failure.code === 'string' && FALLBACK_CODES.has(failure.code);
-}
 
 class ModelRouter {
   /** @param {{registry:{findCompatible:(requirements:{required?:string[],outputMode?:string,minContext?:number})=>Readonly<Record<string,unknown>>[],list?:()=>Readonly<Record<string,unknown>>[]}, adapters?:Record<string,{execute:(request:Record<string,unknown>,declaration:Record<string,unknown>)=>Promise<unknown>}>}} options */
@@ -61,17 +56,18 @@ class ModelRouter {
     assertNoCredentialMaterial(request);
     if (options.policy) assertNoCredentialMaterial(options.policy);
     if (options.session) assertNoCredentialMaterial(options.session);
+    const requestId = requiredText(request.requestId, 'request.requestId');
     const required = Array.isArray(request.requiredCapabilities) ? request.requiredCapabilities.map(String) : [];
     const compatible = this.registry.findCompatible({ required, outputMode: String(request.outputMode ?? 'structured'), minContext: options.minContext });
     const compatibleKeys = new Set(compatible.map(modelKey));
-    /** @type {{provider:string,model:string,reasons:readonly string[]}[]} */
+    /** @type {{provider:string,model:string,executionBoundary:string,reasons:readonly string[]}[]} */
     const excluded = [];
     if (typeof this.registry.list === 'function') {
       for (const model of this.registry.list()) {
-        if (!compatibleKeys.has(modelKey(model))) excluded.push(Object.freeze({ provider: String(model.provider), model: String(model.modelId), reasons: Object.freeze(['capability_incompatible']) }));
+        if (!compatibleKeys.has(modelKey(model))) excluded.push(Object.freeze({ provider: String(model.provider), model: String(model.modelId), executionBoundary: modelExecutionBoundary(model), reasons: Object.freeze(['capability_incompatible']) }));
       }
     }
-    const priorAttempts = Array.isArray(options.attemptHistory) ? options.attemptHistory : [];
+    const priorAttempts = /** @type {readonly AttemptRecord[]} */ (normalizeAttemptHistory(requestId, options.attemptHistory));
     const attempted = new Set(priorAttempts.map((item) => `${item.provider}:${item.model}`));
     const task = String(request.task ?? '*');
     const budget = isRecord(request.budget) ? /** @type {Readonly<Record<string,unknown>>} */ (request.budget) : {};
@@ -94,7 +90,7 @@ class ModelRouter {
       }
       const policyEligibility = options.policy
         ? modelEligibility(model, options.policy, { task, estimatedCostUsd, requestMaxCostUsd, allowCircuitProbe: options.allowCircuitProbe, nowMs: options.nowMs })
-        : Object.freeze({ allowed: true, reasons: Object.freeze([]), metrics: null, estimatedCostUsd, costCeiling: requestMaxCostUsd, circuitState: 'closed' });
+        : Object.freeze({ allowed: true, reasons: Object.freeze([]), metrics: null, estimatedCostUsd, costCeiling: requestMaxCostUsd, circuitState: 'closed', executionBoundary: modelExecutionBoundary(model), allowedExecutionBoundaries: Object.freeze([]) });
       reasons.push(.../** @type {readonly string[]} */ (policyEligibility.reasons ?? []));
       const sessionResult = sessionCompatibility(model, options.session);
       let recoveryRequired = false;
@@ -103,7 +99,7 @@ class ModelRouter {
         if (options.allowRecoveryBoundary !== true) reasons.push(String(sessionResult.reason ?? 'session_incompatible'));
       }
       if (reasons.length) {
-        excluded.push(Object.freeze({ provider, model: String(model.modelId), reasons: Object.freeze([...new Set(reasons)]) }));
+        excluded.push(Object.freeze({ provider, model: String(model.modelId), executionBoundary: modelExecutionBoundary(model), reasons: Object.freeze([...new Set(reasons)]) }));
         continue;
       }
       const policyScore = routingPolicyScoreDetailed(model, options.policy, { task, nowMs: options.nowMs, cohortKey: options.cohortKey ?? null });
@@ -126,9 +122,27 @@ class ModelRouter {
   /** @param {Record<string,unknown>} request @param {RouterOptions} options */
   candidates(request, options = {}) { return this.candidatesDetailed(request, options).candidates.map(item => item.model); }
 
-  /** @param {Record<string,unknown>} request @param {RouterOptions} options */
+  /**
+   * Route a model request using the frozen M1 intent/capability handoff without letting M1 choose providers or grant authority.
+   * @param {Record<string,unknown>} request
+   * @param {unknown} intentResolution
+   * @param {RouterOptions} options
+   */
+  async executeResolved(request, intentResolution, options = {}) {
+    assertNoCredentialMaterial(intentResolution);
+    const prepared = prepareIntentResolvedRouting(this.registry, request, intentResolution, options);
+    const result = await this.execute(prepared.request, prepared.options);
+    if (!isRecord(result.routingDecision)) throw new TypeError('model routing result must include routingDecision');
+    const baseRoutingDecision = /** @type {Readonly<Record<string,unknown>>} */ (result.routingDecision);
+    const routingDecision = Object.freeze({ ...baseRoutingDecision, intentResolution: intentRoutingAudit(prepared.constraints, prepared.hardConstraintRecovery) });
+    assertNoCredentialMaterial(routingDecision);
+    return Object.freeze({ ...result, routingDecision });
+  }
+
+  /** @param {Record<string,unknown>} request @param {RouterOptions} options @returns {Promise<Readonly<Record<string,unknown>>>} */
   async execute(request, options = {}) {
     assertNoCredentialMaterial(request);
+    const requestId = requiredText(request.requestId, 'request.requestId');
     const detailed = this.candidatesDetailed(request, options);
     if (!detailed.candidates.length) {
       const error = Object.assign(new Error('no compatible model provider is available'), { code: 'unsupported_capability', retryable: false, routingDecision: Object.freeze({ policyVersion: options.policy?.policyVersion ?? null, excludedCandidates: detailed.excluded }) });
@@ -142,7 +156,7 @@ class ModelRouter {
     if (maxNewAttempts <= 0) throw Object.assign(new Error('model routing attempt budget exhausted'), { code: 'budget_exhausted', retryable: false });
 
     /** @type {AttemptRecord[]} */
-    const attempts = Array.isArray(options.attemptHistory) ? options.attemptHistory.map(item => ({ ...item })) : [];
+    const attempts = /** @type {AttemptRecord[]} */ (normalizeAttemptHistory(requestId, options.attemptHistory).map(item => ({ ...item })));
     let newAttempts = 0;
     /** @type {unknown} */
     let lastFailure = null;
@@ -151,6 +165,7 @@ class ModelRouter {
       const declaration = candidate.model;
       const provider = String(declaration.provider);
       const model = String(declaration.modelId);
+      const attemptKey = modelAttemptKey(requestId, provider, model);
       const adapter = this.adapters.get(provider);
       if (!adapter) continue;
       newAttempts += 1;
@@ -159,7 +174,9 @@ class ModelRouter {
         assertNoCredentialMaterial(result);
         if (!isRecord(result)) throw Object.assign(new Error('provider adapter returned an invalid normalized result'), { code: 'provider_error', retryable: false });
         const normalized = /** @type {Record<string, unknown>} */ (result);
-        attempts.push({ provider, model, code: null, retryable: false, recoveryEpoch: candidate.recoveryRequired ? Number(options.session?.recoveryEpoch ?? 0) + 1 : Number(options.session?.recoveryEpoch ?? 0) });
+        const evaluation = await evaluateProviderResult(options.resultEvaluator, normalized, Object.freeze({ requestId, task: String(request.task ?? '*'), provider, model, attemptNumber: newAttempts, executionBoundary: modelExecutionBoundary(declaration) }));
+        if (!evaluation.accepted) throw resultRejectionError(evaluation);
+        attempts.push({ requestId, attemptKey, provider, model, code: null, retryable: false, crossProviderEligible: false, recoveryEpoch: candidate.recoveryRequired ? Number(options.session?.recoveryEpoch ?? 0) + 1 : Number(options.session?.recoveryEpoch ?? 0) });
         const policyVersion = typeof options.policy?.policyVersion === 'string' ? options.policy.policyVersion : null;
         let nextSessionState = options.session ?? null;
         if (!options.session || options.session.stickinessMode === 'unassigned') {
@@ -171,13 +188,14 @@ class ModelRouter {
           routingPolicyVersion: policyVersion,
           selectedProvider: provider,
           selectedModel: model,
+          selectedExecutionBoundary: modelExecutionBoundary(declaration),
           selectedReasoningPolicy: candidate.reasoningPolicy,
           recoveryRequired: candidate.recoveryRequired,
           recoveryEpoch: Number(nextSessionState?.recoveryEpoch ?? 0),
           stickinessMode: nextSessionState?.stickinessMode ?? null,
           fallbackUsed: newAttempts > 1 || (options.attemptHistory?.length ?? 0) > 0,
           attempts: Object.freeze(attempts.map(item => Object.freeze({ ...item }))),
-          eligibleCandidates: Object.freeze(detailed.candidates.map(item => Object.freeze({ provider: String(item.model.provider), model: String(item.model.modelId), recoveryRequired: item.recoveryRequired, score: item.score, scoreComponents: item.scoreComponents }))),
+          eligibleCandidates: Object.freeze(detailed.candidates.map(item => Object.freeze({ provider: String(item.model.provider), model: String(item.model.modelId), executionBoundary: modelExecutionBoundary(item.model), recoveryRequired: item.recoveryRequired, score: item.score, scoreComponents: item.scoreComponents }))),
           excludedCandidates: detailed.excluded,
           cohortApplied: typeof options.cohortKey === 'string' && options.cohortKey.length > 0,
         });
@@ -187,9 +205,19 @@ class ModelRouter {
         lastFailure = error;
         const failure = /** @type {Readonly<Record<string,unknown>>} */ (isRecord(error) ? error : {});
         const code = typeof failure.code === 'string' ? failure.code : 'provider_error';
-        attempts.push({ provider, model, code, retryable: failure.retryable === true, recoveryEpoch: Number(options.session?.recoveryEpoch ?? 0) });
+        attempts.push({ requestId, attemptKey, provider, model, code, retryable: failure.retryable === true, crossProviderEligible: fallbackEligible(error), recoveryEpoch: Number(options.session?.recoveryEpoch ?? 0) });
         if (!fallbackEligible(error)) throw error;
-        if (options.session && candidate.recoveryRequired === false && options.allowRecoveryBoundary !== true) throw error;
+        if (options.session && candidate.recoveryRequired === false && options.allowRecoveryBoundary !== true) {
+          if (options.allowProviderFailureRecovery === false) throw error;
+          const remainingRecoveryAttempts = maxNewAttempts - newAttempts;
+          if (remainingRecoveryAttempts <= 0) throw error;
+          return this.execute(request, {
+            ...options,
+            allowRecoveryBoundary: true,
+            attemptHistory: attempts,
+            maxProviderAttempts: remainingRecoveryAttempts,
+          });
+        }
       }
     }
     if (lastFailure) throw lastFailure;
