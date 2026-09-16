@@ -1,4 +1,3 @@
-
 class PandoraCalendarParseResult {
   const PandoraCalendarParseResult._({this.command, this.clarification});
 
@@ -79,8 +78,7 @@ class PandoraCalendarCommand {
       RegExp(r'^(?:please\s+)?(?:move|reschedule)\b').hasMatch(lower);
 
   static bool _looksLikeCreate(String lower) =>
-      RegExp(r'^(?:please\s+)?(?:set|schedule|add|create)\b')
-          .hasMatch(lower) &&
+      RegExp(r'^(?:please\s+)?(?:set|schedule|add|create)\b').hasMatch(lower) &&
       !RegExp(r'\b(reminder|alarm)\b').hasMatch(lower);
 
   static PandoraCalendarParseResult _parseQuery(String input, DateTime now) {
@@ -137,8 +135,8 @@ class PandoraCalendarCommand {
         'What should I remind you about?',
       );
     }
-    final exact = RegExp(r'\b(exactly|exact)\b', caseSensitive: false)
-        .hasMatch(input);
+    final exact =
+        RegExp(r'\b(exactly|exact)\b', caseSensitive: false).hasMatch(input);
     return PandoraCalendarParseResult.command(
       PandoraCalendarCommand(
         kind: PandoraCalendarCommandKind.reminder,
@@ -220,9 +218,8 @@ class PandoraCalendarCommand {
       ),
       '',
     );
-    title = _stripDateAndTimeTokens(title)
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+    title =
+        _stripDateAndTimeTokens(title).replaceAll(RegExp(r'\s+'), ' ').trim();
     if (title.isEmpty) {
       return const PandoraCalendarParseResult.clarification(
         'Which calendar event should I cancel?',
@@ -355,8 +352,8 @@ class PandoraCalendarCommand {
       return _ResolvedTime.ambiguous('Is that $hour AM or $hour PM?');
     }
     final context = contextText.toLowerCase();
-    final inferredPm = RegExp(r'\b(lunch|afternoon|dinner|evening)\b')
-        .hasMatch(context);
+    final inferredPm =
+        RegExp(r'\b(lunch|afternoon|dinner|evening)\b').hasMatch(context);
     final inferredAm = RegExp(r'\b(breakfast|morning)\b').hasMatch(context);
     if (!inferredPm && !inferredAm) {
       return _ResolvedTime.ambiguous('Is that $hour AM or $hour PM?');
