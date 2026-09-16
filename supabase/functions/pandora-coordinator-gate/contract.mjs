@@ -23,8 +23,8 @@ function exactKeys(value, expected) {
 const ENVELOPE_KEYS = Object.freeze([
   "schemaVersion", "repositoryId", "repository", "pullRequestNumber",
   "headSha", "baseRef", "baseSha", "rulesetId", "ruleContext",
-  "integrationAppId", "spreadsheetId", "authoritativeSnapshotRevision",
-  "authoritativeSnapshotSha256", "criticalHighHoldDispositions", "policyVersion",
+  "integrationAppId", "spreadsheetId", "authoritativeSnapshotGeneration",
+  "authoritativeSnapshotRevision", "authoritativeSnapshotSha256", "criticalHighHoldDispositions", "policyVersion",
   "decisionGeneration", "priorGeneration", "priorCheckRunId", "decision",
   "reasons", "reviewId", "reviewerVendor", "reviewCandidateSha",
   "decisionNonce", "evaluatedAt", "expiresAt",
@@ -71,6 +71,7 @@ function validateEnvelope(value, now = new Date()) {
     ? value.criticalHighHoldDispositions
     : [];
   const reasons = Array.isArray(value.reasons) ? value.reasons : [];
+  const snapshotGeneration = Number(value.authoritativeSnapshotGeneration);
   const generation = Number(value.decisionGeneration);
   const priorGeneration = value.priorGeneration === null ? null : Number(value.priorGeneration);
   const priorCheckRunId = value.priorCheckRunId === null ? null : Number(value.priorCheckRunId);
@@ -79,7 +80,8 @@ function validateEnvelope(value, now = new Date()) {
     value.repository !== CANONICAL_REPOSITORY || !Number.isSafeInteger(value.pullRequestNumber) || value.pullRequestNumber < 1 ||
     !SHA40.test(String(value.headSha || "")) || value.baseRef !== "main" || !SHA40.test(String(value.baseSha || "")) ||
     value.rulesetId !== RULESET_ID || value.ruleContext !== RULE_CONTEXT || value.integrationAppId !== INTEGRATION_APP_ID ||
-    value.spreadsheetId !== SPREADSHEET_ID || !TOKEN.test(String(value.authoritativeSnapshotRevision || "")) ||
+    value.spreadsheetId !== SPREADSHEET_ID || !Number.isSafeInteger(snapshotGeneration) || snapshotGeneration < 1 ||
+    !TOKEN.test(String(value.authoritativeSnapshotRevision || "")) ||
     !SHA256.test(String(value.authoritativeSnapshotSha256 || "")) || !TOKEN.test(String(value.policyVersion || "")) ||
     !Number.isSafeInteger(generation) || generation < 1 ||
     (priorGeneration !== null && (!Number.isSafeInteger(priorGeneration) || priorGeneration < 1 || priorGeneration >= generation)) ||
@@ -114,6 +116,7 @@ async function bindEnvelope(value, now = new Date()) {
     headSha: value.headSha,
     ruleContext: value.ruleContext,
     decisionGeneration: value.decisionGeneration,
+    authoritativeSnapshotGeneration: value.authoritativeSnapshotGeneration,
     authoritativeSnapshotSha256: value.authoritativeSnapshotSha256,
     decision: value.decision,
     decisionNonce: value.decisionNonce,
@@ -154,6 +157,7 @@ function desiredCheckState(binding) {
   const summary = [
     `Decision: ${envelope.decision}`,
     `Generation: ${envelope.decisionGeneration}`,
+    `Snapshot generation: ${envelope.authoritativeSnapshotGeneration}`,
     `Expires: ${envelope.expiresAt}`,
     `Envelope: ${envelopeHash.slice(0, 16)}`,
     ...envelope.reasons.map((reason) => `- ${reason}`),

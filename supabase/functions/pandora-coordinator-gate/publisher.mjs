@@ -176,4 +176,27 @@ async function expireCheck(provider, checkRunId, headSha, now = new Date()) {
   return { state: "expired", check: updated };
 }
 
-export { assertLiveIdentity, expireCheck, publishDecision, trustedChecks };
+async function revokeCheckForSnapshot(provider, checkRunId, headSha, promotionId, now = new Date()) {
+  const check = await readExact(provider, checkRunId);
+  const row = asRecord(check);
+  if (row.name !== RULE_CONTEXT || row.head_sha !== headSha) throw new Error("CHECK_REVOCATION_IDENTITY_MISMATCH");
+  if (!parseCheckExternalId(row.external_id)) throw new Error("TRUSTED_CHECK_METADATA_INVALID");
+  if (row.status === "completed" && row.conclusion !== "success") return { state: "already_invalid", check };
+  const payload = {
+    name: RULE_CONTEXT, external_id: row.external_id, status: "completed", conclusion: "action_required",
+    completed_at: now.toISOString(),
+    output: {
+      title: "Pandora coordinator HOLD",
+      summary: `Authoritative Sheet snapshot promotion ${promotionId} revoked this decision before the new snapshot became effective.`,
+    },
+  };
+  const updated = await writeAndRead({ provider, kind: "update", checkRunId, payload, headSha });
+  const result = asRecord(updated);
+  if (result.status !== "completed" || result.conclusion !== "action_required" ||
+      asRecord(result.app).id !== INTEGRATION_APP_ID || result.head_sha !== headSha) {
+    throw new Error("CHECK_REVOCATION_READBACK_MISMATCH");
+  }
+  return { state: "revoked", check: updated };
+}
+
+export { assertLiveIdentity, expireCheck, publishDecision, revokeCheckForSnapshot, trustedChecks };

@@ -24,6 +24,7 @@ function envelope(overrides = {}) {
     rulesetId: 21532267, ruleContext: "Pandora coordinator / integration",
     integrationAppId: 4785021,
     spreadsheetId: "1nTpPa1IQgbKsStpEcMnkIXiz3nDcgZjm02rZXPrXXk0",
+    authoritativeSnapshotGeneration: 3,
     authoritativeSnapshotRevision: "execution-plan-row-199",
     authoritativeSnapshotSha256: "c".repeat(64),
     criticalHighHoldDispositions: [{
@@ -171,4 +172,26 @@ test("wrong-App same-name checks never satisfy trusted publisher state", async (
   const result = await publisher.publishDecision(provider, envelope(), now);
   assert.equal(result.state, "created");
   assert.equal(result.check.app.id, 4785021);
+});
+
+test("snapshot promotion revokes a prior PASS with provider readback and idempotent retry", async () => {
+  const provider = providerFixture();
+  const pass = envelope({
+    decision: "PASS",
+    reasons: ["All applicable merge holds are independently cleared."],
+    criticalHighHoldDispositions: [],
+  });
+  const created = await publisher.publishDecision(provider, pass, now);
+  provider.state.ambiguousUpdate = true;
+  const revoked = await publisher.revokeCheckForSnapshot(
+    provider, created.check.id, HEAD, "promotion-0001", new Date("2026-09-16T07:01:00.000Z"),
+  );
+  assert.equal(revoked.state, "revoked");
+  assert.equal(revoked.check.conclusion, "action_required");
+  const writesAfterRevoke = provider.state.writes.length;
+  const replay = await publisher.revokeCheckForSnapshot(
+    provider, created.check.id, HEAD, "promotion-0001", new Date("2026-09-16T07:01:01.000Z"),
+  );
+  assert.equal(replay.state, "already_invalid");
+  assert.equal(provider.state.writes.length, writesAfterRevoke);
 });

@@ -75,3 +75,26 @@ test("database mutation RPCs are service-role-only and still require the coordin
   assert.match(migration, /revoke all on table private\.pandora_coordinator_gate_decisions from public,anon,authenticated/);
   assert.match(migration, /revoke all on table private\.pandora_coordinator_gate_state from public,anon,authenticated/);
 });
+
+test("D-041 effective Sheet snapshot promotion is fenced across publish, promotion, expiry, and merge", () => {
+  const fenceMigration = fs.readFileSync(
+    path.join(root, "supabase/migrations/20260916084500_r058_effective_sheet_snapshot_fence.sql"),
+    "utf8",
+  );
+  assert.match(fenceMigration, /fence_state in \('idle','promoting','publishing','merging'\)/);
+  assert.match(fenceMigration, /pandora_coordinator_snapshot_prepare_v1/);
+  assert.match(fenceMigration, /pandora_coordinator_snapshot_record_revocation_v1/);
+  assert.match(fenceMigration, /required_revocations<>v_promotion\.completed_revocations/);
+  assert.match(fenceMigration, /p_provider_conclusion<>'action_required'/);
+  assert.match(fenceMigration, /pandora_coordinator_gate_begin_decision_v2/);
+  assert.match(fenceMigration, /effective_snapshot_generation<>p_authoritative_snapshot_generation/);
+  assert.match(fenceMigration, /fence_state='publishing'/);
+  assert.match(fenceMigration, /pandora_coordinator_gate_begin_expiry_v2/);
+  assert.match(fenceMigration, /pandora_coordinator_gate_claim_merge_v2/);
+  assert.match(fenceMigration, /fence_state='merging'/);
+  assert.match(fenceMigration, /pandora_coordinator_gate_complete_merge_v2/);
+  assert.match(edge, /pandora_coordinator_gate_begin_decision_v2/);
+  assert.match(edge, /pandora_coordinator_gate_record_publish_v2/);
+  assert.match(edge, /promoteSnapshot/);
+  assert.match(edge, /revokeCheckForSnapshot/);
+});

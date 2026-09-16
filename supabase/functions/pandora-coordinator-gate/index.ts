@@ -3,9 +3,10 @@ import { createClient } from "jsr:@supabase/supabase-js@2.57.2";
 import {
   CANONICAL_REPOSITORY,
   INTEGRATION_APP_ID,
+  SPREADSHEET_ID,
   bindEnvelope,
 } from "./contract.mjs";
-import { expireCheck, publishDecision } from "./publisher.mjs";
+import { expireCheck, publishDecision, revokeCheckForSnapshot } from "./publisher.mjs";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -186,7 +187,7 @@ function githubProvider(token: string) {
 }
 
 async function beginDecision(admin: ReturnType<typeof adminClient>, internalKey: string, envelope: JsonRecord, binding: JsonRecord) {
-  return rec(await rpc(admin, "pandora_coordinator_gate_begin_decision_v1", {
+  return rec(await rpc(admin, "pandora_coordinator_gate_begin_decision_v2", {
     p_internal_key: internalKey,
     p_repository: envelope.repository,
     p_pull_request_number: envelope.pullRequestNumber,
@@ -195,6 +196,7 @@ async function beginDecision(admin: ReturnType<typeof adminClient>, internalKey:
     p_prior_check_run_id: envelope.priorCheckRunId,
     p_head_sha: envelope.headSha,
     p_base_sha: envelope.baseSha,
+    p_authoritative_snapshot_generation: envelope.authoritativeSnapshotGeneration,
     p_authoritative_snapshot_revision: envelope.authoritativeSnapshotRevision,
     p_authoritative_snapshot_sha256: envelope.authoritativeSnapshotSha256,
     p_envelope_hash: binding.envelopeHash,
@@ -212,11 +214,12 @@ async function recordPublish(
   check: JsonRecord,
 ) {
   const appId = Number(rec(check.app).id);
-  return rec(await rpc(admin, "pandora_coordinator_gate_record_publish_v1", {
+  return rec(await rpc(admin, "pandora_coordinator_gate_record_publish_v2", {
     p_internal_key: internalKey,
     p_repository: envelope.repository,
     p_pull_request_number: envelope.pullRequestNumber,
     p_decision_generation: envelope.decisionGeneration,
+    p_authoritative_snapshot_generation: envelope.authoritativeSnapshotGeneration,
     p_envelope_hash: binding.envelopeHash,
     p_idempotency_key: binding.idempotencyKey,
     p_check_run_id: check.id,
@@ -224,6 +227,85 @@ async function recordPublish(
     p_provider_status: check.status,
     p_provider_conclusion: check.conclusion,
   }, "GATE_STATE_RECORD_FAILED"));
+}
+
+
+async function readEffectiveSnapshot(admin: ReturnType<typeof adminClient>, internalKey: string) {
+  const value = await rpc(admin, "pandora_coordinator_snapshot_read_effective_v1", {
+    p_internal_key: internalKey,
+    p_repository: CANONICAL_REPOSITORY,
+  }, "SNAPSHOT_READ_FAILED");
+  return value ? rec(value) : null;
+}
+function validSnapshotField(value: unknown, max: number) {
+  return typeof value === "string" && value.trim().length > 0 && value.length <= max;
+}
+async function handleSnapshotPromotion(
+  admin: ReturnType<typeof adminClient>, internalKey: string, body: JsonRecord,
+) {
+  const candidateRevision = typeof body.candidateRevision === "string" ? body.candidateRevision.trim() : "";
+  const candidateSha256 = typeof body.candidateSha256 === "string" ? body.candidateSha256.trim() : "";
+  const evidenceRef = typeof body.evidenceRef === "string" ? body.evidenceRef.trim() : "";
+  const providerReadAt = typeof body.providerReadAt === "string" ? body.providerReadAt.trim() : "";
+  const promotionNonce = typeof body.promotionNonce === "string" ? body.promotionNonce.trim() : "";
+  const readMs = Date.parse(providerReadAt);
+  if (!validSnapshotField(candidateRevision, 192) || !/^[0-9a-f]{64}$/.test(candidateSha256) ||
+      !validSnapshotField(evidenceRef, 240) || !validSnapshotField(promotionNonce, 240) ||
+      !Number.isFinite(readMs)) throw new Error("INVALID_SNAPSHOT_PROMOTION");
+  const prepared = rec(await rpc(admin, "pandora_coordinator_snapshot_prepare_v1", {
+    p_internal_key: internalKey,
+    p_repository: CANONICAL_REPOSITORY,
+    p_spreadsheet_id: SPREADSHEET_ID,
+    p_candidate_revision: candidateRevision,
+    p_candidate_sha256: candidateSha256,
+    p_evidence_ref: evidenceRef,
+    p_provider_read_at: providerReadAt,
+    p_promotion_nonce: promotionNonce,
+  }, "SNAPSHOT_PREPARE_FAILED"));
+  const promotionId = String(prepared.promotionId || "");
+  if (!promotionId) throw new Error("SNAPSHOT_PROMOTION_ID_MISSING");
+  const targets = Array.isArray(prepared.revocations) ? prepared.revocations.map(rec) : [];
+  if (targets.length > 0) {
+    const provider = githubProvider(await githubInstallationToken(admin));
+    for (const target of targets) {
+      const checkRunId = Number(target.checkRunId);
+      const pullRequestNumber = Number(target.pullRequestNumber);
+      const headSha = String(target.headSha || "");
+      if (!Number.isSafeInteger(checkRunId) || checkRunId < 1 ||
+          !Number.isSafeInteger(pullRequestNumber) || pullRequestNumber < 1 ||
+          !/^[0-9a-f]{40}$/.test(headSha)) throw new Error("SNAPSHOT_REVOCATION_TARGET_INVALID");
+      const revoked = rec(await revokeCheckForSnapshot(provider, checkRunId, headSha, promotionId));
+      const check = rec(revoked.check);
+      await rpc(admin, "pandora_coordinator_snapshot_record_revocation_v1", {
+        p_internal_key: internalKey,
+        p_repository: CANONICAL_REPOSITORY,
+        p_promotion_id: promotionId,
+        p_pull_request_number: pullRequestNumber,
+        p_check_run_id: checkRunId,
+        p_provider_app_id: Number(rec(check.app).id),
+        p_provider_status: check.status,
+        p_provider_conclusion: check.conclusion,
+      }, "SNAPSHOT_REVOCATION_RECORD_FAILED");
+    }
+  }
+  const committed = rec(await rpc(admin, "pandora_coordinator_snapshot_commit_v1", {
+    p_internal_key: internalKey,
+    p_repository: CANONICAL_REPOSITORY,
+    p_promotion_id: promotionId,
+  }, "SNAPSHOT_COMMIT_FAILED"));
+  return { ok: true, action: "promoteSnapshot", ...committed };
+}
+async function handleSnapshotAbort(
+  admin: ReturnType<typeof adminClient>, internalKey: string, body: JsonRecord,
+) {
+  const promotionId = typeof body.promotionId === "string" ? body.promotionId.trim() : "";
+  if (!promotionId) throw new Error("INVALID_SNAPSHOT_PROMOTION");
+  const result = rec(await rpc(admin, "pandora_coordinator_snapshot_abort_v1", {
+    p_internal_key: internalKey,
+    p_repository: CANONICAL_REPOSITORY,
+    p_promotion_id: promotionId,
+  }, "SNAPSHOT_ABORT_FAILED"));
+  return { ok: true, action: "abortSnapshot", ...result };
 }
 
 async function handlePublish(admin: ReturnType<typeof adminClient>, internalKey: string, body: JsonRecord) {
@@ -267,14 +349,21 @@ async function handleExpire(admin: ReturnType<typeof adminClient>, internalKey: 
   const checkRunId = Number(state.current_check_run_id);
   const headSha = String(state.head_sha || "");
   if (!Number.isSafeInteger(checkRunId) || checkRunId < 1) throw new Error("GATE_CHECK_NOT_PUBLISHED");
+  const expiresAt = Date.parse(String(state.expires_at || ""));
+  if (Number.isFinite(expiresAt) && expiresAt > Date.now()) {
+    return { ok: true, action: "expire", pullRequestNumber: pullNumber, state: "fresh", checkRunId };
+  }
+  await rpc(admin, "pandora_coordinator_gate_begin_expiry_v2", {
+    p_internal_key: internalKey, p_repository: CANONICAL_REPOSITORY,
+    p_pull_request_number: pullNumber, p_decision_generation: state.current_generation,
+    p_check_run_id: checkRunId,
+  }, "GATE_EXPIRY_FENCE_FAILED");
   const token = await githubInstallationToken(admin);
   const result = rec(await expireCheck(githubProvider(token), checkRunId, headSha));
-  if (result.state === "expired") {
-    await rpc(admin, "pandora_coordinator_gate_mark_expired_v1", {
-      p_internal_key: internalKey,
-      p_repository: CANONICAL_REPOSITORY,
-      p_pull_request_number: pullNumber,
-      p_decision_generation: state.current_generation,
+  if (result.state === "expired" || result.state === "already_invalid") {
+    await rpc(admin, "pandora_coordinator_gate_mark_expired_v2", {
+      p_internal_key: internalKey, p_repository: CANONICAL_REPOSITORY,
+      p_pull_request_number: pullNumber, p_decision_generation: state.current_generation,
       p_check_run_id: checkRunId,
     }, "GATE_EXPIRY_RECORD_FAILED");
   }
@@ -288,6 +377,7 @@ function publicState(state: JsonRecord | null) {
     generation: state.current_generation,
     headSha: state.head_sha,
     baseSha: state.base_sha,
+    snapshotGeneration: state.authoritative_snapshot_generation,
     snapshotRevision: state.authoritative_snapshot_revision,
     snapshotSha256: state.authoritative_snapshot_sha256,
     decision: state.decision,
@@ -309,6 +399,15 @@ Deno.serve(async (request) => {
     await validateInternalKey(admin, internalKey);
     const body = await readBody(request);
     const action = typeof body.action === "string" ? body.action : "";
+    if (action === "promoteSnapshot") {
+      return reply(200, await handleSnapshotPromotion(admin, internalKey, body));
+    }
+    if (action === "abortSnapshot") {
+      return reply(200, await handleSnapshotAbort(admin, internalKey, body));
+    }
+    if (action === "readSnapshot") {
+      return reply(200, { ok: true, action: "readSnapshot", state: await readEffectiveSnapshot(admin, internalKey) });
+    }
     if (action === "publish") {
       return reply(200, await handlePublish(admin, internalKey, body));
     }
@@ -332,7 +431,7 @@ Deno.serve(async (request) => {
     const code = error instanceof Error ? error.message : "COORDINATOR_GATE_FAILED";
     const status = code.includes("AUTH") ? 401
       : code === "BODY_TOO_LARGE" ? 413
-      : code === "INVALID_JSON" || code === "UNKNOWN_ACTION" || code === "INVALID_PULL_REQUEST" ? 400
+      : code === "INVALID_JSON" || code === "UNKNOWN_ACTION" || code === "INVALID_PULL_REQUEST" || code === "INVALID_SNAPSHOT_PROMOTION" ? 400
       : code.includes("DISABLED_UNTIL_SHEET_FENCE") ? 409
       : code.includes("NOT_FOUND") ? 404
       : 409;
