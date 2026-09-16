@@ -309,7 +309,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260914100000_pandora_activity_realtime_transport_v1.sql',
     '20260915001000_pandora_activity_controls_v1.sql',
     '20260915013000_pandora_activity_recovery_v1.sql',
-    '20260916103635_r058_trusted_coordinator_gate.sql',
+    '20260916102000_m4_018_calendar_device_activity_v1.sql',
+'20260916103635_r058_trusted_coordinator_gate.sql',
     '20260916103837_r058_effective_sheet_snapshot_fence.sql',
   '20260916110444_r058_publication_abort_recovery.sql'
   ]);
@@ -585,7 +586,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260914100000_pandora_activity_realtime_transport_v1.sql',
     '20260915001000_pandora_activity_controls_v1.sql',
     '20260915013000_pandora_activity_recovery_v1.sql',
-    '20260916103635_r058_trusted_coordinator_gate.sql',
+    '20260916102000_m4_018_calendar_device_activity_v1.sql',
+'20260916103635_r058_trusted_coordinator_gate.sql',
     '20260916103837_r058_effective_sheet_snapshot_fence.sql',
   '20260916110444_r058_publication_abort_recovery.sql'
   ]);
@@ -813,7 +815,8 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260914100000_pandora_activity_realtime_transport_v1.sql',
     '20260915001000_pandora_activity_controls_v1.sql',
     '20260915013000_pandora_activity_recovery_v1.sql',
-    '20260916103635_r058_trusted_coordinator_gate.sql',
+    '20260916102000_m4_018_calendar_device_activity_v1.sql',
+'20260916103635_r058_trusted_coordinator_gate.sql',
     '20260916103837_r058_effective_sheet_snapshot_fence.sql',
   '20260916110444_r058_publication_abort_recovery.sql'
   ]);
