@@ -143,7 +143,8 @@ internal class PandoraCalendarRuntime(private val context: Context) {
             "writeGranted" to granted(Manifest.permission.WRITE_CALENDAR),
             "notificationDeclared" to (!notificationRequired || declared.contains(Manifest.permission.POST_NOTIFICATIONS)),
             "notificationGranted" to (!notificationRequired || granted(Manifest.permission.POST_NOTIFICATIONS)),
-            "exactAlarmAccess" to exactAlarmAccess
+            "exactAlarmAccess" to exactAlarmAccess,
+            "deviceTimeZoneId" to TimeZone.getDefault().id
         )
     }
     fun listCalendars(): List<Map<String, Any?>> {
@@ -152,7 +153,9 @@ internal class PandoraCalendarRuntime(private val context: Context) {
             CalendarContract.Calendars._ID,
             CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
             CalendarContract.Calendars.VISIBLE,
-            CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL
+            CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL,
+            CalendarContract.Calendars.ACCOUNT_TYPE,
+            CalendarContract.Calendars.SYNC_EVENTS
         )
         val rows = mutableListOf<Map<String, Any?>>()
         context.contentResolver.query(
@@ -164,12 +167,16 @@ internal class PandoraCalendarRuntime(private val context: Context) {
         )?.use { cursor ->
             while (cursor.moveToNext() && rows.size < 100) {
                 val access = cursor.getInt(3)
+                val accountType = cursor.getString(4).orEmpty()
                 rows += mapOf(
                     "id" to cursor.getLong(0),
                     "displayName" to cursor.getString(1).orEmpty().ifBlank { "Calendar" },
                     "visible" to (cursor.getInt(2) != 0),
                     "accessLevel" to access,
-                    "writable" to (access >= CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR)
+                    "writable" to (access >= CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR),
+                    "accountType" to accountType,
+                    "providerKind" to providerKind(accountType),
+                    "syncEvents" to (cursor.getInt(5) != 0)
                 )
             }
         }
@@ -216,9 +223,11 @@ internal class PandoraCalendarRuntime(private val context: Context) {
                 val begin = cursor.getLong(3)
                 val finish = cursor.getLong(4)
                 if (finish <= begin) continue
+                val calendarIdValue = cursor.getLong(1)
+                val calendarInfo = calendarMetadata(calendarIdValue)
                 rows += mapOf(
                     "id" to cursor.getLong(0),
-                    "calendarId" to cursor.getLong(1),
+                    "calendarId" to calendarIdValue,
                     "title" to cursor.getString(2).orEmpty().ifBlank { "Untitled event" },
                     "startEpochMs" to begin,
                     "endEpochMs" to finish,
@@ -226,7 +235,10 @@ internal class PandoraCalendarRuntime(private val context: Context) {
                     "location" to cursor.getString(6),
                     "description" to cursor.getString(7),
                     "recurrenceRule" to cursor.getString(8),
-                    "allDay" to (cursor.getInt(9) != 0)
+                    "allDay" to (cursor.getInt(9) != 0),
+                    "accountType" to calendarInfo["accountType"],
+                    "providerKind" to calendarInfo["providerKind"],
+                    "syncEvents" to calendarInfo["syncEvents"]
                 )
             }
         }
@@ -518,6 +530,37 @@ internal class PandoraCalendarRuntime(private val context: Context) {
         }
     }
 
+    private fun providerKind(accountType: String): String =
+        if (accountType.isBlank() || accountType == CalendarContract.ACCOUNT_TYPE_LOCAL) "local" else "connected"
+
+    private fun calendarMetadata(calendarId: Long): Map<String, Any?> {
+        val projection = arrayOf(
+            CalendarContract.Calendars.ACCOUNT_TYPE,
+            CalendarContract.Calendars.SYNC_EVENTS
+        )
+        context.contentResolver.query(
+            ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, calendarId),
+            projection,
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val accountType = cursor.getString(0).orEmpty()
+                return mapOf(
+                    "accountType" to accountType,
+                    "providerKind" to providerKind(accountType),
+                    "syncEvents" to (cursor.getInt(1) != 0)
+                )
+            }
+        }
+        return mapOf(
+            "accountType" to "",
+            "providerKind" to "local",
+            "syncEvents" to false
+        )
+    }
+
     private fun calendarWritable(calendarId: Long): Boolean {
         requirePermission(Manifest.permission.READ_CALENDAR)
         val projection = arrayOf(CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL)
@@ -562,9 +605,11 @@ internal class PandoraCalendarRuntime(private val context: Context) {
             val durationSeconds = parseDurationSeconds(cursor.getString(5))
             val end = rawEnd ?: durationSeconds?.let { start + it * 1000L } ?: return null
             if (start <= 0L || end <= start) return null
+            val calendarIdValue = cursor.getLong(1)
+            val calendarInfo = calendarMetadata(calendarIdValue)
             return mapOf(
                 "id" to cursor.getLong(0),
-                "calendarId" to cursor.getLong(1),
+                "calendarId" to calendarIdValue,
                 "title" to cursor.getString(2).orEmpty().ifBlank { "Untitled event" },
                 "startEpochMs" to start,
                 "endEpochMs" to end,
@@ -572,7 +617,10 @@ internal class PandoraCalendarRuntime(private val context: Context) {
                 "location" to cursor.getString(7),
                 "description" to cursor.getString(8),
                 "recurrenceRule" to cursor.getString(9),
-                "allDay" to (cursor.getInt(10) != 0)
+                "allDay" to (cursor.getInt(10) != 0),
+                "accountType" to calendarInfo["accountType"],
+                "providerKind" to calendarInfo["providerKind"],
+                "syncEvents" to calendarInfo["syncEvents"]
             )
         }
         return null
