@@ -195,3 +195,10 @@ test("snapshot promotion revokes a prior PASS with provider readback and idempot
   assert.equal(replay.state, "already_invalid");
   assert.equal(provider.state.writes.length, writesAfterRevoke);
 });
+test("next generation is allowed after an audited unpublished predecessor", async () => {
+  const provider = providerFixture();
+  const next = envelope({ decisionGeneration: 2, priorGeneration: 1, priorCheckRunId: null, decisionNonce: "nonce-generation-0002-unpublished" });
+  const result = await publisher.publishDecision(provider, next, now);
+  assert.equal(result.state, "created");
+  assert.equal(result.check.app.id, 4785021);
+});

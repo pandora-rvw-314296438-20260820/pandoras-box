@@ -365,6 +365,13 @@ async function handleAbortMerge(admin: ReturnType<typeof adminClient>, internalK
   const pullNumber=Number(body.pullRequestNumber), claimId=String(body.claimId||""); if(!Number.isSafeInteger(pullNumber)||pullNumber<1||!claimId) throw new Error("INVALID_MERGE_CLAIM"); const state=await readState(admin,internalKey,pullNumber); if(!state||state.merge_claim_id!==claimId) throw new Error("MERGE_CLAIM_MISMATCH"); const provider=githubProvider(await githubInstallationToken(admin)), checkRunId=Number(state.current_check_run_id), check=rec(await provider.getCheck(checkRunId)); if(Number(check.id)!==checkRunId||check.head_sha!==state.head_sha||Number(rec(check.app).id)!==INTEGRATION_APP_ID) throw new Error("MERGE_ABORT_CHECK_IDENTITY_MISMATCH");
   const payload={name:RULE_CONTEXT,external_id:check.external_id,status:"completed",conclusion:"action_required",completed_at:new Date().toISOString(),output:{title:"Pandora coordinator HOLD",summary:`Merge claim ${claimId} was aborted before verified completion.`}}; await provider.updateCheck(checkRunId,payload); const readback=rec(await provider.getCheck(checkRunId)); if(readback.status!=="completed"||readback.conclusion!=="action_required"||Number(rec(readback.app).id)!==INTEGRATION_APP_ID) throw new Error("MERGE_ABORT_CHECK_READBACK_MISMATCH"); const aborted=rec(await rpc(admin,"pandora_coordinator_gate_abort_merge_v2",{p_internal_key:internalKey,p_repository:CANONICAL_REPOSITORY,p_pull_request_number:pullNumber,p_decision_generation:state.current_generation,p_claim_id:claimId,p_check_run_id:checkRunId,p_provider_app_id:Number(rec(readback.app).id),p_provider_status:readback.status,p_provider_conclusion:readback.conclusion},"MERGE_ABORT_FAILED")); return {ok:true,action:"abortMerge",pullRequestNumber:pullNumber,claimId,checkRunId,...aborted};
 }
+async function handleAbortExpiredUnpublished(admin: ReturnType<typeof adminClient>, internalKey: string, body: JsonRecord) {
+  const pullNumber=Number(body.pullRequestNumber); if(!Number.isSafeInteger(pullNumber)||pullNumber<1) throw new Error("INVALID_PULL_REQUEST");
+  const state=await readState(admin,internalKey,pullNumber); if(!state) throw new Error("GATE_STATE_NOT_FOUND");
+  if(state.current_check_run_id!==null||state.provider_status!==null||state.provider_conclusion!==null||Date.parse(String(state.expires_at||""))>Date.now()) throw new Error("UNPUBLISHED_ABORT_NOT_AUTHORIZED");
+  const result=rec(await rpc(admin,"pandora_coordinator_gate_abort_unpublished_v1",{p_internal_key:internalKey,p_repository:CANONICAL_REPOSITORY,p_pull_request_number:pullNumber,p_decision_generation:state.current_generation},"UNPUBLISHED_ABORT_FAILED"));
+  return {ok:true,action:"abortExpiredUnpublished",pullRequestNumber:pullNumber,...result};
+}
 async function handleExpire(admin: ReturnType<typeof adminClient>, internalKey: string, body: JsonRecord) {
   const pullNumber = Number(body.pullRequestNumber);
   if (!Number.isSafeInteger(pullNumber) || pullNumber < 1) throw new Error("INVALID_PULL_REQUEST");
@@ -435,6 +442,7 @@ Deno.serve(async (request) => {
     if (action === "publish") {
       return reply(200, await handlePublish(admin, internalKey, body));
     }
+    if (action === "abortExpiredUnpublished") return reply(200, await handleAbortExpiredUnpublished(admin, internalKey, body));
     if (action === "expire") {
       return reply(200, await handleExpire(admin, internalKey, body));
     }

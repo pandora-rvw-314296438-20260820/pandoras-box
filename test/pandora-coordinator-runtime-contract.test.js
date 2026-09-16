@@ -15,6 +15,7 @@ const migration = fs.readFileSync(
   "utf8",
 );
 const packageJson = fs.readFileSync(path.join(root, "package.json"), "utf8");
+const recoveryMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260916114500_r058_unpublished_publication_recovery.sql"), "utf8");
 const canonicalWorkflow = fs.readFileSync(
   path.join(root, ".github/workflows/canonical-release-evidence.yml"),
   "utf8",
@@ -71,6 +72,14 @@ test("database mutation RPCs are service-role-only and still require the coordin
   assert.match(migration, /pandora_validate_coordinator_gate_key_v1\(p_internal_key\)/g);
   assert.match(migration, /revoke all on table private\.pandora_coordinator_gate_decisions from public,anon,authenticated/);
   assert.match(migration, /revoke all on table private\.pandora_coordinator_gate_state from public,anon,authenticated/);
+});
+
+test("expired unpublished coordinator decisions release only the publication fence and remain auditable", () => {
+  assert.match(recoveryMigration, /pandora_coordinator_gate_abort_unpublished_v1/);
+  assert.match(recoveryMigration, /current_check_run_id is not null/);
+  assert.match(recoveryMigration, /provider_state='expired_unpublished'/);
+  assert.match(recoveryMigration, /fence_state='idle'/);
+  assert.match(edge, /abortExpiredUnpublished/);
 });
 
 test("D-041 effective Sheet snapshot promotion is fenced across publish, promotion, expiry, and merge", () => {

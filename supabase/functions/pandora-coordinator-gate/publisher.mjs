@@ -80,12 +80,10 @@ async function writeAndRead({ provider, kind, checkRunId, payload, headSha }) {
 }
 function assertChain(existing, envelope) {
   if (!existing) {
-    if (
-      envelope.decisionGeneration !== 1 ||
-      envelope.priorGeneration !== null ||
-      envelope.priorCheckRunId !== null
-    ) throw new Error("DECISION_CHAIN_MISMATCH");
-    return null;
+    const first = envelope.decisionGeneration === 1 && envelope.priorGeneration === null && envelope.priorCheckRunId === null;
+    const afterUnpublished = envelope.decisionGeneration > 1 && envelope.priorGeneration === envelope.decisionGeneration - 1 && envelope.priorCheckRunId === null;
+    if (!first && !afterUnpublished) throw new Error("DECISION_CHAIN_MISMATCH");
+    return afterUnpublished ? { generation: envelope.priorGeneration, unpublished: true } : null;
   }
   const row = asRecord(existing);
   const meta = parseCheckExternalId(row.external_id);
