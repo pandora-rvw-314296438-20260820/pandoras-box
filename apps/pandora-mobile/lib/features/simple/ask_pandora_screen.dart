@@ -11,6 +11,8 @@ import '../../core/data/pandora_activity_stream_api.dart';
 import '../../core/data/pandora_character_api.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/data/pandora_repository.dart';
+import '../../core/device/pandora_calendar_action_executor.dart';
+import '../../core/device/pandora_calendar_command.dart';
 import '../../core/device/pandora_communication_command.dart';
 import '../../core/device/pandora_communications.dart';
 import '../../core/network/idempotency_key.dart';
@@ -104,6 +106,16 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   }
 
   Future<void> _watchActivity(PandoraIntelligenceExecution execution) async {
+    _activeActivityJobId = execution.jobId;
+    await _activityController.bind(
+      jobId: execution.jobId,
+      stream: execution.events,
+    );
+  }
+
+  Future<void> _watchDeviceActivity(
+    PandoraDeviceActivityExecution execution,
+  ) async {
     _activeActivityJobId = execution.jobId;
     await _activityController.bind(
       jobId: execution.jobId,
@@ -375,6 +387,33 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         await _submitCharacter(objective);
         return;
       }
+      final calendarParse = PandoraCalendarCommand.tryParse(
+        objective,
+        now: DateTime.now(),
+      );
+      if (calendarParse != null) {
+        if (!calendarParse.isReady) {
+          setState(() {
+            _messages.add(_ChatMessage.user(objective));
+            _messages.add(
+              _ChatMessage.pandora(
+                calendarParse.clarification ??
+                    'Tell me the missing calendar detail before I make a change.',
+              ),
+            );
+            _pendingMessage = null;
+            _submissionKey = null;
+            _outcomeUnknown = false;
+          });
+          return;
+        }
+        await _handleCalendarCommand(
+          dependencies,
+          objective,
+          calendarParse.command!,
+        );
+        return;
+      }
       final deviceCommunication = PandoraDeviceCommunicationCommand.tryParse(
         objective,
       );
@@ -608,6 +647,54 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         });
       }
     }
+  }
+
+  Future<void> _handleCalendarCommand(
+    PandoraDependencies dependencies,
+    String objective,
+    PandoraCalendarCommand command,
+  ) async {
+    final operationId = _submissionKey ??= _keys.create('pandora-calendar');
+    final intelligence = dependencies.intelligence;
+    PandoraDeviceActivityExecution? activity;
+    if (intelligence != null) {
+      try {
+        activity = await intelligence.startDeviceActivity(
+          requestId: operationId,
+          threadId: _threadId,
+          projectId: _projectContext?.id,
+        );
+        await _watchDeviceActivity(activity);
+      } on PandoraIntelligenceException {
+        activity = null;
+      }
+    }
+
+    final executor = PandoraCalendarActionExecutor(
+      reporter: activity == null || intelligence == null
+          ? null
+          : (fact) => intelligence.recordDeviceActivity(
+                jobId: activity!.jobId,
+                operationId: operationId,
+                capability: fact.capability,
+                stage: fact.stage,
+                observedAt: fact.observedAt,
+              ),
+    );
+    final result = await executor.execute(
+      command,
+      operationId: operationId,
+    );
+    if (!mounted) return;
+    setState(() {
+      _messages.add(_ChatMessage.user(objective));
+      _messages.add(_ChatMessage.pandora(result.reply));
+      _pendingMessage = null;
+      _attachment = null;
+      _imageAttachment = null;
+      _submissionKey = null;
+      _outcomeUnknown = false;
+    });
   }
 
   Future<void> _handleDeviceCommunication(
