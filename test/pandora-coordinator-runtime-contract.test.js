@@ -20,11 +20,8 @@ const canonicalWorkflow = fs.readFileSync(
   "utf8",
 );
 
-test("R-058 runtime enables PASS only through the effective Sheet fence while merge stays externally fenced", () => {
-  assert.match(edge, /const PASS_ENABLED = true;/);
-  assert.match(edge, /PASS_DISABLED_UNTIL_SHEET_FENCE/);
-  assert.match(edge, /MERGE_DISABLED_UNTIL_SHEET_FENCE/);
-  assert.doesNotMatch(edge, /mergePull\s*\(/);
+test("R-058 runtime enables fenced PASS and keeps merge transport external to the minimal GitHub App", () => {
+  assert.match(edge, /const PASS_ENABLED = true;/); assert.match(edge, /PASS_DISABLED_UNTIL_SHEET_FENCE/); assert.match(edge, /action === "claimMerge"/); assert.match(edge, /pandora_coordinator_gate_claim_merge_v2/); assert.match(edge, /action === "completeMerge"/); assert.match(edge, /pandora_coordinator_gate_complete_merge_v2/); assert.match(edge, /action === "abortMerge"/); assert.match(edge, /pandora_coordinator_gate_abort_merge_v2/); assert.match(edge, /MERGE_TRANSPORT_EXTERNAL/); assert.match(edge, /assertMergeReady/); assert.doesNotMatch(edge, /mergePull\s*\(/);
 });
 test("trusted runtime mints only the fixed GitHub App installation token with minimal enabled permissions", () => {
   assert.match(edge, /const INSTALLATION_ID = 158056492;/);

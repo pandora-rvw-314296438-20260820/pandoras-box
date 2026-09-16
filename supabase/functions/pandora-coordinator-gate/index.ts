@@ -4,9 +4,10 @@ import {
   CANONICAL_REPOSITORY,
   INTEGRATION_APP_ID,
   SPREADSHEET_ID,
+  RULE_CONTEXT,
   bindEnvelope,
 } from "./contract.mjs";
-import { expireCheck, publishDecision, revokeCheckForSnapshot } from "./publisher.mjs";
+import { assertLiveIdentity, expireCheck, publishDecision, revokeCheckForSnapshot } from "./publisher.mjs";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -333,6 +334,14 @@ async function handlePublish(admin: ReturnType<typeof adminClient>, internalKey:
     stateMode: begun.mode,
   };
 }
+function assertMergeReady(state: JsonRecord, snapshot: JsonRecord, pull: unknown, mainSha: string, check: unknown) {
+  const checkRow = rec(check);
+  assertLiveIdentity({ pullRequestNumber: state.pull_request_number, headSha: state.head_sha, baseSha: state.base_sha }, pull, mainSha);
+  if (state.decision !== "PASS" || state.provider_status !== "completed" || state.provider_conclusion !== "success" || state.consumed_at !== null || Date.parse(String(state.expires_at || "")) <= Date.now()) throw new Error("MERGE_NOT_AUTHORIZED");
+  if (Number(snapshot.snapshotGeneration) !== Number(state.authoritative_snapshot_generation) || snapshot.snapshotRevision !== state.authoritative_snapshot_revision || snapshot.snapshotSha256 !== state.authoritative_snapshot_sha256) throw new Error("MERGE_SNAPSHOT_MISMATCH");
+  if (checkRow.name !== RULE_CONTEXT || checkRow.head_sha !== state.head_sha || Number(rec(checkRow.app).id) !== INTEGRATION_APP_ID || checkRow.status !== "completed" || checkRow.conclusion !== "success" || Number(checkRow.id) !== Number(state.current_check_run_id)) throw new Error("MERGE_CHECK_MISMATCH");
+}
+
 async function readState(admin: ReturnType<typeof adminClient>, internalKey: string, pullNumber: number) {
   const value = await rpc(admin, "pandora_coordinator_gate_read_state_v1", {
     p_internal_key: internalKey,
@@ -340,6 +349,21 @@ async function readState(admin: ReturnType<typeof adminClient>, internalKey: str
     p_pull_request_number: pullNumber,
   }, "GATE_STATE_READ_FAILED");
   return value ? rec(value) : null;
+}
+async function handleClaimMerge(admin: ReturnType<typeof adminClient>, internalKey: string, body: JsonRecord) {
+  const pullNumber=Number(body.pullRequestNumber); if(!Number.isSafeInteger(pullNumber)||pullNumber<1) throw new Error("INVALID_PULL_REQUEST");
+  const state=await readState(admin,internalKey,pullNumber), snapshot=await readEffectiveSnapshot(admin,internalKey); if(!state||!snapshot) throw new Error("MERGE_STATE_NOT_FOUND");
+  const provider=githubProvider(await githubInstallationToken(admin)), checkRunId=Number(state.current_check_run_id); const [pull,mainSha,check]=await Promise.all([provider.getPull(pullNumber),provider.getMainSha(),provider.getCheck(checkRunId)]); assertMergeReady(state,snapshot,pull,mainSha,check);
+  const claimId=crypto.randomUUID(); const claimed=rec(await rpc(admin,"pandora_coordinator_gate_claim_merge_v2",{p_internal_key:internalKey,p_repository:CANONICAL_REPOSITORY,p_pull_request_number:pullNumber,p_decision_generation:state.current_generation,p_authoritative_snapshot_generation:state.authoritative_snapshot_generation,p_authoritative_snapshot_revision:state.authoritative_snapshot_revision,p_authoritative_snapshot_sha256:state.authoritative_snapshot_sha256,p_envelope_hash:state.envelope_hash,p_idempotency_key:state.idempotency_key,p_decision_nonce:state.decision_nonce,p_check_run_id:checkRunId,p_head_sha:state.head_sha,p_base_sha:state.base_sha,p_claim_id:claimId},"MERGE_CLAIM_FAILED"));
+  const [pull2,main2,check2]=await Promise.all([provider.getPull(pullNumber),provider.getMainSha(),provider.getCheck(checkRunId)]); assertMergeReady(state,snapshot,pull2,main2,check2); return {ok:true,action:"claimMerge",claimId,pullRequestNumber:pullNumber,headSha:state.head_sha,baseSha:state.base_sha,checkRunId,...claimed};
+}
+async function handleCompleteMerge(admin: ReturnType<typeof adminClient>, internalKey: string, body: JsonRecord) {
+  const pullNumber=Number(body.pullRequestNumber), claimId=String(body.claimId||""); if(!Number.isSafeInteger(pullNumber)||pullNumber<1||!claimId) throw new Error("INVALID_MERGE_CLAIM"); const state=await readState(admin,internalKey,pullNumber); if(!state||state.merge_claim_id!==claimId) throw new Error("MERGE_CLAIM_MISMATCH"); const provider=githubProvider(await githubInstallationToken(admin)), pull=rec(await provider.getPull(pullNumber)), mergeSha=String(pull.merge_commit_sha||""), headSha=String(rec(pull.head).sha||"");
+  if(pull.merged!==true||headSha!==state.head_sha||!/^[0-9a-f]{40}$/.test(mergeSha)) throw new Error("MERGE_PROVIDER_READBACK_MISMATCH"); const completed=rec(await rpc(admin,"pandora_coordinator_gate_complete_merge_v2",{p_internal_key:internalKey,p_repository:CANONICAL_REPOSITORY,p_pull_request_number:pullNumber,p_decision_generation:state.current_generation,p_claim_id:claimId,p_merge_sha:mergeSha},"MERGE_COMPLETE_FAILED")); return {ok:true,action:"completeMerge",pullRequestNumber:pullNumber,claimId,mergeSha,...completed};
+}
+async function handleAbortMerge(admin: ReturnType<typeof adminClient>, internalKey: string, body: JsonRecord) {
+  const pullNumber=Number(body.pullRequestNumber), claimId=String(body.claimId||""); if(!Number.isSafeInteger(pullNumber)||pullNumber<1||!claimId) throw new Error("INVALID_MERGE_CLAIM"); const state=await readState(admin,internalKey,pullNumber); if(!state||state.merge_claim_id!==claimId) throw new Error("MERGE_CLAIM_MISMATCH"); const provider=githubProvider(await githubInstallationToken(admin)), checkRunId=Number(state.current_check_run_id), check=rec(await provider.getCheck(checkRunId)); if(Number(check.id)!==checkRunId||check.head_sha!==state.head_sha||Number(rec(check.app).id)!==INTEGRATION_APP_ID) throw new Error("MERGE_ABORT_CHECK_IDENTITY_MISMATCH");
+  const payload={name:RULE_CONTEXT,external_id:check.external_id,status:"completed",conclusion:"action_required",completed_at:new Date().toISOString(),output:{title:"Pandora coordinator HOLD",summary:`Merge claim ${claimId} was aborted before verified completion.`}}; await provider.updateCheck(checkRunId,payload); const readback=rec(await provider.getCheck(checkRunId)); if(readback.status!=="completed"||readback.conclusion!=="action_required"||Number(rec(readback.app).id)!==INTEGRATION_APP_ID) throw new Error("MERGE_ABORT_CHECK_READBACK_MISMATCH"); const aborted=rec(await rpc(admin,"pandora_coordinator_gate_abort_merge_v2",{p_internal_key:internalKey,p_repository:CANONICAL_REPOSITORY,p_pull_request_number:pullNumber,p_decision_generation:state.current_generation,p_claim_id:claimId,p_check_run_id:checkRunId,p_provider_app_id:Number(rec(readback.app).id),p_provider_status:readback.status,p_provider_conclusion:readback.conclusion},"MERGE_ABORT_FAILED")); return {ok:true,action:"abortMerge",pullRequestNumber:pullNumber,claimId,checkRunId,...aborted};
 }
 async function handleExpire(admin: ReturnType<typeof adminClient>, internalKey: string, body: JsonRecord) {
   const pullNumber = Number(body.pullRequestNumber);
@@ -423,9 +447,10 @@ Deno.serve(async (request) => {
         state: publicState(await readState(admin, internalKey, pullNumber)),
       });
     }
-    if (action === "merge") {
-      throw new Error("MERGE_DISABLED_UNTIL_SHEET_FENCE");
-    }
+    if (action === "claimMerge") return reply(200, await handleClaimMerge(admin, internalKey, body));
+    if (action === "completeMerge") return reply(200, await handleCompleteMerge(admin, internalKey, body));
+    if (action === "abortMerge") return reply(200, await handleAbortMerge(admin, internalKey, body));
+    if (action === "merge") throw new Error("MERGE_TRANSPORT_EXTERNAL");
     throw new Error("UNKNOWN_ACTION");
   } catch (error) {
     const code = error instanceof Error ? error.message : "COORDINATOR_GATE_FAILED";
