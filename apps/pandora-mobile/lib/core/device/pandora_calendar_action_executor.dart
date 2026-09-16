@@ -60,15 +60,15 @@ class PandoraCalendarActionExecutor {
     try {
       switch (command.kind) {
         case PandoraCalendarCommandKind.query:
-          return _query(command);
+          return await _query(command);
         case PandoraCalendarCommandKind.create:
-          return _create(command, operationId);
+          return await _create(command, operationId);
         case PandoraCalendarCommandKind.update:
-          return _update(command, operationId);
+          return await _update(command, operationId);
         case PandoraCalendarCommandKind.delete:
-          return _delete(command, operationId);
+          return await _delete(command, operationId);
         case PandoraCalendarCommandKind.reminder:
-          return _reminder(command, operationId);
+          return await _reminder(command, operationId);
       }
     } on PlatformException catch (error) {
       final permission = error.code == 'CALENDAR_PERMISSION_REQUIRED';
@@ -124,9 +124,8 @@ class PandoraCalendarActionExecutor {
       final start = _date(event['startEpochMs']);
       return '${_formatTime(start)} — $title';
     }).join('\n');
-    final suffix = events.length > 6
-        ? '\nAnd ${events.length - 6} more event(s).'
-        : '';
+    final suffix =
+        events.length > 6 ? '\nAnd ${events.length - 6} more event(s).' : '';
     return _finish('calendar.events', 'result', '$lines$suffix');
   }
 
@@ -169,7 +168,8 @@ class PandoraCalendarActionExecutor {
       eventId: _int(event['id']),
       title: _text(event['title'], fallback: command.title ?? 'Event'),
       startEpochMs: newStart.millisecondsSinceEpoch,
-      endEpochMs: newStart.add(oldEnd.difference(oldStart)).millisecondsSinceEpoch,
+      endEpochMs:
+          newStart.add(oldEnd.difference(oldStart)).millisecondsSinceEpoch,
       timeZoneId: _text(
         event['timeZoneId'],
         fallback: _text(permission['deviceTimeZoneId'], fallback: 'UTC'),
@@ -267,7 +267,8 @@ class PandoraCalendarActionExecutor {
   PandoraCalendarExecutionResult? _writePermissionGap(
     Map<String, Object?> permission,
   ) {
-    if (permission['readGranted'] == true && permission['writeGranted'] == true) {
+    if (permission['readGranted'] == true &&
+        permission['writeGranted'] == true) {
       return null;
     }
     return PandoraCalendarExecutionResult(
@@ -294,7 +295,9 @@ class PandoraCalendarActionExecutor {
         ),
       );
     }
-    if (writable.length == 1) return _CalendarSelection.calendar(writable.single);
+    if (writable.length == 1) {
+      return _CalendarSelection.calendar(writable.single);
+    }
     final names = writable
         .take(4)
         .map((row) => _text(row['displayName'], fallback: 'Calendar'))
@@ -322,7 +325,9 @@ class PandoraCalendarActionExecutor {
       }
       if (command.oldMinuteOfDay != null) {
         final start = _date(event['startEpochMs']);
-        if (start.hour * 60 + start.minute != command.oldMinuteOfDay) return false;
+        if (start.hour * 60 + start.minute != command.oldMinuteOfDay) {
+          return false;
+        }
       }
       return true;
     }).toList(growable: false);
@@ -353,7 +358,9 @@ class PandoraCalendarActionExecutor {
     String successState,
     String verb,
   ) async {
-    if (_text(result['state']) != successState) return _failureFromState(result);
+    if (_text(result['state']) != successState) {
+      return _failureFromState(result);
+    }
     final event = _map(result['event']);
     if (event.isEmpty) {
       return _finish(
@@ -365,9 +372,10 @@ class PandoraCalendarActionExecutor {
     final observedAt = _fromEpoch(result['updatedAtEpochMs']);
     await _report('calendar.events', 'verifying', observedAt);
     final title = _text(event['title'], fallback: 'Calendar event');
-    final provider = _text(event['providerKind'], fallback: 'local') == 'connected'
-        ? 'connected calendar'
-        : 'device calendar';
+    final provider =
+        _text(event['providerKind'], fallback: 'local') == 'connected'
+            ? 'connected calendar'
+            : 'device calendar';
     return _finish(
       'calendar.events',
       'result',
