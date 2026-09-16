@@ -29,6 +29,7 @@ function envelope(overrides = {}) {
     ruleContext: "Pandora coordinator / integration",
     integrationAppId: 4785021,
     spreadsheetId: "1nTpPa1IQgbKsStpEcMnkIXiz3nDcgZjm02rZXPrXXk0",
+    authoritativeSnapshotGeneration: 3,
     authoritativeSnapshotRevision: "execution-plan-row-199",
     authoritativeSnapshotSha256: "c".repeat(64),
     criticalHighHoldDispositions: [{
