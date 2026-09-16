@@ -100,3 +100,20 @@ test("D-041 effective Sheet snapshot promotion is fenced across publish, promoti
   assert.match(edge, /promoteSnapshot/);
   assert.match(edge, /revokeCheckForSnapshot/);
 });
+test("R-058 runtime reconciles ambiguous durable writes by exact provider/database readback", () => {
+  assert.match(edge, /GATE_STATE_BEGIN_READBACK_FAILED/);
+  assert.match(edge, /GATE_STATE_RECORD_READBACK_FAILED/);
+  assert.match(edge, /ambiguous_recovered/);
+  assert.match(edge, /SNAPSHOT_EFFECTIVE_REPLAY_MISMATCH/);
+});
+
+test("stuck pre-provider publication can be retired only by exact audited recovery", () => {
+  const recoveryMigration = fs.readFileSync(
+    path.join(root, "supabase/migrations/20260916110444_r058_publication_abort_recovery.sql"),
+    "utf8",
+  );
+  assert.match(recoveryMigration, /pandora_coordinator_gate_abort_publication_v2/);
+  assert.match(recoveryMigration, /current_check_run_id is not null/);
+  assert.match(recoveryMigration, /provider_state='publication_aborted'/);
+  assert.match(recoveryMigration, /fence_state='idle'/);
+});

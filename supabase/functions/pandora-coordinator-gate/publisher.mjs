@@ -78,13 +78,27 @@ async function writeAndRead({ provider, kind, checkRunId, payload, headSha }) {
     return reconciled;
   }
 }
-function assertChain(existing, envelope) {
+async function assertChain(provider, existing, envelope) {
   if (!existing) {
-    if (
-      envelope.decisionGeneration !== 1 ||
-      envelope.priorGeneration !== null ||
-      envelope.priorCheckRunId !== null
-    ) throw new Error("DECISION_CHAIN_MISMATCH");
+    if (envelope.decisionGeneration === 1) {
+      if (envelope.priorGeneration !== null || envelope.priorCheckRunId !== null) {
+        throw new Error("DECISION_CHAIN_MISMATCH");
+      }
+      return null;
+    }
+    if (envelope.priorGeneration !== envelope.decisionGeneration - 1) {
+      throw new Error("DECISION_CHAIN_MISMATCH");
+    }
+    if (envelope.priorCheckRunId === null) {
+      return null;
+    }
+    const prior = asRecord(await provider.getCheck(envelope.priorCheckRunId));
+    const priorMeta = parseCheckExternalId(prior.external_id);
+    if (!priorMeta || prior.id !== envelope.priorCheckRunId ||
+        asRecord(prior.app).id !== INTEGRATION_APP_ID || prior.name !== RULE_CONTEXT ||
+        priorMeta.generation !== envelope.priorGeneration) {
+      throw new Error("DECISION_CHAIN_MISMATCH");
+    }
     return null;
   }
   const row = asRecord(existing);
@@ -113,7 +127,7 @@ async function publishDecision(provider, envelope, now = new Date()) {
   const trusted = trustedChecks(checks, envelope.headSha);
   if (trusted.length > 1) throw new Error("DUPLICATE_TRUSTED_CHECKS");
   const existing = trusted[0] || null;
-  const priorMeta = assertChain(existing, envelope);
+  const priorMeta = await assertChain(provider, existing, envelope);
 
   if (existing && priorMeta.generation === envelope.decisionGeneration) {
     if (

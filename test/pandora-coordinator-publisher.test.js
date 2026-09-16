@@ -195,3 +195,32 @@ test("snapshot promotion revokes a prior PASS with provider readback and idempot
   assert.equal(replay.state, "already_invalid");
   assert.equal(provider.state.writes.length, writesAfterRevoke);
 });
+test("new head can chain to the exact prior App check on the old head", async () => {
+  const provider = providerFixture();
+  const first = await publisher.publishDecision(provider, envelope(), now);
+  const NEW_HEAD = "d".repeat(40);
+  provider.getPull = async (number) => ({
+    number, state: "open", merged: false,
+    head: { sha: NEW_HEAD }, base: { ref: "main", sha: BASE },
+  });
+  const next = envelope({
+    headSha: NEW_HEAD, reviewCandidateSha: NEW_HEAD,
+    decisionGeneration: 2, priorGeneration: 1, priorCheckRunId: first.check.id,
+    decisionNonce: "nonce-generation-0002-cross-head",
+  });
+  const result = await publisher.publishDecision(provider, next, now);
+  assert.equal(result.state, "created");
+  assert.equal(result.check.head_sha, NEW_HEAD);
+  assert.equal(result.check.app.id, 4785021);
+});
+
+test("next generation may proceed after an audited pre-provider abort with no prior check id", async () => {
+  const provider = providerFixture();
+  const next = envelope({
+    decisionGeneration: 2, priorGeneration: 1, priorCheckRunId: null,
+    decisionNonce: "nonce-generation-0002-after-abort",
+  });
+  const result = await publisher.publishDecision(provider, next, now);
+  assert.equal(result.state, "created");
+  assert.equal(result.check.app.id, 4785021);
+});

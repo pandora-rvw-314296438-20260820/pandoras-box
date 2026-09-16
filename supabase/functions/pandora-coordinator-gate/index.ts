@@ -188,24 +188,37 @@ function githubProvider(token: string) {
 }
 
 async function beginDecision(admin: ReturnType<typeof adminClient>, internalKey: string, envelope: JsonRecord, binding: JsonRecord) {
-  return rec(await rpc(admin, "pandora_coordinator_gate_begin_decision_v2", {
-    p_internal_key: internalKey,
-    p_repository: envelope.repository,
-    p_pull_request_number: envelope.pullRequestNumber,
-    p_decision_generation: envelope.decisionGeneration,
-    p_prior_generation: envelope.priorGeneration,
-    p_prior_check_run_id: envelope.priorCheckRunId,
-    p_head_sha: envelope.headSha,
-    p_base_sha: envelope.baseSha,
+  const args = {
+    p_internal_key: internalKey, p_repository: envelope.repository,
+    p_pull_request_number: envelope.pullRequestNumber, p_decision_generation: envelope.decisionGeneration,
+    p_prior_generation: envelope.priorGeneration, p_prior_check_run_id: envelope.priorCheckRunId,
+    p_head_sha: envelope.headSha, p_base_sha: envelope.baseSha,
     p_authoritative_snapshot_generation: envelope.authoritativeSnapshotGeneration,
     p_authoritative_snapshot_revision: envelope.authoritativeSnapshotRevision,
     p_authoritative_snapshot_sha256: envelope.authoritativeSnapshotSha256,
-    p_envelope_hash: binding.envelopeHash,
-    p_idempotency_key: binding.idempotencyKey,
-    p_decision_nonce: envelope.decisionNonce,
-    p_decision: envelope.decision,
-    p_expires_at: envelope.expiresAt,
-  }, "GATE_STATE_BEGIN_FAILED"));
+    p_envelope_hash: binding.envelopeHash, p_idempotency_key: binding.idempotencyKey,
+    p_decision_nonce: envelope.decisionNonce, p_decision: envelope.decision, p_expires_at: envelope.expiresAt,
+  };
+  const result = await admin.rpc("pandora_coordinator_gate_begin_decision_v2", args);
+  if (!result.error) return rec(result.data);
+  const recovered = rec(await rpc(admin, "pandora_coordinator_gate_read_state_v1", {
+    p_internal_key: internalKey, p_repository: envelope.repository,
+    p_pull_request_number: envelope.pullRequestNumber,
+  }, "GATE_STATE_BEGIN_READBACK_FAILED"));
+  const snapshot = await readEffectiveSnapshot(admin, internalKey);
+  const same = recovered.repository === envelope.repository &&
+    recovered.pull_request_number === envelope.pullRequestNumber &&
+    recovered.current_generation === envelope.decisionGeneration &&
+    recovered.head_sha === envelope.headSha && recovered.base_sha === envelope.baseSha &&
+    recovered.authoritative_snapshot_generation === envelope.authoritativeSnapshotGeneration &&
+    recovered.authoritative_snapshot_revision === envelope.authoritativeSnapshotRevision &&
+    recovered.authoritative_snapshot_sha256 === envelope.authoritativeSnapshotSha256 &&
+    recovered.envelope_hash === binding.envelopeHash && recovered.idempotency_key === binding.idempotencyKey &&
+    recovered.decision_nonce === envelope.decisionNonce && recovered.decision === envelope.decision &&
+    recovered.current_check_run_id === null && recovered.provider_status === null && recovered.provider_conclusion === null &&
+    snapshot?.fenceState === "publishing";
+  if (!same) throw new Error("GATE_STATE_BEGIN_FAILED");
+  return { mode: "ambiguous_recovered", decisionId: recovered.current_decision_id, generation: recovered.current_generation };
 }
 async function recordPublish(
   admin: ReturnType<typeof adminClient>,
@@ -215,19 +228,24 @@ async function recordPublish(
   check: JsonRecord,
 ) {
   const appId = Number(rec(check.app).id);
-  return rec(await rpc(admin, "pandora_coordinator_gate_record_publish_v2", {
-    p_internal_key: internalKey,
-    p_repository: envelope.repository,
-    p_pull_request_number: envelope.pullRequestNumber,
-    p_decision_generation: envelope.decisionGeneration,
-    p_authoritative_snapshot_generation: envelope.authoritativeSnapshotGeneration,
-    p_envelope_hash: binding.envelopeHash,
-    p_idempotency_key: binding.idempotencyKey,
-    p_check_run_id: check.id,
-    p_provider_app_id: appId,
-    p_provider_status: check.status,
-    p_provider_conclusion: check.conclusion,
-  }, "GATE_STATE_RECORD_FAILED"));
+  const args = { p_internal_key: internalKey, p_repository: envelope.repository,
+    p_pull_request_number: envelope.pullRequestNumber, p_decision_generation: envelope.decisionGeneration,
+    p_authoritative_snapshot_generation: envelope.authoritativeSnapshotGeneration, p_envelope_hash: binding.envelopeHash,
+    p_idempotency_key: binding.idempotencyKey, p_check_run_id: check.id, p_provider_app_id: appId,
+    p_provider_status: check.status, p_provider_conclusion: check.conclusion };
+  const result = await admin.rpc("pandora_coordinator_gate_record_publish_v2", args);
+  if (!result.error) return rec(result.data);
+  const recovered = rec(await rpc(admin, "pandora_coordinator_gate_read_state_v1", {
+    p_internal_key: internalKey, p_repository: envelope.repository, p_pull_request_number: envelope.pullRequestNumber,
+  }, "GATE_STATE_RECORD_READBACK_FAILED"));
+  const snapshot = await readEffectiveSnapshot(admin, internalKey);
+  const expectedConclusion = envelope.decision === "PASS" ? "success" : "action_required";
+  const same = recovered.current_generation === envelope.decisionGeneration &&
+    recovered.current_check_run_id === check.id && recovered.provider_status === "completed" &&
+    recovered.provider_conclusion === expectedConclusion && recovered.envelope_hash === binding.envelopeHash &&
+    recovered.idempotency_key === binding.idempotencyKey && snapshot?.fenceState === "idle";
+  if (!same) throw new Error("GATE_STATE_RECORD_FAILED");
+  return { ok: true, mode: "ambiguous_recovered", checkRunId: check.id, decision: envelope.decision };
 }
 
 
@@ -289,12 +307,22 @@ async function handleSnapshotPromotion(
       }, "SNAPSHOT_REVOCATION_RECORD_FAILED");
     }
   }
-  const committed = rec(await rpc(admin, "pandora_coordinator_snapshot_commit_v1", {
-    p_internal_key: internalKey,
-    p_repository: CANONICAL_REPOSITORY,
-    p_promotion_id: promotionId,
-  }, "SNAPSHOT_COMMIT_FAILED"));
-  return { ok: true, action: "promoteSnapshot", ...committed };
+  if (prepared.mode === "effective_replay") {
+    const effective = await readEffectiveSnapshot(admin, internalKey);
+    if (!effective || effective.fenceState !== "idle" || effective.snapshotGeneration !== prepared.snapshotGeneration) {
+      throw new Error("SNAPSHOT_EFFECTIVE_REPLAY_MISMATCH");
+    }
+    return { ok: true, action: "promoteSnapshot", mode: "effective_replay", ...effective };
+  }
+  const commitResult = await admin.rpc("pandora_coordinator_snapshot_commit_v1", {
+    p_internal_key: internalKey, p_repository: CANONICAL_REPOSITORY, p_promotion_id: promotionId,
+  });
+  if (!commitResult.error) return { ok: true, action: "promoteSnapshot", ...rec(commitResult.data) };
+  const effective = await readEffectiveSnapshot(admin, internalKey);
+  const recovered = effective?.fenceState === "idle" && effective.snapshotGeneration === prepared.snapshotGeneration &&
+    effective.snapshotRevision === candidateRevision && effective.snapshotSha256 === candidateSha256;
+  if (!recovered) throw new Error("SNAPSHOT_COMMIT_FAILED");
+  return { ok: true, action: "promoteSnapshot", mode: "ambiguous_recovered", ...effective };
 }
 async function handleSnapshotAbort(
   admin: ReturnType<typeof adminClient>, internalKey: string, body: JsonRecord,
