@@ -853,7 +853,6 @@ class _EnterpriseMenu extends StatelessWidget {
     required this.onSelected,
   });
 
-  final bool glass;
   final List<_ChatDestination> destinations;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
