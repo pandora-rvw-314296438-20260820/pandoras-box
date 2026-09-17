@@ -46,6 +46,12 @@ void main() {
       await tester.tap(menu);
       await tester.pumpAndSettle();
       final drawer = find.byType(Drawer);
+      final drawerWidget = tester.widget<Drawer>(drawer);
+      expect(drawerWidget.backgroundColor, Colors.transparent);
+      expect(
+        find.descendant(of: drawer, matching: find.byType(BackdropFilter)),
+        findsOneWidget,
+      );
       for (final title in <String>[
         'Pandora',
         'Projects',
@@ -240,7 +246,7 @@ void main() {
   });
 
   testWidgets(
-      'chat header swaps temporary chat for overflow after the first turn',
+      'chat header keeps floating compose and overflow controls over the chat',
       (tester) async {
     await mount(
       tester,
@@ -250,13 +256,16 @@ void main() {
 
     expect(find.text('Pandora'), findsNothing);
     expect(
-      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
+      find.byKey(const ValueKey<String>('pandora-chat-glass-header')),
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey<String>('pandora-chat-overflow')),
-      findsNothing,
+      find.byKey(const ValueKey<String>('pandora-header-new-chat')),
+      findsOneWidget,
     );
+    final overflow =
+        find.byKey(const ValueKey<String>('pandora-chat-overflow'));
+    expect(overflow, findsOneWidget);
 
     await tester.enterText(
       find.byKey(const ValueKey<String>('ask-pandora-objective')),
@@ -268,19 +277,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
-      findsNothing,
+      find.byKey(const ValueKey<String>('pandora-header-new-chat')),
+      findsOneWidget,
     );
-    final overflow =
-        find.byKey(const ValueKey<String>('pandora-chat-overflow'));
     expect(overflow, findsOneWidget);
 
     await tester.tap(overflow);
     await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey<String>('pandora-chat-menu-new')),
-      findsOneWidget,
-    );
     expect(
       find.byKey(const ValueKey<String>('pandora-chat-menu-search')),
       findsOneWidget,
@@ -291,6 +294,7 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
 }
 
 class _ConversationRepository extends FakeRepository {
