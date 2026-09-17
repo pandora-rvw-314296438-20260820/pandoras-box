@@ -18,10 +18,12 @@ test('Universal Pandora entry never creates a Project just because intelligence 
   );
 });
 
-test('empty Pandora chat prompts universal commands instead of project-only examples', async () => {
+test('empty Pandora chat prompts PLP enterprise commands for branded home', async () => {
   const chat = await readFile(chatPath, 'utf8');
 
-  assert.match(chat, /What can you do for me now\?/);
-  assert.match(chat, /Check my GitHub for failing CI/);
-  assert.match(chat, /What needs my attention\?/);
+  assert.match(chat, /Give me today's PLP Boracay management briefing/);
+  assert.match(chat, /Show me today's and upcoming PLP Boracay bookings/);
+  assert.match(chat, /Analyze PLP Boracay business performance/);
+  assert.match(chat, /I want Pandora to handle a change for PLP Boracay/);
+  assert.match(chat, /PLP Boracay/);
 });
