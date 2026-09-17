@@ -99,17 +99,30 @@ const r040RemainderRemoteHistoryReceiptFiles = new Set(
     .filter((entry) => entry.replayMode === 'history_receipt_noop')
     .map((entry) => `${entry.version}_${entry.name}.sql`),
 );
+const m2HistoryRolloutRemoteHistoryReceiptManifest = JSON.parse(
+  readFileSync(
+    join(repositoryRoot, 'docs', 'status', 'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_M2_008_20260917.json'),
+    'utf8',
+  ),
+);
+const m2HistoryRolloutRemoteHistoryReceiptFiles = new Set(
+  m2HistoryRolloutRemoteHistoryReceiptManifest.entries
+    .filter((entry) => entry.replayMode === 'history_receipt_noop')
+    .map((entry) => `${entry.version}_${entry.name}.sql`),
+);
 const remoteHistoryReceiptManifests = [
   remoteHistoryReceiptManifest,
   supplementalRemoteHistoryReceiptManifest,
   r040RemoteHistoryReceiptManifest,
   r040RemainderRemoteHistoryReceiptManifest,
+  m2HistoryRolloutRemoteHistoryReceiptManifest,
 ];
 const remoteHistoryReceiptFiles = new Set([
   ...legacyRemoteHistoryReceiptFiles,
   ...supplementalRemoteHistoryReceiptFiles,
   ...r040RemoteHistoryReceiptFiles,
   ...r040RemainderRemoteHistoryReceiptFiles,
+  ...m2HistoryRolloutRemoteHistoryReceiptFiles,
 ]);
 
 function sha256(value) {
