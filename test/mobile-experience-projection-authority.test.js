@@ -33,7 +33,9 @@ test('mobile workspace treats Experience Projection as lifecycle authority', () 
   assert.ok(experienceSource.includes('ProjectWorkspaceV2View('));
   assert.ok(experienceSource.includes('canFocus: _projection?.canFocus == true'));
   assert.ok(experienceSource.includes('_projection?.canChange == true'));
-  assert.ok(experienceSource.includes('_projection?.canUndo == true'));
+  assert.ok(experienceSource.includes('projection.canUndo != true'));
+  assert.ok(experienceSource.includes('runtimeCurrent.versionId != current'));
+  assert.ok(experienceSource.includes('projection.productionVersionId == current'));
   assert.ok(experienceSource.includes('projection.canPublish != true'))
   assert.ok(experienceSource.includes('String? get _publishVersionId'))
   assert.ok(experienceSource.includes('projection.currentVerified'));
