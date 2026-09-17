@@ -10,6 +10,8 @@ import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/enterprise/enterprise_code_screen.dart';
+import '../features/enterprise/enterprise_command_bar.dart';
+import '../features/enterprise/enterprise_page_context.dart';
 import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
 import '../features/simple/enterprise_section_screen.dart';
@@ -164,6 +166,14 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   bool _historyLoading = false;
   bool _historyLoaded = false;
   int _index = 0;
+  final EnterprisePageContextController _enterprisePageContext =
+      EnterprisePageContextController();
+
+  @override
+  void dispose() {
+    _enterprisePageContext.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -245,6 +255,10 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         resultClass: screen,
       ),
     );
+    final enterprise = EnterpriseDestinations.byIndex(value);
+    if (enterprise != null) {
+      _enterprisePageContext.updateForDestination(enterprise);
+    }
   }
 
   void _newChat() {
@@ -488,6 +502,20 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Enterprise command-bar submit (P0-001/P0-003). Stays on current route.
+  void _onEnterpriseCommandSubmit(EnterpriseCommandSubmission submission) {
+    // Intentionally no _select(0) / AskPandora navigation (P0-002).
+    // Theatre wiring is out of scope for JOB-ENT-BAR (P0-004/005).
+    unawaited(
+      OwnerAnalytics.shared.capture(
+        OwnerAnalyticsEvent.screenViewed,
+        resultClass: submission.accepted
+            ? 'enterprise_command_accepted'
+            : 'enterprise_command_needs_you',
+      ),
+    );
+  }
+
   Widget _root(int index) => _roots.putIfAbsent(index, () {
         if (index == 16) {
           return const EnterpriseCodeScreen();
@@ -602,6 +630,17 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               ],
             );
 
+            final isEnterprise =
+                EnterpriseDestinations.isEnterpriseIndex(_index);
+            // P0-001/P0-003: persistent bar + page context on Enterprise routes.
+            // Submit must not navigate to AskPandora / full-page chat.
+            final enterpriseBody = EnterpriseCommandHost(
+              controller: _enterprisePageContext,
+              showBar: isEnterprise,
+              onSubmit: _onEnterpriseCommandSubmit,
+              child: body,
+            );
+
             if (constraints.maxWidth >= 900) {
               return Scaffold(
                 backgroundColor: PandoraV2Colors.canvas,
@@ -611,8 +650,10 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                     const VerticalDivider(
                         width: 1, color: PandoraV2Colors.line),
                     Expanded(
-                      child:
-                          PandoraNavigationScope(openDrawer: null, child: body),
+                      child: PandoraNavigationScope(
+                        openDrawer: null,
+                        child: enterpriseBody,
+                      ),
                     ),
                   ],
                 ),
@@ -639,7 +680,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               ),
               body: PandoraNavigationScope(
                 openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
-                child: body,
+                child: enterpriseBody,
               ),
             );
           },
