@@ -686,164 +686,205 @@ class _PandoraSidePanel extends StatelessWidget {
   final ValueChanged<PandoraIntelligenceThread> onOpenThread;
   final ValueChanged<PandoraIntelligenceThread> onManageThread;
 
+  Widget _glassChrome(Widget child) => ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: PandoraV2Colors.canvas.withValues(alpha: .16),
+              border: const Border(
+                bottom: BorderSide(color: Color(0x18FFFFFF)),
+              ),
+            ),
+            child: child,
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) => Material(
-    color: glass ? Colors.transparent : PandoraV2Colors.surface,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 10, 12),
-          child: Row(
-            children: [
-              const PandoraMark(size: 28),
-              const SizedBox(width: 11),
-              const Text(
-                'Pandora',
-                style: TextStyle(
-                  color: PandoraV2Colors.ink,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -.35,
+        color: glass ? Colors.transparent : PandoraV2Colors.surface,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ListView(
+              key: const ValueKey<String>('pandora-side-panel-scroll'),
+              padding: const EdgeInsets.fromLTRB(10, 82, 10, 86),
+              children: [
+                _EnterpriseMenu(
+                  destinations: destinations,
+                  selectedIndex: selectedIndex,
+                  onSelected: onSelected,
                 ),
-              ),
-              const Spacer(),
-              IconButton(
-                key: const ValueKey<String>('pandora-search-chats'),
-                tooltip: 'Search chats',
-                onPressed: onSearchChats,
-                icon: const Icon(Icons.search_rounded, size: 22),
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1, color: PandoraV2Colors.line),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 14),
-            children: [
-              _EnterpriseMenu(
-                destinations: destinations,
-                selectedIndex: selectedIndex,
-                onSelected: onSelected,
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Divider(height: 1, color: PandoraV2Colors.line),
-              ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
-                child: Text(
-                  'Recent chats',
-                  style: TextStyle(
-                    color: PandoraV2Colors.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Divider(height: 1, color: PandoraV2Colors.line),
                 ),
-              ),
-              if (historyLoading && threads.isEmpty)
                 const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Center(
-                    child: SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 1.8),
-                    ),
-                  ),
-                )
-              else if (threads.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(10, 4, 10, 14),
+                  padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
                   child: Text(
-                    'Your conversations will appear here.',
+                    'Recent chats',
                     style: TextStyle(
                       color: PandoraV2Colors.muted,
-                      fontSize: 12.5,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
-                  ),
-                )
-              else
-                for (final thread in threads.take(12))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 2),
-                    child: ListTile(
-                      dense: true,
-                      visualDensity: const VisualDensity(vertical: -2),
-                      key: ValueKey<String>('pandora-thread-${thread.id}'),
-                      title: Text(
-                        thread.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      trailing: IconButton(
-                        tooltip: 'Conversation options',
-                        icon: const Icon(Icons.more_horiz_rounded, size: 19),
-                        onPressed: () => onManageThread(thread),
-                      ),
-                      onTap: () => onOpenThread(thread),
-                    ),
-                  ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Divider(height: 1, color: PandoraV2Colors.line),
-              ),
-              for (final index in const <int>[0, 1, 2, 4, 5, 6, 7, 3])
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: ListTile(
-                    selected: index == selectedIndex,
-                    selectedColor: PandoraV2Colors.ink,
-                    iconColor: PandoraV2Colors.muted,
-                    textColor: PandoraV2Colors.ink,
-                    selectedTileColor: PandoraV2Colors.soft,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    leading: Icon(
-                      index == selectedIndex
-                          ? destinations[index].selectedIcon
-                          : destinations[index].icon,
-                      size: 22,
-                    ),
-                    title: Text(
-                      destinations[index].label,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: index == selectedIndex
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                      ),
-                    ),
-                    onTap: () => onSelected(index),
                   ),
                 ),
-            ],
-          ),
-        ),
-        const Divider(height: 1, color: PandoraV2Colors.line),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
-          child: ListTile(
-            key: const ValueKey<String>('pandora-new-chat'),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+                if (historyLoading && threads.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Center(
+                      child: SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 1.8),
+                      ),
+                    ),
+                  )
+                else if (threads.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(10, 4, 10, 14),
+                    child: Text(
+                      'Your conversations will appear here.',
+                      style: TextStyle(
+                        color: PandoraV2Colors.muted,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  )
+                else
+                  for (final thread in threads.take(12))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: ListTile(
+                        dense: true,
+                        visualDensity: const VisualDensity(vertical: -2),
+                        key: ValueKey<String>('pandora-thread-${thread.id}'),
+                        title: Text(
+                          thread.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        trailing: IconButton(
+                          tooltip: 'Conversation options',
+                          icon: const Icon(Icons.more_horiz_rounded, size: 19),
+                          onPressed: () => onManageThread(thread),
+                        ),
+                        onTap: () => onOpenThread(thread),
+                      ),
+                    ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Divider(height: 1, color: PandoraV2Colors.line),
+                ),
+                for (final index in const <int>[0, 1, 2, 4, 5, 6, 7, 3])
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: ListTile(
+                      selected: index == selectedIndex,
+                      selectedColor: PandoraV2Colors.ink,
+                      iconColor: PandoraV2Colors.muted,
+                      textColor: PandoraV2Colors.ink,
+                      selectedTileColor: PandoraV2Colors.soft,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      leading: Icon(
+                        index == selectedIndex
+                            ? destinations[index].selectedIcon
+                            : destinations[index].icon,
+                        size: 22,
+                      ),
+                      title: Text(
+                        destinations[index].label,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: index == selectedIndex
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
+                      ),
+                      onTap: () => onSelected(index),
+                    ),
+                  ),
+              ],
             ),
-            leading: const Icon(Icons.edit_square, size: 21),
-            title: const Text(
-              'New chat',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Align(
+              alignment: Alignment.topCenter,
+              child: _glassChrome(
+                SizedBox(
+                  key: const ValueKey<String>('pandora-side-panel-glass-header'),
+                  height: 72,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 10, 6),
+                    child: Row(
+                      children: [
+                        const PandoraMark(size: 28),
+                        const SizedBox(width: 11),
+                        const Text(
+                          'Pandora',
+                          style: TextStyle(
+                            color: PandoraV2Colors.ink,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -.35,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          key: const ValueKey<String>('pandora-search-chats'),
+                          tooltip: 'Search chats',
+                          onPressed: onSearchChats,
+                          icon: const Icon(Icons.search_rounded, size: 22),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
-            onTap: onNewChat,
-          ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: PandoraV2Colors.canvas.withValues(alpha: .16),
+                      border: const Border(
+                        top: BorderSide(color: Color(0x18FFFFFF)),
+                      ),
+                    ),
+                    child: SizedBox(
+                      key: const ValueKey<String>('pandora-side-panel-glass-footer'),
+                      height: 76,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+                        child: ListTile(
+                          key: const ValueKey<String>('pandora-new-chat'),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          leading: const Icon(Icons.edit_square, size: 21),
+                          title: const Text(
+                            'New chat',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          onTap: onNewChat,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class _EnterpriseMenu extends StatelessWidget {
