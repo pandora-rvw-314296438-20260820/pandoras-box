@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/data/domain_registrar_api.dart';
+import '../core/data/pandora_activity_history_api.dart';
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/data/pandora_repository.dart';
 import '../core/data/project_experience_api.dart';
@@ -21,6 +22,7 @@ class PandoraApp extends StatefulWidget {
     required this.auth,
     required this.repository,
     required this.diagnostics,
+    this.activityHistory,
     this.localStore,
     this.intelligence,
     this.projectRuntime,
@@ -32,6 +34,7 @@ class PandoraApp extends StatefulWidget {
 
   final PandoraAuth auth;
   final PandoraRepository repository;
+  final PandoraActivityHistorySource? activityHistory;
   final PandoraIntelligenceApi? intelligence;
   final ProjectRuntimeApi? projectRuntime;
   final ProjectExperienceApi? projectExperience;
@@ -58,6 +61,7 @@ class _PandoraAppState extends State<PandoraApp> {
   Widget build(BuildContext context) => PandoraDependencies(
         auth: widget.auth,
         repository: widget.repository,
+        activityHistory: widget.activityHistory,
         intelligence: widget.intelligence,
         projectRuntime: widget.projectRuntime,
         projectExperience: widget.projectExperience,

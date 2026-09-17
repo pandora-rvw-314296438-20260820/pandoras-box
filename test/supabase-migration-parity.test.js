@@ -1,4 +1,4 @@
-const assert = require('node:assert/strict');
+﻿const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const { existsSync, readFileSync, readdirSync } = require('node:fs');
 const { basename, join } = require('node:path');
@@ -68,6 +68,17 @@ const r040RemoteHistoryReceiptManifest = JSON.parse(
     'utf8',
   ),
 );
+const r040RemainderRemoteHistoryReceiptManifest = JSON.parse(
+  readFileSync(
+    join(
+      repositoryRoot,
+      'docs',
+      'status',
+      'SUPABASE_REMOTE_MIGRATION_HISTORY_PARITY_REMAINDER_20260915.json',
+    ),
+    'utf8',
+  ),
+);
 const legacyRemoteHistoryReceiptFiles = new Set(
   remoteHistoryReceiptManifest.entries.map(
     (entry) => `${entry.version}_${entry.name}.sql`,
@@ -83,15 +94,22 @@ const r040RemoteHistoryReceiptFiles = new Set(
     (entry) => `${entry.version}_${entry.name}.sql`,
   ),
 );
+const r040RemainderRemoteHistoryReceiptFiles = new Set(
+  r040RemainderRemoteHistoryReceiptManifest.entries
+    .filter((entry) => entry.replayMode === 'history_receipt_noop')
+    .map((entry) => `${entry.version}_${entry.name}.sql`),
+);
 const remoteHistoryReceiptManifests = [
   remoteHistoryReceiptManifest,
   supplementalRemoteHistoryReceiptManifest,
   r040RemoteHistoryReceiptManifest,
+  r040RemainderRemoteHistoryReceiptManifest,
 ];
 const remoteHistoryReceiptFiles = new Set([
   ...legacyRemoteHistoryReceiptFiles,
   ...supplementalRemoteHistoryReceiptFiles,
   ...r040RemoteHistoryReceiptFiles,
+  ...r040RemainderRemoteHistoryReceiptFiles,
 ]);
 
 function sha256(value) {
@@ -269,6 +287,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260909042500_projectos_ruleset_protection_reconciliation_v1.sql',
     '20260909070800_pandora_base44_publish_rollout_gate_v1.sql',
     '20260909093400_pandora_preview_not_live_projection_v1.sql',
+    '20260910051901_revoke_anon_dangerous_table_grants_20260910.sql',
     '20260910075705_pandora_theatre_preexecution_primitive_truth_v1.sql',
     '20260910081625_pandora_worker_e_catalog_trust_bootstrap_v1.sql',
     '20260910103000_pandora_stream_event_impact_classified_v1.sql',
@@ -311,11 +330,14 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260914100000_pandora_activity_realtime_transport_v1.sql',
     '20260915001000_pandora_activity_controls_v1.sql',
     '20260915013000_pandora_activity_recovery_v1.sql',
+    '20260915104500_pandora_activity_history_v1.sql',
     '20260916102000_m4_018_calendar_device_activity_v1.sql',
 '20260916103635_r058_trusted_coordinator_gate.sql',
     '20260916103837_r058_effective_sheet_snapshot_fence.sql',
   '20260916110444_r058_publication_abort_recovery.sql',
-    '20260917005239_pandora_rdp_github_sync_transport_v1.sql'
+    '20260916222609_pandora_enterprise_github_read_broker_v1.sql',
+    '20260917002859_pandora_coordinator_gate_internal_invoker_v1.sql',
+    '20260917005239_pandora_rdp_github_sync_transport_v1.sql',
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -549,6 +571,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260909042500_projectos_ruleset_protection_reconciliation_v1.sql',
     '20260909070800_pandora_base44_publish_rollout_gate_v1.sql',
     '20260909093400_pandora_preview_not_live_projection_v1.sql',
+    '20260910051901_revoke_anon_dangerous_table_grants_20260910.sql',
     '20260910075705_pandora_theatre_preexecution_primitive_truth_v1.sql',
     '20260910081625_pandora_worker_e_catalog_trust_bootstrap_v1.sql',
     '20260910103000_pandora_stream_event_impact_classified_v1.sql',
@@ -591,11 +614,14 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260914100000_pandora_activity_realtime_transport_v1.sql',
     '20260915001000_pandora_activity_controls_v1.sql',
     '20260915013000_pandora_activity_recovery_v1.sql',
+    '20260915104500_pandora_activity_history_v1.sql',
     '20260916102000_m4_018_calendar_device_activity_v1.sql',
 '20260916103635_r058_trusted_coordinator_gate.sql',
     '20260916103837_r058_effective_sheet_snapshot_fence.sql',
   '20260916110444_r058_publication_abort_recovery.sql',
-    '20260917005239_pandora_rdp_github_sync_transport_v1.sql'
+    '20260916222609_pandora_enterprise_github_read_broker_v1.sql',
+    '20260917002859_pandora_coordinator_gate_internal_invoker_v1.sql',
+    '20260917005239_pandora_rdp_github_sync_transport_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -781,6 +807,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260909042500_projectos_ruleset_protection_reconciliation_v1.sql',
     '20260909070800_pandora_base44_publish_rollout_gate_v1.sql',
     '20260909093400_pandora_preview_not_live_projection_v1.sql',
+    '20260910051901_revoke_anon_dangerous_table_grants_20260910.sql',
     '20260910075705_pandora_theatre_preexecution_primitive_truth_v1.sql',
     '20260910081625_pandora_worker_e_catalog_trust_bootstrap_v1.sql',
     '20260910103000_pandora_stream_event_impact_classified_v1.sql',
@@ -823,11 +850,14 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260914100000_pandora_activity_realtime_transport_v1.sql',
     '20260915001000_pandora_activity_controls_v1.sql',
     '20260915013000_pandora_activity_recovery_v1.sql',
+    '20260915104500_pandora_activity_history_v1.sql',
     '20260916102000_m4_018_calendar_device_activity_v1.sql',
 '20260916103635_r058_trusted_coordinator_gate.sql',
     '20260916103837_r058_effective_sheet_snapshot_fence.sql',
   '20260916110444_r058_publication_abort_recovery.sql',
-    '20260917005239_pandora_rdp_github_sync_transport_v1.sql'
+    '20260916222609_pandora_enterprise_github_read_broker_v1.sql',
+    '20260917002859_pandora_coordinator_gate_internal_invoker_v1.sql',
+    '20260917005239_pandora_rdp_github_sync_transport_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
