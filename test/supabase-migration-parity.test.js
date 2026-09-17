@@ -1,4 +1,4 @@
-const assert = require('node:assert/strict');
+﻿const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const { existsSync, readFileSync, readdirSync } = require('node:fs');
 const { basename, join } = require('node:path');
@@ -336,6 +336,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   '20260916110444_r058_publication_abort_recovery.sql',
     '20260916222609_pandora_enterprise_github_read_broker_v1.sql',
     '20260917002859_pandora_coordinator_gate_internal_invoker_v1.sql',
+    '20260917005239_pandora_rdp_github_sync_transport_v1.sql',
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -618,6 +619,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   '20260916110444_r058_publication_abort_recovery.sql',
     '20260916222609_pandora_enterprise_github_read_broker_v1.sql',
     '20260917002859_pandora_coordinator_gate_internal_invoker_v1.sql',
+    '20260917005239_pandora_rdp_github_sync_transport_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -852,6 +854,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
   '20260916110444_r058_publication_abort_recovery.sql',
     '20260916222609_pandora_enterprise_github_read_broker_v1.sql',
     '20260917002859_pandora_coordinator_gate_internal_invoker_v1.sql',
+    '20260917005239_pandora_rdp_github_sync_transport_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
