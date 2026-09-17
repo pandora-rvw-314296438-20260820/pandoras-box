@@ -25,6 +25,14 @@ import 'pandora_dependencies.dart';
 class PandoraChatShell extends StatefulWidget {
   const PandoraChatShell({super.key});
 
+  /// Phone-layout drawer scrim opacity (WAVE1 P0-009 / A10).
+  /// Material-standard black54; WAVE1 lock rejects alpha `.02` as insufficient.
+  static const double drawerScrimAlpha = 0.54;
+
+  /// Canonical drawer scrim color — keep tests asserting this, not a magic alpha.
+  static Color get drawerScrimColor =>
+      Colors.black.withValues(alpha: drawerScrimAlpha);
+
   @override
   State<PandoraChatShell> createState() => _PandoraChatShellState();
 }
@@ -663,7 +671,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
             return Scaffold(
               key: _scaffoldKey,
               backgroundColor: PandoraV2Colors.canvas,
-              drawerScrimColor: Colors.black.withValues(alpha: .02),
+              drawerScrimColor: PandoraChatShell.drawerScrimColor,
               onDrawerChanged: (open) {
                 if (open) unawaited(_refreshHistory());
               },
