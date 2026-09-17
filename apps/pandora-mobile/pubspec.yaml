@@ -22,3 +22,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/brand/pandora-product-mark-ui-1024.png
+    - assets/enterprise/plp_logo.webp
+    - assets/enterprise/plp_hero_dusk.webp

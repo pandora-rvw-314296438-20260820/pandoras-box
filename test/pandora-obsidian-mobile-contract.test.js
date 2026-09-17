@@ -43,3 +43,14 @@ test('latest Obsidian navigation hierarchy stays conversation-first and centered
   assert.match(navigation, /keyboard_arrow_down_rounded/);
   assert.match(navigation, /showPandoraChevron/);
 });
+
+
+test('PLP Enterprise home is property-branded and owner-first', () => {
+  assert.match(chat, /assets\/enterprise\/plp_hero_dusk\.webp/);
+  assert.match(chat, /assets\/enterprise\/plp_logo\.webp/);
+  assert.match(chat, /PLP Boracay/);
+  assert.match(chat, /Doctora/);
+  assert.match(chat, /Today’s briefing/);
+  assert.match(chat, /Business performance/);
+  assert.match(chat, /Ask about PLP, make a change, or let Pandora handle it\./);
+});
