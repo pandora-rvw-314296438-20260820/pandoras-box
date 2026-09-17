@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/design/pandora_tokens.dart';
 import '../simple/pandora_v2_ui.dart';
+import 'enterprise_inline_theatre.dart';
 import 'enterprise_page_context.dart';
 
 /// Persistent bottom Pandora command bar for Enterprise routes (P0-001).
@@ -24,12 +25,14 @@ class EnterpriseCommandBar extends StatefulWidget {
   final bool enabled;
 
   static const accessibleName = 'Ask Pandora on this page';
-  static const composerKey =
-      ValueKey<String>('enterprise-command-bar-composer');
+  static const composerKey = ValueKey<String>(
+    'enterprise-command-bar-composer',
+  );
   static const sendKey = ValueKey<String>('enterprise-command-bar-send');
   static const barKey = ValueKey<String>('enterprise-command-bar');
-  static const needsYouKey =
-      ValueKey<String>('enterprise-command-bar-needs-you');
+  static const needsYouKey = ValueKey<String>(
+    'enterprise-command-bar-needs-you',
+  );
 
   /// Reserved height for content inset above the bar (composer row + padding).
   static const double reservedContentInset = 72;
@@ -180,13 +183,15 @@ class _EnterpriseCommandBarState extends State<EnterpriseCommandBar> {
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
-                            borderSide:
-                                const BorderSide(color: PandoraV2Colors.line),
+                            borderSide: const BorderSide(
+                              color: PandoraV2Colors.line,
+                            ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
-                            borderSide:
-                                const BorderSide(color: PandoraV2Colors.line),
+                            borderSide: const BorderSide(
+                              color: PandoraV2Colors.line,
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
@@ -240,16 +245,19 @@ class _EnterpriseCommandBarState extends State<EnterpriseCommandBar> {
   }
 }
 
-/// Hosts page content above the persistent Enterprise command bar.
+/// Hosts page content above the persistent Enterprise command stack.
 ///
-/// Idle: bar only (no theatre chrome). Content scrolls in [child] above the bar.
-class EnterpriseCommandHost extends StatelessWidget {
+/// Bottom stack (page stays mounted): page content → inline Activity Theatre →
+/// command bar. Idle = theatre fully hidden; only the bar is visible
+/// (P0-001 / P0-004).
+class EnterpriseCommandHost extends StatefulWidget {
   const EnterpriseCommandHost({
     super.key,
     required this.controller,
     required this.child,
     this.showBar = true,
     this.onSubmit,
+    this.theatreController,
   });
 
   final EnterprisePageContextController controller;
@@ -257,26 +265,68 @@ class EnterpriseCommandHost extends StatelessWidget {
   final bool showBar;
   final ValueChanged<EnterpriseCommandSubmission>? onSubmit;
 
+  /// Optional external theatre controller. When null, the host owns one so the
+  /// mount point stays available without idle a11y chrome.
+  final EnterpriseInlineTheatreController? theatreController;
+
+  @override
+  State<EnterpriseCommandHost> createState() => _EnterpriseCommandHostState();
+}
+
+class _EnterpriseCommandHostState extends State<EnterpriseCommandHost> {
+  EnterpriseInlineTheatreController? _ownedTheatre;
+
+  EnterpriseInlineTheatreController get _theatre {
+    final external = widget.theatreController;
+    if (external != null) return external;
+    return _ownedTheatre ??= EnterpriseInlineTheatreController();
+  }
+
+  @override
+  void dispose() {
+    _ownedTheatre?.dispose();
+    super.dispose();
+  }
+
+  void _handleSubmit(EnterpriseCommandSubmission submission) {
+    widget.onSubmit?.call(submission);
+    // P0-003/P0-006: incomplete identity → Theatre Needs You (exact scope named).
+    if (!submission.accepted && submission.needsYouReason != null) {
+      _theatre.admitIdentityNeedsYou(
+        reason: submission.needsYouReason!,
+        identityScope: submission.envelope.identityScope,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hosted = showBar
+    final theatre = _theatre;
+    final hosted = widget.showBar
         ? Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: child),
+              Expanded(child: widget.child),
               SafeArea(
                 top: false,
-                child: EnterpriseCommandBar(
-                  controller: controller,
-                  onSubmit: onSubmit,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    EnterpriseInlineTheatre(controller: theatre),
+                    EnterpriseCommandBar(
+                      controller: widget.controller,
+                      onSubmit: _handleSubmit,
+                    ),
+                  ],
                 ),
               ),
             ],
           )
-        : child;
+        : widget.child;
 
     return EnterprisePageContextScope(
-      controller: controller,
+      controller: widget.controller,
       child: hosted,
     );
   }

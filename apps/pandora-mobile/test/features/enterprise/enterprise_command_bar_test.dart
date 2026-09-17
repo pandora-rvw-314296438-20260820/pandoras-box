@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/features/enterprise/enterprise_command_bar.dart';
+import 'package:pandora_mobile/features/enterprise/enterprise_inline_theatre.dart';
 import 'package:pandora_mobile/features/enterprise/enterprise_page_context.dart';
 
 import '../../helpers/test_app.dart';
 
 void main() {
-  testWidgets('command bar mounts for every Enterprise destination surface',
-      (tester) async {
+  testWidgets('command bar mounts for every Enterprise destination surface', (
+    tester,
+  ) async {
     await setTestSurface(tester, logicalSize: const Size(390, 844));
     final controller = EnterprisePageContextController();
 
@@ -48,16 +50,18 @@ void main() {
     );
     await tester.pump();
 
-    final composer =
-        tester.getSize(find.byKey(EnterpriseCommandBar.composerKey));
+    final composer = tester.getSize(
+      find.byKey(EnterpriseCommandBar.composerKey),
+    );
     final send = tester.getSize(find.byKey(EnterpriseCommandBar.sendKey));
     expect(composer.height, greaterThanOrEqualTo(44));
     expect(send.height, greaterThanOrEqualTo(44));
     expect(send.width, greaterThanOrEqualTo(44));
   });
 
-  testWidgets('submit attaches envelope and does not push AskPandora route',
-      (tester) async {
+  testWidgets('submit attaches envelope and does not push AskPandora route', (
+    tester,
+  ) async {
     await setTestSurface(tester, logicalSize: const Size(390, 844));
     final controller = EnterprisePageContextController();
     controller.updateForDestination(EnterpriseDestinations.byIndex(8)!);
@@ -83,9 +87,7 @@ void main() {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       settings: const RouteSettings(name: '/ask-pandora'),
-                      builder: (_) => const Scaffold(
-                        body: Text('AskPandora'),
-                      ),
+                      builder: (_) => const Scaffold(body: Text('AskPandora')),
                     ),
                   );
                 },
@@ -119,37 +121,42 @@ void main() {
     expect(find.text('probe-nav'), findsOneWidget);
   });
 
-  testWidgets('incomplete identity shows Needs You stub without inventing role',
-      (tester) async {
-    await setTestSurface(tester, logicalSize: const Size(390, 844));
-    final controller = EnterprisePageContextController();
-    controller.updateForDestination(EnterpriseDestinations.byIndex(11)!);
+  testWidgets(
+    'incomplete identity shows Needs You stub without inventing role',
+    (tester) async {
+      await setTestSurface(tester, logicalSize: const Size(390, 844));
+      final controller = EnterprisePageContextController();
+      controller.updateForDestination(EnterpriseDestinations.byIndex(11)!);
 
-    await tester.pumpWidget(
-      testApp(
-        child: EnterpriseCommandHost(
-          controller: controller,
-          child: const SizedBox.expand(),
+      await tester.pumpWidget(
+        testApp(
+          child: EnterpriseCommandHost(
+            controller: controller,
+            child: const SizedBox.expand(),
+          ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    await tester.enterText(
-      find.byKey(EnterpriseCommandBar.composerKey),
-      'Show analytics',
-    );
-    await tester.tap(find.byKey(EnterpriseCommandBar.sendKey));
-    await tester.pump();
+      await tester.enterText(
+        find.byKey(EnterpriseCommandBar.composerKey),
+        'Show analytics',
+      );
+      await tester.tap(find.byKey(EnterpriseCommandBar.sendKey));
+      await tester.pump();
 
-    expect(find.byKey(EnterpriseCommandBar.needsYouKey), findsOneWidget);
-    expect(find.textContaining('Needs You'), findsOneWidget);
-    expect(controller.envelope.actorRole, isNull);
-    expect(controller.lastSubmission?.accepted, isFalse);
-  });
+      expect(find.byKey(EnterpriseCommandBar.needsYouKey), findsOneWidget);
+      // Theatre + bar both surface Needs You for incomplete identity (P0-003/P0-006).
+      expect(find.textContaining('Needs You'), findsWidgets);
+      expect(find.byKey(EnterpriseInlineTheatre.theatreKey), findsOneWidget);
+      expect(controller.envelope.actorRole, isNull);
+      expect(controller.lastSubmission?.accepted, isFalse);
+    },
+  );
 
-  testWidgets('idle host shows bar only (no empty theatre chrome)',
-      (tester) async {
+  testWidgets('idle host shows bar only (no empty theatre chrome)', (
+    tester,
+  ) async {
     await setTestSurface(tester, logicalSize: const Size(390, 844));
     final controller = EnterprisePageContextController();
     await tester.pumpWidget(
@@ -164,6 +171,7 @@ void main() {
 
     expect(find.byKey(EnterpriseCommandBar.barKey), findsOneWidget);
     expect(find.byKey(EnterpriseCommandBar.needsYouKey), findsNothing);
+    expect(find.byKey(EnterpriseInlineTheatre.theatreKey), findsNothing);
     expect(find.text('Thinking'), findsNothing);
     expect(find.text('Analyzing'), findsNothing);
     expect(find.text('page-body'), findsOneWidget);

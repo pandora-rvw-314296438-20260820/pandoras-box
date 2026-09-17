@@ -505,7 +505,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   /// Enterprise command-bar submit (P0-001/P0-003). Stays on current route.
   void _onEnterpriseCommandSubmit(EnterpriseCommandSubmission submission) {
     // Intentionally no _select(0) / AskPandora navigation (P0-002).
-    // Theatre wiring is out of scope for JOB-ENT-BAR (P0-004/005).
+    // Inline Activity Theatre mounts in EnterpriseCommandHost (P0-004/P0-006).
     unawaited(
       OwnerAnalytics.shared.capture(
         OwnerAnalyticsEvent.screenViewed,
