@@ -94,6 +94,8 @@ test('Undo is exact-parent application restore and refuses implicit production r
   assert.match(undo, /source_sha256/);
   assert.match(undo, /artifact_digest/);
   assert.match(undo, /source_commit/);
+  assert.match(undo, /pandora_apply_application_undo_v2/);
+  assert.doesNotMatch(undo, /update\(\{ lifecycle_status: "rolled_back" \}\)/);
 });
 
 test('application restore, production rollback, and database recovery remain separate governed meanings', () => {

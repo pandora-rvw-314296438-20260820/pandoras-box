@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
+import 'package:pandora_mobile/core/activity/pandora_activity_projection.dart';
+import 'package:pandora_mobile/core/data/pandora_activity_history_api.dart';
 import 'package:pandora_mobile/core/data/pandora_repository.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/models/pandora_models.dart';
@@ -181,6 +183,130 @@ class _VisualCase {
   final TextScaler textScaler;
   final bool failing;
   final bool pending;
+}
+
+class _FixtureActivityHistorySource implements PandoraActivityHistorySource {
+  @override
+  Future<PandoraActivityHistoryPage> search(
+    PandoraActivityHistoryQuery query,
+  ) async {
+    // History shows absolute event time in this reviewed golden. Keep this
+    // synthetic fixture clock fixed so CI wall-clock time cannot move pixels.
+    final now = DateTime.utc(2026, 9, 15, 12, 52);
+    PandoraActivityHistoryRecord item({
+      required String eventId,
+      required String jobId,
+      required int sequence,
+      required PandoraActivityState state,
+      required String message,
+      required String sourceType,
+      required String sourceId,
+      required DateTime occurredAt,
+      List<PandoraActivityEvidenceRef> evidence = const [],
+      PandoraActivityBlocker? blocker,
+      PandoraActivityOutcome? outcome,
+    }) =>
+        PandoraActivityHistoryRecord(
+          organizationId: 'org-pandora',
+          organizationName: 'Pandora',
+          requestedBy: 'owner-1',
+          requestedByName: 'Owner',
+          threadId: 'thread-history-1',
+          projectId: 'project-pandora',
+          activity: PandoraActivityProjection(
+            eventId: eventId,
+            jobId: jobId,
+            sequence: sequence,
+            state: state,
+            message: message,
+            occurredAt: occurredAt,
+            admittedAt: occurredAt.add(const Duration(seconds: 1)),
+            domain: sourceType == 'device' ? 'device' : 'chat',
+            capability: sourceType == 'device'
+                ? 'device.communication'
+                : 'intelligence.chat',
+            executionId: 'exec-$jobId',
+            source: PandoraActivitySource(
+              sourceType: sourceType,
+              sourceId: sourceId,
+              sourceEventId: 'source-$eventId',
+              observedAt: occurredAt,
+            ),
+            evidenceRefs: evidence,
+            blocker: blocker,
+            outcome: outcome,
+          ),
+        );
+
+    return PandoraActivityHistoryPage(
+      items: <PandoraActivityHistoryRecord>[
+        item(
+          eventId: 'event-history-result-001',
+          jobId: 'job-history-chat-001',
+          sequence: 4,
+          state: PandoraActivityState.result,
+          message: 'Verified the requested result.',
+          sourceType: 'runtime',
+          sourceId: 'pandora-runtime',
+          occurredAt: now.subtract(const Duration(minutes: 2)),
+          evidence: const <PandoraActivityEvidenceRef>[
+            PandoraActivityEvidenceRef(
+              type: 'verification_receipt',
+              relation: 'verification',
+              ref: 'verification:history-result-001',
+            ),
+          ],
+          outcome: const PandoraActivityOutcome(
+            summary: 'Result verified from canonical runtime evidence.',
+            physicalDevice: false,
+          ),
+        ),
+        item(
+          eventId: 'event-history-needs-you-001',
+          jobId: 'job-history-provider-001',
+          sequence: 2,
+          state: PandoraActivityState.needsYou,
+          message: 'Account reconnection is required.',
+          sourceType: 'provider',
+          sourceId: 'provider-connection',
+          occurredAt: now.subtract(const Duration(minutes: 8)),
+          evidence: const <PandoraActivityEvidenceRef>[
+            PandoraActivityEvidenceRef(
+              type: 'policy_decision',
+              relation: 'policy',
+              ref: 'policy:account-reconnect-001',
+            ),
+          ],
+          blocker: const PandoraActivityBlocker(
+            reasonCode: 'account_connection_or_reauthentication_required',
+            reason: 'The provider session is no longer usable.',
+            requiredAction: 'Reconnect the account.',
+            approvalRequired: false,
+            policyRef: 'policy:account-reconnect-001',
+          ),
+        ),
+        item(
+          eventId: 'event-history-device-001',
+          jobId: 'job-history-device-001',
+          sequence: 1,
+          state: PandoraActivityState.checking,
+          message: 'Checked device communication readiness.',
+          sourceType: 'device',
+          sourceId: 'android-device-agent',
+          occurredAt: now.subtract(const Duration(minutes: 15)),
+          evidence: const <PandoraActivityEvidenceRef>[
+            PandoraActivityEvidenceRef(
+              type: 'device_event',
+              relation: 'source',
+              ref: 'device:communication-readiness-001',
+            ),
+          ],
+        ),
+      ],
+      hasMore: false,
+      retentionBoundary: 'canonical_event_retention',
+    );
+  }
 }
 
 class _FixtureRepository implements PandoraRepository {
@@ -370,6 +496,7 @@ Future<void> _captureScreen(WidgetTester tester, _VisualCase visual) async {
       PandoraDependencies(
         auth: const FakeAuth(),
         repository: repository,
+        activityHistory: _FixtureActivityHistorySource(),
         diagnostics: DiagnosticsStore(),
         child: testApp(
           themeMode: visual.themeMode,

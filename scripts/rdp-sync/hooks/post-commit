@@ -1,0 +1,27 @@
+#!/bin/sh
+set -u
+branch="$(git branch --show-current 2>/dev/null || true)"
+case "$branch" in
+  chatgpt/*|repair/*|fix/*|enterprise-ui*) mode="validated" ;;
+  recovery/*) mode="recovery" ;;
+  *) exit 0 ;;
+esac
+repo="$(pwd)"
+gitdir="$(git rev-parse --git-dir 2>/dev/null || true)"
+marker="$gitdir/PANDORA_SYNC_FAILED"
+if [ "$mode" = "validated" ]; then
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:/Pandora/tools/pandora-rdp-fast-local-gate.ps1 -Repo "$repo"
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    printf '%s\n' "Pandora fast local gate failed for $branch. Publication is blocked until the checkpoint is repaired." > "$marker"
+    exit "$rc"
+  fi
+fi
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:/Pandora/tools/pandora-rdp-sync-client.ps1 -Action publish-head -Repo "$repo"
+rc=$?
+if [ "$rc" -eq 0 ]; then
+  rm -f "$marker"
+  exit 0
+fi
+printf '%s\n' "Pandora canonical sync failed for $branch. Further commits are blocked until this checkpoint is repaired." > "$marker"
+exit "$rc"
