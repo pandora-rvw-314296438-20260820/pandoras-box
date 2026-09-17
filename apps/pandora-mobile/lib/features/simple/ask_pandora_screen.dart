@@ -891,6 +891,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
             Align(
               alignment: Alignment.topCenter,
               child: _ChatHeader(
+                active: _threadId != null ||
+                    _messages.isNotEmpty ||
+                    _pendingMessage != null,
                 onNewChat: newChat,
                 onSearchChats: widget.onSearchChats,
                 onMore: widget.onMore,
@@ -905,11 +908,13 @@ enum _ChatOverflowAction { searchChats, more }
 
 class _ChatHeader extends StatelessWidget {
   const _ChatHeader({
+    required this.active,
     required this.onNewChat,
     this.onSearchChats,
     this.onMore,
   });
 
+  final bool active;
   final VoidCallback onNewChat;
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
@@ -973,10 +978,19 @@ class _ChatHeader extends StatelessWidget {
                       SizedBox.square(
                         dimension: 48,
                         child: IconButton(
-                          key: const ValueKey<String>('pandora-header-new-chat'),
-                          tooltip: 'New chat',
+                          key: ValueKey<String>(
+                            active
+                                ? 'pandora-header-new-chat'
+                                : 'pandora-temporary-chat',
+                          ),
+                          tooltip: active ? 'New chat' : 'Temporary chat',
                           onPressed: onNewChat,
-                          icon: const Icon(Icons.edit_square, size: 23),
+                          icon: Icon(
+                            active
+                                ? Icons.edit_square
+                                : Icons.history_toggle_off_rounded,
+                            size: 23,
+                          ),
                           color: PandoraSimpleColors.ink,
                         ),
                       ),
