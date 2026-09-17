@@ -1,0 +1,14 @@
+diff --git a/test/web-publish-truth-v2.test.js b/test/web-publish-truth-v2.test.js
+index b92b9ffa..e3656ec4 100644
+--- a/test/web-publish-truth-v2.test.js
++++ b/test/web-publish-truth-v2.test.js
+@@ -17,7 +17,8 @@ test('web publish truth is projection driven and never equates provider return w
+   assert.match(workspace, /label: 'Working'/);
+   assert.match(workspace, /mutationPhase === 'checking' \|\| item\.mutationPhase === 'publishing'/);
+   assert.doesNotMatch(workspace, /label: 'Publishing'/);
+-  assert.doesNotMatch(workspace, /label: 'Checking'/);
++  assert.match(workspace, /item\.mutationKind === 'publish'[\s\S]*?return \{ label: 'Working', kind: 'neutral' \};/);
++  assert.match(workspace, /item\.mutationKind === 'undo' && item\.mutationPhase === 'checking'[\s\S]*?return \{ label: 'Checking', kind: 'neutral' \};/);
+   assert.match(app, /item\.mutationPhase = kind === 'publish' \? 'publishing' : 'working'/);
+   assert.match(app, /item\.mutationPhase = 'checking'/);
+   assert.match(app, /waitForPublishResolution/);

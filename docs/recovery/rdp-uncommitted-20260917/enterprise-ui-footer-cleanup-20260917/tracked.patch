@@ -1,0 +1,40 @@
+diff --git a/apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart b/apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
+index f483e2a1..2bbee951 100644
+--- a/apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
++++ b/apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart
+@@ -40,11 +40,7 @@ class AskPandoraScreen extends StatefulWidget {
+ }
+ 
+ class AskPandoraScreenState extends State<AskPandoraScreen> {
+-  static const _suggestions = <String>[
+-    'What can you do for me now?',
+-    'Check my GitHub for failing CI',
+-    'What needs my attention?',
+-  ];
++  static const _suggestions = <String>[];
+ 
+   final TextEditingController _objective = TextEditingController();
+   final FocusNode _objectiveFocus = FocusNode();
+@@ -1035,7 +1031,7 @@ class _EmptyConversation extends StatelessWidget {
+                     ),
+                   ),
+                 ),
+-                const SizedBox(height: 30),
++                SizedBox(height: suggestions.isEmpty ? 0 : 30),
+                 ConstrainedBox(
+                   constraints: const BoxConstraints(maxWidth: 320),
+                   child: Column(
+@@ -1690,13 +1686,6 @@ class _Composer extends StatelessWidget {
+                   ),
+                 ),
+               ),
+-              const SizedBox(height: 6),
+-              const Text(
+-                'Pandora can make mistakes. Review important changes before publishing.',
+-                textAlign: TextAlign.center,
+-                style:
+-                    TextStyle(color: PandoraSimpleColors.muted, fontSize: 10.5),
+-              ),
+             ],
+           ),
+         ),

@@ -1,0 +1,9 @@
+from pathlib import Path
+p=Path(r'C:\Pandora\w1-r058-trusted-coordinator-20260916\supabase\functions\pandora-coordinator-gate\publisher.mjs')
+s=p.read_text(encoding='utf-8')
+marker='\nexport { assertLiveIdentity, expireCheck, publishDecision, trustedChecks };\n'
+block='''\nasync function revokeCheckForSnapshot(provider, checkRunId, headSha, promotionId, now = new Date()) {\n  const check = await readExact(provider, checkRunId);\n  const row = asRecord(check);\n  if (row.name !== RULE_CONTEXT || row.head_sha !== headSha) throw new Error("CHECK_REVOCATION_IDENTITY_MISMATCH");\n  if (!parseCheckExternalId(row.external_id)) throw new Error("TRUSTED_CHECK_METADATA_INVALID");\n  if (row.status === "completed" && row.conclusion !== "success") return { state: "already_invalid", check };\n  const payload = {\n    name: RULE_CONTEXT, external_id: row.external_id, status: "completed", conclusion: "action_required",\n    completed_at: now.toISOString(),\n    output: {\n      title: "Pandora coordinator HOLD",\n      summary: `Authoritative Sheet snapshot promotion ${promotionId} revoked this decision before the new snapshot became effective.`,\n    },\n  };\n  const updated = await writeAndRead({ provider, kind: "update", checkRunId, payload, headSha });\n  const result = asRecord(updated);\n  if (result.status !== "completed" || result.conclusion !== "action_required" ||\n      asRecord(result.app).id !== INTEGRATION_APP_ID || result.head_sha !== headSha) {\n    throw new Error("CHECK_REVOCATION_READBACK_MISMATCH");\n  }\n  return { state: "revoked", check: updated };\n}\n'''
+if 'async function revokeCheckForSnapshot' not in s:
+    s=s.replace(marker,block+marker.replace('publishDecision, trustedChecks','publishDecision, revokeCheckForSnapshot, trustedChecks'))
+p.write_text(s,encoding='utf-8')
+print('patched publisher')

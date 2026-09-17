@@ -1,0 +1,12 @@
+from pathlib import Path
+p=Path(r'C:\Pandora\w1-r058-trusted-coordinator-20260916\supabase\functions\pandora-coordinator-gate\index.ts')
+s=p.read_text(encoding='utf-8')
+s=s.replace('  INTEGRATION_APP_ID,\n  bindEnvelope,', '  INTEGRATION_APP_ID,\n  SPREADSHEET_ID,\n  bindEnvelope,')
+s=s.replace('import { expireCheck, publishDecision } from "./publisher.mjs";', 'import { expireCheck, publishDecision, revokeCheckForSnapshot } from "./publisher.mjs";')
+s=s.replace('"pandora_coordinator_gate_begin_decision_v1"', '"pandora_coordinator_gate_begin_decision_v2"', 1)
+s=s.replace('    p_base_sha: envelope.baseSha,\n    p_authoritative_snapshot_revision:', '    p_base_sha: envelope.baseSha,\n    p_authoritative_snapshot_generation: envelope.authoritativeSnapshotGeneration,\n    p_authoritative_snapshot_revision:', 1)
+s=s.replace('"pandora_coordinator_gate_record_publish_v1"', '"pandora_coordinator_gate_record_publish_v2"', 1)
+s=s.replace('    p_decision_generation: envelope.decisionGeneration,\n    p_envelope_hash:', '    p_decision_generation: envelope.decisionGeneration,\n    p_authoritative_snapshot_generation: envelope.authoritativeSnapshotGeneration,\n    p_envelope_hash:', 1)
+s=s.replace('    snapshotRevision: state.authoritative_snapshot_revision,', '    snapshotGeneration: state.authoritative_snapshot_generation,\n    snapshotRevision: state.authoritative_snapshot_revision,')
+p.write_text(s,encoding='utf-8')
+print('patched index v2 wiring')
