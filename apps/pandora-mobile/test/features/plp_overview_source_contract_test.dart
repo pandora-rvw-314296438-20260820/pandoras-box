@@ -6,9 +6,10 @@ void main() {
   late String source;
 
   setUpAll(() {
-    source = File(
-      'lib/features/simple/plp_overview_screen.dart',
-    ).readAsStringSync();
+    source = <String>[
+      File('lib/features/simple/plp_overview_screen.dart').readAsStringSync(),
+      File('lib/core/data/plp_overview_repository.dart').readAsStringSync(),
+    ].join('\n');
   });
 
   test('PLP owner overview never reads engineering audit telemetry', () {

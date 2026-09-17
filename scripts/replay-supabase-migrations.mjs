@@ -130,6 +130,30 @@ async function bootstrap(db) {
 
     create schema if not exists auth;
 
+
+    -- PLP runtime is provider-managed rather than migration-managed. Replay
+    -- supplies only the columns read by the Enterprise projection migration so
+    -- production migration bytes stay unchanged while clean-room replay remains valid.
+    create schema if not exists plp_runtime;
+    create table if not exists plp_runtime.plp_accommodations (
+      id uuid primary key default gen_random_uuid(), is_active boolean not null default true
+    );
+    create table if not exists plp_runtime.plp_bookings (
+      id uuid primary key default gen_random_uuid(), accommodation_id uuid,
+      check_in date, check_out date, status text not null default 'pending'
+    );
+    create table if not exists plp_runtime.plp_payments (
+      id uuid primary key default gen_random_uuid(), amount_php numeric(14,2),
+      status text not null default 'pending', paid_at timestamptz, created_at timestamptz not null default now()
+    );
+    create table if not exists plp_runtime.plp_staff_tasks (
+      id uuid primary key default gen_random_uuid(), status text not null default 'open',
+      completed_at timestamptz, updated_at timestamptz not null default now()
+    );
+    create table if not exists plp_runtime.plp_ota_conflicts (
+      id uuid primary key default gen_random_uuid(), status text not null default 'open'
+    );
+
     -- PGlite replay compatibility for Supabase Storage. Production migrations
     -- remain byte-for-byte unchanged; this stub models only the bucket metadata
     -- used by the inactive recovery fixture.

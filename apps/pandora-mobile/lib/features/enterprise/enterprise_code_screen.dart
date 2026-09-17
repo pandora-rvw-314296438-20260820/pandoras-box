@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
+import '../../core/data/enterprise_code_api.dart';
 import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/pandora_surface.dart';
-import '../../pandora_config.dart';
 import '../simple/pandora_v2_ui.dart';
 
 class EnterpriseCodeScreen extends StatefulWidget {
@@ -32,25 +30,11 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
     String action, {
     String? deploymentId,
   }) async {
-    final url = _repositoryController.text.trim();
-    final response = await Supabase.instance.client.functions.invoke(
-      'pandora-github-analyze-repair-20260830',
-      method: HttpMethod.post,
-      headers: <String, String>{
-        'x-organization-id': PandoraConfig.organizationId,
-      },
-      body: <String, Object?>{
-        'action': action,
-        if (action != 'status') 'repositoryUrl': url,
-        if (deploymentId != null) 'deploymentId': deploymentId,
-      },
+    final payload = await const EnterpriseCodeApi().invoke(
+      action,
+      repositoryUrl: _repositoryController.text.trim(),
+      deploymentId: deploymentId,
     );
-    final data = response.data;
-    if (data is! Map) {
-      throw const FormatException(
-          'Pandora returned an invalid repository response.');
-    }
-    final payload = Map<String, dynamic>.from(data);
     if (payload['ok'] != true) {
       throw StateError(_friendlyError('${payload['code'] ?? 'UNKNOWN_ERROR'}'));
     }

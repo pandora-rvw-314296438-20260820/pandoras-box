@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
+import '../../core/data/plp_overview_repository.dart';
 import '../../core/widgets/pandora_page.dart';
-import '../../pandora_config.dart';
 import 'ask_pandora_screen.dart';
 import 'pandora_v2_ui.dart';
 
@@ -16,7 +14,7 @@ class PlpOverviewScreen extends StatefulWidget {
 }
 
 class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
-  late Future<_PlpOverviewData> _data;
+  late Future<PlpOverviewData> _data;
 
   @override
   void initState() {
@@ -30,74 +28,14 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     await next;
   }
 
-  Future<_PlpOverviewData> _load() async {
-    final client = Supabase.instance.client;
-    Map<String, dynamic>? overview;
-    List<Map<String, dynamic>> sources = const [];
-    List<Map<String, dynamic>> attention = const [];
-    List<Map<String, dynamic>> activity = const [];
-
-    try {
-      overview = await client
-          .from('enterprise_property_overview_v1')
-          .select()
-          .eq('organization_id', PandoraConfig.organizationId)
-          .eq('slug', 'plp-boracay')
-          .maybeSingle();
-    } catch (_) {
-      overview = null;
-    }
-
-    final propertyId = '${overview?['property_id'] ?? ''}';
-    if (propertyId.isNotEmpty) {
-      try {
-        final rows = await client
-            .from('enterprise_source_connections')
-            .select(
-                'source_type,display_name,status,last_success_at,customer_message')
-            .eq('property_id', propertyId)
-            .order('display_name');
-        sources = rows.map((e) => Map<String, dynamic>.from(e)).toList();
-      } catch (_) {}
-
-      try {
-        final rows = await client
-            .from('enterprise_attention_items')
-            .select(
-                'id,priority,category,title,summary,action_prompt,status,occurred_at,due_at')
-            .eq('property_id', propertyId)
-            .inFilter('status', const ['open', 'acknowledged'])
-            .order('occurred_at', ascending: false)
-            .limit(6);
-        attention = rows.map((e) => Map<String, dynamic>.from(e)).toList();
-      } catch (_) {}
-
-      try {
-        final rows = await client
-            .from('enterprise_business_activity')
-            .select('id,activity_key,category,title,summary,occurred_at')
-            .eq('property_id', propertyId)
-            .order('occurred_at', ascending: false)
-            .limit(6);
-        activity = rows.map((e) => Map<String, dynamic>.from(e)).toList();
-      } catch (_) {}
-    }
-
-    return _PlpOverviewData(
-      overview: overview,
-      sources: sources,
-      attention: attention,
-      activity: activity,
-      refreshedAt: DateTime.now(),
-    );
-  }
+  Future<PlpOverviewData> _load() => const PlpOverviewRepository().load();
 
   @override
   Widget build(BuildContext context) => PandoraPage(
         title: 'Overview',
         subtitle: 'Your property at a glance.',
         onRefresh: _refresh,
-        child: FutureBuilder<_PlpOverviewData>(
+        child: FutureBuilder<PlpOverviewData>(
           future: _data,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting &&
@@ -129,7 +67,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
           ],
         ),
       );
-  Widget _content(_PlpOverviewData data) {
+  Widget _content(PlpOverviewData data) {
     final overview = data.overview;
     if (overview == null) {
       return _panel(
@@ -184,7 +122,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     );
   }
 
-  Widget _hero(_PlpOverviewData data, bool connected) {
+  Widget _hero(PlpOverviewData data, bool connected) {
     final overview = data.overview!;
     final asOf = _date(overview['as_of']);
     return _panel(
@@ -232,7 +170,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     );
   }
 
-  Widget _connectionState(_PlpOverviewData data) {
+  Widget _connectionState(PlpOverviewData data) {
     final total = data.sources.length;
     final healthy = data.sources.where((e) => e['status'] == 'healthy').length;
     return _panel(
@@ -256,7 +194,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     );
   }
 
-  Widget _metrics(_PlpOverviewData data) {
+  Widget _metrics(PlpOverviewData data) {
     final o = data.overview!;
     final metrics = <_Metric>[
       _Metric('Occupancy', _percent(o['occupancy_percent']), Icons.bed_rounded),
@@ -322,7 +260,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
         ),
       );
 
-  Widget _insight(_PlpOverviewData data) {
+  Widget _insight(PlpOverviewData data) {
     final o = data.overview!;
     final arrivals = _int(o['arrivals_today']);
     final notReady = _int(o['rooms_not_ready']);
@@ -362,7 +300,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     );
   }
 
-  Widget _attention(_PlpOverviewData data, bool connected) => _panel(
+  Widget _attention(PlpOverviewData data, bool connected) => _panel(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -434,7 +372,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     );
   }
 
-  Widget _handled(_PlpOverviewData data, bool connected) => _panel(
+  Widget _handled(PlpOverviewData data, bool connected) => _panel(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -489,7 +427,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     );
   }
 
-  Widget _dataCoverage(_PlpOverviewData data) => _panel(
+  Widget _dataCoverage(PlpOverviewData data) => _panel(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -734,22 +672,6 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     if (delta.inDays == 1) return 'yesterday';
     return '${delta.inDays} days ago';
   }
-}
-
-class _PlpOverviewData {
-  const _PlpOverviewData({
-    required this.overview,
-    required this.sources,
-    required this.attention,
-    required this.activity,
-    required this.refreshedAt,
-  });
-
-  final Map<String, dynamic>? overview;
-  final List<Map<String, dynamic>> sources;
-  final List<Map<String, dynamic>> attention;
-  final List<Map<String, dynamic>> activity;
-  final DateTime refreshedAt;
 }
 
 class _Metric {
