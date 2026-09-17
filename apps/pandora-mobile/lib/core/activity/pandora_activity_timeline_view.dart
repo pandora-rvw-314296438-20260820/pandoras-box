@@ -19,8 +19,7 @@ class PandoraActivityTimelineView extends StatelessWidget {
     if (events.isEmpty) return const SizedBox.shrink();
     final latest = events.last;
     final requiredAction = latest.blocker?.requiredAction;
-    final terminal =
-        latest.state == PandoraActivityState.result ||
+    final terminal = latest.state == PandoraActivityState.result ||
         latest.state == PandoraActivityState.failed ||
         latest.state == PandoraActivityState.cancelled;
     final palette = context.pandoraPalette;
@@ -31,13 +30,14 @@ class PandoraActivityTimelineView extends StatelessWidget {
       PandoraActivityState.needsYou ||
       PandoraActivityState.retrying ||
       PandoraActivityState.fallback ||
-      PandoraActivityState.paused => palette.attention,
+      PandoraActivityState.paused =>
+        palette.attention,
       _ => muted,
     };
     final semanticText = requiredAction == null
         ? 'Activity Theatre. ${activityStateLabel(latest.state)}. ${latest.message}'
         : 'Activity Theatre. ${activityStateLabel(latest.state)}. '
-              '${latest.message}. Required action: $requiredAction';
+            '${latest.message}. Required action: $requiredAction';
 
     return Semantics(
       container: true,
@@ -58,8 +58,8 @@ class PandoraActivityTimelineView extends StatelessWidget {
                     latest.state == PandoraActivityState.result
                         ? Icons.check_rounded
                         : latest.state == PandoraActivityState.cancelled
-                        ? Icons.stop_rounded
-                        : Icons.error_outline_rounded,
+                            ? Icons.stop_rounded
+                            : Icons.error_outline_rounded,
                     size: 16,
                     color: statusColor,
                   )
@@ -100,17 +100,17 @@ class PandoraActivityTimelineView extends StatelessWidget {
 }
 
 String activityStateLabel(PandoraActivityState state) => switch (state) {
-  PandoraActivityState.understanding => 'Understanding',
-  PandoraActivityState.planning => 'Planning',
-  PandoraActivityState.acting => 'Working',
-  PandoraActivityState.checking => 'Checking',
-  PandoraActivityState.needsYou => 'Needs You',
-  PandoraActivityState.retrying => 'Retrying',
-  PandoraActivityState.fallback => 'Switching approach',
-  PandoraActivityState.verifying => 'Verifying',
-  PandoraActivityState.paused => 'Paused',
-  PandoraActivityState.resuming => 'Resuming',
-  PandoraActivityState.result => 'Done',
-  PandoraActivityState.failed => 'Problem',
-  PandoraActivityState.cancelled => 'Cancelled',
-};
+      PandoraActivityState.understanding => 'Understanding',
+      PandoraActivityState.planning => 'Planning',
+      PandoraActivityState.acting => 'Working',
+      PandoraActivityState.checking => 'Checking',
+      PandoraActivityState.needsYou => 'Needs You',
+      PandoraActivityState.retrying => 'Retrying',
+      PandoraActivityState.fallback => 'Switching approach',
+      PandoraActivityState.verifying => 'Verifying',
+      PandoraActivityState.paused => 'Paused',
+      PandoraActivityState.resuming => 'Resuming',
+      PandoraActivityState.result => 'Done',
+      PandoraActivityState.failed => 'Problem',
+      PandoraActivityState.cancelled => 'Cancelled',
+    };
