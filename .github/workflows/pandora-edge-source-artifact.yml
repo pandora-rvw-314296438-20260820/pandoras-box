@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Prove exact clean checkout
@@ -32,7 +32,30 @@ jobs:
             supabase/functions/pandora-project-spec-compiler/index.ts \
             > edge-source-sha256.txt
 
+      - name: Detect Edge source changes
+        id: edge_changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git cat-file -e "$BASE_SHA^{commit}"
+          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- \
+            supabase/functions/pandora-project-runtime/index.ts \
+            supabase/functions/pandora-project-source-generator/index.ts \
+            supabase/functions/pandora-project-spec-compiler/index.ts; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload exact Edge sources
+        if: steps.edge_changes.outputs.changed == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: pandora-edge-source-${{ github.event.pull_request.head.sha || github.sha }}
