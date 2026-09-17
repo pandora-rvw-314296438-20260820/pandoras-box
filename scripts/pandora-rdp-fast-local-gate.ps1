@@ -24,6 +24,16 @@ $supabase = @($changed | Where-Object { $_ -like 'supabase/*' -or $_ -like 'scri
 $node = @($changed | Where-Object { $_ -like 'src/*' -or $_ -like 'packages/*' -or $_ -like 'test/*' -or $_ -like 'workers/*' -or $_ -eq 'package.json' -or $_ -eq 'package-lock.json' -or $_ -like 'tsconfig*' })
 
 if ($mobile.Count -gt 0) {
+  $changedDart = @($changed | Where-Object { $_ -like 'apps/pandora-mobile/*.dart' } | ForEach-Object { $_.Substring('apps/pandora-mobile/'.Length) })
+  Push-Location (Join-Path $Repo 'apps/pandora-mobile')
+  try {
+    if ($changedDart.Count -gt 0) {
+      & dart format --output=none --set-exit-if-changed @changedDart
+      if ($LASTEXITCODE -ne 0) { throw 'dart format gate failed' }
+    }
+  } finally {
+    Pop-Location
+  }
   Push-Location (Join-Path $Repo 'apps/pandora-mobile')
   try {
     & flutter analyze
