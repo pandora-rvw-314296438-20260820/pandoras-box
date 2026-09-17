@@ -17,8 +17,8 @@ test('web publish truth is projection driven and never equates provider return w
   assert.match(workspace, /label: 'Working'/);
   assert.match(workspace, /mutationPhase === 'checking' \|\| item\.mutationPhase === 'publishing'/);
   assert.doesNotMatch(workspace, /label: 'Publishing'/);
-  assert.match(workspace, /item\\.mutationKind === 'publish'[\\s\\S]*?return \\{ label: 'Working', kind: 'neutral' \\};/);
-  assert.match(workspace, /item\\.mutationKind === 'undo' && item\\.mutationPhase === 'checking'[\\s\\S]*?return \\{ label: 'Checking', kind: 'neutral' \\};/);
+  assert.match(workspace, /item\.mutationKind === 'publish'[\s\S]*?return \{ label: 'Working', kind: 'neutral' \};/);
+  assert.match(workspace, /item\.mutationKind === 'undo' && item\.mutationPhase === 'checking'[\s\S]*?return \{ label: 'Checking', kind: 'neutral' \};/);
   assert.match(app, /item\.mutationPhase = kind === 'publish' \? 'publishing' : 'working'/);
   assert.match(app, /item\.mutationPhase = 'checking'/);
   assert.match(app, /waitForPublishResolution/);
