@@ -1,0 +1,77 @@
+name: Pandora artifact retention
+
+on:
+  push:
+    branches:
+      - main
+  workflow_run:
+    workflows:
+      - Pandora mobile exact-source gate
+    types:
+      - completed
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: pandora-artifact-retention
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    name: Prune expired validation artifacts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      MAX_DELETIONS: '250'
+    steps:
+      - name: Delete only expired or superseded Web validation artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          main_sha="$(gh api "repos/${repo}/git/ref/heads/main" --jq '.object.sha')"
+          [[ "$main_sha" =~ ^[0-9a-f]{40}$ ]]
+
+          inventory="${RUNNER_TEMP}/pandora-artifacts.tsv"
+          gh api --paginate "repos/${repo}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | [.id,.name,.expired,.size_in_bytes,.created_at,(.workflow_run.head_sha // "")] | @tsv' \
+            > "$inventory"
+
+          deleted=0
+          reclaimed=0
+          while IFS=$'\t' read -r id name expired size created_at head_sha; do
+            [[ "$id" =~ ^[1-9][0-9]*$ ]] || continue
+            [[ "$size" =~ ^[0-9]+$ ]] || continue
+
+            delete=false
+            reason=''
+            if [[ "$expired" == 'true' ]]; then
+              delete=true
+              reason='expired'
+            elif [[ "$name" == 'pandora-mobile-web-validation' && "$head_sha" != "$main_sha" ]]; then
+              delete=true
+              reason='superseded-web-validation'
+            fi
+
+            if [[ "$delete" != 'true' ]]; then
+              continue
+            fi
+            if (( deleted >= MAX_DELETIONS )); then
+              echo "Deletion cap reached: ${MAX_DELETIONS}"
+              break
+            fi
+
+            echo "Deleting artifact id=${id} name=${name} size=${size} reason=${reason} created=${created_at}"
+            gh api -X DELETE "repos/${repo}/actions/artifacts/${id}"
+            deleted=$((deleted + 1))
+            reclaimed=$((reclaimed + size))
+          done < "$inventory"
+
+          echo "Deleted ${deleted} artifacts; requested reclaimed bytes=${reclaimed}."
