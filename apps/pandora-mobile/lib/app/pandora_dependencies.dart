@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 
 import '../core/data/domain_registrar_api.dart';
-import '../core/data/pandora_activity_history_api.dart';
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/data/pandora_repository.dart';
 import '../core/data/project_experience_api.dart';
@@ -9,6 +8,7 @@ import '../core/data/project_experience_projection_repository.dart';
 import '../core/data/project_experience_repository.dart';
 import '../core/data/project_runtime_api.dart';
 import '../core/diagnostics/diagnostics_store.dart';
+import '../core/local/pandora_local_store.dart';
 import '../core/security/pandora_auth.dart';
 
 class PandoraDependencies extends InheritedWidget {
@@ -17,7 +17,7 @@ class PandoraDependencies extends InheritedWidget {
     required this.auth,
     required this.repository,
     required this.diagnostics,
-    this.activityHistory,
+    this.localStore,
     this.intelligence,
     this.projectRuntime,
     this.projectExperience,
@@ -29,7 +29,6 @@ class PandoraDependencies extends InheritedWidget {
 
   final PandoraAuth auth;
   final PandoraRepository repository;
-  final PandoraActivityHistorySource? activityHistory;
   final PandoraIntelligenceApi? intelligence;
   final ProjectRuntimeApi? projectRuntime;
   final ProjectExperienceApi? projectExperience;
@@ -37,6 +36,7 @@ class PandoraDependencies extends InheritedWidget {
   final ProjectExperienceRepository? projectExperienceRepository;
   final DomainRegistrarApi? domainRegistrar;
   final DiagnosticsStore diagnostics;
+  final PandoraLocalStore? localStore;
 
   static PandoraDependencies of(BuildContext context) {
     final result =
@@ -49,12 +49,12 @@ class PandoraDependencies extends InheritedWidget {
   bool updateShouldNotify(PandoraDependencies oldWidget) =>
       auth != oldWidget.auth ||
       repository != oldWidget.repository ||
-      activityHistory != oldWidget.activityHistory ||
       intelligence != oldWidget.intelligence ||
       projectRuntime != oldWidget.projectRuntime ||
       projectExperience != oldWidget.projectExperience ||
       projectExperienceProjection != oldWidget.projectExperienceProjection ||
       projectExperienceRepository != oldWidget.projectExperienceRepository ||
       domainRegistrar != oldWidget.domainRegistrar ||
+      localStore != oldWidget.localStore ||
       diagnostics != oldWidget.diagnostics;
 }

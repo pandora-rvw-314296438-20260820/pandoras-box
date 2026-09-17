@@ -153,6 +153,56 @@ class PandoraIntelligenceApi {
     }
   }
 
+  Future<PandoraDeviceActivityExecution> startDeviceActivity({
+    required String requestId,
+    String? threadId,
+    String? projectId,
+  }) async {
+    _requireSession();
+    final activity = PandoraActivityStreamApi(
+      client: _client,
+      organizationId: _organizationId,
+    );
+    try {
+      final jobId = await activity.beginJob(
+        requestId: requestId,
+        threadId: threadId,
+        projectId: projectId,
+      );
+      return PandoraDeviceActivityExecution(
+        jobId: jobId,
+        events: activity.watchJob(jobId),
+      );
+    } on PandoraActivityStreamException catch (error) {
+      throw PandoraIntelligenceException(error.message);
+    }
+  }
+
+  Future<void> recordDeviceActivity({
+    required String jobId,
+    required String operationId,
+    required String capability,
+    required String stage,
+    required DateTime observedAt,
+  }) async {
+    _requireSession();
+    final activity = PandoraActivityStreamApi(
+      client: _client,
+      organizationId: _organizationId,
+    );
+    try {
+      await activity.recordDeviceFact(
+        jobId: jobId,
+        operationId: operationId,
+        capability: capability,
+        stage: stage,
+        observedAt: observedAt,
+      );
+    } on PandoraActivityStreamException catch (error) {
+      throw PandoraIntelligenceException(error.message);
+    }
+  }
+
   Future<PandoraIntelligenceExecution> startChatExecution({
     required String message,
     required String requestId,
@@ -610,6 +660,16 @@ class PandoraIntelligenceMessage {
         content: _requiredText(json['content']),
         createdAt: _date(json['created_at']),
       );
+}
+
+class PandoraDeviceActivityExecution {
+  const PandoraDeviceActivityExecution({
+    required this.jobId,
+    required this.events,
+  });
+
+  final String jobId;
+  final Stream<Map<String, dynamic>> events;
 }
 
 class PandoraIntelligenceExecution {

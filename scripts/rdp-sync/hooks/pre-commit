@@ -1,0 +1,10 @@
+#!/bin/sh
+set -u
+gitdir="$(git rev-parse --git-dir 2>/dev/null || true)"
+marker="$gitdir/PANDORA_SYNC_FAILED"
+if [ -f "$marker" ]; then
+  cat "$marker" >&2
+  printf '%s\n' 'Repair/publish the previous checkpoint before creating another commit.' >&2
+  exit 1
+fi
+exit 0

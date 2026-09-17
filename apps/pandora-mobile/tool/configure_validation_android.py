@@ -11,6 +11,7 @@ from pathlib import Path
 
 _GENERATED_LABEL = 'android:label="pandora_mobile"'
 _VALIDATION_LABEL = 'android:label="Pandora"'
+_BACKUP_ATTRIBUTE = 'android:allowBackup="false"'
 _GENERATED_ICON = 'android:icon="@mipmap/ic_launcher"'
 _PANDORA_ICON = 'android:icon="@drawable/pandora_launcher_icon"'
 _MANIFEST_OPEN = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
@@ -18,6 +19,15 @@ _INTERNET_PERMISSION_NAME = 'android.permission.INTERNET'
 _INTERNET_PERMISSION = '<uses-permission android:name="android.permission.INTERNET"/>'
 _NETWORK_PERMISSION_NAME = 'android.permission.ACCESS_NETWORK_STATE'
 _NETWORK_PERMISSION = '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>'
+_M4_018_PERMISSIONS = (
+    ("android.permission.READ_CALENDAR", '<uses-permission android:name="android.permission.READ_CALENDAR"/>'),
+    ("android.permission.WRITE_CALENDAR", '<uses-permission android:name="android.permission.WRITE_CALENDAR"/>'),
+    ("android.permission.POST_NOTIFICATIONS", '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>'),
+    ("android.permission.SCHEDULE_EXACT_ALARM", '<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>'),
+)
+_REMINDER_RECEIVER_NAME = '.PandoraLocalReminderReceiver'
+_REMINDER_RECEIVER = '        <receiver android:name=".PandoraLocalReminderReceiver" android:exported="false"/>'
+_APPLICATION_CLOSE = '    </application>'
 _HOME_CATEGORY = 'android.intent.category.HOME'
 _DEFAULT_CATEGORY = 'android.intent.category.DEFAULT'
 _LAUNCHER_CATEGORY = 'android.intent.category.LAUNCHER'
@@ -106,6 +116,12 @@ def configure_manifest(manifest: Path) -> int:
             file=sys.stderr,
         )
         return 1
+    if 'android:allowBackup=' in text:
+        print(
+            'Generated Android manifest already declares backup policy; refusing an ambiguous local-state mutation.',
+            file=sys.stderr,
+        )
+        return 1
 
     internet_mentions = text.count(_INTERNET_PERMISSION_NAME)
     if internet_mentions > 1:
@@ -139,6 +155,27 @@ def configure_manifest(manifest: Path) -> int:
         )
         return 1
 
+    for permission_name, permission_xml in _M4_018_PERMISSIONS:
+        mentions = text.count(permission_name)
+        if mentions > 1:
+            print(
+                f'Expected at most one Android {permission_name} permission; refusing an ambiguous manifest mutation.',
+                file=sys.stderr,
+            )
+            return 1
+        if mentions == 1 and permission_xml not in text:
+            print(
+                f'Android {permission_name} permission exists in an unexpected form; refusing to rewrite it implicitly.',
+                file=sys.stderr,
+            )
+            return 1
+    if text.count(_REMINDER_RECEIVER_NAME) != 0:
+        print(
+            'Generated Android manifest already declares the Pandora reminder receiver; refusing an ambiguous receiver mutation.',
+            file=sys.stderr,
+        )
+        return 1
+
     if text.count(_HOME_CATEGORY) != 0 or text.count(_DEFAULT_CATEGORY) != 0:
         print(
             'Generated Android manifest already declares HOME/DEFAULT routing; '
@@ -154,7 +191,11 @@ def configure_manifest(manifest: Path) -> int:
         )
         return 1
 
-    updated = text.replace(_GENERATED_LABEL, _VALIDATION_LABEL, 1)
+    updated = text.replace(
+        _GENERATED_LABEL,
+        f'{_VALIDATION_LABEL} {_BACKUP_ATTRIBUTE}',
+        1,
+    )
     updated = updated.replace(_GENERATED_ICON, _PANDORA_ICON, 1)
     updated = updated.replace(
         _LAUNCHER_FILTER,
@@ -189,6 +230,32 @@ def configure_manifest(manifest: Path) -> int:
             1,
         )
 
+    for permission_name, permission_xml in _M4_018_PERMISSIONS:
+        if text.count(permission_name) == 0:
+            if updated.count(_MANIFEST_OPEN) != 1:
+                print(
+                    'Expected exactly one generated Android manifest root; refusing an ambiguous M4-018 permission mutation.',
+                    file=sys.stderr,
+                )
+                return 1
+            updated = updated.replace(
+                _MANIFEST_OPEN,
+                f'{_MANIFEST_OPEN}\n    {permission_xml}',
+                1,
+            )
+
+    if updated.count(_APPLICATION_CLOSE) != 1:
+        print(
+            'Expected exactly one generated Android application close tag; refusing an ambiguous reminder receiver mutation.',
+            file=sys.stderr,
+        )
+        return 1
+    updated = updated.replace(
+        _APPLICATION_CLOSE,
+        f'{_REMINDER_RECEIVER}\n{_APPLICATION_CLOSE}',
+        1,
+    )
+
     manifest.write_text(updated, encoding='utf-8')
     try:
         launcher_icon, copied_mark = _write_launcher_icon(manifest)
@@ -199,6 +266,9 @@ def configure_manifest(manifest: Path) -> int:
     verified = manifest.read_text(encoding='utf-8')
     if verified.count(_VALIDATION_LABEL) != 1 or _GENERATED_LABEL in verified:
         print('Android validation identity verification failed.', file=sys.stderr)
+        return 1
+    if verified.count(_BACKUP_ATTRIBUTE) != 1:
+        print('Android encrypted local-state backup policy verification failed.', file=sys.stderr)
         return 1
     if verified.count(_PANDORA_ICON) != 1 or _GENERATED_ICON in verified:
         print('Android Pandora launcher icon verification failed.', file=sys.stderr)
@@ -214,6 +284,16 @@ def configure_manifest(manifest: Path) -> int:
         return 1
     if _NETWORK_PERMISSION not in verified:
         print('Android ACCESS_NETWORK_STATE permission is not in the approved form.', file=sys.stderr)
+        return 1
+    for permission_name, permission_xml in _M4_018_PERMISSIONS:
+        if verified.count(permission_name) != 1 or permission_xml not in verified:
+            print(
+                f'Android {permission_name} permission verification failed.',
+                file=sys.stderr,
+            )
+            return 1
+    if verified.count(_REMINDER_RECEIVER_NAME) != 1 or _REMINDER_RECEIVER not in verified:
+        print('Android local reminder receiver verification failed.', file=sys.stderr)
         return 1
     if verified.count(_HOME_CATEGORY) != 1:
         print('Android HOME eligibility verification failed.', file=sys.stderr)
@@ -235,9 +315,15 @@ def configure_manifest(manifest: Path) -> int:
         return 1
 
     print('Configured Android application label: Pandora')
+    print('Configured Android backup policy: disabled for encrypted local state')
     print('Configured Android launcher icon: canonical Pandora spiral apple')
     print('Configured Android permission: android.permission.INTERNET')
     print('Configured Android permission: android.permission.ACCESS_NETWORK_STATE')
+    print('Configured Android permission: android.permission.READ_CALENDAR')
+    print('Configured Android permission: android.permission.WRITE_CALENDAR')
+    print('Configured Android permission: android.permission.POST_NOTIFICATIONS')
+    print('Configured Android special access declaration: android.permission.SCHEDULE_EXACT_ALARM')
+    print('Configured Android local reminder receiver: non-exported')
     print('Configured Android HOME eligibility without forcing default HOME')
     return 0
 

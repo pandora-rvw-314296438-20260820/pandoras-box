@@ -8,10 +8,16 @@ import '../../core/activity/pandora_activity_projection.dart';
 import '../../core/activity/pandora_activity_timeline_controller.dart';
 import '../../core/activity/pandora_activity_timeline_view.dart';
 import '../../core/data/pandora_activity_stream_api.dart';
+import '../../core/data/pandora_character_api.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/data/pandora_repository.dart';
+import '../../core/device/pandora_calendar_action_executor.dart';
+import '../../core/device/pandora_calendar_command.dart';
 import '../../core/device/pandora_communication_command.dart';
 import '../../core/device/pandora_communications.dart';
+import '../../core/local/pandora_device_activity_local_sync.dart';
+import '../../core/local/pandora_local_state_cache.dart';
+import '../../core/local/pandora_local_sync_coordinator.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
@@ -55,6 +61,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   PandoraImageAttachment? _imageAttachment;
   PandoraProjectContext? _projectContext;
   PandoraCapabilityProvider? _serviceContext;
+  PandoraCharacterProfile? _characterContext;
+  String? _characterSessionId;
+  PandoraCharacterApi? _characterApi;
+  PandoraCharacterApi get _characterClient =>
+      _characterApi ??= PandoraCharacterApi();
   String? _threadId;
   String? _pendingMessage;
   final PandoraActivityTimelineController _activityController =
@@ -105,6 +116,16 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     );
   }
 
+  Future<void> _watchDeviceActivity(
+    PandoraDeviceActivityExecution execution,
+  ) async {
+    _activeActivityJobId = execution.jobId;
+    await _activityController.bind(
+      jobId: execution.jobId,
+      stream: execution.events,
+    );
+  }
+
   Future<void> _dictate() async {
     _objectiveFocus.requestFocus();
     final text = await PandoraNativeIo.dictate();
@@ -143,6 +164,30 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     setState(() {
       _attachment = attachment;
       _error = null;
+    });
+  }
+
+  Future<void> _pickCharacterContext() async {
+    final selected = await showModalBottomSheet<PandoraCharacterProfile>(
+      context: context,
+      backgroundColor: PandoraSimpleColors.surface,
+      showDragHandle: true,
+      builder: (context) => const _CharacterContextSheet(),
+    );
+    if (!mounted || selected == null) return;
+    setState(() {
+      _characterContext = selected;
+      _characterSessionId = null;
+      _serviceContext = null;
+      _error = null;
+    });
+    _objectiveFocus.requestFocus();
+  }
+
+  void _removeCharacterContext() {
+    setState(() {
+      _characterContext = null;
+      _characterSessionId = null;
     });
   }
 
@@ -292,6 +337,27 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     }
   }
 
+  Future<void> _submitCharacter(String objective) async {
+    final character = _characterContext;
+    if (character == null) return;
+    final turn = await _characterClient.chat(
+      characterId: character.id,
+      message: objective,
+      sessionId: _characterSessionId,
+      mode: 'auto',
+      responseLength: 'auto',
+    );
+    if (!mounted) return;
+    setState(() {
+      _characterSessionId = turn.sessionId;
+      _messages.add(_ChatMessage.user(objective));
+      _messages.add(_ChatMessage.pandora(turn.reply));
+      _pendingMessage = null;
+      _submissionKey = null;
+      _outcomeUnknown = false;
+    });
+  }
+
   Future<void> _submit() async {
     final objective = _objective.text.trim();
     if (_submitting && _activeActivityJobId != null) {
@@ -301,6 +367,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     if (objective.isEmpty) {
       setState(() => _error = 'Message Pandora first.');
       _objectiveFocus.requestFocus();
+      return;
+    }
+    if (_characterContext != null &&
+        (_attachment != null || _imageAttachment != null)) {
+      setState(() => _error =
+          'Character mode uses its prepared memory right now. Remove the attachment before sending.');
       return;
     }
     final dependencies = PandoraDependencies.of(context);
@@ -314,6 +386,37 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       _error = null;
     });
     try {
+      if (_characterContext != null) {
+        await _submitCharacter(objective);
+        return;
+      }
+      final calendarParse = PandoraCalendarCommand.tryParse(
+        objective,
+        now: DateTime.now(),
+      );
+      if (calendarParse != null) {
+        if (!calendarParse.isReady) {
+          setState(() {
+            _messages.add(_ChatMessage.user(objective));
+            _messages.add(
+              _ChatMessage.pandora(
+                calendarParse.clarification ??
+                    'Tell me the missing calendar detail before I make a change.',
+              ),
+            );
+            _pendingMessage = null;
+            _submissionKey = null;
+            _outcomeUnknown = false;
+          });
+          return;
+        }
+        await _handleCalendarCommand(
+          dependencies,
+          objective,
+          calendarParse.command!,
+        );
+        return;
+      }
       final deviceCommunication = PandoraDeviceCommunicationCommand.tryParse(
         objective,
       );
@@ -512,6 +615,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       // this chat. They never navigate away, never reopen ProjectOS intake,
       // and never resubmit the owner instruction as a second intelligence turn.
       // Progress and verified terminal evidence remain authoritative.
+    } on PandoraCharacterException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _submissionKey = null;
+      });
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -541,6 +650,96 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         });
       }
     }
+  }
+
+  Future<void> _handleCalendarCommand(
+    PandoraDependencies dependencies,
+    String objective,
+    PandoraCalendarCommand command,
+  ) async {
+    final operationId = _submissionKey ??= _keys.create('pandora-calendar');
+    final intelligence = dependencies.intelligence;
+    final localStore = dependencies.localStore;
+    final localFacts = <Map<String, Object?>>[];
+
+    if (localStore != null && intelligence != null) {
+      unawaited(
+        PandoraLocalSyncCoordinator(
+          store: localStore,
+          transport: PandoraDeviceActivityLocalSyncTransport(intelligence),
+        ).drain(),
+      );
+    }
+
+    PandoraDeviceActivityExecution? activity;
+    if (intelligence != null) {
+      try {
+        activity = await intelligence.startDeviceActivity(
+          requestId: operationId,
+          threadId: _threadId,
+          projectId: _projectContext?.id,
+        );
+        await _watchDeviceActivity(activity);
+      } on PandoraIntelligenceException {
+        activity = null;
+      }
+    }
+
+    final executor = PandoraCalendarActionExecutor(
+      localCache:
+          localStore == null ? null : PandoraLocalStateCache(localStore),
+      reporter: (fact) async {
+        localFacts.add(<String, Object?>{
+          'capability': fact.capability,
+          'stage': fact.stage,
+          'observedAt': fact.observedAt.toUtc().toIso8601String(),
+        });
+        if (activity == null || intelligence == null) return;
+        try {
+          await intelligence.recordDeviceActivity(
+            jobId: activity.jobId,
+            operationId: operationId,
+            capability: fact.capability,
+            stage: fact.stage,
+            observedAt: fact.observedAt,
+          );
+        } on PandoraIntelligenceException {
+          if (localStore == null) return;
+          await enqueuePandoraDeviceFact(
+            store: localStore,
+            jobId: activity.jobId,
+            operationId: operationId,
+            capability: fact.capability,
+            stage: fact.stage,
+            observedAt: fact.observedAt,
+          );
+        }
+      },
+    );
+    final result = await executor.execute(
+      command,
+      operationId: operationId,
+    );
+
+    if (activity == null && localStore != null && localFacts.isNotEmpty) {
+      await enqueuePandoraDeviceTimeline(
+        store: localStore,
+        requestId: operationId,
+        threadId: _threadId,
+        projectId: _projectContext?.id,
+        events: localFacts,
+      );
+    }
+    if (!mounted) return;
+    setState(() {
+      _messages.add(_ChatMessage.user(objective));
+      _messages.add(_ChatMessage.pandora(result.reply));
+      _pendingMessage = null;
+      _attachment = null;
+      _imageAttachment = null;
+      _submissionKey = null;
+      _outcomeUnknown = false;
+    });
   }
 
   Future<void> _handleDeviceCommunication(
@@ -595,6 +794,15 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       resolvedLabel = selection.displayName.trim().isEmpty
           ? requestedRecipient
           : selection.displayName.trim();
+      final localStore = PandoraDependencies.of(context).localStore;
+      if (localStore != null) {
+        unawaited(
+          PandoraLocalStateCache(localStore).cacheSelectedContact(
+            displayName: resolvedLabel,
+            phoneNumber: resolvedRecipient,
+          ),
+        );
+      }
     }
 
     try {
@@ -671,6 +879,16 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
 
   void newChat() {
     if (_submitting) return;
+    final priorCharacter = _characterContext;
+    final priorCharacterSession = _characterSessionId;
+    if (priorCharacter != null &&
+        priorCharacterSession != null &&
+        priorCharacterSession.isNotEmpty) {
+      unawaited(_characterClient.reset(
+        characterId: priorCharacter.id,
+        sessionId: priorCharacterSession,
+      ));
+    }
     _activeActivityJobId = null;
     unawaited(_activityController.clear());
     setState(() {
@@ -680,6 +898,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       _imageAttachment = null;
       _projectContext = null;
       _serviceContext = null;
+      _characterContext = null;
+      _characterSessionId = null;
       _threadId = null;
       _pendingMessage = null;
       _error = null;
@@ -782,6 +1002,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                             disabled: _outcomeUnknown || _submitting,
                           )
                         : _Conversation(
+                            threadIdentity: _threadId ?? 'local-chat',
                             messages: _messages,
                             pendingMessage: _pendingMessage,
                             thinking: _submitting,
@@ -796,6 +1017,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 imageAttachment: _imageAttachment,
                 projectContext: _projectContext,
                 serviceContext: _serviceContext,
+                characterContext: _characterContext,
                 error: _error,
                 submitting: _submitting,
                 disabled: _outcomeUnknown,
@@ -805,12 +1027,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 onCamera: () => _pickImage(camera: true),
                 onPhotos: () => _pickImage(camera: false),
                 onAttach: _attach,
+                onCharacters: _pickCharacterContext,
                 onServices: _pickServiceContext,
                 onProjectContext: _pickProjectContext,
                 onDictate: _dictate,
                 onSubmit: _submit,
                 onRemoveAttachment: () => setState(() => _attachment = null),
                 onRemoveImage: () => setState(() => _imageAttachment = null),
+                onRemoveCharacterContext: _removeCharacterContext,
                 onRemoveServiceContext: _removeServiceContext,
                 onRemoveProjectContext: _removeProjectContext,
               ),
@@ -1030,6 +1254,7 @@ class _ObsidianSuggestion extends StatelessWidget {
 
 class _Conversation extends StatefulWidget {
   const _Conversation({
+    required this.threadIdentity,
     required this.messages,
     required this.pendingMessage,
     required this.thinking,
@@ -1037,6 +1262,7 @@ class _Conversation extends StatefulWidget {
     this.activityError,
   });
 
+  final String threadIdentity;
   final List<_ChatMessage> messages;
   final String? pendingMessage;
   final bool thinking;
@@ -1075,9 +1301,38 @@ class _ConversationState extends State<_Conversation> {
     final activityChanged =
         oldWidget.activityEvents.length != widget.activityEvents.length ||
             oldWidget.activityError != widget.activityError;
+    final messagesChanged =
+        oldWidget.messages.length != widget.messages.length ||
+            oldWidget.threadIdentity != widget.threadIdentity;
     if (nextCount != _lastRenderedItemCount || activityChanged) {
       _lastRenderedItemCount = nextCount;
       _scheduleScrollToLatest();
+    }
+    if (messagesChanged && widget.messages.isNotEmpty) {
+      unawaited(_cacheMessages());
+    }
+  }
+
+  Future<void> _cacheMessages() async {
+    if (!mounted || widget.messages.isEmpty) return;
+    final localStore = PandoraDependencies.of(context).localStore;
+    if (localStore == null) return;
+    final cache = PandoraLocalStateCache(localStore);
+    try {
+      await cache.cacheRecentConversation(
+        threadIdentity: widget.threadIdentity,
+        messages: widget.messages.map((message) {
+          final text = message.text.length <= 4000
+              ? message.text
+              : message.text.substring(0, 4000);
+          return <String, Object?>{
+            'role': message.isUser ? 'user' : 'pandora',
+            'text': text,
+          };
+        }).toList(growable: false),
+      );
+    } catch (_) {
+      // Local conversation cache is never the source of truth.
     }
   }
 
@@ -1274,6 +1529,7 @@ class _Composer extends StatelessWidget {
     required this.imageAttachment,
     required this.projectContext,
     required this.serviceContext,
+    required this.characterContext,
     required this.error,
     required this.submitting,
     required this.disabled,
@@ -1281,12 +1537,14 @@ class _Composer extends StatelessWidget {
     required this.onCamera,
     required this.onPhotos,
     required this.onAttach,
+    required this.onCharacters,
     required this.onServices,
     required this.onProjectContext,
     required this.onDictate,
     required this.onSubmit,
     required this.onRemoveAttachment,
     required this.onRemoveImage,
+    required this.onRemoveCharacterContext,
     required this.onRemoveServiceContext,
     required this.onRemoveProjectContext,
   });
@@ -1297,6 +1555,7 @@ class _Composer extends StatelessWidget {
   final PandoraImageAttachment? imageAttachment;
   final PandoraProjectContext? projectContext;
   final PandoraCapabilityProvider? serviceContext;
+  final PandoraCharacterProfile? characterContext;
   final String? error;
   final bool submitting;
   final bool disabled;
@@ -1304,12 +1563,14 @@ class _Composer extends StatelessWidget {
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
   final VoidCallback onAttach;
+  final VoidCallback onCharacters;
   final VoidCallback onServices;
   final VoidCallback onProjectContext;
   final VoidCallback onDictate;
   final VoidCallback onSubmit;
   final VoidCallback onRemoveAttachment;
   final VoidCallback onRemoveImage;
+  final VoidCallback onRemoveCharacterContext;
   final VoidCallback onRemoveServiceContext;
   final VoidCallback onRemoveProjectContext;
 
@@ -1362,7 +1623,8 @@ class _Composer extends StatelessWidget {
               if (attachment != null ||
                   imageAttachment != null ||
                   projectContext != null ||
-                  serviceContext != null) ...[
+                  serviceContext != null ||
+                  characterContext != null) ...[
                 Wrap(
                   spacing: 8,
                   runSpacing: 6,
@@ -1381,6 +1643,18 @@ class _Composer extends StatelessWidget {
                         label: Text(imageAttachment!.name),
                         onDeleted:
                             submitting || disabled ? null : onRemoveImage,
+                      ),
+                    if (characterContext != null)
+                      InputChip(
+                        key: const ValueKey<String>(
+                            'ask-pandora-character-context'),
+                        avatar: const Icon(
+                            Icons.face_retouching_natural_outlined,
+                            size: 17),
+                        label: Text('Character · ${characterContext!.name}'),
+                        onDeleted: submitting || disabled
+                            ? null
+                            : onRemoveCharacterContext,
                       ),
                     if (serviceContext != null)
                       InputChip(
@@ -1467,6 +1741,13 @@ class _Composer extends StatelessWidget {
                             label: 'Files',
                             icon: Icons.insert_drive_file_outlined,
                             onPressed: onAttach,
+                          ),
+                          _ComposerMenuItem(
+                            key: const ValueKey<String>(
+                                'ask-pandora-menu-characters'),
+                            label: 'Characters',
+                            icon: Icons.face_retouching_natural_outlined,
+                            onPressed: onCharacters,
                           ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
@@ -1588,6 +1869,47 @@ class _Composer extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style:
                     TextStyle(color: PandoraSimpleColors.muted, fontSize: 10.5),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _CharacterContextSheet extends StatelessWidget {
+  const _CharacterContextSheet();
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Characters',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Private character conversations use prepared memory and the local model.',
+                style: TextStyle(color: PandoraSimpleColors.muted),
+              ),
+              const SizedBox(height: 12),
+              ...PandoraCharacterApi.availableCharacters.map(
+                (character) => ListTile(
+                  key: ValueKey<String>('character-${character.id}'),
+                  contentPadding: EdgeInsets.zero,
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.face_retouching_natural_outlined),
+                  ),
+                  title: Text(character.name),
+                  subtitle: Text(character.description),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context).pop(character),
+                ),
               ),
             ],
           ),

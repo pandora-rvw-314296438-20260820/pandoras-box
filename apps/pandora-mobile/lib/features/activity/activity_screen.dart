@@ -1,355 +1,363 @@
 import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
-import '../../core/data/pandora_activity_history_api.dart';
+import '../../core/data/pandora_repository.dart';
 import '../../core/design/pandora_tokens.dart';
+import '../../core/models/pandora_models.dart';
+import '../../core/state/screen_controller.dart';
 import '../../core/widgets/content_state.dart';
+import '../../core/widgets/owner_experience.dart';
 import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/pandora_surface.dart';
+import '../../core/widgets/status_badge.dart';
 
-enum ActivityHistoryFilter {
+enum ActivityFilter {
   all('All'),
-  needsYou('Needs You'),
-  failed('Failed'),
-  completed('Completed'),
-  device('Device'),
-  provider('Provider'),
-  tool('Tool'),
-  chat('Chat');
+  attention('Needs attention'),
+  provider('Provider activity');
 
-  const ActivityHistoryFilter(this.label);
-  final String label;
-}
-
-enum ActivityHistoryRange {
-  day('24h'),
-  week('7d'),
-  month('30d'),
-  retained('All retained');
-
-  const ActivityHistoryRange(this.label);
+  const ActivityFilter(this.label);
   final String label;
 }
 
 class ActivityScreen extends StatefulWidget {
-  const ActivityScreen({super.key, this.source});
-
-  final PandoraActivityHistorySource? source;
+  const ActivityScreen({super.key});
 
   @override
   State<ActivityScreen> createState() => _ActivityScreenState();
 }
 
 class _ActivityScreenState extends State<ActivityScreen> {
-  final TextEditingController _search = TextEditingController();
-  PandoraActivityHistorySource? _source;
-  List<PandoraActivityHistoryRecord> _items =
-      const <PandoraActivityHistoryRecord>[];
-  PandoraActivityHistoryCursor? _cursor;
-  ActivityHistoryFilter _filter = ActivityHistoryFilter.all;
-  ActivityHistoryRange _range = ActivityHistoryRange.month;
-  String? _error;
-  bool _loading = false;
-  bool _loaded = false;
-  bool _hasMore = false;
+  ScreenController<List<AuditEvent>>? _controller;
+  final _search = TextEditingController();
+  ActivityFilter _filter = ActivityFilter.all;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _source ??=
-        widget.source ?? PandoraDependencies.of(context).activityHistory;
-    if (!_loaded) {
-      _loaded = true;
-      _load();
-    }
+    if (_controller != null) return;
+    final repository = PandoraDependencies.of(context).repository;
+    _controller = ScreenController<List<AuditEvent>>(
+      () => repository.activity(allowCached: true),
+    )..load();
   }
 
   @override
   void dispose() {
     _search.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
-  Future<void> _load({bool append = false}) async {
-    final source = _source;
-    if (source == null || _loading) {
-      if (source == null && mounted) {
-        setState(() => _error = 'Activity History is not available.');
-      }
-      return;
-    }
-    setState(() {
-      _loading = true;
-      _error = null;
+  List<AuditEvent> _visible(List<AuditEvent> events) {
+    final query = _search.text.trim().toLowerCase();
+    final visible = events.where((event) {
+      final matchesQuery = query.isEmpty ||
+          '${event.summary} ${event.type} ${event.actor} ${event.project ?? ''} ${event.provider ?? ''}'
+              .toLowerCase()
+              .contains(query);
+      if (!matchesQuery) return false;
+      return switch (_filter) {
+        ActivityFilter.all => true,
+        ActivityFilter.attention => _eventNeedsAttention(event),
+        ActivityFilter.provider => event.provider != null,
+      };
+    }).toList(growable: true);
+    visible.sort((left, right) {
+      final leftTime =
+          left.happenedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final rightTime =
+          right.happenedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return rightTime.compareTo(leftTime);
     });
-    try {
-      final page = await source.search(
-        PandoraActivityHistoryQuery(
-          text: _search.text,
-          states: _statesFor(_filter),
-          domains: _domainsFor(_filter),
-          sourceTypes: _sourcesFor(_filter),
-          from: _fromFor(_range),
-          cursor: append ? _cursor : null,
-        ),
-      );
-      if (!mounted) return;
-      setState(() {
-        _items = append
-            ? List<PandoraActivityHistoryRecord>.unmodifiable(
-                <PandoraActivityHistoryRecord>[..._items, ...page.items],
-              )
-            : page.items;
-        _cursor = page.nextCursor;
-        _hasMore = page.hasMore;
-      });
-    } on PandoraActivityHistoryException catch (error) {
-      if (mounted) setState(() => _error = error.message);
-    } catch (_) {
-      if (mounted) {
-        setState(() => _error = 'Pandora could not verify Activity History.');
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  void _changeFilter(ActivityHistoryFilter filter) {
-    if (_filter == filter) return;
-    setState(() => _filter = filter);
-    _load();
-  }
-
-  void _changeRange(ActivityHistoryRange range) {
-    if (_range == range) return;
-    setState(() => _range = range);
-    _load();
+    return List<AuditEvent>.unmodifiable(visible);
   }
 
   @override
   Widget build(BuildContext context) => PandoraPage(
         title: 'Activity',
-        subtitle: 'The same verified execution events Pandora showed live.',
-        actions: <Widget>[
+        subtitle: 'What changed, who acted, and what the result was.',
+        actions: [
           IconButton(
-            tooltip: 'Refresh Activity History',
-            onPressed: _loading ? null : _load,
+            tooltip: 'Refresh Activity',
+            onPressed: () => _controller?.refresh(),
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
-        onRefresh: _load,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            PandoraSurface(
-              title: 'Find activity',
-              subtitle:
-                  'Search person, organization, action, device, job, app, or result.',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  TextField(
-                    controller: _search,
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: (_) => _load(),
-                    decoration: InputDecoration(
-                      labelText: 'Search Activity History',
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: IconButton(
-                        tooltip: 'Run search',
-                        onPressed: _loading ? null : _load,
-                        icon: const Icon(Icons.arrow_forward_rounded),
-                      ),
-                    ),
+        onRefresh: () => _controller!.refresh(),
+        child: AnimatedBuilder(
+          animation: _controller!,
+          builder: (context, _) {
+            final controller = _controller!;
+            if (controller.isLoading && controller.data == null) {
+              return const ContentSkeleton(lines: 7);
+            }
+            if (controller.error != null && controller.data == null) {
+              return ErrorContent(
+                title: 'Activity could not load',
+                message: _safeError(controller.error),
+                onRetry: controller.load,
+              );
+            }
+            final allEvents = controller.data ?? const <AuditEvent>[];
+            final events = _visible(allEvents);
+            final providers = allEvents
+                .map((event) => event.provider?.trim().toLowerCase())
+                .whereType<String>()
+                .where((provider) => provider.isNotEmpty)
+                .toSet()
+                .length;
+            final attention = allEvents.where(_eventNeedsAttention).length;
+            final groups = _groupEvents(events);
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (controller.degradedReason != null ||
+                    controller.error != null) ...[
+                  DegradedContentNotice(
+                    message: _degradedMessage(controller),
+                    onRetry: controller.refresh,
                   ),
-                  const SizedBox(height: PandoraSpacing.sm),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: <Widget>[
-                        for (final filter in ActivityHistoryFilter.values) ...[
-                          FilterChip(
-                            label: Text(filter.label),
-                            selected: _filter == filter,
-                            onSelected: (_) => _changeFilter(filter),
-                          ),
-                          const SizedBox(width: PandoraSpacing.xs),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: PandoraSpacing.xs),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: <Widget>[
-                        for (final range in ActivityHistoryRange.values) ...[
-                          ChoiceChip(
-                            label: Text(range.label),
-                            selected: _range == range,
-                            onSelected: (_) => _changeRange(range),
-                          ),
-                          const SizedBox(width: PandoraSpacing.xs),
-                        ],
-                      ],
-                    ),
-                  ),
+                  const SizedBox(height: PandoraSpacing.md),
                 ],
-              ),
-            ),
-            const SizedBox(height: PandoraSpacing.md),
-            if (_error != null)
-              ErrorContent(
-                title: 'Activity History could not load',
-                message: _error!,
-                onRetry: _load,
-              )
-            else if (_loading && _items.isEmpty)
-              const ContentSkeleton(lines: 7)
-            else if (_items.isEmpty)
-              const EmptyContent(
-                title: 'No matching activity',
-                message: 'No retained canonical events match this view.',
-              )
-            else ...<Widget>[
-              Text(
-                '${_items.length} retained canonical event${_items.length == 1 ? '' : 's'}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                OwnerMetricGrid(
+                  metrics: [
+                    OwnerMetric(
+                      label: 'Events',
+                      value: '${allEvents.length}',
+                      icon: Icons.history_rounded,
+                      tone: PandoraStatusTone.informative,
                     ),
-              ),
-              const SizedBox(height: PandoraSpacing.sm),
-              for (final item in _items) ...<Widget>[
-                _CanonicalActivityRow(item: item),
-                const SizedBox(height: PandoraSpacing.sm),
-              ],
-              if (_hasMore)
-                Center(
-                  child: OutlinedButton.icon(
-                    onPressed: _loading ? null : () => _load(append: true),
-                    icon: _loading
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.expand_more_rounded),
-                    label: const Text('Load more'),
+                    OwnerMetric(
+                      label: 'Providers',
+                      value: '$providers',
+                      icon: Icons.cable_rounded,
+                      tone: PandoraStatusTone.neutral,
+                    ),
+                    OwnerMetric(
+                      label: 'Needs attention',
+                      value: '$attention',
+                      icon: Icons.warning_amber_rounded,
+                      tone: attention > 0
+                          ? PandoraStatusTone.attention
+                          : PandoraStatusTone.neutral,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: PandoraSpacing.md),
+                PandoraSurface(
+                  title: 'Find activity',
+                  subtitle: 'Search owner-readable outcomes and actors.',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _search,
+                        onChanged: (_) => setState(() {}),
+                        decoration: const InputDecoration(
+                          labelText: 'Search activity',
+                          prefixIcon: Icon(Icons.search_rounded),
+                        ),
+                      ),
+                      const SizedBox(height: PandoraSpacing.sm),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final filter in ActivityFilter.values) ...[
+                              FilterChip(
+                                label: Text(filter.label),
+                                selected: _filter == filter,
+                                onSelected: (_) =>
+                                    setState(() => _filter = filter),
+                              ),
+                              if (filter != ActivityFilter.values.last)
+                                const SizedBox(width: PandoraSpacing.xs),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              const SizedBox(height: PandoraSpacing.sm),
-              Text(
-                'History reflects the canonical event retention window; expired events are not reconstructed.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
+                const SizedBox(height: PandoraSpacing.xl),
+                OwnerSectionHeading(
+                  title: 'Timeline',
+                  subtitle: events.isEmpty
+                      ? 'No activity matches this view.'
+                      : '${events.length} event${events.length == 1 ? '' : 's'} · newest first',
+                ),
+                const SizedBox(height: PandoraSpacing.sm),
+                if (events.isEmpty)
+                  EmptyContent(
+                    title: 'No matching activity',
+                    message: _search.text.trim().isEmpty &&
+                            _filter == ActivityFilter.all
+                        ? 'Pandora returned no verified activity.'
+                        : 'Try another search or filter.',
+                  )
+                else
+                  for (var index = 0; index < groups.length; index++) ...[
+                    _ActivityGroup(group: groups[index]),
+                    if (index != groups.length - 1)
+                      const SizedBox(height: PandoraSpacing.sm),
+                  ],
+              ],
+            );
+          },
+        ),
+      );
+}
+
+class _ActivityGroup extends StatelessWidget {
+  const _ActivityGroup({required this.group});
+
+  final _EventGroup group;
+
+  @override
+  Widget build(BuildContext context) => PandoraSurface(
+        title: group.label,
+        child: Column(
+          children: [
+            for (var index = 0; index < group.events.length; index++) ...[
+              _ActivityRow(event: group.events[index]),
+              if (index != group.events.length - 1) const Divider(),
             ],
           ],
         ),
       );
 }
 
-class _CanonicalActivityRow extends StatelessWidget {
-  const _CanonicalActivityRow({required this.item});
+class _ActivityRow extends StatelessWidget {
+  const _ActivityRow({required this.event});
 
-  final PandoraActivityHistoryRecord item;
+  final AuditEvent event;
 
   @override
   Widget build(BuildContext context) {
-    final event = item.activity;
     final metadata = <String>[
-      item.personLabel,
-      item.organizationName,
-      event.source.sourceType,
-      if (event.domain != null) event.domain!,
-      'job ${_shortId(event.jobId)}',
-      _timeLabel(event.occurredAt),
+      if (event.project != null) event.project!,
+      if (event.provider != null) event.provider!,
+      event.actor,
+      ownerRelativeTime(event.happenedAt),
     ];
-    return PandoraSurface(
-      child: Column(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.xs),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(
-                child: Text(event.message,
-                    style: Theme.of(context).textTheme.titleSmall),
-              ),
-              const SizedBox(width: PandoraSpacing.sm),
-              Chip(
-                visualDensity: VisualDensity.compact,
-                label: Text(event.state.wireName.replaceAll('_', ' ')),
-              ),
-            ],
-          ),
-          const SizedBox(height: PandoraSpacing.xs),
-          Text(
-            metadata.join(' · '),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-          if (event.outcome != null) ...<Widget>[
-            const SizedBox(height: PandoraSpacing.xs),
-            Text(event.outcome!.summary),
-          ],
-          if (event.blocker != null) ...<Widget>[
-            const SizedBox(height: PandoraSpacing.xs),
-            Text('Needs you: ${event.blocker!.requiredAction}'),
-          ],
-          if (event.evidenceRefs.isNotEmpty) ...<Widget>[
-            const SizedBox(height: PandoraSpacing.xs),
-            Text(
-              '${event.evidenceRefs.length} evidence reference${event.evidenceRefs.length == 1 ? '' : 's'} · event ${_shortId(event.eventId)}',
-              style: Theme.of(context).textTheme.bodySmall,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              shape: BoxShape.circle,
             ),
-          ],
+            child: Icon(
+              providerIconFor(event.provider ?? event.type),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: PandoraSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  event.summary,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: PandoraSpacing.xxs),
+                Text(
+                  metadata.join(' · '),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                if (event.result != null || event.risk != null) ...[
+                  const SizedBox(height: PandoraSpacing.xs),
+                  Wrap(
+                    spacing: PandoraSpacing.xs,
+                    runSpacing: PandoraSpacing.xs,
+                    children: [
+                      if (event.result != null)
+                        StatusBadge(
+                          label: event.result!,
+                          tone: statusToneFor(event.result!),
+                          compact: true,
+                        ),
+                      if (event.risk != null)
+                        StatusBadge(
+                          label: event.risk!.label,
+                          tone: statusToneFor(event.risk!.label),
+                          compact: true,
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-List<String> _statesFor(ActivityHistoryFilter filter) => switch (filter) {
-      ActivityHistoryFilter.needsYou => const <String>['needs_you'],
-      ActivityHistoryFilter.failed => const <String>['failed'],
-      ActivityHistoryFilter.completed => const <String>['result'],
-      _ => const <String>[],
-    };
+class _EventGroup {
+  const _EventGroup({required this.label, required this.events});
 
-List<String> _domainsFor(ActivityHistoryFilter filter) =>
-    filter == ActivityHistoryFilter.chat
-        ? const <String>['chat']
-        : const <String>[];
-
-List<String> _sourcesFor(ActivityHistoryFilter filter) => switch (filter) {
-      ActivityHistoryFilter.device => const <String>['device'],
-      ActivityHistoryFilter.provider => const <String>['provider'],
-      ActivityHistoryFilter.tool => const <String>['tool'],
-      _ => const <String>[],
-    };
-
-DateTime? _fromFor(ActivityHistoryRange range) {
-  final now = DateTime.now().toUtc();
-  return switch (range) {
-    ActivityHistoryRange.day => now.subtract(const Duration(days: 1)),
-    ActivityHistoryRange.week => now.subtract(const Duration(days: 7)),
-    ActivityHistoryRange.month => now.subtract(const Duration(days: 30)),
-    ActivityHistoryRange.retained => null,
-  };
+  final String label;
+  final List<AuditEvent> events;
 }
 
-String _shortId(String value) => value.length <= 12
-    ? value
-    : '${value.substring(0, 8)}…${value.substring(value.length - 4)}';
+List<_EventGroup> _groupEvents(List<AuditEvent> events) {
+  final grouped = <String, List<AuditEvent>>{};
+  for (final event in events) {
+    final label = _dayLabel(event.happenedAt);
+    grouped.putIfAbsent(label, () => <AuditEvent>[]).add(event);
+  }
+  return grouped.entries
+      .map(
+        (entry) => _EventGroup(
+          label: entry.key,
+          events: List<AuditEvent>.unmodifiable(entry.value),
+        ),
+      )
+      .toList(growable: false);
+}
 
-String _timeLabel(DateTime value) {
-  final local = value.toLocal();
-  final year = local.year.toString().padLeft(4, '0');
-  final month = local.month.toString().padLeft(2, '0');
-  final day = local.day.toString().padLeft(2, '0');
-  final hour = local.hour.toString().padLeft(2, '0');
-  final minute = local.minute.toString().padLeft(2, '0');
-  return '$year-$month-$day $hour:$minute';
+String _dayLabel(DateTime? value) {
+  if (value == null) return 'Time not verified';
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final date = DateTime(value.year, value.month, value.day);
+  final days = today.difference(date).inDays;
+  if (days == 0) return 'Today';
+  if (days == 1) return 'Yesterday';
+  if (days > 1 && days < 7) return '$days days ago';
+  return '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+}
+
+bool _eventNeedsAttention(AuditEvent event) {
+  final resultTone = statusToneFor(event.result ?? '');
+  final riskTone = statusToneFor(event.risk?.label ?? '');
+  return resultTone == PandoraStatusTone.attention ||
+      resultTone == PandoraStatusTone.critical ||
+      riskTone == PandoraStatusTone.attention ||
+      riskTone == PandoraStatusTone.critical;
+}
+
+String _safeError(Object? error) {
+  if (error is PandoraRepositoryException) return error.message;
+  return 'Pandora could not verify activity. Try again.';
+}
+
+String _degradedMessage(ScreenController<List<AuditEvent>> controller) {
+  final reason = controller.degradedReason ?? controller.error!.message;
+  if (!controller.isCached || controller.snapshot == null) return reason;
+  final capturedAt = controller.snapshot!.fetchedAt.toLocal().toIso8601String();
+  return '$reason Cached snapshot from $capturedAt.';
 }

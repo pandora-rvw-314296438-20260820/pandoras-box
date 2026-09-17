@@ -1,9 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/data/domain_registrar_api.dart';
-import '../core/data/pandora_activity_history_api.dart';
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/data/pandora_repository.dart';
+import '../core/data/project_build_stream_cursor_store.dart';
 import '../core/data/project_experience_api.dart';
 import '../core/data/project_experience_projection_repository.dart';
 import '../core/data/project_experience_repository.dart';
@@ -11,6 +11,7 @@ import '../core/data/project_runtime_api.dart';
 import '../core/data/remote_pandora_repository.dart';
 import '../core/diagnostics/diagnostic_event.dart';
 import '../core/diagnostics/diagnostics_store.dart';
+import '../core/local/pandora_local_store.dart';
 import '../core/network/pandora_api_client.dart';
 import '../core/network/session_token_provider.dart';
 import '../core/security/pandora_auth.dart';
@@ -21,7 +22,6 @@ class PandoraRuntimeBootstrap {
   const PandoraRuntimeBootstrap._({
     required this.auth,
     required this.repository,
-    required this.activityHistory,
     required this.intelligence,
     required this.projectRuntime,
     required this.projectExperience,
@@ -29,11 +29,11 @@ class PandoraRuntimeBootstrap {
     required this.projectExperienceRepository,
     required this.domainRegistrar,
     required this.diagnostics,
+    required this.localStore,
   });
 
   final PandoraAuth auth;
   final PandoraRepository repository;
-  final PandoraActivityHistorySource activityHistory;
   final PandoraIntelligenceApi intelligence;
   final ProjectRuntimeApi projectRuntime;
   final ProjectExperienceApi projectExperience;
@@ -41,8 +41,12 @@ class PandoraRuntimeBootstrap {
   final ProjectExperienceRepository projectExperienceRepository;
   final DomainRegistrarApi domainRegistrar;
   final DiagnosticsStore diagnostics;
+  final PandoraLocalStore localStore;
 
-  static PandoraRuntimeBootstrap create(SupabaseClient supabase) {
+  static PandoraRuntimeBootstrap create(
+    SupabaseClient supabase, {
+    required PandoraLocalStore localStore,
+  }) {
     final diagnostics = DiagnosticsStore();
     installPandoraErrorHandling(
       record: (summary) => diagnostics.record(
@@ -77,6 +81,7 @@ class PandoraRuntimeBootstrap {
     final projectExperience = ProjectExperienceApi(
       client: supabase,
       organizationId: PandoraConfig.organizationId,
+      cursorStore: PandoraLocalProjectBuildStreamCursorStore(localStore),
     );
     final projectExperienceProjection =
         SupabaseProjectExperienceProjectionRepository(
@@ -92,10 +97,6 @@ class PandoraRuntimeBootstrap {
     return PandoraRuntimeBootstrap._(
       auth: SupabasePandoraAuth(supabase),
       repository: RemotePandoraRepository(client: ownerClient),
-      activityHistory: SupabasePandoraActivityHistorySource(
-        client: supabase,
-        organizationId: PandoraConfig.organizationId,
-      ),
       intelligence: PandoraIntelligenceApi(
         client: supabase,
         organizationId: PandoraConfig.organizationId,
@@ -109,6 +110,7 @@ class PandoraRuntimeBootstrap {
         organizationId: PandoraConfig.organizationId,
       ),
       diagnostics: diagnostics,
+      localStore: localStore,
     );
   }
 }
