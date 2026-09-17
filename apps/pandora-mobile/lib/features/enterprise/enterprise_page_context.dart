@@ -49,7 +49,8 @@ class EnterprisePageContext {
       actorRole != null && actorRole!.trim().isNotEmpty;
 
   bool get hasIdentityScope =>
-      identityScope != null && EnterpriseIdentityScope.values.contains(identityScope);
+      identityScope != null &&
+      EnterpriseIdentityScope.values.contains(identityScope);
 
   /// Incomplete identity/capability → Needs You (no silent invent).
   bool get isReadyForCommand {
@@ -84,13 +85,13 @@ class EnterprisePageContext {
         project: project ?? this.project,
         surface: surface ?? this.surface,
         route: route ?? this.route,
-        selectedObject:
-            clearSelectedObject ? null : (selectedObject ?? this.selectedObject),
+        selectedObject: clearSelectedObject
+            ? null
+            : (selectedObject ?? this.selectedObject),
         actorRole: clearActorRole ? null : (actorRole ?? this.actorRole),
         capabilities: capabilities ?? this.capabilities,
-        identityScope: clearIdentityScope
-            ? null
-            : (identityScope ?? this.identityScope),
+        identityScope:
+            clearIdentityScope ? null : (identityScope ?? this.identityScope),
       );
 
   /// Diagnostics-safe map — surface + project only as non-secret context.
@@ -397,7 +398,8 @@ class EnterprisePageContextController extends ChangeNotifier {
   }
 }
 
-class EnterprisePageContextScope extends InheritedNotifier<EnterprisePageContextController> {
+class EnterprisePageContextScope
+    extends InheritedNotifier<EnterprisePageContextController> {
   const EnterprisePageContextScope({
     super.key,
     required EnterprisePageContextController controller,
@@ -405,15 +407,16 @@ class EnterprisePageContextScope extends InheritedNotifier<EnterprisePageContext
   }) : super(notifier: controller);
 
   static EnterprisePageContextController of(BuildContext context) {
-    final scope =
-        context.dependOnInheritedWidgetOfExactType<EnterprisePageContextScope>();
-    assert(scope != null, 'EnterprisePageContextScope missing above this widget.');
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<EnterprisePageContextScope>();
+    assert(
+        scope != null, 'EnterprisePageContextScope missing above this widget.');
     return scope!.notifier!;
   }
 
   static EnterprisePageContextController? maybeOf(BuildContext context) {
-    final scope =
-        context.dependOnInheritedWidgetOfExactType<EnterprisePageContextScope>();
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<EnterprisePageContextScope>();
     return scope?.notifier;
   }
 }
