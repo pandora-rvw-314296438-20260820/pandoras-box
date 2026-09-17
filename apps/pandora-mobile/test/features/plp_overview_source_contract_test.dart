@@ -28,7 +28,7 @@ void main() {
   });
 
   test('owner copy and quick actions are customer facing', () {
-    expect(source, contains('Your property at a glance.'));
+    expect(source, contains('PLP Boracay command center'));
     expect(source, contains('Today at a glance'));
     expect(source, contains('Needs your attention'));
     expect(source, contains('Pandora handled'));
