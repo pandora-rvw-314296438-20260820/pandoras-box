@@ -432,13 +432,13 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
                 const SizedBox(height: 5),
                 Wrap(
                   spacing: 8,
-                  crossAxisAlignment: WrapCrossAxisAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _tag(priority.toUpperCase()),
                     if (occurred != null)
                       Text(_relative(occurred),
                           style: const TextStyle(
-                                color: PandoraV2Colors.muted, fontSize: 11)),
+                              color: PandoraV2Colors.muted, fontSize: 11)),
                     if (prompt.isNotEmpty)
                       TextButton(
                         onPressed: () => _openAsk(prompt),
@@ -637,7 +637,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
         child: child,
       );
 
-  Widget _sectionTitle(IconType icon, String title) => Row(
+  Widget _sectionTitle(IconData icon, String title) => Row(
         children: [
           Icon(icon, size: 19, color: const Color(0xFFE6B784)),
           const SizedBox(width: 8),
@@ -715,7 +715,8 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
             style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700)),
       );
 
-  Widget _smallButton((String label, IconData icon, Future<void> Function() action)) =>
+  Widget _smallButton(
+          String label, IconData icon, Future<void> Function() action) =>
       OutlinedButton.icon(
         onPressed: () => action(),
         icon: Icon(icon, size: 17),
