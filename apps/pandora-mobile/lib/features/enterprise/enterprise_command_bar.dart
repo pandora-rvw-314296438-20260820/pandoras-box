@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,6 +6,7 @@ import '../../core/design/pandora_tokens.dart';
 import '../simple/pandora_v2_ui.dart';
 import 'enterprise_inline_theatre.dart';
 import 'enterprise_page_context.dart';
+import 'enterprise_that_scope_command_runner.dart';
 
 /// Persistent bottom Pandora command bar for Enterprise routes (P0-001).
 ///
@@ -258,6 +260,7 @@ class EnterpriseCommandHost extends StatefulWidget {
     this.showBar = true,
     this.onSubmit,
     this.theatreController,
+    this.thatScopeCommandRunner,
   });
 
   final EnterprisePageContextController controller;
@@ -268,6 +271,10 @@ class EnterpriseCommandHost extends StatefulWidget {
   /// Optional external theatre controller. When null, the host owns one so the
   /// mount point stays available without idle a11y chrome.
   final EnterpriseInlineTheatreController? theatreController;
+
+  /// Optional that-scope runner override (tests inject a fake provider port).
+  /// When null, a default runner wrapping [EnterpriseCodeApi] is used.
+  final EnterpriseThatScopeCommandRunner? thatScopeCommandRunner;
 
   @override
   State<EnterpriseCommandHost> createState() => _EnterpriseCommandHostState();
@@ -295,6 +302,16 @@ class _EnterpriseCommandHostState extends State<EnterpriseCommandHost> {
       _theatre.admitIdentityNeedsYou(
         reason: submission.needsYouReason!,
         identityScope: submission.envelope.identityScope,
+      );
+      return;
+    }
+    // A6: accepted Code that-scope → provider mutation/readback → Success|Failed.
+    // App Users accepted remains a no-op inside the runner (P0-019).
+    if (submission.accepted) {
+      final runner =
+          widget.thatScopeCommandRunner ?? EnterpriseThatScopeCommandRunner();
+      unawaited(
+        runner.run(submission: submission, theatre: _theatre),
       );
     }
   }
