@@ -891,9 +891,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
             Align(
               alignment: Alignment.topCenter,
               child: _ChatHeader(
-                active: _threadId != null ||
-                    _messages.isNotEmpty ||
-                    _pendingMessage != null,
                 onNewChat: newChat,
                 onSearchChats: widget.onSearchChats,
                 onMore: widget.onMore,
@@ -904,117 +901,132 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       );
 }
 
-enum _ChatOverflowAction { newChat, searchChats, more }
+enum _ChatOverflowAction { searchChats, more }
 
 class _ChatHeader extends StatelessWidget {
   const _ChatHeader({
-    required this.active,
     required this.onNewChat,
     this.onSearchChats,
     this.onMore,
   });
 
-  final bool active;
   final VoidCallback onNewChat;
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
 
-  @override
-  Widget build(BuildContext context) {
-    final topInset = MediaQuery.paddingOf(context).top;
-    return SizedBox(
-      key: const ValueKey<String>('pandora-chat-glass-header'),
-      height: topInset + 64,
-      child: ClipRect(
+  Widget _glass({
+    required Widget child,
+    required BorderRadius borderRadius,
+  }) =>
+      ClipRRect(
+        borderRadius: borderRadius,
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  PandoraSimpleColors.canvas.withValues(alpha: .94),
-                  PandoraSimpleColors.canvas.withValues(alpha: .78),
-                  PandoraSimpleColors.canvas.withValues(alpha: .42),
-                  Colors.transparent,
-                ],
-                stops: const [0, .45, .78, 1],
-              ),
+              color: const Color(0xA61B1B1B),
+              borderRadius: borderRadius,
+              border: Border.all(color: const Color(0x24FFFFFF)),
             ),
-            child: SafeArea(
-              bottom: false,
-              child: PandoraPageHeader(
-                title: '',
-                actions: [
-                  if (!active)
-                    IconButton(
-                      key: const ValueKey<String>('pandora-temporary-chat'),
-                      tooltip: 'Temporary chat',
-                      onPressed: onNewChat,
-                      icon: const Icon(Icons.history_toggle_off_rounded),
+            child: child,
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final openDrawer = PandoraNavigationScope.maybeOf(context)?.openDrawer;
+    return SizedBox(
+      key: const ValueKey<String>('pandora-chat-glass-header'),
+      width: double.infinity,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (openDrawer != null)
+                _glass(
+                  borderRadius: BorderRadius.circular(28),
+                  child: SizedBox.square(
+                    dimension: 52,
+                    child: IconButton(
+                      key: const ValueKey<String>('pandora-side-panel-open'),
+                      tooltip: 'Open navigation',
+                      onPressed: openDrawer,
+                      icon: const Icon(Icons.menu_rounded, size: 25),
                       color: PandoraSimpleColors.ink,
-                    )
-                  else
-                    PopupMenuButton<_ChatOverflowAction>(
-                      key: const ValueKey<String>('pandora-chat-overflow'),
-                      tooltip: 'More',
-                      icon: const Icon(Icons.more_vert_rounded),
-                      color: PandoraSimpleColors.surface,
-                      onSelected: (action) {
-                        switch (action) {
-                          case _ChatOverflowAction.newChat:
-                            onNewChat();
-                            break;
-                          case _ChatOverflowAction.searchChats:
-                            onSearchChats?.call();
-                            break;
-                          case _ChatOverflowAction.more:
-                            onMore?.call();
-                            break;
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem<_ChatOverflowAction>(
-                          key: ValueKey<String>('pandora-chat-menu-new'),
-                          value: _ChatOverflowAction.newChat,
-                          child: Row(
-                            children: [
-                              Icon(Icons.add_comment_outlined, size: 20),
-                              SizedBox(width: 12),
-                              Text('New chat'),
-                            ],
-                          ),
-                        ),
-                        if (onSearchChats != null)
-                          const PopupMenuItem<_ChatOverflowAction>(
-                            key: ValueKey<String>('pandora-chat-menu-search'),
-                            value: _ChatOverflowAction.searchChats,
-                            child: Row(
-                              children: [
-                                Icon(Icons.search_rounded, size: 20),
-                                SizedBox(width: 12),
-                                Text('Search chats'),
-                              ],
-                            ),
-                          ),
-                        if (onMore != null)
-                          const PopupMenuItem<_ChatOverflowAction>(
-                            key: ValueKey<String>('pandora-chat-menu-more'),
-                            value: _ChatOverflowAction.more,
-                            child: Row(
-                              children: [
-                                Icon(Icons.more_horiz_rounded, size: 20),
-                                SizedBox(width: 12),
-                                Text('More'),
-                              ],
-                            ),
-                          ),
-                      ],
                     ),
-                ],
+                  ),
+                )
+              else
+                const SizedBox(width: 52),
+              const Spacer(),
+              _glass(
+                borderRadius: BorderRadius.circular(28),
+                child: SizedBox(
+                  height: 52,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox.square(
+                        dimension: 48,
+                        child: IconButton(
+                          key: const ValueKey<String>('pandora-header-new-chat'),
+                          tooltip: 'New chat',
+                          onPressed: onNewChat,
+                          icon: const Icon(Icons.edit_square, size: 23),
+                          color: PandoraSimpleColors.ink,
+                        ),
+                      ),
+                      PopupMenuButton<_ChatOverflowAction>(
+                        key: const ValueKey<String>('pandora-chat-overflow'),
+                        tooltip: 'More',
+                        icon: const Icon(Icons.more_vert_rounded, size: 25),
+                        color: PandoraSimpleColors.surface,
+                        onSelected: (action) {
+                          switch (action) {
+                            case _ChatOverflowAction.searchChats:
+                              onSearchChats?.call();
+                              break;
+                            case _ChatOverflowAction.more:
+                              onMore?.call();
+                              break;
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          if (onSearchChats != null)
+                            const PopupMenuItem<_ChatOverflowAction>(
+                              key: ValueKey<String>('pandora-chat-menu-search'),
+                              value: _ChatOverflowAction.searchChats,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.search_rounded, size: 20),
+                                  SizedBox(width: 12),
+                                  Text('Search chats'),
+                                ],
+                              ),
+                            ),
+                          if (onMore != null)
+                            const PopupMenuItem<_ChatOverflowAction>(
+                              key: ValueKey<String>('pandora-chat-menu-more'),
+                              value: _ChatOverflowAction.more,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.more_horiz_rounded, size: 20),
+                                  SizedBox(width: 12),
+                                  Text('More'),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
