@@ -18,6 +18,33 @@ void main() {
     expect(source, contains('PandoraApp('));
   });
 
+  test('startup keeps independent I/O concurrent and maintenance post-frame',
+      () {
+    final source = File('lib/main.dart').readAsStringSync();
+    final localFuture = source.indexOf('final localStoreFuture =');
+    final supabaseFuture = source.indexOf('final supabaseInitialization =');
+    final firstAwait =
+        source.indexOf('final localStore = await localStoreFuture;');
+    final runAppAt = source.indexOf('runApp(');
+    final purgeAt = source.indexOf('localStore.purgeExpired(');
+    expect(localFuture, greaterThanOrEqualTo(0));
+    expect(supabaseFuture, greaterThan(localFuture));
+    expect(firstAwait, greaterThan(supabaseFuture));
+    expect(purgeAt, greaterThan(runAppAt));
+    expect(source, contains('addPostFrameCallback'));
+  });
+
+  test('activity stream teardown never blocks the next owner action', () {
+    final source = File(
+      'lib/core/activity/pandora_activity_timeline_controller.dart',
+    ).readAsStringSync();
+    expect(source, isNot(contains('await previous.cancel()')));
+    expect(
+      'unawaited(previous.cancel())'.allMatches(source).length,
+      greaterThanOrEqualTo(2),
+    );
+  });
+
   test(
     'feature widgets do not import transport, Supabase, or JSON rendering',
     () {

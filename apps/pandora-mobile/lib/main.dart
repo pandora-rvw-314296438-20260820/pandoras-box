@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -12,22 +14,25 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  // Supabase sessions remain memory-only. Provider master credentials remain
-  // server/Vault-only; the APK receives only the scoped user session.
-  await PandoraMobileAuthStorage.clearLegacyPersistedSession(
+  // Start independent I/O concurrently so encrypted local storage, legacy
+  // session cleanup, and the memory-only Supabase client do not serialize app
+  // startup. Provider master credentials remain server/Vault-only.
+  final legacySessionCleanup =
+      PandoraMobileAuthStorage.clearLegacyPersistedSession(
     PandoraConfig.supabaseUrl,
   );
-
-  final localStore = await openPandoraLocalStore();
-  await localStore.purgeExpired(DateTime.now().toUtc());
-
-  await Supabase.initialize(
+  final localStoreFuture = openPandoraLocalStore();
+  final supabaseInitialization = Supabase.initialize(
     url: PandoraConfig.supabaseUrl,
     publishableKey: PandoraConfig.supabasePublishableKey,
     authOptions: const FlutterAuthClientOptions(
       localStorage: EmptyLocalStorage(),
     ),
   );
+
+  final localStore = await localStoreFuture;
+  await legacySessionCleanup;
+  await supabaseInitialization;
 
   final runtime = PandoraRuntimeBootstrap.create(
     Supabase.instance.client,
@@ -48,4 +53,12 @@ Future<void> main() async {
       localStore: runtime.localStore,
     ),
   );
+
+  // Cache reads already reject/delete expired records individually. A full
+  // expiry sweep is maintenance work, so keep it off the first-frame path.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(
+      localStore.purgeExpired(DateTime.now().toUtc()).catchError((_) => 0),
+    );
+  });
 }

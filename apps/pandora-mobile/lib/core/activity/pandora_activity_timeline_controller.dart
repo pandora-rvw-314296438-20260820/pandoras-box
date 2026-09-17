@@ -37,7 +37,7 @@ class PandoraActivityTimelineController extends ChangeNotifier {
     final generation = ++_generation;
     final previous = _subscription;
     _subscription = null;
-    if (previous != null) await previous.cancel();
+    if (previous != null) unawaited(previous.cancel());
     if (_disposed || generation != _generation) return;
 
     _reducer.reset();
@@ -58,7 +58,7 @@ class PandoraActivityTimelineController extends ChangeNotifier {
     ++_generation;
     final previous = _subscription;
     _subscription = null;
-    if (previous != null) await previous.cancel();
+    if (previous != null) unawaited(previous.cancel());
     _reducer.reset();
     _boundJobId = null;
     _publicError = null;
