@@ -57,15 +57,19 @@ jobs:
         run: node --test test/pandora-owner-journey-release-gate.test.js
 
       - name: Run the complete repository check
+        if: ${{ github.event_name != 'pull_request' }}
         run: npm run check
 
       - name: Run every repository test
+        if: ${{ github.event_name != 'pull_request' }}
         run: npm test
 
       - name: Audit production dependencies
+        if: ${{ github.event_name != 'pull_request' }}
         run: npm audit --omit=dev --audit-level=high
 
       - name: Type-check all governed Edge functions in isolation
+        if: ${{ github.event_name != 'pull_request' }}
         run: npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-coordinator-gate/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts
 
       - name: Re-prove the checkout before binding it

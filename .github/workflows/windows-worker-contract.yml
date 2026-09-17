@@ -12,8 +12,49 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: windows-worker-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  worker-impact:
+    name: Detect Windows worker impact
+    runs-on: ubuntu-latest
+    outputs:
+      windows: ${{ steps.detect.outputs.windows }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          windows=true
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            windows=false
+            if git rev-parse "${GITHUB_SHA}^1" >/dev/null 2>&1; then
+              while IFS= read -r path; do
+                case "$path" in
+                  apps/pandora-mobile/*|docs/*)
+                    ;;
+                  *)
+                    windows=true
+                    break
+                    ;;
+                esac
+              done < <(git diff --name-only "${GITHUB_SHA}^1" "${GITHUB_SHA}")
+            else
+              windows=true
+            fi
+          fi
+          echo "windows=${windows}" >> "$GITHUB_OUTPUT"
+
   worker-contract:
+    needs: worker-impact
+    if: ${{ needs.worker-impact.outputs.windows == 'true' }}
     name: Windows worker contract
     runs-on: windows-latest
     timeout-minutes: 15
