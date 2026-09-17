@@ -34,10 +34,11 @@ class PandoraActivityTimelineView extends StatelessWidget {
       PandoraActivityState.paused => palette.attention,
       _ => muted,
     };
-    final semanticText = requiredAction == null
-        ? 'Activity Theatre. ${activityStateLabel(latest.state)}. ${latest.message}'
-        : 'Activity Theatre. ${activityStateLabel(latest.state)}. '
-              '${latest.message}. Required action: $requiredAction';
+    var semanticText =
+        'Activity Theatre. ${activityStateLabel(latest.state)}. ${latest.message}';
+    if (requiredAction != null) {
+      semanticText = '$semanticText. Required action: $requiredAction';
+    }
 
     return Semantics(
       container: true,
