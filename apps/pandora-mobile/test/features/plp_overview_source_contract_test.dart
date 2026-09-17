@@ -43,7 +43,8 @@ void main() {
     expect(screenSource, contains('Ask Pandora'));
     expect(screenSource, contains('Today’s report'));
     expect(screenSource, contains('Create task'));
-    expect(screenSource, isNot(contains('System, account and environment summary')));
+    expect(screenSource,
+        isNot(contains('System, account and environment summary')));
     expect(screenSource, isNot(contains('system context')));
   });
 
@@ -53,10 +54,11 @@ void main() {
   });
 
   test('empty operational state does not fabricate hotel metrics', () {
-    expect(
-        screenSource, contains('Awaiting the first verified live business update'));
+    expect(screenSource,
+        contains('Awaiting the first verified live business update'));
     expect(screenSource, contains('Business alerts will appear here'));
-    expect(screenSource, contains('Completed business actions will appear here'));
+    expect(
+        screenSource, contains('Completed business actions will appear here'));
     expect(screenSource, isNot(contains('No current Pandora system blockers')));
   });
 }
