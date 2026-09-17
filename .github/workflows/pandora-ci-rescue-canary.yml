@@ -12,8 +12,9 @@ jobs:
   deterministic-canary-failure:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify Rescue repaired the deterministic canary
+      - name: Fail intentionally for unattended Rescue acceptance
         shell: bash
         run: |
-          echo "PANDORA_CI_RESCUE_CANARY repaired"
-          exit 0
+          echo "::error::PANDORA_CI_RESCUE_CANARY unattended acceptance failure"
+          echo "Rescue must repair this exact SHA without touching main."
+          exit 1
