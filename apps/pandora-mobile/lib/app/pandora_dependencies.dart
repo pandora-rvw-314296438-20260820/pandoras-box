@@ -8,6 +8,7 @@ import '../core/data/project_experience_projection_repository.dart';
 import '../core/data/project_experience_repository.dart';
 import '../core/data/project_runtime_api.dart';
 import '../core/diagnostics/diagnostics_store.dart';
+import '../core/local/pandora_local_store.dart';
 import '../core/security/pandora_auth.dart';
 
 class PandoraDependencies extends InheritedWidget {
@@ -16,6 +17,7 @@ class PandoraDependencies extends InheritedWidget {
     required this.auth,
     required this.repository,
     required this.diagnostics,
+    this.localStore,
     this.intelligence,
     this.projectRuntime,
     this.projectExperience,
@@ -34,6 +36,7 @@ class PandoraDependencies extends InheritedWidget {
   final ProjectExperienceRepository? projectExperienceRepository;
   final DomainRegistrarApi? domainRegistrar;
   final DiagnosticsStore diagnostics;
+  final PandoraLocalStore? localStore;
 
   static PandoraDependencies of(BuildContext context) {
     final result =
@@ -52,5 +55,6 @@ class PandoraDependencies extends InheritedWidget {
       projectExperienceProjection != oldWidget.projectExperienceProjection ||
       projectExperienceRepository != oldWidget.projectExperienceRepository ||
       domainRegistrar != oldWidget.domainRegistrar ||
+      localStore != oldWidget.localStore ||
       diagnostics != oldWidget.diagnostics;
 }

@@ -17,9 +17,9 @@ test('project creation reuses one idempotency key for the same intent until the 
   assert.equal(source.includes('idempotencyKey: createKey'), true);
   assert.equal(source.includes('_createIntent = null;'), true);
   assert.equal(source.includes('_createIdempotencyKey = null;'), true);
-  assert.equal(source.includes('_creationAttempts.idempotencyKeyFor(intent)'), true);
-  assert.equal(source.includes('_creationAttempts.save('), true);
-  assert.equal(source.includes('_creationAttempts.clear('), true);
+  assert.equal(source.includes('creationAttempts.idempotencyKeyFor(intent)'), true);
+  assert.equal(source.includes('creationAttempts.save('), true);
+  assert.equal(source.includes('creationAttempts.clear('), true);
 });
 
 test('ambiguous create transport outcome tells the customer safe retry will resume instead of duplicate', () => {
