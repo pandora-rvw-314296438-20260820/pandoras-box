@@ -58,7 +58,9 @@ test('audit evidence is exact/bounded and empty repositories are reported truthf
 
 test('an APK remains a validation candidate until physical-device evidence exists', () => {
   assert.match(release, /--prerelease/);
+  assert.match(release, /Emulator-device verification: not yet asserted/);
   assert.match(release, /Physical-device verification: not yet asserted/);
+  assert.match(release, /emulator_device_verified=/);
   assert.match(release, /physical_device_verified=/);
   assert.match(physical, /owner_authenticate/);
   assert.match(physical, /submit_owner_command/);

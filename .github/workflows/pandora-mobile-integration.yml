@@ -256,6 +256,7 @@ jobs:
             echo 'android_build_tools=36.0.0'
             echo 'artifact_class=validation-candidate'
             echo 'production_release=false'
+            echo 'emulator_device_verified=false'
             echo 'physical_device_verified=false'
             echo 'wifi_journey_verified=false'
             echo 'mobile_data_journey_verified=false'

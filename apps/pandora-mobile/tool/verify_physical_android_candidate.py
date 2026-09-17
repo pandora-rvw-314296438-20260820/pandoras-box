@@ -5,7 +5,7 @@ import argparse, hashlib, json, re, subprocess, sys
 from pathlib import Path
 from typing import Mapping, Sequence
 EXPECTED_PACKAGE = "com.banataosystems.pandora_mobile"
-FALSE_GATES = ("physical_device_verified","wifi_journey_verified","mobile_data_journey_verified","authenticated_owner_journey_verified","network_switch_verified","rollback_verified")
+FALSE_GATES = ("emulator_device_verified","physical_device_verified","wifi_journey_verified","mobile_data_journey_verified","authenticated_owner_journey_verified","network_switch_verified","rollback_verified")
 SENSITIVE_PERMISSION_RE = re.compile(r"ACCESS_(?:FINE|COARSE|BACKGROUND)_LOCATION|READ_CONTACTS|WRITE_CONTACTS|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_|CAMERA|RECORD_AUDIO|BLUETOOTH_(?:SCAN|CONNECT|ADVERTISE)|QUERY_ALL_PACKAGES|REQUEST_INSTALL_PACKAGES|SYSTEM_ALERT_WINDOW", re.IGNORECASE)
 class VerificationError(RuntimeError): pass
 def sha256_file(path: Path) -> str:
@@ -113,7 +113,7 @@ def main()->int:
         if debug_signer: raise VerificationError("production acceptance cannot use the Android debug signer")
         require_modern_signature_scheme(signing)
         signer_sha256=require_expected_production_signer(signing,args.expected_signer_sha256)
-    evidence={"source_sha":args.expected_source_sha,"source_tree":args.expected_source_tree,"apk_sha256":apk_sha,"android_package":package_name,"version_name":version_name,"version_code":version_code,"permissions_verified":True,"debug_signer":debug_signer,"signer_sha256":signer_sha256,"manifest_bound":True,"device_smoke_verified":False,"physical_device_verified":False,"wifi_journey_verified":False,"mobile_data_journey_verified":False,"authenticated_owner_journey_verified":False,"network_switch_verified":False,"rollback_verified":False}
+    evidence={"source_sha":args.expected_source_sha,"source_tree":args.expected_source_tree,"apk_sha256":apk_sha,"android_package":package_name,"version_name":version_name,"version_code":version_code,"permissions_verified":True,"debug_signer":debug_signer,"signer_sha256":signer_sha256,"manifest_bound":True,"device_smoke_verified":False,"emulator_device_verified":False,"physical_device_verified":False,"wifi_journey_verified":False,"mobile_data_journey_verified":False,"authenticated_owner_journey_verified":False,"network_switch_verified":False,"rollback_verified":False}
     if args.smoke_device: evidence.update(smoke_device(args.adb,args.serial,args.apk,package_name,version_name,version_code))
     print(json.dumps(evidence,sort_keys=True)); return 0
 if __name__=="__main__":

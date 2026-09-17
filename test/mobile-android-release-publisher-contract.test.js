@@ -34,9 +34,11 @@ test("Android prerelease publisher is manual, exact-source, and evidence-bound",
   assert.match(publisher, /pandora-mobile-android-validation-\$\{SOURCE_SHA\}/);
   assert.match(publisher, /artifact_class=.*validation-candidate/);
   assert.match(publisher, /production_release=.*false/);
+  assert.match(publisher, /emulator_device_verified=.*false/);
   assert.match(publisher, /physical_device_verified=.*false/);
   assert.match(publisher, /--target \"\$SOURCE_SHA\"/);
   assert.match(publisher, /--prerelease/);
+  assert.match(publisher, /Emulator-device verification: not yet asserted/);
   assert.match(publisher, /Physical-device verification: not yet asserted/);
   assert.doesNotMatch(publisher, /secrets\./);
   assert.doesNotMatch(publisher, /(?:VERCEL|SUPABASE)_(?:PAT|TOKEN)/);
@@ -49,6 +51,7 @@ test("read-only mobile validation lane remains unable to publish releases", () =
   assert.match(validation, /contents:\[\[:space:\]\]\+write/);
   assert.match(validation, /gh\[\[:space:\]\]\+release/);
   assert.doesNotMatch(validation, /^\s{2}contents: write\s*$/m);
+  assert.match(validation, /echo 'emulator_device_verified=false'/);
 });
 
 test("canonical deployment target uses live Vercel team identity", () => {
