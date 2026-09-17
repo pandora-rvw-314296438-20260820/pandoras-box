@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -830,11 +831,66 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: PandoraSimpleColors.canvas,
         resizeToAvoidBottomInset: true,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              _ChatHeader(
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Column(
+              children: [
+                Expanded(
+                  child: _loadingThread
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: PandoraSimpleColors.muted,
+                          ),
+                        )
+                      : _messages.isEmpty && _pendingMessage == null
+                          ? _EmptyConversation(
+                              suggestions: _suggestions,
+                              onSuggestion: _useSuggestion,
+                              disabled: _outcomeUnknown || _submitting,
+                            )
+                          : _Conversation(
+                              messages: _messages,
+                              pendingMessage: _pendingMessage,
+                              thinking: _submitting,
+                              activityEvents: _activityController.events,
+                              activityError: _activityController.publicError,
+                            ),
+                ),
+                _Composer(
+                  controller: _objective,
+                  focusNode: _objectiveFocus,
+                  attachment: _attachment,
+                  imageAttachment: _imageAttachment,
+                  projectContext: _projectContext,
+                  serviceContext: _serviceContext,
+                  characterContext: _characterContext,
+                  error: _error,
+                  submitting: _submitting,
+                  disabled: _outcomeUnknown,
+                  onChanged: () {
+                    if (_error != null) setState(() => _error = null);
+                  },
+                  onCamera: () => _pickImage(camera: true),
+                  onPhotos: () => _pickImage(camera: false),
+                  onAttach: _attach,
+                  onCharacters: _pickCharacterContext,
+                  onServices: _pickServiceContext,
+                  onProjectContext: _pickProjectContext,
+                  onDictate: _dictate,
+                  onSubmit: _submit,
+                  onRemoveAttachment: () => setState(() => _attachment = null),
+                  onRemoveImage: () => setState(() => _imageAttachment = null),
+                  onRemoveCharacterContext: _removeCharacterContext,
+                  onRemoveServiceContext: _removeServiceContext,
+                  onRemoveProjectContext: _removeProjectContext,
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.topCenter,
+              child: _ChatHeader(
                 active: _threadId != null ||
                     _messages.isNotEmpty ||
                     _pendingMessage != null,
@@ -842,58 +898,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 onSearchChats: widget.onSearchChats,
                 onMore: widget.onMore,
               ),
-              Expanded(
-                child: _loadingThread
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: PandoraSimpleColors.muted,
-                        ),
-                      )
-                    : _messages.isEmpty && _pendingMessage == null
-                        ? _EmptyConversation(
-                            suggestions: _suggestions,
-                            onSuggestion: _useSuggestion,
-                            disabled: _outcomeUnknown || _submitting,
-                          )
-                        : _Conversation(
-                            messages: _messages,
-                            pendingMessage: _pendingMessage,
-                            thinking: _submitting,
-                            activityEvents: _activityController.events,
-                            activityError: _activityController.publicError,
-                          ),
-              ),
-              _Composer(
-                controller: _objective,
-                focusNode: _objectiveFocus,
-                attachment: _attachment,
-                imageAttachment: _imageAttachment,
-                projectContext: _projectContext,
-                serviceContext: _serviceContext,
-                characterContext: _characterContext,
-                error: _error,
-                submitting: _submitting,
-                disabled: _outcomeUnknown,
-                onChanged: () {
-                  if (_error != null) setState(() => _error = null);
-                },
-                onCamera: () => _pickImage(camera: true),
-                onPhotos: () => _pickImage(camera: false),
-                onAttach: _attach,
-                onCharacters: _pickCharacterContext,
-                onServices: _pickServiceContext,
-                onProjectContext: _pickProjectContext,
-                onDictate: _dictate,
-                onSubmit: _submit,
-                onRemoveAttachment: () => setState(() => _attachment = null),
-                onRemoveImage: () => setState(() => _imageAttachment = null),
-                onRemoveCharacterContext: _removeCharacterContext,
-                onRemoveServiceContext: _removeServiceContext,
-                onRemoveProjectContext: _removeProjectContext,
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
 }
@@ -914,76 +920,106 @@ class _ChatHeader extends StatelessWidget {
   final VoidCallback? onMore;
 
   @override
-  Widget build(BuildContext context) => PandoraPageHeader(
-        title: '',
-        actions: [
-          if (!active)
-            IconButton(
-              key: const ValueKey<String>('pandora-temporary-chat'),
-              tooltip: 'Temporary chat',
-              onPressed: onNewChat,
-              icon: const Icon(Icons.history_toggle_off_rounded),
-              color: PandoraSimpleColors.ink,
-            )
-          else
-            PopupMenuButton<_ChatOverflowAction>(
-              key: const ValueKey<String>('pandora-chat-overflow'),
-              tooltip: 'More',
-              icon: const Icon(Icons.more_vert_rounded),
-              color: PandoraSimpleColors.surface,
-              onSelected: (action) {
-                switch (action) {
-                  case _ChatOverflowAction.newChat:
-                    onNewChat();
-                    break;
-                  case _ChatOverflowAction.searchChats:
-                    onSearchChats?.call();
-                    break;
-                  case _ChatOverflowAction.more:
-                    onMore?.call();
-                    break;
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem<_ChatOverflowAction>(
-                  key: ValueKey<String>('pandora-chat-menu-new'),
-                  value: _ChatOverflowAction.newChat,
-                  child: Row(
-                    children: [
-                      Icon(Icons.add_comment_outlined, size: 20),
-                      SizedBox(width: 12),
-                      Text('New chat'),
-                    ],
-                  ),
-                ),
-                if (onSearchChats != null)
-                  const PopupMenuItem<_ChatOverflowAction>(
-                    key: ValueKey<String>('pandora-chat-menu-search'),
-                    value: _ChatOverflowAction.searchChats,
-                    child: Row(
-                      children: [
-                        Icon(Icons.search_rounded, size: 20),
-                        SizedBox(width: 12),
-                        Text('Search chats'),
-                      ],
-                    ),
-                  ),
-                if (onMore != null)
-                  const PopupMenuItem<_ChatOverflowAction>(
-                    key: ValueKey<String>('pandora-chat-menu-more'),
-                    value: _ChatOverflowAction.more,
-                    child: Row(
-                      children: [
-                        Icon(Icons.more_horiz_rounded, size: 20),
-                        SizedBox(width: 12),
-                        Text('More'),
-                      ],
-                    ),
-                  ),
-              ],
+  Widget build(BuildContext context) {
+    final topInset = MediaQuery.paddingOf(context).top;
+    return SizedBox(
+      key: const ValueKey<String>('pandora-chat-glass-header'),
+      height: topInset + 64,
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  PandoraSimpleColors.canvas.withValues(alpha: .94),
+                  PandoraSimpleColors.canvas.withValues(alpha: .78),
+                  PandoraSimpleColors.canvas.withValues(alpha: .42),
+                  Colors.transparent,
+                ],
+                stops: const [0, .45, .78, 1],
+              ),
             ),
-        ],
-      );
+            child: SafeArea(
+              bottom: false,
+              child: PandoraPageHeader(
+                title: '',
+                actions: [
+                  if (!active)
+                    IconButton(
+                      key: const ValueKey<String>('pandora-temporary-chat'),
+                      tooltip: 'Temporary chat',
+                      onPressed: onNewChat,
+                      icon: const Icon(Icons.history_toggle_off_rounded),
+                      color: PandoraSimpleColors.ink,
+                    )
+                  else
+                    PopupMenuButton<_ChatOverflowAction>(
+                      key: const ValueKey<String>('pandora-chat-overflow'),
+                      tooltip: 'More',
+                      icon: const Icon(Icons.more_vert_rounded),
+                      color: PandoraSimpleColors.surface,
+                      onSelected: (action) {
+                        switch (action) {
+                          case _ChatOverflowAction.newChat:
+                            onNewChat();
+                            break;
+                          case _ChatOverflowAction.searchChats:
+                            onSearchChats?.call();
+                            break;
+                          case _ChatOverflowAction.more:
+                            onMore?.call();
+                            break;
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem<_ChatOverflowAction>(
+                          key: ValueKey<String>('pandora-chat-menu-new'),
+                          value: _ChatOverflowAction.newChat,
+                          child: Row(
+                            children: [
+                              Icon(Icons.add_comment_outlined, size: 20),
+                              SizedBox(width: 12),
+                              Text('New chat'),
+                            ],
+                          ),
+                        ),
+                        if (onSearchChats != null)
+                          const PopupMenuItem<_ChatOverflowAction>(
+                            key: ValueKey<String>('pandora-chat-menu-search'),
+                            value: _ChatOverflowAction.searchChats,
+                            child: Row(
+                              children: [
+                                Icon(Icons.search_rounded, size: 20),
+                                SizedBox(width: 12),
+                                Text('Search chats'),
+                              ],
+                            ),
+                          ),
+                        if (onMore != null)
+                          const PopupMenuItem<_ChatOverflowAction>(
+                            key: ValueKey<String>('pandora-chat-menu-more'),
+                            value: _ChatOverflowAction.more,
+                            child: Row(
+                              children: [
+                                Icon(Icons.more_horiz_rounded, size: 20),
+                                SizedBox(width: 12),
+                                Text('More'),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _EmptyConversation extends StatelessWidget {
@@ -1214,7 +1250,12 @@ class _ConversationState extends State<_Conversation> {
     return ListView.separated(
       controller: _scrollController,
       reverse: false,
-      padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        MediaQuery.paddingOf(context).top + 72,
+        16,
+        24,
+      ),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       itemCount: items.length,
       itemBuilder: (context, index) => items[index],
