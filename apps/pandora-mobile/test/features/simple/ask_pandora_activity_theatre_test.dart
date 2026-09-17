@@ -29,6 +29,7 @@ class _FakeIntelligence extends PandoraIntelligenceApi {
   final Completer<PandoraIntelligenceTurn> turn =
       Completer<PandoraIntelligenceTurn>();
   PandoraActivityControlType? lastControlType;
+  final List<String> requestIds = <String>[];
 
   @override
   Future<PandoraIntelligenceExecution> startChatExecution({
@@ -39,12 +40,14 @@ class _FakeIntelligence extends PandoraIntelligenceApi {
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
-  }) async =>
-      PandoraIntelligenceExecution(
-        jobId: 'job-1',
-        events: events.stream,
-        turn: turn.future,
-      );
+  }) async {
+    requestIds.add(requestId);
+    return PandoraIntelligenceExecution(
+      jobId: 'job-1',
+      events: events.stream,
+      turn: turn.future,
+    );
+  }
 
   @override
   Future<void> controlActivityJob({
@@ -203,6 +206,77 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('completed turn uses a fresh request identity next time', (tester) async {
+    await setTestSurface(tester, logicalSize: const Size(390, 844));
+    final intelligence = _FakeIntelligence();
+    addTearDown(intelligence.close);
+
+    await tester.pumpWidget(
+      testApp(
+        themeMode: ThemeMode.dark,
+        child: PandoraDependencies(
+          auth: const FakeAuth(),
+          repository: FakeRepository(),
+          intelligence: intelligence,
+          diagnostics: DiagnosticsStore(),
+          child: const AskPandoraScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final input = find.byKey(const ValueKey<String>('ask' '-pandora-objective'));
+    final submit = find.byKey(const ValueKey<String>('ask' '-pandora-submit'));
+    await tester.enterText(input, 'Hi');
+    await tester.tap(submit);
+    await tester.pump();
+    expect(intelligence.requestIds, hasLength(1));
+    final firstRequestId = intelligence.requestIds.single;
+
+    intelligence.events.add(
+      _activityEvent(
+        sequence: 1,
+        state: 'result',
+        message: 'Greeting answered.',
+        evidence: const <Map<String, dynamic>>[
+          <String, dynamic>{
+            'type': 'verification_receipt',
+            'relation': 'verification',
+            'ref': 'verification:fresh-request-1',
+          },
+        ],
+        outcome: const <String, dynamic>{
+          'summary': 'Greeting answered.',
+          'physicalDevice': false,
+        },
+      ),
+    );
+    await tester.pump();
+
+    intelligence.turn.complete(
+      const PandoraIntelligenceTurn(
+        threadId: 'thread-fresh-request',
+        reply: 'Hi. What would you like to do?',
+        intent: 'conversation',
+        confidence: 1,
+        needsClarification: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(input, 'Hello again');
+    await tester.tap(submit);
+    await tester.pumpAndSettle();
+
+    expect(intelligence.requestIds, hasLength(2));
+    expect(intelligence.requestIds.last, isNot(firstRequestId));
+    expect(
+      find.byKey(const ValueKey<String>('ask' '-pandora-activity-theatre')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('trivial greeting never shows Activity Theatre', (tester) async {
     await setTestSurface(tester, logicalSize: const Size(390, 844));
