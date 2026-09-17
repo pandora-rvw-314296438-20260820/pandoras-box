@@ -1,24 +1,29 @@
 import 'package:flutter/material.dart';
+
+import '../../core/data/enterprise_plp_overview_api.dart';
 import '../../core/data/plp_overview_repository.dart';
 import '../../core/widgets/pandora_page.dart';
 import 'ask_pandora_screen.dart';
 import 'pandora_v2_ui.dart';
 
 class PlpOverviewScreen extends StatefulWidget {
-  const PlpOverviewScreen({super.key, required this.description});
+  const PlpOverviewScreen({super.key, required this.description, this.gateway});
 
   final String description;
+  final EnterprisePlpOverviewGateway? gateway;
 
   @override
   State<PlpOverviewScreen> createState() => _PlpOverviewScreenState();
 }
 
 class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
+  late final EnterprisePlpOverviewGateway _gateway;
   late Future<PlpOverviewData> _data;
 
   @override
   void initState() {
     super.initState();
+    _gateway = widget.gateway ?? SupabaseEnterprisePlpOverviewGateway();
     _data = _load();
   }
 
@@ -28,7 +33,16 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     await next;
   }
 
-  Future<PlpOverviewData> _load() => const PlpOverviewRepository().load();
+  Future<PlpOverviewData> _load() async {
+    final snapshot = await _gateway.load();
+    return PlpOverviewData(
+      overview: snapshot.overview,
+      sources: snapshot.sources,
+      attention: snapshot.attention,
+      activity: snapshot.activity,
+      refreshedAt: snapshot.refreshedAt,
+    );
+  }
 
   @override
   Widget build(BuildContext context) => PandoraPage(

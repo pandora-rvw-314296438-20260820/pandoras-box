@@ -1,24 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../core/data/enterprise_code_api.dart';
+
+import '../../core/data/enterprise_github_code_api.dart';
 import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/pandora_surface.dart';
 import '../simple/pandora_v2_ui.dart';
 
 class EnterpriseCodeScreen extends StatefulWidget {
-  const EnterpriseCodeScreen({super.key});
+  const EnterpriseCodeScreen({super.key, this.gateway});
+
+  final EnterpriseGithubCodeGateway? gateway;
 
   @override
   State<EnterpriseCodeScreen> createState() => _EnterpriseCodeScreenState();
 }
 
 class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
+  late final EnterpriseGithubCodeGateway _gateway;
   final TextEditingController _repositoryController = TextEditingController();
   Map<String, dynamic>? _inspection;
   Map<String, dynamic>? _deployment;
   bool _working = false;
   String? _error;
   String? _lastInspectedUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _gateway = widget.gateway ?? SupabaseEnterpriseGithubCodeGateway();
+  }
 
   @override
   void dispose() {
@@ -30,15 +40,16 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
     String action, {
     String? deploymentId,
   }) async {
-    final payload = await const EnterpriseCodeApi().invoke(
-      action,
-      repositoryUrl: _repositoryController.text.trim(),
-      deploymentId: deploymentId,
-    );
-    if (payload['ok'] != true) {
-      throw StateError(_friendlyError('${payload['code'] ?? 'UNKNOWN_ERROR'}'));
+    final url = _repositoryController.text.trim();
+    try {
+      return await _gateway.invoke(
+        action,
+        repositoryUrl: url,
+        deploymentId: deploymentId,
+      );
+    } on StateError catch (error) {
+      throw StateError(_friendlyError(error.message));
     }
-    return payload;
   }
 
   Future<void> _inspect() async {
