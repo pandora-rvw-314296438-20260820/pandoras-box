@@ -623,7 +623,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         return Scaffold(
           key: _scaffoldKey,
           backgroundColor: PandoraV2Colors.canvas,
-          drawerScrimColor: Colors.black.withValues(alpha: .18),
+          drawerScrimColor: Colors.black.withValues(alpha: .06),
           onDrawerChanged: (open) {
             if (open) unawaited(_refreshHistory());
           },
@@ -638,10 +638,10 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
             shape: const RoundedRectangleBorder(),
             child: ClipRect(
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: PandoraV2Colors.canvas.withValues(alpha: .74),
+                    color: PandoraV2Colors.canvas.withValues(alpha: .24),
                     border: const Border(
                       right: BorderSide(color: Color(0x24FFFFFF)),
                     ),
