@@ -1296,7 +1296,8 @@ class _ConversationState extends State<_Conversation> {
       items.add(_ChatBubble(message: message));
     }
     if (_hasPending) {
-      items.add(_ChatBubble(message: _ChatMessage.user(widget.pendingMessage!)));
+      items
+          .add(_ChatBubble(message: _ChatMessage.user(widget.pendingMessage!)));
     }
     if (activitySlot != null) items.add(activitySlot);
 
@@ -1707,7 +1708,8 @@ class _Composer extends StatelessWidget {
                       const SizedBox(width: 2),
                       Expanded(
                         child: TextField(
-                          key: const ValueKey<String>('ask' '-pandora-objective'),
+                          key: const ValueKey<String>(
+                              'ask' '-pandora-objective'),
                           controller: controller,
                           focusNode: focusNode,
                           readOnly: disabled,
@@ -1756,7 +1758,8 @@ class _Composer extends StatelessWidget {
                           return SizedBox.square(
                             dimension: 44,
                             child: FilledButton(
-                              key: const ValueKey<String>('ask' '-pandora-submit'),
+                              key: const ValueKey<String>(
+                                  'ask' '-pandora-submit'),
                               onPressed: disabled ? null : onSubmit,
                               style: FilledButton.styleFrom(
                                 padding: EdgeInsets.zero,

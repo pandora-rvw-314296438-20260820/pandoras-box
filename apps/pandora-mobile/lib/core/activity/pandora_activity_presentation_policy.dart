@@ -121,7 +121,8 @@ bool _isMeaningfulActivity(PandoraActivityProjection event) {
     PandoraActivityState.paused ||
     PandoraActivityState.resuming ||
     PandoraActivityState.failed ||
-    PandoraActivityState.cancelled => true,
+    PandoraActivityState.cancelled =>
+      true,
     _ => false,
   };
 }

@@ -312,7 +312,6 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
-
 }
 
 class _ConversationRepository extends FakeRepository {

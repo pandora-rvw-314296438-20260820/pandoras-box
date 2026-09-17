@@ -47,17 +47,17 @@ class EnterpriseSectionScreen extends StatelessWidget {
   }
 
   Widget _bullet(String item) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(top: 6),
-          child: Icon(Icons.circle, size: 6),
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Icon(Icons.circle, size: 6),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(item)),
+          ],
         ),
-        const SizedBox(width: 10),
-        Expanded(child: Text(item)),
-      ],
-    ),
-  );
+      );
 }

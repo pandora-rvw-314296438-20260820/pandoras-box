@@ -39,12 +39,12 @@ PandoraActivityProjection event({
 }
 
 Widget harness(List<PandoraActivityProjection> events) => MaterialApp(
-  home: Scaffold(
-    body: SingleChildScrollView(
-      child: PandoraActivityTimelineView(events: events),
-    ),
-  ),
-);
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: PandoraActivityTimelineView(events: events),
+        ),
+      ),
+    );
 
 void main() {
   testWidgets('renders only the latest live Activity stage', (tester) async {
@@ -185,7 +185,8 @@ void main() {
           event(
             sequence: 1,
             state: PandoraActivityState.needsYou,
-            message: 'Pandora needs a real user action before it can continue safely.',
+            message:
+                'Pandora needs a real user action before it can continue safely.',
             blocker: const PandoraActivityBlocker(
               reasonCode: 'protected_app_user_presence_required',
               reason: 'User presence is required.',

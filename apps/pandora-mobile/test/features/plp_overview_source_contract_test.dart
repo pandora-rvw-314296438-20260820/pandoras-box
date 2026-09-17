@@ -44,7 +44,8 @@ void main() {
   });
 
   test('empty operational state does not fabricate hotel metrics', () {
-    expect(source, contains('Awaiting the first verified live business update'));
+    expect(
+        source, contains('Awaiting the first verified live business update'));
     expect(source, contains('Business alerts will appear here'));
     expect(source, contains('Completed business actions will appear here'));
     expect(source, isNot(contains('No current Pandora system blockers')));

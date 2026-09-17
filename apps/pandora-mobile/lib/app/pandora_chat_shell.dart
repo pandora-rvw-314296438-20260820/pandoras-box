@@ -362,25 +362,24 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       return;
     }
     await _runThreadMutation(
-      () =>
-          PandoraDependencies.of(context).intelligence!
-              .renameThread(thread.id, title),
+      () => PandoraDependencies.of(context)
+          .intelligence!
+          .renameThread(thread.id, title),
       success: 'Conversation renamed.',
     );
   }
 
   Future<void> _archiveThread(PandoraIntelligenceThread thread) async {
     await _runThreadMutation(
-      () =>
-          PandoraDependencies.of(context).intelligence!
-              .archiveThread(thread.id),
+      () => PandoraDependencies.of(context)
+          .intelligence!
+          .archiveThread(thread.id),
       success: 'Conversation archived.',
     );
   }
 
   Future<void> _deleteThread(PandoraIntelligenceThread thread) async {
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('Delete conversation?'),
@@ -412,7 +411,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     final intelligence = PandoraDependencies.of(context).intelligence;
     if (intelligence == null) return;
     try {
-      final projectSnapshot = await PandoraDependencies.of(context).repository
+      final projectSnapshot = await PandoraDependencies.of(context)
+          .repository
           .projects(allowCached: true);
       if (!mounted) return;
       final selected = await showModalBottomSheet<String>(
@@ -489,35 +489,34 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
   Widget _root(int index) => _roots.putIfAbsent(index, () {
-    if (index == 16) {
-      return const EnterpriseCodeScreen();
-    }
-    if (index >= 8 && index < _destinations.length) {
-      return EnterpriseSectionScreen(
-        title: _destinations[index].label,
-        description:
-            _enterpriseDescriptions[index] ??
-            'Enterprise configuration and operational controls.',
-        icon: _destinations[index].selectedIcon,
-        items: _enterpriseItems[index] ?? const <String>[],
-      );
-    }
-    return switch (index) {
-      0 => AskPandoraScreen(
-        key: _chatKey,
-        onSearchChats: _searchChats,
-        onMore: () => _select(3),
-      ),
-      1 => const ProjectsScreen(),
-      2 => const ApprovalsScreen(),
-      3 => const MoreScreen(),
-      4 => const ActivityScreen(),
-      5 => const PluginsScreen(),
-      6 => const OfflineEvidenceScreen(),
-      7 => const SimpleSafetyScreen(),
-      _ => AskPandoraScreen(key: _chatKey),
-    };
-  });
+        if (index == 16) {
+          return const EnterpriseCodeScreen();
+        }
+        if (index >= 8 && index < _destinations.length) {
+          return EnterpriseSectionScreen(
+            title: _destinations[index].label,
+            description: _enterpriseDescriptions[index] ??
+                'Enterprise configuration and operational controls.',
+            icon: _destinations[index].selectedIcon,
+            items: _enterpriseItems[index] ?? const <String>[],
+          );
+        }
+        return switch (index) {
+          0 => AskPandoraScreen(
+              key: _chatKey,
+              onSearchChats: _searchChats,
+              onMore: () => _select(3),
+            ),
+          1 => const ProjectsScreen(),
+          2 => const ApprovalsScreen(),
+          3 => const MoreScreen(),
+          4 => const ActivityScreen(),
+          5 => const PluginsScreen(),
+          6 => const OfflineEvidenceScreen(),
+          7 => const SimpleSafetyScreen(),
+          _ => AskPandoraScreen(key: _chatKey),
+        };
+      });
 
   ThemeData _theme(ThemeData base) {
     const scheme = ColorScheme.dark(
@@ -576,74 +575,76 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
   Widget _sidePanel({bool glass = false}) => _PandoraSidePanel(
-    glass: glass,
-    destinations: _destinations,
-    selectedIndex: _index,
-    onSelected: _select,
-    threads: _threads,
-    historyLoading: _historyLoading,
-    onNewChat: _newChat,
-    onSearchChats: _searchChats,
-    onOpenThread: _openThread,
-    onManageThread: _manageThread,
-  );
+        glass: glass,
+        destinations: _destinations,
+        selectedIndex: _index,
+        onSelected: _select,
+        threads: _threads,
+        historyLoading: _historyLoading,
+        onNewChat: _newChat,
+        onSearchChats: _searchChats,
+        onOpenThread: _openThread,
+        onManageThread: _manageThread,
+      );
 
   @override
   Widget build(BuildContext context) => Theme(
-    data: _theme(Theme.of(context)),
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final body = IndexedStack(
-          index: _index,
-          children: [
-            for (var i = 0; i < _destinations.length; i++)
-              _visited.contains(i) || i == _index
-                  ? _root(i)
-                  : const SizedBox.shrink(),
-          ],
-        );
-
-        if (constraints.maxWidth >= 900) {
-          return Scaffold(
-            backgroundColor: PandoraV2Colors.canvas,
-            body: Row(
+        data: _theme(Theme.of(context)),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final body = IndexedStack(
+              index: _index,
               children: [
-                SizedBox(width: 264, child: SafeArea(child: _sidePanel())),
-                const VerticalDivider(width: 1, color: PandoraV2Colors.line),
-                Expanded(
-                  child: PandoraNavigationScope(openDrawer: null, child: body),
-                ),
+                for (var i = 0; i < _destinations.length; i++)
+                  _visited.contains(i) || i == _index
+                      ? _root(i)
+                      : const SizedBox.shrink(),
               ],
-            ),
-          );
-        }
+            );
 
-        return Scaffold(
-          key: _scaffoldKey,
-          backgroundColor: PandoraV2Colors.canvas,
-          drawerScrimColor: Colors.black.withValues(alpha: .02),
-          onDrawerChanged: (open) {
-            if (open) unawaited(_refreshHistory());
+            if (constraints.maxWidth >= 900) {
+              return Scaffold(
+                backgroundColor: PandoraV2Colors.canvas,
+                body: Row(
+                  children: [
+                    SizedBox(width: 264, child: SafeArea(child: _sidePanel())),
+                    const VerticalDivider(
+                        width: 1, color: PandoraV2Colors.line),
+                    Expanded(
+                      child:
+                          PandoraNavigationScope(openDrawer: null, child: body),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return Scaffold(
+              key: _scaffoldKey,
+              backgroundColor: PandoraV2Colors.canvas,
+              drawerScrimColor: Colors.black.withValues(alpha: .02),
+              onDrawerChanged: (open) {
+                if (open) unawaited(_refreshHistory());
+              },
+              drawer: Drawer(
+                width: constraints.maxWidth * .82 > 320
+                    ? 320
+                    : constraints.maxWidth * .82,
+                elevation: 0,
+                shadowColor: Colors.transparent,
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                shape: const RoundedRectangleBorder(),
+                child: SafeArea(child: _sidePanel(glass: true)),
+              ),
+              body: PandoraNavigationScope(
+                openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+                child: body,
+              ),
+            );
           },
-          drawer: Drawer(
-            width: constraints.maxWidth * .82 > 320
-                ? 320
-                : constraints.maxWidth * .82,
-            elevation: 0,
-            shadowColor: Colors.transparent,
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            shape: const RoundedRectangleBorder(),
-            child: SafeArea(child: _sidePanel(glass: true)),
-          ),
-          body: PandoraNavigationScope(
-            openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
-            child: body,
-          ),
-        );
-      },
-    ),
-  );
+        ),
+      );
 }
 
 class _PandoraSidePanel extends StatelessWidget {
@@ -783,7 +784,8 @@ class _PandoraSidePanel extends StatelessWidget {
               alignment: Alignment.topCenter,
               child: _glassChrome(
                 SizedBox(
-                  key: const ValueKey<String>('pandora-side-panel-glass-header'),
+                  key:
+                      const ValueKey<String>('pandora-side-panel-glass-header'),
                   height: 72,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 10, 6),
@@ -818,7 +820,8 @@ class _PandoraSidePanel extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 0, 0, 10),
                 child: Material(
-                  key: const ValueKey<String>('pandora-side-panel-glass-footer'),
+                  key:
+                      const ValueKey<String>('pandora-side-panel-glass-footer'),
                   color: Colors.white.withValues(alpha: .06),
                   borderRadius: BorderRadius.circular(28),
                   child: SizedBox(
@@ -933,29 +936,30 @@ class _EnterpriseNavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 2),
-    child: ListTile(
-      dense: true,
-      selected: selected,
-      selectedColor: PandoraV2Colors.ink,
-      iconColor: PandoraV2Colors.muted,
-      textColor: PandoraV2Colors.ink,
-      selectedTileColor: Colors.white.withValues(alpha: .06),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      leading: Icon(
-        selected ? destination.selectedIcon : destination.icon,
-        size: 21,
-      ),
-      title: Text(
-        destination.label,
-        style: TextStyle(
-          fontSize: 14.5,
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        padding: const EdgeInsets.only(bottom: 2),
+        child: ListTile(
+          dense: true,
+          selected: selected,
+          selectedColor: PandoraV2Colors.ink,
+          iconColor: PandoraV2Colors.muted,
+          textColor: PandoraV2Colors.ink,
+          selectedTileColor: Colors.white.withValues(alpha: .06),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          leading: Icon(
+            selected ? destination.selectedIcon : destination.icon,
+            size: 21,
+          ),
+          title: Text(
+            destination.label,
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+          onTap: onTap,
         ),
-      ),
-      onTap: onTap,
-    ),
-  );
+      );
 }
 
 class _EnterpriseExpansionTile extends StatelessWidget {
@@ -973,41 +977,41 @@ class _EnterpriseExpansionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 2),
-    child: ExpansionTile(
-      dense: true,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      collapsedShape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
-      backgroundColor: selected ? PandoraV2Colors.soft : Colors.transparent,
-      collapsedBackgroundColor: selected
-          ? PandoraV2Colors.soft
-          : Colors.transparent,
-      leading: Icon(
-        selected ? destination.selectedIcon : destination.icon,
-        size: 21,
-        color: selected ? PandoraV2Colors.ink : PandoraV2Colors.muted,
-      ),
-      title: Text(
-        destination.label,
-        style: TextStyle(
-          color: PandoraV2Colors.ink,
-          fontSize: 14.5,
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-        ),
-      ),
-      children: [
-        for (final child in children)
-          ListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.only(left: 54, right: 12),
-            title: Text(child, style: const TextStyle(fontSize: 13.5)),
-            onTap: onTap,
+        padding: const EdgeInsets.only(bottom: 2),
+        child: ExpansionTile(
+          dense: true,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          collapsedShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
-      ],
-    ),
-  );
+          backgroundColor: selected ? PandoraV2Colors.soft : Colors.transparent,
+          collapsedBackgroundColor:
+              selected ? PandoraV2Colors.soft : Colors.transparent,
+          leading: Icon(
+            selected ? destination.selectedIcon : destination.icon,
+            size: 21,
+            color: selected ? PandoraV2Colors.ink : PandoraV2Colors.muted,
+          ),
+          title: Text(
+            destination.label,
+            style: TextStyle(
+              color: PandoraV2Colors.ink,
+              fontSize: 14.5,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+          children: [
+            for (final child in children)
+              ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.only(left: 54, right: 12),
+                title: Text(child, style: const TextStyle(fontSize: 13.5)),
+                onTap: onTap,
+              ),
+          ],
+        ),
+      );
 }
 
 class _SearchChatsSheet extends StatefulWidget {
