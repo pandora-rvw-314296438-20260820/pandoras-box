@@ -39,15 +39,15 @@ PandoraActivityProjection event({
 }
 
 Widget harness(List<PandoraActivityProjection> events) => MaterialApp(
-      home: Scaffold(
-        body: SingleChildScrollView(
-          child: PandoraActivityTimelineView(events: events),
-        ),
-      ),
-    );
+  home: Scaffold(
+    body: SingleChildScrollView(
+      child: PandoraActivityTimelineView(events: events),
+    ),
+  ),
+);
 
 void main() {
-  testWidgets('renders active activity in chronological order', (tester) async {
+  testWidgets('renders only the latest live Activity stage', (tester) async {
     await tester.pumpWidget(
       harness([
         event(
@@ -63,13 +63,8 @@ void main() {
       ]),
     );
 
-    expect(find.text('Understanding request.'), findsOneWidget);
+    expect(find.text('Understanding request.'), findsNothing);
     expect(find.text('Calling the selected capability.'), findsOneWidget);
-
-    final firstTop = tester.getTopLeft(find.text('Understanding request.')).dy;
-    final secondTop =
-        tester.getTopLeft(find.text('Calling the selected capability.')).dy;
-    expect(firstTop, lessThan(secondTop));
   });
 
   testWidgets('keeps Needs You required action visible', (tester) async {
@@ -89,12 +84,11 @@ void main() {
       ]),
     );
 
-    expect(find.text('Needs You'), findsWidgets);
+    expect(find.text('Protected app requires your presence.'), findsOneWidget);
     expect(find.text('Required action: Confirm on the phone.'), findsOneWidget);
   });
 
-  testWidgets('compacts verified Result without discarding history',
-      (tester) async {
+  testWidgets('shows the latest verified Result inline', (tester) async {
     await tester.pumpWidget(
       harness([
         event(
@@ -110,26 +104,25 @@ void main() {
       ]),
     );
 
-    expect(find.text('Activity · Done'), findsOneWidget);
+    expect(find.text('Activity · Done'), findsNothing);
     expect(find.text('Verifying the result.'), findsNothing);
-
-    await tester.tap(find.text('Activity · Done'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Verifying the result.'), findsOneWidget);
     expect(find.text('Done.'), findsOneWidget);
   });
 
   test('maps every canonical state to the frozen owner-facing label', () {
-    expect(activityStateLabel(PandoraActivityState.understanding),
-        'Understanding');
+    expect(
+      activityStateLabel(PandoraActivityState.understanding),
+      'Understanding',
+    );
     expect(activityStateLabel(PandoraActivityState.planning), 'Planning');
     expect(activityStateLabel(PandoraActivityState.acting), 'Working');
     expect(activityStateLabel(PandoraActivityState.checking), 'Checking');
     expect(activityStateLabel(PandoraActivityState.needsYou), 'Needs You');
     expect(activityStateLabel(PandoraActivityState.retrying), 'Retrying');
-    expect(activityStateLabel(PandoraActivityState.fallback),
-        'Switching approach');
+    expect(
+      activityStateLabel(PandoraActivityState.fallback),
+      'Switching approach',
+    );
     expect(activityStateLabel(PandoraActivityState.verifying), 'Verifying');
     expect(activityStateLabel(PandoraActivityState.paused), 'Paused');
     expect(activityStateLabel(PandoraActivityState.resuming), 'Resuming');
@@ -139,48 +132,50 @@ void main() {
   });
 
   testWidgets(
-      'does not expose provenance or evidence refs in the visible timeline',
-      (tester) async {
-    final at = DateTime.utc(2026, 9, 14, 9);
-    await tester.pumpWidget(
-      harness([
-        PandoraActivityProjection(
-          eventId: 'event-private-1',
-          jobId: 'job-1',
-          sequence: 1,
-          state: PandoraActivityState.acting,
-          message: 'Calling the selected capability.',
-          occurredAt: at,
-          admittedAt: at,
-          domain: 'chat',
-          capability: 'universal_chat',
-          executionId: 'exec-internal-1',
-          source: PandoraActivitySource(
-            sourceType: 'tool',
-            sourceId: 'private-tool-id',
-            sourceEventId: 'private-source-event',
-            observedAt: at,
-          ),
-          evidenceRefs: const [
-            PandoraActivityEvidenceRef(
-              type: 'tool_receipt',
-              relation: 'source',
-              ref: 'internal-receipt-ref',
+    'does not expose provenance or evidence refs in the visible timeline',
+    (tester) async {
+      final at = DateTime.utc(2026, 9, 14, 9);
+      await tester.pumpWidget(
+        harness([
+          PandoraActivityProjection(
+            eventId: 'event-private-1',
+            jobId: 'job-1',
+            sequence: 1,
+            state: PandoraActivityState.acting,
+            message: 'Calling the selected capability.',
+            occurredAt: at,
+            admittedAt: at,
+            domain: 'chat',
+            capability: 'universal_chat',
+            executionId: 'exec-internal-1',
+            source: PandoraActivitySource(
+              sourceType: 'tool',
+              sourceId: 'private-tool-id',
+              sourceEventId: 'private-source-event',
+              observedAt: at,
             ),
-          ],
-        ),
-      ]),
-    );
+            evidenceRefs: const [
+              PandoraActivityEvidenceRef(
+                type: 'tool_receipt',
+                relation: 'source',
+                ref: 'internal-receipt-ref',
+              ),
+            ],
+          ),
+        ]),
+      );
 
-    expect(find.text('Calling the selected capability.'), findsOneWidget);
-    expect(find.textContaining('private-tool-id'), findsNothing);
-    expect(find.textContaining('private-source-event'), findsNothing);
-    expect(find.textContaining('internal-receipt-ref'), findsNothing);
-    expect(find.textContaining('exec-internal-1'), findsNothing);
-  });
+      expect(find.text('Calling the selected capability.'), findsOneWidget);
+      expect(find.textContaining('private-tool-id'), findsNothing);
+      expect(find.textContaining('private-source-event'), findsNothing);
+      expect(find.textContaining('internal-receipt-ref'), findsNothing);
+      expect(find.textContaining('exec-internal-1'), findsNothing);
+    },
+  );
 
-  testWidgets('remains usable at narrow phone width with 200 percent text',
-      (tester) async {
+  testWidgets('remains usable at narrow phone width with 200 percent text', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(320, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
@@ -190,8 +185,7 @@ void main() {
           event(
             sequence: 1,
             state: PandoraActivityState.needsYou,
-            message:
-                'Pandora needs a real user action before it can continue safely.',
+            message: 'Pandora needs a real user action before it can continue safely.',
             blocker: const PandoraActivityBlocker(
               reasonCode: 'protected_app_user_presence_required',
               reason: 'User presence is required.',
@@ -202,7 +196,7 @@ void main() {
         ]),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(tester.takeException(), isNull);
     expect(

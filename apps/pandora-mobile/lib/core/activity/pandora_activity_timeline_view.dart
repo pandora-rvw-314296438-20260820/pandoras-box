@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../design/pandora_tokens.dart';
 import '../widgets/pandora_mark.dart';
+import 'pandora_activity_presentation_policy.dart';
 import 'pandora_activity_projection.dart';
 
 class PandoraActivityTimelineView extends StatelessWidget {
@@ -18,6 +19,7 @@ class PandoraActivityTimelineView extends StatelessWidget {
   Widget build(BuildContext context) {
     if (events.isEmpty) return const SizedBox.shrink();
     final latest = events.last;
+    final presentationText = pandoraActivityPresentationText(latest);
     final requiredAction = latest.blocker?.requiredAction;
     final terminal =
         latest.state == PandoraActivityState.result ||
@@ -35,9 +37,9 @@ class PandoraActivityTimelineView extends StatelessWidget {
       _ => muted,
     };
     final semanticText = requiredAction == null
-        ? 'Activity Theatre. ${activityStateLabel(latest.state)}. ${latest.message}'
+        ? 'Activity Theatre. ${activityStateLabel(latest.state)}. $presentationText'
         : 'Activity Theatre. ${activityStateLabel(latest.state)}. '
-              '${latest.message}. Required action: $requiredAction';
+              '$presentationText. Required action: $requiredAction';
 
     return Semantics(
       container: true,
@@ -75,7 +77,7 @@ class PandoraActivityTimelineView extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  latest.message,
+                  presentationText,
                   style: TextStyle(color: muted, fontSize: 14, height: 1.4),
                 ),
                 if (requiredAction != null) ...[

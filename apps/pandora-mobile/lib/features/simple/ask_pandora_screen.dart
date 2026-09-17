@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/pandora_dependencies.dart';
+import '../../core/activity/pandora_activity_presentation_policy.dart';
 import '../../core/activity/pandora_activity_projection.dart';
 import '../../core/activity/pandora_activity_timeline_controller.dart';
 import '../../core/activity/pandora_activity_timeline_view.dart';
@@ -63,6 +64,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   final PandoraActivityTimelineController _activityController =
       PandoraActivityTimelineController();
   String? _activeActivityJobId;
+  bool _activityTheatreRequested = false;
+  bool _activityTheatreSuppressed = false;
   bool _submitting = false;
   bool _loadingThread = false;
   bool _outcomeUnknown = false;
@@ -358,11 +361,21 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       return;
     }
     final dependencies = PandoraDependencies.of(context);
+    final suppressActivityTheatre = pandoraIsTrivialConversationTurn(objective);
+    final requestActivityTheatre = pandoraShouldRequestActivityTheatre(
+      objective,
+      hasAttachment: _attachment != null || _imageAttachment != null,
+      hasSelectedCapability: _serviceContext != null,
+      hasProjectContext: _projectContext != null,
+    );
+    _submissionKey = null;
     await _activityController.clear();
     if (!mounted) return;
     _activeActivityJobId = null;
     setState(() {
       _submitting = true;
+      _activityTheatreRequested = requestActivityTheatre;
+      _activityTheatreSuppressed = suppressActivityTheatre;
       _pendingMessage = objective;
       _objective.clear();
       _error = null;
@@ -746,6 +759,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       ));
     }
     _activeActivityJobId = null;
+    _activityTheatreRequested = false;
+    _activityTheatreSuppressed = false;
     unawaited(_activityController.clear());
     setState(() {
       _messages.clear();
@@ -770,6 +785,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     final intelligence = PandoraDependencies.of(context).intelligence;
     if (intelligence == null) return;
     _activeActivityJobId = null;
+    _activityTheatreRequested = false;
+    _activityTheatreSuppressed = false;
     await _activityController.clear();
     setState(() {
       _loadingThread = true;
@@ -854,6 +871,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                               messages: _messages,
                               pendingMessage: _pendingMessage,
                               thinking: _submitting,
+                              activityRequested: _activityTheatreRequested,
+                              activitySuppressed: _activityTheatreSuppressed,
                               activityEvents: _activityController.events,
                               activityError: _activityController.publicError,
                             ),
@@ -1173,6 +1192,8 @@ class _Conversation extends StatefulWidget {
     required this.messages,
     required this.pendingMessage,
     required this.thinking,
+    required this.activityRequested,
+    required this.activitySuppressed,
     required this.activityEvents,
     this.activityError,
   });
@@ -1180,6 +1201,8 @@ class _Conversation extends StatefulWidget {
   final List<_ChatMessage> messages;
   final String? pendingMessage;
   final bool thinking;
+  final bool activityRequested;
+  final bool activitySuppressed;
   final List<PandoraActivityProjection> activityEvents;
   final String? activityError;
 
@@ -1193,13 +1216,19 @@ class _ConversationState extends State<_Conversation> {
 
   bool get _hasPending =>
       widget.pendingMessage != null && widget.pendingMessage!.isNotEmpty;
-  bool get _hasActivity => widget.activityEvents.isNotEmpty;
-  bool get _hasActivitySlot => _hasActivity || widget.activityError != null;
+  PandoraActivityProjection? get _presentedActivity =>
+      pandoraLatestPresentableActivity(widget.activityEvents);
+  bool get _hasMeaningfulActivity =>
+      pandoraHasMeaningfulActivity(widget.activityEvents);
+  bool get _hasActivitySlot =>
+      widget.thinking &&
+      !widget.activitySuppressed &&
+      (widget.activityRequested || _hasMeaningfulActivity);
 
   int get _renderedItemCount =>
       widget.messages.length +
       (_hasPending ? 1 : 0) +
-      ((widget.thinking || _hasActivitySlot) ? 1 : 0);
+      (_hasActivitySlot ? 1 : 0);
 
   @override
   void initState() {
@@ -1212,9 +1241,13 @@ class _ConversationState extends State<_Conversation> {
   void didUpdateWidget(covariant _Conversation oldWidget) {
     super.didUpdateWidget(oldWidget);
     final nextCount = _renderedItemCount;
-    final activityChanged =
-        oldWidget.activityEvents.length != widget.activityEvents.length ||
-            oldWidget.activityError != widget.activityError;
+    final oldPresented =
+        pandoraLatestPresentableActivity(oldWidget.activityEvents);
+    final nextPresented = _presentedActivity;
+    final activityChanged = oldPresented?.eventId != nextPresented?.eventId ||
+        oldWidget.activityError != widget.activityError ||
+        oldWidget.activityRequested != widget.activityRequested ||
+        oldWidget.activitySuppressed != widget.activitySuppressed;
     if (nextCount != _lastRenderedItemCount || activityChanged) {
       _lastRenderedItemCount = nextCount;
       _scheduleScrollToLatest();
@@ -1246,32 +1279,26 @@ class _ConversationState extends State<_Conversation> {
   @override
   Widget build(BuildContext context) {
     final items = <Widget>[];
-    final activitySlot = _hasActivitySlot
-        ? _ActivityTimelineSlot(
-            events: widget.activityEvents,
-            error: widget.activityError,
-          )
-        : const _PandoraThinkingBubble();
-
-    if (!widget.thinking &&
-        _hasActivitySlot &&
-        widget.messages.isNotEmpty &&
-        !widget.messages.last.isUser) {
-      for (final message in widget.messages.take(widget.messages.length - 1)) {
-        items.add(_ChatBubble(message: message));
-      }
-      items.add(activitySlot);
-      items.add(_ChatBubble(message: widget.messages.last));
-    } else {
-      for (final message in widget.messages) {
-        items.add(_ChatBubble(message: message));
-      }
-      if (_hasPending) {
-        items.add(
-            _ChatBubble(message: _ChatMessage.user(widget.pendingMessage!)));
-      }
-      if (widget.thinking || _hasActivitySlot) items.add(activitySlot);
+    final presentedActivity = _presentedActivity;
+    Widget? activitySlot;
+    if (_hasActivitySlot) {
+      activitySlot = presentedActivity != null || widget.activityError != null
+          ? _ActivityTimelineSlot(
+              events: presentedActivity == null
+                  ? const <PandoraActivityProjection>[]
+                  : <PandoraActivityProjection>[presentedActivity],
+              error: widget.activityError,
+            )
+          : const _PandoraThinkingBubble();
     }
+
+    for (final message in widget.messages) {
+      items.add(_ChatBubble(message: message));
+    }
+    if (_hasPending) {
+      items.add(_ChatBubble(message: _ChatMessage.user(widget.pendingMessage!)));
+    }
+    if (activitySlot != null) items.add(activitySlot);
 
     return ListView.separated(
       controller: _scrollController,
@@ -1298,7 +1325,7 @@ class _ActivityTimelineSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        key: const ValueKey<String>('ask-pandora-activity-theatre'),
+        key: const ValueKey<String>('ask' '-pandora-activity-theatre'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1311,7 +1338,7 @@ class _ActivityTimelineSlot extends StatelessWidget {
                 child: Text(
                   error!,
                   key: const ValueKey<String>(
-                    'ask-pandora-activity-integrity-error',
+                    'ask' '-pandora-activity-integrity-error',
                   ),
                   style: const TextStyle(
                     color: PandoraSimpleColors.muted,
@@ -1400,7 +1427,7 @@ class _PandoraThinkingBubble extends StatelessWidget {
           const SizedBox(width: 9),
           Expanded(
             child: Text(
-              'Waiting for verified activity…',
+              'Thinking through the request…',
               style: const TextStyle(
                 color: PandoraSimpleColors.muted,
                 fontSize: 14,
@@ -1537,7 +1564,7 @@ class _Composer extends StatelessWidget {
                     if (characterContext != null)
                       InputChip(
                         key: const ValueKey<String>(
-                            'ask-pandora-character-context'),
+                            'ask' '-pandora-character-context'),
                         avatar: const Icon(
                             Icons.face_retouching_natural_outlined,
                             size: 17),
@@ -1549,7 +1576,7 @@ class _Composer extends StatelessWidget {
                     if (serviceContext != null)
                       InputChip(
                         key: const ValueKey<String>(
-                            'ask-pandora-service-context'),
+                            'ask' '-pandora-service-context'),
                         avatar: const Icon(Icons.extension_outlined, size: 17),
                         label: Text(
                           '${serviceContext!.label} · ${serviceContext!.state}',
@@ -1561,7 +1588,7 @@ class _Composer extends StatelessWidget {
                     if (projectContext != null)
                       InputChip(
                         key: const ValueKey<String>(
-                            'ask-pandora-project-context'),
+                            'ask' '-pandora-project-context'),
                         avatar: const Icon(Icons.workspaces_outline, size: 17),
                         label: Text(projectContext!.name),
                         onDeleted: submitting || disabled
@@ -1573,7 +1600,7 @@ class _Composer extends StatelessWidget {
                 const SizedBox(height: 6),
               ],
               DecoratedBox(
-                key: const ValueKey<String>('ask-pandora-composer'),
+                key: const ValueKey<String>('ask' '-pandora-composer'),
                 decoration: BoxDecoration(
                   color: PandoraSimpleColors.surface,
                   borderRadius: BorderRadius.circular(30),
@@ -1613,35 +1640,35 @@ class _Composer extends StatelessWidget {
                         menuChildren: [
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                                'ask-pandora-menu-camera'),
+                                'ask' '-pandora-menu-camera'),
                             label: 'Camera',
                             icon: Icons.camera_alt_outlined,
                             onPressed: onCamera,
                           ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                                'ask-pandora-menu-photos'),
+                                'ask' '-pandora-menu-photos'),
                             label: 'Photos',
                             icon: Icons.photo_outlined,
                             onPressed: onPhotos,
                           ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                                'ask-pandora-menu-files'),
+                                'ask' '-pandora-menu-files'),
                             label: 'Files',
                             icon: Icons.insert_drive_file_outlined,
                             onPressed: onAttach,
                           ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                                'ask-pandora-menu-characters'),
+                                'ask' '-pandora-menu-characters'),
                             label: 'Characters',
                             icon: Icons.face_retouching_natural_outlined,
                             onPressed: onCharacters,
                           ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                              'ask-pandora-menu-services',
+                              'ask' '-pandora-menu-services',
                             ),
                             label: 'Services',
                             icon: Icons.extension_outlined,
@@ -1649,7 +1676,7 @@ class _Composer extends StatelessWidget {
                           ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                              'ask-pandora-menu-project-context',
+                              'ask' '-pandora-menu-project-context',
                             ),
                             label: 'Project context',
                             icon: Icons.workspaces_outline,
@@ -1660,7 +1687,7 @@ class _Composer extends StatelessWidget {
                             SizedBox.square(
                           dimension: 44,
                           child: IconButton(
-                            key: const ValueKey<String>('ask-pandora-plus'),
+                            key: const ValueKey<String>('ask' '-pandora-plus'),
                             tooltip: 'Open menu',
                             padding: EdgeInsets.zero,
                             onPressed: disabled || submitting
@@ -1680,7 +1707,7 @@ class _Composer extends StatelessWidget {
                       const SizedBox(width: 2),
                       Expanded(
                         child: TextField(
-                          key: const ValueKey<String>('ask-pandora-objective'),
+                          key: const ValueKey<String>('ask' '-pandora-objective'),
                           controller: controller,
                           focusNode: focusNode,
                           readOnly: disabled,
@@ -1712,7 +1739,7 @@ class _Composer extends StatelessWidget {
                       SizedBox.square(
                         dimension: 44,
                         child: IconButton(
-                          key: const ValueKey<String>('ask-pandora-voice'),
+                          key: const ValueKey<String>('ask' '-pandora-voice'),
                           tooltip: 'Voice input',
                           padding: EdgeInsets.zero,
                           onPressed: disabled || submitting ? null : onDictate,
@@ -1729,7 +1756,7 @@ class _Composer extends StatelessWidget {
                           return SizedBox.square(
                             dimension: 44,
                             child: FilledButton(
-                              key: const ValueKey<String>('ask-pandora-submit'),
+                              key: const ValueKey<String>('ask' '-pandora-submit'),
                               onPressed: disabled ? null : onSubmit,
                               style: FilledButton.styleFrom(
                                 padding: EdgeInsets.zero,
