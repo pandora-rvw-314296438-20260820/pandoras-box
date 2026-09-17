@@ -1,0 +1,17 @@
+name: Pandora CI Rescue Canary
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deterministic-canary-failure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail intentionally so Rescue must repair this exact SHA
+        shell: bash
+        run: |
+          echo "::error::PANDORA_CI_RESCUE_CANARY expected deterministic failure"
+          echo "This branch is disposable and must never merge while this step fails."
+          exit 1
