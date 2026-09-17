@@ -22,3 +22,8 @@ Before convergence work on 2026-09-17, an all-refs local bundle was created at `
 
 ## Smoke verification
 The isolated branch `recovery/rdp-sync-smoke-20260917` was created from canonical main `7eb4898cb1e200cfb44c4a2120ebd89ab395b1dd`. The installed post-commit hook published a third checkpoint through the Vault-backed transport and read back canonical provider SHA `f836d1e9db9c0c6675200b08003eaa0a58c66b7d` with `exact_tree=true`.
+
+## Commit branch guard
+RDP commits are permitted only on governed `chatgpt/*`, `fix/*`, `repair/*`, `recovery/*`, or `enterprise-ui*` branches. `main` and unmanaged legacy branch names fail closed at pre-commit.
+
+Normal worker branches run the fast local verification gate before canonical publication. Recovery branches intentionally skip lint/build gates so incomplete WIP can be preserved, but they still use the same bounded Vault-backed transport, secret-shape rejection, exact-tree verification, and provider readback.
