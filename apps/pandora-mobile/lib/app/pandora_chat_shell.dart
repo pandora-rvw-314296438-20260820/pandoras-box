@@ -623,7 +623,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         return Scaffold(
           key: _scaffoldKey,
           backgroundColor: PandoraV2Colors.canvas,
-          drawerScrimColor: Colors.black.withValues(alpha: .06),
+          drawerScrimColor: Colors.black.withValues(alpha: .02),
           onDrawerChanged: (open) {
             if (open) unawaited(_refreshHistory());
           },
@@ -636,20 +636,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
             shape: const RoundedRectangleBorder(),
-            child: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: PandoraV2Colors.canvas.withValues(alpha: .24),
-                    border: const Border(
-                      right: BorderSide(color: Color(0x24FFFFFF)),
-                    ),
-                  ),
-                  child: SafeArea(child: _sidePanel(glass: true)),
-                ),
-              ),
-            ),
+            child: SafeArea(child: _sidePanel(glass: true)),
           ),
           body: PandoraNavigationScope(
             openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
@@ -686,20 +673,7 @@ class _PandoraSidePanel extends StatelessWidget {
   final ValueChanged<PandoraIntelligenceThread> onOpenThread;
   final ValueChanged<PandoraIntelligenceThread> onManageThread;
 
-  Widget _glassChrome(Widget child) => ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: PandoraV2Colors.canvas.withValues(alpha: .16),
-              border: const Border(
-                bottom: BorderSide(color: Color(0x18FFFFFF)),
-              ),
-            ),
-            child: child,
-          ),
-        ),
-      );
+  Widget _glassChrome(Widget child) => child;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -716,10 +690,7 @@ class _PandoraSidePanel extends StatelessWidget {
                   selectedIndex: selectedIndex,
                   onSelected: onSelected,
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Divider(height: 1, color: PandoraV2Colors.line),
-                ),
+                const SizedBox(height: 16),
                 const Padding(
                   padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
                   child: Text(
@@ -777,10 +748,7 @@ class _PandoraSidePanel extends StatelessWidget {
                         onTap: () => onOpenThread(thread),
                       ),
                     ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Divider(height: 1, color: PandoraV2Colors.line),
-                ),
+                const SizedBox(height: 16),
                 for (final index in const <int>[0, 1, 2, 4, 5, 6, 7, 3])
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
@@ -789,7 +757,7 @@ class _PandoraSidePanel extends StatelessWidget {
                       selectedColor: PandoraV2Colors.ink,
                       iconColor: PandoraV2Colors.muted,
                       textColor: PandoraV2Colors.ink,
-                      selectedTileColor: PandoraV2Colors.soft,
+                      selectedTileColor: Colors.white.withValues(alpha: .06),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -848,35 +816,27 @@ class _PandoraSidePanel extends StatelessWidget {
               ),
             ),
             Align(
-              alignment: Alignment.bottomCenter,
-              child: ClipRect(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: PandoraV2Colors.canvas.withValues(alpha: .16),
-                      border: const Border(
-                        top: BorderSide(color: Color(0x18FFFFFF)),
+              alignment: Alignment.bottomLeft,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 0, 0, 10),
+                child: Material(
+                  key: const ValueKey<String>('pandora-side-panel-glass-footer'),
+                  color: Colors.white.withValues(alpha: .06),
+                  borderRadius: BorderRadius.circular(28),
+                  child: SizedBox(
+                    width: 166,
+                    height: 54,
+                    child: ListTile(
+                      key: const ValueKey<String>('pandora-new-chat'),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
                       ),
-                    ),
-                    child: SizedBox(
-                      key: const ValueKey<String>('pandora-side-panel-glass-footer'),
-                      height: 76,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
-                        child: ListTile(
-                          key: const ValueKey<String>('pandora-new-chat'),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          leading: const Icon(Icons.edit_square, size: 21),
-                          title: const Text(
-                            'New chat',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          onTap: onNewChat,
-                        ),
+                      leading: const Icon(Icons.edit_square, size: 21),
+                      title: const Text(
+                        'New chat',
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
+                      onTap: onNewChat,
                     ),
                   ),
                 ),
@@ -982,7 +942,7 @@ class _EnterpriseNavTile extends StatelessWidget {
       selectedColor: PandoraV2Colors.ink,
       iconColor: PandoraV2Colors.muted,
       textColor: PandoraV2Colors.ink,
-      selectedTileColor: PandoraV2Colors.soft,
+      selectedTileColor: Colors.white.withValues(alpha: .06),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       leading: Icon(
         selected ? destination.selectedIcon : destination.icon,
