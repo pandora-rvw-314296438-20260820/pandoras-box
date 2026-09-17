@@ -213,7 +213,7 @@ export function route(intent, { registry = loadRegistry(), limit = 5, env = proc
     selected: Object.freeze(selected),
     closure: Object.freeze(closure),
     // Routing is advisory only. Mutation authority never comes from selection.
-    mutationAuthority: 'projectos-governed',
+    mutationAuthority: 'pandora-runtime-tool-gateway',
     grantsMutation: false,
     // Surfaced so a caller cannot mistake selection for permission.
     approvalRequired: Object.freeze(closure.filter((id) => APPROVAL_REQUIRED_RISKS.has(registry.skills.get(id).risk))),

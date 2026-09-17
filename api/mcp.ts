@@ -1,7 +1,7 @@
 import {
-  handleProjectOsMcp,
-  projectOsMcpVercelConfig,
-} from '../src/projectos-mcp-handler.js';
+  handlePandoraMcp,
+  pandoraMcpVercelConfig,
+} from '../src/pandora-mcp-handler.js';
 
-export const config = projectOsMcpVercelConfig;
-export default handleProjectOsMcp;
+export const config = pandoraMcpVercelConfig;
+export default handlePandoraMcp;

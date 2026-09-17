@@ -7,7 +7,7 @@ function normalized(value) {
 }
 function resolveContainerRuntimeMode(environment = process.env) {
     const explicit = normalized(environment.MCPMASTER_CONTAINER_MODE);
-    if (explicit === 'projectos' || explicit === 'meta-remote') {
+    if (explicit === 'pandora' || explicit === 'meta-remote') {
         return explicit;
     }
     if (explicit) {
@@ -18,6 +18,6 @@ function resolveContainerRuntimeMode(environment = process.env) {
     // never select the Meta runtime implicitly. Meta remote mode now requires
     // the explicit MCPMASTER_CONTAINER_MODE=meta-remote selector in addition to
     // its existing startup configuration and enable guard.
-    return 'projectos';
+    return 'pandora';
 }
 //# sourceMappingURL=container-runtime.js.map

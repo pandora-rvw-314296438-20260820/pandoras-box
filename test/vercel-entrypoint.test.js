@@ -8,7 +8,7 @@ const { test } = require("node:test");
 
 const express = require("express");
 const entrypoint = require("../vercel-entrypoint.js");
-const { handleProjectOsMcp } = require("../dist/projectos-mcp-handler.js");
+const { handlePandoraMcp } = require("../src/pandora-mcp-handler.js");
 
 const projectRoot = path.resolve(__dirname, "..");
 
@@ -35,7 +35,7 @@ async function snapshot(response) {
 
 function serverlessReferenceApp() {
   const app = express();
-  app.all("/api/mcp", handleProjectOsMcp);
+  app.all("/api/mcp", handlePandoraMcp);
   return app;
 }
 
@@ -82,7 +82,7 @@ test("root entrypoint preserves serverless MCP metadata and challenge responses"
               jsonrpc: "2.0",
               id: 1,
               method: "tools/call",
-              params: { name: "projectos_list_plans", arguments: {} },
+              params: { name: "pandora_list_plans", arguments: {} },
             }),
           },
         },

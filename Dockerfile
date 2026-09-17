@@ -18,7 +18,7 @@ RUN apk add --no-cache dumb-init \
     && adduser -S -G meta-mcp meta-mcp
 WORKDIR /app
 ENV NODE_ENV=production \
-    MCPMASTER_CONTAINER_MODE=projectos \
+    MCPMASTER_CONTAINER_MODE=pandora \
     MCPMASTER_CONTROL_TOWER_DIR=/app/apps/control-tower \
     MCPMASTER_RUNTIME_MODULE=/app/dist/http-app.js
 
