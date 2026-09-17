@@ -15,6 +15,9 @@ import '../../core/device/pandora_calendar_action_executor.dart';
 import '../../core/device/pandora_calendar_command.dart';
 import '../../core/device/pandora_communication_command.dart';
 import '../../core/device/pandora_communications.dart';
+import '../../core/local/pandora_device_activity_local_sync.dart';
+import '../../core/local/pandora_local_state_cache.dart';
+import '../../core/local/pandora_local_sync_coordinator.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
@@ -656,6 +659,18 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   ) async {
     final operationId = _submissionKey ??= _keys.create('pandora-calendar');
     final intelligence = dependencies.intelligence;
+    final localStore = dependencies.localStore;
+    final localFacts = <Map<String, Object?>>[];
+
+    if (localStore != null && intelligence != null) {
+      unawaited(
+        PandoraLocalSyncCoordinator(
+          store: localStore,
+          transport: PandoraDeviceActivityLocalSyncTransport(intelligence),
+        ).drain(),
+      );
+    }
+
     PandoraDeviceActivityExecution? activity;
     if (intelligence != null) {
       try {
@@ -671,20 +686,50 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     }
 
     final executor = PandoraCalendarActionExecutor(
-      reporter: activity == null || intelligence == null
-          ? null
-          : (fact) => intelligence.recordDeviceActivity(
-                jobId: activity!.jobId,
-                operationId: operationId,
-                capability: fact.capability,
-                stage: fact.stage,
-                observedAt: fact.observedAt,
-              ),
+      localCache:
+          localStore == null ? null : PandoraLocalStateCache(localStore),
+      reporter: (fact) async {
+        localFacts.add(<String, Object?>{
+          'capability': fact.capability,
+          'stage': fact.stage,
+          'observedAt': fact.observedAt.toUtc().toIso8601String(),
+        });
+        if (activity == null || intelligence == null) return;
+        try {
+          await intelligence.recordDeviceActivity(
+            jobId: activity.jobId,
+            operationId: operationId,
+            capability: fact.capability,
+            stage: fact.stage,
+            observedAt: fact.observedAt,
+          );
+        } on PandoraIntelligenceException {
+          if (localStore == null) return;
+          await enqueuePandoraDeviceFact(
+            store: localStore,
+            jobId: activity.jobId,
+            operationId: operationId,
+            capability: fact.capability,
+            stage: fact.stage,
+            observedAt: fact.observedAt,
+          );
+        }
+      },
     );
     final result = await executor.execute(
       command,
       operationId: operationId,
     );
+
+    if (activity == null && localStore != null && localFacts.isNotEmpty) {
+      await enqueuePandoraDeviceTimeline(
+        store: localStore,
+        requestId: operationId,
+        threadId: _threadId,
+        projectId: _projectContext?.id,
+        events: localFacts,
+      );
+    }
     if (!mounted) return;
     setState(() {
       _messages.add(_ChatMessage.user(objective));
@@ -749,6 +794,15 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       resolvedLabel = selection.displayName.trim().isEmpty
           ? requestedRecipient
           : selection.displayName.trim();
+      final localStore = PandoraDependencies.of(context).localStore;
+      if (localStore != null) {
+        unawaited(
+          PandoraLocalStateCache(localStore).cacheSelectedContact(
+            displayName: resolvedLabel,
+            phoneNumber: resolvedRecipient,
+          ),
+        );
+      }
     }
 
     try {
@@ -948,6 +1002,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                             disabled: _outcomeUnknown || _submitting,
                           )
                         : _Conversation(
+                            threadIdentity: _threadId ?? 'local-chat',
                             messages: _messages,
                             pendingMessage: _pendingMessage,
                             thinking: _submitting,
@@ -1199,6 +1254,7 @@ class _ObsidianSuggestion extends StatelessWidget {
 
 class _Conversation extends StatefulWidget {
   const _Conversation({
+    required this.threadIdentity,
     required this.messages,
     required this.pendingMessage,
     required this.thinking,
@@ -1206,6 +1262,7 @@ class _Conversation extends StatefulWidget {
     this.activityError,
   });
 
+  final String threadIdentity;
   final List<_ChatMessage> messages;
   final String? pendingMessage;
   final bool thinking;
@@ -1244,9 +1301,38 @@ class _ConversationState extends State<_Conversation> {
     final activityChanged =
         oldWidget.activityEvents.length != widget.activityEvents.length ||
             oldWidget.activityError != widget.activityError;
+    final messagesChanged =
+        oldWidget.messages.length != widget.messages.length ||
+            oldWidget.threadIdentity != widget.threadIdentity;
     if (nextCount != _lastRenderedItemCount || activityChanged) {
       _lastRenderedItemCount = nextCount;
       _scheduleScrollToLatest();
+    }
+    if (messagesChanged && widget.messages.isNotEmpty) {
+      unawaited(_cacheMessages());
+    }
+  }
+
+  Future<void> _cacheMessages() async {
+    if (!mounted || widget.messages.isEmpty) return;
+    final localStore = PandoraDependencies.of(context).localStore;
+    if (localStore == null) return;
+    final cache = PandoraLocalStateCache(localStore);
+    try {
+      await cache.cacheRecentConversation(
+        threadIdentity: widget.threadIdentity,
+        messages: widget.messages.map((message) {
+          final text = message.text.length <= 4000
+              ? message.text
+              : message.text.substring(0, 4000);
+          return <String, Object?>{
+            'role': message.isUser ? 'user' : 'pandora',
+            'text': text,
+          };
+        }).toList(growable: false),
+      );
+    } catch (_) {
+      // Local conversation cache is never the source of truth.
     }
   }
 

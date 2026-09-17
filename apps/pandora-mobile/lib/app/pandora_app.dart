@@ -10,6 +10,7 @@ import '../core/data/project_runtime_api.dart';
 import '../core/design/pandora_theme.dart';
 import '../core/design/pandora_tokens.dart';
 import '../core/diagnostics/diagnostics_store.dart';
+import '../core/local/pandora_local_store.dart';
 import '../core/security/pandora_auth.dart';
 import '../features/auth/auth_gate.dart';
 import 'pandora_dependencies.dart';
@@ -20,6 +21,7 @@ class PandoraApp extends StatefulWidget {
     required this.auth,
     required this.repository,
     required this.diagnostics,
+    this.localStore,
     this.intelligence,
     this.projectRuntime,
     this.projectExperience,
@@ -37,6 +39,7 @@ class PandoraApp extends StatefulWidget {
   final ProjectExperienceRepository? projectExperienceRepository;
   final DomainRegistrarApi? domainRegistrar;
   final DiagnosticsStore diagnostics;
+  final PandoraLocalStore? localStore;
 
   @override
   State<PandoraApp> createState() => _PandoraAppState();
@@ -47,6 +50,7 @@ class _PandoraAppState extends State<PandoraApp> {
   void dispose() {
     widget.projectRuntime?.close();
     widget.repository.dispose();
+    widget.localStore?.close();
     super.dispose();
   }
 
@@ -61,6 +65,7 @@ class _PandoraAppState extends State<PandoraApp> {
         projectExperienceRepository: widget.projectExperienceRepository,
         domainRegistrar: widget.domainRegistrar,
         diagnostics: widget.diagnostics,
+        localStore: widget.localStore,
         child: MaterialApp(
           title: "Pandora's Box",
           color: PandoraPalette.porcelain.canvas,
