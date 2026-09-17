@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -576,7 +577,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     );
   }
 
-  Widget _sidePanel() => _PandoraSidePanel(
+  Widget _sidePanel({bool glass = false}) => _PandoraSidePanel(
+    glass: glass,
     destinations: _destinations,
     selectedIndex: _index,
     onSelected: _select,
@@ -621,20 +623,33 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         return Scaffold(
           key: _scaffoldKey,
           backgroundColor: PandoraV2Colors.canvas,
+          drawerScrimColor: Colors.black.withValues(alpha: .18),
           onDrawerChanged: (open) {
             if (open) unawaited(_refreshHistory());
           },
           drawer: Drawer(
-            width: 304,
-            backgroundColor: PandoraV2Colors.surface,
+            width: constraints.maxWidth * .82 > 320
+                ? 320
+                : constraints.maxWidth * .82,
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.only(
-                topRight: Radius.circular(24),
-                bottomRight: Radius.circular(24),
+            shape: const RoundedRectangleBorder(),
+            child: ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: PandoraV2Colors.canvas.withValues(alpha: .74),
+                    border: const Border(
+                      right: BorderSide(color: Color(0x24FFFFFF)),
+                    ),
+                  ),
+                  child: SafeArea(child: _sidePanel(glass: true)),
+                ),
               ),
             ),
-            child: SafeArea(child: _sidePanel()),
           ),
           body: PandoraNavigationScope(
             openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
@@ -648,6 +663,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
 
 class _PandoraSidePanel extends StatelessWidget {
   const _PandoraSidePanel({
+    this.glass = false,
     required this.destinations,
     required this.selectedIndex,
     required this.onSelected,
@@ -659,6 +675,7 @@ class _PandoraSidePanel extends StatelessWidget {
     required this.onManageThread,
   });
 
+  final bool glass;
   final List<_ChatDestination> destinations;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
@@ -671,7 +688,7 @@ class _PandoraSidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: PandoraV2Colors.surface,
+    color: glass ? Colors.transparent : PandoraV2Colors.surface,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -836,6 +853,7 @@ class _EnterpriseMenu extends StatelessWidget {
     required this.onSelected,
   });
 
+  final bool glass;
   final List<_ChatDestination> destinations;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
