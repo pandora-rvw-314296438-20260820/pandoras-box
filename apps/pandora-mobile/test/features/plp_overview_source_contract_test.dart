@@ -6,9 +6,10 @@ void main() {
   late String source;
 
   setUpAll(() {
-    source = File(
-      'lib/features/simple/plp_overview_screen.dart',
-    ).readAsStringSync();
+    source = <String>[
+      File('lib/features/simple/plp_overview_screen.dart').readAsStringSync(),
+      File('lib/core/data/plp_overview_repository.dart').readAsStringSync(),
+    ].join('\n');
   });
 
   test('PLP owner overview never reads engineering audit telemetry', () {
@@ -27,7 +28,7 @@ void main() {
   });
 
   test('owner copy and quick actions are customer facing', () {
-    expect(source, contains('Your property at a glance.'));
+    expect(source, contains('PLP Boracay command center'));
     expect(source, contains('Today at a glance'));
     expect(source, contains('Needs your attention'));
     expect(source, contains('Pandora handled'));

@@ -42,7 +42,12 @@ class AskPandoraScreen extends StatefulWidget {
 }
 
 class AskPandoraScreenState extends State<AskPandoraScreen> {
-  static const _suggestions = <String>[];
+  static const _suggestions = <String>[
+    "Give me today's PLP Boracay management briefing: sales, occupancy, arrivals, departures, anything needing attention, and what Pandora has handled.",
+    "Show me today's and upcoming PLP Boracay bookings, arrivals, departures, and room availability.",
+    'Analyze PLP Boracay business performance: revenue, occupancy, booking trends, and anything I should know.',
+    'I want Pandora to handle a change for PLP Boracay: ',
+  ];
 
   final TextEditingController _objective = TextEditingController();
   final FocusNode _objectiveFocus = FocusNode();
@@ -845,82 +850,88 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        backgroundColor: PandoraSimpleColors.canvas,
-        resizeToAvoidBottomInset: true,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            Column(
-              children: [
-                Expanded(
-                  child: _loadingThread
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: PandoraSimpleColors.muted,
+  Widget build(BuildContext context) {
+    final brandedHome =
+        !_loadingThread && _messages.isEmpty && _pendingMessage == null;
+    return Scaffold(
+      backgroundColor: PandoraSimpleColors.canvas,
+      resizeToAvoidBottomInset: true,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (brandedHome) const _PlpEnterpriseBackdrop(),
+          Column(
+            children: [
+              Expanded(
+                child: _loadingThread
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: PandoraSimpleColors.muted,
+                        ),
+                      )
+                    : brandedHome
+                        ? _EmptyConversation(
+                            suggestions: _suggestions,
+                            onSuggestion: _useSuggestion,
+                            disabled: _outcomeUnknown || _submitting,
+                          )
+                        : _Conversation(
+                            messages: _messages,
+                            pendingMessage: _pendingMessage,
+                            thinking: _submitting,
+                            activityRequested: _activityTheatreRequested,
+                            activitySuppressed: _activityTheatreSuppressed,
+                            activityEvents: _activityController.events,
+                            activityError: _activityController.publicError,
                           ),
-                        )
-                      : _messages.isEmpty && _pendingMessage == null
-                          ? _EmptyConversation(
-                              suggestions: _suggestions,
-                              onSuggestion: _useSuggestion,
-                              disabled: _outcomeUnknown || _submitting,
-                            )
-                          : _Conversation(
-                              messages: _messages,
-                              pendingMessage: _pendingMessage,
-                              thinking: _submitting,
-                              activityRequested: _activityTheatreRequested,
-                              activitySuppressed: _activityTheatreSuppressed,
-                              activityEvents: _activityController.events,
-                              activityError: _activityController.publicError,
-                            ),
-                ),
-                _Composer(
-                  controller: _objective,
-                  focusNode: _objectiveFocus,
-                  attachment: _attachment,
-                  imageAttachment: _imageAttachment,
-                  projectContext: _projectContext,
-                  serviceContext: _serviceContext,
-                  characterContext: _characterContext,
-                  error: _error,
-                  submitting: _submitting,
-                  disabled: _outcomeUnknown,
-                  onChanged: () {
-                    if (_error != null) setState(() => _error = null);
-                  },
-                  onCamera: () => _pickImage(camera: true),
-                  onPhotos: () => _pickImage(camera: false),
-                  onAttach: _attach,
-                  onCharacters: _pickCharacterContext,
-                  onServices: _pickServiceContext,
-                  onProjectContext: _pickProjectContext,
-                  onDictate: _dictate,
-                  onSubmit: _submit,
-                  onRemoveAttachment: () => setState(() => _attachment = null),
-                  onRemoveImage: () => setState(() => _imageAttachment = null),
-                  onRemoveCharacterContext: _removeCharacterContext,
-                  onRemoveServiceContext: _removeServiceContext,
-                  onRemoveProjectContext: _removeProjectContext,
-                ),
-              ],
-            ),
-            Align(
-              alignment: Alignment.topCenter,
-              child: _ChatHeader(
-                active: _threadId != null ||
-                    _messages.isNotEmpty ||
-                    _pendingMessage != null,
-                onNewChat: newChat,
-                onSearchChats: widget.onSearchChats,
-                onMore: widget.onMore,
               ),
+              _Composer(
+                controller: _objective,
+                focusNode: _objectiveFocus,
+                attachment: _attachment,
+                imageAttachment: _imageAttachment,
+                projectContext: _projectContext,
+                serviceContext: _serviceContext,
+                characterContext: _characterContext,
+                error: _error,
+                submitting: _submitting,
+                disabled: _outcomeUnknown,
+                brandedHome: brandedHome,
+                onChanged: () {
+                  if (_error != null) setState(() => _error = null);
+                },
+                onCamera: () => _pickImage(camera: true),
+                onPhotos: () => _pickImage(camera: false),
+                onAttach: _attach,
+                onCharacters: _pickCharacterContext,
+                onServices: _pickServiceContext,
+                onProjectContext: _pickProjectContext,
+                onDictate: _dictate,
+                onSubmit: _submit,
+                onRemoveAttachment: () => setState(() => _attachment = null),
+                onRemoveImage: () => setState(() => _imageAttachment = null),
+                onRemoveCharacterContext: _removeCharacterContext,
+                onRemoveServiceContext: _removeServiceContext,
+                onRemoveProjectContext: _removeProjectContext,
+              ),
+            ],
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: _ChatHeader(
+              active: _threadId != null ||
+                  _messages.isNotEmpty ||
+                  _pendingMessage != null,
+              onNewChat: newChat,
+              onSearchChats: widget.onSearchChats,
+              onMore: widget.onMore,
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 enum _ChatOverflowAction { searchChats, more }
@@ -1067,6 +1078,37 @@ class _ChatHeader extends StatelessWidget {
   }
 }
 
+class _PlpEnterpriseBackdrop extends StatelessWidget {
+  const _PlpEnterpriseBackdrop();
+
+  @override
+  Widget build(BuildContext context) => Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/enterprise/plp_hero_dusk.webp',
+            fit: BoxFit.cover,
+            alignment: const Alignment(0.35, 0),
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x66000000),
+                  Color(0x7A000000),
+                  Color(0xB3000000),
+                  Color(0xF0000000),
+                ],
+                stops: [0.0, 0.34, 0.68, 1.0],
+              ),
+            ),
+          ),
+        ],
+      );
+}
+
 class _EmptyConversation extends StatelessWidget {
   const _EmptyConversation({
     required this.suggestions,
@@ -1078,60 +1120,144 @@ class _EmptyConversation extends StatelessWidget {
   final ValueChanged<String> onSuggestion;
   final bool disabled;
 
+  static const _gold = Color(0xFFE6B784);
+  static const _actions = <({IconData icon, String title, String subtitle})>[
+    (
+      icon: Icons.auto_awesome_outlined,
+      title: 'Today’s briefing',
+      subtitle: 'Sales, occupancy & priorities',
+    ),
+    (
+      icon: Icons.calendar_month_outlined,
+      title: 'Bookings',
+      subtitle: 'Arrivals, departures & reservations',
+    ),
+    (
+      icon: Icons.query_stats_rounded,
+      title: 'Business performance',
+      subtitle: 'Revenue, occupancy & trends',
+    ),
+    (
+      icon: Icons.grid_view_rounded,
+      title: 'Ask Pandora',
+      subtitle: 'Request a change or new capability',
+    ),
+  ];
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning, Doctora';
+    if (hour < 18) return 'Good afternoon, Doctora';
+    return 'Good evening, Doctora';
+  }
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 86, 20, 20),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - 42),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const PandoraMark(size: 54, color: Colors.white),
-                const SizedBox(height: 18),
-                const Text(
-                  'What can I help with?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: PandoraSimpleColors.ink,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -.35,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  child: const Text(
-                    'Ask a question, describe a change, or tell Pandora what you want to build.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: PandoraSimpleColors.muted,
-                      fontSize: 14,
-                      height: 1.45,
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 106),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/enterprise/plp_logo.webp',
+                      width: 118,
+                      height: 142,
+                      fit: BoxFit.contain,
                     ),
-                  ),
-                ),
-                SizedBox(height: suggestions.isEmpty ? 0 : 30),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 320),
-                  child: Column(
-                    children: [
-                      for (var index = 0;
-                          index < suggestions.length;
-                          index++) ...[
-                        _ObsidianSuggestion(
-                          label: suggestions[index],
+                    const SizedBox(height: 8),
+                    const Text(
+                      'PLP Boracay',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'serif',
+                        fontSize: 35,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -.5,
+                        height: 1.05,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'P O W E R E D   B Y   P A N D O R A',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _gold,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      width: 174,
+                      height: 1,
+                      color: const Color(0x99E6B784),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      _greeting(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFFECE7E0),
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    const Text(
+                      'What can I help with?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'serif',
+                        fontSize: 31,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -.4,
+                        height: 1.05,
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    const Text(
+                      'Ask about PLP, make a change, or let Pandora handle it.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFFC7C2BC),
+                        fontSize: 13.5,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _actions.length,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        mainAxisExtent: 116,
+                      ),
+                      itemBuilder: (context, index) {
+                        final action = _actions[index];
+                        return _ObsidianSuggestion(
+                          title: action.title,
+                          subtitle: action.subtitle,
+                          icon: action.icon,
                           enabled: !disabled,
                           onPressed: () => onSuggestion(suggestions[index]),
-                        ),
-                        if (index != suggestions.length - 1)
-                          const SizedBox(height: 12),
-                      ],
-                    ],
-                  ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -1140,45 +1266,76 @@ class _EmptyConversation extends StatelessWidget {
 
 class _ObsidianSuggestion extends StatelessWidget {
   const _ObsidianSuggestion({
-    required this.label,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
     required this.enabled,
     required this.onPressed,
   });
 
-  final String label;
+  final String title;
+  final String subtitle;
+  final IconData icon;
   final bool enabled;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) => Material(
-        color: const Color(0x990F0F0F),
+        color: const Color(0xB30A0A0A),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: PandoraSimpleColors.line),
+          borderRadius: BorderRadius.circular(17),
+          side: const BorderSide(color: Color(0x66D6A36C)),
         ),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: enabled ? onPressed : null,
-          borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
             child: Row(
               children: [
+                Icon(
+                  icon,
+                  size: 24,
+                  color: enabled
+                      ? const Color(0xFFE6B784)
+                      : PandoraSimpleColors.muted,
+                ),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: enabled
-                          ? const Color(0xFFE2E2E2)
-                          : PandoraSimpleColors.muted,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: enabled
+                              ? Colors.white
+                              : PandoraSimpleColors.muted,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFFAFAAA4),
+                          fontSize: 11.5,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 17,
-                  color: Color(0xFF555555),
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: Color(0xFFB98759),
                 ),
               ],
             ),
@@ -1451,6 +1608,7 @@ class _Composer extends StatelessWidget {
     required this.error,
     required this.submitting,
     required this.disabled,
+    this.brandedHome = false,
     required this.onChanged,
     required this.onCamera,
     required this.onPhotos,
@@ -1477,6 +1635,7 @@ class _Composer extends StatelessWidget {
   final String? error;
   final bool submitting;
   final bool disabled;
+  final bool brandedHome;
   final VoidCallback onChanged;
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
@@ -1497,7 +1656,7 @@ class _Composer extends StatelessWidget {
         top: false,
         child: Container(
           padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-          color: PandoraSimpleColors.canvas,
+          color: brandedHome ? Colors.transparent : PandoraSimpleColors.canvas,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
@@ -1603,9 +1762,15 @@ class _Composer extends StatelessWidget {
               DecoratedBox(
                 key: const ValueKey<String>('ask' '-pandora-composer'),
                 decoration: BoxDecoration(
-                  color: PandoraSimpleColors.surface,
+                  color: brandedHome
+                      ? const Color(0xD90A0A0A)
+                      : PandoraSimpleColors.surface,
                   borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: PandoraSimpleColors.line),
+                  border: Border.all(
+                    color: brandedHome
+                        ? const Color(0x66D6A36C)
+                        : PandoraSimpleColors.line,
+                  ),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0xB3000000),
