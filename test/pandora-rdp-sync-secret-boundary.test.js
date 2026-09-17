@@ -1,14 +1,26 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
-const standaloneSkShape = /(?:^|[^A-Za-z0-9])s[k]-[A-Za-z0-9_-]{20,}/;
+const sourcePath = path.join(
+  process.cwd(),
+  'supabase/functions/pandora-github-uiux-convergence-20260828/index.ts',
+);
+const source = fs.readFileSync(sourcePath, 'utf8');
+const secretLine = source
+  .split('\n')
+  .find((line) => line.startsWith('const SECRET=/'));
+assert.ok(secretLine, 'production SECRET detector must be present');
+const secretPattern = secretLine.slice('const SECRET=/'.length, -2);
+const secretDetector = new RegExp(secretPattern);
 
 test('RDP secret detector ignores ask-* UI identifiers', () => {
   const uiKey = 'ask-pandora-communication-status-key';
-  assert.equal(standaloneSkShape.test(uiKey), false);
+  assert.equal(secretDetector.test(uiKey), false);
 });
 
 test('RDP secret detector still catches a standalone sk token shape', () => {
   const token = 's' + 'k-' + 'A'.repeat(24);
-  assert.equal(standaloneSkShape.test(`'${token}'`), true);
+  assert.equal(secretDetector.test(`'${token}'`), true);
 });
