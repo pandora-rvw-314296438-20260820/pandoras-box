@@ -891,9 +891,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
             Align(
               alignment: Alignment.topCenter,
               child: _ChatHeader(
-                active: _threadId != null ||
-                    _messages.isNotEmpty ||
-                    _pendingMessage != null,
+                active: _threadId != null,
                 onNewChat: newChat,
                 onSearchChats: widget.onSearchChats,
                 onMore: widget.onMore,
