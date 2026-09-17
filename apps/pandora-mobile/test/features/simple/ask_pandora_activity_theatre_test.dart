@@ -207,7 +207,8 @@ void main() {
     },
   );
 
-  testWidgets('completed turn uses a fresh request identity next time', (tester) async {
+  testWidgets('completed turn uses a fresh request identity next time',
+      (tester) async {
     await setTestSurface(tester, logicalSize: const Size(390, 844));
     final intelligence = _FakeIntelligence();
     addTearDown(intelligence.close);
@@ -226,7 +227,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final input = find.byKey(const ValueKey<String>('ask' '-pandora-objective'));
+    final input =
+        find.byKey(const ValueKey<String>('ask' '-pandora-objective'));
     final submit = find.byKey(const ValueKey<String>('ask' '-pandora-submit'));
     await tester.enterText(input, 'Hi');
     await tester.tap(submit);
@@ -301,7 +303,8 @@ void main() {
       find.byKey(const ValueKey<String>('ask' '-pandora-objective')),
       'Hi',
     );
-    await tester.tap(find.byKey(const ValueKey<String>('ask' '-pandora-submit')));
+    await tester
+        .tap(find.byKey(const ValueKey<String>('ask' '-pandora-submit')));
     await tester.pump();
 
     expect(find.text('Thinking through the request…'), findsNothing);
