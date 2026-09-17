@@ -260,8 +260,12 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey<String>('pandora-header-new-chat')),
+      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
       findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('pandora-header-new-chat')),
+      findsNothing,
     );
     final overflow =
         find.byKey(const ValueKey<String>('pandora-chat-overflow'));
@@ -271,11 +275,25 @@ void main() {
       find.byKey(const ValueKey<String>('ask-pandora-objective')),
       'Start this conversation',
     );
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('pandora-header-new-chat')),
+      findsNothing,
+    );
+
     await tester.tap(
       find.byKey(const ValueKey<String>('ask-pandora-submit')),
     );
     await tester.pumpAndSettle();
 
+    expect(
+      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
+      findsNothing,
+    );
     expect(
       find.byKey(const ValueKey<String>('pandora-header-new-chat')),
       findsOneWidget,
