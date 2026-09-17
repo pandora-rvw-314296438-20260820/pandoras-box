@@ -50,7 +50,7 @@ void main() {
       expect(drawerWidget.backgroundColor, Colors.transparent);
       expect(
         find.descendant(of: drawer, matching: find.byType(BackdropFilter)),
-        findsOneWidget,
+        findsNothing,
       );
       for (final title in <String>[
         'Pandora',
