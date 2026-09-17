@@ -24,10 +24,12 @@ class EnterpriseCommandBar extends StatefulWidget {
   final bool enabled;
 
   static const accessibleName = 'Ask Pandora on this page';
-  static const composerKey = ValueKey<String>('enterprise-command-bar-composer');
+  static const composerKey =
+      ValueKey<String>('enterprise-command-bar-composer');
   static const sendKey = ValueKey<String>('enterprise-command-bar-send');
   static const barKey = ValueKey<String>('enterprise-command-bar');
-  static const needsYouKey = ValueKey<String>('enterprise-command-bar-needs-you');
+  static const needsYouKey =
+      ValueKey<String>('enterprise-command-bar-needs-you');
 
   /// Reserved height for content inset above the bar (composer row + padding).
   static const double reservedContentInset = 72;

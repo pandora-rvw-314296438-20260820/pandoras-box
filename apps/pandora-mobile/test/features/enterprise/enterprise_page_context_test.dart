@@ -4,7 +4,8 @@ import 'package:pandora_mobile/features/enterprise/enterprise_page_context.dart'
 void main() {
   group('EnterpriseDestinations', () {
     test('locks the 15 WAVE1 Enterprise surfaces', () {
-      expect(EnterpriseDestinations.entries, hasLength(EnterpriseDestinations.count));
+      expect(EnterpriseDestinations.entries,
+          hasLength(EnterpriseDestinations.count));
       expect(
         EnterpriseDestinations.entries.map((e) => e.label).toList(),
         [
@@ -36,20 +37,23 @@ void main() {
     test('envelope always carries required P0-003 fields', () {
       final controller = EnterprisePageContextController();
       final map = controller.envelope.toDiagnosticsMap();
-      expect(map.keys, containsAll([
-        'project',
-        'surface',
-        'route',
-        'selectedObject',
-        'actorRole',
-        'capabilities',
-      ]));
+      expect(
+          map.keys,
+          containsAll([
+            'project',
+            'surface',
+            'route',
+            'selectedObject',
+            'actorRole',
+            'capabilities',
+          ]));
       expect(map.containsKey('password'), isFalse);
       expect(map.containsKey('token'), isFalse);
       expect(map.containsKey('credential'), isFalse);
     });
 
-    test('updates surface/route on destination change and clears selection', () {
+    test('updates surface/route on destination change and clears selection',
+        () {
       final controller = EnterprisePageContextController();
       controller.setSelectedObject('user-1');
       expect(controller.envelope.selectedObject, 'user-1');
@@ -76,7 +80,9 @@ void main() {
       expect(submission.needsYouReason, isNull);
     });
 
-    test('incomplete identity routes to Needs You without inventing credentials', () {
+    test(
+        'incomplete identity routes to Needs You without inventing credentials',
+        () {
       final controller = EnterprisePageContextController();
       controller.updateForDestination(EnterpriseDestinations.byIndex(9)!);
 
