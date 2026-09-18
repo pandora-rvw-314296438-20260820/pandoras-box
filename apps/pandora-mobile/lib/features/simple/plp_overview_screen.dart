@@ -127,10 +127,16 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
   Widget _hero(PlpOverviewData data, bool connected) {
     final overview = data.overview!;
     final asOf = _date(overview['as_of']);
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final heroHeight = textScale >= 1.8
+        ? 390.0
+        : textScale >= 1.4
+            ? 340.0
+            : 292.0;
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
       child: SizedBox(
-        height: 292,
+        height: heroHeight,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -278,7 +284,9 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
         const SizedBox(height: 12),
         LayoutBuilder(
           builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 520 ? 2 : 1;
+            final textScale = MediaQuery.textScalerOf(context).scale(1);
+            final columns =
+                constraints.maxWidth >= 520 && textScale < 1.4 ? 2 : 1;
             final width = columns == 1
                 ? constraints.maxWidth
                 : (constraints.maxWidth - 10) / 2;
@@ -298,8 +306,16 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 720 ? 4 : 2;
-            final width = (constraints.maxWidth - (columns - 1) * 10) / columns;
+            final textScale = MediaQuery.textScalerOf(context).scale(1);
+            final columns = textScale >= 1.4
+                ? 1
+                : constraints.maxWidth >= 720
+                    ? 4
+                    : constraints.maxWidth >= 430
+                        ? 2
+                        : 1;
+            final width =
+                (constraints.maxWidth - (columns - 1) * 10) / columns;
             return Wrap(
               spacing: 10,
               runSpacing: 10,
@@ -563,13 +579,18 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
-              final half = (constraints.maxWidth - 10) / 2;
+              final textScale = MediaQuery.textScalerOf(context).scale(1);
+              final twoColumns =
+                  constraints.maxWidth >= 430 && textScale < 1.3;
+              final actionWidth = twoColumns
+                  ? (constraints.maxWidth - 10) / 2
+                  : constraints.maxWidth;
               return Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: [
                   SizedBox(
-                    width: half,
+                    width: actionWidth,
                     child: _actionButton(
                       'Ask Pandora',
                       Icons.chat_bubble_outline_rounded,
@@ -577,7 +598,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
                     ),
                   ),
                   SizedBox(
-                    width: half,
+                    width: actionWidth,
                     child: _actionButton(
                       'Today’s report',
                       Icons.summarize_outlined,
@@ -603,11 +624,11 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
       OutlinedButton.icon(
         onPressed: () => _openAsk(prompt),
         icon: Icon(icon, size: 18, color: const Color(0xFFE6B784)),
-        label: Text(label, overflow: TextOverflow.ellipsis),
+        label: Text(label, textAlign: TextAlign.center),
         style: OutlinedButton.styleFrom(
           foregroundColor: PandoraV2Colors.ink,
           backgroundColor: PandoraV2Colors.soft,
-          side: const BorderSide(color: Color(0x3DE6B784)),
+          side: const BorderSide(color: Color(0x80E6B784)),
           minimumSize: const Size.fromHeight(50),
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
           shape:
@@ -636,7 +657,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
         decoration: BoxDecoration(
           color: const Color(0xD90A0A0A),
           borderRadius: BorderRadius.circular(21),
-          border: Border.all(color: const Color(0x33E6B784)),
+          border: Border.all(color: const Color(0x66E6B784)),
           boxShadow: const [
             BoxShadow(
               color: Color(0x22000000),
@@ -720,7 +741,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
         decoration: BoxDecoration(
           color: PandoraV2Colors.soft,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: PandoraV2Colors.line),
+          border: Border.all(color: PandoraV2Colors.muted),
         ),
         child: Text(label,
             style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700)),
@@ -734,7 +755,9 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
         label: Text(label),
         style: OutlinedButton.styleFrom(
           foregroundColor: PandoraV2Colors.ink,
-          side: const BorderSide(color: PandoraV2Colors.line),
+          side: const BorderSide(color: PandoraV2Colors.muted),
+          minimumSize: const Size(48, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
       );
 
