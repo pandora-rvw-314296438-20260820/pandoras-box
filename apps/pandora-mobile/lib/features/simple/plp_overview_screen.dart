@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/data/plp_overview_repository.dart';
 import '../../core/widgets/pandora_page.dart';
-import 'ask_pandora_screen.dart';
+import '../enterprise/enterprise_command_bus.dart';
 import 'pandora_v2_ui.dart';
 
 class PlpOverviewScreen extends StatefulWidget {
@@ -276,13 +276,24 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
       children: [
         _sectionTitle(Icons.insights_rounded, 'Today at a glance'),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            for (var i = 0; i < primary.length; i++) ...[
-              if (i > 0) const SizedBox(width: 10),
-              Expanded(child: _metricCard(primary[i], primary: true)),
-            ],
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 520 ? 2 : 1;
+            final width = columns == 1
+                ? constraints.maxWidth
+                : (constraints.maxWidth - 10) / 2;
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final metric in primary)
+                  SizedBox(
+                    width: width,
+                    child: _metricCard(metric, primary: true),
+                  ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 10),
         LayoutBuilder(
@@ -325,8 +336,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
                 size: primary ? 21 : 18, color: const Color(0xFFE6B784)),
             SizedBox(height: primary ? 15 : 11),
             Text(metric.value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                softWrap: true,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: primary ? 24 : 18,
@@ -335,8 +345,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
                 )),
             const SizedBox(height: 3),
             Text(metric.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                softWrap: true,
                 style: const TextStyle(
                   color: Color(0xFFAAA6A0),
                   fontSize: 11.5,
@@ -445,7 +454,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
                         style: TextButton.styleFrom(
                           foregroundColor: PandoraV2Colors.ink,
                           padding: const EdgeInsets.symmetric(horizontal: 6),
-                          minimumSize: const Size(0, 30),
+                          minimumSize: const Size(48, 48),
                         ),
                         child: const Text('Ask Pandora'),
                       ),
@@ -609,9 +618,11 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
       );
 
   void _openAsk(String prompt) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AskPandoraScreen(initialPrompt: prompt),
+    EnterpriseCommandDraftBus.shared.offer(prompt);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Command prepared in the Pandora bar below.'),
+        duration: Duration(seconds: 2),
       ),
     );
   }
