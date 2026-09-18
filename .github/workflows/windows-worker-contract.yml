@@ -19,7 +19,7 @@ concurrency:
 jobs:
   worker-impact:
     name: Detect Windows worker impact
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64, pandora-ci-windows]
     outputs:
       windows: ${{ steps.detect.outputs.windows }}
     steps:
@@ -56,7 +56,7 @@ jobs:
     needs: worker-impact
     if: ${{ needs.worker-impact.outputs.windows == 'true' }}
     name: Windows worker contract
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows, X64, pandora-ci-windows]
     timeout-minutes: 15
     steps:
       - name: Preserve repository LF bytes

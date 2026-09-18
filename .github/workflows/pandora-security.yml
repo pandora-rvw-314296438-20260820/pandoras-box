@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   node24:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64, pandora-ci-windows]
     timeout-minutes: 15
     steps:
       - name: Check out exact integration SHA
@@ -30,6 +30,7 @@ jobs:
           persist-credentials: false
 
       - name: Verify exact source checkout
+        shell: bash
         env:
           EXPECTED_SHA: ${{ github.sha }}
         run: |
