@@ -4,6 +4,7 @@ import 'package:pandora_mobile/app/pandora_chat_shell.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/models/pandora_models.dart';
+import 'package:pandora_mobile/features/operations/operations_room_screen.dart';
 import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
 
 import '../helpers/fake_owner_api.dart';
@@ -54,6 +55,7 @@ void main() {
         'Connections',
         'Saved evidence',
         'Verify & Safety',
+        'Operations Room',
         'Settings & More',
       ]) {
         expect(
@@ -101,6 +103,45 @@ void main() {
     expect(find.byType(Drawer), findsNothing);
     expect(find.widgetWithText(ListTile, 'Connections'), findsOneWidget);
     expect(tester.getSize(find.byType(AskPandoraScreen)).width, 759);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Operations Room opens the canonical team chat', (tester) async {
+    await mount(tester, const Size(390, 800));
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.widgetWithText(ListTile, 'Operations Room'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PandoraOperationsRoomScreen), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('operations-room-chat')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('operations-room-composer')),
+      findsOneWidget,
+    );
+    expect(find.text('ATHENA leads the room'), findsOneWidget);
+    for (final role in <String>[
+      'ATHENA',
+      'APOLLO',
+      'HERMES',
+      'HEPHAESTUS',
+      'THEMIS',
+      'ARTEMIS',
+    ]) {
+      expect(find.text(role), findsWidgets);
+    }
+    expect(find.text('Execution'), findsOneWidget);
+    expect(find.text('Council'), findsOneWidget);
+    expect(find.text('Incident'), findsOneWidget);
+    expect(menu, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

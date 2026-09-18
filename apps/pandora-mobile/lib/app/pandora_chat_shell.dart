@@ -10,6 +10,7 @@ import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
+import '../features/operations/operations_room_screen.dart';
 import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
 import '../features/simple/more_screen.dart';
@@ -41,6 +42,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         Icons.offline_pin_rounded),
     _ChatDestination(
         'Verify & Safety', Icons.shield_outlined, Icons.shield_rounded),
+    _ChatDestination(
+        'Operations Room', Icons.groups_2_outlined, Icons.groups_2_rounded),
   ];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -111,6 +114,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       5 => 'plugins',
       6 => 'saved_evidence',
       7 => 'verify_safety',
+      8 => 'operations_room',
       _ => 'pandora_chat',
     };
     unawaited(
@@ -374,6 +378,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
           5 => const PluginsScreen(),
           6 => const OfflineEvidenceScreen(),
           7 => const SimpleSafetyScreen(),
+          8 => const PandoraOperationsRoomScreen(),
           _ => AskPandoraScreen(key: _chatKey),
         },
       );
@@ -638,7 +643,7 @@ class _PandoraSidePanel extends StatelessWidget {
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(height: 1, color: PandoraV2Colors.line),
                   ),
-                  for (final index in const <int>[0, 1, 2, 4, 5, 6, 7, 3])
+                  for (final index in const <int>[0, 8, 1, 2, 4, 5, 6, 7, 3])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: ListTile(
