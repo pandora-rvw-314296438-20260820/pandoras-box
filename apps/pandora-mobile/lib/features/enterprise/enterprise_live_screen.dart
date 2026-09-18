@@ -144,8 +144,7 @@ class _EnterpriseLiveScreenState extends State<EnterpriseLiveScreen> {
   Widget _metrics(Map<String, String> metrics) => LayoutBuilder(
         builder: (context, constraints) {
           final columns = constraints.maxWidth >= 720 ? 3 : 2;
-          final width =
-              (constraints.maxWidth - ((columns - 1) * 10)) / columns;
+          final width = (constraints.maxWidth - ((columns - 1) * 10)) / columns;
           return Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -204,14 +203,10 @@ class _EnterpriseLiveScreenState extends State<EnterpriseLiveScreen> {
           margin: const EdgeInsets.only(bottom: 7),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
-            color: selected
-                ? PandoraV2Colors.soft
-                : Colors.transparent,
+            color: selected ? PandoraV2Colors.soft : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: selected
-                  ? PandoraV2Colors.ink
-                  : PandoraV2Colors.line,
+              color: selected ? PandoraV2Colors.ink : PandoraV2Colors.line,
             ),
           ),
           child: Row(
@@ -291,9 +286,7 @@ class _EnterpriseLiveScreenState extends State<EnterpriseLiveScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              error
-                  .toString()
-                  .replaceFirst('EnterpriseLiveException: ', ''),
+              error.toString().replaceFirst('EnterpriseLiveException: ', ''),
               style: const TextStyle(color: PandoraV2Colors.muted),
             ),
             const SizedBox(height: 12),
