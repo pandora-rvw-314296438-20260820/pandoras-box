@@ -65,7 +65,7 @@ file remains the canonical source and this block must never diverge from it.
   regulated activation, non-preauthorized production release, or unavoidable
   provider confirmation.
 - **Mutation governance.** Selecting a skill never grants permission to mutate a
-  provider. Every provider mutation goes through the ProjectOS path: plan →
+  provider. Every provider mutation goes through Pandora Runtime and Tool Gateway: plan →
   approval where required → execute → provider readback → evidence → proof-stage
   update. Claim and execute once; use allowlists, least privilege, bounded
   batches, timeouts, idempotency, and replay protection.
