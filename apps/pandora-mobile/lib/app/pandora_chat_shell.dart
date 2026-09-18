@@ -12,6 +12,7 @@ import '../features/approvals/approvals_screen.dart';
 import '../features/enterprise/enterprise_code_screen.dart';
 import '../features/enterprise/enterprise_command_stack.dart';
 import '../features/enterprise/enterprise_page_context.dart';
+import '../features/enterprise/plp_alfred_profile.dart';
 import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
 import '../features/simple/enterprise_section_screen.dart';
@@ -508,6 +509,13 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               key: _chatKey,
               onSearchChats: _searchChats,
               onMore: () => _select(3),
+              assistantLabel: PlpAlfredProfile.assistantLabel,
+              enterpriseContext: PlpAlfredProfile.enterpriseContext(
+                surface: 'enterprise_overview',
+                route: '/enterprise/assistant',
+                capabilities: const <String>[],
+                identityScope: 'enterprise_workspace',
+              ),
             ),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
@@ -559,6 +567,10 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       capabilities: capabilities,
       identityScope:
           index == 9 ? 'pandora_organization' : 'enterprise_workspace',
+      tenantSlug: PlpAlfredProfile.tenantSlug,
+      personaId: PlpAlfredProfile.personaId,
+      personaLabel: PlpAlfredProfile.assistantLabel,
+      assistantRole: PlpAlfredProfile.assistantRole,
     );
   }
 

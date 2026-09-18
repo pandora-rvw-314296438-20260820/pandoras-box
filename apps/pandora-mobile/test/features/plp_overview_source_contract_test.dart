@@ -31,8 +31,9 @@ void main() {
     expect(source, contains('PLP Boracay command center'));
     expect(source, contains('Today at a glance'));
     expect(source, contains('Needs your attention'));
-    expect(source, contains('Pandora handled'));
-    expect(source, contains('Ask Pandora'));
+    expect(source, contains('Alfred brief'));
+    expect(source, contains('Alfred handled'));
+    expect(source, contains('Ask Alfred'));
     expect(source, contains('Today’s report'));
     expect(source, contains('Create task'));
     expect(source, isNot(contains('System, account and environment summary')));
@@ -46,7 +47,9 @@ void main() {
 
   test('empty operational state does not fabricate hotel metrics', () {
     expect(
-        source, contains('Awaiting the first verified live business update'));
+      source,
+      contains('Awaiting the first verified live business update'),
+    );
     expect(source, contains('Business alerts will appear here'));
     expect(source, contains('Completed business actions will appear here'));
     expect(source, isNot(contains('No current Pandora system blockers')));

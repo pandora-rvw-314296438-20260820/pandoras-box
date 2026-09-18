@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/data/plp_overview_repository.dart';
 import '../../core/widgets/pandora_page.dart';
+import '../enterprise/plp_alfred_profile.dart';
 import 'ask_pandora_screen.dart';
 import 'pandora_v2_ui.dart';
 
@@ -242,7 +243,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
           _sectionTitle(Icons.sync_rounded, 'Connecting live business data'),
           const SizedBox(height: 8),
           const Text(
-            'Pandora will show verified occupancy, sales, arrivals, departures and room readiness here as soon as the first live update arrives.',
+            'Alfred will show verified occupancy, sales, arrivals, departures and room readiness here as soon as the first live update arrives.',
             style: TextStyle(color: PandoraV2Colors.muted, height: 1.45),
           ),
           if (total > 0) ...[
@@ -360,7 +361,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
           '$arrivals arrivals are expected today and no rooms are currently marked available.';
     } else {
       message =
-          'Pandora is monitoring today’s verified occupancy, sales, arrivals and room readiness.';
+          'Alfred is monitoring today’s verified occupancy, sales, arrivals and room readiness.';
     }
     return _panel(
       child: Row(
@@ -373,7 +374,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Pandora brief',
+                const Text('Alfred brief',
                     style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text(message,
@@ -447,7 +448,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 6),
                           minimumSize: const Size(0, 30),
                         ),
-                        child: const Text('Ask Pandora'),
+                        child: const Text('Ask Alfred'),
                       ),
                   ],
                 ),
@@ -463,7 +464,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionTitle(Icons.auto_awesome_rounded, 'Pandora handled'),
+            _sectionTitle(Icons.auto_awesome_rounded, 'Alfred handled'),
             const SizedBox(height: 10),
             if (data.activity.isEmpty)
               Text(
@@ -562,7 +563,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
                   SizedBox(
                     width: half,
                     child: _actionButton(
-                      'Ask Pandora',
+                      'Ask Alfred',
                       Icons.chat_bubble_outline_rounded,
                       'How is PLP Boracay doing today? Use only verified connected business data and clearly identify anything unavailable.',
                     ),
@@ -611,7 +612,16 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
   void _openAsk(String prompt) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => AskPandoraScreen(initialPrompt: prompt),
+        builder: (_) => AskPandoraScreen(
+          initialPrompt: prompt,
+          assistantLabel: PlpAlfredProfile.assistantLabel,
+          enterpriseContext: PlpAlfredProfile.enterpriseContext(
+            surface: 'enterprise_overview',
+            route: '/enterprise/overview',
+            capabilities: const <String>['enterprise_overview.read'],
+            identityScope: 'enterprise_workspace',
+          ),
+        ),
       ),
     );
   }
