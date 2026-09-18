@@ -64,7 +64,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       Icons.dashboard_outlined,
       Icons.dashboard_rounded,
     ),
-    _ChatDestination('Team & Access', Icons.group_outlined, Icons.group_rounded),
+    _ChatDestination(
+        'Team & Access', Icons.group_outlined, Icons.group_rounded),
     _ChatDestination('Data', Icons.storage_outlined, Icons.storage_rounded),
     _ChatDestination(
       'Analytics',
@@ -184,11 +185,23 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       'Enterprise preferences',
     ],
     22: ['MCP servers', 'Available tools', 'Resources and connection state'],
-    23: ['Today’s movement', 'Bookings and operations', 'Exceptions and handoffs'],
-    24: ['Guests and customers', 'Requests and service context', 'Selected guest record'],
+    23: [
+      'Today’s movement',
+      'Bookings and operations',
+      'Exceptions and handoffs'
+    ],
+    24: [
+      'Guests and customers',
+      'Requests and service context',
+      'Selected guest record'
+    ],
     25: ['Verified KPIs', 'Period comparisons', 'Reports and evidence'],
     26: ['Approvals', 'Consequential decisions', 'Missing access or input'],
-    27: ['Verified business activity', 'Provider receipts', 'Execution evidence'],
+    27: [
+      'Verified business activity',
+      'Provider receipts',
+      'Execution evidence'
+    ],
   };
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -637,7 +650,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     );
   }
 
-    ThemeData _theme(ThemeData base) {
+  ThemeData _theme(ThemeData base) {
     const scheme = ColorScheme.dark(
       primary: PandoraV2Colors.ink,
       onPrimary: Colors.black,
