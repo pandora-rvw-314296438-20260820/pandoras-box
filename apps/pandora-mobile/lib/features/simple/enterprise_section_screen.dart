@@ -1,63 +1,43 @@
 import 'package:flutter/material.dart';
 
-import '../../core/widgets/pandora_page.dart';
-import '../../core/widgets/pandora_surface.dart';
+import '../enterprise/enterprise_app_users_screen.dart';
+import '../enterprise/enterprise_live_screen.dart';
 import 'plp_overview_screen.dart';
 
 class EnterpriseSectionScreen extends StatelessWidget {
   const EnterpriseSectionScreen({
     super.key,
+    required this.surface,
     required this.title,
     required this.description,
     required this.icon,
     this.items = const <String>[],
+    this.onSelectionChanged,
   });
 
+  final String surface;
   final String title;
   final String description;
   final IconData icon;
   final List<String> items;
+  final ValueChanged<Map<String, String>?>? onSelectionChanged;
 
   @override
   Widget build(BuildContext context) {
-    if (title == 'Overview') {
+    if (surface == 'enterprise_overview') {
       return PlpOverviewScreen(description: description);
     }
-    return PandoraPage(
+    if (surface == 'enterprise_app_users') {
+      return EnterpriseAppUsersScreen(
+        onSelectionChanged: onSelectionChanged,
+      );
+    }
+    return EnterpriseLiveScreen(
+      surface: surface,
       title: title,
-      subtitle: description,
-      child: PandoraSurface(
-        title: title,
-        subtitle: 'Enterprise control panel',
-        leading: Icon(icon),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (items.isEmpty)
-              Text(
-                'This section is ready for its provider-specific controls and data.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              )
-            else
-              for (final item in items) _bullet(item),
-          ],
-        ),
-      ),
+      description: description,
+      icon: icon,
+      onSelectionChanged: onSelectionChanged,
     );
   }
-
-  Widget _bullet(String item) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(top: 6),
-              child: Icon(Icons.circle, size: 6),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Text(item)),
-          ],
-        ),
-      );
 }
