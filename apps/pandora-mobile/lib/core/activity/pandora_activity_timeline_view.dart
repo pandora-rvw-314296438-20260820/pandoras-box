@@ -41,8 +41,13 @@ class PandoraActivityTimelineView extends StatelessWidget {
         : 'Activity Theatre. ${activityStateLabel(latest.state)}. '
             '$presentationText. Required action: $requiredAction';
 
+    final announceTransition = latest.state == PandoraActivityState.needsYou ||
+        latest.state == PandoraActivityState.failed ||
+        latest.state == PandoraActivityState.result;
+
     return Semantics(
       container: true,
+      liveRegion: announceTransition,
       label: semanticText,
       excludeSemantics: true,
       child: Row(

@@ -1439,14 +1439,14 @@ class _ConversationState extends State<_Conversation> {
     final presentedActivity = _presentedActivity;
     Widget? activitySlot;
     if (_hasActivitySlot) {
-      activitySlot = presentedActivity != null || widget.activityError != null
-          ? _ActivityTimelineSlot(
-              events: presentedActivity == null
-                  ? const <PandoraActivityProjection>[]
-                  : <PandoraActivityProjection>[presentedActivity],
-              error: widget.activityError,
-            )
-          : const _PandoraThinkingBubble();
+      if (presentedActivity != null || widget.activityError != null) {
+        activitySlot = _ActivityTimelineSlot(
+          events: presentedActivity == null
+              ? const <PandoraActivityProjection>[]
+              : <PandoraActivityProjection>[presentedActivity],
+          error: widget.activityError,
+        );
+      }
     }
 
     for (final message in widget.messages) {
@@ -1564,36 +1564,6 @@ class _ChatBubble extends StatelessWidget {
       ],
     );
   }
-}
-
-class _PandoraThinkingBubble extends StatelessWidget {
-  const _PandoraThinkingBubble();
-
-  @override
-  Widget build(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const PandoraMark(size: 24, color: Colors.white),
-          const SizedBox(width: 11),
-          const SizedBox.square(
-            dimension: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 1.8,
-              color: PandoraSimpleColors.muted,
-            ),
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              'Thinking through the request…',
-              style: const TextStyle(
-                color: PandoraSimpleColors.muted,
-                fontSize: 14,
-              ),
-            ),
-          ),
-        ],
-      );
 }
 
 class _Composer extends StatelessWidget {
@@ -1851,7 +1821,7 @@ class _Composer extends StatelessWidget {
                         ],
                         builder: (context, controller, child) =>
                             SizedBox.square(
-                          dimension: 44,
+                          dimension: 48,
                           child: IconButton(
                             key: const ValueKey<String>('ask' '-pandora-plus'),
                             tooltip: 'Open menu',
@@ -1904,7 +1874,7 @@ class _Composer extends StatelessWidget {
                       ),
                       const SizedBox(width: 2),
                       SizedBox.square(
-                        dimension: 44,
+                        dimension: 48,
                         child: IconButton(
                           key: const ValueKey<String>('ask' '-pandora-voice'),
                           tooltip: 'Voice input',
@@ -1920,25 +1890,31 @@ class _Composer extends StatelessWidget {
                         builder: (context, value, child) {
                           final cancelReady =
                               submitting && value.text.trim().isEmpty;
-                          return SizedBox.square(
-                            dimension: 44,
-                            child: FilledButton(
-                              key: const ValueKey<String>(
-                                  'ask' '-pandora-submit'),
-                              onPressed: disabled ? null : onSubmit,
-                              style: FilledButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                backgroundColor: Colors.white,
-                                disabledBackgroundColor:
-                                    const Color(0xFF1F1F1F),
-                                shape: const CircleBorder(),
-                              ),
-                              child: Icon(
-                                cancelReady
-                                    ? Icons.stop_rounded
-                                    : Icons.arrow_upward_rounded,
-                                color: Colors.black,
-                                size: 22,
+                          return Semantics(
+                            button: true,
+                            label: cancelReady
+                                ? 'Stop generation'
+                                : 'Send message',
+                            child: SizedBox.square(
+                              dimension: 48,
+                              child: FilledButton(
+                                key: const ValueKey<String>(
+                                    'ask' '-pandora-submit'),
+                                onPressed: disabled ? null : onSubmit,
+                                style: FilledButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  backgroundColor: Colors.white,
+                                  disabledBackgroundColor:
+                                      const Color(0xFF1F1F1F),
+                                  shape: const CircleBorder(),
+                                ),
+                                child: Icon(
+                                  cancelReady
+                                      ? Icons.stop_rounded
+                                      : Icons.arrow_upward_rounded,
+                                  color: Colors.black,
+                                  size: 22,
+                                ),
                               ),
                             ),
                           );

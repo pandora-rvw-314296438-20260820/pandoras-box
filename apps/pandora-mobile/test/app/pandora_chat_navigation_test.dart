@@ -312,6 +312,36 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+      'Enterprise navigation mounts the persistent contextual command stack',
+      (tester) async {
+    await mount(tester, const Size(390, 844));
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Enterprise'));
+    await tester.pumpAndSettle();
+    final appUsers = find.descendant(
+      of: find.byType(Drawer),
+      matching: find.widgetWithText(ListTile, 'App Users'),
+    );
+    expect(appUsers, findsOneWidget);
+    await tester.tap(appUsers);
+    await tester.pumpAndSettle();
+
+    expect(find.text('App Users'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey<String>('enterprise-command-stack')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('enterprise-command-bar')),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('Send command'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class _ConversationRepository extends FakeRepository {
