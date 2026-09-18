@@ -53,7 +53,6 @@
     {"source": "/control-tower/projectos-status.json", "destination": "/api/operator/status"},
     {"source": "/control-tower/release.json", "destination": "/api/operator/status"},
     {"source": "/latest-updates", "destination": "/latest-updates.html"},
-    {"source": "/", "destination": "/pandora-web/index.html"},
     {"source": "/health", "destination": "/api/health"},
     {"source": "/mcp", "destination": "/api/mcp"},
     {"source": "/.well-known/oauth-protected-resource", "destination": "/api/mcp?metadata=root"},
