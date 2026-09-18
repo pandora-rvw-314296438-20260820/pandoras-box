@@ -67,11 +67,25 @@ function nextGeminiModels(model:string){if(model===DEEP)return[DEEP,STANDARD,FAS
 async function providerExact(c:any,org:string,user:string,provider:string,model:string,gbody:R,kbody:R,obody:R,lbody:R){if(provider==="local"){try{const r=await localCall(c,org,user,model,lbody);return{provider:"local",model,selectedModel:model,payload:r,usage:localUsage(r.body)}}catch(e){if(e instanceof Error&&e.message==="INVALID_MODEL_OUTPUT")throw providerFailure("invalid_output",false,true);throw e}}if(provider==="kimi"){try{const r=await kimiCall(c,model,kbody);return{provider,model:txt(rec(r.body).model,model),selectedModel:model,payload:r,usage:kimiUsage(r.body)}}catch(e){if(e instanceof Error&&e.message==="INVALID_MODEL_OUTPUT")throw providerFailure("invalid_output",false,true);throw e}}if(provider==="openai"){try{const r=await openaiCall(c,model,obody);return{provider,model:txt(rec(r.body).model,model),selectedModel:model,payload:r,usage:openaiUsage(r.body)}}catch(e){if(e instanceof Error&&e.message==="INVALID_MODEL_OUTPUT")throw providerFailure("invalid_output",false,true);throw e}}try{const r=await call(c,model,gbody);return{provider:"gemini",model:txt(rec(r.body).modelVersion,model),selectedModel:model,payload:r,usage:usage(r.body)}}catch(e){if(e instanceof Error&&e.message==="INVALID_MODEL_OUTPUT")Object.assign(e as object,{code:"invalid_output",crossProviderEligible:true});else if(rec(e).retryable===true)Object.assign(e as object,{code:txt(rec(e).code,"provider_unavailable"),crossProviderEligible:true});throw e}}
 async function universalDispatch(c:any,org:string,message:string,threadId:string|null,projectId:string|null){const r=await c.rpc("pandora_chat_universal_dispatch_v9",{p_organization_id:org,p_message:message,p_thread_id:threadId,p_project_id:projectId});if(r.error)throw Error("CAPABILITY_DISPATCH_FAILED");const p=rec(r.data);return p.handled===true?p:null}
 function candidates(route:R|null,cfg:any,ocfg:any,lcfg:any,task:string,geminiModel:string,manual:any){const out:{provider:string,model:string}[]=[],seen=new Set<string>();const add=(provider:string,model:string)=>{const k=provider+":"+model;if(!seen.has(k)){seen.add(k);out.push({provider,model})}},gemini=nextGeminiModels(geminiModel),geminiAllowed=[FAST,STANDARD,DEEP],kimiOk=cfg.enabled&&cfg.routingEligible&&(cfg.tasks.length===0||cfg.tasks.includes(task)),openaiOk=ocfg.enabled&&ocfg.routingEligible&&(ocfg.tasks.length===0||ocfg.tasks.includes(task)),localOk=lcfg.enabled&&lcfg.routingEligible&&lcfg.ready&&(lcfg.tasks.length===0||lcfg.tasks.includes(task));if(manual){const p=txt(manual.provider),m=txt(manual.model);if(p==="gemini"&&geminiAllowed.includes(m)){add(p,m);return out}if(p==="kimi"&&kimiOk&&cfg.allowedModels.includes(m)){add(p,m);return out}if(p==="openai"&&openaiOk&&ocfg.allowedModels.includes(m)){add(p,m);return out}if(p==="local"&&lcfg.enabled&&lcfg.routingEligible&&lcfg.allowedModels.includes(m)){if(!lcfg.ready)throw Error("LOCAL_MODEL_UNAVAILABLE");add(p,m);return out}throw Error("INVALID_MODEL_SELECTION")}const addOthers=(exclude:string)=>{if(exclude!=="kimi"&&kimiOk)add("kimi",cfg.model);if(exclude!=="openai"&&openaiOk)add("openai",ocfg.model);if(exclude!=="local"&&localOk)add("local",lcfg.model)};if(route){const rp=txt(route.provider),rm=txt(route.model);if(rp==="kimi"&&kimiOk&&cfg.allowedModels.includes(rm)){add("kimi",rm);if(gemini.length)add("gemini",gemini[0]);if(openaiOk)add("openai",ocfg.model);for(const m of gemini.slice(1))add("gemini",m);if(localOk)add("local",lcfg.model)}else if(rp==="openai"&&openaiOk&&ocfg.allowedModels.includes(rm)){add("openai",rm);if(gemini.length)add("gemini",gemini[0]);if(kimiOk)add("kimi",cfg.model);for(const m of gemini.slice(1))add("gemini",m);if(localOk)add("local",lcfg.model)}else if(rp==="local"&&localOk&&lcfg.allowedModels.includes(rm)){add("local",rm);if(gemini.length)add("gemini",gemini[0]);if(kimiOk)add("kimi",cfg.model);if(openaiOk)add("openai",ocfg.model);for(const m of gemini.slice(1))add("gemini",m)}else if(rp==="gemini"&&geminiAllowed.includes(rm)){add("gemini",rm);addOthers("gemini");for(const m of nextGeminiModels(rm).slice(1))add("gemini",m)}else{if(gemini.length)add("gemini",gemini[0]);addOthers("gemini");for(const m of gemini.slice(1))add("gemini",m)}}else{const preferKimi=kimiOk&&cfg.preferredTasks.includes(task),preferOpenAI=openaiOk&&ocfg.preferredTasks.includes(task),preferLocal=localOk&&lcfg.preferredTasks.includes(task);if(preferKimi)add("kimi",cfg.model);else if(preferOpenAI)add("openai",ocfg.model);else if(preferLocal)add("local",lcfg.model);else if(gemini.length)add("gemini",gemini[0]);if(kimiOk)add("kimi",cfg.model);if(openaiOk)add("openai",ocfg.model);for(const m of gemini.slice(1))add("gemini",m);if(localOk)add("local",lcfg.model)}return out}
-function enterpriseUserCommand(message:string,ctx:any){
+type EnterpriseUserCommand =
+  | { action: "invite"; role: string; email: string }
+  | { action: "role"; role: string; email: string }
+  | { action: "status"; status: "active" | "suspended" | "revoked"; email: string };
+
+function enterpriseUserCommand(message:string,ctx:any):EnterpriseUserCommand|null{
   if(!ctx||ctx.surface!=="enterprise_app_users"||ctx.identityScope!=="pandora_organization"||!Array.isArray(ctx.capabilities)||!ctx.capabilities.includes("organization.users.manage"))return null;
-  const match=message.trim().match(/^(?:create|invite|add)\s+(?:an?\s+)?(owner|admin|operator|member|viewer)(?:\s+(?:account|user))?\s+(?:for\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)\s*$/i);
-  if(!match)return null;
-  return{role:match[1].toLowerCase(),email:match[2].toLowerCase()};
+  const source=message.trim();
+  let match=source.match(/^(?:create|invite|add)\s+(?:an?\s+)?(owner|admin|operator|member|viewer)(?:\s+(?:account|user))?\s+(?:for\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)\s*$/i);
+  if(match)return{action:"invite",role:match[1].toLowerCase(),email:match[2].toLowerCase()};
+  match=source.match(/^(?:change|set|update)\s+(?:the\s+)?(?:enterprise\s+)?(?:role|access\s+role)\s+(?:for\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)\s+(?:to|as)\s+(owner|admin|operator|member|viewer)\s*$/i);
+  if(match)return{action:"role",email:match[1].toLowerCase(),role:match[2].toLowerCase()};
+  match=source.match(/^(?:suspend|disable)\s+(?:enterprise\s+)?(?:access\s+)?(?:for\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)\s*$/i);
+  if(match)return{action:"status",status:"suspended",email:match[1].toLowerCase()};
+  match=source.match(/^(?:restore|activate|enable)\s+(?:enterprise\s+)?(?:access\s+)?(?:for\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)\s*$/i);
+  if(match)return{action:"status",status:"active",email:match[1].toLowerCase()};
+  match=source.match(/^(?:revoke|remove)\s+(?:enterprise\s+)?(?:access\s+)?(?:for\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)\s*$/i);
+  if(match)return{action:"status",status:"revoked",email:match[1].toLowerCase()};
+  return null;
 }
 async function enterpriseUserAdminRequest(c:any,method:"GET"|"POST",body:R|null=null){
   const response=await fetch(`${URL}/functions/v1/pandora-user-admin${method==="POST"?"/invite":"/members"}`,{
@@ -88,26 +102,112 @@ async function enterpriseUserAdminRequest(c:any,method:"GET"|"POST",body:R|null=
   }
   return payload;
 }
+function enterpriseMutationError(error:any){
+  const message=txt(error?.message).toLowerCase();
+  const out=Error("ENTERPRISE_USER_ADMIN_FAILED");
+  if(message.includes("last active owner")){
+    Object.assign(out,{enterpriseCode:"LAST_ACTIVE_OWNER_REQUIRED",enterpriseMessage:"At least one active owner must remain."});
+  }else if(message.includes("cannot change your own membership")){
+    Object.assign(out,{enterpriseCode:"SELF_MEMBERSHIP_CHANGE_FORBIDDEN",enterpriseMessage:"Use the dedicated ownership workflow to change your own access."});
+  }else if(message.includes("administrators cannot")){
+    Object.assign(out,{enterpriseCode:"ROLE_CHANGE_NOT_ALLOWED",enterpriseMessage:"Only an owner can make that Enterprise access change."});
+  }else if(message.includes("target membership not found")){
+    Object.assign(out,{enterpriseCode:"MEMBERSHIP_NOT_FOUND",enterpriseMessage:"That Enterprise access membership no longer exists."});
+  }else{
+    Object.assign(out,{enterpriseCode:"MEMBERSHIP_UPDATE_FAILED",enterpriseMessage:"Pandora could not update that Enterprise access membership safely."});
+  }
+  return out;
+}
+
 async function enterpriseDirectDispatch(c:any,i:any){
   const command=enterpriseUserCommand(i.message,i.enterpriseContext);
   if(!command)return null;
-  if(c.role==="admin"&&["owner","admin"].includes(command.role)){
-    const error=Error("ENTERPRISE_ROLE_GRANT_NOT_ALLOWED");
-    Object.assign(error,{enterpriseMessage:"Only an owner can grant owner or admin access."});
+
+  if(command.action==="invite"){
+    if(c.role==="admin"&&["owner","admin"].includes(command.role)){
+      const error=Error("ENTERPRISE_ROLE_GRANT_NOT_ALLOWED");
+      Object.assign(error,{enterpriseMessage:"Only an owner can grant owner or admin access."});
+      throw error;
+    }
+    await emitActivity(c.admin,i.activityJobId,{state:"acting",message:"Creating the organization user through the governed identity provider.",sourceType:"provider",sourceId:"pandora-user-admin",sourceEventId:"user-admin-act:"+(i.activityJobId||crypto.randomUUID()),evidence:[{type:"runtime_event",relation:"source",ref:"provider:pandora-user-admin:invite"}]});
+    const created=await enterpriseUserAdminRequest(c,"POST",{email:command.email,role:command.role,timezone:"Asia/Manila"});
+    const directory=await enterpriseUserAdminRequest(c,"GET");
+    const members=Array.isArray(directory.members)?directory.members:[];
+    const verified=members.find((item:any)=>txt(rec(item).email).toLowerCase()===command.email&&txt(rec(item).role)===command.role&&txt(rec(item).status)==="active");
+    if(!verified)throw Error("ENTERPRISE_USER_READBACK_FAILED");
+    const tid=await thread(c.admin,c.organizationId,c.userId,i.threadId,i.projectId,i.message);
+    const userWrite=await c.admin.from("pandora_intelligence_messages").insert({thread_id:tid,organization_id:c.organizationId,project_id:i.projectId,author_role:"user",content:i.message,attachment_manifest:[]}).select("id").single();
+    if(userWrite.error)throw Error("BACKEND_WRITE_FAILED");
+    const roleLabel=command.role[0].toUpperCase()+command.role.slice(1);
+    const reply=roleLabel+" access is verified for "+command.email+". "+(created.inviteSent===true?"A secure invitation was sent.":"The existing account was linked without issuing a reusable password.");
+    const providerReadback={verified:true,provider:"pandora-user-admin",action:"invite",email:command.email,role:command.role,status:"active",inviteSent:created.inviteSent===true,existingAccount:created.existingAccount===true,requestId:txt(created.requestId)};
+    const assistantWrite=await c.admin.from("pandora_intelligence_messages").insert({thread_id:tid,organization_id:c.organizationId,project_id:i.projectId,author_role:"assistant",content:reply,structured_response:{intent:"act",confidence:1,needsClarification:false,enterpriseContext:i.enterpriseContext,providerReadback}}).select("id").single();
+    if(assistantWrite.error)throw Error("BACKEND_WRITE_FAILED");
+    await c.admin.from("pandora_intelligence_threads").update({last_message_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",tid);
+    return{threadId:tid,reply,intent:"act",confidence:1,needsClarification:false,clarifyingQuestion:null,handoff:null,toolProposals:[],providerReadback};
+  }
+
+  const directoryBefore=await enterpriseUserAdminRequest(c,"GET");
+  const membersBefore=Array.isArray(directoryBefore.members)?directoryBefore.members:[];
+  const target=membersBefore.find((item:any)=>txt(rec(item).email).toLowerCase()===command.email);
+  const targetId=txt(rec(target).id);
+  if(!target||!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(targetId)){
+    const error=Error("ENTERPRISE_USER_NOT_FOUND");
+    Object.assign(error,{enterpriseMessage:"That email is not an Enterprise access member."});
     throw error;
   }
-  await emitActivity(c.admin,i.activityJobId,{state:"acting",message:"Creating the organization user through the governed identity provider.",sourceType:"provider",sourceId:"pandora-user-admin",sourceEventId:`user-admin-act:${i.activityJobId??crypto.randomUUID()}`,evidence:[{type:"runtime_event",relation:"source",ref:"provider:pandora-user-admin:invite"}]});
-  const created=await enterpriseUserAdminRequest(c,"POST",{email:command.email,role:command.role,timezone:"Asia/Manila"});
-  const directory=await enterpriseUserAdminRequest(c,"GET");
-  const members=Array.isArray(directory.members)?directory.members:[];
-  const verified=members.find((item:any)=>txt(rec(item).email).toLowerCase()===command.email&&txt(rec(item).role)===command.role&&txt(rec(item).status)==="active");
+
+  const desiredRole=command.action==="role"?command.role:null;
+  const desiredStatus=command.action==="status"?command.status:null;
+  const actionLabel=command.action==="role"
+    ?"Updating the Enterprise access role."
+    :desiredStatus==="suspended"
+      ?"Suspending Enterprise access."
+      :desiredStatus==="revoked"
+        ?"Revoking Enterprise access."
+        :"Restoring Enterprise access.";
+  await emitActivity(c.admin,i.activityJobId,{state:"acting",message:actionLabel,sourceType:"provider",sourceId:"pandora-user-admin",sourceEventId:"user-admin-mutate:"+(i.activityJobId||crypto.randomUUID()),evidence:[{type:"runtime_event",relation:"source",ref:"provider:pandora-user-admin:membership"}]});
+
+  const mutation=await c.admin.rpc("pandora_admin_update_organization_member",{
+    p_actor_user_id:c.userId,
+    p_organization_id:c.organizationId,
+    p_target_user_id:targetId,
+    p_role:desiredRole,
+    p_status:desiredStatus,
+  });
+  if(mutation.error)throw enterpriseMutationError(mutation.error);
+
+  const directoryAfter=await enterpriseUserAdminRequest(c,"GET");
+  const membersAfter=Array.isArray(directoryAfter.members)?directoryAfter.members:[];
+  const verified=membersAfter.find((item:any)=>{
+    const row=rec(item);
+    if(txt(row.email).toLowerCase()!==command.email)return false;
+    if(command.action==="role")return txt(row.role)===command.role;
+    return txt(row.status)===command.status;
+  });
   if(!verified)throw Error("ENTERPRISE_USER_READBACK_FAILED");
+
+  const row=rec(verified),result=rec(mutation.data);
+  const finalRole=txt(row.role),finalStatus=txt(row.status);
+  const reply=command.action==="role"
+    ?(finalRole[0].toUpperCase()+finalRole.slice(1))+" access is verified for "+command.email+"."
+    :"Enterprise access for "+command.email+" is verified as "+finalStatus+".";
+  const providerReadback={
+    verified:true,
+    provider:"pandora-user-admin",
+    action:command.action,
+    email:command.email,
+    userId:targetId,
+    role:finalRole,
+    status:finalStatus,
+    previousRole:txt(result.previousRole),
+    previousStatus:txt(result.previousStatus),
+    changed:result.changed===true,
+  };
+
   const tid=await thread(c.admin,c.organizationId,c.userId,i.threadId,i.projectId,i.message);
   const userWrite=await c.admin.from("pandora_intelligence_messages").insert({thread_id:tid,organization_id:c.organizationId,project_id:i.projectId,author_role:"user",content:i.message,attachment_manifest:[]}).select("id").single();
   if(userWrite.error)throw Error("BACKEND_WRITE_FAILED");
-  const roleLabel=command.role[0].toUpperCase()+command.role.slice(1);
-  const reply=`${roleLabel} access is verified for ${command.email}. ${created.inviteSent===true?"A secure invitation was sent.":"The existing account was linked without issuing a reusable password."}`;
-  const providerReadback={verified:true,provider:"pandora-user-admin",email:command.email,role:command.role,status:"active",inviteSent:created.inviteSent===true,existingAccount:created.existingAccount===true,requestId:txt(created.requestId)};
   const assistantWrite=await c.admin.from("pandora_intelligence_messages").insert({thread_id:tid,organization_id:c.organizationId,project_id:i.projectId,author_role:"assistant",content:reply,structured_response:{intent:"act",confidence:1,needsClarification:false,enterpriseContext:i.enterpriseContext,providerReadback}}).select("id").single();
   if(assistantWrite.error)throw Error("BACKEND_WRITE_FAILED");
   await c.admin.from("pandora_intelligence_threads").update({last_message_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",tid);
