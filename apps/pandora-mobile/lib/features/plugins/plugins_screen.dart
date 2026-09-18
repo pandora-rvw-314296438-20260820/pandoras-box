@@ -601,7 +601,7 @@ class _PluginViewModel {
             name: 'change',
             mode: 'write',
             available: true,
-            approval: 'projectos',
+            approval: 'pandora',
           ),
       ],
       lastVerifiedAt: connection.freshness.lastVerifiedAt,
