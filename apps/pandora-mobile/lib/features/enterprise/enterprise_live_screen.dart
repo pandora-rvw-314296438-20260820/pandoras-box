@@ -240,8 +240,7 @@ class _EnterpriseLiveScreenState extends State<EnterpriseLiveScreen> {
     return Semantics(
       button: true,
       selected: selected,
-      label:
-          '${item.title}. ${item.subtitle}. Status ${item.status}.',
+      label: '${item.title}. ${item.subtitle}. Status ${item.status}.',
       child: InkWell(
         key: ValueKey<String>('enterprise-live-item-${item.id}'),
         onTap: () => _select(item),
