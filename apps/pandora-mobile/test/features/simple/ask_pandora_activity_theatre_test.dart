@@ -37,6 +37,7 @@ class _FakeIntelligence extends PandoraIntelligenceApi {
     required String requestId,
     String? threadId,
     String? projectId,
+    Map<String, Object?>? enterpriseContext,
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
@@ -121,7 +122,7 @@ void main() {
         find.byKey(const ValueKey<String>('ask' '-pandora-submit')),
       );
       await tester.pump();
-      expect(find.text('Thinking through the request…'), findsOneWidget);
+      expect(find.text('Thinking through the request…'), findsNothing);
       expect(
         find.byKey(const ValueKey<String>('ask' '-pandora-activity-theatre')),
         findsNothing,

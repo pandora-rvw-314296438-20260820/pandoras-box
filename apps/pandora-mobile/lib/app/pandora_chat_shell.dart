@@ -10,6 +10,8 @@ import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/enterprise/enterprise_code_screen.dart';
+import '../features/enterprise/enterprise_command_stack.dart';
+import '../features/enterprise/enterprise_page_context.dart';
 import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
 import '../features/simple/enterprise_section_screen.dart';
@@ -518,6 +520,48 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         };
       });
 
+  EnterprisePageContext _enterpriseContext(int index) {
+    final surface = switch (index) {
+      8 => 'enterprise_overview',
+      9 => 'enterprise_app_users',
+      10 => 'enterprise_data',
+      11 => 'enterprise_analytics',
+      12 => 'enterprise_marketing',
+      13 => 'enterprise_domains',
+      14 => 'enterprise_integrations',
+      15 => 'enterprise_security',
+      16 => 'enterprise_code',
+      17 => 'enterprise_agents',
+      18 => 'enterprise_workflows',
+      19 => 'enterprise_logs',
+      20 => 'enterprise_api',
+      21 => 'enterprise_settings',
+      22 => 'enterprise_mcp',
+      _ => throw StateError('Not an Enterprise destination.'),
+    };
+    final capabilities = switch (index) {
+      9 => const <String>[
+          'organization.users.read',
+          'organization.users.manage',
+        ],
+      15 => const <String>[
+          'enterprise.security.read',
+          'enterprise.security.manage',
+        ],
+      16 => const <String>['source.read', 'build.request'],
+      20 => const <String>['enterprise.api.read', 'enterprise.api.manage'],
+      _ => <String>['$surface.read'],
+    };
+    return EnterprisePageContext(
+      surface: surface,
+      route:
+          '/enterprise/${_destinations[index].label.toLowerCase().replaceAll(' ', '-')}',
+      capabilities: capabilities,
+      identityScope:
+          index == 9 ? 'pandora_organization' : 'enterprise_workspace',
+    );
+  }
+
   ThemeData _theme(ThemeData base) {
     const scheme = ColorScheme.dark(
       primary: PandoraV2Colors.ink,
@@ -602,6 +646,13 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               ],
             );
 
+            final workspace = _index >= 8
+                ? EnterprisePageContextScope(
+                    pageContext: _enterpriseContext(_index),
+                    child: EnterpriseCommandStack(child: body),
+                  )
+                : body;
+
             if (constraints.maxWidth >= 900) {
               return Scaffold(
                 backgroundColor: PandoraV2Colors.canvas,
@@ -612,7 +663,10 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                         width: 1, color: PandoraV2Colors.line),
                     Expanded(
                       child:
-                          PandoraNavigationScope(openDrawer: null, child: body),
+                          PandoraNavigationScope(
+                            openDrawer: null,
+                            child: workspace,
+                          ),
                     ),
                   ],
                 ),
@@ -622,7 +676,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
             return Scaffold(
               key: _scaffoldKey,
               backgroundColor: PandoraV2Colors.canvas,
-              drawerScrimColor: Colors.black.withValues(alpha: .02),
+              drawerScrimColor: Colors.black.withValues(alpha: .62),
               onDrawerChanged: (open) {
                 if (open) unawaited(_refreshHistory());
               },
@@ -639,7 +693,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               ),
               body: PandoraNavigationScope(
                 openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
-                child: body,
+                child: workspace,
               ),
             );
           },

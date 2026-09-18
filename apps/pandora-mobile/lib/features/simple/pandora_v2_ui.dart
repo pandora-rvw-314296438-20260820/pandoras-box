@@ -175,6 +175,7 @@ class PandoraV2IntentSurface extends StatelessWidget {
     this.onAttachment,
     this.autofocus = false,
     this.enabled = true,
+    this.submitTooltip = 'Send command',
   });
 
   final TextEditingController controller;
@@ -184,6 +185,7 @@ class PandoraV2IntentSurface extends StatelessWidget {
   final VoidCallback? onAttachment;
   final bool autofocus;
   final bool enabled;
+  final String submitTooltip;
 
   void _submit() {
     final value = controller.text.trim();
@@ -256,13 +258,13 @@ class PandoraV2IntentSurface extends StatelessWidget {
                     ],
                     const Spacer(),
                     SizedBox.square(
-                      dimension: 42,
+                      dimension: 48,
                       child: IconButton.filled(
-                        tooltip: 'Continue',
+                        tooltip: submitTooltip,
                         onPressed: enabled ? _submit : null,
                         style: IconButton.styleFrom(
                           backgroundColor: PandoraV2Colors.ink,
-                          foregroundColor: Colors.white,
+                          foregroundColor: Colors.black,
                           disabledBackgroundColor: PandoraV2Colors.soft,
                           disabledForegroundColor: PandoraV2Colors.muted,
                         ),
@@ -291,7 +293,7 @@ class _PandoraComposerIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox.square(
-        dimension: 38,
+        dimension: 48,
         child: IconButton(
           tooltip: tooltip,
           onPressed: onPressed,
