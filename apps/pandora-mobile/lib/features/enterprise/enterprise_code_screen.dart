@@ -149,10 +149,10 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
             .toList() ??
         const <String>[];
     final canDeploy = !_working && _validRepositoryUrl;
-    final repositoryInputError = _error != null &&
-            _error!.startsWith('Enter a GitHub repository URL')
-        ? _error
-        : null;
+    final repositoryInputError =
+        _error != null && _error!.startsWith('Enter a GitHub repository URL')
+            ? _error
+            : null;
     final deploymentStatus = _deployment == null
         ? null
         : (_deployment?['status'] ?? 'unknown').toString();
@@ -257,7 +257,8 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
             const SizedBox(height: 14),
             Semantics(
               liveRegion: true,
-              label: 'Repository inspection updated from the connected provider.',
+              label:
+                  'Repository inspection updated from the connected provider.',
               child: _repositorySummary(repo, detected, stack, envNames),
             ),
           ],
