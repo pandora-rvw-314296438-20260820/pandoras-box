@@ -46,3 +46,13 @@ test('direct editor has verified provider fallback instead of failing on Gemini 
   assert.match(fallback, /v_model_used/);
   assert.match(fallback, /kimi-k3/);
 });
+
+
+test('active runtime uses Pandora-native project registry naming', () => {
+  const registry = readFileSync(join(root, 'supabase', 'migrations', '20260918031500_pandora_native_project_registry_surface_v1.sql'), 'utf8');
+  const edge = readFileSync(join(root, 'supabase', 'functions', 'pandora-intelligence-chat', 'index.ts'), 'utf8');
+  assert.match(registry, /create or replace view public\.pandora_projects/i);
+  assert.match(registry, /from public\.pandora_projects p/i);
+  assert.doesNotMatch(edge, /projectos_projects/i);
+  assert.doesNotMatch(edge, /\bProjectOS\b/i);
+});
