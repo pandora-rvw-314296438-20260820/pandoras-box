@@ -18,10 +18,6 @@ type ControlRpc =
   | "list_execution_plans"
   | "list_execution_audit"
   | "verify_execution_audit_chain"
-  | "save_projectos_checkpoint"
-  | "get_projectos_checkpoint"
-  | "list_projectos_events"
-  | "verify_projectos_event_chain"
   | "consume_runtime_rate_limit"
   | "get_canonical_release_status"
   | "capture_canonical_supabase_release_receipt"
@@ -38,10 +34,6 @@ type ControlAction =
   | "execution_plan_list"
   | "execution_audit_list"
   | "execution_audit_verify"
-  | "projectos_checkpoint_save"
-  | "projectos_checkpoint_get"
-  | "projectos_event_list"
-  | "projectos_event_verify"
   | "runtime_rate_limit_consume"
   | "canonical_release_status"
   | "canonical_supabase_receipt_capture"
@@ -165,6 +157,90 @@ async function fetchRpc(
   return rpcResponse.json();
 }
 
+
+function base64UrlBytes(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+function base64UrlText(value: string): string {
+  return base64UrlBytes(new TextEncoder().encode(value));
+}
+function concatBytes(...parts: Uint8Array[]): Uint8Array {
+  const output = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
+  let offset = 0;
+  for (const part of parts) { output.set(part, offset); offset += part.length; }
+  return output;
+}
+function derLength(length: number): Uint8Array {
+  if (length < 0x80) return new Uint8Array([length]);
+  const bytes: number[] = [];
+  let remaining = length;
+  while (remaining > 0) { bytes.unshift(remaining & 0xff); remaining >>>= 8; }
+  return new Uint8Array([0x80 | bytes.length, ...bytes]);
+}
+function derWrap(tag: number, body: Uint8Array): Uint8Array {
+  return concatBytes(new Uint8Array([tag]), derLength(body.length), body);
+}
+function pemDer(privateKeyPem: string): Uint8Array {
+  const base64 = privateKeyPem.replace(/-----BEGIN [^-]+-----/g, "").replace(/-----END [^-]+-----/g, "").replace(/\s+/g, "");
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+function pkcs1ToPkcs8(pkcs1: Uint8Array): Uint8Array {
+  const version = new Uint8Array([0x02, 0x01, 0x00]);
+  const rsaAlgorithmIdentifier = new Uint8Array([0x30,0x0d,0x06,0x09,0x2a,0x86,0x48,0x86,0xf7,0x0d,0x01,0x01,0x01,0x05,0x00]);
+  return derWrap(0x30, concatBytes(version, rsaAlgorithmIdentifier, derWrap(0x04, pkcs1)));
+}
+async function githubAppJwt(appId: number, privateKeyPem: string): Promise<string> {
+  const decoded = pemDer(privateKeyPem);
+  const keyData = privateKeyPem.includes("BEGIN RSA PRIVATE KEY") ? pkcs1ToPkcs8(decoded) : decoded;
+  const privateKey = await crypto.subtle.importKey("pkcs8", keyData, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64UrlText(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const payload = base64UrlText(JSON.stringify({ iat: now - 30, exp: now + 540, iss: appId }));
+  const signingInput = `${header}.${payload}`;
+  const signature = new Uint8Array(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", privateKey, new TextEncoder().encode(signingInput)));
+  return `${signingInput}.${base64UrlBytes(signature)}`;
+}
+async function githubAppInstallationToken(supabaseUrl: string, key: string): Promise<string> {
+  const materialResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/pandora_get_github_app_runtime_material`, {
+    method: "POST",
+    headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json" },
+    body: "{}", redirect: "error",
+  });
+  if (!materialResponse.ok) throw new Error("github_app_runtime_material_unavailable");
+  const raw = await materialResponse.json();
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("github_app_runtime_material_invalid");
+  const material = raw as Record<string, unknown>;
+  const appId = Number(material.appId);
+  const installationId = Number(material.installationId);
+  const privateKeyPem = typeof material.privateKeyPem === "string" ? material.privateKeyPem : "";
+  if (!Number.isInteger(appId) || appId !== 4785021 || !Number.isInteger(installationId) || installationId !== 158056492 || !privateKeyPem.includes("PRIVATE KEY")) {
+    throw new Error("github_app_runtime_material_invalid");
+  }
+  const appJwt = await githubAppJwt(appId, privateKeyPem);
+  const tokenResponse = await fetch(`https://api.github.com/app/installations/${installationId}/access_tokens`, {
+    method: "POST",
+    headers: {
+      accept: "application/vnd.github+json",
+      authorization: `Bearer ${appJwt}`,
+      "content-type": "application/json",
+      "user-agent": "Pandora-GitHub-App/1.0",
+      "x-github-api-version": "2022-11-28",
+    },
+    body: "{}", redirect: "error",
+  });
+  const tokenPayload = await tokenResponse.json().catch(() => ({}));
+  const token = tokenPayload && typeof tokenPayload === "object" && !Array.isArray(tokenPayload)
+    && typeof (tokenPayload as Record<string, unknown>).token === "string"
+    ? (tokenPayload as Record<string, unknown>).token as string : "";
+  if (tokenResponse.status !== 201 || !token) throw new Error("github_app_installation_token_failed");
+  return token;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -192,6 +268,217 @@ function requiredInteger(
       && value <= maximum
     ? value
     : undefined;
+}
+
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function serviceHeaders(key: string, extra: Record<string, string> = {}): Record<string, string> {
+  return {
+    apikey: key,
+    authorization: "Bearer " + key,
+    "content-type": "application/json",
+    ...extra,
+  };
+}
+
+function localWorkerId(input: Record<string, unknown>): string | undefined {
+  const value = requiredString(input, "workerId");
+  return value && /^[A-Za-z0-9_.:-]{1,80}$/.test(value) ? value : undefined;
+}
+
+function localWorkerModel(input: Record<string, unknown>): string | undefined {
+  const value = requiredString(input, "model");
+  return value && value.length <= 160 ? value : undefined;
+}
+
+async function verifyLocalWorkerKey(
+  supabaseUrl: string,
+  key: string,
+  presented: string,
+): Promise<boolean> {
+  if (!presented || presented.length > 512) return false;
+  const path = "/rest/v1/pandora_runtime_provider_configs?provider=eq.local&config_key=eq.worker_key_sha256&active=eq.true&select=config_value&limit=1";
+  const configResponse = await fetch(supabaseUrl + path, {
+    headers: serviceHeaders(key),
+    redirect: "error",
+  });
+  if (!configResponse.ok) return false;
+  const rows = await configResponse.json().catch(() => []);
+  if (!Array.isArray(rows) || rows.length !== 1 || !isRecord(rows[0])) return false;
+  const expected = typeof rows[0].config_value === "string" ? rows[0].config_value.toLowerCase() : "";
+  return expected.length === 64 && await sha256Hex(presented) === expected;
+}
+
+async function upsertLocalWorker(
+  supabaseUrl: string,
+  key: string,
+  workerId: string,
+  model: string,
+  status: "ready" | "busy" | "degraded",
+): Promise<boolean> {
+  const workerResponse = await fetch(supabaseUrl + "/rest/v1/pandora_local_ai_workers", {
+    method: "POST",
+    headers: serviceHeaders(key, { prefer: "resolution=merge-duplicates,return=minimal" }),
+    body: JSON.stringify({
+      worker_id: workerId,
+      model,
+      status,
+      last_seen_at: new Date().toISOString(),
+      metadata: {
+        runtime: "llama.cpp",
+        transport: "outbound_poll",
+        nodeClass: "authorized_windows_edge",
+      },
+    }),
+    redirect: "error",
+  });
+  return workerResponse.ok;
+}
+
+async function handleLocalWorker(
+  request: Request,
+  input: Record<string, unknown>,
+  supabaseUrl: string,
+  key: string,
+): Promise<Response> {
+  const workerKey = request.headers.get("x-pandora-worker-key")?.trim() || "";
+  if (!await verifyLocalWorkerKey(supabaseUrl, key, workerKey)) {
+    return response(401, { ok: false, error: "worker_unauthorized" });
+  }
+
+  const action = requiredString(input, "action");
+  const workerId = localWorkerId(input);
+  const model = localWorkerModel(input);
+  if (!workerId || !model) {
+    return response(400, { ok: false, error: "invalid_worker_request" });
+  }
+
+  if (action === "local_ai_heartbeat") {
+    const state = requiredString(input, "status");
+    const status = state === "busy" || state === "degraded" ? state : "ready";
+    if (!await upsertLocalWorker(supabaseUrl, key, workerId, model, status)) {
+      return response(502, { ok: false, error: "worker_heartbeat_failed" });
+    }
+    return response(200, { ok: true });
+  }
+
+  if (action === "local_ai_claim") {
+    const now = new Date().toISOString();
+    await fetch(
+      supabaseUrl + "/rest/v1/pandora_local_ai_jobs?status=eq.queued&expires_at=lt." + encodeURIComponent(now),
+      {
+        method: "PATCH",
+        headers: serviceHeaders(key, { prefer: "return=minimal" }),
+        body: JSON.stringify({
+          status: "cancelled",
+          error_code: "expired",
+          completed_at: now,
+          updated_at: now,
+        }),
+        redirect: "error",
+      },
+    );
+
+    const candidatePath =
+      "/rest/v1/pandora_local_ai_jobs?status=eq.queued&model=eq." + encodeURIComponent(model) +
+      "&expires_at=gt." + encodeURIComponent(now) +
+      "&select=id,model,request_body&order=created_at.asc&limit=1";
+    const candidateResponse = await fetch(supabaseUrl + candidatePath, {
+      headers: serviceHeaders(key),
+      redirect: "error",
+    });
+    if (!candidateResponse.ok) return response(502, { ok: false, error: "queue_read_failed" });
+    const candidates = await candidateResponse.json().catch(() => []);
+    if (!Array.isArray(candidates) || candidates.length === 0 || !isRecord(candidates[0])) {
+      await upsertLocalWorker(supabaseUrl, key, workerId, model, "ready");
+      return response(200, { ok: true, job: null });
+    }
+
+    const jobId = typeof candidates[0].id === "string" ? candidates[0].id : "";
+    if (!UUID_PATTERN.test(jobId)) return response(502, { ok: false, error: "queue_read_invalid" });
+    const claimToken = crypto.randomUUID();
+    const claimPath =
+      "/rest/v1/pandora_local_ai_jobs?id=eq." + jobId +
+      "&status=eq.queued&select=id,model,request_body";
+    const claimResponse = await fetch(supabaseUrl + claimPath, {
+      method: "PATCH",
+      headers: serviceHeaders(key, { prefer: "return=representation" }),
+      body: JSON.stringify({
+        status: "processing",
+        claim_token: claimToken,
+        worker_id: workerId,
+        claimed_at: now,
+        updated_at: now,
+      }),
+      redirect: "error",
+    });
+    if (!claimResponse.ok) return response(502, { ok: false, error: "queue_claim_failed" });
+    const claimed = await claimResponse.json().catch(() => []);
+    if (!Array.isArray(claimed) || claimed.length !== 1 || !isRecord(claimed[0])) {
+      return response(200, { ok: true, job: null });
+    }
+    await upsertLocalWorker(supabaseUrl, key, workerId, model, "busy");
+    return response(200, {
+      ok: true,
+      job: {
+        id: jobId,
+        model,
+        claimToken,
+        requestBody: isRecord(claimed[0].request_body) ? claimed[0].request_body : {},
+      },
+    });
+  }
+
+  if (action === "local_ai_complete") {
+    const jobId = requiredUuid(input, "jobId");
+    const claimToken = requiredUuid(input, "claimToken");
+    if (!jobId || !claimToken) return response(400, { ok: false, error: "invalid_claim" });
+    const success = input.success === true;
+    const completeBody = success
+      ? {
+        status: "completed",
+        result_body: isRecord(input.resultBody) ? input.resultBody : {},
+        error_code: null,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      : {
+        status: "failed",
+        result_body: null,
+        error_code: typeof input.errorCode === "string" ? input.errorCode.slice(0, 120) : "local_ai_failed",
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    const completePath =
+      "/rest/v1/pandora_local_ai_jobs?id=eq." + jobId +
+      "&claim_token=eq." + claimToken +
+      "&worker_id=eq." + encodeURIComponent(workerId) +
+      "&status=eq.processing&select=id";
+    const completeResponse = await fetch(supabaseUrl + completePath, {
+      method: "PATCH",
+      headers: serviceHeaders(key, { prefer: "return=representation" }),
+      body: JSON.stringify(completeBody),
+      redirect: "error",
+    });
+    if (!completeResponse.ok) return response(502, { ok: false, error: "queue_complete_failed" });
+    const completed = await completeResponse.json().catch(() => []);
+    if (!Array.isArray(completed) || completed.length !== 1) {
+      return response(409, { ok: false, error: "claim_not_current" });
+    }
+    await upsertLocalWorker(supabaseUrl, key, workerId, model, success ? "ready" : "degraded");
+    return response(200, { ok: true });
+  }
+
+  return response(400, { ok: false, error: "unsupported_worker_action" });
+}
+
+function isLocalWorkerAction(input: Record<string, unknown>): boolean {
+  const action = typeof input.action === "string" ? input.action : "";
+  return ["local_ai_heartbeat", "local_ai_claim", "local_ai_complete"].includes(action);
 }
 
 function routeForInput(input: Record<string, unknown>): ControlRoute | undefined {
@@ -321,94 +608,6 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     };
   }
 
-  if (input.action === "projectos_checkpoint_save") {
-    const projectKey = requiredString(input, "projectKey");
-    const expectedVersion = requiredInteger(input, "expectedVersion", 0, Number.MAX_SAFE_INTEGER);
-    const status = requiredString(input, "status");
-    const sourceRepository = requiredString(input, "sourceRepository");
-    const sourceCommitSha = requiredString(input, "sourceCommitSha");
-    const planVersion = requiredString(input, "planVersion");
-    const observedAt = requiredString(input, "observedAt");
-    const phaseKey = typeof input.phaseKey === "string" && input.phaseKey.length <= 160 ? input.phaseKey : null;
-    const primaryTaskKey = typeof input.primaryTaskKey === "string" && input.primaryTaskKey.length <= 160
-      ? input.primaryTaskKey
-      : null;
-    const eventType = typeof input.eventType === "string" ? input.eventType : "projectos.checkpoint.saved";
-    const runId = typeof input.runId === "string" ? input.runId : null;
-    const stepId = typeof input.stepId === "string" ? input.stepId : null;
-    if (
-      !projectKey
-      || expectedVersion === undefined
-      || !status
-      || !sourceRepository
-      || !sourceCommitSha
-      || !planVersion
-      || !observedAt
-      || !isRecord(input.state)
-      || !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/.test(projectKey)
-      || !["active", "blocked", "paused", "complete", "archived"].includes(status)
-      || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(sourceRepository)
-      || !/^[0-9a-f]{40}$/.test(sourceCommitSha)
-      || !/^projectos\.[a-z0-9_.-]{1,127}$/.test(eventType)
-    ) return undefined;
-    return {
-      action: "projectos_checkpoint_save",
-      rpc: "save_projectos_checkpoint",
-      responseKey: "checkpoint",
-      params: {
-        p_project_key: projectKey,
-        p_expected_version: expectedVersion,
-        p_status: status,
-        p_phase_key: phaseKey,
-        p_primary_task_key: primaryTaskKey,
-        p_source_repository: sourceRepository,
-        p_source_commit_sha: sourceCommitSha,
-        p_plan_version: planVersion,
-        p_state_redacted: input.state,
-        p_observed_at: observedAt,
-        p_event_type: eventType,
-        p_run_id: runId,
-        p_step_id: stepId,
-      },
-    };
-  }
-
-  if (input.action === "projectos_checkpoint_get") {
-    const projectKey = requiredString(input, "projectKey");
-    if (!projectKey || !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/.test(projectKey)) return undefined;
-    return {
-      action: "projectos_checkpoint_get",
-      rpc: "get_projectos_checkpoint",
-      responseKey: "checkpoint",
-      params: { p_project_key: projectKey },
-    };
-  }
-
-  if (input.action === "projectos_event_list") {
-    const projectKey = requiredString(input, "projectKey");
-    if (!projectKey || !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/.test(projectKey)) return undefined;
-    return {
-      action: "projectos_event_list",
-      rpc: "list_projectos_events",
-      responseKey: "events",
-      params: {
-        p_project_key: projectKey,
-        p_limit: typeof input.limit === "number" ? Math.min(Math.max(Math.floor(input.limit), 1), 500) : 100,
-      },
-    };
-  }
-
-  if (input.action === "projectos_event_verify") {
-    const projectKey = requiredString(input, "projectKey");
-    if (!projectKey || !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/.test(projectKey)) return undefined;
-    return {
-      action: "projectos_event_verify",
-      rpc: "verify_projectos_event_chain",
-      responseKey: "verification",
-      params: { p_project_key: projectKey },
-    };
-  }
-
   if (input.action === "runtime_rate_limit_consume") {
     const keyHash = requiredString(input, "keyHash");
     const limit = requiredInteger(input, "limit", 1, 10_000);
@@ -451,15 +650,6 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
 Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return response(405, { ok: false, error: "method_not_allowed" });
 
-  const token = bearerToken(request);
-  if (!token) return response(401, { ok: false, error: "unauthorized" });
-
-  try {
-    await verifyVercelToken(token);
-  } catch {
-    return response(401, { ok: false, error: "unauthorized" });
-  }
-
   const rawBody = await request.text();
   if (new TextEncoder().encode(rawBody).byteLength > MAX_REQUEST_BYTES) {
     return response(413, { ok: false, error: "request_too_large" });
@@ -474,16 +664,40 @@ Deno.serve(async (request: Request) => {
     return response(400, { ok: false, error: "invalid_json" });
   }
 
-  const route = routeForInput(input);
-  if (!route) return response(400, { ok: false, error: "unsupported_or_invalid_action" });
-
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const key = serviceRoleKey();
   if (!supabaseUrl || !key) return response(503, { ok: false, error: "control_database_not_configured" });
 
+  if (isLocalWorkerAction(input)) {
+    return await handleLocalWorker(request, input, supabaseUrl, key);
+  }
+
+  const token = bearerToken(request);
+  if (!token) return response(401, { ok: false, error: "unauthorized" });
+
   try {
-    const payload = await fetchRpc(supabaseUrl, key, route.rpc, route.params);
+    await verifyVercelToken(token);
+  } catch {
+    return response(401, { ok: false, error: "unauthorized" });
+  }
+
+  const route = routeForInput(input);
+  if (!route) return response(400, { ok: false, error: "unsupported_or_invalid_action" });
+
+  try {
+    let payload = await fetchRpc(supabaseUrl, key, route.rpc, route.params);
     if (payload === undefined) return response(502, { ok: false, error: "control_operation_unavailable" });
+
+    if (route.action === "github_catalog" && Array.isArray(payload)) {
+      const hasGithubApp = payload.some((entry) => isRecord(entry) && entry.authMode === "github_app");
+      if (hasGithubApp) {
+        const installationToken = await githubAppInstallationToken(supabaseUrl, key);
+        payload = payload.map((entry) => {
+          if (!isRecord(entry) || entry.authMode !== "github_app") return entry;
+          return { ...entry, authMode: "oauth", token: installationToken };
+        });
+      }
+    }
 
     if (route.responseKey === "accounts") {
       if (!Array.isArray(payload)) return response(502, { ok: false, error: "control_operation_unavailable" });
