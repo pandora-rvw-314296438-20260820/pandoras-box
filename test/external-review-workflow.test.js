@@ -428,7 +428,7 @@ test("the inspector bounds complete pagination", async () => {
 
 test("all repository-owned required checks test the synthetic integration SHA", () => {
   const workflowPaths = [
-    ".github/workflows/projectos-security.yml",
+    ".github/workflows/pandora-security.yml",
     ".github/workflows/canonical-release-evidence.yml",
     ".github/workflows/windows-worker-contract.yml",
     ".github/workflows/pandora-mobile-integration.yml",

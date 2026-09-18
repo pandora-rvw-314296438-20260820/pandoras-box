@@ -56,7 +56,7 @@ const REPOSITORY_CHECK_IDENTITIES = Object.freeze(
   REQUIRED_CHECK_IDENTITIES.filter((name) => name !== TRUSTED_EXTERNAL_REVIEW_IDENTITY),
 );
 const REQUIRED_CHECK_WORKFLOW_PATHS = Object.freeze({
-  node24: ".github/workflows/projectos-security.yml",
+  node24: ".github/workflows/pandora-security.yml",
   "canonical-release-source-contract": ".github/workflows/canonical-release-evidence.yml",
   "Windows worker contract": ".github/workflows/windows-worker-contract.yml",
   "Exact source / Flutter / Android": ".github/workflows/pandora-mobile-integration.yml",

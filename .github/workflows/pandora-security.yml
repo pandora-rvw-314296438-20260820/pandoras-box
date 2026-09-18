@@ -14,7 +14,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: projectos-security-${{ github.workflow }}-${{ github.ref }}
+  group: pandora-security-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
