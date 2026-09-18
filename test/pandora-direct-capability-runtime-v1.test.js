@@ -37,3 +37,12 @@ test('direct editor uses Vault-backed provider brokers without credential materi
   assert.match(migration, /credential_material_rejected/);
   assert.match(migration, /gemini-3\.1-pro-preview/);
 });
+
+
+test('direct editor has verified provider fallback instead of failing on Gemini outage', () => {
+  const fallback = readFileSync(join(root, 'supabase', 'migrations', '20260918024500_pandora_direct_capability_provider_fallback_v1.sql'), 'utf8');
+  assert.match(fallback, /pandora_worker_b_gemini_request_20260829/);
+  assert.match(fallback, /pandora_kimi_chat_request_v1/);
+  assert.match(fallback, /v_model_used/);
+  assert.match(fallback, /kimi-k3/);
+});
