@@ -295,42 +295,12 @@ class EnterpriseLiveRepository {
   }
 
   Future<EnterpriseLiveSnapshot> _loadAgents() async {
-    final rows = await _client
-        .from('projectos_agent_runtime_proofs')
-        .select(
-          'id,agent_key,vendor,role,proven_capabilities,phone_only_compatible,credential_state,quota_state,health_state,active_leases,max_concurrent_leases,verified_at,expires_at,is_active',
-        )
-        .eq('organization_id', _organizationId)
-        .eq('is_active', true)
-        .order('verified_at', ascending: false)
-        .limit(30);
-    final items = (rows as List<dynamic>).map((raw) {
-      final row = Map<String, dynamic>.from(raw as Map);
-      final capabilities = (row['proven_capabilities'] as List?)
-              ?.map((value) => value.toString())
-              .take(4)
-              .join(', ') ??
-          '';
-      return EnterpriseLiveItem(
-        id: '${row['id']}',
-        title: '${row['agent_key'] ?? 'Agent'} · ${row['vendor'] ?? ''}',
-        subtitle:
-            'Role ${row['role'] ?? '—'} · leases ${row['active_leases'] ?? 0}/${row['max_concurrent_leases'] ?? 0}${capabilities.isEmpty ? '' : ' · $capabilities'}',
-        status: '${row['health_state'] ?? 'unknown'}',
-        selection: <String, String>{
-          'kind': 'agent_runtime_proof',
-          'id': '${row['id']}',
-          'agentKey': '${row['agent_key'] ?? ''}',
-        },
-      );
-    }).toList(growable: false);
-    return EnterpriseLiveSnapshot(
+    return const EnterpriseLiveSnapshot(
       surface: 'enterprise_agents',
       title: 'Agents',
-      summary: items.isEmpty
-          ? 'No independently verified active agent runtime proof is currently available. Pandora will not invent one.'
-          : 'Independently verified agent runtime proofs and bounded capabilities.',
-      items: items,
+      summary:
+          'No independent Pandora agent registry is active yet. Runtime providers and local AI are shown through verified capability and model state instead of legacy records.',
+      items: <EnterpriseLiveItem>[],
     );
   }
 
