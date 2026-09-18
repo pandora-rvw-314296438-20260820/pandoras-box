@@ -315,8 +315,7 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
     return Semantics(
       button: true,
       selected: selected,
-      label:
-          '${member.email}, role ${member.role}, status ${member.status}',
+      label: '${member.email}, role ${member.role}, status ${member.status}',
       child: InkWell(
         key: ValueKey<String>('enterprise-user-${member.userId}'),
         onTap: () => _select(member),
