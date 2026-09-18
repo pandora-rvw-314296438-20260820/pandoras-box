@@ -1,1 +1,336 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pandora_mobile/app/pandora_chat_shell.dart';
+import 'package:pandora_mobile/app/pandora_dependencies.dart';
+import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
+import 'package:pandora_mobile/core/models/pandora_models.dart';
+import 'package:pandora_mobile/features/simple/ask_pandora_screen.dart';
+
+import '../helpers/fake_owner_api.dart';
+import '../helpers/test_app.dart';
+
+void main() {
+  Future<void> mount(
+    WidgetTester tester,
+    Size size, {
+    FakeRepository? repository,
+  }) async {
+    await setTestSurface(tester, logicalSize: size);
+    await tester.pumpWidget(
+      testApp(
+        child: PandoraDependencies(
+          auth: const FakeAuth(),
+          repository: repository ?? FakeRepository(),
+          diagnostics: DiagnosticsStore(),
+          child: const PandoraChatShell(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  final menu = find.byTooltip('Open navigation');
+
+  for (final width in <double>[360, 390, 600]) {
+    testWidgets('phone $width uses full-width chat and one drawer',
+        (tester) async {
+      await mount(tester, Size(width, 800));
+      expect(menu, findsOneWidget);
+      expect(tester.getSize(find.byType(AskPandoraScreen)).width, width);
+      expect(find.byType(NavigationRail), findsNothing);
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('ask-pandora-objective')),
+        'Keep this draft',
+      );
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      final drawer = find.byType(Drawer);
+      final drawerWidget = tester.widget<Drawer>(drawer);
+      expect(drawerWidget.backgroundColor, Colors.transparent);
+      expect(
+        find.descendant(of: drawer, matching: find.byType(BackdropFilter)),
+        findsNothing,
+      );
+      for (final title in <String>[
+        'Pandora',
+        'Projects',
+        'Needs You',
+        'Activity',
+        'Connections',
+        'Saved evidence',
+        'Verify & Safety',
+        'Settings & More',
+      ]) {
+        expect(
+          find.descendant(
+            of: drawer,
+            matching: find.widgetWithText(ListTile, title),
+          ),
+          findsOneWidget,
+        );
+      }
+      await tester.tap(
+        find.descendant(
+          of: drawer,
+          matching: find.widgetWithText(ListTile, 'Projects'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(menu, findsOneWidget);
+      expect(find.byTooltip('Create project'), findsOneWidget);
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: drawer,
+          matching: find.widgetWithText(ListTile, 'Pandora'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Keep this draft'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(Drawer), findsNothing);
+      expect(find.text('Keep this draft'), findsOneWidget);
+    });
+  }
+
+  testWidgets('tablet keeps the persistent sidebar without a drawer trigger',
+      (tester) async {
+    await mount(tester, const Size(1024, 800));
+    expect(menu, findsNothing);
+    expect(find.byType(Drawer), findsNothing);
+    expect(find.widgetWithText(ListTile, 'Connections'), findsOneWidget);
+    expect(tester.getSize(find.byType(AskPandoraScreen)).width, 759);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'Needs You and Settings & More expose exactly one navigation control',
+      (tester) async {
+    await mount(tester, const Size(390, 800));
+    for (final title in <String>[
+      'Needs You',
+      'Settings & More',
+      'Connections',
+      'Activity',
+      'Saved evidence',
+      'Verify & Safety',
+    ]) {
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(Drawer),
+          matching: find.widgetWithText(ListTile, title),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(menu, findsOneWidget);
+      expect(tester.takeException(), isNull, reason: '$title layout');
+    }
+  });
+
+  testWidgets('resizing across the sidebar breakpoint keeps the chat draft',
+      (tester) async {
+    await mount(tester, const Size(600, 800));
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('ask-pandora-objective')),
+      'Keep this while resizing',
+    );
+    tester.view.physicalSize = const Size(1024, 800);
+    await tester.pumpAndSettle();
+    expect(menu, findsNothing);
+    expect(find.text('Keep this while resizing'), findsOneWidget);
+    tester.view.physicalSize = const Size(600, 800);
+    await tester.pumpAndSettle();
+    expect(menu, findsOneWidget);
+    expect(find.text('Keep this while resizing'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('rotation preserves chat draft', (tester) async {
+    await mount(tester, const Size(390, 844));
+    final objective =
+        find.byKey(const ValueKey<String>('ask-pandora-objective'));
+    await tester.enterText(objective, 'Keep this through rotation');
+    tester.view.physicalSize = const Size(844, 390);
+    await tester.pumpAndSettle();
+    expect(find.text('Keep this through rotation'), findsOneWidget);
+    expect(find.byType(AskPandoraScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpAndSettle();
+    expect(find.text('Keep this through rotation'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('keyboard inset keeps composer mounted', (tester) async {
+    await mount(tester, const Size(390, 844));
+    addTearDown(tester.view.resetViewInsets);
+    final objective =
+        find.byKey(const ValueKey<String>('ask-pandora-objective'));
+    final plus = find.byKey(const ValueKey<String>('ask-pandora-plus'));
+    final composer = find.byKey(const ValueKey<String>('ask-pandora-composer'));
+    final voice = find.byKey(const ValueKey<String>('ask-pandora-voice'));
+    final submit = find.byKey(const ValueKey<String>('ask-pandora-submit'));
+    await tester.tap(objective);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+    await tester.pumpAndSettle();
+    expect(objective, findsOneWidget);
+    expect(plus, findsOneWidget);
+    expect(composer, findsOneWidget);
+    expect(voice, findsOneWidget);
+    expect(submit, findsOneWidget);
+    expect(find.byType(Divider), findsNothing);
+    final field = tester.widget<TextField>(objective);
+    expect(field.minLines, 1);
+    expect(field.maxLines, 6);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('search chats can open and close repeatedly before navigation',
+      (tester) async {
+    await mount(tester, const Size(390, 800));
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    for (var attempt = 0; attempt < 3; attempt++) {
+      await tester.tap(
+        find.byKey(const ValueKey<String>('pandora-search-chats')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('pandora-search-chats-sheet')),
+        findsOneWidget,
+      );
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('pandora-search-chats-sheet')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull, reason: 'search attempt $attempt');
+    }
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.widgetWithText(ListTile, 'Projects'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Create project'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'attachment menu contains input actions without another navigation menu',
+      (tester) async {
+    await mount(tester, const Size(390, 800));
+    await tester.tap(find.byKey(const ValueKey<String>('ask-pandora-plus')));
+    await tester.pumpAndSettle();
+    expect(find.text('Camera'), findsOneWidget);
+    expect(find.text('Photos'), findsOneWidget);
+    expect(find.text('Files'), findsOneWidget);
+    expect(find.text('Home'), findsNothing);
+    expect(find.text('Settings & More'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'chat header keeps floating compose and overflow controls over the chat',
+      (tester) async {
+    await mount(
+      tester,
+      const Size(390, 800),
+      repository: _ConversationRepository(),
+    );
+
+    expect(find.text('Pandora'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('pandora-chat-glass-header')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('pandora-header-new-chat')),
+      findsNothing,
+    );
+    final overflow =
+        find.byKey(const ValueKey<String>('pandora-chat-overflow'));
+    expect(overflow, findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('ask-pandora-objective')),
+      'Start this conversation',
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('pandora-header-new-chat')),
+      findsNothing,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('ask-pandora-submit')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey<String>('pandora-temporary-chat')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('pandora-header-new-chat')),
+      findsOneWidget,
+    );
+    expect(overflow, findsOneWidget);
+
+    await tester.tap(overflow);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey<String>('pandora-chat-menu-search')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('pandora-chat-menu-more')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+}
+
+class _ConversationRepository extends FakeRepository {
+  @override
+  Future<IntakeReceipt> ask({
+    required String message,
+    String? projectId,
+    String? idempotencyKey,
+  }) async =>
+      const IntakeReceipt(
+        reply: 'Conversation started.',
+        needsApproval: false,
+        actionId: 'action-chat-header-1',
+        status: IntakeStatus(
+          whatChanged: 'Message recorded.',
+          whereWeAre: 'Conversation',
+          whatIsDone: 'First turn complete.',
+          whatIsHappeningNow: 'Waiting for the next message.',
+          whatIWillDoNext: 'Continue the conversation.',
+        ),
+      );
+}

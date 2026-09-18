@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/pandora_surface.dart';
+import 'plp_overview_screen.dart';
 
 class EnterpriseSectionScreen extends StatelessWidget {
   const EnterpriseSectionScreen({
@@ -18,39 +19,45 @@ class EnterpriseSectionScreen extends StatelessWidget {
   final List<String> items;
 
   @override
-  Widget build(BuildContext context) => PandoraPage(
+  Widget build(BuildContext context) {
+    if (title == 'Overview') {
+      return PlpOverviewScreen(description: description);
+    }
+    return PandoraPage(
+      title: title,
+      subtitle: description,
+      child: PandoraSurface(
         title: title,
-        subtitle: description,
-        child: PandoraSurface(
-          title: title,
-          subtitle: 'Enterprise control panel',
-          leading: Icon(icon),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (items.isEmpty)
-                Text(
-                  'This section is ready for its provider-specific controls and data.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                )
-              else
-                for (final item in items)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.only(top: 6),
-                          child: Icon(Icons.circle, size: 6),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(item)),
-                      ],
-                    ),
-                  ),
-            ],
-          ),
+        subtitle: 'Enterprise control panel',
+        leading: Icon(icon),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (items.isEmpty)
+              Text(
+                'This section is ready for its provider-specific controls and data.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              )
+            else
+              for (final item in items) _bullet(item),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bullet(String item) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Icon(Icons.circle, size: 6),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(item)),
+          ],
         ),
       );
 }
