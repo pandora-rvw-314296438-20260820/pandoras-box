@@ -358,7 +358,7 @@ Owner command: $objective
         'Control source connections, access, provider health and business settings without pretending disconnected systems are live.',
     };
 
-    return _panel(
+    return _sectionPanel(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -463,7 +463,7 @@ Owner command: $objective
 
   Widget _operatingCanvas() {
     final rows = _canvasRowsFor(_surface);
-    return _panel(
+    return _sectionPanel(
       title: 'Operating canvas',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -551,7 +551,7 @@ Owner command: $objective
       'Payment',
     ];
 
-    return _panel(
+    return _sectionPanel(
       title: 'Business lineage',
       child: SizedBox(
         height: 42,
@@ -587,7 +587,7 @@ Owner command: $objective
 
     if (_surface == EurofishSurface.compliance ||
         _surface == EurofishSurface.evidence) {
-      return _panel(
+      return _sectionPanel(
         title: 'Verified evidence',
         child: Column(
           children: [
@@ -602,7 +602,7 @@ Owner command: $objective
       );
     }
 
-    return _panel(
+    return _sectionPanel(
       title: 'Data coverage',
       child: Column(
         children: [
@@ -1076,7 +1076,7 @@ Owner command: $objective
           ],
       };
 
-  Widget _panel({String? title, required Widget child}) => Container(
+  Widget _sectionPanel({String? title, required Widget child}) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: _panel,
@@ -1109,7 +1109,7 @@ Owner command: $objective
     required Color color,
     Widget? action,
   }) =>
-      _panel(
+      _sectionPanel(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
