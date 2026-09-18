@@ -225,7 +225,7 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
                 ),
                 if (_working) ...[
                   const SizedBox(height: 12),
-                  const Semantics(
+                  Semantics(
                     liveRegion: true,
                     label: 'Repository operation in progress.',
                     child: Text(
