@@ -100,14 +100,24 @@ class EnterpriseLiveRepository {
     final rows = await _snapshots(limit: 8);
     final latest = rows.isEmpty ? null : rows.first;
     final metrics = <String, String>{
-      'Occupancy': latest == null ? 'Unavailable' : _percent(latest['occupancy_percent']),
-      'Rooms available': latest == null ? 'Unavailable' : '${latest['rooms_available'] ?? 'Unavailable'}',
-      'Arrivals': latest == null ? 'Unavailable' : '${latest['arrivals_today'] ?? 'Unavailable'}',
+      'Occupancy': latest == null
+          ? 'Unavailable'
+          : _percent(latest['occupancy_percent']),
+      'Rooms available': latest == null
+          ? 'Unavailable'
+          : '${latest['rooms_available'] ?? 'Unavailable'}',
+      'Arrivals': latest == null
+          ? 'Unavailable'
+          : '${latest['arrivals_today'] ?? 'Unavailable'}',
       'Revenue': latest == null || latest['revenue_today'] == null
           ? 'Unavailable from connected source'
           : 'PHP ${latest['revenue_today']}',
-      'ADR': latest == null || latest['adr'] == null ? 'Unavailable' : 'PHP ${latest['adr']}',
-      'RevPAR': latest == null || latest['revpar'] == null ? 'Unavailable' : 'PHP ${latest['revpar']}',
+      'ADR': latest == null || latest['adr'] == null
+          ? 'Unavailable'
+          : 'PHP ${latest['adr']}',
+      'RevPAR': latest == null || latest['revpar'] == null
+          ? 'Unavailable'
+          : 'PHP ${latest['revpar']}',
     };
     return EnterpriseLiveSnapshot(
       surface: 'enterprise_analytics',
@@ -138,26 +148,28 @@ class EnterpriseLiveRepository {
   Future<EnterpriseLiveSnapshot> _loadMarketing() async {
     final rows = await _client
         .from('meta_drafts')
-        .select('id,page_id,kind,target_id,content,legal_review_required,status,created_at,updated_at')
+        .select(
+            'id,page_id,kind,target_id,content,legal_review_required,status,created_at,updated_at')
         .eq('organization_id', _organizationId)
         .order('updated_at', ascending: false)
         .limit(30);
-    final items = (rows as List<dynamic>)
-        .map((raw) {
-          final row = Map<String, dynamic>.from(raw as Map);
-          final content = '${row['content'] ?? ''}'.trim();
-          return EnterpriseLiveItem(
-            id: '${row['id']}',
-            title: row['kind'] == 'post' ? 'Post draft' : '${row['kind'] ?? 'Draft'}',
-            subtitle: content.isEmpty ? 'Empty draft' : content,
-            status: row['legal_review_required'] == true ? 'legal review' : '${row['status'] ?? 'draft'}',
-            selection: <String, String>{
-              'kind': 'marketing_draft',
-              'id': '${row['id']}',
-            },
-          );
-        })
-        .toList(growable: false);
+    final items = (rows as List<dynamic>).map((raw) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final content = '${row['content'] ?? ''}'.trim();
+      return EnterpriseLiveItem(
+        id: '${row['id']}',
+        title:
+            row['kind'] == 'post' ? 'Post draft' : '${row['kind'] ?? 'Draft'}',
+        subtitle: content.isEmpty ? 'Empty draft' : content,
+        status: row['legal_review_required'] == true
+            ? 'legal review'
+            : '${row['status'] ?? 'draft'}',
+        selection: <String, String>{
+          'kind': 'marketing_draft',
+          'id': '${row['id']}',
+        },
+      );
+    }).toList(growable: false);
     return EnterpriseLiveSnapshot(
       surface: 'enterprise_marketing',
       title: 'Marketing',
@@ -176,23 +188,23 @@ class EnterpriseLiveRepository {
         .eq('organization_id', _organizationId)
         .order('updated_at', ascending: false)
         .limit(30);
-    final items = (rows as List<dynamic>)
-        .map((raw) {
-          final row = Map<String, dynamic>.from(raw as Map);
-          return EnterpriseLiveItem(
-            id: '${row['id']}',
-            title: '${row['domain'] ?? 'Domain'}',
-            subtitle:
-                'DNS ${_yesNo(row['dns_configured'])} · TLS ${_yesNo(row['tls_ready'])} · routing ${_yesNo(row['routing_ready'])} · runtime ${_yesNo(row['runtime_healthy'])}',
-            status: row['verified'] == true ? 'verified' : '${row['status'] ?? 'pending'}',
-            selection: <String, String>{
-              'kind': 'domain',
-              'id': '${row['id']}',
-              'domain': '${row['domain'] ?? ''}',
-            },
-          );
-        })
-        .toList(growable: false);
+    final items = (rows as List<dynamic>).map((raw) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      return EnterpriseLiveItem(
+        id: '${row['id']}',
+        title: '${row['domain'] ?? 'Domain'}',
+        subtitle:
+            'DNS ${_yesNo(row['dns_configured'])} · TLS ${_yesNo(row['tls_ready'])} · routing ${_yesNo(row['routing_ready'])} · runtime ${_yesNo(row['runtime_healthy'])}',
+        status: row['verified'] == true
+            ? 'verified'
+            : '${row['status'] ?? 'pending'}',
+        selection: <String, String>{
+          'kind': 'domain',
+          'id': '${row['id']}',
+          'domain': '${row['domain'] ?? ''}',
+        },
+      );
+    }).toList(growable: false);
     return EnterpriseLiveSnapshot(
       surface: 'enterprise_domains',
       title: 'Domains',
@@ -210,23 +222,21 @@ class EnterpriseLiveRepository {
         )
         .eq('organization_id', _organizationId)
         .order('display_name');
-    final items = (rows as List<dynamic>)
-        .map((raw) {
-          final row = Map<String, dynamic>.from(raw as Map);
-          return EnterpriseLiveItem(
-            id: '${row['id']}',
-            title: '${row['display_name'] ?? row['source_type'] ?? 'Integration'}',
-            subtitle:
-                '${row['customer_message'] ?? 'No provider message.'} Last success: ${_time(row['last_success_at'])}.',
-            status: '${row['status'] ?? 'unknown'}',
-            selection: <String, String>{
-              'kind': 'source_connection',
-              'id': '${row['id']}',
-              'sourceType': '${row['source_type'] ?? ''}',
-            },
-          );
-        })
-        .toList(growable: false);
+    final items = (rows as List<dynamic>).map((raw) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      return EnterpriseLiveItem(
+        id: '${row['id']}',
+        title: '${row['display_name'] ?? row['source_type'] ?? 'Integration'}',
+        subtitle:
+            '${row['customer_message'] ?? 'No provider message.'} Last success: ${_time(row['last_success_at'])}.',
+        status: '${row['status'] ?? 'unknown'}',
+        selection: <String, String>{
+          'kind': 'source_connection',
+          'id': '${row['id']}',
+          'sourceType': '${row['source_type'] ?? ''}',
+        },
+      );
+    }).toList(growable: false);
     return EnterpriseLiveSnapshot(
       surface: 'enterprise_integrations',
       title: 'Integrations',
@@ -294,28 +304,26 @@ class EnterpriseLiveRepository {
         .eq('is_active', true)
         .order('verified_at', ascending: false)
         .limit(30);
-    final items = (rows as List<dynamic>)
-        .map((raw) {
-          final row = Map<String, dynamic>.from(raw as Map);
-          final capabilities = (row['proven_capabilities'] as List?)
-                  ?.map((value) => value.toString())
-                  .take(4)
-                  .join(', ') ??
-              '';
-          return EnterpriseLiveItem(
-            id: '${row['id']}',
-            title: '${row['agent_key'] ?? 'Agent'} · ${row['vendor'] ?? ''}',
-            subtitle:
-                'Role ${row['role'] ?? '—'} · leases ${row['active_leases'] ?? 0}/${row['max_concurrent_leases'] ?? 0}${capabilities.isEmpty ? '' : ' · $capabilities'}',
-            status: '${row['health_state'] ?? 'unknown'}',
-            selection: <String, String>{
-              'kind': 'agent_runtime_proof',
-              'id': '${row['id']}',
-              'agentKey': '${row['agent_key'] ?? ''}',
-            },
-          );
-        })
-        .toList(growable: false);
+    final items = (rows as List<dynamic>).map((raw) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final capabilities = (row['proven_capabilities'] as List?)
+              ?.map((value) => value.toString())
+              .take(4)
+              .join(', ') ??
+          '';
+      return EnterpriseLiveItem(
+        id: '${row['id']}',
+        title: '${row['agent_key'] ?? 'Agent'} · ${row['vendor'] ?? ''}',
+        subtitle:
+            'Role ${row['role'] ?? '—'} · leases ${row['active_leases'] ?? 0}/${row['max_concurrent_leases'] ?? 0}${capabilities.isEmpty ? '' : ' · $capabilities'}',
+        status: '${row['health_state'] ?? 'unknown'}',
+        selection: <String, String>{
+          'kind': 'agent_runtime_proof',
+          'id': '${row['id']}',
+          'agentKey': '${row['agent_key'] ?? ''}',
+        },
+      );
+    }).toList(growable: false);
     return EnterpriseLiveSnapshot(
       surface: 'enterprise_agents',
       title: 'Agents',
@@ -335,23 +343,22 @@ class EnterpriseLiveRepository {
         .eq('organization_id', _organizationId)
         .order('created_at', ascending: false)
         .limit(40);
-    final items = (rows as List<dynamic>)
-        .map((raw) {
-          final row = Map<String, dynamic>.from(raw as Map);
-          return EnterpriseLiveItem(
-            id: '${row['id']}',
-            title: '${row['workflow_key'] ?? 'Workflow'} · ${row['workflow_version'] ?? ''}',
-            subtitle:
-                'Risk ${row['risk_ceiling'] ?? '—'} · budget ${row['budget_cents'] ?? 0}¢ · created ${_time(row['created_at'])}',
-            status: '${row['status'] ?? 'queued'}',
-            selection: <String, String>{
-              'kind': 'workflow_run',
-              'id': '${row['id']}',
-              'workflowKey': '${row['workflow_key'] ?? ''}',
-            },
-          );
-        })
-        .toList(growable: false);
+    final items = (rows as List<dynamic>).map((raw) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      return EnterpriseLiveItem(
+        id: '${row['id']}',
+        title:
+            '${row['workflow_key'] ?? 'Workflow'} · ${row['workflow_version'] ?? ''}',
+        subtitle:
+            'Risk ${row['risk_ceiling'] ?? '—'} · budget ${row['budget_cents'] ?? 0}¢ · created ${_time(row['created_at'])}',
+        status: '${row['status'] ?? 'queued'}',
+        selection: <String, String>{
+          'kind': 'workflow_run',
+          'id': '${row['id']}',
+          'workflowKey': '${row['workflow_key'] ?? ''}',
+        },
+      );
+    }).toList(growable: false);
     return EnterpriseLiveSnapshot(
       surface: 'enterprise_workflows',
       title: 'Workflows',
@@ -370,22 +377,20 @@ class EnterpriseLiveRepository {
         .eq('organization_id', _organizationId)
         .order('created_at', ascending: false)
         .limit(60);
-    final items = (rows as List<dynamic>)
-        .map((raw) {
-          final row = Map<String, dynamic>.from(raw as Map);
-          return EnterpriseLiveItem(
-            id: '${row['id']}',
-            title: '${row['event_type'] ?? 'Audit event'}',
-            subtitle:
-                '${row['actor_type'] ?? 'system'} · ${row['resource_type'] ?? 'resource'} · ${_time(row['created_at'])}',
-            status: 'recorded',
-            selection: <String, String>{
-              'kind': 'audit_event',
-              'id': '${row['id']}',
-            },
-          );
-        })
-        .toList(growable: false);
+    final items = (rows as List<dynamic>).map((raw) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      return EnterpriseLiveItem(
+        id: '${row['id']}',
+        title: '${row['event_type'] ?? 'Audit event'}',
+        subtitle:
+            '${row['actor_type'] ?? 'system'} · ${row['resource_type'] ?? 'resource'} · ${_time(row['created_at'])}',
+        status: 'recorded',
+        selection: <String, String>{
+          'kind': 'audit_event',
+          'id': '${row['id']}',
+        },
+      );
+    }).toList(growable: false);
     return EnterpriseLiveSnapshot(
       surface: 'enterprise_logs',
       title: 'Logs',
@@ -406,9 +411,8 @@ class EnterpriseLiveRepository {
     final rawProviders = map['providers'];
     final providers = rawProviders is List ? rawProviders : const <dynamic>[];
     final items = providers.map((raw) {
-      final row = raw is Map
-          ? Map<String, dynamic>.from(raw)
-          : <String, dynamic>{};
+      final row =
+          raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
       final health = row['health'] is Map
           ? Map<String, dynamic>.from(row['health'] as Map)
           : <String, dynamic>{};
