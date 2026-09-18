@@ -145,7 +145,7 @@ class _EnterpriseLiveScreenState extends State<EnterpriseLiveScreen> {
           ),
           const SizedBox(height: 10),
           PandoraSurface(
-            title: widget.title + ' workspace',
+            title: '${widget.title} workspace',
             subtitle:
                 'Records shown here are provider-backed. Selection changes Pandora command resolution.',
             leading: const Icon(Icons.view_list_outlined),
@@ -241,9 +241,9 @@ class _EnterpriseLiveScreenState extends State<EnterpriseLiveScreen> {
       button: true,
       selected: selected,
       label:
-          item.title + '. ' + item.subtitle + '. Status ' + item.status + '.',
+          '${item.title}. ${item.subtitle}. Status ${item.status}.',
       child: InkWell(
-        key: ValueKey<String>('enterprise-live-item-' + item.id),
+        key: ValueKey<String>('enterprise-live-item-${item.id}'),
         onTap: () => _select(item),
         borderRadius: BorderRadius.circular(14),
         child: Container(
@@ -311,7 +311,7 @@ class _EnterpriseLiveScreenState extends State<EnterpriseLiveScreen> {
   }
 
   Widget _adaptiveCanvas(EnterpriseLiveItem item) => PandoraSurface(
-        title: 'Inspect · ' + item.title,
+        title: 'Inspect · ${item.title}',
         subtitle: 'Selected provider object',
         leading: const Icon(Icons.dashboard_customize_outlined),
         child: Column(
@@ -323,7 +323,7 @@ class _EnterpriseLiveScreenState extends State<EnterpriseLiveScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Status: ' + item.status,
+              'Status: ${item.status}',
               style: TextStyle(
                 color: _statusColor(item.status),
                 fontWeight: FontWeight.w700,
@@ -346,11 +346,7 @@ class _EnterpriseLiveScreenState extends State<EnterpriseLiveScreen> {
                   constraints: const BoxConstraints(minHeight: 48),
                   child: FilledButton.icon(
                     onPressed: () => _offer(
-                      'Inspect the selected ' +
-                          item.title +
-                          ' on ' +
-                          widget.title +
-                          '. Show only provider-verified facts and update this canvas, not a separate chat page.',
+                      'Inspect the selected ${item.title} on ${widget.title}. Show only provider-verified facts and update this canvas, not a separate chat page.',
                     ),
                     icon: const Icon(Icons.manage_search_rounded),
                     label: const Text('Inspect with Pandora'),
@@ -360,9 +356,7 @@ class _EnterpriseLiveScreenState extends State<EnterpriseLiveScreen> {
                   constraints: const BoxConstraints(minHeight: 48),
                   child: OutlinedButton.icon(
                     onPressed: () => _offer(
-                      'Compare the selected ' +
-                          item.title +
-                          ' with the other verified records on this page. Keep unavailable fields unavailable and render the comparison in this page.',
+                      'Compare the selected ${item.title} with the other verified records on this page. Keep unavailable fields unavailable and render the comparison in this page.',
                     ),
                     icon: const Icon(Icons.compare_arrows_rounded),
                     label: const Text('Compare'),
@@ -406,7 +400,7 @@ class _EnterpriseLiveScreenState extends State<EnterpriseLiveScreen> {
       );
 
   Widget _error(Object? error) => PandoraSurface(
-        title: widget.title + ' unavailable',
+        title: '${widget.title} unavailable',
         subtitle: 'No provider state was changed.',
         leading: const Icon(Icons.error_outline_rounded),
         child: Column(
