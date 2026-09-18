@@ -71,11 +71,7 @@ void main() {
           expect(
             tester.takeException(),
             isNull,
-            reason: 'Enterprise layout failed at ' +
-                width.toString() +
-                'px and ' +
-                scale.toString() +
-                'x text',
+            reason: 'Enterprise layout failed at ${width}px and ${scale}x text',
           );
         }
       }
