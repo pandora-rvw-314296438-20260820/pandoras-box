@@ -228,7 +228,7 @@ jobs:
           grep -Fq "versionName='0.4.0-rc.4'" "$evidence/badging.txt"
           grep -Fq "application-label:'Pandora'" "$evidence/badging.txt"
           if grep -Eiq \
-            'ACCESS_(FINE|COARSE|BACKGROUND)_LOCATION|WRITE_CONTACTS|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_|CAMERA|RECORD_AUDIO|BLUETOOTH_(SCAN|CONNECT|ADVERTISE)|QUERY_ALL_PACKAGES|REQUEST_INSTALL_PACKAGES|SYSTEM_ALERT_WINDOW' \
+            'ACCESS_(FINE|COARSE|BACKGROUND)_LOCATION|READ_CONTACTS|WRITE_CONTACTS|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_|CAMERA|RECORD_AUDIO|BLUETOOTH_(SCAN|CONNECT|ADVERTISE)|QUERY_ALL_PACKAGES|REQUEST_INSTALL_PACKAGES|SYSTEM_ALERT_WINDOW' \
             "$evidence/permissions.txt"; then
             echo 'Unexpected sensitive Android permission detected.' >&2
             exit 1
@@ -271,6 +271,7 @@ jobs:
           } > .pandora-mobile-build/pandora-mobile-artifact-manifest.txt
 
       - name: Upload Web validation candidate
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
           name: pandora-mobile-web-validation
@@ -282,6 +283,7 @@ jobs:
           retention-days: 1
 
       - name: Upload Android validation candidate
+        if: ${{ github.event_name != 'pull_request' }}
         id: upload_android_validation
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
@@ -296,6 +298,7 @@ jobs:
           retention-days: ${{ github.event_name == 'push' && 14 || 1 }}
 
       - name: Publish the Android provider locator
+        if: ${{ github.event_name != 'pull_request' }}
         id: android_provider_locator
         shell: bash
         env:
