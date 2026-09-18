@@ -44,11 +44,13 @@ void main() {
     expect(source, contains('backgroundColor: PandoraV2Colors.soft'));
   });
 
-  test('overview preserves meaning at large text and minimum action targets', () {
+  test('overview preserves meaning at large text and minimum action targets',
+      () {
     expect(source, contains('MediaQuery.textScalerOf(context).scale(1)'));
     expect(source, contains('textScale >= 1.8'));
     expect(source, contains('minimumSize: const Size(48, 48)'));
-    expect(source, isNot(contains("Text(label, overflow: TextOverflow.ellipsis)")));
+    expect(source,
+        isNot(contains("Text(label, overflow: TextOverflow.ellipsis)")));
   });
 
   test('empty operational state does not fabricate hotel metrics', () {
