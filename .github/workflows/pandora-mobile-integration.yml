@@ -354,6 +354,111 @@ jobs:
           retention-days: 7
 
 
+
+  verify-emulator:
+    name: Enterprise / Android emulator
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      FLUTTER_VERSION: '3.47.0'
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+
+      - name: Verify exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+      - name: Install pinned JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '17.0.20+8'
+
+      - name: Install Android emulator image
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'emulator' 'system-images;android-36;google_apis;x86_64'
+
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Materialize exact emulator test app
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .pandora-emulator-build
+          mkdir .pandora-emulator-build
+          cd .pandora-emulator-build
+          flutter create --platforms=android --org com.banataosystems --project-name pandora_mobile .
+          cp -R ../apps/pandora-mobile/platform/android/. ./android/
+          rm -rf lib test integration_test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R ../apps/pandora-mobile/lib ./lib
+          cp -R ../apps/pandora-mobile/test ./test
+          cp -R ../apps/pandora-mobile/integration_test ./integration_test
+          cp -R ../apps/pandora-mobile/assets ./assets
+          cp ../apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
+          cp ../apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+          python3 ../apps/pandora-mobile/tool/configure_validation_android.py android/app/src/main/AndroidManifest.xml
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+          dart format --output=none --set-exit-if-changed lib test integration_test
+          flutter analyze integration_test/enterprise_command_stack_emulator_test.dart
+
+      - name: Boot API 36 emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          echo no | avdmanager create avd --force --name pandora_api36 --package 'system-images;android-36;google_apis;x86_64'
+          nohup emulator -avd pandora_api36 -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -memory 3072 -cores 2 > "$RUNNER_TEMP/pandora-emulator.log" 2>&1 &
+          adb wait-for-device
+          for attempt in $(seq 1 120); do
+            if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == '1' ]]; then
+              break
+            fi
+            sleep 2
+          done
+          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = '1'
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          adb shell wm size 1080x2400
+          adb shell wm density 420
+          adb shell settings put system font_scale 1.15
+          adb shell input keyevent 82
+          adb devices -l
+
+      - name: Run Enterprise emulator acceptance
+        working-directory: .pandora-emulator-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter test integration_test/enterprise_command_stack_emulator_test.dart -d emulator-5554 --reporter expanded
+          adb shell dumpsys gfxinfo com.banataosystems.pandora_mobile framestats | tail -n 80 || true
+
+      - name: Print emulator diagnostics on failure
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          adb devices -l || true
+          adb shell getprop ro.build.version.release || true
+          tail -n 160 "$RUNNER_TEMP/pandora-emulator.log" || true
+
   verify-ios:
     name: Exact source / Flutter / iOS
     runs-on: macos-15
