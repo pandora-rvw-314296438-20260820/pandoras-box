@@ -1,0 +1,15 @@
+{
+  "function": "pandora-recovery-storage-stage-20260825",
+  "supabaseProjectId": "jcyqixttuebxqqfkjonq",
+  "deployedVersion": 8,
+  "verifyJwt": true,
+  "bundleSha256": "64f5aeec2ab2311950b57868359f098f85d42bfe45ef11d17677d66ace2b2cb2",
+  "secretScanEngine": "pandora-source-secret-scan-v1",
+  "sourcePromotionPolicy": {
+    "sealRequiresZeroFindingScanReceipt": true,
+    "promotionRescansExactSourceBundle": true,
+    "githubAppPrimary": true,
+    "vaultBackedFallback": true
+  },
+  "note": "Provider readback captured after the 2026-09-17 security repair. This is deployment provenance, not a substitute for the deployed Edge Function source bundle."
+}

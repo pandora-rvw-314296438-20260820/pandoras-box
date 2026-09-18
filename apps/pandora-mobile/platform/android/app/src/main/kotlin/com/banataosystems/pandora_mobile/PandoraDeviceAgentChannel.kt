@@ -11,6 +11,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.Lifecycle
 import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
@@ -21,14 +24,26 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 internal class PandoraDeviceAgentChannel private constructor(
-    private val context: Context
+    private val context: Context,
+    private val activity: ComponentActivity?
 ) {
     private val oemAdapter = PandoraAndroidOemAdapter(context)
     private val resourceRuntime = PandoraResourceRuntime(context)
+    private val directCommunications = PandoraDirectCommunications(context)
+    private val contactResolver = PandoraContactResolver(context)
     private val deviceCompatibilityProfile = PandoraDeviceCompatibilityProfile(context, oemAdapter)
     private val provisioningBootstrap = PandoraProvisioningBootstrap(context, oemAdapter)
     private val signedUpdateChannel = PandoraSignedUpdateChannel(context)
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var pendingPermissionResult: MethodChannel.Result? = null
+    private var pendingPermission: String? = null
+    private val permissionStateStore = context.getSharedPreferences(
+        "pandora_runtime_permissions",
+        Context.MODE_PRIVATE
+    )
+    private val permissionLauncher = activity?.registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { completeRuntimePermissionRequest() }
     private val resourceExecutor = ThreadPoolExecutor(
         1,
         1,
@@ -46,7 +61,10 @@ internal class PandoraDeviceAgentChannel private constructor(
         private const val RESOURCE_QUEUE_CAPACITY = 4
 
         fun install(context: Context, messenger: BinaryMessenger) {
-            val agent = PandoraDeviceAgentChannel(context.applicationContext)
+            val agent = PandoraDeviceAgentChannel(
+                context.applicationContext,
+                context as? ComponentActivity
+            )
             MethodChannel(messenger, CHANNEL_NAME).setMethodCallHandler(agent::handleCall)
         }
     }
@@ -59,9 +77,13 @@ internal class PandoraDeviceAgentChannel private constructor(
             "getSignedUpdatePolicy" -> result.success(signedUpdateChannel.policySnapshot(isDeviceOwner()))
             "verifySignedUpdateBundle" -> runSignedUpdateVerification(call, result)
             "getPermissionStates" -> result.success(permissionStates())
+            "requestRuntimePermission" -> requestRuntimePermission(call, result)
             "getResourceSnapshot" -> runResourceSnapshot(result)
             "runResourceBenchmark" -> runResourceBenchmark(call, result)
             "openCommunicationComposer" -> openCommunicationComposer(call, result)
+            "executeDirectCommunication" -> executeDirectCommunication(call, result)
+            "getDirectCommunicationStatus" -> getDirectCommunicationStatus(call, result)
+            "resolvePhoneContact" -> resolvePhoneContact(call, result)
             "openSystemSurface" -> openSystemSurface(call, result)
             "runSafeDiagnostic" -> runSafeDiagnostic(call, result)
             else -> result.notImplemented()
@@ -236,6 +258,87 @@ internal class PandoraDeviceAgentChannel private constructor(
     }
 
     private data class RoleState(val availability: String, val reason: String)
+
+    private fun resolvePhoneContact(call: MethodCall, result: MethodChannel.Result) {
+        val query = call.argument<String>("query")?.trim().orEmpty()
+        if (query.isEmpty() || query.length > 120) {
+            result.error(
+                "INVALID_CONTACT_RESOLUTION_REQUEST",
+                "Pandora requires a bounded contact name before reading Android Contacts.",
+                null
+            )
+            return
+        }
+        try {
+            result.success(contactResolver.resolve(query))
+        } catch (_: IllegalArgumentException) {
+            result.error(
+                "INVALID_CONTACT_RESOLUTION_REQUEST",
+                "Pandora rejected an invalid contact resolution request.",
+                null
+            )
+        } catch (_: RuntimeException) {
+            result.error(
+                "CONTACT_RESOLUTION_FAILED",
+                "Android Contacts could not resolve that contact safely.",
+                null
+            )
+        }
+    }
+
+    private fun executeDirectCommunication(call: MethodCall, result: MethodChannel.Result) {
+        val operationId = call.argument<String>("operationId")?.trim().orEmpty()
+        val kind = call.argument<String>("kind")?.trim().orEmpty()
+        val recipient = call.argument<String>("recipient")?.trim().orEmpty()
+        val message = call.argument<String>("message")
+        val subscriptionId = call.argument<Int>("subscriptionId")
+        val authorizedByCurrentIntent = call.argument<Boolean>("authorizedByCurrentIntent") == true
+        if (!authorizedByCurrentIntent) {
+            result.error(
+                "DIRECT_COMMUNICATION_NOT_AUTHORIZED",
+                "Direct communication requires explicit current intent or active scoped authority.",
+                null
+            )
+            return
+        }
+        val requiredPermission = if (kind == "sms") {
+            "android.permission.SEND_SMS"
+        } else {
+            "android.permission.CALL_PHONE"
+        }
+        val permission = if (kind == "sms" || kind == "call") permissionState(requiredPermission) else emptyMap()
+        try {
+            result.success(
+                directCommunications.execute(
+                    operationId = operationId,
+                    kind = kind,
+                    recipient = recipient,
+                    message = message,
+                    subscriptionId = subscriptionId,
+                    permissionPermanentlyDenied = permission["userFixed"] == true
+                )
+            )
+        } catch (_: IllegalArgumentException) {
+            result.error(
+                "INVALID_DIRECT_COMMUNICATION_REQUEST",
+                "Pandora rejected an invalid bounded direct communication request.",
+                null
+            )
+        }
+    }
+
+    private fun getDirectCommunicationStatus(call: MethodCall, result: MethodChannel.Result) {
+        val operationId = call.argument<String>("operationId")?.trim().orEmpty()
+        try {
+            result.success(directCommunications.status(operationId))
+        } catch (_: IllegalArgumentException) {
+            result.error(
+                "INVALID_DIRECT_COMMUNICATION_STATUS_REQUEST",
+                "Pandora rejected an invalid communication status request.",
+                null
+            )
+        }
+    }
 
     private fun openCommunicationComposer(call: MethodCall, result: MethodChannel.Result) {
         val kind = call.argument<String>("kind")
@@ -486,6 +589,13 @@ internal class PandoraDeviceAgentChannel private constructor(
                     true
                 ),
                 capability(
+                    "contacts.resolve",
+                    "runtime_permission",
+                    directPermissionAvailability("android.permission.READ_CONTACTS"),
+                    directPermissionReason("android.permission.READ_CONTACTS", "Named-contact resolution"),
+                    false
+                ),
+                capability(
                     "phone.calls",
                     "public_app",
                     "available",
@@ -497,6 +607,20 @@ internal class PandoraDeviceAgentChannel private constructor(
                     "public_app",
                     "available",
                     "Pandora hands SMS composition to the system messaging app with ACTION_SENDTO smsto; the user confirms send and Pandora does not require SEND_SMS.",
+                    false
+                ),
+                capability(
+                    "phone.calls.direct",
+                    "runtime_permission",
+                    directPermissionAvailability("android.permission.CALL_PHONE"),
+                    directPermissionReason("android.permission.CALL_PHONE", "Direct outgoing call initiation"),
+                    false
+                ),
+                capability(
+                    "phone.sms.direct",
+                    "runtime_permission",
+                    directPermissionAvailability("android.permission.SEND_SMS"),
+                    directPermissionReason("android.permission.SEND_SMS", "Direct SMS dispatch"),
                     false
                 ),
                 capability(
@@ -617,6 +741,25 @@ internal class PandoraDeviceAgentChannel private constructor(
         )
     }
 
+    private fun directPermissionAvailability(permission: String): String {
+        val state = permissionState(permission)
+        return when {
+            state["declared"] != true -> "implementation_pending"
+            state["granted"] == true -> "available"
+            else -> "permission_required"
+        }
+    }
+
+    private fun directPermissionReason(permission: String, label: String): String {
+        val state = permissionState(permission)
+        return when {
+            state["declared"] != true -> "$label is unavailable because this build does not declare the required Android permission."
+            state["granted"] == true -> "$label is authorized by a freshly re-read Android runtime permission; dispatch still rechecks immediately before execution."
+            state["userFixed"] == true -> "$label is blocked by Android permission state and requires user action in app settings."
+            else -> "$label requires the Android runtime permission at the moment the user invokes the capability."
+        }
+    }
+
     private fun capability(
         id: String,
         authority: String,
@@ -636,22 +779,169 @@ internal class PandoraDeviceAgentChannel private constructor(
         return manager?.isDeviceOwnerApp(context.packageName) == true
     }
 
-    private fun permissionStates(): List<Map<String, Any?>> {
-        val declared = requestedPermissions()
-        return observedPermissions.map { permission ->
-            mapOf(
-                "permission" to permission,
-                "declared" to declared.contains(permission),
-                "granted" to (
-                    declared.contains(permission) &&
-                        context.packageManager.checkPermission(
-                            permission,
-                            context.packageName
-                        ) == PackageManager.PERMISSION_GRANTED
-                    )
+    private fun requestRuntimePermission(call: MethodCall, result: MethodChannel.Result) {
+        val permission = call.argument<String>("permission")?.trim().orEmpty()
+        val userInitiated = call.argument<Boolean>("userInitiated") == true
+        if (permission !in runtimePromptPermissions) {
+            result.error(
+                "UNSUPPORTED_RUNTIME_PERMISSION",
+                "Pandora only requests allowlisted Android runtime permissions.",
+                null
+            )
+            return
+        }
+        if (!userInitiated) {
+            result.error(
+                "PERMISSION_PROMPT_NOT_USER_INITIATED",
+                "Android permission prompts require a visible current user request.",
+                null
+            )
+            return
+        }
+
+        val state = permissionState(permission)
+        if (state["declared"] != true) {
+            result.success(permissionRequestResult(permission, "not_declared", false, null))
+            return
+        }
+        if (state["granted"] == true) {
+            result.success(permissionRequestResult(permission, "already_granted", true, null))
+            return
+        }
+        if (state["userFixed"] == true) {
+            result.success(
+                permissionRequestResult(permission, "permanently_denied", false, "app_details")
+            )
+            return
+        }
+
+        val host = activity
+        val launcher = permissionLauncher
+        if (
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            host == null ||
+            launcher == null ||
+            !host.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        ) {
+            result.success(
+                permissionRequestResult(permission, "prompt_unavailable", false, "app_details")
+            )
+            return
+        }
+        if (pendingPermissionResult != null) {
+            result.error(
+                "PERMISSION_REQUEST_BUSY",
+                "Another Android permission request is already active.",
+                null
+            )
+            return
+        }
+
+        pendingPermission = permission
+        pendingPermissionResult = result
+        permissionStateStore.edit()
+            .putBoolean(permissionRequestedKey(permission), true)
+            .apply()
+        try {
+            launcher.launch(permission)
+        } catch (_: RuntimeException) {
+            pendingPermission = null
+            pendingPermissionResult = null
+            result.success(
+                permissionRequestResult(permission, "prompt_unavailable", false, "app_details")
             )
         }
     }
+
+    private fun completeRuntimePermissionRequest() {
+        val result = pendingPermissionResult ?: return
+        val permission = pendingPermission ?: return
+        pendingPermissionResult = null
+        pendingPermission = null
+        recordPermissionPromptOutcome(permission)
+        val state = permissionState(permission)
+        val granted = state["granted"] == true
+        val userFixed = state["userFixed"] == true
+        val status = when {
+            granted -> "granted"
+            userFixed -> "permanently_denied"
+            else -> "denied"
+        }
+        val surface = if (userFixed) "app_details" else "runtime_permission_dialog"
+        result.success(permissionRequestResult(permission, status, granted, surface))
+    }
+
+    private fun permissionRequestResult(
+        permission: String,
+        status: String,
+        granted: Boolean,
+        userActionSurface: String?
+    ): Map<String, Any?> = mapOf(
+        "permission" to permission,
+        "status" to status,
+        "granted" to granted,
+        "userActionSurface" to userActionSurface,
+        "automaticRetryAllowed" to false,
+        "recheckRequired" to true
+    )
+
+    private fun permissionState(permission: String): Map<String, Any?> {
+        val declared = requestedPermissions().contains(permission)
+        val granted = declared &&
+            context.packageManager.checkPermission(permission, context.packageName) ==
+            PackageManager.PERMISSION_GRANTED
+        val runtimePrompt = permission in runtimePromptPermissions
+        val userFixed = isRuntimePromptBlocked(permission, declared, granted)
+        return mapOf(
+            "permission" to permission,
+            "declared" to declared,
+            "granted" to granted,
+            "stateFresh" to true,
+            "requestable" to (
+                runtimePrompt &&
+                declared &&
+                !granted &&
+                !userFixed &&
+                activity != null
+            ),
+            "userFixed" to userFixed,
+            "revocationControlSurface" to "app_details"
+        )
+    }
+
+    private fun isRuntimePromptBlocked(
+        permission: String,
+        declared: Boolean,
+        granted: Boolean
+    ): Boolean {
+        if (!declared || granted || permission !in runtimePromptPermissions) return false
+        return permissionStateStore.getBoolean(permissionBlockedKey(permission), false)
+    }
+
+    private fun recordPermissionPromptOutcome(permission: String) {
+        val granted = context.packageManager.checkPermission(permission, context.packageName) ==
+            PackageManager.PERMISSION_GRANTED
+        val blocked = if (granted || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            false
+        } else {
+            val host = activity
+            host != null && try {
+                !host.shouldShowRequestPermissionRationale(permission)
+            } catch (_: RuntimeException) {
+                false
+            }
+        }
+        permissionStateStore.edit()
+            .putBoolean(permissionRequestedKey(permission), true)
+            .putBoolean(permissionBlockedKey(permission), blocked)
+            .apply()
+    }
+
+    private fun permissionRequestedKey(permission: String) = "requested:$permission"
+    private fun permissionBlockedKey(permission: String) = "blocked:$permission"
+
+    private fun permissionStates(): List<Map<String, Any?>> =
+        observedPermissions.map(::permissionState)
 
     private fun requestedPermissions(): Set<String> {
         return try {
@@ -674,6 +964,22 @@ internal class PandoraDeviceAgentChannel private constructor(
             emptySet()
         }
     }
+
+    private val runtimePromptPermissions = setOf(
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.READ_SMS",
+        "android.permission.SEND_SMS",
+        "android.permission.CALL_PHONE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO"
+    )
 
     private val observedPermissions = listOf(
         "android.permission.INTERNET",
