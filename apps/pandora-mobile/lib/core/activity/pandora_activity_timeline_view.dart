@@ -24,6 +24,7 @@ class PandoraActivityTimelineView extends StatelessWidget {
     final terminal = latest.state == PandoraActivityState.result ||
         latest.state == PandoraActivityState.failed ||
         latest.state == PandoraActivityState.cancelled;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final palette = context.pandoraPalette;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final statusColor = switch (latest.state) {
@@ -70,10 +71,18 @@ class PandoraActivityTimelineView extends StatelessWidget {
                     size: 16,
                     color: statusColor,
                   )
-                : CircularProgressIndicator(
-                    strokeWidth: 1.8,
-                    color: statusColor,
-                  ),
+                : reduceMotion
+                    ? Icon(
+                        latest.state == PandoraActivityState.needsYou
+                            ? Icons.priority_high_rounded
+                            : Icons.more_horiz_rounded,
+                        size: 16,
+                        color: statusColor,
+                      )
+                    : CircularProgressIndicator(
+                        strokeWidth: 1.8,
+                        color: statusColor,
+                      ),
           ),
           const SizedBox(width: 9),
           Expanded(

@@ -126,68 +126,72 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
   @override
   Widget build(BuildContext context) {
     final latest = pandoraLatestPresentableActivity(_activity.events);
-    return Column(
-      key: const ValueKey<String>('enterprise-command-stack'),
-      children: [
-        Expanded(child: widget.child),
-        if (latest != null || _error != null)
-          Container(
-            key: const ValueKey<String>('enterprise-activity-theatre'),
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-            color: PandoraV2Colors.canvas,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (latest != null)
-                  if (latest.state.isTerminal && !_receiptExpanded)
-                    _EnterpriseTerminalReceipt(
-                      activity: latest,
-                      onViewDetails: () =>
-                          setState(() => _receiptExpanded = true),
-                    )
-                  else
-                    PandoraActivityTimelineView(
-                      events: <PandoraActivityProjection>[latest],
-                    ),
-                if (_receiptExpanded && latest?.state.isTerminal == true)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => setState(() => _receiptExpanded = false),
-                      child: const Text('Collapse receipt'),
-                    ),
-                  ),
-                if (_error != null) ...[
-                  if (latest != null) const SizedBox(height: 8),
-                  Semantics(
-                    liveRegion: true,
-                    label: _error,
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(
-                        color: PandoraV2Colors.danger,
-                        fontSize: 13,
+    return FocusTraversalGroup(
+      policy: WidgetOrderTraversalPolicy(),
+      child: Column(
+        key: const ValueKey<String>('enterprise-command-stack'),
+        children: [
+          Expanded(child: widget.child),
+          if (latest != null || _error != null)
+            Container(
+              key: const ValueKey<String>('enterprise-activity-theatre'),
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+              color: PandoraV2Colors.canvas,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (latest != null)
+                    if (latest.state.isTerminal && !_receiptExpanded)
+                      _EnterpriseTerminalReceipt(
+                        activity: latest,
+                        onViewResult: () =>
+                            setState(() => _receiptExpanded = true),
+                      )
+                    else
+                      PandoraActivityTimelineView(
+                        events: <PandoraActivityProjection>[latest],
+                      ),
+                  if (_receiptExpanded && latest?.state.isTerminal == true)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () =>
+                            setState(() => _receiptExpanded = false),
+                        child: const Text('Collapse result'),
                       ),
                     ),
-                  ),
+                  if (_error != null) ...[
+                    if (latest != null) const SizedBox(height: 8),
+                    Semantics(
+                      liveRegion: true,
+                      label: _error,
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                          color: PandoraV2Colors.danger,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
+            ),
+          SafeArea(
+            top: false,
+            minimum: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            child: PandoraV2IntentSurface(
+              key: const ValueKey<String>('enterprise-command-bar'),
+              controller: _controller,
+              hintText: 'Ask Pandora about this page',
+              onSubmit: _submit,
+              enabled: !_submitting,
+              submitTooltip: _submitting ? 'Command running' : 'Send command',
             ),
           ),
-        SafeArea(
-          top: false,
-          minimum: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-          child: PandoraV2IntentSurface(
-            key: const ValueKey<String>('enterprise-command-bar'),
-            controller: _controller,
-            hintText: 'Ask Pandora about this page',
-            onSubmit: _submit,
-            enabled: !_submitting,
-            submitTooltip: _submitting ? 'Command running' : 'Send command',
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -195,11 +199,11 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
 class _EnterpriseTerminalReceipt extends StatelessWidget {
   const _EnterpriseTerminalReceipt({
     required this.activity,
-    required this.onViewDetails,
+    required this.onViewResult,
   });
 
   final PandoraActivityProjection activity;
-  final VoidCallback onViewDetails;
+  final VoidCallback onViewResult;
 
   @override
   Widget build(BuildContext context) {
@@ -227,24 +231,29 @@ class _EnterpriseTerminalReceipt extends StatelessWidget {
         decoration: BoxDecoration(
           color: PandoraV2Colors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: PandoraV2Colors.line),
+          border: Border.all(color: PandoraV2Colors.muted),
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 20),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Icon(icon, color: color, size: 20),
+            ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                summary,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13.5, height: 1.3),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  summary,
+                  style: const TextStyle(fontSize: 13.5, height: 1.3),
+                ),
               ),
             ),
             TextButton(
               key: const ValueKey<String>('enterprise-view-result'),
-              onPressed: onViewDetails,
-              child: const Text('View details'),
+              onPressed: onViewResult,
+              child: const Text('View result'),
             ),
           ],
         ),
