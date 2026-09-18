@@ -83,6 +83,14 @@ test('Simple and Professional modes render the same bounded Business truth', () 
   assert.match(professional, /Project business truth/);
 });
 
+test('zero-valued cost rows remain unknown rather than fabricated as zero spend', () => {
+  for (const surface of [simple, professional]) {
+    assert.match(surface, /Unknown cost/);
+    assert.match(surface, /if \(estimated > 0n\)/);
+    assert.doesNotMatch(surface, /estimated > 0n \? 'Estimated' : 'Recorded cost'/);
+  }
+});
+
 test('protected Business data is cleared on sign-out through owner app state reset', () => {
   const app = read('apps/control-tower/owner-app.js');
   assert.ok((app.match(/state\.business = \{ data: null, loading: false, error: null, loadedAt: null \}/g) || []).length >= 2);

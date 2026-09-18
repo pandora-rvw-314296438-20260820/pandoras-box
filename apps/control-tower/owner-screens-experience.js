@@ -158,7 +158,8 @@ function businessCostFact(cost) {
   const estimated = BigInt(String(cost?.estimatedMicros || '0'));
   if (charged > 0n) return { label: 'Charged', value: businessMoney(cost.chargedMicros, cost.currency) };
   if (billed > 0n) return { label: 'Billed', value: businessMoney(cost.billedMicros, cost.currency) };
-  return { label: estimated > 0n ? 'Estimated' : 'Recorded cost', value: businessMoney(cost.estimatedMicros, cost.currency) };
+  if (estimated > 0n) return { label: 'Estimated', value: businessMoney(cost.estimatedMicros, cost.currency) };
+  return { label: 'Unknown cost', value: '—' };
 }
 
 function businessProjectRow(project) {
