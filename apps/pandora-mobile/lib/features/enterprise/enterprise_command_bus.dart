@@ -3,8 +3,7 @@ import 'package:flutter/foundation.dart';
 class EnterpriseCommandDraftBus {
   EnterpriseCommandDraftBus._();
 
-  static final EnterpriseCommandDraftBus shared =
-      EnterpriseCommandDraftBus._();
+  static final EnterpriseCommandDraftBus shared = EnterpriseCommandDraftBus._();
 
   final ValueNotifier<String?> draft = ValueNotifier<String?>(null);
 
