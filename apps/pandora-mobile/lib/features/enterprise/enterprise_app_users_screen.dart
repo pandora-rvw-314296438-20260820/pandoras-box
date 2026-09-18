@@ -88,8 +88,7 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
                         )
                       : Column(
                           children: [
-                            for (final member in members)
-                              _memberRow(member),
+                            for (final member in members) _memberRow(member),
                           ],
                         ),
                 ),
@@ -126,8 +125,7 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
     return Semantics(
       button: true,
       selected: selected,
-      label:
-          '${member.email}, role ${member.role}, status ${member.status}',
+      label: '${member.email}, role ${member.role}, status ${member.status}',
       child: InkWell(
         key: ValueKey<String>('enterprise-user-${member.userId}'),
         onTap: () => _select(member),
@@ -137,14 +135,10 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           margin: const EdgeInsets.only(bottom: 6),
           decoration: BoxDecoration(
-            color: selected
-                ? PandoraV2Colors.soft
-                : Colors.transparent,
+            color: selected ? PandoraV2Colors.soft : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: selected
-                  ? PandoraV2Colors.ink
-                  : PandoraV2Colors.line,
+              color: selected ? PandoraV2Colors.ink : PandoraV2Colors.line,
             ),
           ),
           child: Row(
@@ -170,8 +164,7 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
                   ],
                 ),
               ),
-              if (selected)
-                const Icon(Icons.check_circle_rounded, size: 20),
+              if (selected) const Icon(Icons.check_circle_rounded, size: 20),
             ],
           ),
         ),
