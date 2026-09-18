@@ -1120,58 +1120,6 @@ class _EnterpriseNavTile extends StatelessWidget {
       );
 }
 
-class _EnterpriseExpansionTile extends StatelessWidget {
-  const _EnterpriseExpansionTile({
-    required this.destination,
-    required this.selected,
-    required this.children,
-    required this.onTap,
-  });
-
-  final _ChatDestination destination;
-  final bool selected;
-  final List<String> children;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 2),
-        child: ExpansionTile(
-          dense: true,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          collapsedShape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          backgroundColor: selected ? PandoraV2Colors.soft : Colors.transparent,
-          collapsedBackgroundColor:
-              selected ? PandoraV2Colors.soft : Colors.transparent,
-          leading: Icon(
-            selected ? destination.selectedIcon : destination.icon,
-            size: 21,
-            color: selected ? PandoraV2Colors.ink : PandoraV2Colors.muted,
-          ),
-          title: Text(
-            destination.label,
-            style: TextStyle(
-              color: PandoraV2Colors.ink,
-              fontSize: 14.5,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-          children: [
-            for (final child in children)
-              ListTile(
-                dense: true,
-                contentPadding: const EdgeInsets.only(left: 54, right: 12),
-                title: Text(child, style: const TextStyle(fontSize: 13.5)),
-                onTap: onTap,
-              ),
-          ],
-        ),
-      );
-}
-
 class _SearchChatsSheet extends StatefulWidget {
   const _SearchChatsSheet({required this.threads});
 
