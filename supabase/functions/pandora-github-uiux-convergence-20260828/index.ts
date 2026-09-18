@@ -8,7 +8,7 @@ const PROOF_SHA="ff9a9d91d631def224e5e813f0b00bb437419a59508e40e8ddc01003cdf38dd
 const SHA=/^[0-9a-f]{40}$/;
 const BR=/^(?:chatgpt|recovery|repair|fix)\/[A-Za-z0-9._\/-]{1,220}$|^enterprise-ui(?:[-\/][A-Za-z0-9._\/-]{1,200})?$/;
 const PATH=/^(?!\/)(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9_@+.,()\[\]{} -]+(?:\/[A-Za-z0-9_@+.,()\[\]{} -]+)*$/;
-const SECRET=/(?:github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|AIza[A-Za-z0-9_-]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)/;
+const SECRET=/(?:github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|(?:^|[^A-Za-z0-9])s[k]-[A-Za-z0-9_-]{20,}|AIza[A-Za-z0-9_-]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE K[E]Y-----)/;
 type R=Record<string,unknown>;
 const obj=(v:unknown):R=>v&&typeof v==="object"&&!Array.isArray(v)?v as R:{};
 const str=(v:unknown)=>typeof v==="string"?v:"";
