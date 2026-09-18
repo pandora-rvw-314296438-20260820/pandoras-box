@@ -8,6 +8,7 @@ import 'package:pandora_mobile/core/diagnostics/diagnostics_store.dart';
 import 'package:pandora_mobile/core/platform/pandora_native_io.dart';
 import 'package:pandora_mobile/features/enterprise/enterprise_command_stack.dart';
 import 'package:pandora_mobile/features/enterprise/enterprise_page_context.dart';
+import 'package:pandora_mobile/features/enterprise/plp_alfred_profile.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../helpers/fake_owner_api.dart';
@@ -163,6 +164,10 @@ void main() {
           'organization.users.manage',
         ],
         identityScope: 'pandora_organization',
+        tenantSlug: PlpAlfredProfile.tenantSlug,
+        personaId: PlpAlfredProfile.personaId,
+        personaLabel: PlpAlfredProfile.assistantLabel,
+        assistantRole: PlpAlfredProfile.assistantRole,
       );
 
       await tester.pumpWidget(
@@ -206,6 +211,7 @@ void main() {
 
       expect(find.text('No admin yet'), findsOneWidget);
       expect(commandBar, findsOneWidget);
+      expect(find.text('Ask Alfred about this page'), findsOneWidget);
       final submitSize = tester.getSize(find.byTooltip('Send command'));
       expect(submitSize.width, greaterThanOrEqualTo(48));
       expect(submitSize.height, greaterThanOrEqualTo(48));
@@ -232,6 +238,12 @@ void main() {
         'pandora_organization',
       );
       expect(intelligence.capturedContext?['actorRole'], isNull);
+      expect(intelligence.capturedContext?['tenantSlug'], 'plp-boracay');
+      expect(intelligence.capturedContext?['personaId'], 'plp_alfred_v1');
+      expect(
+        intelligence.capturedContext?['assistantRole'],
+        'Private Chief of Staff & Resort Intelligence',
+      );
       expect(
         intelligence.capturedContext?['capabilities'],
         contains('organization.users.manage'),
@@ -276,6 +288,10 @@ void main() {
           'organization.users.manage',
         ],
         identityScope: 'pandora_organization',
+        tenantSlug: PlpAlfredProfile.tenantSlug,
+        personaId: PlpAlfredProfile.personaId,
+        personaLabel: PlpAlfredProfile.assistantLabel,
+        assistantRole: PlpAlfredProfile.assistantRole,
       );
 
       await tester.pumpWidget(
@@ -360,6 +376,10 @@ void main() {
           'organization.users.manage',
         ],
         identityScope: 'pandora_organization',
+        tenantSlug: PlpAlfredProfile.tenantSlug,
+        personaId: PlpAlfredProfile.personaId,
+        personaLabel: PlpAlfredProfile.assistantLabel,
+        assistantRole: PlpAlfredProfile.assistantRole,
       );
 
       await tester.pumpWidget(

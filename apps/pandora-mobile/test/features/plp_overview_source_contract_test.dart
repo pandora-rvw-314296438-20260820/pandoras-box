@@ -31,7 +31,7 @@ void main() {
     expect(source, contains('Property overview'));
     expect(source, contains("_sectionTitle(Icons.insights_rounded, 'Today')"));
     expect(source, contains('Needs your attention'));
-    expect(source, contains('Pandora handled'));
+    expect(source, contains('Alfred handled'));
     expect(source, isNot(contains('Pandora brief')));
     expect(source, isNot(contains('Quick actions')));
     expect(source, isNot(contains('Business data coverage')));
@@ -47,7 +47,7 @@ void main() {
   test('owner overview relies on the persistent page command bar', () {
     expect(source, isNot(contains('Widget _quickActions()')));
     expect(source, isNot(contains('Widget _actionButton(')));
-    expect(source, contains('Command prepared in the Pandora bar below.'));
+    expect(source, contains('Command prepared in the Alfred bar below.'));
   });
 
   test('overview preserves meaning at large text and minimum action targets', () {
