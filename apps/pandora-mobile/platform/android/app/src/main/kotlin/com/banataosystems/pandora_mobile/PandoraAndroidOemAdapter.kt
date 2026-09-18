@@ -7,13 +7,16 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
-import java.util.Locale
 
 internal class PandoraAndroidOemAdapter(
     private val context: Context
 ) {
     fun reliabilityState(): Map<String, Any?> {
-        val xiaomiFamily = isXiaomiFamily()
+        val oemPolicy = PandoraOemAdapterRegistry.resolve(
+            Build.MANUFACTURER,
+            Build.BRAND
+        )
+        val xiaomiFamily = oemPolicy.family == "xiaomi"
         val backgroundRestrictionSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
         val backgroundRestricted = if (backgroundRestrictionSupported) {
             context.getSystemService(ActivityManager::class.java)?.isBackgroundRestricted
@@ -30,7 +33,7 @@ internal class PandoraAndroidOemAdapter(
 
         return mapOf(
             "schemaVersion" to "1.0.0",
-            "adapterId" to if (xiaomiFamily) "xiaomi_public_v1" else "android_generic_public_v1",
+            "adapterId" to oemPolicy.adapterId,
             "manufacturer" to Build.MANUFACTURER.ifBlank { "unknown" },
             "brand" to Build.BRAND.ifBlank { "unknown" },
             "xiaomiFamily" to xiaomiFamily,
@@ -38,11 +41,7 @@ internal class PandoraAndroidOemAdapter(
             "backgroundRestricted" to backgroundRestricted,
             "batteryOptimizationStateSupported" to batteryOptimizationStateSupported,
             "ignoringBatteryOptimizations" to ignoringBatteryOptimizations,
-            "autostartManagement" to if (xiaomiFamily) {
-                "manual_oem_control"
-            } else {
-                "public_api_unavailable"
-            },
+            "autostartManagement" to oemPolicy.autostartManagement,
             "appDetailsSurfaceAvailable" to canOpen(appDetailsIntent()),
             "batteryOptimizationSurfaceAvailable" to canOpen(batteryOptimizationIntent()),
             "normalOperationRequiresDesktop" to false,
@@ -55,17 +54,6 @@ internal class PandoraAndroidOemAdapter(
     fun openAppDetails(): Boolean = open(appDetailsIntent())
 
     fun openBatteryOptimizationSettings(): Boolean = open(batteryOptimizationIntent())
-
-    fun isXiaomiFamily(): Boolean {
-        val manufacturer = Build.MANUFACTURER.lowercase(Locale.ROOT)
-        val brand = Build.BRAND.lowercase(Locale.ROOT)
-        return manufacturer == "xiaomi" ||
-            manufacturer == "redmi" ||
-            manufacturer == "poco" ||
-            brand == "xiaomi" ||
-            brand == "redmi" ||
-            brand == "poco"
-    }
 
     private fun appDetailsIntent(): Intent = Intent(
         Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
