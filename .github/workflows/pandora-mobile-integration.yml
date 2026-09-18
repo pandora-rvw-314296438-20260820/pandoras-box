@@ -10,14 +10,53 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: pandora-mobile-${{ github.sha }}
+  group: pandora-mobile-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
+  mobile-impact:
+    name: Detect mobile impact
+    runs-on: ubuntu-latest
+    outputs:
+      mobile: ${{ steps.detect.outputs.mobile }}
+    steps:
+      - name: Check out candidate history
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - id: detect
+        name: Detect mobile-affecting changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mobile=true
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            mobile=false
+            if git rev-parse "${GITHUB_SHA}^1" >/dev/null 2>&1; then
+              while IFS= read -r path; do
+                case "$path" in
+                  apps/pandora-mobile/*|packages/pandora-integration/*|packages/pandora-intelligence/*|packages/pandora-tools/*|packages/pandora-project-runtime/*|src/projectos/*|supabase/functions/pandora-owner-api/*|supabase/functions/pandora-coordinator-gate/*|supabase/functions/pandora-worker-dispatch/*|package.json|package-lock.json|.github/workflows/pandora-mobile-integration.yml)
+                    mobile=true
+                    break
+                    ;;
+                esac
+              done < <(git diff --name-only "${GITHUB_SHA}^1" "${GITHUB_SHA}")
+            else
+              mobile=true
+            fi
+          fi
+          echo "mobile=${mobile}" >> "$GITHUB_OUTPUT"
+          echo "mobile impact: ${mobile}" >> "$GITHUB_STEP_SUMMARY"
+
   verify:
+    needs: mobile-impact
+    if: ${{ needs.mobile-impact.outputs.mobile == 'true' }}
     name: Exact source / Flutter / Android
     runs-on: ubuntu-24.04
     timeout-minutes: 40
@@ -353,6 +392,8 @@ jobs:
 
 
   verify-ios:
+    needs: mobile-impact
+    if: ${{ needs.mobile-impact.outputs.mobile == 'true' }}
     name: Exact source / Flutter / iOS
     runs-on: macos-15
     timeout-minutes: 40
