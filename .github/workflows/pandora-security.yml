@@ -30,7 +30,7 @@ jobs:
           persist-credentials: false
 
       - name: Verify exact source checkout
-        shell: pwsh
+        shell: powershell
         env:
           EXPECTED_SHA: ${{ github.sha }}
         run: |
@@ -51,7 +51,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run check
       - name: Run npm test with diagnostic capture
-        shell: pwsh
+        shell: powershell
         run: |
           npm test 2>&1 | Tee-Object -FilePath npm-test-output.txt
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
