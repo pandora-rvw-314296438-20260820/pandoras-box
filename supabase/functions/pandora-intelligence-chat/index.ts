@@ -62,11 +62,25 @@ async function providerExact(c:any,provider:string,model:string,gbody:R,kbody:R,
 async function universalDispatch(c:any,org:string,message:string,threadId:string|null,projectId:string|null){const r=await c.rpc("pandora_chat_universal_dispatch_v9",{p_organization_id:org,p_message:message,p_thread_id:threadId,p_project_id:projectId});if(r.error)throw Error("CAPABILITY_DISPATCH_FAILED");const p=rec(r.data);return p.handled===true?p:null}
 function candidates(route:R|null,cfg:any,ocfg:any,task:string,geminiModel:string){const out:{provider:string,model:string}[]=[],seen=new Set<string>();const add=(provider:string,model:string)=>{const k=`${provider}:${model}`;if(!seen.has(k)){seen.add(k);out.push({provider,model})}},gemini=nextGeminiModels(geminiModel),kimiOk=cfg.enabled&&cfg.routingEligible&&cfg.allowedModels.includes(cfg.model)&&(cfg.tasks.length===0||cfg.tasks.includes(task)),openaiOk=ocfg.enabled&&ocfg.routingEligible&&ocfg.allowedModels.includes(ocfg.model)&&(ocfg.tasks.length===0||ocfg.tasks.includes(task));const addOthers=(exclude:string)=>{if(exclude!=="kimi"&&kimiOk)add("kimi",cfg.model);if(exclude!=="openai"&&openaiOk)add("openai",ocfg.model)};if(route){const rp=txt(route.provider),rm=txt(route.model);if(rp==="kimi"&&kimiOk&&cfg.allowedModels.includes(rm)){add("kimi",rm);if(gemini.length)add("gemini",gemini[0]);if(openaiOk)add("openai",ocfg.model);for(const m of gemini.slice(1))add("gemini",m)}else if(rp==="openai"&&openaiOk&&ocfg.allowedModels.includes(rm)){add("openai",rm);if(gemini.length)add("gemini",gemini[0]);if(kimiOk)add("kimi",cfg.model);for(const m of gemini.slice(1))add("gemini",m)}else if(rp==="gemini"){add("gemini",rm);addOthers("gemini");for(const m of nextGeminiModels(rm).slice(1))add("gemini",m)}else{if(gemini.length)add("gemini",gemini[0]);addOthers("gemini");for(const m of gemini.slice(1))add("gemini",m)}}else{const preferKimi=kimiOk&&cfg.preferredTasks.includes(task),preferOpenAI=openaiOk&&ocfg.preferredTasks.includes(task);if(preferKimi)add("kimi",cfg.model);else if(preferOpenAI)add("openai",ocfg.model);else if(gemini.length)add("gemini",gemini[0]);if(kimiOk)add("kimi",cfg.model);if(openaiOk)add("openai",ocfg.model);for(const m of gemini.slice(1))add("gemini",m)}return out}
 async 
-function enterpriseUserCommand(message:string,ctx:any){
+type EnterpriseUserCommand =
+  | { action: "invite"; role: string; email: string }
+  | { action: "role"; role: string; email: string }
+  | { action: "status"; status: "active" | "suspended" | "revoked"; email: string };
+
+function enterpriseUserCommand(message:string,ctx:any):EnterpriseUserCommand|null{
   if(!ctx||ctx.surface!=="enterprise_app_users"||ctx.identityScope!=="pandora_organization"||!Array.isArray(ctx.capabilities)||!ctx.capabilities.includes("organization.users.manage"))return null;
-  const match=message.trim().match(/^(?:create|invite|add)\s+(?:an?\s+)?(owner|admin|operator|member|viewer)(?:\s+(?:account|user))?\s+(?:for\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)\s*$/i);
-  if(!match)return null;
-  return{role:match[1].toLowerCase(),email:match[2].toLowerCase()};
+  const source=message.trim();
+  let match=source.match(/^(?:create|invite|add)\s+(?:an?\s+)?(owner|admin|operator|member|viewer)(?:\s+(?:account|user))?\s+(?:for\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)\s*$/i);
+  if(match)return{action:"invite",role:match[1].toLowerCase(),email:match[2].toLowerCase()};
+  match=source.match(/^(?:change|set|update)\s+(?:the\s+)?(?:enterprise\s+)?(?:role|access\s+role)\s+(?:for\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)\s+(?:to|as)\s+(owner|admin|operator|member|viewer)\s*$/i);
+  if(match)return{action:"role",email:match[1].toLowerCase(),role:match[2].toLowerCase()};
+  match=source.match(/^(?:suspend|disable)\s+(?:enterprise\s+)?(?:access\s+)?(?:for\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)\s*$/i);
+  if(match)return{action:"status",status:"suspended",email:match[1].toLowerCase()};
+  match=source.match(/^(?:restore|activate|enable)\s+(?:enterprise\s+)?(?:access\s+)?(?:for\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)\s*$/i);
+  if(match)return{action:"status",status:"active",email:match[1].toLowerCase()};
+  match=source.match(/^(?:revoke|remove)\s+(?:enterprise\s+)?(?:access\s+)?(?:for\s+)?([^\s@]+@[^\s@]+\.[^\s@]+)\s*$/i);
+  if(match)return{action:"status",status:"revoked",email:match[1].toLowerCase()};
+  return null;
 }
 async function enterpriseUserAdminRequest(c:any,method:"GET"|"POST",body:R|null=null){
   const response=await fetch(`${URL}/functions/v1/pandora-user-admin${method==="POST"?"/invite":"/members"}`,{
@@ -83,32 +97,116 @@ async function enterpriseUserAdminRequest(c:any,method:"GET"|"POST",body:R|null=
   }
   return payload;
 }
+function enterpriseMutationError(error:any){
+  const message=txt(error?.message).toLowerCase();
+  const out=Error("ENTERPRISE_USER_ADMIN_FAILED");
+  if(message.includes("last active owner")){
+    Object.assign(out,{enterpriseCode:"LAST_ACTIVE_OWNER_REQUIRED",enterpriseMessage:"At least one active owner must remain."});
+  }else if(message.includes("cannot change your own membership")){
+    Object.assign(out,{enterpriseCode:"SELF_MEMBERSHIP_CHANGE_FORBIDDEN",enterpriseMessage:"Use the dedicated ownership workflow to change your own access."});
+  }else if(message.includes("administrators cannot")){
+    Object.assign(out,{enterpriseCode:"ROLE_CHANGE_NOT_ALLOWED",enterpriseMessage:"Only an owner can make that Enterprise access change."});
+  }else if(message.includes("target membership not found")){
+    Object.assign(out,{enterpriseCode:"MEMBERSHIP_NOT_FOUND",enterpriseMessage:"That Enterprise access membership no longer exists."});
+  }else{
+    Object.assign(out,{enterpriseCode:"MEMBERSHIP_UPDATE_FAILED",enterpriseMessage:"Pandora could not update that Enterprise access membership safely."});
+  }
+  return out;
+}
+
 async function enterpriseDirectDispatch(c:any,i:any){
   const command=enterpriseUserCommand(i.message,i.enterpriseContext);
   if(!command)return null;
-  if(c.role==="admin"&&["owner","admin"].includes(command.role)){
-    const error=Error("ENTERPRISE_ROLE_GRANT_NOT_ALLOWED");
-    Object.assign(error,{enterpriseMessage:"Only an owner can grant owner or admin access."});
+
+  if(command.action==="invite"){
+    if(c.role==="admin"&&["owner","admin"].includes(command.role)){
+      const error=Error("ENTERPRISE_ROLE_GRANT_NOT_ALLOWED");
+      Object.assign(error,{enterpriseMessage:"Only an owner can grant owner or admin access."});
+      throw error;
+    }
+    await emitActivity(c.admin,i.activityJobId,{state:"acting",message:"Creating the organization user through the governed identity provider.",sourceType:"provider",sourceId:"pandora-user-admin",sourceEventId:"user-admin-act:"+(i.activityJobId||crypto.randomUUID()),evidence:[{type:"runtime_event",relation:"source",ref:"provider:pandora-user-admin:invite"}]});
+    const created=await enterpriseUserAdminRequest(c,"POST",{email:command.email,role:command.role,timezone:"Asia/Manila"});
+    const directory=await enterpriseUserAdminRequest(c,"GET");
+    const members=Array.isArray(directory.members)?directory.members:[];
+    const verified=members.find((item:any)=>txt(rec(item).email).toLowerCase()===command.email&&txt(rec(item).role)===command.role&&txt(rec(item).status)==="active");
+    if(!verified)throw Error("ENTERPRISE_USER_READBACK_FAILED");
+    const tid=await thread(c.admin,c.organizationId,c.userId,i.threadId,i.projectId,i.message);
+    const userWrite=await c.admin.from("pandora_intelligence_messages").insert({thread_id:tid,organization_id:c.organizationId,project_id:i.projectId,author_role:"user",content:i.message,attachment_manifest:[]}).select("id").single();
+    if(userWrite.error)throw Error("BACKEND_WRITE_FAILED");
+    const roleLabel=command.role[0].toUpperCase()+command.role.slice(1);
+    const reply=roleLabel+" access is verified for "+command.email+". "+(created.inviteSent===true?"A secure invitation was sent.":"The existing account was linked without issuing a reusable password.");
+    const providerReadback={verified:true,provider:"pandora-user-admin",action:"invite",email:command.email,role:command.role,status:"active",inviteSent:created.inviteSent===true,existingAccount:created.existingAccount===true,requestId:txt(created.requestId)};
+    const assistantWrite=await c.admin.from("pandora_intelligence_messages").insert({thread_id:tid,organization_id:c.organizationId,project_id:i.projectId,author_role:"assistant",content:reply,structured_response:{intent:"act",confidence:1,needsClarification:false,enterpriseContext:i.enterpriseContext,providerReadback}}).select("id").single();
+    if(assistantWrite.error)throw Error("BACKEND_WRITE_FAILED");
+    await c.admin.from("pandora_intelligence_threads").update({last_message_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",tid);
+    return{threadId:tid,reply,intent:"act",confidence:1,needsClarification:false,clarifyingQuestion:null,handoff:null,toolProposals:[],providerReadback};
+  }
+
+  const directoryBefore=await enterpriseUserAdminRequest(c,"GET");
+  const membersBefore=Array.isArray(directoryBefore.members)?directoryBefore.members:[];
+  const target=membersBefore.find((item:any)=>txt(rec(item).email).toLowerCase()===command.email);
+  const targetId=txt(rec(target).id);
+  if(!target||!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(targetId)){
+    const error=Error("ENTERPRISE_USER_NOT_FOUND");
+    Object.assign(error,{enterpriseMessage:"That email is not an Enterprise access member."});
     throw error;
   }
-  await emitActivity(c.admin,i.activityJobId,{state:"acting",message:"Creating the organization user through the governed identity provider.",sourceType:"provider",sourceId:"pandora-user-admin",sourceEventId:`user-admin-act:${i.activityJobId??crypto.randomUUID()}`,evidence:[{type:"runtime_event",relation:"source",ref:"provider:pandora-user-admin:invite"}]});
-  const created=await enterpriseUserAdminRequest(c,"POST",{email:command.email,role:command.role,timezone:"Asia/Manila"});
-  const directory=await enterpriseUserAdminRequest(c,"GET");
-  const members=Array.isArray(directory.members)?directory.members:[];
-  const verified=members.find((item:any)=>txt(rec(item).email).toLowerCase()===command.email&&txt(rec(item).role)===command.role&&txt(rec(item).status)==="active");
+
+  const desiredRole=command.action==="role"?command.role:null;
+  const desiredStatus=command.action==="status"?command.status:null;
+  const actionLabel=command.action==="role"
+    ?"Updating the Enterprise access role."
+    :desiredStatus==="suspended"
+      ?"Suspending Enterprise access."
+      :desiredStatus==="revoked"
+        ?"Revoking Enterprise access."
+        :"Restoring Enterprise access.";
+  await emitActivity(c.admin,i.activityJobId,{state:"acting",message:actionLabel,sourceType:"provider",sourceId:"pandora-user-admin",sourceEventId:"user-admin-mutate:"+(i.activityJobId||crypto.randomUUID()),evidence:[{type:"runtime_event",relation:"source",ref:"provider:pandora-user-admin:membership"}]});
+
+  const mutation=await c.admin.rpc("pandora_admin_update_organization_member",{
+    p_actor_user_id:c.userId,
+    p_organization_id:c.organizationId,
+    p_target_user_id:targetId,
+    p_role:desiredRole,
+    p_status:desiredStatus,
+  });
+  if(mutation.error)throw enterpriseMutationError(mutation.error);
+
+  const directoryAfter=await enterpriseUserAdminRequest(c,"GET");
+  const membersAfter=Array.isArray(directoryAfter.members)?directoryAfter.members:[];
+  const verified=membersAfter.find((item:any)=>{
+    const row=rec(item);
+    if(txt(row.email).toLowerCase()!==command.email)return false;
+    if(command.action==="role")return txt(row.role)===command.role;
+    return txt(row.status)===command.status;
+  });
   if(!verified)throw Error("ENTERPRISE_USER_READBACK_FAILED");
+
+  const row=rec(verified),result=rec(mutation.data);
+  const finalRole=txt(row.role),finalStatus=txt(row.status);
+  const reply=command.action==="role"
+    ?(finalRole[0].toUpperCase()+finalRole.slice(1))+" access is verified for "+command.email+"."
+    :"Enterprise access for "+command.email+" is verified as "+finalStatus+".";
+  const providerReadback={
+    verified:true,
+    provider:"pandora-user-admin",
+    action:command.action,
+    email:command.email,
+    userId:targetId,
+    role:finalRole,
+    status:finalStatus,
+    previousRole:txt(result.previousRole),
+    previousStatus:txt(result.previousStatus),
+    changed:result.changed===true,
+  };
+
   const tid=await thread(c.admin,c.organizationId,c.userId,i.threadId,i.projectId,i.message);
   const userWrite=await c.admin.from("pandora_intelligence_messages").insert({thread_id:tid,organization_id:c.organizationId,project_id:i.projectId,author_role:"user",content:i.message,attachment_manifest:[]}).select("id").single();
   if(userWrite.error)throw Error("BACKEND_WRITE_FAILED");
-  const roleLabel=command.role[0].toUpperCase()+command.role.slice(1);
-  const reply=`${roleLabel} access is verified for ${command.email}. ${created.inviteSent===true?"A secure invitation was sent.":"The existing account was linked without issuing a reusable password."}`;
-  const providerReadback={verified:true,provider:"pandora-user-admin",email:command.email,role:command.role,status:"active",inviteSent:created.inviteSent===true,existingAccount:created.existingAccount===true,requestId:txt(created.requestId)};
   const assistantWrite=await c.admin.from("pandora_intelligence_messages").insert({thread_id:tid,organization_id:c.organizationId,project_id:i.projectId,author_role:"assistant",content:reply,structured_response:{intent:"act",confidence:1,needsClarification:false,enterpriseContext:i.enterpriseContext,providerReadback}}).select("id").single();
   if(assistantWrite.error)throw Error("BACKEND_WRITE_FAILED");
   await c.admin.from("pandora_intelligence_threads").update({last_message_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",tid);
   return{threadId:tid,reply,intent:"act",confidence:1,needsClarification:false,clarifyingQuestion:null,handoff:null,toolProposals:[],providerReadback};
 }
 
-function executionRequestFingerprint(i:any){return await sha(JSON.stringify({message:i.message,threadId:i.threadId,projectId:i.projectId,mode:i.mode,attachments:i.attachments,enterpriseContext:i.enterpriseContext}))}
-async function reconcileExistingActivityExecution(admin:any,jobId:string|null,fingerprint:string,claim:any){const current=claim?.mode==="reconcile"?claim:await waitForActivityExecutionReadback(admin,jobId,fingerprint,12000,300),result=rec(current?.result);if(Object.keys(result).length){if(cred(result))throw Error("CREDENTIAL_MATERIAL_REJECTED");if(jobId&&!txt(current?.terminalState)){await emitActivity(admin,jobId,{state:"result",message:"Recovered the persisted verified response after reconnect.",sourceType:"runtime",sourceId:"pandora-intelligence-recovery",sourceEventId:`recovery:${jobId}:${Number(current?.generation??0)}`,evidence:[{type:"verification_receipt",relation:"readback",ref:`execution-result:${jobId}:${Number(current?.generation??0)}`}],outcome:{summary:"Recovered the persisted verified response after reconnect.",physicalDevice:false}})}return result}const terminal=txt(current?.terminalState),executionState=txt(current?.executionState);if(terminal==="cancelled"||executionState==="cancelled")throw Error("REQUEST_CANCELLED");if(terminal==="failed"||executionState==="failed")throw Error("ACTIVITY_EXECUTION_PREVIOUS_FAILED");throw Error("ACTIVITY_EXECUTION_IN_PROGRESS")}
-Deno.serve(async req=>{let activityFailure:{admin:any;jobId:string|null;claimId:string|null}|null=null;if(req.method!=="POST")return res({ok:false,plainMessage:"Use POST for Ask Pandora."},405);try{const i=await input(req);ensureActive(req);const c=await auth(req);i.enterpriseContext=authoritativeEnterpriseContext(i.enterpriseContext,c.role);await requireActivityJob(c.admin,i.activityJobId,c.organizationId,c.userId);const requestFingerprint=await executionRequestFingerprint(i),requestedClaimId=crypto.randomUUID(),executionClaim=await claimActivityExecution(c.admin,i.activityJobId,requestFingerprint,requestedClaimId);if(executionClaim.mode!=="execute"){const recovered=await reconcileExistingActivityExecution(c.admin,i.activityJobId,requestFingerprint,executionClaim);return res({ok:true,activityJobId:i.activityJobId,recovered:true,...recovered})}activityFailure={admin:c.admin,jobId:i.activityJobId,claimId:executionClaim.claimId};const controlState:ControlState={message:i.message,constraints:[]};await drainActivityControls(c.admin,i.activityJobId,controlState);await rate(c.admin,c.organizationId,c.userId);await emitActivity(c.admin,i.activityJobId,{state:"planning",message:"Resolving the admitted request against Pandora capability routes.",sourceType:"runtime",sourceId:"pandora-intelligence-chat",sourceEventId:`dispatch:${i.activityJobId??"none"}`,evidence:[{type:"runtime_event",relation:"source",ref:`dispatch:${i.activityJobId??"none"}`}]});const enterpriseDirect=await enterpriseDirectDispatch(c,i);if(enterpriseDirect){const directThreadId=txt(enterpriseDirect.threadId);await bindActivityThread(c.admin,i.activityJobId,c.organizationId,c.userId,directThreadId);await checkpointActivityExecution(c.admin,i.activityJobId,executionClaim.claimId,"result_persisted",`enterprise-user:${directThreadId}`,"verified",enterpriseDirect);await finishActivityExecution(c.admin,i.activityJobId,executionClaim.claimId,"complete",enterpriseDirect,null);activityFailure=null;await emitActivity(c.admin,i.activityJobId,{state:"checking",message:"Verified the organization membership provider readback.",sourceType:"provider",sourceId:"pandora-user-admin",sourceEventId:`user-admin-readback:${directThreadId}`,evidence:[{type:"provider_receipt",relation:"readback",ref:`pandora-user-admin:${directThreadId}`}]});await emitActivity(c.admin,i.activityJobId,{state:"result",message:enterpriseDirect.reply,sourceType:"provider",sourceId:"pandora-user-admin",sourceEventId:`user-admin-result:${directThreadId}`,evidence:[{type:"verification_receipt",relation:"verification",ref:`pandora-user-admin:${directThreadId}:verified`}],outcome:{summary:enterpriseDirect.reply,physicalDevice:false}});return res({ok:true,activityJobId:i.activityJobId,...enterpriseDirect})}let dispatched:any=null;for(let controlPass=0;controlPass<4;controlPass++){await checkpointActivityExecution(c.admin,i.activityJobId,executionClaim.claimId,"capability_dispatching",`dispatch-pass:${controlPass+1}`,"ambiguous");dispatched=await universalDispatch(c.user,c.organizationId,contextualMessage(controlledMessage(controlState.message,controlState.constraints),i.enterpriseContext),i.threadId,i.projectId);if(!dispatched)await checkpointActivityExecution(c.admin,i.activityJobId,executionClaim.claimId,"claimed","capability-unhandled","none");const revised=await drainActivityControls(c.admin,i.activityJobId,controlState);if(!revised)break;if(controlPass===3)throw Error("CONTROL_REVISION_LIMIT")}if(dispatched){const dispatchThreadId=txt(dispatched.threadId);if(!dispatchThreadId)throw Error("CAPABILITY_DISPATCH_INVALID");if(cred(dispatched))throw Error("CREDENTIAL_MATERIAL_REJECTED");await bindActivityThread(c.admin,i.activityJobId,c.organizationId,c.userId,dispatchThreadId);const dispatchIntent=txt(dispatched.intent,"capability"),dispatchResult=rec(dispatched),dispatchReadback=rec(dispatchResult.providerReadback),dispatchHandoff=rec(dispatchResult.handoff);const terminalMessage=dispatchReadback.verified===true?"Provider result verified.":dispatchHandoff.required===true?"Execution handoff persisted; downstream action is not complete.":"Capability result persisted and verified.";await checkpointActivityExecution(c.admin,i.activityJobId,executionClaim.claimId,"result_persisted",`dispatch:${dispatchThreadId}`,"verified",dispatchResult);await finishActivityExecution(c.admin,i.activityJobId,executionClaim.claimId,"complete",dispatchResult,null);activityFailure=null;await emitActivity(c.admin,i.activityJobId,{state:"checking",message:"Verified the Pandora capability route response.",sourceType:"runtime",sourceId:"pandora-capability-router",sourceEventId:`dispatch-result:${dispatchThreadId}`,evidence:[{type:"runtime_event",relation:"readback",ref:`dispatch:${dispatchThreadId}:${dispatchIntent}`} ]});await emitActivity(c.admin,i.activityJobId,{state:"result",message:terminalMessage,sourceType:"runtime",sourceId:"pandora-capability-router",sourceEventId:`dispatch-verified:${dispatchThreadId}`,evidence:[{type:"verification_receipt",relation:"verification",ref:`dispatch:${dispatchThreadId}:${dispatchIntent}:persisted`}],outcome:{summary:terminalMessage,physicalDevice:false}});return res({ok:true,activityJobId:i.activityJobId,...dispatchResult})}const effectiveInitial=contextualMessage(controlledMessage(controlState.message,controlState.constraints),i.enterpriseContext),ctx=await context(c.user,c.organizationId,i.projectId);let tctx=await trustedOptional(c.admin,c.organizationId,i.projectId,effectiveInitial);const tid=await thread(c.admin,c.organizationId,c.userId,i.threadId,i.projectId,i.message),prior=await history(c.admin,tid);await bindActivityThread(c.admin,i.activityJobId,c.organizationId,c.userId,tid);const manifest=i.attachments.map((a:any)=>({kind:a.kind,name:a.name,mimeType:a.mimeType}));let w=await c.admin.from("pandora_intelligence_messages").insert({thread_id:tid,organization_id:c.organizationId,project_id:i.projectId,author_role:"user",content:i.message,attachment_manifest:manifest}).select("id").single();if(w.error)throw Error("BACKEND_WRITE_FAILED");const userMessageId=txt(rec(w.data).id);if(!userMessageId)throw Error("BACKEND_WRITE_FAILED");await checkpointActivityExecution(c.admin,i.activityJobId,executionClaim.claimId,"request_persisted",`message:${userMessageId}`,"none");await emitActivity(c.admin,i.activityJobId,{state:"planning",message:"Request admitted to the intelligence turn.",sourceEventId:`message:${userMessageId}`,evidence:[{type:"runtime_event",relation:"source",ref:`message:${userMessageId}`}]});const wantsDeep=i.mode==="deep"||(i.mode==="auto"&&(effectiveInitial.length>3000||/\b(architecture|security|threat model|migration|audit|root cause|complex integration|data model)\b/i.test(effectiveInitial)));const wantsStandard=!wantsDeep&&i.mode!=="fast"&&(i.attachments.some((a:any)=>a.kind==="image")||effectiveInitial.length>700||/\b(build|create|design|debug|repair|analy[sz]e|spec|database|integration|publish|deploy|payment)\b/i.test(effectiveInitial));const geminiModel=wantsDeep?DEEP:wantsStandard?STANDARD:FAST,modelClass=wantsDeep?"deep":wantsStandard?"standard":"fast";let effectiveMessage=effectiveInitial,gbody=request(effectiveMessage,i.attachments,prior,ctx,tctx),kbody=kimiBody(effectiveMessage,i.attachments,prior,ctx,tctx,modelClass),obody=openaiBody(effectiveMessage,i.attachments,prior,ctx,tctx,modelClass);if(cred(gbody)||cred(kbody)||cred(obody))throw Error("CREDENTIAL_MATERIAL_REJECTED");const[cfg,ocfg]=await Promise.all([kimiConfig(c.admin),openaiConfig(c.admin)]),task=routingTask(i.message),fallbackEnabled=cfg.fallbackEnabled===true||ocfg.fallbackEnabled===true,policyVersion=txt(ocfg.policyVersion,txt(cfg.policyVersion,"provider-auto-failover-v3")),streamMode=txt(ocfg.streamMode,txt(cfg.streamMode,"buffered_v1"));let route=await routeRead(c.admin,tid,c.organizationId),attempts:{provider:string,model:string,code:string|null}[]=[],result:any=null,fallbackUsed=false;const list=candidates(route,cfg,ocfg,task,geminiModel).slice(0,6);let controlRevisions=0;for(let index=0;index<list.length;index++){ensureActive(req);if(await drainActivityControls(c.admin,i.activityJobId,controlState)){controlRevisions+=1;if(controlRevisions>4)throw Error("CONTROL_REVISION_LIMIT");effectiveMessage=controlledMessage(controlState.message,controlState.constraints);tctx=await trustedOptional(c.admin,c.organizationId,i.projectId,effectiveMessage);gbody=request(effectiveMessage,i.attachments,prior,ctx,tctx);kbody=kimiBody(effectiveMessage,i.attachments,prior,ctx,tctx,modelClass);obody=openaiBody(effectiveMessage,i.attachments,prior,ctx,tctx,modelClass)}const cand=list[index];if(route&&(txt(route.provider)!==cand.provider||txt(route.model)!==cand.model)){if(index===0||fallbackEnabled!==true){route=await routeRecover(c.admin,tid,c.organizationId,route,cand.provider,cand.model,policyVersion,reasoning(modelClass));fallbackUsed=true}else{route=await routeRecover(c.admin,tid,c.organizationId,route,cand.provider,cand.model,policyVersion,reasoning(modelClass));fallbackUsed=true}}await checkpointActivityExecution(c.admin,i.activityJobId,executionClaim.claimId,"provider_running",`attempt:${tid}:${index+1}`,"none");await emitActivity(c.admin,i.activityJobId,{state:"acting",message:"Running the selected intelligence step.",sourceType:"model",sourceId:"pandora-intelligence-router",sourceEventId:`attempt:${tid}:${index+1}`,evidence:[{type:"runtime_event",relation:"source",ref:`attempt:${tid}:${index+1}`}]});try{result=await providerExact(c.admin,cand.provider,cand.model,gbody,kbody,obody);if(await drainActivityControls(c.admin,i.activityJobId,controlState)){attempts.push({provider:cand.provider,model:cand.model,code:"superseded_by_user_control"});result=null;controlRevisions+=1;if(controlRevisions>4)throw Error("CONTROL_REVISION_LIMIT");effectiveMessage=controlledMessage(controlState.message,controlState.constraints);tctx=await trustedOptional(c.admin,c.organizationId,i.projectId,effectiveMessage);gbody=request(effectiveMessage,i.attachments,prior,ctx,tctx);kbody=kimiBody(effectiveMessage,i.attachments,prior,ctx,tctx,modelClass);obody=openaiBody(effectiveMessage,i.attachments,prior,ctx,tctx,modelClass);index=-1;continue}attempts.push({provider:cand.provider,model:cand.model,code:null});if(!route)route=await routeClaim(c.admin,tid,c.organizationId,cand.provider,cand.model,policyVersion,reasoning(modelClass));break}catch(e){const code=txt(rec(e).code,rec(e).retryable===true?"provider_unavailable":"provider_error");attempts.push({provider:cand.provider,model:cand.model,code});const next=list[index+1];const crossesProvider=!!next&&next.provider!==cand.provider;if(!canFallback(e)||fallbackEnabled!==true||index===list.length-1||(crossesProvider&&rec(e).crossProviderEligible!==true))throw e;await emitActivity(c.admin,i.activityJobId,{state:"fallback",message:"Selected a bounded fallback after an intelligence provider attempt failed.",sourceType:"runtime",sourceId:"pandora-intelligence-router",sourceEventId:`fallback:${tid}:${index+1}`,evidence:[{type:"runtime_event",relation:"prior_attempt",ref:`attempt:${tid}:${index+1}`}],transition:{priorAttemptId:`attempt:${tid}:${index+1}`,priorAuthorityScopeRef:"capability:intelligence.chat",authorityScopeRef:"capability:intelligence.chat",consequential:false,priorIdempotencyKey:null,idempotencyKey:null,effectAmbiguous:false}});fallbackUsed=true}}if(!result)throw Error("PROVIDER_UNAVAILABLE");ensureActive(req);const rq=await sha(JSON.stringify(result.provider==="kimi"?kbody:result.provider==="openai"?obody:gbody)),r=result.payload,u=result.usage,v=r.value,rs=await sha(r.raw),handoff=actionable.has(v.intent)&&!v.needsClarification&&v.handoff?.required&&v.handoff.request?{required:true,kind:"capability_request",request:v.handoff.request,projectId:i.projectId}:null;await emitActivity(c.admin,i.activityJobId,{state:"checking",message:"Validated the intelligence response.",sourceType:"runtime",sourceId:"pandora-intelligence-chat",sourceEventId:`response:${rs.slice(0,40)}`,evidence:[{type:"runtime_event",relation:"source",ref:`response-sha256:${rs}`}]});const routeAudit={policyVersion,recoveryEpoch:Number(route?.recoveryEpoch??0),stickinessMode:txt(route?.stickinessMode,"sticky"),fallbackUsed,attempts,streamMode};if(cred(routeAudit))throw Error("CREDENTIAL_MATERIAL_REJECTED");const assistantWrite=await c.admin.from("pandora_intelligence_messages").insert({thread_id:tid,organization_id:c.organizationId,project_id:i.projectId,author_role:"assistant",content:v.reply,structured_response:{intent:v.intent,confidence:v.confidence,needsClarification:v.needsClarification,clarifyingQuestion:v.clarifyingQuestion,handoff,toolProposals:v.toolProposals,memoryCandidates:v.memoryCandidates,modelClass,routing:routeAudit,enterpriseContext:i.enterpriseContext,trustedContext:{state:tctx.degraded===true?"degraded":"verified"}},provider:result.provider,model:result.model,request_sha256:rq,response_sha256:rs,input_tokens:u.inputTokens,output_tokens:u.outputTokens,total_tokens:u.totalTokens,trusted_context_sha256:tctx.contextDigest,trusted_skill_refs:tctx.skills.map((x:any)=>({id:x.id,version:x.version,sourceDigest:x.sourceDigest,materialDigest:x.materialDigest})),trusted_knowledge_refs:tctx.knowledge.map((x:any)=>({id:x.id,version:x.version,sourceDigest:x.sourceDigest,contentDigest:x.contentDigest}))}).select("id").single();if(assistantWrite.error)throw Error("BACKEND_WRITE_FAILED");const assistantMessageId=txt(rec(assistantWrite.data).id);if(!assistantMessageId)throw Error("BACKEND_WRITE_FAILED");await c.admin.from("pandora_intelligence_threads").update({last_message_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",tid);const responsePayload={threadId:tid,reply:v.reply,intent:v.intent,confidence:v.confidence,needsClarification:v.needsClarification,clarifyingQuestion:v.clarifyingQuestion,handoff,toolProposals:v.toolProposals,modelClass,usage:u,trustedContextState:tctx.degraded===true?"degraded":"verified"};if(cred(responsePayload))throw Error("CREDENTIAL_MATERIAL_REJECTED");const terminalMessage=handoff?"Execution handoff persisted; downstream action is not complete.":v.needsClarification?"Clarifying response persisted; no external action was executed.":"Response persisted and verified for this turn.";await checkpointActivityExecution(c.admin,i.activityJobId,executionClaim.claimId,"result_persisted",`message:${assistantMessageId}:response-sha256:${rs}`,"verified",responsePayload);await finishActivityExecution(c.admin,i.activityJobId,executionClaim.claimId,"complete",responsePayload,null);activityFailure=null;await emitActivity(c.admin,i.activityJobId,{state:"result",message:terminalMessage,sourceType:"runtime",sourceId:"pandora-intelligence-chat",sourceEventId:`verified:${assistantMessageId}`,evidence:[{type:"verification_receipt",relation:"verification",ref:`message:${assistantMessageId}:response-sha256:${rs}`}],outcome:{summary:terminalMessage,physicalDevice:false}});return res({ok:true,activityJobId:i.activityJobId,...responsePayload})}catch(e){const failureCode=e instanceof Error?e.message:"unexpected";console.error("pandora-intelligence-chat",failureCode);if(activityFailure?.jobId){try{await emitActivityFailure(activityFailure.admin,activityFailure.jobId,failureCode);await finishActivityExecution(activityFailure.admin,activityFailure.jobId,activityFailure.claimId,failureCode==="REQUEST_CANCELLED"?"cancelled":"failed",null,failureCode.slice(0,160))}catch(activityError){console.error("pandora-activity-failure",activityError instanceof Error?activityError.message:"unexpected")}}const[s,m]=publicErr(e);return res({ok:false,code:"PANDORA_INTELLIGENCE_FAILED",plainMessage:m},s)}})
+async function executionRequestFingerprint
