@@ -316,9 +316,9 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
       button: true,
       selected: selected,
       label:
-          member.email + ', role ' + member.role + ', status ' + member.status,
+          '${member.email}, role ${member.role}, status ${member.status}',
       child: InkWell(
-        key: ValueKey<String>('enterprise-user-' + member.userId),
+        key: ValueKey<String>('enterprise-user-${member.userId}'),
         onTap: () => _select(member),
         borderRadius: BorderRadius.circular(14),
         child: Container(
@@ -346,7 +346,7 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      member.role + ' · ' + member.status,
+                      '${member.role} · ${member.status}',
                       style: const TextStyle(
                         color: PandoraV2Colors.muted,
                         fontSize: 12.5,
@@ -368,18 +368,14 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
   }
 
   Widget _memberCanvas(EnterpriseMember member) => PandoraSurface(
-        title: 'Permission impact · ' + member.email,
+        title: 'Permission impact · ${member.email}',
         subtitle: 'Enterprise access only',
         leading: const Icon(Icons.fact_check_outlined),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Current role: ' +
-                  member.role +
-                  '\nCurrent status: ' +
-                  member.status +
-                  '\nIdentity scope: Pandora organization',
+              'Current role: ${member.role}\nCurrent status: ${member.status}\nIdentity scope: Pandora organization',
               style: const TextStyle(height: 1.5),
             ),
             const SizedBox(height: 10),
@@ -399,11 +395,7 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
                   constraints: const BoxConstraints(minHeight: 48),
                   child: FilledButton.icon(
                     onPressed: () => _offer(
-                      'Show the permission impact of changing ' +
-                          member.email +
-                          ' from Enterprise role ' +
-                          member.role +
-                          '. Do not mutate anything until I choose and approve the target role.',
+                      'Show the permission impact of changing ${member.email} from Enterprise role ${member.role}. Do not mutate anything until I choose and approve the target role.',
                     ),
                     icon: const Icon(Icons.rule_folder_outlined),
                     label: const Text('Review role change'),
@@ -413,9 +405,7 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
                   constraints: const BoxConstraints(minHeight: 48),
                   child: OutlinedButton.icon(
                     onPressed: () => _offer(
-                      'Prepare to revoke Enterprise access for ' +
-                          member.email +
-                          '. Show impact and reversibility, request approval, and only update this page after provider readback. Do not change PLP Property Staff.',
+                      'Prepare to revoke Enterprise access for ${member.email}. Show impact and reversibility, request approval, and only update this page after provider readback. Do not change PLP Property Staff.',
                     ),
                     icon: const Icon(Icons.person_off_outlined),
                     label: const Text('Review revocation'),
