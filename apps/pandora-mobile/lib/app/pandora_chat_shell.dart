@@ -64,7 +64,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       Icons.dashboard_outlined,
       Icons.dashboard_rounded,
     ),
-    _ChatDestination('Team & Access', Icons.group_outlined, Icons.group_rounded),
+    _ChatDestination(
+        'Team & Access', Icons.group_outlined, Icons.group_rounded),
     _ChatDestination('Data', Icons.storage_outlined, Icons.storage_rounded),
     _ChatDestination(
       'Analytics',
@@ -184,11 +185,23 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       'Enterprise preferences',
     ],
     22: ['MCP servers', 'Available tools', 'Resources and connection state'],
-    23: ['Today’s movement', 'Bookings and operations', 'Exceptions and handoffs'],
-    24: ['Guests and customers', 'Requests and service context', 'Selected guest record'],
+    23: [
+      'Today’s movement',
+      'Bookings and operations',
+      'Exceptions and handoffs'
+    ],
+    24: [
+      'Guests and customers',
+      'Requests and service context',
+      'Selected guest record'
+    ],
     25: ['Verified KPIs', 'Period comparisons', 'Reports and evidence'],
     26: ['Approvals', 'Consequential decisions', 'Missing access or input'],
-    27: ['Verified business activity', 'Provider receipts', 'Execution evidence'],
+    27: [
+      'Verified business activity',
+      'Provider receipts',
+      'Execution evidence'
+    ],
   };
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -637,7 +650,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     );
   }
 
-    ThemeData _theme(ThemeData base) {
+  ThemeData _theme(ThemeData base) {
     const scheme = ColorScheme.dark(
       primary: PandoraV2Colors.ink,
       onPrimary: Colors.black,
@@ -1103,58 +1116,6 @@ class _EnterpriseNavTile extends StatelessWidget {
             ),
           ),
           onTap: onTap,
-        ),
-      );
-}
-
-class _EnterpriseExpansionTile extends StatelessWidget {
-  const _EnterpriseExpansionTile({
-    required this.destination,
-    required this.selected,
-    required this.children,
-    required this.onTap,
-  });
-
-  final _ChatDestination destination;
-  final bool selected;
-  final List<String> children;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 2),
-        child: ExpansionTile(
-          dense: true,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          collapsedShape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          backgroundColor: selected ? PandoraV2Colors.soft : Colors.transparent,
-          collapsedBackgroundColor:
-              selected ? PandoraV2Colors.soft : Colors.transparent,
-          leading: Icon(
-            selected ? destination.selectedIcon : destination.icon,
-            size: 21,
-            color: selected ? PandoraV2Colors.ink : PandoraV2Colors.muted,
-          ),
-          title: Text(
-            destination.label,
-            style: TextStyle(
-              color: PandoraV2Colors.ink,
-              fontSize: 14.5,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-          children: [
-            for (final child in children)
-              ListTile(
-                dense: true,
-                contentPadding: const EdgeInsets.only(left: 54, right: 12),
-                title: Text(child, style: const TextStyle(fontSize: 13.5)),
-                onTap: onTap,
-              ),
-          ],
         ),
       );
 }

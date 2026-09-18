@@ -314,8 +314,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
                     : constraints.maxWidth >= 430
                         ? 2
                         : 1;
-            final width =
-                (constraints.maxWidth - (columns - 1) * 10) / columns;
+            final width = (constraints.maxWidth - (columns - 1) * 10) / columns;
             return Wrap(
               spacing: 10,
               runSpacing: 10,
@@ -580,8 +579,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
           LayoutBuilder(
             builder: (context, constraints) {
               final textScale = MediaQuery.textScalerOf(context).scale(1);
-              final twoColumns =
-                  constraints.maxWidth >= 430 && textScale < 1.3;
+              final twoColumns = constraints.maxWidth >= 430 && textScale < 1.3;
               final actionWidth = twoColumns
                   ? (constraints.maxWidth - 10) / 2
                   : constraints.maxWidth;

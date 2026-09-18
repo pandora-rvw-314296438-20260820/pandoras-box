@@ -10,7 +10,6 @@ import '../../core/activity/pandora_activity_projection.dart';
 import '../../core/activity/pandora_activity_timeline_controller.dart';
 import '../../core/activity/pandora_activity_timeline_view.dart';
 import '../../core/data/pandora_activity_stream_api.dart';
-import '../../core/data/pandora_character_api.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/data/pandora_repository.dart';
 import '../../core/device/pandora_communication_command.dart';
@@ -59,11 +58,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   PandoraImageAttachment? _imageAttachment;
   PandoraProjectContext? _projectContext;
   PandoraCapabilityProvider? _serviceContext;
-  PandoraCharacterProfile? _characterContext;
-  String? _characterSessionId;
-  PandoraCharacterApi? _characterApi;
-  PandoraCharacterApi get _characterClient =>
-      _characterApi ??= PandoraCharacterApi();
+  PandoraModelOption? _modelSelection;
   String? _threadId;
   String? _pendingMessage;
   final PandoraActivityTimelineController _activityController =
@@ -157,28 +152,34 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     });
   }
 
-  Future<void> _pickCharacterContext() async {
-    final selected = await showModalBottomSheet<PandoraCharacterProfile>(
-      context: context,
-      backgroundColor: PandoraSimpleColors.surface,
-      showDragHandle: true,
-      builder: (context) => const _CharacterContextSheet(),
-    );
-    if (!mounted || selected == null) return;
-    setState(() {
-      _characterContext = selected;
-      _characterSessionId = null;
-      _serviceContext = null;
-      _error = null;
-    });
-    _objectiveFocus.requestFocus();
+  Future<void> _pickModelContext() async {
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null) return;
+    try {
+      final models = await intelligence.modelCatalog();
+      if (!mounted) return;
+      final selected = await showModalBottomSheet<PandoraModelOption>(
+        context: context,
+        backgroundColor: PandoraSimpleColors.surface,
+        showDragHandle: true,
+        builder: (context) => _ModelContextSheet(
+          models: models,
+          selected: _modelSelection,
+        ),
+      );
+      if (!mounted || selected == null) return;
+      setState(() {
+        _modelSelection = selected.isAuto ? null : selected;
+        _error = null;
+      });
+      _objectiveFocus.requestFocus();
+    } on PandoraIntelligenceException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
   }
 
-  void _removeCharacterContext() {
-    setState(() {
-      _characterContext = null;
-      _characterSessionId = null;
-    });
+  void _removeModelContext() {
+    setState(() => _modelSelection = null);
   }
 
   Future<void> _pickServiceContext() async {
@@ -327,27 +328,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     }
   }
 
-  Future<void> _submitCharacter(String objective) async {
-    final character = _characterContext;
-    if (character == null) return;
-    final turn = await _characterClient.chat(
-      characterId: character.id,
-      message: objective,
-      sessionId: _characterSessionId,
-      mode: 'auto',
-      responseLength: 'auto',
-    );
-    if (!mounted) return;
-    setState(() {
-      _characterSessionId = turn.sessionId;
-      _messages.add(_ChatMessage.user(objective));
-      _messages.add(_ChatMessage.pandora(turn.reply));
-      _pendingMessage = null;
-      _submissionKey = null;
-      _outcomeUnknown = false;
-    });
-  }
-
   Future<void> _submit() async {
     final objective = _objective.text.trim();
     if (_submitting && _activeActivityJobId != null) {
@@ -357,12 +337,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     if (objective.isEmpty) {
       setState(() => _error = 'Message Pandora first.');
       _objectiveFocus.requestFocus();
-      return;
-    }
-    if (_characterContext != null &&
-        (_attachment != null || _imageAttachment != null)) {
-      setState(() => _error =
-          'Character mode uses its prepared memory right now. Remove the attachment before sending.');
       return;
     }
     final dependencies = PandoraDependencies.of(context);
@@ -386,10 +360,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       _error = null;
     });
     try {
-      if (_characterContext != null) {
-        await _submitCharacter(objective);
-        return;
-      }
       final deviceCommunication = PandoraDeviceCommunicationCommand.tryParse(
         objective,
       );
@@ -426,6 +396,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         requestId: turnRequestId,
         threadId: _threadId,
         projectId: _projectContext?.id,
+        modelSelection: _modelSelection,
         textAttachment: _attachment,
         imageAttachment: _imageAttachment,
       );
@@ -585,15 +556,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
 
       // `intelligence.chat` owns exactly one dispatch for this turn. Explicit
       // selected-project changes execute through the real project runtime in
-      // this chat. They never navigate away, never reopen ProjectOS intake,
-      // and never resubmit the owner instruction as a second intelligence turn.
-      // Progress and verified terminal evidence remain authoritative.
-    } on PandoraCharacterException catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _error = error.message;
-        _submissionKey = null;
-      });
+      // this chat. They never navigate away or resubmit the owner instruction
+      // as a second intelligence turn. Progress and verified terminal evidence
+      // remain authoritative.
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -753,16 +718,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
 
   void newChat() {
     if (_submitting) return;
-    final priorCharacter = _characterContext;
-    final priorCharacterSession = _characterSessionId;
-    if (priorCharacter != null &&
-        priorCharacterSession != null &&
-        priorCharacterSession.isNotEmpty) {
-      unawaited(_characterClient.reset(
-        characterId: priorCharacter.id,
-        sessionId: priorCharacterSession,
-      ));
-    }
     _activeActivityJobId = null;
     _activityTheatreRequested = false;
     _activityTheatreSuppressed = false;
@@ -774,8 +729,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       _imageAttachment = null;
       _projectContext = null;
       _serviceContext = null;
-      _characterContext = null;
-      _characterSessionId = null;
+      _modelSelection = null;
       _threadId = null;
       _pendingMessage = null;
       _error = null;
@@ -893,7 +847,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 imageAttachment: _imageAttachment,
                 projectContext: _projectContext,
                 serviceContext: _serviceContext,
-                characterContext: _characterContext,
+                modelSelection: _modelSelection,
                 error: _error,
                 submitting: _submitting,
                 disabled: _outcomeUnknown,
@@ -904,14 +858,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 onCamera: () => _pickImage(camera: true),
                 onPhotos: () => _pickImage(camera: false),
                 onAttach: _attach,
-                onCharacters: _pickCharacterContext,
+                onModels: _pickModelContext,
                 onServices: _pickServiceContext,
                 onProjectContext: _pickProjectContext,
                 onDictate: _dictate,
                 onSubmit: _submit,
                 onRemoveAttachment: () => setState(() => _attachment = null),
                 onRemoveImage: () => setState(() => _imageAttachment = null),
-                onRemoveCharacterContext: _removeCharacterContext,
+                onRemoveModelContext: _removeModelContext,
                 onRemoveServiceContext: _removeServiceContext,
                 onRemoveProjectContext: _removeProjectContext,
               ),
@@ -1574,7 +1528,7 @@ class _Composer extends StatelessWidget {
     required this.imageAttachment,
     required this.projectContext,
     required this.serviceContext,
-    required this.characterContext,
+    required this.modelSelection,
     required this.error,
     required this.submitting,
     required this.disabled,
@@ -1583,14 +1537,14 @@ class _Composer extends StatelessWidget {
     required this.onCamera,
     required this.onPhotos,
     required this.onAttach,
-    required this.onCharacters,
+    required this.onModels,
     required this.onServices,
     required this.onProjectContext,
     required this.onDictate,
     required this.onSubmit,
     required this.onRemoveAttachment,
     required this.onRemoveImage,
-    required this.onRemoveCharacterContext,
+    required this.onRemoveModelContext,
     required this.onRemoveServiceContext,
     required this.onRemoveProjectContext,
   });
@@ -1601,7 +1555,7 @@ class _Composer extends StatelessWidget {
   final PandoraImageAttachment? imageAttachment;
   final PandoraProjectContext? projectContext;
   final PandoraCapabilityProvider? serviceContext;
-  final PandoraCharacterProfile? characterContext;
+  final PandoraModelOption? modelSelection;
   final String? error;
   final bool submitting;
   final bool disabled;
@@ -1610,14 +1564,14 @@ class _Composer extends StatelessWidget {
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
   final VoidCallback onAttach;
-  final VoidCallback onCharacters;
+  final VoidCallback onModels;
   final VoidCallback onServices;
   final VoidCallback onProjectContext;
   final VoidCallback onDictate;
   final VoidCallback onSubmit;
   final VoidCallback onRemoveAttachment;
   final VoidCallback onRemoveImage;
-  final VoidCallback onRemoveCharacterContext;
+  final VoidCallback onRemoveModelContext;
   final VoidCallback onRemoveServiceContext;
   final VoidCallback onRemoveProjectContext;
 
@@ -1671,7 +1625,7 @@ class _Composer extends StatelessWidget {
                   imageAttachment != null ||
                   projectContext != null ||
                   serviceContext != null ||
-                  characterContext != null) ...[
+                  modelSelection != null) ...[
                 Wrap(
                   spacing: 8,
                   runSpacing: 6,
@@ -1691,17 +1645,18 @@ class _Composer extends StatelessWidget {
                         onDeleted:
                             submitting || disabled ? null : onRemoveImage,
                       ),
-                    if (characterContext != null)
+                    if (modelSelection != null)
                       InputChip(
                         key: const ValueKey<String>(
-                            'ask' '-pandora-character-context'),
+                            'ask' '-pandora-model-context'),
                         avatar: const Icon(
-                            Icons.face_retouching_natural_outlined,
-                            size: 17),
-                        label: Text('Character · ${characterContext!.name}'),
+                          Icons.psychology_alt_outlined,
+                          size: 17,
+                        ),
+                        label: Text('Model · ${modelSelection!.label}'),
                         onDeleted: submitting || disabled
                             ? null
-                            : onRemoveCharacterContext,
+                            : onRemoveModelContext,
                       ),
                     if (serviceContext != null)
                       InputChip(
@@ -1797,10 +1752,10 @@ class _Composer extends StatelessWidget {
                           ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
-                                'ask' '-pandora-menu-characters'),
-                            label: 'Characters',
-                            icon: Icons.face_retouching_natural_outlined,
-                            onPressed: onCharacters,
+                                'ask' '-pandora-menu-models'),
+                            label: 'Models',
+                            icon: Icons.psychology_alt_outlined,
+                            onPressed: onModels,
                           ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
@@ -1930,39 +1885,98 @@ class _Composer extends StatelessWidget {
       );
 }
 
-class _CharacterContextSheet extends StatelessWidget {
-  const _CharacterContextSheet();
+class _ModelContextSheet extends StatelessWidget {
+  const _ModelContextSheet({
+    required this.models,
+    required this.selected,
+  });
+
+  final List<PandoraModelOption> models;
+  final PandoraModelOption? selected;
 
   @override
   Widget build(BuildContext context) => SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 580),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Characters',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Private character conversations use prepared memory and the local model.',
-                style: TextStyle(color: PandoraSimpleColors.muted),
-              ),
-              const SizedBox(height: 12),
-              ...PandoraCharacterApi.availableCharacters.map(
-                (character) => ListTile(
-                  key: ValueKey<String>('character-${character.id}'),
-                  contentPadding: EdgeInsets.zero,
-                  leading: const CircleAvatar(
-                    child: Icon(Icons.face_retouching_natural_outlined),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 4),
+                child: Text(
+                  'Models',
+                  style: TextStyle(
+                    color: PandoraSimpleColors.ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
                   ),
-                  title: Text(character.name),
-                  subtitle: Text(character.description),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => Navigator.of(context).pop(character),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: Text(
+                  'Choose Auto or a verified model available to Pandora right now.',
+                  style: TextStyle(color: PandoraSimpleColors.muted),
+                ),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+                  itemCount: models.length,
+                  separatorBuilder: (_, __) => const Divider(
+                    height: 1,
+                    color: PandoraSimpleColors.line,
+                  ),
+                  itemBuilder: (context, index) {
+                    final model = models[index];
+                    final isSelected = model.isAuto
+                        ? selected == null
+                        : selected?.provider == model.provider &&
+                            selected?.model == model.model;
+                    return ListTile(
+                      key: ValueKey<String>(
+                        'model-${model.provider}-${model.model}',
+                      ),
+                      enabled: model.available,
+                      leading: Icon(
+                        model.local
+                            ? Icons.memory_rounded
+                            : Icons.psychology_alt_outlined,
+                        color: model.available
+                            ? PandoraSimpleColors.ink
+                            : PandoraSimpleColors.muted,
+                      ),
+                      title: Text(
+                        model.label,
+                        style: const TextStyle(
+                          color: PandoraSimpleColors.ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        model.isAuto
+                            ? 'Pandora chooses the best available route'
+                            : '${model.provider.toUpperCase()} · ${model.state}',
+                        style: const TextStyle(
+                          color: PandoraSimpleColors.muted,
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? const Icon(
+                              Icons.check_circle_rounded,
+                              color: PandoraSimpleColors.ink,
+                            )
+                          : model.available
+                              ? const Icon(Icons.chevron_right_rounded)
+                              : const Icon(
+                                  Icons.cloud_off_outlined,
+                                  color: PandoraSimpleColors.muted,
+                                ),
+                      onTap: model.available
+                          ? () => Navigator.of(context).pop(model)
+                          : null,
+                    );
+                  },
                 ),
               ),
             ],

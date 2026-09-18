@@ -149,10 +149,10 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
             .toList() ??
         const <String>[];
     final canDeploy = !_working && _validRepositoryUrl;
-    final repositoryInputError = _error != null &&
-            _error!.startsWith('Enter a GitHub repository URL')
-        ? _error
-        : null;
+    final repositoryInputError =
+        _error != null && _error!.startsWith('Enter a GitHub repository URL')
+            ? _error
+            : null;
     final deploymentStatus = _deployment == null
         ? null
         : (_deployment?['status'] ?? 'unknown').toString();
@@ -225,7 +225,7 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
                 ),
                 if (_working) ...[
                   const SizedBox(height: 12),
-                  const Semantics(
+                  Semantics(
                     liveRegion: true,
                     label: 'Repository operation in progress.',
                     child: Text(
@@ -257,7 +257,8 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
             const SizedBox(height: 14),
             Semantics(
               liveRegion: true,
-              label: 'Repository inspection updated from the connected provider.',
+              label:
+                  'Repository inspection updated from the connected provider.',
               child: _repositorySummary(repo, detected, stack, envNames),
             ),
           ],
@@ -265,9 +266,8 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
             const SizedBox(height: 14),
             Semantics(
               liveRegion: true,
-              label: 'Deployment provider readback. Status ' +
-                  (deploymentStatus ?? 'unknown') +
-                  '.',
+              label:
+                  'Deployment provider readback. Status ${deploymentStatus ?? 'unknown'}.',
               child: _deploymentSummary(_deployment!),
             ),
           ],

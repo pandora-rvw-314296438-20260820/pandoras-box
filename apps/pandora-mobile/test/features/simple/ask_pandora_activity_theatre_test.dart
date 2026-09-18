@@ -38,6 +38,7 @@ class _FakeIntelligence extends PandoraIntelligenceApi {
     String? threadId,
     String? projectId,
     Map<String, Object?>? enterpriseContext,
+    PandoraModelOption? modelSelection,
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
