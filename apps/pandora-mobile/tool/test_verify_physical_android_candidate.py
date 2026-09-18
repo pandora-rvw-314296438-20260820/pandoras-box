@@ -31,6 +31,9 @@ class PhysicalAndroidCandidateVerifierTest(unittest.TestCase):
     def test_permission_verifier_allows_expected_network_permission(self):
         verifier.require_safe_permissions("uses-permission: name='android.permission.INTERNET'\n")
 
+    def test_permission_verifier_allows_bounded_read_contacts_permission(self):
+        verifier.require_safe_permissions("uses-permission: name='android.permission.READ_CONTACTS'\n")
+
     def test_permission_verifier_rejects_sensitive_permissions(self):
         with self.assertRaisesRegex(verifier.VerificationError,"CAMERA"):
             verifier.require_safe_permissions("uses-permission: name='android.permission.CAMERA'\n")

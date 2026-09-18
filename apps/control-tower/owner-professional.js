@@ -280,7 +280,8 @@ function professionalCostFact(cost) {
   const estimated = BigInt(String(cost?.estimatedMicros || '0'));
   if (charged > 0n) return { label: 'Charged', value: professionalBusinessMoney(cost.chargedMicros, cost.currency) };
   if (billed > 0n) return { label: 'Billed', value: professionalBusinessMoney(cost.billedMicros, cost.currency) };
-  return { label: estimated > 0n ? 'Estimated' : 'Recorded cost', value: professionalBusinessMoney(cost.estimatedMicros, cost.currency) };
+  if (estimated > 0n) return { label: 'Estimated', value: professionalBusinessMoney(cost.estimatedMicros, cost.currency) };
+  return { label: 'Unknown cost', value: '—' };
 }
 
 function professionalBusinessProject(project) {

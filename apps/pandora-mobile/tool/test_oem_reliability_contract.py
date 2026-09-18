@@ -21,6 +21,7 @@ _ANDROID = (
     / "pandora_mobile"
 )
 _OEM = _ANDROID / "PandoraAndroidOemAdapter.kt"
+_REGISTRY = _ANDROID / "PandoraOemAdapterRegistry.kt"
 _AGENT = _ANDROID / "PandoraDeviceAgentChannel.kt"
 _SETTINGS = _ROOT / "lib" / "features" / "settings" / "settings_screen.dart"
 _MANIFEST_TOOL = _ROOT / "tool" / "configure_validation_android.py"
@@ -40,18 +41,19 @@ class OemReliabilityContractTest(unittest.TestCase):
             self.assertIn(required, source)
 
     def test_xiaomi_autostart_is_manual_not_fake_automation(self) -> None:
-        source = _OEM.read_text(encoding="utf-8")
-        self.assertIn('"manual_oem_control"', source)
-        self.assertIn('"public_api_unavailable"', source)
-        self.assertIn('"hiddenOemApiRequired" to false', source)
-        self.assertIn('"normalOperationRequiresDesktop" to false', source)
-        self.assertIn('"rootRequired" to false', source)
-        self.assertIn('"bootloaderUnlockRequired" to false', source)
+        runtime = _OEM.read_text(encoding="utf-8")
+        registry = _REGISTRY.read_text(encoding="utf-8")
+        self.assertIn('autostartManagement = "manual_oem_control"', registry)
+        self.assertIn('autostartManagement = "public_api_unavailable"', registry)
+        self.assertIn('"hiddenOemApiRequired" to false', runtime)
+        self.assertIn('"normalOperationRequiresDesktop" to false', runtime)
+        self.assertIn('"rootRequired" to false', runtime)
+        self.assertIn('"bootloaderUnlockRequired" to false', runtime)
 
     def test_hidden_oem_and_direct_exemption_paths_are_forbidden(self) -> None:
         sources = "\n".join(
             path.read_text(encoding="utf-8")
-            for path in (_OEM, _AGENT, _MANIFEST_TOOL)
+            for path in (_OEM, _REGISTRY, _AGENT, _MANIFEST_TOOL)
         )
         for forbidden in (
             "ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",

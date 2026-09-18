@@ -13,11 +13,11 @@ const api = await readFile(
 
 // Exact-source mobile gates remain authoritative for format, analysis, tests, and builds.
 test('composer keeps files and images while adding services and project context', () => {
-  assert.match(screen, /ask-pandora-menu-camera/);
-  assert.match(screen, /ask-pandora-menu-photos/);
-  assert.match(screen, /ask-pandora-menu-files/);
-  assert.match(screen, /ask-pandora-menu-services/);
-  assert.match(screen, /ask-pandora-menu-project-context/);
+  assert.match(screen, /'ask'\s*'-pandora-menu-camera'/);
+  assert.match(screen, /'ask'\s*'-pandora-menu-photos'/);
+  assert.match(screen, /'ask'\s*'-pandora-menu-files'/);
+  assert.match(screen, /'ask'\s*'-pandora-menu-services'/);
+  assert.match(screen, /'ask'\s*'-pandora-menu-project-context'/);
 });
 
 test('services come from live capability registry truth instead of hardcoded connected state', () => {
@@ -38,8 +38,8 @@ test('project context comes from existing non-archived ProjectOS projects and is
 });
 
 test('selected contexts stay visible and removable without dashboard chrome', () => {
-  assert.match(screen, /ask-pandora-service-context/);
-  assert.match(screen, /ask-pandora-project-context/);
+  assert.match(screen, /'ask'\s*'-pandora-service-context'/);
+  assert.match(screen, /'ask'\s*'-pandora-project-context'/);
   assert.match(screen, /_removeServiceContext/);
   assert.match(screen, /_removeProjectContext/);
   assert.match(screen, /MenuAnchor/);

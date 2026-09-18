@@ -34,7 +34,7 @@ test('provider choice is server-owned and Kimi defaults fail closed',()=>{
 });
 
 test('fallback and sticky recovery are bounded explicit and classified',()=>{
-  must(edge,'["provider_unavailable","timeout","rate_limited","quota_exhausted","unsupported_capability","provider_error","invalid_output"]');
+  must(edge,'["provider_unavailable","authentication_failed","timeout","rate_limited","quota_exhausted","unsupported_capability","provider_error","invalid_output"]');
   must(edge,'pandora_read_intelligence_thread_route_v1');
   must(edge,'pandora_claim_intelligence_thread_route_v1');
   must(edge,'pandora_recover_intelligence_thread_route_v1');
@@ -42,7 +42,7 @@ test('fallback and sticky recovery are bounded explicit and classified',()=>{
   must(edge,'fallbackUsed');
   must(edge,'.slice(0,6)');
   must(edge,'crossProviderEligible:true');
-  must(edge,'authentication_failed",false,false');
+  must(edge,'authentication_failed",false,true');
   must(edge,'invalid_request",false,false');
   must(edge,'quota_exhausted",false,true');
   must(edge,'crossesProvider&&rec(e).crossProviderEligible!==true');

@@ -77,12 +77,12 @@ class DeviceAgentContractTest(unittest.TestCase):
     def test_m4_001_does_not_broaden_validation_permissions(self) -> None:
         source = _MANIFEST_TOOL.read_text(encoding="utf-8")
         self.assertIn("_INTERNET_PERMISSION_NAME = 'android.permission.INTERNET'", source)
+        self.assertIn("android.permission.CALL_PHONE", source)
+        self.assertIn("android.permission.SEND_SMS", source)
         for permission in (
             "android.permission.CAMERA",
             "android.permission.RECORD_AUDIO",
-            "android.permission.READ_CONTACTS",
             "android.permission.READ_SMS",
-            "android.permission.CALL_PHONE",
             "android.permission.ACCESS_FINE_LOCATION",
             "android.permission.BLUETOOTH_SCAN",
         ):

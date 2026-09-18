@@ -162,7 +162,7 @@ test('skill selection never grants mutation or elevates permission', async () =>
   const routed = m.route('Delete the production database and merge everything now.', { registry });
 
   assert.equal(routed.grantsMutation, false, 'routing must never grant mutation authority');
-  assert.equal(routed.mutationAuthority, 'projectos-governed');
+  assert.equal(routed.mutationAuthority, 'pandora-runtime-tool-gateway');
   assert.ok(Object.isFrozen(routed), 'routing result must be immutable');
 
   // Any sensitive or high-risk skill reached must be surfaced as approval-gated.

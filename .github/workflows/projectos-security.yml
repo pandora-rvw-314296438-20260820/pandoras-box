@@ -1,4 +1,4 @@
-name: ProjectOS security regression
+name: Pandora security regression
 
 on:
   pull_request:
@@ -58,7 +58,7 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
         with:
-          name: projectos-security-npm-test-output
+          name: pandora-security-npm-test-output
           path: npm-test-output.txt
           if-no-files-found: error
           retention-days: 1

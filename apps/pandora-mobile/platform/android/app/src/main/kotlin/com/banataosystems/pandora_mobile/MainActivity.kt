@@ -19,7 +19,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.LinearLayout
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -59,7 +59,7 @@ private fun previewTextEncoding(mimeType: String): String? =
         mimeType.contains("svg")
     ) "UTF-8" else null
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val channelName = "pandora/native_io"
     private val speechRequest = 3101
     private val documentRequest = 3102
@@ -84,7 +84,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         PandoraDeviceAgentChannel.install(
-            applicationContext,
+            this,
             flutterEngine.dartExecutor.binaryMessenger
         )
         PandoraConnectivityChannel.install(
