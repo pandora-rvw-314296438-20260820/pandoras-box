@@ -30,19 +30,19 @@ jobs:
           persist-credentials: false
 
       - name: Verify exact source checkout
-        shell: bash
+        shell: pwsh
         env:
           EXPECTED_SHA: ${{ github.sha }}
         run: |
-          actual_sha="$(git rev-parse HEAD)"
-          {
-            echo "### Exact-source binding"
-            echo
-            echo "- Event: \`${GITHUB_EVENT_NAME}\`"
-            echo "- Expected: \`${EXPECTED_SHA}\`"
-            echo "- Checked out: \`${actual_sha}\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-          test "$actual_sha" = "$EXPECTED_SHA"
+          $actualSha = (git rev-parse HEAD).Trim()
+          @(
+            "### Exact-source binding"
+            ""
+            "- Event: $env:GITHUB_EVENT_NAME"
+            "- Expected: $env:EXPECTED_SHA"
+            "- Checked out: $actualSha"
+          ) | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          if ($actualSha -ne $env:EXPECTED_SHA) { exit 1 }
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -51,10 +51,10 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run check
       - name: Run npm test with diagnostic capture
-        shell: bash
+        shell: pwsh
         run: |
-          set -o pipefail
-          npm test 2>&1 | tee npm-test-output.txt
+          npm test 2>&1 | Tee-Object -FilePath npm-test-output.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload npm test diagnostic
         if: ${{ failure() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0

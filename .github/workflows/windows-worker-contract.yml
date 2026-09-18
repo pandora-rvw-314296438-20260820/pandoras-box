@@ -29,28 +29,25 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
       - id: detect
-        shell: bash
+        shell: pwsh
         run: |
-          set -euo pipefail
-          windows=true
-          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            windows=false
-            if git rev-parse "${GITHUB_SHA}^1" >/dev/null 2>&1; then
-              while IFS= read -r path; do
-                case "$path" in
-                  apps/pandora-mobile/*|docs/*)
-                    ;;
-                  *)
-                    windows=true
-                    break
-                    ;;
-                esac
-              done < <(git diff --name-only "${GITHUB_SHA}^1" "${GITHUB_SHA}")
-            else
-              windows=true
-            fi
-          fi
-          echo "windows=${windows}" >> "$GITHUB_OUTPUT"
+          $windows = $true
+          if ($env:GITHUB_EVENT_NAME -eq 'pull_request') {
+            $windows = $false
+            git rev-parse "$env:GITHUB_SHA^1" 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+              $paths = git diff --name-only "$env:GITHUB_SHA^1" "$env:GITHUB_SHA"
+              foreach ($path in $paths) {
+                if (($path -notlike 'apps/pandora-mobile/*') -and ($path -notlike 'docs/*')) {
+                  $windows = $true
+                  break
+                }
+              }
+            } else {
+              $windows = $true
+            }
+          }
+          "windows=$($windows.ToString().ToLowerInvariant())" | Add-Content -Path $env:GITHUB_OUTPUT
 
   worker-contract:
     needs: worker-impact
