@@ -53,12 +53,12 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   final GlobalKey<AskPandoraScreenState> _chatKey =
       GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
-  final Set<int> _visited = <int>{0};
+  final Set<int> _visited = <int>{9};
   List<PandoraIntelligenceThread> _threads =
       const <PandoraIntelligenceThread>[];
   bool _historyLoading = false;
   bool _historyLoaded = false;
-  int _index = 0;
+  int _index = 9;
 
   @override
   void initState() {
@@ -648,7 +648,7 @@ class _PandoraSidePanel extends StatelessWidget {
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(height: 1, color: PandoraV2Colors.line),
                   ),
-                  for (final index in const <int>[0, 8, 1, 2, 4, 5, 6, 7, 3])
+                  for (final index in const <int>[9, 0, 8, 1, 2, 4, 5, 6, 7, 3])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: ListTile(
