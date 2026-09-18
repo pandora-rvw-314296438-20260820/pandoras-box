@@ -351,6 +351,10 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260916222609_pandora_enterprise_github_read_broker_v1.sql',
     '20260917002859_pandora_coordinator_gate_internal_invoker_v1.sql',
     '20260917005239_pandora_rdp_github_sync_transport_v1.sql',
+    '20260918023000_pandora_direct_capability_runtime_v1.sql',
+    '20260918024500_pandora_direct_capability_provider_fallback_v1.sql',
+    '20260918031500_pandora_native_project_registry_surface_v1.sql',
+    '20260918033800_pandora_native_capability_registry_v1.sql',
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -635,6 +639,10 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260916222609_pandora_enterprise_github_read_broker_v1.sql',
     '20260917002859_pandora_coordinator_gate_internal_invoker_v1.sql',
     '20260917005239_pandora_rdp_github_sync_transport_v1.sql',
+    '20260918023000_pandora_direct_capability_runtime_v1.sql',
+    '20260918024500_pandora_direct_capability_provider_fallback_v1.sql',
+    '20260918031500_pandora_native_project_registry_surface_v1.sql',
+    '20260918033800_pandora_native_capability_registry_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -871,6 +879,10 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260916222609_pandora_enterprise_github_read_broker_v1.sql',
     '20260917002859_pandora_coordinator_gate_internal_invoker_v1.sql',
     '20260917005239_pandora_rdp_github_sync_transport_v1.sql',
+    '20260918023000_pandora_direct_capability_runtime_v1.sql',
+    '20260918024500_pandora_direct_capability_provider_fallback_v1.sql',
+    '20260918031500_pandora_native_project_registry_surface_v1.sql',
+    '20260918033800_pandora_native_capability_registry_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
