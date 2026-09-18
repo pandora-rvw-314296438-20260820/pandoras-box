@@ -1,0 +1,3 @@
+#!/bin/sh
+printf '%s\n' 'Native RDP git push is disabled for Pandora. Use the Vault-backed canonical checkpoint transport.' >&2
+exit 1

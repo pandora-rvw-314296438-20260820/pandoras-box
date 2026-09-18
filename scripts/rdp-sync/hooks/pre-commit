@@ -1,0 +1,23 @@
+#!/bin/sh
+set -u
+branch="$(git branch --show-current 2>/dev/null || true)"
+case "$branch" in
+  chatgpt/*|recovery/*|repair/*|fix/*|enterprise-ui*) ;;
+  main)
+    printf '%s\n' 'Direct commits on main are forbidden on the Pandora RDP. Create a governed worker branch.' >&2
+    exit 1
+    ;;
+  *)
+    printf '%s\n' "Commit blocked on unmanaged RDP branch: $branch" >&2
+    printf '%s\n' 'Move the work to chatgpt/*, fix/*, repair/*, recovery/*, or enterprise-ui* so post-commit canonical publication is mandatory.' >&2
+    exit 1
+    ;;
+esac
+gitdir="$(git rev-parse --git-dir 2>/dev/null || true)"
+marker="$gitdir/PANDORA_SYNC_FAILED"
+if [ -f "$marker" ]; then
+  cat "$marker" >&2
+  printf '%s\n' 'Repair/publish the previous checkpoint before creating another commit.' >&2
+  exit 1
+fi
+exit 0
