@@ -191,8 +191,7 @@ class _EnterpriseLiveScreenState extends State<EnterpriseLiveScreen> {
               : constraints.maxWidth >= 480 && scale < 1.4
                   ? 2
                   : 1;
-          final width =
-              (constraints.maxWidth - ((columns - 1) * 10)) / columns;
+          final width = (constraints.maxWidth - ((columns - 1) * 10)) / columns;
           return Wrap(
             spacing: 10,
             runSpacing: 10,
