@@ -279,7 +279,7 @@ jobs:
             .pandora-mobile-build/pandora-mobile-artifact-manifest.txt
           if-no-files-found: error
           include-hidden-files: true
-          retention-days: 14
+          retention-days: 1
 
       - name: Upload Android validation candidate
         id: upload_android_validation
@@ -292,7 +292,8 @@ jobs:
             .pandora-mobile-build/android-package-evidence
           if-no-files-found: error
           include-hidden-files: true
-          retention-days: 14
+          # Only push-to-main artifacts can become canonical release authority.
+          retention-days: ${{ github.event_name == 'push' && 14 || 1 }}
 
       - name: Publish the Android provider locator
         id: android_provider_locator

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../local/pandora_local_store.dart';
+
 class ProjectCreationAttempt {
   const ProjectCreationAttempt({
     required this.intent,
@@ -124,6 +126,88 @@ class SharedPreferencesProjectCreationAttemptStore
       }
     } on Object {
       await prefs.remove(_key);
+    }
+  }
+}
+
+class PandoraLocalProjectCreationAttemptStore
+    implements ProjectCreationAttemptStore {
+  PandoraLocalProjectCreationAttemptStore(
+    this._store, {
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
+
+  static const _cacheKey = 'project_creation_pending';
+
+  final PandoraLocalStore _store;
+  final DateTime Function() _clock;
+
+  Future<ProjectCreationAttempt?> _read() async {
+    final record = await _store.getCache(
+      PandoraLocalNamespace.recentConversation,
+      _cacheKey,
+    );
+    if (record == null) return null;
+    try {
+      final raw = jsonDecode(record.payloadJson);
+      if (raw is! Map) return null;
+      return ProjectCreationAttempt.fromJson(
+        raw.map((key, value) => MapEntry(key.toString(), value)),
+      );
+    } on Object {
+      await _store.deleteCache(
+        PandoraLocalNamespace.recentConversation,
+        _cacheKey,
+      );
+      return null;
+    }
+  }
+
+  @override
+  Future<String?> idempotencyKeyFor(String intent) async {
+    final normalized = intent.trim();
+    if (normalized.isEmpty) return null;
+    final attempt = await _read();
+    return attempt?.intent == normalized ? attempt!.idempotencyKey : null;
+  }
+
+  @override
+  Future<void> save({
+    required String intent,
+    required String idempotencyKey,
+  }) async {
+    final normalized = intent.trim();
+    final key = idempotencyKey.trim();
+    if (normalized.isEmpty || key.isEmpty) {
+      throw ArgumentError('Intent and idempotency key are required.');
+    }
+    final now = _clock().toUtc();
+    final attempt = ProjectCreationAttempt(
+      intent: normalized,
+      idempotencyKey: key,
+      createdAt: now,
+    );
+    await _store.putCache(
+      namespace: PandoraLocalNamespace.recentConversation,
+      key: _cacheKey,
+      payload: attempt.toJson(),
+      expiresAt: now.add(PandoraLocalDataPolicy.maxRetention),
+    );
+  }
+
+  @override
+  Future<void> clear({
+    required String intent,
+    required String idempotencyKey,
+  }) async {
+    final attempt = await _read();
+    if (attempt == null) return;
+    if (attempt.intent == intent.trim() &&
+        attempt.idempotencyKey == idempotencyKey.trim()) {
+      await _store.deleteCache(
+        PandoraLocalNamespace.recentConversation,
+        _cacheKey,
+      );
     }
   }
 }

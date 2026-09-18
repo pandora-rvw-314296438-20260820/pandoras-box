@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "projectRef": "jcyqixttuebxqqfkjonq",
+  "repository": "pandora-rvw-314296438-20260820/pandoras-box",
+  "mode": "remote_history_receipts_without_replaying_applied_surfaces",
+  "reason": "M2-008 canonical Activity History was deployed from exact merged source through the governed Supabase migration transport, which assigned provider version 20260917051010; this receipt preserves that provider identity without replaying the already-live executable SQL.",
+  "observedMainSha": "6a621c30be9d93cecc85c05278a56a78cc18cd54",
+  "entries": [
+    {
+      "version": "20260917051010",
+      "name": "pandora_activity_history_v1",
+      "replayMode": "history_receipt_noop",
+      "originalSqlSha256": "3dfa0e08319212620398324bd41e676bad0d8a670277a1ae2c7d70c3d10aadb5",
+      "originalStatementCount": 1,
+      "providerSqlBytes": 10141,
+      "canonicalPath": "supabase/migrations/20260915104500_pandora_activity_history_v1.sql",
+      "canonicalGitBlob": "d7472c770ea93b6c941ff38e9bb912a57cbea60d",
+      "canonicalSqlSha256": "3dfa0e08319212620398324bd41e676bad0d8a670277a1ae2c7d70c3d10aadb5",
+      "canonicalSqlBytes": 10141,
+      "reconciliation": "governed_apply_provider_timestamp_alias_exact_canonical_body"
+    }
+  ]
+}

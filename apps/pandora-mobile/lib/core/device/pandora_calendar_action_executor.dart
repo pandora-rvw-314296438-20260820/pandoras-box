@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+import '../local/pandora_local_state_cache.dart';
+
 import 'pandora_calendar_command.dart';
 import 'pandora_calendar_runtime.dart';
 
@@ -39,13 +41,16 @@ class PandoraCalendarActionExecutor {
   PandoraCalendarActionExecutor({
     PandoraCalendarRuntime? runtime,
     PandoraCalendarActivityReporter? reporter,
+    PandoraLocalStateCache? localCache,
     DateTime Function()? clock,
   })  : _runtime = runtime ?? PandoraCalendarRuntime(),
         _reporter = reporter,
+        _localCache = localCache,
         _clock = clock ?? DateTime.now;
 
   final PandoraCalendarRuntime _runtime;
   final PandoraCalendarActivityReporter? _reporter;
+  final PandoraLocalStateCache? _localCache;
   final DateTime Function() _clock;
 
   Future<PandoraCalendarExecutionResult> execute(
@@ -97,7 +102,7 @@ class PandoraCalendarActionExecutor {
   Future<PandoraCalendarExecutionResult> _query(
     PandoraCalendarCommand command,
   ) async {
-    final permission = await _runtime.getPermissionState();
+    final permission = await _permissionState();
     if (permission['readGranted'] != true) {
       return _finish(
         'calendar.events',
@@ -132,7 +137,7 @@ class PandoraCalendarActionExecutor {
     PandoraCalendarCommand command,
     String operationId,
   ) async {
-    final permission = await _runtime.getPermissionState();
+    final permission = await _permissionState();
     final gap = _writePermissionGap(permission);
     if (gap != null) return gap;
     final selection = await _selectWritableCalendar();
@@ -153,7 +158,7 @@ class PandoraCalendarActionExecutor {
     PandoraCalendarCommand command,
     String operationId,
   ) async {
-    final permission = await _runtime.getPermissionState();
+    final permission = await _permissionState();
     final gap = _writePermissionGap(permission);
     if (gap != null) return gap;
     final match = await _findUnique(command);
@@ -184,7 +189,7 @@ class PandoraCalendarActionExecutor {
     PandoraCalendarCommand command,
     String operationId,
   ) async {
-    final permission = await _runtime.getPermissionState();
+    final permission = await _permissionState();
     final gap = _writePermissionGap(permission);
     if (gap != null) return gap;
     final match = await _findUnique(command);
@@ -209,7 +214,7 @@ class PandoraCalendarActionExecutor {
     PandoraCalendarCommand command,
     String operationId,
   ) async {
-    final permission = await _runtime.getPermissionState();
+    final permission = await _permissionState();
     if (permission['notificationGranted'] != true) {
       return _finish(
         'reminder.local',
@@ -255,12 +260,41 @@ class PandoraCalendarActionExecutor {
         'The reminder schedule could not be verified from Android state. No success was reported.',
       );
     }
+    final cache = _localCache;
+    if (cache != null) {
+      try {
+        await cache.cacheLocalReminder(
+          operationId: operationId,
+          title: command.title!,
+          triggerAt: command.start!,
+          state: 'scheduled',
+        );
+      } catch (_) {
+        // Android reminder readback remains authoritative if caching fails.
+      }
+    }
     return _finish(
       'reminder.local',
       'result',
       'Reminder scheduled on this device for ${_formatDateTime(command.start!)}. It will continue locally without cloud access.',
       observedAt: _fromEpoch(readback['updatedAtEpochMs']),
     );
+  }
+
+  Future<Map<String, Object?>> _permissionState() async {
+    final state = await _runtime.getPermissionState();
+    final cache = _localCache;
+    if (cache != null) {
+      try {
+        await cache.cachePermissionState(
+          capability: 'calendar',
+          state: state,
+        );
+      } catch (_) {
+        // Local cache is never authority for permission truth.
+      }
+    }
+    return state;
   }
 
   PandoraCalendarExecutionResult? _writePermissionGap(

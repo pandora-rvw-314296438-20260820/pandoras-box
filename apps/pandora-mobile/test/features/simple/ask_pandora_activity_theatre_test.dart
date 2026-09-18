@@ -29,6 +29,7 @@ class _FakeIntelligence extends PandoraIntelligenceApi {
   final Completer<PandoraIntelligenceTurn> turn =
       Completer<PandoraIntelligenceTurn>();
   PandoraActivityControlType? lastControlType;
+  final List<String> requestIds = <String>[];
 
   @override
   Future<PandoraIntelligenceExecution> startChatExecution({
@@ -39,12 +40,14 @@ class _FakeIntelligence extends PandoraIntelligenceApi {
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
-  }) async =>
-      PandoraIntelligenceExecution(
-        jobId: 'job-1',
-        events: events.stream,
-        turn: turn.future,
-      );
+  }) async {
+    requestIds.add(requestId);
+    return PandoraIntelligenceExecution(
+      jobId: 'job-1',
+      events: events.stream,
+      turn: turn.future,
+    );
+  }
 
   @override
   Future<void> controlActivityJob({
@@ -89,7 +92,122 @@ Map<String, dynamic> _activityEvent({
 }
 
 void main() {
-  testWidgets('Ask Pandora renders only canonical chronological Activity',
+  testWidgets(
+    'Ask Pandora renders one live Activity stage and clears it for the reply',
+    (tester) async {
+      await setTestSurface(tester, logicalSize: const Size(390, 844));
+      final intelligence = _FakeIntelligence();
+      addTearDown(intelligence.close);
+
+      await tester.pumpWidget(
+        testApp(
+          themeMode: ThemeMode.dark,
+          child: PandoraDependencies(
+            auth: const FakeAuth(),
+            repository: FakeRepository(),
+            intelligence: intelligence,
+            diagnostics: DiagnosticsStore(),
+            child: const AskPandoraScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('ask' '-pandora-objective')),
+        'Check the current runtime',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('ask' '-pandora-submit')),
+      );
+      await tester.pump();
+      expect(find.text('Thinking through the request…'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('ask' '-pandora-activity-theatre')),
+        findsNothing,
+      );
+
+      intelligence.events.add(
+        _activityEvent(
+          sequence: 1,
+          state: 'understanding',
+          message: 'Understanding the runtime request.',
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey<String>('ask' '-pandora-activity-theatre')),
+        findsOneWidget,
+      );
+      expect(find.text('Understanding the runtime request.'), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(const ValueKey<String>('ask' '-pandora-objective')),
+        'Only use verified evidence',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('ask' '-pandora-submit')),
+      );
+      await tester.pump();
+      expect(
+        intelligence.lastControlType,
+        PandoraActivityControlType.constraint,
+      );
+      expect(find.text('Update sent to the active job.'), findsNothing);
+      expect(find.text('Cancellation requested.'), findsNothing);
+      expect(find.text('Understanding the runtime request.'), findsOneWidget);
+
+      intelligence.events.add(
+        _activityEvent(
+          sequence: 2,
+          state: 'verifying',
+          message: 'Verifying runtime evidence.',
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Understanding the runtime request.'), findsNothing);
+      expect(find.text('Verifying runtime evidence.'), findsOneWidget);
+
+      intelligence.events.add(
+        _activityEvent(
+          sequence: 3,
+          state: 'result',
+          message: 'Runtime evidence verified.',
+          evidence: const <Map<String, dynamic>>[
+            <String, dynamic>{
+              'type': 'verification_receipt',
+              'relation': 'verification',
+              'ref': 'verification:runtime-1',
+            },
+          ],
+          outcome: const <String, dynamic>{
+            'summary': 'Runtime evidence verified.',
+            'physicalDevice': false,
+          },
+        ),
+      );
+      intelligence.turn.complete(
+        const PandoraIntelligenceTurn(
+          threadId: 'thread-1',
+          reply: 'The runtime check is complete.',
+          intent: 'runtime_check',
+          confidence: 1,
+          needsClarification: false,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('ask' '-pandora-activity-theatre')),
+        findsNothing,
+      );
+      expect(find.text('Activity · Done'), findsNothing);
+      expect(find.text('The runtime check is complete.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('completed turn uses a fresh request identity next time',
       (tester) async {
     await setTestSurface(tester, logicalSize: const Size(390, 844));
     final intelligence = _FakeIntelligence();
@@ -109,17 +227,89 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('ask-pandora-objective')),
-      'Check the current runtime',
-    );
-    await tester.tap(
-      find.byKey(const ValueKey<String>('ask-pandora-submit')),
+    final input =
+        find.byKey(const ValueKey<String>('ask' '-pandora-objective'));
+    final submit = find.byKey(const ValueKey<String>('ask' '-pandora-submit'));
+    await tester.enterText(input, 'Hi');
+    await tester.tap(submit);
+    await tester.pump();
+    expect(intelligence.requestIds, hasLength(1));
+    final firstRequestId = intelligence.requestIds.single;
+
+    intelligence.events.add(
+      _activityEvent(
+        sequence: 1,
+        state: 'result',
+        message: 'Greeting answered.',
+        evidence: const <Map<String, dynamic>>[
+          <String, dynamic>{
+            'type': 'verification_receipt',
+            'relation': 'verification',
+            'ref': 'verification:fresh-request-1',
+          },
+        ],
+        outcome: const <String, dynamic>{
+          'summary': 'Greeting answered.',
+          'physicalDevice': false,
+        },
+      ),
     );
     await tester.pump();
-    expect(find.text('Waiting for verified activity…'), findsOneWidget);
+
+    intelligence.turn.complete(
+      const PandoraIntelligenceTurn(
+        threadId: 'thread-fresh-request',
+        reply: 'Hi. What would you like to do?',
+        intent: 'conversation',
+        confidence: 1,
+        needsClarification: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(input, 'Hello again');
+    await tester.tap(submit);
+    await tester.pumpAndSettle();
+
+    expect(intelligence.requestIds, hasLength(2));
+    expect(intelligence.requestIds.last, isNot(firstRequestId));
     expect(
-      find.byKey(const ValueKey<String>('ask-pandora-activity-theatre')),
+      find.byKey(const ValueKey<String>('ask' '-pandora-activity-theatre')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('trivial greeting never shows Activity Theatre', (tester) async {
+    await setTestSurface(tester, logicalSize: const Size(390, 844));
+    final intelligence = _FakeIntelligence();
+    addTearDown(intelligence.close);
+
+    await tester.pumpWidget(
+      testApp(
+        themeMode: ThemeMode.dark,
+        child: PandoraDependencies(
+          auth: const FakeAuth(),
+          repository: FakeRepository(),
+          intelligence: intelligence,
+          diagnostics: DiagnosticsStore(),
+          child: const AskPandoraScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('ask' '-pandora-objective')),
+      'Hi',
+    );
+    await tester
+        .tap(find.byKey(const ValueKey<String>('ask' '-pandora-submit')));
+    await tester.pump();
+
+    expect(find.text('Thinking through the request…'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('ask' '-pandora-activity-theatre')),
       findsNothing,
     );
 
@@ -127,83 +317,50 @@ void main() {
       _activityEvent(
         sequence: 1,
         state: 'understanding',
-        message: 'Understanding the runtime request.',
+        message: 'Request accepted by Pandora runtime.',
       ),
     );
     await tester.pump();
+    expect(find.text('Request accepted by Pandora runtime.'), findsNothing);
     expect(
-      find.byKey(const ValueKey<String>('ask-pandora-activity-theatre')),
-      findsOneWidget,
+      find.byKey(const ValueKey<String>('ask' '-pandora-activity-theatre')),
+      findsNothing,
     );
-    expect(find.text('Understanding'), findsWidgets);
-    expect(find.text('Understanding the runtime request.'), findsOneWidget);
-
-    await tester.enterText(
-      find.byKey(const ValueKey<String>('ask-pandora-objective')),
-      'Only use verified evidence',
-    );
-    await tester.tap(
-      find.byKey(const ValueKey<String>('ask-pandora-submit')),
-    );
-    await tester.pump();
-    expect(intelligence.lastControlType, PandoraActivityControlType.constraint);
-    expect(find.text('Update sent to the active job.'), findsNothing);
-    expect(find.text('Cancellation requested.'), findsNothing);
-    expect(find.text('Understanding the runtime request.'), findsOneWidget);
 
     intelligence.events.add(
       _activityEvent(
         sequence: 2,
-        state: 'verifying',
-        message: 'Verifying runtime evidence.',
-      ),
-    );
-    await tester.pump();
-    expect(find.text('Understanding the runtime request.'), findsOneWidget);
-    expect(find.text('Verifying runtime evidence.'), findsOneWidget);
-
-    intelligence.events.add(
-      _activityEvent(
-        sequence: 3,
         state: 'result',
-        message: 'Runtime evidence verified.',
+        message: 'Greeting answered.',
         evidence: const <Map<String, dynamic>>[
           <String, dynamic>{
             'type': 'verification_receipt',
             'relation': 'verification',
-            'ref': 'verification:runtime-1',
+            'ref': 'verification:greeting-1',
           },
         ],
         outcome: const <String, dynamic>{
-          'summary': 'Runtime evidence verified.',
+          'summary': 'Greeting answered.',
           'physicalDevice': false,
         },
       ),
     );
     intelligence.turn.complete(
       const PandoraIntelligenceTurn(
-        threadId: 'thread-1',
-        reply: 'The runtime check is complete.',
-        intent: 'runtime_check',
+        threadId: 'thread-greeting',
+        reply: 'Hi. What would you like to do?',
+        intent: 'conversation',
         confidence: 1,
         needsClarification: false,
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Activity · Done'), findsOneWidget);
-    expect(find.text('The runtime check is complete.'), findsOneWidget);
-    final activityY = tester
-        .getTopLeft(
-          find.byKey(const ValueKey<String>('ask-pandora-activity-theatre')),
-        )
-        .dy;
-    final replyY = tester
-        .getTopLeft(
-          find.text('The runtime check is complete.'),
-        )
-        .dy;
-    expect(activityY, lessThan(replyY));
+    expect(find.text('Hi. What would you like to do?'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('ask' '-pandora-activity-theatre')),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
 }
