@@ -160,6 +160,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   final GlobalKey<AskPandoraScreenState> _chatKey =
       GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
+  final Map<int, Map<String, String>?> _enterpriseSelections =
+      <int, Map<String, String>?>{};
   final Set<int> _visited = <int>{0};
   List<PandoraIntelligenceThread> _threads =
       const <PandoraIntelligenceThread>[];
@@ -496,11 +498,16 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         }
         if (index >= 8 && index < _destinations.length) {
           return EnterpriseSectionScreen(
+            surface: _enterpriseContext(index).surface,
             title: _destinations[index].label,
             description: _enterpriseDescriptions[index] ??
                 'Enterprise configuration and operational controls.',
             icon: _destinations[index].selectedIcon,
             items: _enterpriseItems[index] ?? const <String>[],
+            onSelectionChanged: (selection) {
+              if (!mounted) return;
+              setState(() => _enterpriseSelections[index] = selection);
+            },
           );
         }
         return switch (index) {
@@ -557,6 +564,9 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       route:
           '/enterprise/${_destinations[index].label.toLowerCase().replaceAll(' ', '-')}',
       capabilities: capabilities,
+      selectedObject: _enterpriseSelections[index] == null
+          ? null
+          : Map<String, Object?>.from(_enterpriseSelections[index]!),
       identityScope:
           index == 9 ? 'pandora_organization' : 'enterprise_workspace',
     );
@@ -649,7 +659,13 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
             final workspace = _index >= 8
                 ? EnterprisePageContextScope(
                     pageContext: _enterpriseContext(_index),
-                    child: EnterpriseCommandStack(child: body),
+                    child: EnterpriseCommandStack(
+                      onVerifiedResult: (_) {
+                        if (!mounted) return;
+                        setState(() => _roots.remove(_index));
+                      },
+                      child: body,
+                    ),
                   )
                 : body;
 
