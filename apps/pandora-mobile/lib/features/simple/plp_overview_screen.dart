@@ -33,7 +33,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
   @override
   Widget build(BuildContext context) => PandoraPage(
         title: 'Overview',
-        subtitle: 'PLP Boracay command center',
+        subtitle: 'Property overview',
         onRefresh: _refresh,
         child: FutureBuilder<PlpOverviewData>(
           future: _data,
@@ -102,16 +102,10 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
           const SizedBox(height: 18),
         ],
         _attention(data, connected),
-        const SizedBox(height: 18),
-        if (connected) ...[
-          _insight(data),
+        if (data.activity.isNotEmpty) ...[
           const SizedBox(height: 18),
+          _handled(data),
         ],
-        _quickActions(),
-        const SizedBox(height: 18),
-        _handled(data, connected),
-        const SizedBox(height: 18),
-        _dataCoverage(data),
         const SizedBox(height: 12),
         Text(
           connected
@@ -128,13 +122,15 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     final overview = data.overview!;
     final asOf = _date(overview['as_of']);
     final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final narrow = MediaQuery.sizeOf(context).width < 600;
+    final baseHeight = narrow ? 190.0 : 224.0;
     final heroHeight = textScale >= 1.8
-        ? 390.0
+        ? baseHeight + 84
         : textScale >= 1.4
-            ? 340.0
-            : 292.0;
+            ? baseHeight + 46
+            : baseHeight;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(22),
       child: SizedBox(
         height: heroHeight,
         child: Stack(
@@ -168,12 +164,12 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 58,
-                        height: 70,
+                        width: 48,
+                        height: 58,
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           color: const Color(0x9E080808),
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(15),
                           border: Border.all(
                             color: const Color(0x66E6B784),
                           ),
@@ -202,7 +198,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
                     style: const TextStyle(
                       color: Colors.white,
                       fontFamily: 'serif',
-                      fontSize: 32,
+                      fontSize: 29,
                       fontWeight: FontWeight.w600,
                       height: 1.05,
                       letterSpacing: -.45,
@@ -210,12 +206,12 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'P O W E R E D   B Y   P A N D O R A',
+                    'PRIVATE OPERATING SYSTEM',
                     style: TextStyle(
-                      color: Color(0xFFE6B784),
+                      color: Color(0xFFD0A16F),
                       fontSize: 9.5,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
+                      letterSpacing: 1.15,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -277,159 +273,187 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
           'Departures', _count(o['departures_today']), Icons.logout_rounded),
       _Metric('Rooms ready', _count(o['rooms_ready']), Icons.task_alt_rounded),
     ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle(Icons.insights_rounded, 'Today at a glance'),
+        _sectionTitle(Icons.insights_rounded, 'Today'),
         const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final textScale = MediaQuery.textScalerOf(context).scale(1);
-            final columns =
-                constraints.maxWidth >= 520 && textScale < 1.4 ? 2 : 1;
-            final width = columns == 1
-                ? constraints.maxWidth
-                : (constraints.maxWidth - 10) / 2;
-            return Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (final metric in primary)
-                  SizedBox(
-                    width: width,
-                    child: _metricCard(metric, primary: true),
-                  ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final textScale = MediaQuery.textScalerOf(context).scale(1);
-            final columns = textScale >= 1.4
-                ? 1
-                : constraints.maxWidth >= 720
-                    ? 4
-                    : constraints.maxWidth >= 430
-                        ? 2
-                        : 1;
-            final width =
-                (constraints.maxWidth - (columns - 1) * 10) / columns;
-            return Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (final metric in secondary)
-                  SizedBox(width: width, child: _metricCard(metric)),
-              ],
-            );
-          },
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+          decoration: BoxDecoration(
+            color: const Color(0xE611100F),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0x3DD0A16F)),
+          ),
+          child: Column(
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final textScale = MediaQuery.textScalerOf(context).scale(1);
+                  final split =
+                      constraints.maxWidth >= 520 && textScale < 1.4;
+                  final width = split
+                      ? (constraints.maxWidth - 1) / 2
+                      : constraints.maxWidth;
+                  return Wrap(
+                    children: [
+                      for (var i = 0; i < primary.length; i++) ...[
+                        SizedBox(
+                          width: width,
+                          child: _ledgerMetric(primary[i], primary: true),
+                        ),
+                        if (split && i == 0)
+                          Container(
+                            width: 1,
+                            height: 78,
+                            color: const Color(0x2ED0A16F),
+                          ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Divider(height: 1, color: Color(0x2ED0A16F)),
+              ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final textScale = MediaQuery.textScalerOf(context).scale(1);
+                  final columns = textScale >= 1.4
+                      ? 1
+                      : constraints.maxWidth >= 700
+                          ? 4
+                          : constraints.maxWidth >= 430
+                              ? 2
+                              : 1;
+                  final width = constraints.maxWidth / columns;
+                  return Wrap(
+                    children: [
+                      for (final metric in secondary)
+                        SizedBox(
+                          width: width,
+                          child: _ledgerMetric(metric),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _metricCard(_Metric metric, {bool primary = false}) => Container(
-        constraints: BoxConstraints(minHeight: primary ? 116 : 96),
-        padding: EdgeInsets.all(primary ? 16 : 14),
-        decoration: BoxDecoration(
-          color: const Color(0xD90A0A0A),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0x3DE6B784)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x24000000),
-              blurRadius: 18,
-              offset: Offset(0, 8),
-            ),
-          ],
+  Widget _ledgerMetric(_Metric metric, {bool primary = false}) => Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: primary ? 12 : 8,
+          vertical: primary ? 4 : 7,
         ),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(metric.icon,
-                size: primary ? 21 : 18, color: const Color(0xFFE6B784)),
-            SizedBox(height: primary ? 15 : 11),
-            Text(metric.value,
-                softWrap: true,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: primary ? 24 : 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -.35,
-                )),
-            const SizedBox(height: 3),
-            Text(metric.label,
-                softWrap: true,
-                style: const TextStyle(
-                  color: Color(0xFFAAA6A0),
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
-                )),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                metric.icon,
+                size: primary ? 20 : 17,
+                color: const Color(0xFFD0A16F),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    metric.value,
+                    softWrap: true,
+                    style: TextStyle(
+                      color: const Color(0xFFF4EFE6),
+                      fontSize: primary ? 24 : 17,
+                      fontWeight: primary ? FontWeight.w700 : FontWeight.w600,
+                      letterSpacing: primary ? -.45 : -.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    metric.label,
+                    softWrap: true,
+                    style: const TextStyle(
+                      color: Color(0xFFAAA298),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       );
 
-  Widget _insight(PlpOverviewData data) {
-    final o = data.overview!;
-    final arrivals = _int(o['arrivals_today']);
-    final notReady = _int(o['rooms_not_ready']);
-    final roomsAvailable = _int(o['rooms_available']);
-    String message;
-    if (arrivals > 0 && notReady > 0) {
-      message =
-          '$notReady rooms are not ready with $arrivals arrivals expected today.';
-    } else if (arrivals > 0 && roomsAvailable == 0) {
-      message =
-          '$arrivals arrivals are expected today and no rooms are currently marked available.';
-    } else {
-      message =
-          'Pandora is monitoring today’s verified occupancy, sales, arrivals and room readiness.';
+  Widget _attention(PlpOverviewData data, bool connected) {
+    if (data.attention.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+        decoration: BoxDecoration(
+          color: const Color(0xB30A0A0A),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0x3DE6B784)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 1),
+              child: Icon(
+                Icons.check_circle_outline_rounded,
+                size: 19,
+                color: PandoraV2Colors.success,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Nothing needs your attention',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    connected
+                        ? 'No verified business issue currently requires a decision.'
+                        : 'Business alerts will appear after live operating data connects.',
+                    style: const TextStyle(
+                      color: PandoraV2Colors.muted,
+                      fontSize: 12.5,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
     }
+
     return _panel(
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.auto_awesome_rounded,
-              size: 20, color: Color(0xFFE6B784)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Pandora brief',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 4),
-                Text(message,
-                    style: const TextStyle(
-                        color: PandoraV2Colors.muted, height: 1.4)),
-              ],
-            ),
-          ),
+          _sectionTitle(Icons.priority_high_rounded, 'Needs your attention'),
+          const SizedBox(height: 10),
+          for (final item in data.attention) _attentionRow(item),
         ],
       ),
     );
   }
-
-  Widget _attention(PlpOverviewData data, bool connected) => _panel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _sectionTitle(Icons.priority_high_rounded, 'Needs your attention'),
-            const SizedBox(height: 10),
-            if (data.attention.isEmpty)
-              Text(
-                connected
-                    ? 'Nothing from connected business feeds needs your attention right now.'
-                    : 'Business alerts will appear here once live operating data is connected.',
-                style: const TextStyle(color: PandoraV2Colors.muted),
-              )
-            else
-              for (final item in data.attention) _attentionRow(item),
-          ],
-        ),
-      );
 
   Widget _attentionRow(Map<String, dynamic> item) {
     final priority = '${item['priority'] ?? 'medium'}';
@@ -472,7 +496,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 6),
                           minimumSize: const Size(48, 48),
                         ),
-                        child: const Text('Ask Pandora'),
+                        child: const Text('Review'),
                       ),
                   ],
                 ),
@@ -484,21 +508,13 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     );
   }
 
-  Widget _handled(PlpOverviewData data, bool connected) => _panel(
+  Widget _handled(PlpOverviewData data) => _panel(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _sectionTitle(Icons.auto_awesome_rounded, 'Pandora handled'),
             const SizedBox(height: 10),
-            if (data.activity.isEmpty)
-              Text(
-                connected
-                    ? 'No completed business activity has been recorded yet.'
-                    : 'Completed business actions will appear here once live operating data is connected.',
-                style: const TextStyle(color: PandoraV2Colors.muted),
-              )
-            else
-              for (final item in data.activity) _activityRow(item),
+            for (final item in data.activity) _activityRow(item),
           ],
         ),
       );
@@ -539,104 +555,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     );
   }
 
-  Widget _dataCoverage(PlpOverviewData data) => _panel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _sectionTitle(Icons.hub_outlined, 'Business data coverage'),
-            const SizedBox(height: 10),
-            if (data.sources.isEmpty)
-              const Text('No business sources are configured yet.',
-                  style: TextStyle(color: PandoraV2Colors.muted))
-            else
-              for (final source in data.sources)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Icon(_sourceIcon('${source['source_type']}'),
-                          size: 17, color: _sourceColor('${source['status']}')),
-                      const SizedBox(width: 9),
-                      Expanded(
-                          child: Text(
-                              '${source['display_name'] ?? 'Business feed'}')),
-                      Text(_sourceLabel('${source['status']}'),
-                          style: TextStyle(
-                              color: _sourceColor('${source['status']}'),
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-          ],
-        ),
-      );
 
-  Widget _quickActions() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionTitle(Icons.bolt_rounded, 'Quick actions'),
-          const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final textScale = MediaQuery.textScalerOf(context).scale(1);
-              final twoColumns =
-                  constraints.maxWidth >= 430 && textScale < 1.3;
-              final actionWidth = twoColumns
-                  ? (constraints.maxWidth - 10) / 2
-                  : constraints.maxWidth;
-              return Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  SizedBox(
-                    width: actionWidth,
-                    child: _actionButton(
-                      'Ask Pandora',
-                      Icons.chat_bubble_outline_rounded,
-                      'How is PLP Boracay doing today? Use only verified connected business data and clearly identify anything unavailable.',
-                    ),
-                  ),
-                  SizedBox(
-                    width: actionWidth,
-                    child: _actionButton(
-                      'Today’s report',
-                      Icons.summarize_outlined,
-                      'Prepare today’s PLP Boracay management report using only verified connected business data.',
-                    ),
-                  ),
-                  SizedBox(
-                    width: constraints.maxWidth,
-                    child: _actionButton(
-                      'Create task',
-                      Icons.add_task_rounded,
-                      'Create a PLP Boracay management task. Ask me what needs to be done if my next message does not make it clear.',
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      );
-
-  Widget _actionButton(String label, IconData icon, String prompt) =>
-      OutlinedButton.icon(
-        onPressed: () => _openAsk(prompt),
-        icon: Icon(icon, size: 18, color: const Color(0xFFE6B784)),
-        label: Text(label, textAlign: TextAlign.center),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: PandoraV2Colors.ink,
-          backgroundColor: PandoraV2Colors.soft,
-          side: const BorderSide(color: Color(0x80E6B784)),
-          minimumSize: const Size.fromHeight(50),
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
-          textStyle:
-              const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
-        ),
-      );
 
   void _openAsk(String prompt) {
     EnterpriseCommandDraftBus.shared.offer(prompt);
@@ -657,14 +576,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
         decoration: BoxDecoration(
           color: const Color(0xD90A0A0A),
           borderRadius: BorderRadius.circular(21),
-          border: Border.all(color: const Color(0x66E6B784)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x22000000),
-              blurRadius: 20,
-              offset: Offset(0, 8),
-            ),
-          ],
+          border: Border.all(color: const Color(0x2ED0A16F)),
         ),
         child: child,
       );
@@ -761,28 +673,8 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
         ),
       );
 
-  static IconData _sourceIcon(String type) => switch (type) {
-        'reservations' => Icons.calendar_month_outlined,
-        'payments' => Icons.payments_outlined,
-        'housekeeping' => Icons.cleaning_services_outlined,
-        'guest_requests' => Icons.support_agent_outlined,
-        _ => Icons.hub_outlined,
-      };
 
-  static Color _sourceColor(String status) => switch (status) {
-        'healthy' => PandoraV2Colors.success,
-        'stale' => PandoraV2Colors.warning,
-        'error' => PandoraV2Colors.danger,
-        _ => PandoraV2Colors.muted,
-      };
 
-  static String _sourceLabel(String status) => switch (status) {
-        'healthy' => 'Live',
-        'connecting' => 'Connecting',
-        'stale' => 'Needs refresh',
-        'error' => 'Needs attention',
-        _ => 'Not connected',
-      };
   static String _greeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good morning, Doctora';
@@ -811,7 +703,6 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
   static String _count(Object? value) =>
       value is num ? '${value.round()}' : 'Unavailable';
 
-  static int _int(Object? value) => value is num ? value.round() : 0;
 
   static DateTime? _date(Object? value) {
     if (value is DateTime) return value;

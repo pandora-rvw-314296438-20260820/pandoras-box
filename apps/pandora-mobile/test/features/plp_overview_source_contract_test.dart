@@ -27,21 +27,27 @@ void main() {
     expect(source, contains("from('enterprise_business_activity')"));
   });
 
-  test('owner copy and quick actions are customer facing', () {
-    expect(source, contains('PLP Boracay command center'));
-    expect(source, contains('Today at a glance'));
+  test('owner overview keeps only business decision surfaces', () {
+    expect(source, contains('Property overview'));
+    expect(source, contains("_sectionTitle(Icons.insights_rounded, 'Today')"));
     expect(source, contains('Needs your attention'));
     expect(source, contains('Pandora handled'));
-    expect(source, contains('Ask Pandora'));
-    expect(source, contains('Today’s report'));
-    expect(source, contains('Create task'));
+    expect(source, isNot(contains('Pandora brief')));
+    expect(source, isNot(contains('Quick actions')));
+    expect(source, isNot(contains('Business data coverage')));
+    expect(source, isNot(contains('Today’s report')));
+    expect(source, isNot(contains('Create task')));
     expect(source, isNot(contains('System, account and environment summary')));
     expect(source, isNot(contains('system context')));
+    expect(source, contains('PRIVATE OPERATING SYSTEM'));
+    expect(source, contains('final baseHeight = narrow ? 190.0 : 224.0;'));
+    expect(source, contains('border: Border.all(color: const Color(0x2ED0A16F))'));
   });
 
-  test('quick actions force readable foreground and background colors', () {
-    expect(source, contains('foregroundColor: PandoraV2Colors.ink'));
-    expect(source, contains('backgroundColor: PandoraV2Colors.soft'));
+  test('owner overview relies on the persistent page command bar', () {
+    expect(source, isNot(contains('Widget _quickActions()')));
+    expect(source, isNot(contains('Widget _actionButton(')));
+    expect(source, contains('Command prepared in the Pandora bar below.'));
   });
 
   test('overview preserves meaning at large text and minimum action targets', () {
@@ -54,8 +60,10 @@ void main() {
   test('empty operational state does not fabricate hotel metrics', () {
     expect(
         source, contains('Awaiting the first verified live business update'));
-    expect(source, contains('Business alerts will appear here'));
-    expect(source, contains('Completed business actions will appear here'));
+    expect(source,
+        contains('Business alerts will appear after live operating data connects.'));
+    expect(source, contains('Nothing needs your attention'));
+    expect(source, isNot(contains('Completed business actions will appear here')));
     expect(source, isNot(contains('No current Pandora system blockers')));
   });
 }

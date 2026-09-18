@@ -115,17 +115,17 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       Icons.device_hub_rounded,
     ),
     _ChatDestination(
-      'Operations & Bookings',
+      'Operations',
       Icons.event_note_outlined,
       Icons.event_note_rounded,
     ),
     _ChatDestination(
-      'Guests & Customers',
+      'Guests',
       Icons.people_alt_outlined,
       Icons.people_alt_rounded,
     ),
     _ChatDestination(
-      'Revenue & Reports',
+      'Revenue',
       Icons.payments_outlined,
       Icons.payments_rounded,
     ),
@@ -739,9 +739,16 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                 backgroundColor: PandoraV2Colors.canvas,
                 body: Row(
                   children: [
-                    SizedBox(width: 264, child: SafeArea(child: _sidePanel())),
-                    const VerticalDivider(
-                        width: 1, color: PandoraV2Colors.line),
+                    SizedBox(
+                      width: _index >= 8 ? 248 : 264,
+                      child: SafeArea(child: _sidePanel()),
+                    ),
+                    VerticalDivider(
+                      width: 1,
+                      color: _index >= 8
+                          ? const Color(0x2ED0A16F)
+                          : PandoraV2Colors.line,
+                    ),
                     Expanded(
                       child: PandoraNavigationScope(
                         openDrawer: null,
@@ -766,10 +773,14 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                     : constraints.maxWidth * .82,
                 elevation: 0,
                 shadowColor: Colors.transparent,
-                backgroundColor: Colors.transparent,
+                backgroundColor: _index >= 8
+                    ? const Color(0xFF0D0C0B)
+                    : Colors.transparent,
                 surfaceTintColor: Colors.transparent,
                 shape: const RoundedRectangleBorder(),
-                child: SafeArea(child: _sidePanel(glass: true)),
+                child: SafeArea(
+                  child: _sidePanel(glass: _index < 8),
+                ),
               ),
               body: PandoraNavigationScope(
                 openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
@@ -809,20 +820,32 @@ class _PandoraSidePanel extends StatelessWidget {
   Widget _glassChrome(Widget child) => child;
 
   @override
-  Widget build(BuildContext context) => Material(
-        color: glass ? Colors.transparent : PandoraV2Colors.surface,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ListView(
-              key: const ValueKey<String>('pandora-side-panel-scroll'),
-              padding: const EdgeInsets.fromLTRB(10, 82, 10, 86),
-              children: [
-                _EnterpriseMenu(
-                  destinations: destinations,
-                  selectedIndex: selectedIndex,
-                  onSelected: onSelected,
-                ),
+  Widget build(BuildContext context) {
+    final enterpriseActive = selectedIndex >= 8;
+    return Material(
+      color: glass
+          ? Colors.transparent
+          : enterpriseActive
+              ? const Color(0xFF0D0C0B)
+              : PandoraV2Colors.surface,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ListView(
+            key: const ValueKey<String>('pandora-side-panel-scroll'),
+            padding: EdgeInsets.fromLTRB(
+              10,
+              82,
+              10,
+              enterpriseActive ? 18 : 86,
+            ),
+            children: [
+              _EnterpriseMenu(
+                destinations: destinations,
+                selectedIndex: selectedIndex,
+                onSelected: onSelected,
+              ),
+              if (!enterpriseActive) ...[
                 const SizedBox(height: 16),
                 const Padding(
                   padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
@@ -913,42 +936,92 @@ class _PandoraSidePanel extends StatelessWidget {
                     ),
                   ),
               ],
-            ),
-            Align(
-              alignment: Alignment.topCenter,
-              child: _glassChrome(
-                SizedBox(
-                  key:
-                      const ValueKey<String>('pandora-side-panel-glass-header'),
-                  height: 72,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 10, 6),
-                    child: Row(
-                      children: [
-                        const PandoraMark(size: 28),
-                        const SizedBox(width: 11),
-                        const Text(
-                          'Pandora',
-                          style: TextStyle(
-                            color: PandoraV2Colors.ink,
-                            fontSize: 19,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -.35,
-                          ),
+            ],
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: _glassChrome(
+              SizedBox(
+                key: const ValueKey<String>('pandora-side-panel-glass-header'),
+                height: 72,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 8, 10, 6),
+                  child: enterpriseActive
+                      ? Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 44,
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF11100F),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: const Color(0x66D0A16F),
+                                ),
+                              ),
+                              child: Image.asset(
+                                'assets/enterprise/plp_logo.webp',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                            const SizedBox(width: 11),
+                            const Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'PLP Boracay',
+                                    style: TextStyle(
+                                      color: Color(0xFFF4EFE6),
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -.2,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'POWERED BY PANDORA',
+                                    style: TextStyle(
+                                      color: Color(0xFFD0A16F),
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 1.15,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            const PandoraMark(size: 28),
+                            const SizedBox(width: 11),
+                            const Text(
+                              'Pandora',
+                              style: TextStyle(
+                                color: PandoraV2Colors.ink,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -.35,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              key: const ValueKey<String>('pandora-search-chats'),
+                              tooltip: 'Search chats',
+                              onPressed: onSearchChats,
+                              icon: const Icon(Icons.search_rounded, size: 22),
+                            ),
+                          ],
                         ),
-                        const Spacer(),
-                        IconButton(
-                          key: const ValueKey<String>('pandora-search-chats'),
-                          tooltip: 'Search chats',
-                          onPressed: onSearchChats,
-                          icon: const Icon(Icons.search_rounded, size: 22),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ),
             ),
+          ),
+          if (!enterpriseActive)
             Align(
               alignment: Alignment.bottomLeft,
               child: Padding(
@@ -977,9 +1050,10 @@ class _PandoraSidePanel extends StatelessWidget {
                 ),
               ),
             ),
-          ],
-        ),
-      );
+        ],
+      ),
+    );
+  }
 }
 
 class _EnterpriseMenu extends StatelessWidget {
@@ -996,35 +1070,18 @@ class _EnterpriseMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const ownerIndexes = <int>[8, 23, 24, 9, 25, 26, 27, 21];
-    const systemIndexes = <int>[10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22];
-    return ExpansionTile(
-      key: const ValueKey<String>('pandora-enterprise-menu'),
-      initiallyExpanded: selectedIndex >= 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      collapsedShape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      leading: const Icon(Icons.business_center_outlined, size: 21),
-      title: const Text(
-        'PLP Boracay',
-        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
-      ),
-      subtitle: const Text(
-        'Owner workspace',
-        style: TextStyle(fontSize: 11.5, color: PandoraV2Colors.muted),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Padding(
-          padding: EdgeInsets.fromLTRB(18, 8, 18, 6),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'BUSINESS',
-              style: TextStyle(
-                color: PandoraV2Colors.muted,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: .8,
-              ),
+          padding: EdgeInsets.fromLTRB(12, 5, 12, 11),
+          child: Text(
+            'PROPERTY OPERATIONS',
+            style: TextStyle(
+              color: Color(0xFF8E857C),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.25,
             ),
           ),
         ),
@@ -1034,35 +1091,6 @@ class _EnterpriseMenu extends StatelessWidget {
             selected: index == selectedIndex,
             onTap: () => onSelected(index),
           ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(14, 8, 14, 4),
-          child: Divider(),
-        ),
-        ExpansionTile(
-          key: const ValueKey<String>('pandora-enterprise-system-menu'),
-          initiallyExpanded: systemIndexes.contains(selectedIndex),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          collapsedShape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          leading: const Icon(Icons.developer_mode_outlined, size: 20),
-          title: const Text(
-            'System / Developer',
-            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
-          ),
-          subtitle: const Text(
-            'Privileged technical surfaces',
-            style: TextStyle(fontSize: 11.5, color: PandoraV2Colors.muted),
-          ),
-          children: [
-            for (final index in systemIndexes)
-              _EnterpriseNavTile(
-                destination: destinations[index],
-                selected: index == selectedIndex,
-                onTap: () => onSelected(index),
-              ),
-          ],
-        ),
       ],
     );
   }
@@ -1081,80 +1109,59 @@ class _EnterpriseNavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 2),
-        child: ListTile(
-          dense: true,
+        padding: const EdgeInsets.only(bottom: 3),
+        child: Semantics(
+          button: true,
           selected: selected,
-          selectedColor: PandoraV2Colors.ink,
-          iconColor: PandoraV2Colors.muted,
-          textColor: PandoraV2Colors.ink,
-          selectedTileColor: Colors.white.withValues(alpha: .06),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          leading: Icon(
-            selected ? destination.selectedIcon : destination.icon,
-            size: 21,
-          ),
-          title: Text(
-            destination.label,
-            style: TextStyle(
-              fontSize: 14.5,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-          onTap: onTap,
-        ),
-      );
-}
-
-class _EnterpriseExpansionTile extends StatelessWidget {
-  const _EnterpriseExpansionTile({
-    required this.destination,
-    required this.selected,
-    required this.children,
-    required this.onTap,
-  });
-
-  final _ChatDestination destination;
-  final bool selected;
-  final List<String> children;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 2),
-        child: ExpansionTile(
-          dense: true,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          collapsedShape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          backgroundColor: selected ? PandoraV2Colors.soft : Colors.transparent,
-          collapsedBackgroundColor:
-              selected ? PandoraV2Colors.soft : Colors.transparent,
-          leading: Icon(
-            selected ? destination.selectedIcon : destination.icon,
-            size: 21,
-            color: selected ? PandoraV2Colors.ink : PandoraV2Colors.muted,
-          ),
-          title: Text(
-            destination.label,
-            style: TextStyle(
-              color: PandoraV2Colors.ink,
-              fontSize: 14.5,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-          children: [
-            for (final child in children)
-              ListTile(
-                dense: true,
-                contentPadding: const EdgeInsets.only(left: 54, right: 12),
-                title: Text(child, style: const TextStyle(fontSize: 13.5)),
-                onTap: onTap,
+          label: destination.label,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 48),
+              padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0x14D0A16F)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border(
+                  left: BorderSide(
+                    color: selected
+                        ? const Color(0xFFD0A16F)
+                        : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
               ),
-          ],
+              child: Row(
+                children: [
+                  Icon(
+                    selected ? destination.selectedIcon : destination.icon,
+                    size: 20,
+                    color: selected
+                        ? const Color(0xFFD0A16F)
+                        : const Color(0xFF9E978E),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Text(
+                      destination.label,
+                      style: TextStyle(
+                        color: selected
+                            ? const Color(0xFFF4EFE6)
+                            : const Color(0xFFC9C1B7),
+                        fontSize: 14.5,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500,
+                        letterSpacing: selected ? -.1 : 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       );
 }
