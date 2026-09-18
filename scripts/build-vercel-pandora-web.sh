@@ -8,6 +8,7 @@ WORK_ROOT="${PWD}/.pandora-vercel-web"
 FLUTTER_ROOT="${WORK_ROOT}/flutter"
 BUILD_ROOT="${WORK_ROOT}/app"
 OUTPUT_ROOT="${PWD}/public/pandora-web"
+ROOT_INDEX="${PWD}/public/index.html"
 
 if [[ -z "$SOURCE_SHA" || ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
   echo 'Exact 40-character source SHA is required for Pandora web production build.' >&2
@@ -19,6 +20,7 @@ if command -v git >/dev/null 2>&1 && [[ -d .git ]]; then
 fi
 
 rm -rf "$WORK_ROOT" "$OUTPUT_ROOT"
+rm -f "$ROOT_INDEX"
 mkdir -p "$WORK_ROOT" "$OUTPUT_ROOT"
 
 archive="${WORK_ROOT}/flutter.tar.xz"
@@ -50,6 +52,10 @@ flutter build web --release \
   --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
   --dart-define=PANDORA_APP_VERSION="$APP_VERSION"
 cp -R build/web/. "$OUTPUT_ROOT/"
+# Vercel backend-framework internal rewrite semantics changed in 2026. Serve the
+# Flutter shell as a real root static artifact instead of rewriting / into the
+# /pandora-web namespace. Assets remain rooted at /pandora-web/ via base href.
+cp "$OUTPUT_ROOT/index.html" "$ROOT_INDEX"
 
 web_tree_sha256="$(find "$OUTPUT_ROOT" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d ' ' -f1)"
 cat > "${OUTPUT_ROOT}/pandora-web-release-manifest.txt" <<EOF
