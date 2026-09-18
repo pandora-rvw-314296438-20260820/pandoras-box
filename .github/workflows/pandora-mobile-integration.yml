@@ -358,7 +358,7 @@ jobs:
   verify-emulator:
     name: Enterprise / Android emulator
     if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-24.04
+    runs-on: macos-15
     timeout-minutes: 35
     env:
       SOURCE_SHA: ${{ github.sha }}
@@ -386,11 +386,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Library/Android/sdk}}"
+          case "$(uname -m)" in
+            arm64) abi='arm64-v8a' ;;
+            *) abi='x86_64' ;;
+          esac
+          echo "ANDROID_SDK_ROOT=$sdk_root" >> "$GITHUB_ENV"
+          echo "PANDORA_EMULATOR_ABI=$abi" >> "$GITHUB_ENV"
+          "$sdk_root/cmdline-tools/latest/bin/sdkmanager" \
             'platforms;android-36' \
             'build-tools;36.0.0' \
             'emulator' \
-            'system-images;android-36;google_apis;x86_64'
+            "system-images;android-36;google_apis;$abi"
 
       - name: Install pinned Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
@@ -426,15 +433,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -e /dev/kvm
-          sudo chmod 666 /dev/kvm
           avdmanager="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager"
           emulator="$ANDROID_SDK_ROOT/emulator/emulator"
           adb="$ANDROID_SDK_ROOT/platform-tools/adb"
-          echo no | "$avdmanager" create avd --force --name pandora_api36 --package 'system-images;android-36;google_apis;x86_64'
-          nohup "$emulator" -avd pandora_api36 -no-window -no-snapshot -no-audio -no-boot-anim -gpu swiftshader_indirect -memory 3072 -cores 2 > "$RUNNER_TEMP/pandora-emulator.log" 2>&1 &
+          image="system-images;android-36;google_apis;$PANDORA_EMULATOR_ABI"
+          "$emulator" -accel-check || true
+          echo no | "$avdmanager" create avd --force --name pandora_api36 --package "$image"
+          nohup "$emulator" -avd pandora_api36 -no-window -no-snapshot -no-audio -no-boot-anim -accel auto -gpu swiftshader_indirect -memory 3072 -cores 2 > "$RUNNER_TEMP/pandora-emulator.log" 2>&1 &
           "$adb" wait-for-device
-          for attempt in $(seq 1 120); do
+          for attempt in $(seq 1 150); do
             if [[ "$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == '1' ]]; then
               break
             fi
