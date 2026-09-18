@@ -11,6 +11,7 @@ from pathlib import Path
 
 _GENERATED_LABEL = 'android:label="pandora_mobile"'
 _VALIDATION_LABEL = 'android:label="Pandora"'
+_BACKUP_ATTRIBUTE = 'android:allowBackup="false"'
 _GENERATED_ICON = 'android:icon="@mipmap/ic_launcher"'
 _PANDORA_ICON = 'android:icon="@drawable/pandora_launcher_icon"'
 _MANIFEST_OPEN = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
@@ -126,6 +127,12 @@ def configure_manifest(manifest: Path) -> int:
             file=sys.stderr,
         )
         return 1
+    if 'android:allowBackup=' in text:
+        print(
+            'Generated Android manifest already declares backup policy; refusing an ambiguous local-state mutation.',
+            file=sys.stderr,
+        )
+        return 1
 
     internet_mentions = text.count(_INTERNET_PERMISSION_NAME)
     if internet_mentions > 1:
@@ -214,7 +221,11 @@ def configure_manifest(manifest: Path) -> int:
         print('Expected exactly one generated empty task affinity; refusing an ambiguous HOME task mutation.', file=sys.stderr)
         return 1
 
-    updated = text.replace(_GENERATED_LABEL, _VALIDATION_LABEL, 1)
+    updated = text.replace(
+        _GENERATED_LABEL,
+        f'{_VALIDATION_LABEL} {_BACKUP_ATTRIBUTE}',
+        1,
+    )
     updated = updated.replace(_GENERATED_LAUNCH_MODE, _HOME_LAUNCH_MODE, 1)
     updated = updated.replace(f' {_GENERATED_EMPTY_TASK_AFFINITY}', '', 1)
     updated = updated.replace(_GENERATED_ICON, _PANDORA_ICON, 1)
@@ -295,6 +306,9 @@ def configure_manifest(manifest: Path) -> int:
     if verified.count(_VALIDATION_LABEL) != 1 or _GENERATED_LABEL in verified:
         print('Android validation identity verification failed.', file=sys.stderr)
         return 1
+    if verified.count(_BACKUP_ATTRIBUTE) != 1:
+        print('Android encrypted local-state backup policy verification failed.', file=sys.stderr)
+        return 1
     if verified.count(_PANDORA_ICON) != 1 or _GENERATED_ICON in verified:
         print('Android Pandora launcher icon verification failed.', file=sys.stderr)
         return 1
@@ -353,6 +367,7 @@ def configure_manifest(manifest: Path) -> int:
         return 1
 
     print('Configured Android application label: Pandora')
+    print('Configured Android backup policy: disabled for encrypted local state')
     print('Configured Android launcher icon: canonical Pandora spiral apple')
     print('Configured Android permission: android.permission.INTERNET')
     print('Configured Android permission: android.permission.ACCESS_NETWORK_STATE')
