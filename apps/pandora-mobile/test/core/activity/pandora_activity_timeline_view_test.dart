@@ -109,6 +109,57 @@ void main() {
     expect(find.text('Done.'), findsOneWidget);
   });
 
+  testWidgets(
+    'only meaningful owner-attention transitions are live regions',
+    (tester) async {
+      final cases = <(PandoraActivityState, bool)>[
+        (PandoraActivityState.understanding, false),
+        (PandoraActivityState.planning, false),
+        (PandoraActivityState.acting, false),
+        (PandoraActivityState.checking, false),
+        (PandoraActivityState.verifying, false),
+        (PandoraActivityState.needsYou, true),
+        (PandoraActivityState.failed, true),
+        (PandoraActivityState.result, true),
+      ];
+
+      var sequence = 1;
+      for (final entry in cases) {
+        await tester.pumpWidget(
+          harness([
+            event(
+              sequence: sequence++,
+              state: entry.$1,
+              message: 'Transition ${entry.$1.wireName}.',
+              blocker: entry.$1 == PandoraActivityState.needsYou
+                  ? const PandoraActivityBlocker(
+                      reasonCode: 'authorization_required',
+                      reason: 'Owner authorization is required.',
+                      requiredAction: 'Approve the change.',
+                      approvalRequired: true,
+                    )
+                  : null,
+            ),
+          ]),
+        );
+        await tester.pump();
+
+        final semanticsFinder = find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              (widget.properties.label ?? '').startsWith('Activity Theatre.'),
+        );
+        expect(semanticsFinder, findsOneWidget);
+        final semanticsWidget = tester.widget<Semantics>(semanticsFinder);
+        expect(
+          semanticsWidget.properties.liveRegion,
+          entry.$2,
+          reason: 'Unexpected live-region state for ${entry.$1.wireName}',
+        );
+      }
+    },
+  );
+
   test('maps every canonical state to the frozen owner-facing label', () {
     expect(
       activityStateLabel(PandoraActivityState.understanding),

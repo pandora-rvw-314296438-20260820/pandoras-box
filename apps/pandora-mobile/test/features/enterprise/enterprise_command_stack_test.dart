@@ -151,6 +151,9 @@ void main() {
       await setTestSurface(tester, logicalSize: const Size(390, 844));
       final intelligence = _FakeEnterpriseIntelligence();
       addTearDown(intelligence.close);
+      var pageStatus = 'No admin yet';
+      StateSetter? setPageState;
+      var verifiedResultCallbacks = 0;
 
       const pageContext = EnterprisePageContext(
         surface: 'enterprise_app_users',
@@ -170,11 +173,22 @@ void main() {
             repository: FakeRepository(),
             intelligence: intelligence,
             diagnostics: DiagnosticsStore(),
-            child: const Scaffold(
+            child: Scaffold(
               body: EnterprisePageContextScope(
                 pageContext: pageContext,
                 child: EnterpriseCommandStack(
-                  child: Center(child: Text('App Users workspace')),
+                  onVerifiedResult: (_) {
+                    verifiedResultCallbacks += 1;
+                    setPageState?.call(() {
+                      pageStatus = 'fongramos@yahoo.com — Admin';
+                    });
+                  },
+                  child: StatefulBuilder(
+                    builder: (context, setState) {
+                      setPageState = setState;
+                      return Center(child: Text(pageStatus));
+                    },
+                  ),
                 ),
               ),
             ),
@@ -190,7 +204,7 @@ void main() {
         matching: find.byType(TextField),
       );
 
-      expect(find.text('App Users workspace'), findsOneWidget);
+      expect(find.text('No admin yet'), findsOneWidget);
       expect(commandBar, findsOneWidget);
       final submitSize = tester.getSize(find.byTooltip('Send command'));
       expect(submitSize.width, greaterThanOrEqualTo(48));
@@ -204,7 +218,7 @@ void main() {
       await tester.tap(find.byTooltip('Send command'));
       await tester.pump();
 
-      expect(find.text('App Users workspace'), findsOneWidget);
+      expect(find.text('No admin yet'), findsOneWidget);
       expect(
         intelligence.capturedMessage,
         'Create admin for fongramos@yahoo.com',
@@ -240,7 +254,8 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Admin creation verified.'), findsOneWidget);
-      expect(find.text('App Users workspace'), findsOneWidget);
+      expect(find.text('fongramos@yahoo.com — Admin'), findsOneWidget);
+      expect(verifiedResultCallbacks, 1);
       expect(tester.takeException(), isNull);
     },
   );
@@ -251,6 +266,7 @@ void main() {
       await setTestSurface(tester, logicalSize: const Size(1280, 900));
       final intelligence = _FakeEnterpriseIntelligence();
       addTearDown(intelligence.close);
+      var verifiedResultCallbacks = 0;
 
       const pageContext = EnterprisePageContext(
         surface: 'enterprise_app_users',
@@ -270,11 +286,14 @@ void main() {
             repository: FakeRepository(),
             intelligence: intelligence,
             diagnostics: DiagnosticsStore(),
-            child: const Scaffold(
+            child: Scaffold(
               body: EnterprisePageContextScope(
                 pageContext: pageContext,
                 child: EnterpriseCommandStack(
-                  child: Center(child: Text('Wide App Users workspace')),
+                  onVerifiedResult: (_) {
+                    verifiedResultCallbacks += 1;
+                  },
+                  child: const Center(child: Text('Wide App Users workspace')),
                 ),
               ),
             ),
@@ -315,6 +334,7 @@ void main() {
       expect(find.text('User creation was denied.'), findsOneWidget);
       expect(find.text('Wide App Users workspace'), findsOneWidget);
       expect(commandBar, findsOneWidget);
+      expect(verifiedResultCallbacks, 0);
 
       final theatreRect = tester.getRect(theatre);
       final commandRect = tester.getRect(commandBar);
@@ -330,6 +350,7 @@ void main() {
       final intelligence = _FakeEnterpriseIntelligence();
       addTearDown(intelligence.close);
       final semantics = tester.ensureSemantics();
+      var verifiedResultCallbacks = 0;
 
       const pageContext = EnterprisePageContext(
         surface: 'enterprise_app_users',
@@ -349,11 +370,14 @@ void main() {
             repository: FakeRepository(),
             intelligence: intelligence,
             diagnostics: DiagnosticsStore(),
-            child: const Scaffold(
+            child: Scaffold(
               body: EnterprisePageContextScope(
                 pageContext: pageContext,
                 child: EnterpriseCommandStack(
-                  child: Center(child: Text('Authorization workspace')),
+                  onVerifiedResult: (_) {
+                    verifiedResultCallbacks += 1;
+                  },
+                  child: const Center(child: Text('Authorization workspace')),
                 ),
               ),
             ),
@@ -403,6 +427,7 @@ void main() {
         findsOneWidget,
       );
       expect(intelligence.capturedContext?['actorRole'], isNull);
+      expect(verifiedResultCallbacks, 0);
       semantics.dispose();
       expect(tester.takeException(), isNull);
     },

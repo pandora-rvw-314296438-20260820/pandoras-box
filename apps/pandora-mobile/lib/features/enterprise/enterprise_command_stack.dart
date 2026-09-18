@@ -13,9 +13,14 @@ import '../simple/pandora_v2_ui.dart';
 import 'enterprise_page_context.dart';
 
 class EnterpriseCommandStack extends StatefulWidget {
-  const EnterpriseCommandStack({super.key, required this.child});
+  const EnterpriseCommandStack({
+    super.key,
+    required this.child,
+    this.onVerifiedResult,
+  });
 
   final Widget child;
+  final ValueChanged<PandoraActivityProjection>? onVerifiedResult;
 
   @override
   State<EnterpriseCommandStack> createState() => _EnterpriseCommandStackState();
@@ -29,6 +34,7 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
 
   String? _threadId;
   String? _error;
+  String? _notifiedVerifiedResultEventId;
   bool _submitting = false;
   @override
   void initState() {
@@ -37,6 +43,12 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
   }
 
   void _onActivityChanged() {
+    final latest = pandoraLatestPresentableActivity(_activity.events);
+    if (latest?.state == PandoraActivityState.result &&
+        latest!.eventId != _notifiedVerifiedResultEventId) {
+      _notifiedVerifiedResultEventId = latest.eventId;
+      widget.onVerifiedResult?.call(latest);
+    }
     if (mounted) setState(() {});
   }
 
@@ -61,6 +73,7 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
 
     final pageContext = EnterprisePageContextScope.of(context);
     await _activity.clear();
+    _notifiedVerifiedResultEventId = null;
     if (!mounted) return;
     setState(() {
       _submitting = true;
