@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   dependency-review:
@@ -14,7 +15,47 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - name: Review dependency changes
+        with:
+          fetch-depth: 0
+
+      - name: Detect dependency manifest changes
+        id: scope
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/dependency-review-files.txt"
+          if grep -Eq '(^|/)(package(-lock)?\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock|pubspec\.ya?ml|pubspec\.lock|requirements[^/]*\.txt|pyproject\.toml|poetry\.lock|Pipfile(\.lock)?|go\.(mod|sum)|Cargo\.(toml|lock)|Gemfile(\.lock)?|composer\.(json|lock))$' "$RUNNER_TEMP/dependency-review-files.txt"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Review public repository dependency changes
+        if: ${{ steps.scope.outputs.changed == 'true' && !github.event.repository.private }}
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
+
+      - name: Use Node 24 for private dependency audit
+        if: ${{ steps.scope.outputs.changed == 'true' && github.event.repository.private }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Audit private repository dependency state
+        if: ${{ steps.scope.outputs.changed == 'true' && github.event.repository.private }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run audit:prod
+          npm ci --prefix tooling --ignore-scripts --no-audit --no-fund
+          npm run tooling:audit
+
+      - name: Confirm no dependency review is required
+        if: ${{ steps.scope.outputs.changed != 'true' }}
+        run: echo "No dependency manifests or lockfiles changed in this pull request."

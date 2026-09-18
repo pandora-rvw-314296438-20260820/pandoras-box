@@ -66,7 +66,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: Type-check all governed Edge functions in isolation
-        run: npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts
+        run: npx --yes deno-bin@2.2.7 check --node-modules-dir=none --frozen supabase/functions/pandora-owner-api/index.ts supabase/functions/pandora-coordinator-gate/index.ts supabase/functions/pandora-worker-dispatch/index.ts supabase/functions/pandora-reviewer-attestation/index.ts supabase/functions/pandora-release-review-attestation/index.ts supabase/functions/pandora-release-owner-authorization/index.ts supabase/functions/pandora-physical-android-attestation/index.ts supabase/functions/mcpmaster-supabase-control/index.ts
 
       - name: Re-prove the checkout before binding it
         shell: bash
@@ -83,13 +83,35 @@ jobs:
           --output "${{ runner.temp }}/canonical-release-source-binding.json"
 
       - name: Upload the source-only binding
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        if: ${{ !github.event.repository.private }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: canonical-release-source-${{ github.sha }}
           path: ${{ runner.temp }}/canonical-release-source-binding.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Record private source-only binding
+        if: ${{ github.event.repository.private }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          binding="${{ runner.temp }}/canonical-release-source-binding.json"
+          test -s "$binding"
+          source_sha="$(git rev-parse HEAD)"
+          source_tree="$(git rev-parse HEAD^{tree})"
+          test "$source_sha" = "$EXPECTED_SOURCE_SHA"
+          binding_sha256="$(sha256sum "$binding" | cut -d ' ' -f1)"
+          [[ "$binding_sha256" =~ ^[0-9a-f]{64}$ ]]
+          printf 'PANDORA_PRIVATE_SOURCE_BINDING source_sha=%s source_tree=%s binding_sha256=%s release_authority=false artifact_provider=unavailable\n' \
+            "$source_sha" "$source_tree" "$binding_sha256"
+          {
+            echo '### Private source-binding receipt'
+            echo "- Source SHA: $source_sha"
+            echo "- Source tree: $source_tree"
+            echo "- Binding SHA-256: $binding_sha256"
+            echo '- Release authority: `false` (GitHub artifact provider unavailable)'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Confirm candidate CI did not mutate source
         shell: bash
