@@ -266,7 +266,8 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
             const SizedBox(height: 14),
             Semantics(
               liveRegion: true,
-              label: 'Deployment provider readback. Status ${deploymentStatus ?? 'unknown'}.',
+              label:
+                  'Deployment provider readback. Status ${deploymentStatus ?? 'unknown'}.',
               child: _deploymentSummary(_deployment!),
             ),
           ],
