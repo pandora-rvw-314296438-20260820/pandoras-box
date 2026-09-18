@@ -4,14 +4,16 @@ import test from 'node:test';
 
 const edgePath = new URL('../supabase/functions/pandora-intelligence-chat/index.ts', import.meta.url);
 const migrationPath = new URL('../supabase/migrations/20260830104500_pandora_intelligence_chat_v1.sql', import.meta.url);
+const memberMutationPath = new URL('../supabase/migrations/20260918061500_pandora_enterprise_member_mutation_v1.sql', import.meta.url);
 const mobilePath = new URL('../apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart', import.meta.url);
 const doctrinePath = new URL('../PROJECT_CUSTOM_INSTRUCTION.md', import.meta.url);
 const roadmapPath = new URL('../docs/roadmaps/PANDORAS_BOX_CANONICAL_ROADMAP_V2.md', import.meta.url);
 const screenPlanPath = new URL('../docs/product/PANDORA_SCREEN_MASTER_PLAN.md', import.meta.url);
 
-const [edge, migration, mobile, doctrine, roadmap, screenPlan] = await Promise.all([
+const [edge, migration, memberMutation, mobile, doctrine, roadmap, screenPlan] = await Promise.all([
   readFile(edgePath, 'utf8'),
   readFile(migrationPath, 'utf8'),
+  readFile(memberMutationPath, 'utf8'),
   readFile(mobilePath, 'utf8'),
   readFile(doctrinePath, 'utf8'),
   readFile(roadmapPath, 'utf8'),
@@ -62,6 +64,29 @@ test('durable conversation history is owner-readable but service-written', () =>
   assert.match(migration, /created_by\s*=\s*auth\.uid\(\)/i);
   assert.match(migration, /revoke insert, update, delete[\s\S]*from anon, authenticated/i);
   assert.match(migration, /grant all[\s\S]*to service_role/i);
+});
+
+test('Enterprise access role and lifecycle commands require the bounded organization namespace', () => {
+  assert.match(edge, /enterprise_app_users/);
+  assert.match(edge, /identityScope!==["']pandora_organization["']/);
+  assert.match(edge, /organization\.users\.manage/);
+  assert.match(edge, /action:["']role["']/);
+  assert.match(edge, /status:["']suspended["']/);
+  assert.match(edge, /status:["']revoked["']/);
+  assert.match(edge, /pandora_admin_update_organization_member/);
+  assert.match(edge, /ENTERPRISE_USER_READBACK_FAILED/);
+});
+
+test('Enterprise membership mutation is service-only, audited, and last-owner safe', () => {
+  assert.match(memberMutation, /service-role broker required/);
+  assert.match(memberMutation, /cannot remove the last active owner/);
+  assert.match(memberMutation, /administrators cannot modify owner or admin memberships/);
+  assert.match(memberMutation, /administrators cannot grant owner or admin roles/);
+  assert.match(memberMutation, /private\.append_audit_event/);
+  assert.match(memberMutation, /organization\.member\.revoked/);
+  assert.match(memberMutation, /organization\.member\.role_changed/);
+  assert.match(memberMutation, /revoke all[\s\S]*from public, anon, authenticated;/i);
+  assert.match(memberMutation, /grant execute[\s\S]*to service_role;/i);
 });
 
 test('the APK calls Pandora intelligence and carries no provider secret contract', () => {
