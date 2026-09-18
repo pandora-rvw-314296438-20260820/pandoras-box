@@ -32,7 +32,7 @@ test('canonical source, Vercel identity, and live status are the recovery operat
     source.status === 'historical_only'));
   assert.ok(policy.recovery_era_siblings.some((source) =>
     source.value === 'banataosystems/Pandoras-box' &&
-    source.status === 'recovery_era_name_not_operational_remote'));
+    source.status === 'blacklisted_operationally'));
   assert.ok(policy.forbidden_uses.includes('cite_integrity_bound_historical_status_surfaces_as_current_state'));
   assert.ok(policy.forbidden_uses.includes('recreate_canonical_vercel_project_or_production_alias'));
 

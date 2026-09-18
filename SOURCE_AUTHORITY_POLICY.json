@@ -20,7 +20,7 @@
     {"type":"github_owner","value":"mbanatao","wildcard":"mbanatao/*","match":"case_insensitive_owner","status":"historical_only"}
   ],
   "recovery_era_siblings": [
-    {"type":"github_repository","value":"banataosystems/Pandoras-box","status":"recovery_era_name_not_operational_remote","authority":"evidence_only"},
+    {"type":"github_repository","value":"banataosystems/Pandoras-box","status":"blacklisted_operationally","authority":"evidence_only"},
     {"type":"github_repository","value":"banataosystems/pandoras-box-memory","status":"recovery_era_name_not_operational_remote","authority":"evidence_only"}
   ],
   "legacy_identity_markers": [
@@ -41,5 +41,5 @@
     "any_mbanatao_owner_source_as_historical_evidence_only"
   ],
   "preservation_rule": "Do not delete or rewrite historical evidence. Quarantine it from operational authority instead.",
-  "owner_directive": "Every repository owned by mbanatao is operationally blacklisted. Preserve it only as historical evidence and never select it for new work, routing, build, release, or current-state authority. The recovery repositories pandora-rvw-314296438-20260820/pandoras-box and pandora-rvw-314296438-20260820/pandoras-box-memory are the canonical Git sources. Preserve recorded Vercel production identities as intended runtime identities, but require fresh provider readback before treating them as current deployment truth. Do not rewrite hashed historical status surfaces as current truth."
+  "owner_directive": "Every repository owned by mbanatao is operationally blacklisted. Preserve it only as historical evidence and never select it for new work, routing, build, release, or current-state authority. The exact repository banataosystems/Pandoras-box is operationally blacklisted and may be used only as historical evidence. The recovery repositories pandora-rvw-314296438-20260820/pandoras-box and pandora-rvw-314296438-20260820/pandoras-box-memory are the canonical Git sources. Preserve recorded Vercel production identities as intended runtime identities, but require fresh provider readback before treating them as current deployment truth. Do not rewrite hashed historical status surfaces as current truth."
 }
