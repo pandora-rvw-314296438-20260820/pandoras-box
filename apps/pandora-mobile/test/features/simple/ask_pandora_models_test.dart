@@ -144,24 +144,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Models'), findsOneWidget);
-    expect(find.text('Auto'), findsOneWidget);
-    expect(find.text('GPT-5.6 Luna'), findsOneWidget);
-    expect(find.text('GPT-5.6 Terra'), findsOneWidget);
-    expect(find.text('GPT-5.6 Sol'), findsOneWidget);
-    expect(find.text('Gemini 3.5 Flash Lite'), findsOneWidget);
-    expect(find.text('Gemini 3.7 Flash'), findsOneWidget);
-    expect(find.text('Gemini 3.1 Pro Preview'), findsOneWidget);
-    expect(find.text('Kimi K3'), findsOneWidget);
-    expect(find.text('Qwen2.5 7B Local'), findsOneWidget);
+    final catalogLabels = <String>[
+      'Auto',
+      'Gemini 3.5 Flash Lite',
+      'Gemini 3.7 Flash',
+      'Gemini 3.1 Pro Preview',
+      'GPT-5.6 Luna',
+      'GPT-5.6 Sol',
+      'GPT-5.6 Terra',
+      'Kimi K3',
+      'Qwen2.5 7B Local',
+    ];
+    final modelScroll = find.byType(Scrollable).last;
+    for (final label in catalogLabels) {
+      if (find.text(label).evaluate().isEmpty) {
+        await tester.scrollUntilVisible(
+          find.text(label),
+          180,
+          scrollable: modelScroll,
+        );
+        await tester.pumpAndSettle();
+      }
+      expect(find.text(label), findsOneWidget);
+    }
 
-    await tester.tap(find.text('GPT-5.6 Sol'));
+    await tester.tap(find.text('Qwen2.5 7B Local'));
     await tester.pumpAndSettle();
 
     expect(
       find.byKey(const ValueKey<String>('ask-pandora-model-context')),
       findsOneWidget,
     );
-    expect(find.text('Model · GPT-5.6 Sol'), findsOneWidget);
+    expect(find.text('Model · Qwen2.5 7B Local'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
