@@ -10,6 +10,8 @@ import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
+import '../features/enterprise/eurofish_overview_screen.dart';
+import '../features/enterprise/eurofish_section_screen.dart';
 import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
 import '../features/simple/more_screen.dart';
@@ -28,20 +30,201 @@ class PandoraChatShell extends StatefulWidget {
 
 class _PandoraChatShellState extends State<PandoraChatShell> {
   static const _destinations = <_ChatDestination>[
-    _ChatDestination('Pandora', Icons.chat_bubble_outline_rounded,
-        Icons.chat_bubble_rounded),
+    _ChatDestination(
+      'Pandora',
+      Icons.chat_bubble_outline_rounded,
+      Icons.chat_bubble_rounded,
+    ),
     _ChatDestination('Projects', Icons.folder_outlined, Icons.folder_rounded),
-    _ChatDestination('Needs You', Icons.check_circle_outline_rounded,
-        Icons.check_circle_rounded),
+    _ChatDestination(
+      'Needs You',
+      Icons.check_circle_outline_rounded,
+      Icons.check_circle_rounded,
+    ),
     _ChatDestination('Settings & More', Icons.tune_rounded, Icons.tune_rounded),
     _ChatDestination('Activity', Icons.history_rounded, Icons.history_rounded),
     _ChatDestination(
-        'Connections', Icons.extension_outlined, Icons.extension_rounded),
-    _ChatDestination('Saved evidence', Icons.offline_pin_outlined,
-        Icons.offline_pin_rounded),
+      'Connections',
+      Icons.extension_outlined,
+      Icons.extension_rounded,
+    ),
     _ChatDestination(
-        'Verify & Safety', Icons.shield_outlined, Icons.shield_rounded),
+      'Saved evidence',
+      Icons.offline_pin_outlined,
+      Icons.offline_pin_rounded,
+    ),
+    _ChatDestination(
+      'Verify & Safety',
+      Icons.shield_outlined,
+      Icons.shield_rounded,
+    ),
+    _ChatDestination(
+      'Overview',
+      Icons.dashboard_outlined,
+      Icons.dashboard_rounded,
+    ),
+    _ChatDestination(
+      'Orders & Quotes',
+      Icons.request_quote_outlined,
+      Icons.request_quote_rounded,
+    ),
+    _ChatDestination(
+      'Shipments',
+      Icons.flight_land_outlined,
+      Icons.flight_land_rounded,
+    ),
+    _ChatDestination(
+      'Inventory',
+      Icons.inventory_2_outlined,
+      Icons.inventory_2_rounded,
+    ),
+    _ChatDestination('Customers', Icons.groups_outlined, Icons.groups_rounded),
+    _ChatDestination('Aquaculture', Icons.water_outlined, Icons.water_rounded),
+    _ChatDestination(
+      'Flowers',
+      Icons.local_florist_outlined,
+      Icons.local_florist_rounded,
+    ),
+    _ChatDestination(
+      'Compliance',
+      Icons.fact_check_outlined,
+      Icons.fact_check_rounded,
+    ),
+    _ChatDestination(
+      'Finance',
+      Icons.account_balance_wallet_outlined,
+      Icons.account_balance_wallet_rounded,
+    ),
+    _ChatDestination(
+      'Documents',
+      Icons.description_outlined,
+      Icons.description_rounded,
+    ),
+    _ChatDestination(
+      'App Users',
+      Icons.manage_accounts_outlined,
+      Icons.manage_accounts_rounded,
+    ),
+    _ChatDestination('Integrations', Icons.hub_outlined, Icons.hub_rounded),
+    _ChatDestination(
+      'Security',
+      Icons.admin_panel_settings_outlined,
+      Icons.admin_panel_settings_rounded,
+    ),
+    _ChatDestination(
+      'Settings',
+      Icons.settings_outlined,
+      Icons.settings_rounded,
+    ),
   ];
+
+  static const _enterpriseDescriptions = <int, String>{
+    9: 'Bulk fry and flower inquiries, quotes, orders and customer follow-up.',
+    10: 'Inbound arrivals, quarantine clearance, release, cold-chain and delivery.',
+    11: 'Live fry batches, flower lots, availability and expected arrivals.',
+    12: 'Farm, nursery, florist and wholesale customer relationships.',
+    13: 'Milkfish fry sourcing, batch status, biosecurity and destination handling.',
+    14: 'Imported roses, orchids, exotics, weekly availability and cold-chain.',
+    15: 'BFAR, BPI/NPQSD, permits, accreditation evidence and expiry watch.',
+    16: 'Landed cost, receivables, collections, margin and cash visibility.',
+    17: 'Permits, certificates, airway bills, invoices and shipment evidence.',
+    18: 'Application users, roles, invitations and owner-controlled access.',
+    19: 'Connected providers, business sources and connector health.',
+    20: 'Authentication, permissions, data protection and audit controls.',
+    21: 'Euro-Fish enterprise preferences and operating defaults.',
+  };
+
+  static const _enterpriseItems = <int, List<String>>{
+    9: [
+      'New inquiries',
+      'Quote pipeline',
+      'Confirmed orders',
+      'Follow-up queue',
+    ],
+    10: [
+      'Expected arrivals',
+      'Airport / quarantine status',
+      'Release & handoff',
+      'Delivery exceptions',
+    ],
+    11: [
+      'Fry batch availability',
+      'Flower lot availability',
+      'Reserved stock',
+      'Expected replenishment',
+    ],
+    12: [
+      'Customer accounts',
+      'Contacts',
+      'Order history',
+      'Reorder opportunities',
+    ],
+    13: [
+      'Origin & supplier',
+      'Batch / health documents',
+      'Biosecurity checks',
+      'Farm destination',
+    ],
+    14: [
+      'Variety & origin',
+      'Weekly arrivals',
+      'Cold-chain status',
+      'Customer allocation',
+    ],
+    15: [
+      'Accreditation register',
+      'Permit deadlines',
+      'Shipment clearances',
+      'Compliance evidence',
+    ],
+    16: [
+      'Landed cost',
+      'Invoices & receivables',
+      'Collections',
+      'Margin visibility',
+    ],
+    17: [
+      'Import permits',
+      'Health / phytosanitary certificates',
+      'Airway bills',
+      'Invoices & receipts',
+    ],
+    18: ['Users & roles', 'Invitations', 'Account status', 'Access review'],
+    19: [
+      'Connected sources',
+      'Provider health',
+      'Permissions',
+      'Last successful sync',
+    ],
+    20: [
+      'Authentication',
+      'Roles & permissions',
+      'Audit evidence',
+      'Security controls',
+    ],
+    21: [
+      'Workspace defaults',
+      'Notifications',
+      'Business preferences',
+      'Pandora behavior',
+    ],
+  };
+
+  static const _enterprisePrompts = <int, String>{
+    9: 'Which orders or quotes need follow-up today?',
+    10: 'Show shipment status, clearance blockers and delivery risks.',
+    11: 'Show current fry and flower availability from verified inventory data.',
+    12: 'Which customers need follow-up or are due for a reorder?',
+    13: 'Summarize current milkfish fry operations and any batch risks.',
+    14: 'Summarize flower availability, arrivals and cold-chain exceptions.',
+    15: 'What permits, accreditations or compliance documents need attention?',
+    16: 'Summarize collections, receivables, costs and margin issues.',
+    17: 'Find missing or expiring import and shipment documents.',
+    18: 'Show application access changes or users that need attention.',
+    19: 'Which Euro-Fish data connections are healthy or failing?',
+    20: 'Show security or permission issues that need owner action.',
+    21: 'What Euro-Fish workspace settings should I review?',
+  };
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<AskPandoraScreenState> _chatKey =
@@ -111,6 +294,20 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       5 => 'plugins',
       6 => 'saved_evidence',
       7 => 'verify_safety',
+      8 => 'eurofish_overview',
+      9 => 'eurofish_orders',
+      10 => 'eurofish_shipments',
+      11 => 'eurofish_inventory',
+      12 => 'eurofish_customers',
+      13 => 'eurofish_aquaculture',
+      14 => 'eurofish_flowers',
+      15 => 'eurofish_compliance',
+      16 => 'eurofish_finance',
+      17 => 'eurofish_documents',
+      18 => 'eurofish_app_users',
+      19 => 'eurofish_integrations',
+      20 => 'eurofish_security',
+      21 => 'eurofish_settings',
       _ => 'pandora_chat',
     };
     unawaited(
@@ -236,29 +433,31 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       return;
     }
     await _runThreadMutation(
-      () => PandoraDependencies.of(context)
-          .intelligence!
-          .renameThread(thread.id, title),
+      () =>
+          PandoraDependencies.of(context).intelligence!
+              .renameThread(thread.id, title),
       success: 'Conversation renamed.',
     );
   }
 
   Future<void> _archiveThread(PandoraIntelligenceThread thread) async {
     await _runThreadMutation(
-      () => PandoraDependencies.of(context)
-          .intelligence!
-          .archiveThread(thread.id),
+      () =>
+          PandoraDependencies.of(context).intelligence!
+              .archiveThread(thread.id),
       success: 'Conversation archived.',
     );
   }
 
   Future<void> _deleteThread(PandoraIntelligenceThread thread) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('Delete conversation?'),
             content: Text(
-                'Delete “${thread.title}” and its saved messages? This cannot be undone.'),
+              'Delete “${thread.title}” and its saved messages? This cannot be undone.',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -284,8 +483,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     final intelligence = PandoraDependencies.of(context).intelligence;
     if (intelligence == null) return;
     try {
-      final projectSnapshot = await PandoraDependencies.of(context)
-          .repository
+      final projectSnapshot = await PandoraDependencies.of(context).repository
           .projects(allowCached: true);
       if (!mounted) return;
       final selected = await showModalBottomSheet<String>(
@@ -300,7 +498,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               const ListTile(
                 title: Text('Move conversation to project'),
                 subtitle: Text(
-                    'Choose a persistent project context or remove the association.'),
+                  'Choose a persistent project context or remove the association.',
+                ),
               ),
               ListTile(
                 leading: const Icon(Icons.link_off_rounded),
@@ -334,7 +533,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       _showThreadMessage(error.message);
     } on Exception {
       _showThreadMessage(
-          'Pandora could not load projects for this conversation.');
+        'Pandora could not load projects for this conversation.',
+      );
     }
   }
 
@@ -359,24 +559,35 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Widget _root(int index) => _roots.putIfAbsent(
-        index,
-        () => switch (index) {
-          0 => AskPandoraScreen(
-              key: _chatKey,
-              onSearchChats: _searchChats,
-              onMore: () => _select(3),
-            ),
-          1 => const ProjectsScreen(),
-          2 => const ApprovalsScreen(),
-          3 => const MoreScreen(),
-          4 => const ActivityScreen(),
-          5 => const PluginsScreen(),
-          6 => const OfflineEvidenceScreen(),
-          7 => const SimpleSafetyScreen(),
-          _ => AskPandoraScreen(key: _chatKey),
-        },
+  Widget _root(int index) => _roots.putIfAbsent(index, () {
+    if (index == 8) return const EurofishOverviewScreen();
+    if (index >= 9 && index <= 21) {
+      return EurofishSectionScreen(
+        title: _destinations[index].label,
+        description:
+            _enterpriseDescriptions[index] ?? 'Euro-Fish enterprise workspace.',
+        icon: _destinations[index].selectedIcon,
+        items: _enterpriseItems[index] ?? const <String>[],
+        suggestedPrompt:
+            _enterprisePrompts[index] ?? 'What needs my attention here?',
       );
+    }
+    return switch (index) {
+      0 => AskPandoraScreen(
+        key: _chatKey,
+        onSearchChats: _searchChats,
+        onMore: () => _select(3),
+      ),
+      1 => const ProjectsScreen(),
+      2 => const ApprovalsScreen(),
+      3 => const MoreScreen(),
+      4 => const ActivityScreen(),
+      5 => const PluginsScreen(),
+      6 => const OfflineEvidenceScreen(),
+      7 => const SimpleSafetyScreen(),
+      _ => AskPandoraScreen(key: _chatKey),
+    };
+  });
 
   ThemeData _theme(ThemeData base) {
     const scheme = ColorScheme.dark(
@@ -414,8 +625,10 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: PandoraV2Colors.surface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 15,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: PandoraV2Colors.line),
@@ -433,75 +646,73 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
   Widget _sidePanel() => _PandoraSidePanel(
-        destinations: _destinations,
-        selectedIndex: _index,
-        onSelected: _select,
-        threads: _threads,
-        historyLoading: _historyLoading,
-        onNewChat: _newChat,
-        onSearchChats: _searchChats,
-        onOpenThread: _openThread,
-        onManageThread: _manageThread,
-      );
+    destinations: _destinations,
+    selectedIndex: _index,
+    onSelected: _select,
+    threads: _threads,
+    historyLoading: _historyLoading,
+    onNewChat: _newChat,
+    onSearchChats: _searchChats,
+    onOpenThread: _openThread,
+    onManageThread: _manageThread,
+  );
 
   @override
   Widget build(BuildContext context) => Theme(
-        data: _theme(Theme.of(context)),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final body = IndexedStack(
-              index: _index,
+    data: _theme(Theme.of(context)),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final body = IndexedStack(
+          index: _index,
+          children: [
+            for (var i = 0; i < _destinations.length; i++)
+              _visited.contains(i) || i == _index
+                  ? _root(i)
+                  : const SizedBox.shrink(),
+          ],
+        );
+
+        if (constraints.maxWidth >= 900) {
+          return Scaffold(
+            backgroundColor: PandoraV2Colors.canvas,
+            body: Row(
               children: [
-                for (var i = 0; i < _destinations.length; i++)
-                  _visited.contains(i) || i == _index
-                      ? _root(i)
-                      : const SizedBox.shrink(),
+                SizedBox(width: 264, child: SafeArea(child: _sidePanel())),
+                const VerticalDivider(width: 1, color: PandoraV2Colors.line),
+                Expanded(
+                  child: PandoraNavigationScope(openDrawer: null, child: body),
+                ),
               ],
-            );
+            ),
+          );
+        }
 
-            if (constraints.maxWidth >= 900) {
-              return Scaffold(
-                backgroundColor: PandoraV2Colors.canvas,
-                body: Row(
-                  children: [
-                    SizedBox(width: 264, child: SafeArea(child: _sidePanel())),
-                    const VerticalDivider(
-                        width: 1, color: PandoraV2Colors.line),
-                    Expanded(
-                      child:
-                          PandoraNavigationScope(openDrawer: null, child: body),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return Scaffold(
-              key: _scaffoldKey,
-              backgroundColor: PandoraV2Colors.canvas,
-              onDrawerChanged: (open) {
-                if (open) unawaited(_refreshHistory());
-              },
-              drawer: Drawer(
-                width: 304,
-                backgroundColor: PandoraV2Colors.surface,
-                surfaceTintColor: Colors.transparent,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.only(
-                    topRight: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
-                ),
-                child: SafeArea(child: _sidePanel()),
-              ),
-              body: PandoraNavigationScope(
-                openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
-                child: body,
-              ),
-            );
+        return Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: PandoraV2Colors.canvas,
+          onDrawerChanged: (open) {
+            if (open) unawaited(_refreshHistory());
           },
-        ),
-      );
+          drawer: Drawer(
+            width: 304,
+            backgroundColor: PandoraV2Colors.surface,
+            surfaceTintColor: Colors.transparent,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                topRight: Radius.circular(24),
+                bottomRight: Radius.circular(24),
+              ),
+            ),
+            child: SafeArea(child: _sidePanel()),
+          ),
+          body: PandoraNavigationScope(
+            openDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+            child: body,
+          ),
+        );
+      },
+    ),
+  );
 }
 
 class _PandoraSidePanel extends StatelessWidget {
@@ -529,150 +740,217 @@ class _PandoraSidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: PandoraV2Colors.surface,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 22, 18, 16),
-              child: Row(
-                children: [
-                  PandoraMark(size: 28),
-                  SizedBox(width: 11),
-                  Text(
-                    'Pandora',
-                    style: TextStyle(
-                      color: PandoraV2Colors.ink,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -.35,
-                    ),
-                  ),
-                ],
+    color: PandoraV2Colors.surface,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 22, 18, 16),
+          child: Row(
+            children: [
+              PandoraMark(size: 28),
+              SizedBox(width: 11),
+              Text(
+                'Pandora',
+                style: TextStyle(
+                  color: PandoraV2Colors.ink,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.35,
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 2),
-              child: ListTile(
-                key: const ValueKey<String>('pandora-new-chat'),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                leading: const Icon(Icons.edit_square, size: 21),
-                title: const Text('New chat',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                onTap: onNewChat,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-              child: ListTile(
-                key: const ValueKey<String>('pandora-search-chats'),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                leading: const Icon(Icons.search_rounded, size: 21),
-                title: const Text('Search chats',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                onTap: onSearchChats,
-              ),
-            ),
-            const Divider(height: 1, color: PandoraV2Colors.line),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(10, 12, 10, 14),
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
-                    child: Text(
-                      'Recent chats',
-                      style: TextStyle(
-                        color: PandoraV2Colors.muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  if (historyLoading && threads.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Center(
-                        child: SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 1.8),
-                        ),
-                      ),
-                    )
-                  else if (threads.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(10, 4, 10, 14),
-                      child: Text(
-                        'Your conversations will appear here.',
-                        style: TextStyle(
-                            color: PandoraV2Colors.muted, fontSize: 12.5),
-                      ),
-                    )
-                  else
-                    for (final thread in threads.take(12))
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 2),
-                        child: ListTile(
-                          dense: true,
-                          visualDensity: const VisualDensity(vertical: -2),
-                          key: ValueKey<String>('pandora-thread-${thread.id}'),
-                          title: Text(
-                            thread.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 13.5, fontWeight: FontWeight.w500),
-                          ),
-                          trailing: IconButton(
-                            tooltip: 'Conversation options',
-                            icon:
-                                const Icon(Icons.more_horiz_rounded, size: 19),
-                            onPressed: () => onManageThread(thread),
-                          ),
-                          onTap: () => onOpenThread(thread),
-                        ),
-                      ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Divider(height: 1, color: PandoraV2Colors.line),
-                  ),
-                  for (final index in const <int>[0, 1, 2, 4, 5, 6, 7, 3])
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: ListTile(
-                        selected: index == selectedIndex,
-                        selectedColor: PandoraV2Colors.ink,
-                        iconColor: PandoraV2Colors.muted,
-                        textColor: PandoraV2Colors.ink,
-                        selectedTileColor: PandoraV2Colors.soft,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        leading: Icon(
-                          index == selectedIndex
-                              ? destinations[index].selectedIcon
-                              : destinations[index].icon,
-                          size: 22,
-                        ),
-                        title: Text(
-                          destinations[index].label,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: index == selectedIndex
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                          ),
-                        ),
-                        onTap: () => onSelected(index),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      );
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 2),
+          child: ListTile(
+            key: const ValueKey<String>('pandora-new-chat'),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            leading: const Icon(Icons.edit_square, size: 21),
+            title: const Text(
+              'New chat',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            onTap: onNewChat,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+          child: ListTile(
+            key: const ValueKey<String>('pandora-search-chats'),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            leading: const Icon(Icons.search_rounded, size: 21),
+            title: const Text(
+              'Search chats',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            onTap: onSearchChats,
+          ),
+        ),
+        const Divider(height: 1, color: PandoraV2Colors.line),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(10, 12, 10, 14),
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
+                child: Text(
+                  'Recent chats',
+                  style: TextStyle(
+                    color: PandoraV2Colors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (historyLoading && threads.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 1.8),
+                    ),
+                  ),
+                )
+              else if (threads.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(10, 4, 10, 14),
+                  child: Text(
+                    'Your conversations will appear here.',
+                    style: TextStyle(
+                      color: PandoraV2Colors.muted,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                )
+              else
+                for (final thread in threads.take(12))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: ListTile(
+                      dense: true,
+                      visualDensity: const VisualDensity(vertical: -2),
+                      key: ValueKey<String>('pandora-thread-${thread.id}'),
+                      title: Text(
+                        thread.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      trailing: IconButton(
+                        tooltip: 'Conversation options',
+                        icon: const Icon(Icons.more_horiz_rounded, size: 19),
+                        onPressed: () => onManageThread(thread),
+                      ),
+                      onTap: () => onOpenThread(thread),
+                    ),
+                  ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Divider(height: 1, color: PandoraV2Colors.line),
+              ),
+              for (final index in const <int>[0, 1, 2, 4, 5, 6, 7, 3])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: ListTile(
+                    selected: index == selectedIndex,
+                    selectedColor: PandoraV2Colors.ink,
+                    iconColor: PandoraV2Colors.muted,
+                    textColor: PandoraV2Colors.ink,
+                    selectedTileColor: PandoraV2Colors.soft,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    leading: Icon(
+                      index == selectedIndex
+                          ? destinations[index].selectedIcon
+                          : destinations[index].icon,
+                      size: 22,
+                    ),
+                    title: Text(
+                      destinations[index].label,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: index == selectedIndex
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () => onSelected(index),
+                  ),
+                ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(10, 16, 10, 8),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor: Color(0xFFEAB308),
+                      child: Icon(
+                        Icons.set_meal_rounded,
+                        size: 16,
+                        color: Color(0xFF0A192F),
+                      ),
+                    ),
+                    SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        '1064 Euro-Fish Trading',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              for (var index = 8; index < destinations.length; index++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: ListTile(
+                    dense: true,
+                    selected: index == selectedIndex,
+                    selectedColor: PandoraV2Colors.ink,
+                    iconColor: PandoraV2Colors.muted,
+                    textColor: PandoraV2Colors.ink,
+                    selectedTileColor: const Color(0x221E40AF),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    leading: Icon(
+                      index == selectedIndex
+                          ? destinations[index].selectedIcon
+                          : destinations[index].icon,
+                      size: 20,
+                    ),
+                    title: Text(
+                      destinations[index].label,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: index == selectedIndex
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () => onSelected(index),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _SearchChatsSheet extends StatefulWidget {
@@ -697,9 +975,11 @@ class _SearchChatsSheetState extends State<_SearchChatsSheet> {
   @override
   Widget build(BuildContext context) {
     final matches = widget.threads
-        .where((thread) =>
-            _query.isEmpty ||
-            thread.title.toLowerCase().contains(_query.toLowerCase()))
+        .where(
+          (thread) =>
+              _query.isEmpty ||
+              thread.title.toLowerCase().contains(_query.toLowerCase()),
+        )
         .toList(growable: false);
     return Padding(
       padding: EdgeInsets.fromLTRB(
