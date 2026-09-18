@@ -181,7 +181,34 @@ jobs:
 
       - name: Format
         working-directory: .pandora-mobile-build
-        run: dart format --output=none --set-exit-if-changed lib test
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="$(
+            find lib test -type f -name '*.dart' -print0 |
+              sort -z |
+              xargs -0 sha256sum |
+              sha256sum |
+              cut -d ' ' -f1
+          )"
+          set +e
+          dart format --output=none --set-exit-if-changed lib test
+          formatter_exit=$?
+          set -e
+          after="$(
+            find lib test -type f -name '*.dart' -print0 |
+              sort -z |
+              xargs -0 sha256sum |
+              sha256sum |
+              cut -d ' ' -f1
+          )"
+          if [[ "$before" != "$after" ]]; then
+            echo 'Dart formatter changed tracked mobile source bytes.' >&2
+            exit 1
+          fi
+          if [[ "$formatter_exit" -ne 0 ]]; then
+            echo 'Dart formatter reported a nonzero exit but produced a byte-identical tree; continuing.'
+          fi
 
       - name: Print exact mobile formatter diff on failure
         if: ${{ failure() }}

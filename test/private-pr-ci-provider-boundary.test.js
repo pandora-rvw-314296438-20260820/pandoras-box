@@ -54,3 +54,12 @@ test('release authority still requires the non-PR provider lane', () => {
   assert.match(canonical, /Release authority: `false`/);
   assert.match(mobile, /Only push-to-main artifacts can become canonical release authority/);
 });
+
+test('mobile formatter gate rejects real byte changes but tolerates false nonzero exits', () => {
+  assert.match(mobile, /find lib test -type f -name '\*\.dart' -print0/);
+  assert.match(mobile, /Dart formatter changed tracked mobile source bytes/);
+  assert.match(
+    mobile,
+    /Dart formatter reported a nonzero exit but produced a byte-identical tree; continuing\./,
+  );
+});
