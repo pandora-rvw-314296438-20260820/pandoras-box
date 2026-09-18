@@ -564,9 +564,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       route:
           '/enterprise/${_destinations[index].label.toLowerCase().replaceAll(' ', '-')}',
       capabilities: capabilities,
-      selectedObject: _enterpriseSelections[index] == null
-          ? null
-          : Map<String, Object?>.from(_enterpriseSelections[index]!),
+      selectedObject: _enterpriseSelections[index],
       identityScope:
           index == 9 ? 'pandora_organization' : 'enterprise_workspace',
     );
