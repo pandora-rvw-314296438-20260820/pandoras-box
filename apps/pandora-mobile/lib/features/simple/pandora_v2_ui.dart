@@ -193,91 +193,95 @@ class PandoraV2IntentSurface extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedOpacity(
-        duration: const Duration(milliseconds: 180),
-        opacity: enabled ? 1 : .72,
-        child: Container(
-          decoration: BoxDecoration(
-            color: PandoraV2Colors.surface,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: PandoraV2Colors.line),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x12000000),
-                blurRadius: 24,
-                offset: Offset(0, 8),
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return AnimatedOpacity(
+      duration:
+          reduceMotion ? Duration.zero : const Duration(milliseconds: 180),
+      opacity: enabled ? 1 : .72,
+      child: Container(
+        decoration: BoxDecoration(
+          color: PandoraV2Colors.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: PandoraV2Colors.muted),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x12000000),
+              blurRadius: 24,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            TextField(
+              controller: controller,
+              enabled: enabled,
+              autofocus: autofocus,
+              minLines: 1,
+              maxLines: 5,
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.newline,
+              style: const TextStyle(
+                color: PandoraV2Colors.ink,
+                fontSize: 16,
+                height: 1.35,
               ),
-            ],
-          ),
-          child: Column(
-            children: [
-              TextField(
-                controller: controller,
-                enabled: enabled,
-                autofocus: autofocus,
-                minLines: 1,
-                maxLines: 5,
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.newline,
-                style: const TextStyle(
-                  color: PandoraV2Colors.ink,
+              decoration: InputDecoration(
+                hintText: hintText,
+                hintStyle: const TextStyle(
+                  color: Color(0xFF989793),
                   fontSize: 16,
-                  height: 1.35,
                 ),
-                decoration: InputDecoration(
-                  hintText: hintText,
-                  hintStyle: const TextStyle(
-                    color: Color(0xFF989793),
-                    fontSize: 16,
-                  ),
-                  filled: false,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  disabledBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-                ),
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                child: Row(
-                  children: [
-                    if (onAttachment != null)
-                      _PandoraComposerIconButton(
-                        tooltip: 'Attach',
-                        icon: Icons.add_rounded,
-                        onPressed: enabled ? onAttachment : null,
-                      ),
-                    if (onVoice != null) ...[
-                      const SizedBox(width: 4),
-                      _PandoraComposerIconButton(
-                        tooltip: 'Speak',
-                        icon: Icons.mic_none_rounded,
-                        onPressed: enabled ? onVoice : null,
-                      ),
-                    ],
-                    const Spacer(),
-                    SizedBox.square(
-                      dimension: 48,
-                      child: IconButton.filled(
-                        tooltip: submitTooltip,
-                        onPressed: enabled ? _submit : null,
-                        style: IconButton.styleFrom(
-                          backgroundColor: PandoraV2Colors.ink,
-                          foregroundColor: Colors.black,
-                          disabledBackgroundColor: PandoraV2Colors.soft,
-                          disabledForegroundColor: PandoraV2Colors.muted,
-                        ),
-                        icon: const Icon(Icons.arrow_upward_rounded, size: 21),
-                      ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              child: Row(
+                children: [
+                  if (onAttachment != null)
+                    _PandoraComposerIconButton(
+                      tooltip: 'Attach',
+                      icon: Icons.add_rounded,
+                      onPressed: enabled ? onAttachment : null,
+                    ),
+                  if (onVoice != null) ...[
+                    const SizedBox(width: 4),
+                    _PandoraComposerIconButton(
+                      tooltip: 'Speak',
+                      icon: Icons.mic_none_rounded,
+                      onPressed: enabled ? onVoice : null,
                     ),
                   ],
-                ),
+                  const Spacer(),
+                  SizedBox.square(
+                    dimension: 48,
+                    child: IconButton.filled(
+                      tooltip: submitTooltip,
+                      onPressed: enabled ? _submit : null,
+                      style: IconButton.styleFrom(
+                        backgroundColor: PandoraV2Colors.ink,
+                        foregroundColor: Colors.black,
+                        disabledBackgroundColor: PandoraV2Colors.soft,
+                        disabledForegroundColor: PandoraV2Colors.muted,
+                      ),
+                      icon: const Icon(Icons.arrow_upward_rounded, size: 21),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _PandoraComposerIconButton extends StatelessWidget {

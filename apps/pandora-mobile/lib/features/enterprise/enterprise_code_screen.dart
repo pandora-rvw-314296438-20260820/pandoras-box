@@ -149,6 +149,13 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
             .toList() ??
         const <String>[];
     final canDeploy = !_working && _validRepositoryUrl;
+    final repositoryInputError = _error != null &&
+            _error!.startsWith('Enter a GitHub repository URL')
+        ? _error
+        : null;
+    final deploymentStatus = _deployment == null
+        ? null
+        : (_deployment?['status'] ?? 'unknown').toString();
 
     return PandoraPage(
       title: 'Code',
@@ -178,10 +185,11 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
                     }
                     _error = null;
                   }),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'GitHub repository URL',
                     hintText: 'https://github.com/owner/repository',
-                    prefixIcon: Icon(Icons.link_rounded),
+                    prefixIcon: const Icon(Icons.link_rounded),
+                    errorText: repositoryInputError,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -193,12 +201,18 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
                       key: const ValueKey<String>(
                           'enterprise-inspect-repository'),
                       onPressed: canDeploy ? _inspect : null,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                      ),
                       icon: const Icon(Icons.manage_search_rounded),
                       label: const Text('Inspect repository'),
                     ),
                     FilledButton.icon(
                       key: const ValueKey<String>('enterprise-import-deploy'),
                       onPressed: canDeploy ? _deploy : null,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                      ),
                       icon: _working
                           ? const SizedBox.square(
                               dimension: 17,
@@ -209,16 +223,31 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
                     ),
                   ],
                 ),
-                if (_error != null) ...[
+                if (_working) ...[
                   const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: PandoraV2Colors.soft,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: PandoraV2Colors.line),
+                  const Semantics(
+                    liveRegion: true,
+                    label: 'Repository operation in progress.',
+                    child: Text(
+                      'Working with the connected providers…',
+                      style: TextStyle(color: PandoraV2Colors.muted),
                     ),
-                    child: Text(_error!),
+                  ),
+                ],
+                if (_error != null && repositoryInputError == null) ...[
+                  const SizedBox(height: 12),
+                  Semantics(
+                    liveRegion: true,
+                    label: 'Repository operation failed. $_error',
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: PandoraV2Colors.soft,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: PandoraV2Colors.muted),
+                      ),
+                      child: Text(_error!),
+                    ),
                   ),
                 ],
               ],
@@ -226,11 +255,21 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
           ),
           if (repo != null && detected != null) ...[
             const SizedBox(height: 14),
-            _repositorySummary(repo, detected, stack, envNames),
+            Semantics(
+              liveRegion: true,
+              label: 'Repository inspection updated from the connected provider.',
+              child: _repositorySummary(repo, detected, stack, envNames),
+            ),
           ],
           if (_deployment != null) ...[
             const SizedBox(height: 14),
-            _deploymentSummary(_deployment!),
+            Semantics(
+              liveRegion: true,
+              label: 'Deployment provider readback. Status ' +
+                  (deploymentStatus ?? 'unknown') +
+                  '.',
+              child: _deploymentSummary(_deployment!),
+            ),
           ],
         ],
       ),
@@ -326,28 +365,55 @@ class _EnterpriseCodeScreenState extends State<EnterpriseCodeScreen> {
     );
   }
 
-  Widget _fact(String label, String value) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 130,
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: PandoraV2Colors.muted,
-                    ),
+  Widget _fact(String label, String value) => LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(1);
+          final stacked = constraints.maxWidth < 420 || textScale >= 1.4;
+          if (stacked) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: PandoraV2Colors.muted,
+                        ),
+                  ),
+                  const SizedBox(height: 3),
+                  SelectableText(
+                    value.isEmpty ? '—' : value,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
               ),
+            );
+          }
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 130,
+                  child: Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: PandoraV2Colors.muted,
+                        ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SelectableText(
+                    value.isEmpty ? '—' : value,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: SelectableText(
-                value.isEmpty ? '—' : value,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       );
 }

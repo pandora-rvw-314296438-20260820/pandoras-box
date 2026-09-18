@@ -64,7 +64,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       Icons.dashboard_outlined,
       Icons.dashboard_rounded,
     ),
-    _ChatDestination('App Users', Icons.group_outlined, Icons.group_rounded),
+    _ChatDestination('Team & Access', Icons.group_outlined, Icons.group_rounded),
     _ChatDestination('Data', Icons.storage_outlined, Icons.storage_rounded),
     _ChatDestination(
       'Analytics',
@@ -114,6 +114,31 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       Icons.device_hub_outlined,
       Icons.device_hub_rounded,
     ),
+    _ChatDestination(
+      'Operations & Bookings',
+      Icons.event_note_outlined,
+      Icons.event_note_rounded,
+    ),
+    _ChatDestination(
+      'Guests & Customers',
+      Icons.people_alt_outlined,
+      Icons.people_alt_rounded,
+    ),
+    _ChatDestination(
+      'Revenue & Reports',
+      Icons.payments_outlined,
+      Icons.payments_rounded,
+    ),
+    _ChatDestination(
+      'Needs You',
+      Icons.priority_high_rounded,
+      Icons.priority_high_rounded,
+    ),
+    _ChatDestination(
+      'Activity',
+      Icons.history_outlined,
+      Icons.history_rounded,
+    ),
   ];
 
   static const _enterpriseDescriptions = <int, String>{
@@ -132,6 +157,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     20: 'API configuration, credentials governance and developer access.',
     21: 'General Enterprise workspace and application configuration.',
     22: 'MCP servers, tools, resources and connection management.',
+    23: 'Today’s operations, booking movement and verified operational exceptions.',
+    24: 'Guest and customer records, requests and service context.',
+    25: 'Verified business reporting, comparisons and revenue evidence.',
+    26: 'Only decisions, approvals or missing input that genuinely require you.',
+    27: 'Business-readable verified activity and execution evidence.',
   };
 
   static const _enterpriseItems = <int, List<String>>{
@@ -154,12 +184,19 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       'Enterprise preferences',
     ],
     22: ['MCP servers', 'Available tools', 'Resources and connection state'],
+    23: ['Today’s movement', 'Bookings and operations', 'Exceptions and handoffs'],
+    24: ['Guests and customers', 'Requests and service context', 'Selected guest record'],
+    25: ['Verified KPIs', 'Period comparisons', 'Reports and evidence'],
+    26: ['Approvals', 'Consequential decisions', 'Missing access or input'],
+    27: ['Verified business activity', 'Provider receipts', 'Execution evidence'],
   };
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<AskPandoraScreenState> _chatKey =
       GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
+  final Map<int, Map<String, String>?> _enterpriseSelections =
+      <int, Map<String, String>?>{};
   final Set<int> _visited = <int>{0};
   List<PandoraIntelligenceThread> _threads =
       const <PandoraIntelligenceThread>[];
@@ -239,6 +276,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       20 => 'enterprise_api',
       21 => 'enterprise_settings',
       22 => 'enterprise_mcp',
+      23 => 'enterprise_operations',
+      24 => 'enterprise_guests',
+      25 => 'enterprise_revenue',
+      26 => 'enterprise_needs_you',
+      27 => 'enterprise_activity',
       _ => 'pandora_chat',
     };
     unawaited(
@@ -496,11 +538,16 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         }
         if (index >= 8 && index < _destinations.length) {
           return EnterpriseSectionScreen(
+            surface: _enterpriseContext(index).surface,
             title: _destinations[index].label,
             description: _enterpriseDescriptions[index] ??
                 'Enterprise configuration and operational controls.',
             icon: _destinations[index].selectedIcon,
             items: _enterpriseItems[index] ?? const <String>[],
+            onSelectionChanged: (selection) {
+              if (!mounted) return;
+              setState(() => _enterpriseSelections[index] = selection);
+            },
           );
         }
         return switch (index) {
@@ -537,6 +584,34 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       20 => 'enterprise_api',
       21 => 'enterprise_settings',
       22 => 'enterprise_mcp',
+      23 => 'enterprise_workflows',
+      24 => 'enterprise_data',
+      25 => 'enterprise_analytics',
+      26 => 'enterprise_workflows',
+      27 => 'enterprise_logs',
+      _ => throw StateError('Not an Enterprise destination.'),
+    };
+    final route = switch (index) {
+      8 => '/enterprise/overview',
+      9 => '/enterprise/app-users',
+      10 => '/enterprise/data',
+      11 => '/enterprise/analytics',
+      12 => '/enterprise/marketing',
+      13 => '/enterprise/domains',
+      14 => '/enterprise/integrations',
+      15 => '/enterprise/security',
+      16 => '/enterprise/code',
+      17 => '/enterprise/agents',
+      18 => '/enterprise/workflows',
+      19 => '/enterprise/logs',
+      20 => '/enterprise/api',
+      21 => '/enterprise/settings',
+      22 => '/enterprise/mcp',
+      23 => '/enterprise/operations',
+      24 => '/enterprise/guests',
+      25 => '/enterprise/revenue',
+      26 => '/enterprise/needs-you',
+      27 => '/enterprise/activity',
       _ => throw StateError('Not an Enterprise destination.'),
     };
     final capabilities = switch (index) {
@@ -554,15 +629,15 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     };
     return EnterprisePageContext(
       surface: surface,
-      route:
-          '/enterprise/${_destinations[index].label.toLowerCase().replaceAll(' ', '-')}',
+      route: route,
       capabilities: capabilities,
+      selectedObject: _enterpriseSelections[index],
       identityScope:
           index == 9 ? 'pandora_organization' : 'enterprise_workspace',
     );
   }
 
-  ThemeData _theme(ThemeData base) {
+    ThemeData _theme(ThemeData base) {
     const scheme = ColorScheme.dark(
       primary: PandoraV2Colors.ink,
       onPrimary: Colors.black,
@@ -649,7 +724,13 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
             final workspace = _index >= 8
                 ? EnterprisePageContextScope(
                     pageContext: _enterpriseContext(_index),
-                    child: EnterpriseCommandStack(child: body),
+                    child: EnterpriseCommandStack(
+                      onVerifiedResult: (_) {
+                        if (!mounted) return;
+                        setState(() => _roots.remove(_index));
+                      },
+                      child: body,
+                    ),
                   )
                 : body;
 
@@ -913,67 +994,78 @@ class _EnterpriseMenu extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   @override
-  Widget build(BuildContext context) => ExpansionTile(
-        key: const ValueKey<String>('pandora-enterprise-menu'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        collapsedShape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: const Icon(Icons.business_center_outlined, size: 21),
-        title: const Text(
-          'Enterprise',
-          style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+  Widget build(BuildContext context) {
+    const ownerIndexes = <int>[8, 23, 24, 9, 25, 26, 27, 21];
+    const systemIndexes = <int>[10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22];
+    return ExpansionTile(
+      key: const ValueKey<String>('pandora-enterprise-menu'),
+      initiallyExpanded: selectedIndex >= 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      collapsedShape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      leading: const Icon(Icons.business_center_outlined, size: 21),
+      title: const Text(
+        'PLP Boracay',
+        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+      ),
+      subtitle: const Text(
+        'Owner workspace',
+        style: TextStyle(fontSize: 11.5, color: PandoraV2Colors.muted),
+      ),
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(18, 8, 18, 6),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'BUSINESS',
+              style: TextStyle(
+                color: PandoraV2Colors.muted,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: .8,
+              ),
+            ),
+          ),
         ),
-        children: [
-          for (final index in const <int>[8, 9])
-            _EnterpriseNavTile(
-              destination: destinations[index],
-              selected: index == selectedIndex,
-              onTap: () => onSelected(index),
-            ),
-          _EnterpriseExpansionTile(
-            destination: destinations[10],
-            selected: selectedIndex == 10,
-            children: const <String>[
-              'Data overview',
-              'Databases & tables',
-              'Storage resources',
-            ],
-            onTap: () => onSelected(10),
-          ),
+        for (final index in ownerIndexes)
           _EnterpriseNavTile(
-            destination: destinations[11],
-            selected: selectedIndex == 11,
-            onTap: () => onSelected(11),
+            destination: destinations[index],
+            selected: index == selectedIndex,
+            onTap: () => onSelected(index),
           ),
-          _EnterpriseExpansionTile(
-            destination: destinations[12],
-            selected: selectedIndex == 12,
-            children: const <String>[
-              'Marketing overview',
-              'Audiences',
-              'Campaigns',
-            ],
-            onTap: () => onSelected(12),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(14, 8, 14, 4),
+          child: Divider(),
+        ),
+        ExpansionTile(
+          key: const ValueKey<String>('pandora-enterprise-system-menu'),
+          initiallyExpanded: systemIndexes.contains(selectedIndex),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          collapsedShape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          leading: const Icon(Icons.developer_mode_outlined, size: 20),
+          title: const Text(
+            'System / Developer',
+            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
           ),
-          for (final index in const <int>[
-            13,
-            14,
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-            21,
-            22,
-          ])
-            _EnterpriseNavTile(
-              destination: destinations[index],
-              selected: index == selectedIndex,
-              onTap: () => onSelected(index),
-            ),
-        ],
-      );
+          subtitle: const Text(
+            'Privileged technical surfaces',
+            style: TextStyle(fontSize: 11.5, color: PandoraV2Colors.muted),
+          ),
+          children: [
+            for (final index in systemIndexes)
+              _EnterpriseNavTile(
+                destination: destinations[index],
+                selected: index == selectedIndex,
+                onTap: () => onSelected(index),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 class _EnterpriseNavTile extends StatelessWidget {
