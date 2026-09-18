@@ -35,6 +35,21 @@ class PandoraDeviceCommunicationCommand {
       );
     }
 
+    final send = RegExp(
+      r'^(?:please\s+)?send(?:\s+to)?\s+(.+?)\s*:\s*(.+?)\s*$',
+      caseSensitive: false,
+    ).firstMatch(input);
+    if (send != null) {
+      final recipient = _cleanRecipientLabel(send.group(1) ?? '');
+      final body = (send.group(2) ?? '').trim();
+      if (recipient.isEmpty || body.isEmpty) return null;
+      return PandoraDeviceCommunicationCommand(
+        kind: PandoraCommunicationKind.sms,
+        recipient: recipient,
+        message: body,
+      );
+    }
+
     final text = RegExp(
       r'^(?:please\s+)?(?:text|sms)\s+(.+?)\s*$',
       caseSensitive: false,

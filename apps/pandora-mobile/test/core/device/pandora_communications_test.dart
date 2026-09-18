@@ -82,4 +82,40 @@ void main() {
       throwsFormatException,
     );
   });
+
+  test('direct SMS parses platform-submitted truth without claiming sent', () {
+    final result = PandoraDirectCommunicationResult.fromMap(
+      <String, Object?>{
+        'operationId': 'direct-sms-12345',
+        'kind': 'sms',
+        'state': 'submitted',
+        'terminal': false,
+        'acceptedByPlatform': true,
+        'duplicatePrevented': false,
+        'requiredPermission': 'android.permission.SEND_SMS',
+        'failure': null,
+        'updatedAtEpochMs': 123,
+      },
+    );
+    expect(result.state, PandoraDirectCommunicationState.submitted);
+    expect(result.acceptedByPlatform, isTrue);
+    expect(result.terminal, isFalse);
+  });
+
+  test('direct callback failure may preserve earlier platform acceptance', () {
+    final result = PandoraDirectCommunicationResult.fromMap(
+      <String, Object?>{
+        'operationId': 'direct-sms-67890',
+        'kind': 'sms',
+        'state': 'failed',
+        'terminal': true,
+        'acceptedByPlatform': true,
+        'duplicatePrevented': false,
+        'failure': 'android_result_1',
+        'updatedAtEpochMs': 456,
+      },
+    );
+    expect(result.state, PandoraDirectCommunicationState.failed);
+    expect(result.acceptedByPlatform, isTrue);
+  });
 }
