@@ -83,6 +83,7 @@ jobs:
           --output "${{ runner.temp }}/canonical-release-source-binding.json"
 
       - name: Upload the source-only binding
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: canonical-release-source-${{ github.sha }}
