@@ -138,7 +138,7 @@ begin
     'providers',v_rows
   );
 end;
-$function$
+$function$;
 
 
 revoke all on function public.pandora_chat_capability_registry_v3(uuid) from public,anon;
@@ -581,7 +581,7 @@ begin
     'providerReadback',v_result
   );
 end;
-$function$
+$function$;
 
 
 revoke all on function public.pandora_chat_capability_dispatch_native_v1(uuid,text,uuid,uuid) from public,anon;
@@ -672,7 +672,7 @@ begin
     'requestMode','intelligence'
   );
 end;
-$function$
+$function$;
 
 
 revoke all on function public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid) from public,anon;

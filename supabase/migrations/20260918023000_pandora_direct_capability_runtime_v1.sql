@@ -506,7 +506,7 @@ begin
     'providerReadback',v_structured->'providerReadback'
   );
 end;
-$function$
+$function$;
 
 
 revoke all on function private.pandora_direct_box_code_edit_v1(uuid,text,uuid,uuid) from public,anon,authenticated;
@@ -588,7 +588,7 @@ begin
     'requestMode','intelligence'
   );
 end;
-$function$
+$function$;
 
 
 revoke all on function public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid) from public,anon;
@@ -639,7 +639,7 @@ begin
 
   return public.pandora_activity_admit_event_v1_legacy_20260917(p_job_id,v_event);
 end;
-$function$
+$function$;
 
 
 do $contract$

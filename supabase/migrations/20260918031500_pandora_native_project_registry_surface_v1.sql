@@ -113,7 +113,7 @@ begin
     'terminalState',v_job.terminal_state
   );
 end;
-$function$
+$function$;
 
 
 do $contract$

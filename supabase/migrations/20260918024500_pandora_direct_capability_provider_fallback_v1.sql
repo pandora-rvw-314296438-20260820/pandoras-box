@@ -524,7 +524,7 @@ begin
     'providerReadback',v_structured->'providerReadback'
   );
 end;
-$function$
+$function$;
 
 
 revoke all on function private.pandora_direct_box_code_edit_v1(uuid,text,uuid,uuid) from public,anon,authenticated;
