@@ -32,6 +32,6 @@
   },
   "mutation_authority": {
     "grants_mutation": false,
-    "path": "ProjectOS plan -> approval where required -> execute -> provider readback -> evidence -> proof-stage update"
+    "path": "Pandora Runtime + Tool Gateway plan -> approval where required -> execute -> provider readback -> evidence -> proof-stage update"
   }
 }
