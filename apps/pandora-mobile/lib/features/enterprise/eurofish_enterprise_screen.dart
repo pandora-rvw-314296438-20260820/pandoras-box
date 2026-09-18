@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_intelligence_api.dart';
-import 'eurofish_workspace_api.dart';
+import '../../core/data/eurofish_workspace_api.dart';
 
 class EurofishEnterpriseScreen extends StatefulWidget {
   const EurofishEnterpriseScreen({super.key, this.api});

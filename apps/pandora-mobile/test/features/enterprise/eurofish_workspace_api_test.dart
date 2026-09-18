@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pandora_mobile/features/enterprise/eurofish_workspace_api.dart';
+import 'package:pandora_mobile/core/data/eurofish_workspace_api.dart';
 
 void main() {
   test('Euro-Fish surfaces map to stable RPC names', () {
