@@ -110,6 +110,17 @@ Set<String> operationsRoomMentions(String message) {
       .toSet();
 }
 
+String operationsRoomRoleText(String reply, String expectedRole) {
+  final parsed = parseOperationsRoomReply(reply);
+  for (final item in parsed) {
+    if (item.role == expectedRole.toUpperCase()) return item.text;
+  }
+  if (parsed.length == 1 && parsed.single.text.trim().isNotEmpty) {
+    return parsed.single.text.trim();
+  }
+  return reply.trim();
+}
+
 class PandoraOperationsRoomScreen extends StatefulWidget {
   const PandoraOperationsRoomScreen({super.key});
 
@@ -165,6 +176,42 @@ class _PandoraOperationsRoomScreenState
     setState(() => _mode = mode);
   }
 
+  Future<PandoraIntelligenceTurn> _runRoomTurn({
+    required PandoraIntelligenceApi intelligence,
+    required String message,
+    required String stage,
+    required String targetRole,
+    required Set<String> mentions,
+  }) async {
+    final execution = await intelligence.startChatExecution(
+      message: message,
+      requestId:
+          _keys.create('operations-room-$stage-${targetRole.toLowerCase()}'),
+      threadId: _threadId,
+      enterpriseContext: <String, Object?>{
+        'surface': 'enterprise_operations_room',
+        'route': '/enterprise/operations-room',
+        'identityScope': 'enterprise_workspace',
+        'capabilities': const <String>[
+          'operations.room.read',
+          'operations.room.coordinate',
+        ],
+        'selectedObject': <String, Object?>{
+          'roomMode': _mode.name,
+          'mentions': mentions.isEmpty ? 'none' : mentions.join(','),
+          'orchestrationStage': stage,
+          'targetRole': targetRole,
+        },
+      },
+    );
+    await _activity.bind(jobId: execution.jobId, stream: execution.events);
+    final turn = await execution.turn;
+    if (mounted) {
+      setState(() => _threadId = turn.threadId);
+    }
+    return turn;
+  }
+
   Future<void> _submit(String value) async {
     final message = value.trim();
     if (message.isEmpty || _submitting) return;
@@ -186,33 +233,73 @@ class _PandoraOperationsRoomScreenState
     _scheduleScroll();
 
     try {
-      final execution = await intelligence.startChatExecution(
-        message: message,
-        requestId: _keys.create('operations-room'),
-        threadId: _threadId,
-        enterpriseContext: <String, Object?>{
-          'surface': 'enterprise_operations_room',
-          'route': '/enterprise/operations-room',
-          'identityScope': 'enterprise_workspace',
-          'capabilities': const <String>[
-            'operations.room.read',
-            'operations.room.coordinate',
-          ],
-          'selectedObject': <String, Object?>{
-            'roomMode': _mode.name,
-            'mentions': mentions.isEmpty ? 'none' : mentions.join(','),
-          },
-        },
+      if (_mode == OperationsRoomMode.execution) {
+        final turn = await _runRoomTurn(
+          intelligence: intelligence,
+          message: message,
+          stage: 'lead',
+          targetRole: 'ATHENA',
+          mentions: mentions,
+        );
+        if (!mounted) return;
+        final parsed = parseOperationsRoomReply(turn.reply);
+        setState(() {
+          for (final item in parsed) {
+            _messages.add(_RoomMessage.agent(role: item.role, text: item.text));
+          }
+        });
+        _scheduleScroll();
+        return;
+      }
+
+      final roles = _mode == OperationsRoomMode.council
+          ? const <String>[
+              'APOLLO',
+              'HERMES',
+              'HEPHAESTUS',
+              'THEMIS',
+              'ARTEMIS',
+            ]
+          : const <String>['HEPHAESTUS', 'THEMIS', 'ARTEMIS'];
+      final findings = <String>[];
+
+      for (final role in roles) {
+        final turn = await _runRoomTurn(
+          intelligence: intelligence,
+          message:
+              'Owner objective: $message\n\nProvide your independent $role assessment for the Operations Room. '
+              'Analyze only from your role authority. Do not execute actions.',
+          stage: 'specialist_analysis',
+          targetRole: role,
+          mentions: mentions,
+        );
+        if (!mounted) return;
+        final text = operationsRoomRoleText(turn.reply, role);
+        findings.add('$role: $text');
+        setState(() {
+          _messages.add(_RoomMessage.agent(role: role, text: text));
+        });
+        _scheduleScroll();
+      }
+
+      final synthesis = await _runRoomTurn(
+        intelligence: intelligence,
+        message:
+            'Owner objective: $message\n\nIndependent specialist findings:\n${findings.join('\n\n')}\n\n'
+            'Athena, synthesize the team findings into the next clear owner-facing result. '
+            'Preserve any material disagreement or uncertainty. Do not execute actions in this synthesis turn.',
+        stage: 'athena_synthesis',
+        targetRole: 'ATHENA',
+        mentions: mentions,
       );
-      await _activity.bind(jobId: execution.jobId, stream: execution.events);
-      final turn = await execution.turn;
       if (!mounted) return;
-      final parsed = parseOperationsRoomReply(turn.reply);
       setState(() {
-        _threadId = turn.threadId;
-        for (final item in parsed) {
-          _messages.add(_RoomMessage.agent(role: item.role, text: item.text));
-        }
+        _messages.add(
+          _RoomMessage.agent(
+            role: 'ATHENA',
+            text: operationsRoomRoleText(synthesis.reply, 'ATHENA'),
+          ),
+        );
       });
       _scheduleScroll();
     } on PandoraIntelligenceException catch (error) {

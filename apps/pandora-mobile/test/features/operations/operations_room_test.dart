@@ -45,4 +45,18 @@ void main() {
     );
     expect(operationsRoomMentions('Athena should review this.'), isEmpty);
   });
+
+  test('role text preserves independently targeted specialist output', () {
+    expect(
+      operationsRoomRoleText(
+        '[[ROLE:THEMIS]]\nSecurity view.',
+        'THEMIS',
+      ),
+      'Security view.',
+    );
+    expect(
+      operationsRoomRoleText('Unmarked independent view.', 'APOLLO'),
+      'Unmarked independent view.',
+    );
+  });
 }

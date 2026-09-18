@@ -58,19 +58,31 @@ test('Operations Room preserves real runtime evidence and mode semantics', () =>
   assert.match(room, /OperationsRoomMode\.execution/);
   assert.match(room, /OperationsRoomMode\.council/);
   assert.match(room, /OperationsRoomMode\.incident/);
+  assert.match(room, /specialist_analysis/);
+  assert.match(room, /athena_synthesis/);
+  assert.match(room, /Independent specialist findings/);
   assert.match(intelligence, /enterprise_operations_room/);
   assert.match(intelligence, /runtime evidence remains authoritative/);
-  assert.match(intelligence, /Council mode:/);
-  assert.match(intelligence, /Incident mode:/);
+  assert.match(intelligence, /real independent specialist turn/);
+  assert.match(intelligence, /athena_synthesis/);
 });
 
-test('Operations Room keeps capability routing clean before role presentation', () => {
+test('Council and Incident use independent specialist turns before Athena synthesis', () => {
+  for (const role of ['APOLLO', 'HERMES', 'HEPHAESTUS', 'THEMIS', 'ARTEMIS']) {
+    assert.match(room, new RegExp("'" + role + "'"));
+  }
+  assert.match(room, /for \(final role in roles\)/);
+  assert.match(room, /targetRole: role/);
+  assert.match(room, /targetRole: 'ATHENA'/);
+});
+
+test('advisory specialist and synthesis turns cannot execute capabilities', () => {
   assert.match(
     intelligence,
-    /i\.enterpriseContext\?\.surface==="enterprise_operations_room"\?controlledMessage/,
+    /operationsStage==="specialist_analysis"\|\|operationsStage==="athena_synthesis"/,
   );
   assert.match(
     intelligence,
-    /dispatched=await universalDispatch\(c\.user,c\.organizationId,dispatchMessage/,
+    /dispatched=operationsAdvisory\?null:await universalDispatch/,
   );
 });
