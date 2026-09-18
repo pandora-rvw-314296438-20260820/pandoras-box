@@ -88,7 +88,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'Enterprise App Users remains usable on an Android emulator',
+    'Enterprise Team & Access remains usable on an Android emulator',
     (tester) async {
       final intelligence = _FakeEnterpriseIntelligence();
       addTearDown(intelligence.close);
@@ -112,12 +112,12 @@ void main() {
       await tester.tap(menu);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Enterprise'));
+      await tester.tap(find.text('PLP Boracay'));
       await tester.pumpAndSettle();
 
       final appUsers = find.descendant(
         of: find.byType(Drawer),
-        matching: find.widgetWithText(ListTile, 'App Users'),
+        matching: find.widgetWithText(ListTile, 'Team & Access'),
       );
       expect(appUsers, findsOneWidget);
       await tester.tap(appUsers);
@@ -135,7 +135,7 @@ void main() {
       expect(stack, findsOneWidget);
       expect(commandBar, findsOneWidget);
       expect(input, findsOneWidget);
-      expect(find.text('App Users'), findsWidgets);
+      expect(find.text('Team & Access'), findsWidgets);
 
       final logicalSize =
           tester.view.physicalSize / tester.view.devicePixelRatio;
@@ -181,7 +181,7 @@ void main() {
       expect(theatre, findsOneWidget);
       expect(find.text('Admin creation verified.'), findsOneWidget);
       expect(commandBar, findsOneWidget);
-      expect(find.text('App Users'), findsWidgets);
+      expect(find.text('Team & Access'), findsWidgets);
 
       final theatreRect = tester.getRect(theatre);
       final updatedCommandRect = tester.getRect(commandBar);
