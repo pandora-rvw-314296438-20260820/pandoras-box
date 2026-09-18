@@ -10,6 +10,7 @@ import '../../core/activity/pandora_activity_timeline_view.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/network/idempotency_key.dart';
 import '../simple/pandora_v2_ui.dart';
+import 'enterprise_command_bus.dart';
 import 'enterprise_page_context.dart';
 
 class EnterpriseCommandStack extends StatefulWidget {
@@ -36,10 +37,23 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
   String? _error;
   String? _notifiedVerifiedResultEventId;
   bool _submitting = false;
+  bool _receiptExpanded = false;
+
   @override
   void initState() {
     super.initState();
     _activity.addListener(_onActivityChanged);
+    EnterpriseCommandDraftBus.shared.draft.addListener(_onDraftOffered);
+  }
+
+  void _onDraftOffered() {
+    final value = EnterpriseCommandDraftBus.shared.draft.value;
+    if (value == null || value.trim().isEmpty) return;
+    _controller
+      ..text = value.trim()
+      ..selection = TextSelection.collapsed(offset: value.trim().length);
+    EnterpriseCommandDraftBus.shared.consume();
+    if (mounted) setState(() {});
   }
 
   void _onActivityChanged() {
@@ -54,6 +68,7 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
 
   @override
   void dispose() {
+    EnterpriseCommandDraftBus.shared.draft.removeListener(_onDraftOffered);
     _activity.removeListener(_onActivityChanged);
     _activity.dispose();
     _controller.dispose();
@@ -77,6 +92,7 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
     if (!mounted) return;
     setState(() {
       _submitting = true;
+      _receiptExpanded = false;
       _error = null;
     });
     try {
@@ -124,8 +140,23 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (latest != null)
-                  PandoraActivityTimelineView(
-                    events: <PandoraActivityProjection>[latest],
+                  if (latest.state.isTerminal && !_receiptExpanded)
+                    _EnterpriseTerminalReceipt(
+                      activity: latest,
+                      onViewDetails: () =>
+                          setState(() => _receiptExpanded = true),
+                    )
+                  else
+                    PandoraActivityTimelineView(
+                      events: <PandoraActivityProjection>[latest],
+                    ),
+                if (_receiptExpanded && latest?.state.isTerminal == true)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => setState(() => _receiptExpanded = false),
+                      child: const Text('Collapse receipt'),
+                    ),
                   ),
                 if (_error != null) ...[
                   if (latest != null) const SizedBox(height: 8),
@@ -157,6 +188,67 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _EnterpriseTerminalReceipt extends StatelessWidget {
+  const _EnterpriseTerminalReceipt({
+    required this.activity,
+    required this.onViewDetails,
+  });
+
+  final PandoraActivityProjection activity;
+  final VoidCallback onViewDetails;
+
+  @override
+  Widget build(BuildContext context) {
+    final failed = activity.state == PandoraActivityState.failed;
+    final cancelled = activity.state == PandoraActivityState.cancelled;
+    final summary = activity.outcome?.summary.trim().isNotEmpty == true
+        ? activity.outcome!.summary
+        : activity.message;
+    final icon = failed
+        ? Icons.error_outline_rounded
+        : cancelled
+            ? Icons.cancel_outlined
+            : Icons.check_circle_outline_rounded;
+    final color = failed
+        ? PandoraV2Colors.danger
+        : cancelled
+            ? PandoraV2Colors.warning
+            : PandoraV2Colors.success;
+    return Semantics(
+      liveRegion: true,
+      label: 'Command receipt. $summary',
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 52),
+        padding: const EdgeInsets.fromLTRB(12, 9, 8, 9),
+        decoration: BoxDecoration(
+          color: PandoraV2Colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: PandoraV2Colors.line),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                summary,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13.5, height: 1.3),
+              ),
+            ),
+            TextButton(
+              key: const ValueKey<String>('enterprise-view-result'),
+              onPressed: onViewDetails,
+              child: const Text('View details'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
