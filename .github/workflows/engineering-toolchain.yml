@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   project-tools:
@@ -107,29 +108,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install pinned Gitleaks CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-          version='8.30.1'
-          archive="$RUNNER_TEMP/gitleaks_${version}_linux_x64.tar.gz"
-          install_dir="$RUNNER_TEMP/gitleaks-${version}"
-          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_linux_x64.tar.gz" -o "$archive"
-          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $archive" | sha256sum -c -
-          mkdir -p "$install_dir"
-          tar -xzf "$archive" -C "$install_dir" gitleaks
-          echo "$install_dir" >> "$GITHUB_PATH"
       - name: Scan repository history
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            base="${{ github.event.pull_request.base.sha }}"
-            head="${{ github.event.pull_request.head.sha }}"
-            gitleaks git --redact --no-banner --exit-code 1 --log-opts="$base..$head" .
-          else
-            gitleaks git --redact --no-banner --exit-code 1 .
-          fi
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
 
   vulnerability-scan:
     name: Trivy filesystem
