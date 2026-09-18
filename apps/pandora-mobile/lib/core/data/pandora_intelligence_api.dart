@@ -159,6 +159,7 @@ class PandoraIntelligenceApi {
     String? threadId,
     String? projectId,
     Map<String, Object?>? enterpriseContext,
+    PandoraModelOption? modelSelection,
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
@@ -178,6 +179,7 @@ class PandoraIntelligenceApi {
       threadId: threadId,
       projectId: projectId,
       enterpriseContext: enterpriseContext,
+      modelSelection: modelSelection,
       textAttachment: textAttachment,
       imageAttachment: imageAttachment,
       mode: mode,
@@ -195,6 +197,7 @@ class PandoraIntelligenceApi {
     String? threadId,
     String? projectId,
     Map<String, Object?>? enterpriseContext,
+    PandoraModelOption? modelSelection,
     PandoraTextAttachment? textAttachment,
     PandoraImageAttachment? imageAttachment,
     PandoraIntelligenceMode mode = PandoraIntelligenceMode.auto,
@@ -246,6 +249,8 @@ class PandoraIntelligenceApi {
           if (threadId != null) 'threadId': threadId,
           if (projectId != null) 'projectId': projectId,
           if (enterpriseContext != null) 'enterpriseContext': enterpriseContext,
+          if (modelSelection != null && !modelSelection.isAuto)
+            'modelSelection': modelSelection.toWire(),
           if (activityJobId != null) 'activityJobId': activityJobId,
           'mode': mode.name,
           if (attachments.isNotEmpty) 'attachments': attachments,
@@ -288,16 +293,47 @@ class PandoraIntelligenceApi {
     }
   }
 
+  Future<List<PandoraModelOption>> modelCatalog() async {
+    _requireSession();
+    try {
+      final raw = await _client.rpc(
+        'pandora_intelligence_model_catalog_v1',
+        params: <String, Object?>{'p_organization_id': _organizationId},
+      );
+      final payload = _map(raw);
+      final models = payload['models'];
+      if (models is! List) {
+        throw const PandoraIntelligenceException(
+          'Pandora returned an unreadable model catalog.',
+        );
+      }
+      return models
+          .whereType<Map>()
+          .map(
+            (model) => PandoraModelOption.fromJson(
+              model.map((key, value) => MapEntry(key.toString(), value)),
+            ),
+          )
+          .toList(growable: false);
+    } on PandoraIntelligenceException {
+      rethrow;
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not verify available AI models right now.',
+      );
+    }
+  }
+
   Future<List<PandoraProjectContext>> projectContexts({int limit = 60}) async {
     _requireSession();
     final safeLimit = limit.clamp(1, 100).toInt();
     try {
       final rows = await _client
-          .from('projectos_projects')
-          .select('id,project_key,name,repository,status,updated_at')
+          .from('pandora_projects')
+          .select('id,name,repository,status,config,updated_at')
           .eq('organization_id', _organizationId)
           .neq('status', 'archived')
-          .neq('project_key', 'projectos-inbox')
+          .eq('config->>ownerVisible', 'true')
           .order('updated_at', ascending: false)
           .limit(safeLimit);
       return (rows as List<dynamic>)
@@ -536,6 +572,44 @@ class PandoraCapabilityAction {
       );
 }
 
+class PandoraModelOption {
+  const PandoraModelOption({
+    required this.provider,
+    required this.model,
+    required this.label,
+    required this.available,
+    required this.state,
+    required this.local,
+    required this.isDefault,
+  });
+
+  final String provider;
+  final String model;
+  final String label;
+  final bool available;
+  final String state;
+  final bool local;
+  final bool isDefault;
+
+  bool get isAuto => provider == 'auto' && model == 'auto';
+
+  Map<String, Object?> toWire() => <String, Object?>{
+        'provider': provider,
+        'model': model,
+      };
+
+  factory PandoraModelOption.fromJson(Map<String, dynamic> json) =>
+      PandoraModelOption(
+        provider: _requiredText(json['provider']),
+        model: _requiredText(json['model']),
+        label: _text(json['label'], fallback: _requiredText(json['model'])),
+        available: json['available'] == true,
+        state: _text(json['state'], fallback: 'unknown'),
+        local: json['local'] == true,
+        isDefault: json['default'] == true,
+      );
+}
+
 class PandoraProjectContext {
   const PandoraProjectContext({
     required this.id,
@@ -551,14 +625,17 @@ class PandoraProjectContext {
   final String status;
   final String? repository;
 
-  factory PandoraProjectContext.fromJson(Map<String, dynamic> json) =>
-      PandoraProjectContext(
-        id: _requiredText(json['id']),
-        projectKey: _requiredText(json['project_key']),
-        name: _requiredText(json['name']),
-        status: _text(json['status'], fallback: 'active'),
-        repository: _optionalText(json['repository']),
-      );
+  factory PandoraProjectContext.fromJson(Map<String, dynamic> json) {
+    final config = _map(json['config']);
+    final id = _requiredText(json['id']);
+    return PandoraProjectContext(
+      id: id,
+      projectKey: _text(config['projectKey'], fallback: id),
+      name: _requiredText(json['name']),
+      status: _text(json['status'], fallback: 'active'),
+      repository: _optionalText(json['repository']),
+    );
+  }
 }
 
 class PandoraIntelligenceThread {
