@@ -20,27 +20,28 @@ class EnterprisePageContext {
   final String identityScope;
 
   Map<String, Object?> toWire() => <String, Object?>{
-    'surface': surface,
-    'route': route,
-    if (projectId != null) 'projectId': projectId,
-    if (selectedObject != null) 'selectedObject': selectedObject,
-    if (actorRole != null) 'actorRole': actorRole,
-    'capabilities': capabilities,
-    'identityScope': identityScope,
-  };
+        'surface': surface,
+        'route': route,
+        if (projectId != null) 'projectId': projectId,
+        if (selectedObject != null) 'selectedObject': selectedObject,
+        if (actorRole != null) 'actorRole': actorRole,
+        'capabilities': capabilities,
+        'identityScope': identityScope,
+      };
   EnterprisePageContext copyWith({
     String? projectId,
     Map<String, String>? selectedObject,
     String? actorRole,
-  }) => EnterprisePageContext(
-    surface: surface,
-    route: route,
-    projectId: projectId ?? this.projectId,
-    selectedObject: selectedObject ?? this.selectedObject,
-    actorRole: actorRole ?? this.actorRole,
-    capabilities: capabilities,
-    identityScope: identityScope,
-  );
+  }) =>
+      EnterprisePageContext(
+        surface: surface,
+        route: route,
+        projectId: projectId ?? this.projectId,
+        selectedObject: selectedObject ?? this.selectedObject,
+        actorRole: actorRole ?? this.actorRole,
+        capabilities: capabilities,
+        identityScope: identityScope,
+      );
 }
 
 class EnterprisePageContextScope extends InheritedWidget {

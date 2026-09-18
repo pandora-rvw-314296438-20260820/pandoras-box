@@ -662,11 +662,10 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                     const VerticalDivider(
                         width: 1, color: PandoraV2Colors.line),
                     Expanded(
-                      child:
-                          PandoraNavigationScope(
-                            openDrawer: null,
-                            child: workspace,
-                          ),
+                      child: PandoraNavigationScope(
+                        openDrawer: null,
+                        child: workspace,
+                      ),
                     ),
                   ],
                 ),

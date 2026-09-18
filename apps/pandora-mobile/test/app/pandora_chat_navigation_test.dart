@@ -313,7 +313,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Enterprise navigation mounts the persistent contextual command stack',
+  testWidgets(
+      'Enterprise navigation mounts the persistent contextual command stack',
       (tester) async {
     await mount(tester, const Size(390, 844));
     await tester.tap(menu);

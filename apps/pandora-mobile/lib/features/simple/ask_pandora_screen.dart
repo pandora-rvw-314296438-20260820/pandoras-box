@@ -1900,14 +1900,14 @@ class _Composer extends StatelessWidget {
                               child: FilledButton(
                                 key: const ValueKey<String>(
                                     'ask' '-pandora-submit'),
-                              onPressed: disabled ? null : onSubmit,
-                              style: FilledButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                backgroundColor: Colors.white,
-                                disabledBackgroundColor:
-                                    const Color(0xFF1F1F1F),
-                                shape: const CircleBorder(),
-                              ),
+                                onPressed: disabled ? null : onSubmit,
+                                style: FilledButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  backgroundColor: Colors.white,
+                                  disabledBackgroundColor:
+                                      const Color(0xFF1F1F1F),
+                                  shape: const CircleBorder(),
+                                ),
                                 child: Icon(
                                   cancelReady
                                       ? Icons.stop_rounded
