@@ -10,7 +10,7 @@ class EnterpriseLiveRepository {
 
   Future<EnterpriseLiveSnapshot> load(String surface) async {
     try {
-      return switch (surface) {
+      return await (switch (surface) {
         'enterprise_data' => _loadData(),
         'enterprise_analytics' => _loadAnalytics(),
         'enterprise_marketing' => _loadMarketing(),
@@ -29,7 +29,7 @@ class EnterpriseLiveRepository {
             summary: 'No provider-backed surface is registered for this page.',
             items: const <EnterpriseLiveItem>[],
           ),
-      };
+      });
     } on PostgrestException catch (error) {
       throw EnterpriseLiveException(
         'Provider read failed: ${error.message}',
