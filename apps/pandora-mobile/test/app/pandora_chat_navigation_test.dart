@@ -320,7 +320,9 @@ void main() {
     await tester.tap(menu);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('PLP Boracay'));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('pandora-enterprise-menu')),
+    );
     await tester.pumpAndSettle();
     final appUsers = find.descendant(
       of: find.byType(Drawer),
