@@ -386,7 +386,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'emulator' 'system-images;android-36;google_apis;x86_64'
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            'platforms;android-36' \
+            'build-tools;36.0.0' \
+            'emulator' \
+            'system-images;android-36;google_apis;x86_64'
 
       - name: Install pinned Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
@@ -424,24 +428,27 @@ jobs:
           set -euo pipefail
           test -e /dev/kvm
           sudo chmod 666 /dev/kvm
-          echo no | avdmanager create avd --force --name pandora_api36 --package 'system-images;android-36;google_apis;x86_64'
-          nohup emulator -avd pandora_api36 -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -memory 3072 -cores 2 > "$RUNNER_TEMP/pandora-emulator.log" 2>&1 &
-          adb wait-for-device
+          avdmanager="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager"
+          emulator="$ANDROID_SDK_ROOT/emulator/emulator"
+          adb="$ANDROID_SDK_ROOT/platform-tools/adb"
+          echo no | "$avdmanager" create avd --force --name pandora_api36 --package 'system-images;android-36;google_apis;x86_64'
+          nohup "$emulator" -avd pandora_api36 -no-window -no-snapshot -no-audio -no-boot-anim -gpu swiftshader_indirect -memory 3072 -cores 2 > "$RUNNER_TEMP/pandora-emulator.log" 2>&1 &
+          "$adb" wait-for-device
           for attempt in $(seq 1 120); do
-            if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == '1' ]]; then
+            if [[ "$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == '1' ]]; then
               break
             fi
             sleep 2
           done
-          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = '1'
-          adb shell settings put global window_animation_scale 0
-          adb shell settings put global transition_animation_scale 0
-          adb shell settings put global animator_duration_scale 0
-          adb shell wm size 1080x2400
-          adb shell wm density 420
-          adb shell settings put system font_scale 1.15
-          adb shell input keyevent 82
-          adb devices -l
+          test "$("$adb" shell getprop sys.boot_completed | tr -d '\r')" = '1'
+          "$adb" shell settings put global window_animation_scale 0
+          "$adb" shell settings put global transition_animation_scale 0
+          "$adb" shell settings put global animator_duration_scale 0
+          "$adb" shell wm size 1080x2400
+          "$adb" shell wm density 420
+          "$adb" shell settings put system font_scale 1.15
+          "$adb" shell input keyevent 82
+          "$adb" devices -l
 
       - name: Run Enterprise emulator acceptance
         working-directory: .pandora-emulator-build
@@ -449,14 +456,14 @@ jobs:
         run: |
           set -euo pipefail
           flutter test integration_test/enterprise_command_stack_emulator_test.dart -d emulator-5554 --reporter expanded
-          adb shell dumpsys gfxinfo com.banataosystems.pandora_mobile framestats | tail -n 80 || true
+          "$ANDROID_SDK_ROOT/platform-tools/adb" shell dumpsys gfxinfo com.banataosystems.pandora_mobile framestats | tail -n 80 || true
 
       - name: Print emulator diagnostics on failure
         if: ${{ failure() }}
         shell: bash
         run: |
-          adb devices -l || true
-          adb shell getprop ro.build.version.release || true
+          "$ANDROID_SDK_ROOT/platform-tools/adb" devices -l || true
+          "$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop ro.build.version.release || true
           tail -n 160 "$RUNNER_TEMP/pandora-emulator.log" || true
 
   verify-ios:
