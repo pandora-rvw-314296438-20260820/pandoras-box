@@ -85,6 +85,65 @@ Map<String, dynamic> activityResult() => <String, dynamic>{
       },
     };
 
+Map<String, dynamic> activityNeedsYou() => <String, dynamic>{
+      'projectionVersion': 1,
+      'eventId': 'event-enterprise-needs-you',
+      'jobId': 'job-enterprise-1',
+      'sequence': 1,
+      'state': 'needs_you',
+      'message': 'Owner approval is required.',
+      'occurredAt': '2026-09-18T00:31:00Z',
+      'admittedAt': '2026-09-18T00:31:00Z',
+      'domain': 'enterprise',
+      'capability': 'organization.users.manage',
+      'source': <String, dynamic>{
+        'sourceType': 'provider',
+        'sourceId': 'provider-users',
+        'sourceEventId': 'provider-users-needs-you-1',
+        'observedAt': '2026-09-18T00:31:00Z',
+      },
+      'evidenceRefs': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'type': 'policy_decision',
+          'relation': 'policy',
+          'ref': 'policy:organization-users-manage',
+        },
+      ],
+      'blocker': <String, dynamic>{
+        'reasonCode': 'authorization_required',
+        'reason': 'This action requires owner authorization.',
+        'requiredAction': 'Approve the organization user change.',
+        'approvalRequired': true,
+        'policyRef': 'organization.users.manage',
+      },
+    };
+
+Map<String, dynamic> activityFailure() => <String, dynamic>{
+      'projectionVersion': 1,
+      'eventId': 'event-enterprise-failure',
+      'jobId': 'job-enterprise-1',
+      'sequence': 1,
+      'state': 'failed',
+      'message': 'User creation was denied.',
+      'occurredAt': '2026-09-18T00:32:00Z',
+      'admittedAt': '2026-09-18T00:32:00Z',
+      'domain': 'enterprise',
+      'capability': 'organization.users.manage',
+      'source': <String, dynamic>{
+        'sourceType': 'provider',
+        'sourceId': 'provider-users',
+        'sourceEventId': 'provider-users-failure-1',
+        'observedAt': '2026-09-18T00:32:00Z',
+      },
+      'evidenceRefs': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'type': 'policy_decision',
+          'relation': 'failure',
+          'ref': 'policy:user-create-denied',
+        },
+      ],
+    };
+
 void main() {
   testWidgets(
     'App Users command stays in workspace and carries bounded identity context',
@@ -133,6 +192,11 @@ void main() {
 
       expect(find.text('App Users workspace'), findsOneWidget);
       expect(commandBar, findsOneWidget);
+      final submitSize = tester.getSize(find.byTooltip('Send command'));
+      expect(submitSize.width, greaterThanOrEqualTo(48));
+      expect(submitSize.height, greaterThanOrEqualTo(48));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
       await tester.enterText(
         input,
         'Create admin for fongramos@yahoo.com',
@@ -177,6 +241,169 @@ void main() {
       );
       expect(find.text('Admin creation verified.'), findsOneWidget);
       expect(find.text('App Users workspace'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'wide Enterprise failure stays inline and never replaces the workspace',
+    (tester) async {
+      await setTestSurface(tester, logicalSize: const Size(1280, 900));
+      final intelligence = _FakeEnterpriseIntelligence();
+      addTearDown(intelligence.close);
+
+      const pageContext = EnterprisePageContext(
+        surface: 'enterprise_app_users',
+        route: '/enterprise/app-users',
+        capabilities: <String>[
+          'organization.users.read',
+          'organization.users.manage',
+        ],
+        identityScope: 'pandora_organization',
+      );
+
+      await tester.pumpWidget(
+        testApp(
+          themeMode: ThemeMode.dark,
+          child: PandoraDependencies(
+            auth: const FakeAuth(),
+            repository: FakeRepository(),
+            intelligence: intelligence,
+            diagnostics: DiagnosticsStore(),
+            child: const Scaffold(
+              body: EnterprisePageContextScope(
+                pageContext: pageContext,
+                child: EnterpriseCommandStack(
+                  child: Center(child: Text('Wide App Users workspace')),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final commandBar =
+          find.byKey(const ValueKey<String>('enterprise-command-bar'));
+      final input = find.descendant(
+        of: commandBar,
+        matching: find.byType(TextField),
+      );
+
+      expect(find.text('Wide App Users workspace'), findsOneWidget);
+      expect(commandBar, findsOneWidget);
+
+      await tester.enterText(input, 'Create admin for denied@example.com');
+      await tester.tap(find.byTooltip('Send command'));
+      await tester.pump();
+
+      intelligence.events.add(activityFailure());
+      intelligence.turn.complete(
+        const PandoraIntelligenceTurn(
+          threadId: 'thread-enterprise-failure',
+          reply: 'No changes were made.',
+          intent: 'act',
+          confidence: 1,
+          needsClarification: false,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final theatre =
+          find.byKey(const ValueKey<String>('enterprise-activity-theatre'));
+      expect(theatre, findsOneWidget);
+      expect(find.text('User creation was denied.'), findsOneWidget);
+      expect(find.text('Wide App Users workspace'), findsOneWidget);
+      expect(commandBar, findsOneWidget);
+
+      final theatreRect = tester.getRect(theatre);
+      final commandRect = tester.getRect(commandBar);
+      expect(theatreRect.bottom, lessThanOrEqualTo(commandRect.top + 1));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Needs You is announced with the required authorization action',
+    (tester) async {
+      await setTestSurface(tester, logicalSize: const Size(390, 844));
+      final intelligence = _FakeEnterpriseIntelligence();
+      addTearDown(intelligence.close);
+      final semantics = tester.ensureSemantics();
+
+      const pageContext = EnterprisePageContext(
+        surface: 'enterprise_app_users',
+        route: '/enterprise/app-users',
+        capabilities: <String>[
+          'organization.users.read',
+          'organization.users.manage',
+        ],
+        identityScope: 'pandora_organization',
+      );
+
+      await tester.pumpWidget(
+        testApp(
+          themeMode: ThemeMode.dark,
+          child: PandoraDependencies(
+            auth: const FakeAuth(),
+            repository: FakeRepository(),
+            intelligence: intelligence,
+            diagnostics: DiagnosticsStore(),
+            child: const Scaffold(
+              body: EnterprisePageContextScope(
+                pageContext: pageContext,
+                child: EnterpriseCommandStack(
+                  child: Center(child: Text('Authorization workspace')),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final commandBar =
+          find.byKey(const ValueKey<String>('enterprise-command-bar'));
+      final input = find.descendant(
+        of: commandBar,
+        matching: find.byType(TextField),
+      );
+
+      await tester.enterText(input, 'Create admin for approval@example.com');
+      await tester.tap(find.byTooltip('Send command'));
+      await tester.pump();
+
+      intelligence.events.add(activityNeedsYou());
+      intelligence.turn.complete(
+        const PandoraIntelligenceTurn(
+          threadId: 'thread-enterprise-needs-you',
+          reply: 'Owner approval is required.',
+          intent: 'act',
+          confidence: 1,
+          needsClarification: true,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.text('Authorization workspace'), findsOneWidget);
+      expect(
+        find.text('Required action: Approve the organization user change.'),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              widget.properties.liveRegion == true &&
+              (widget.properties.label ?? '').contains('Needs You') &&
+              (widget.properties.label ?? '')
+                  .contains('Approve the organization user change.'),
+        ),
+        findsOneWidget,
+      );
+      expect(intelligence.capturedContext?['actorRole'], isNull);
+      semantics.dispose();
       expect(tester.takeException(), isNull);
     },
   );
