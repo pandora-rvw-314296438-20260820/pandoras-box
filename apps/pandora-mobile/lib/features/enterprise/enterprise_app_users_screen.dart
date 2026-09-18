@@ -44,8 +44,7 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
   }
 
   void _select(EnterpriseMember member) {
-    final selected =
-        _selectedMember?.userId == member.userId ? null : member;
+    final selected = _selectedMember?.userId == member.userId ? null : member;
     setState(() => _selectedMember = selected);
     widget.onSelectionChanged?.call(
       selected == null
@@ -99,8 +98,8 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
           member.status.toLowerCase().contains(query);
       if (!matchesQuery) return false;
       return switch (_filter) {
-        'privileged' => const <String>{'owner', 'admin'}
-            .contains(member.role.toLowerCase()),
+        'privileged' =>
+          const <String>{'owner', 'admin'}.contains(member.role.toLowerCase()),
         'active' => member.status.toLowerCase() == 'active',
         _ => true,
       };
@@ -162,8 +161,7 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
                   FilterChip(
                     label: const Text('Owner / Admin'),
                     selected: _filter == 'privileged',
-                    onSelected: (_) =>
-                        setState(() => _filter = 'privileged'),
+                    onSelected: (_) => setState(() => _filter = 'privileged'),
                   ),
                   FilterChip(
                     label: const Text('Active'),
@@ -254,8 +252,7 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
               : constraints.maxWidth >= 480 && scale < 1.4
                   ? 2
                   : 1;
-          final width =
-              (constraints.maxWidth - ((columns - 1) * 10)) / columns;
+          final width = (constraints.maxWidth - ((columns - 1) * 10)) / columns;
           return Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -318,11 +315,8 @@ class _EnterpriseAppUsersScreenState extends State<EnterpriseAppUsersScreen> {
     return Semantics(
       button: true,
       selected: selected,
-      label: member.email +
-          ', role ' +
-          member.role +
-          ', status ' +
-          member.status,
+      label:
+          member.email + ', role ' + member.role + ', status ' + member.status,
       child: InkWell(
         key: ValueKey<String>('enterprise-user-' + member.userId),
         onTap: () => _select(member),
