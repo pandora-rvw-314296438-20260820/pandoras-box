@@ -11,19 +11,22 @@ const runtime = read('apps/control-tower/owner-runtime.js');
 const app = read('apps/control-tower/owner-app.js');
 const professional = read('apps/control-tower/owner-professional.js');
 const experience = read('apps/control-tower/owner-screens-experience.js');
+const styles = read('apps/control-tower/owner-experience.css');
+const auth = read('apps/control-tower/auth.js');
 const first = read('apps/control-tower/owner-first.js');
 const screens = read('apps/control-tower/owner-screens.js');
 const bootstrap = read('apps/control-tower/bootstrap.js');
 const index = read('apps/control-tower/index.html');
 
-test('Professional Mode exposes exactly the nine canonical areas', () => {
+test('Professional Mode exposes the owner-facing Enterprise areas', () => {
   const nav = professional.slice(
     professional.indexOf('const PROFESSIONAL_NAV'),
     professional.indexOf(']);', professional.indexOf('const PROFESSIONAL_NAV')) + 3,
   );
   const labels = [...nav.matchAll(/\['[^']+', '([^']+)'/g)].map((match) => match[1]);
   assert.deepEqual(labels, [
-    'Home', 'Build', 'Run', 'Connect', 'Memory', 'Verify', 'Business', 'Library', 'Settings',
+    'Overview', 'Operations & Bookings', 'Guests & Customers', 'Team & Access',
+    'Revenue & Reports', 'Needs You', 'Activity', 'Settings',
   ]);
 });
 
@@ -39,14 +42,13 @@ test('Simple Mode keeps its exact five-item primary navigation', () => {
 test('Professional Mode is a presentation mode over the existing owner runtime', () => {
   assert.match(data, /PROFESSIONAL_ROUTES/);
   assert.match(data, /pandoras-owner-mode/);
-  assert.match(app, /professionalHome/);
-  assert.match(app, /professionalBuild/);
-  assert.match(app, /professionalRun/);
-  assert.match(app, /professionalConnect/);
-  assert.match(app, /professionalMemory/);
-  assert.match(app, /professionalVerify/);
-  assert.match(app, /professionalBusiness/);
-  assert.match(app, /professionalLibrary/);
+  assert.match(app, /professionalOverview/);
+  assert.match(app, /professionalOperations/);
+  assert.match(app, /professionalGuests/);
+  assert.match(app, /professionalTeam/);
+  assert.match(app, /professionalRevenue/);
+  assert.match(app, /professionalNeedsYou/);
+  assert.match(app, /professionalActivity/);
   assert.match(app, /professionalSettings/);
   assert.match(app, /state\.mode === 'professional' \? professionalNav\(\) : nav\(\)/);
   assert.match(runtime, /owner-mode-button/);
@@ -122,6 +124,34 @@ test('Professional Mode assets are composed under one distinct revision', () => 
 
 test('shared project workspace returns to the active presentation mode', () => {
   const workspace = read('apps/control-tower/owner-project-workspace.js');
-  assert.ok(workspace.includes("state.mode === 'professional' ? 'build' : 'projects'"));
-  assert.ok(workspace.includes("state.mode === 'professional' ? 'Build' : 'Projects'"));
+  assert.ok(workspace.includes("state.mode === 'professional' ? 'professional-operations' : 'projects'"));
+  assert.ok(workspace.includes("state.mode === 'professional' ? 'Operations' : 'Projects'"));
+});
+
+test('Enterprise command stays contextual and uses verified activity readback', () => {
+  assert.match(app, /ENTERPRISE_ROUTE_CONTEXT/);
+  assert.match(app, /data-enterprise-command/);
+  assert.match(app, /enterpriseContext/);
+  assert.match(app, /beginActivityJob/);
+  assert.match(app, /replayActivity/);
+  assert.match(auth, /pandora_activity_job_begin_v1/);
+  assert.match(auth, /pandora_activity_replay_v1/);
+  assert.match(styles, /\.enterprise-command-dock/);
+  assert.match(styles, /safe-area-inset-bottom/);
+});
+
+test('Team and Access uses the protected organization directory without inventing staff facts', () => {
+  assert.match(auth, /'pandora-user-admin'/);
+  assert.match(auth, /\^members\$/);
+  assert.match(app, /loadTeamMembers/);
+  assert.match(professional, /state\.team/);
+  assert.match(professional, /Property staff scope is not connected/);
+  assert.doesNotMatch(professional, /state\.teamUsers/);
+});
+
+test('Enterprise business cards fail closed when PLP operational sources are absent', () => {
+  assert.ok(professional.includes('Property operations data is not connected yet'));
+  assert.ok(professional.includes('Pandora will not invent occupancy, revenue, arrival, departure, guest, or booking figures'));
+  assert.ok(professional.includes('PLP revenue source is not connected'));
+  assert.ok(professional.includes('No bounded PLP guest or customer source exists'));
 });

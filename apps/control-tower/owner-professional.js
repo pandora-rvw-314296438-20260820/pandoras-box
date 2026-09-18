@@ -6,14 +6,13 @@ const {
 const { button, badge, pendingPlans, statusSummary } = window.PandorasOwnerRuntime;
 
 const PROFESSIONAL_NAV = Object.freeze([
-  ['professional-home', 'Home', icons.home],
-  ['build', 'Build', icons.projects],
-  ['run', 'Run', icons.activity],
-  ['connect', 'Connect', icons.link],
-  ['memory', 'Memory', icons.clock],
-  ['verify', 'Verify', icons.shield],
-  ['professional-business', 'Business', icons.business],
-  ['library', 'Library', icons.projects],
+  ['professional-overview', 'Overview', icons.home],
+  ['professional-operations', 'Operations & Bookings', icons.projects],
+  ['professional-guests', 'Guests & Customers', icons.user],
+  ['professional-team', 'Team & Access', icons.shield],
+  ['professional-revenue', 'Revenue & Reports', icons.business],
+  ['professional-needs-you', 'Needs You', icons.alert],
+  ['professional-activity', 'Activity', icons.activity],
   ['settings', 'Settings', icons.palette],
 ]);
 
@@ -56,29 +55,47 @@ function projectBuildRow(project) {
   </button>`;
 }
 
-function professionalHome() {
+function professionalOverview() {
   const projects = deriveProjects();
-  const blocked = projects.filter((project) => project.blockedCount > 0).length;
-  const active = projects.filter((project) => project.active).length;
-  const approvals = state.live ? pendingPlans().length : null;
+  const approvals = state.live ? pendingPlans() : [];
   const recent = state.live ? state.logs.slice(0, 5) : [];
+  const propertyFeedUnavailable = true;
 
   const body = `
-    <section class="professional-metrics-grid" aria-label="Operational overview">
-      ${metricCard('Projects', state.projection ? projects.length : '—', 'canonical status')}
-      ${metricCard('Active', state.projection ? active : '—', 'recorded active work')}
-      ${metricCard('Needs attention', state.projection ? blocked : '—', 'recorded blockers', blocked ? 'warning' : 'neutral')}
-      ${metricCard('Approvals', approvals === null ? '—' : approvals, 'durable plans', approvals ? 'warning' : 'neutral')}
+    <section class="professional-metrics-grid enterprise-property-metrics" aria-label="PLP Boracay today">
+      ${metricCard('Occupancy', '—', propertyFeedUnavailable ? 'property operations feed not connected' : 'today')}
+      ${metricCard('Revenue', '—', propertyFeedUnavailable ? 'property revenue feed not connected' : 'today')}
+      ${metricCard('Arrivals', '—', propertyFeedUnavailable ? 'booking feed not connected' : 'today')}
+      ${metricCard('Departures', '—', propertyFeedUnavailable ? 'booking feed not connected' : 'today')}
+    </section>
+    ${unavailable(
+      'Property operations data is not connected yet',
+      'Pandora will not invent occupancy, revenue, arrival, departure, guest, or booking figures. The command center will populate these cards only from a bounded first-party PLP data source.',
+      icons.business,
+    )}
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Needs You</span><h2>Owner decisions</h2></div><button type="button" data-route="professional-needs-you">Review</button></div>
+      <div class="owner-card professional-verification-list">
+        ${state.live
+          ? (approvals.length
+            ? approvals.slice(0, 5).map((plan) => `<div class="professional-verification-row"><span><strong>${esc(plan.title || 'Approval')}</strong><small>${esc(projectForPlan(plan) || 'Pandora')}</small></span>${badge('Action required', 'warning')}</div>`).join('')
+            : '<div class="owner-empty compact"><h3>Nothing needs your decision</h3><p>No durable plans currently require owner approval.</p></div>')
+          : '<div class="owner-empty compact"><h3>Protected approvals unavailable</h3><p>Pandora cannot verify owner decisions while protected live status is unavailable.</p></div>'}
+      </div>
     </section>
     <section class="owner-section">
-      <div class="professional-section-head"><div><span class="owner-kicker">Cross-project operations</span><h2>Current work</h2></div><button type="button" data-route="build">Open Build</button></div>
-      <div class="owner-card professional-build-list">${projects.length ? projects.slice(0, 6).map(projectBuildRow).join('') : '<div class="owner-empty compact"><h3>No project status available</h3><p>The canonical status contains no project tasks.</p></div>'}</div>
+      <div class="professional-section-head"><div><span class="owner-kicker">Pandora</span><h2>Recent verified activity</h2></div><button type="button" data-route="professional-activity">View activity</button></div>
+      <div class="owner-card professional-event-list">${state.live
+        ? (recent.length
+          ? recent.map((event) => `<button type="button" data-action="open-activity" data-sequence="${esc(event.sequence ?? '')}"><span>${icons.activity}</span><span><strong>${esc(eventMessage(event))}</strong><small>${esc(projectForEvent(event))} · ${esc(timeAgo(event.occurredAt || event.createdAt))}</small></span>${icons.arrow}</button>`).join('')
+          : '<div class="owner-empty compact"><h3>No recent verified activity</h3><p>New protected execution events will appear here.</p></div>')
+        : '<div class="owner-empty compact"><h3>Protected activity unavailable</h3><p>No execution activity is shown until protected live checks are verified.</p></div>'}</div>
     </section>
     <section class="owner-section">
-      <div class="professional-section-head"><div><span class="owner-kicker">Verification and operations</span><h2>Recent protected events</h2></div><button type="button" data-route="run">Open Run</button></div>
-      <div class="owner-card professional-event-list">${state.live ? (recent.length ? recent.map((event) => `<button type="button" data-action="open-activity" data-sequence="${esc(event.sequence ?? '')}"><span>${icons.activity}</span><span><strong>${esc(eventMessage(event))}</strong><small>${esc(projectForEvent(event))} · ${esc(timeAgo(event.occurredAt))}</small></span>${icons.arrow}</button>`).join('') : '<div class="owner-empty compact"><h3>No recent protected events</h3><p>New verified events will appear here.</p></div>') : '<div class="owner-empty compact"><h3>Protected events unavailable</h3><p>No audit activity is shown until the protected live checks are verified.</p></div>'}</div>
+      <div class="professional-section-head"><div><span class="owner-kicker">Supporting operations</span><h2>Pandora projects</h2></div><button type="button" data-route="professional-operations">Open operations</button></div>
+      <div class="owner-card professional-build-list">${projects.length ? projects.slice(0, 4).map(projectBuildRow).join('') : '<div class="owner-empty compact"><h3>No project status available</h3><p>The canonical status contains no project work to show.</p></div>'}</div>
     </section>`;
-  return professionalShell('Home', 'Cross-project operations, blockers, connections and verification signals from Pandora’s protected sources.', body);
+  return professionalShell('Overview', 'PLP Boracay business state, owner decisions, and verified Pandora activity.', body, 'PLP Boracay');
 }
 
 function professionalBuild() {
@@ -281,7 +298,7 @@ function professionalCostFact(cost) {
   if (charged > 0n) return { label: 'Charged', value: professionalBusinessMoney(cost.chargedMicros, cost.currency) };
   if (billed > 0n) return { label: 'Billed', value: professionalBusinessMoney(cost.billedMicros, cost.currency) };
   if (estimated > 0n) return { label: 'Estimated', value: professionalBusinessMoney(cost.estimatedMicros, cost.currency) };
-  return { label: 'Unknown cost', value: '�' };
+  return { label: 'Unknown cost', value: '—' };
 }
 
 function professionalBusinessProject(project) {
@@ -459,16 +476,150 @@ function professionalNav() {
   </nav>`;
 }
 
+
+function professionalOperations() {
+  const projects = deriveProjects();
+  const events = state.live ? state.logs.slice(0, 12) : [];
+  const body = `
+    ${unavailable('Booking operations are not connected', 'No bounded PLP booking or reservation source is available to this owner surface yet. Pandora will not infer reservation status from project activity.', icons.business)}
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Pandora operations</span><h2>Current project work</h2></div><span>${projects.length} recorded</span></div>
+      <div class="owner-card professional-build-list">${projects.length ? projects.slice(0, 8).map(projectBuildRow).join('') : '<div class="owner-empty compact"><h3>No current project work</h3><p>No canonical project status is available.</p></div>'}</div>
+    </section>
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Protected runtime</span><h2>Recent execution events</h2></div><button type="button" data-route="professional-activity">View all</button></div>
+      <div class="owner-card professional-event-list">${state.live
+        ? (events.length
+          ? events.map((event) => `<button type="button" data-action="open-activity" data-sequence="${esc(event.sequence ?? '')}"><span>${icons.activity}</span><span><strong>${esc(eventMessage(event))}</strong><small>${esc(projectForEvent(event))} · ${esc(timeAgo(event.occurredAt || event.createdAt))}</small></span>${icons.arrow}</button>`).join('')
+          : '<div class="owner-empty compact"><h3>No recent protected operations</h3><p>Verified events will appear here.</p></div>')
+        : '<div class="owner-empty compact"><h3>Protected operations unavailable</h3><p>Pandora could not verify the runtime feed.</p></div>'}</div>
+    </section>`;
+  return professionalShell('Operations & Bookings', 'PLP booking availability and Pandora operational execution, without mixing the two data domains.', body, 'PLP Boracay');
+}
+
+function professionalGuests() {
+  return professionalShell(
+    'Guests & Customers',
+    'Guest and customer records for PLP Boracay.',
+    unavailable('Guest data not connected', 'No bounded PLP guest or customer source exists in the current protected environment. No guest names, stays, preferences, or booking details are inferred.', icons.user),
+    'PLP Boracay',
+  );
+}
+
+function professionalTeam() {
+  const item = state.team || {};
+  const members = Array.isArray(item.members) ? item.members : [];
+  const active = members.filter((member) => normalizeStatus(member.status) === 'active');
+  const privileged = active.filter((member) => ['owner', 'admin'].includes(normalizeStatus(member.role)));
+  const enterpriseBody = item.loading && !item.loadedAt
+    ? '<div class="owner-card owner-workspace-loading"><span class="owner-spinner"></span><h2>Loading Enterprise access</h2><p>Pandora is reading the protected organization directory.</p></div>'
+    : (item.error && !item.loadedAt
+      ? unavailable('Enterprise access is unavailable', item.error.message || 'Pandora could not read the protected organization directory.', icons.shield)
+      : `<section class="professional-metrics-grid" aria-label="Enterprise access summary">
+          ${metricCard('Accounts', members.length, 'organization memberships')}
+          ${metricCard('Active', active.length, 'active memberships')}
+          ${metricCard('Owners & admins', privileged.length, 'privileged enterprise access')}
+        </section>
+        <section class="owner-section">
+          <div class="professional-section-head"><div><span class="owner-kicker">Enterprise access</span><h2>Authorized accounts</h2></div><span>${members.length} recorded</span></div>
+          <div class="owner-card professional-verification-list">
+            ${members.length ? members.map((member) => `<div class="professional-verification-row enterprise-member-row">
+              <span>
+                <strong>${esc(member.displayName || member.email || 'Account')}</strong>
+                <small>${esc(member.email || 'Email unavailable')} · ${esc(member.joinedAt ? `joined ${timeAgo(member.joinedAt)}` : 'join time unavailable')}</small>
+              </span>
+              <span class="enterprise-member-status">${badge(cleanName(member.role || 'member'), ['owner','admin'].includes(normalizeStatus(member.role)) ? 'warning' : 'neutral')}${badge(cleanName(member.status || 'unknown'), normalizeStatus(member.status) === 'active' ? 'success' : 'neutral')}</span>
+            </div>`).join('') : '<div class="owner-empty compact"><h3>No Enterprise accounts returned</h3><p>The protected organization directory returned no memberships.</p></div>'}
+          </div>
+        </section>`);
+  const body = `
+    ${enterpriseBody}
+    ${item.error && item.loadedAt ? `<section class="owner-card professional-boundary-note"><span>${icons.alert}</span><div><strong>Directory refresh failed</strong><p>${esc(item.error.message || 'The previous verified directory remains visible.')}</p></div></section>` : ''}
+    ${unavailable('Property staff scope is not connected', 'Enterprise organization access and PLP property staff are separate identity scopes. Pandora will not silently map Enterprise roles into property staff roles.', icons.user)}
+  `;
+  return professionalShell('Team & Access', 'Enterprise organization accounts and the separate PLP property-staff identity scope.', body, 'PLP Boracay');
+}
+
+function professionalRevenue() {
+  const data = state.business?.data;
+  const costs = data?.contractVersion === 'pandora-owner-business-v1' && Array.isArray(data.costs) ? data.costs : [];
+  const costCards = costs.length
+    ? costs.map((cost) => {
+        const fact = professionalCostFact(cost);
+        return metricCard(`${fact.label} · ${cost.currency}`, fact.value, `${cost.entryCount || 0} append-only cost entries`);
+      }).join('')
+    : metricCard('Pandora system spend', '—', state.business?.error ? 'protected cost ledger unavailable' : 'no recorded cost entries');
+  const body = `
+    ${unavailable('PLP revenue source is not connected', 'No first-party property revenue or settlement source is connected. Pandora will not present project budgets, estimates, or infrastructure spend as hotel revenue.', icons.business)}
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Pandora operating economics</span><h2>Recorded system spend</h2></div><span>Not property revenue</span></div>
+      <div class="professional-metrics-grid">${costCards}</div>
+    </section>
+    <section class="owner-card professional-boundary-note">
+      <span>${icons.shield}</span><div><strong>Commercial outcomes stay separate</strong><p>Revenue, occupancy yield, ADR, RevPAR, payment settlements, ROI, adoption, and retention remain unavailable until bounded first-party measurement sources are connected.</p></div>
+    </section>`;
+  return professionalShell('Revenue & Reports', 'PLP property revenue remains distinct from Pandora operating costs and budgets.', body, 'PLP Boracay');
+}
+
+function professionalNeedsYou() {
+  const approvals = state.live ? pendingPlans() : [];
+  const body = `
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Approvals</span><h2>Pending Plans</h2></div></div>
+      <div class="owner-card professional-verification-list">
+        ${approvals.length ? approvals.map(plan => `
+          <div class="professional-verification-row">
+            <span>
+              <strong>${esc(plan.title || 'Plan')}</strong>
+              <small>${esc(projectForPlan(plan) || 'Unknown project')}</small>
+            </span>
+            ${badge('Action required', 'warning')}
+          </div>
+        `).join('') : '<div class="owner-empty compact"><h3>No pending plans</h3><p>There are no durable plans requiring your approval.</p></div>'}
+      </div>
+    </section>
+  `;
+  return professionalShell('Needs You', 'Action items requiring owner boundary approvals.', body);
+}
+
+function professionalActivity() {
+  const recent = state.live ? (state.logs || []) : [];
+  const body = `
+    <section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">Audit</span><h2>Recent execution events</h2></div></div>
+      <div class="owner-card professional-verification-list">
+        ${recent.length ? recent.map(log => `
+          <div class="professional-verification-row">
+            <span>
+              <strong>${esc(eventMessage(log))}</strong>
+              <small>${esc(projectForEvent(log) || 'Unknown')} &middot; ${esc(timeAgo(log.occurredAt || log.createdAt))}</small>
+            </span>
+            ${(() => { const status = normalizeStatus(log.status || log.state || log.eventType); return badge(esc(cleanName(status || 'recorded')), ['complete', 'completed', 'verified', 'result'].includes(status) ? 'success' : 'neutral'); })()}
+          </div>
+        `).join('') : '<div class="owner-empty compact"><h3>No activity</h3><p>No validated execution events found in the protected audit trail.</p></div>'}
+      </div>
+    </section>
+  `;
+  return professionalShell('Activity', 'Validated enterprise events.', body);
+}
+
 window.PandorasOwnerProfessional = Object.freeze({
-  professionalHome,
-  professionalBuild,
-  professionalRun,
+  professionalOverview,
+  professionalOperations,
+  professionalGuests,
+  professionalTeam,
+  professionalRevenue,
+  professionalNeedsYou,
+  professionalActivity,
   professionalConnect,
   professionalMemory,
   professionalVerify,
-  professionalBusiness,
   professionalLibrary,
   professionalSettings,
   professionalNav,
+  professionalBuild,
+  professionalRun,
+  professionalBusiness
 });
 }
+

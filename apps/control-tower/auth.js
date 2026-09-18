@@ -1,5 +1,6 @@
 const nativeFetch = window.fetch.bind(window);
 const ALLOWED_EDGE_FUNCTIONS = new Set(['pandora-intelligence-chat']);
+const ALLOWED_RPC_FUNCTIONS = new Set(['pandora_activity_job_begin_v1', 'pandora_activity_replay_v1']);
 const EDGE_ROUTE_POLICIES = Object.freeze({
   'pandora-owner-api': Object.freeze({
     GET: Object.freeze([
@@ -15,6 +16,10 @@ const EDGE_ROUTE_POLICIES = Object.freeze({
     POST: Object.freeze([
       /^projects\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}\/(?:undo|publish)$/,
     ]),
+  }),
+  'pandora-user-admin': Object.freeze({
+    GET: Object.freeze([/^members$/]),
+    POST: Object.freeze([/^invite$/]),
   }),
 });
 const PROJECT_PROJECTION_COLUMNS = Object.freeze({
@@ -308,6 +313,55 @@ async function invokeFunction(functionName, body = {}) {
   return payload;
 }
 
+async function invokeRpc(functionName, params = {}) {
+  if (!ALLOWED_RPC_FUNCTIONS.has(functionName)) {
+    throw new Error('This Pandora RPC is not available from the owner web surface');
+  }
+  const config = await loadConfig();
+  await ensureSession();
+  const response = await nativeFetch(`${config.supabaseUrl}/rest/v1/rpc/${encodeURIComponent(functionName)}`, {
+    method: 'POST',
+    redirect: 'error',
+    headers: {
+      apikey: config.supabasePublishableKey,
+      authorization: `Bearer ${authState.accessToken}`,
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.hint || 'Pandora activity is temporarily unavailable');
+  }
+  return payload;
+}
+
+async function beginActivityJob({ requestId, threadId = null, projectId = null } = {}) {
+  const config = await loadConfig();
+  const payload = await invokeRpc('pandora_activity_job_begin_v1', {
+    p_organization_id: config.organizationId,
+    p_request_id: requestId,
+    p_thread_id: threadId,
+    p_project_id: projectId,
+  });
+  const jobId = String(payload?.jobId || '');
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(jobId)) {
+    throw new Error('Pandora could not create a verified activity stream');
+  }
+  return jobId;
+}
+
+async function replayActivity(jobId, afterSequence = 0, limit = 250) {
+  const config = await loadConfig();
+  return invokeRpc('pandora_activity_replay_v1', {
+    p_organization_id: config.organizationId,
+    p_job_id: jobId,
+    p_after_sequence: Math.max(0, Number(afterSequence) || 0),
+    p_limit: Math.min(250, Math.max(1, Number(limit) || 250)),
+  });
+}
+
 function sessionSnapshot() {
   return {
     authenticated: Boolean(authState.accessToken),
@@ -348,6 +402,8 @@ window.MCPMasterAuth = Object.freeze({
   edgeRequest,
   readProjectProjection,
   invokeFunction,
+  beginActivityJob,
+  replayActivity,
   signOut,
   session: sessionSnapshot,
 });

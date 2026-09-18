@@ -4,12 +4,89 @@ const { refresh, header, showToast, closeToast, navigate, openDialog, closeDialo
 const {
   renderHome, renderProjects, renderProjectWorkspace, renderAsk, renderNeeds, renderBusiness,
   renderApprovals, renderActivity, renderMore, nav,
-  professionalHome, professionalBuild, professionalRun, professionalConnect, professionalMemory,
-  professionalVerify, professionalBusiness, professionalLibrary, professionalSettings, professionalNav,
+  professionalOverview, professionalOperations, professionalGuests, professionalTeam, professionalRevenue,
+  professionalNeedsYou, professionalActivity, professionalSettings, professionalNav,
 } = window.PandorasOwnerScreens;
 const { dialogMarkup, toastMarkup } = window.PandorasOwnerDialogs;
 
 const AUTO_REFRESH_INTERVAL_MS = 60_000;
+const ENTERPRISE_ROUTE_CONTEXT = Object.freeze({
+  'professional-overview': ['enterprise_overview', '/enterprise/overview', 'enterprise_workspace'],
+  'professional-operations': ['enterprise_workflows', '/enterprise/operations', 'enterprise_workspace'],
+  'professional-guests': ['enterprise_data', '/enterprise/guests', 'enterprise_workspace'],
+  'professional-team': ['enterprise_app_users', '/enterprise/app-users', 'pandora_organization'],
+  'professional-revenue': ['enterprise_analytics', '/enterprise/revenue', 'enterprise_workspace'],
+  'professional-needs-you': ['enterprise_workflows', '/enterprise/needs-you', 'enterprise_workspace'],
+  'professional-activity': ['enterprise_logs', '/enterprise/activity', 'enterprise_workspace'],
+  settings: ['enterprise_settings', '/enterprise/settings', 'enterprise_workspace'],
+});
+
+function enterpriseContextForRoute() {
+  const entry = ENTERPRISE_ROUTE_CONTEXT[state.route];
+  if (!entry) return null;
+  const [surface, route, identityScope] = entry;
+  return { surface, route, identityScope };
+}
+
+function enterpriseCommandBar() {
+  if (state.mode !== 'professional') return '';
+  const events = Array.isArray(state.ask.activityEvents) ? state.ask.activityEvents.slice(-5) : [];
+  const theatre = events.length
+    ? `<div class="enterprise-command-theatre" aria-live="polite">
+        ${events.map((event) => `<div class="enterprise-command-event">
+          <span>${icons.activity}</span>
+          <span><strong>${esc(String(event.state || 'activity').replaceAll('_', ' '))}</strong><small>${esc(event.message || 'Verified activity event')}</small></span>
+        </div>`).join('')}
+      </div>`
+    : (state.ask.sending && state.ask.activityJobId
+      ? '<div class="enterprise-command-theatre" aria-live="polite"><div class="enterprise-command-event"><span></span><span><strong>Request admitted</strong><small>Waiting for verified activity events.</small></span></div></div>'
+      : '');
+  const receipt = state.ask.error
+    ? `<div class="enterprise-command-receipt error" role="alert"><strong>Pandora could not complete that request</strong><p>${esc(state.ask.error)}</p></div>`
+    : (state.ask.reply
+      ? `<div class="enterprise-command-receipt" aria-live="polite"><strong>${state.ask.handoff?.required === true ? 'Request accepted' : 'Pandora'}</strong><p>${esc(state.ask.reply)}</p></div>`
+      : '');
+  const activityNotice = state.ask.activityError
+    ? `<div class="enterprise-command-activity-note" role="status"><strong>Activity readback unavailable</strong><span>${esc(state.ask.activityError)}</span></div>`
+    : '';
+  return `<section class="enterprise-command-dock" aria-label="Pandora command">
+    ${theatre}
+    ${activityNotice}
+    ${receipt}
+    <form class="owner-command-form enterprise-command-form" data-ask-form data-enterprise-command>
+      <input class="owner-command-input" type="text" data-ask-message name="command" value="${esc(state.ask.message)}" placeholder="Ask Pandora about this page or tell it what to do…" aria-label="Ask Pandora" ${state.ask.sending ? 'disabled' : ''} />
+      <button class="owner-command-send" type="submit" aria-label="Send to Pandora" aria-busy="${state.ask.sending ? 'true' : 'false'}" ${state.ask.sending || !state.ask.message.trim() ? 'disabled' : ''}>${icons.arrow}</button>
+    </form>
+  </section>`;
+}
+
+let enterpriseDockObserver = null;
+
+function syncEnterpriseDockInset() {
+  enterpriseDockObserver?.disconnect?.();
+  enterpriseDockObserver = null;
+  const main = document.querySelector('.owner-main');
+  const dock = document.querySelector('.enterprise-command-dock');
+  const navigation = document.querySelector('.professional-nav');
+  if (!main) return;
+  if (!dock) {
+    main.style.removeProperty('padding-bottom');
+    return;
+  }
+  const update = () => {
+    const dockHeight = Math.ceil(dock.getBoundingClientRect().height || 0);
+    const navHeight = window.innerWidth < 1024
+      ? Math.ceil(navigation?.getBoundingClientRect?.().height || 0) + 20
+      : 0;
+    main.style.paddingBottom = `${Math.max(70, dockHeight + navHeight + 34)}px`;
+  };
+  update();
+  if (typeof ResizeObserver === 'function') {
+    enterpriseDockObserver = new ResizeObserver(update);
+    enterpriseDockObserver.observe(dock);
+    if (navigation) enterpriseDockObserver.observe(navigation);
+  }
+}
 
 function render() {
   const routeMarkup = {
@@ -22,19 +99,20 @@ function render() {
     approvals: renderApprovals,
     activity: renderActivity,
     more: renderMore,
-    'professional-home': professionalHome,
-    build: professionalBuild,
-    run: professionalRun,
-    connect: professionalConnect,
-    memory: professionalMemory,
-    verify: professionalVerify,
-    'professional-business': professionalBusiness,
-    library: professionalLibrary,
+    'professional-overview': professionalOverview,
+    'professional-operations': professionalOperations,
+    'professional-guests': professionalGuests,
+    'professional-team': professionalTeam,
+    'professional-revenue': professionalRevenue,
+    'professional-needs-you': professionalNeedsYou,
+    'professional-activity': professionalActivity,
     settings: professionalSettings,
-  }[state.route]?.() || (state.mode === 'professional' ? professionalHome() : renderHome());
+  }[state.route]?.() || (state.mode === 'professional' ? professionalOverview() : renderHome());
   const navigation = state.mode === 'professional' ? professionalNav() : nav();
-  app.innerHTML = `<div class="owner-app ${state.mode === 'professional' ? 'professional-mode' : 'simple-mode'}">${header()}<main id="main-content" class="owner-main" tabindex="-1">${routeMarkup}</main>${navigation}${dialogMarkup()}${toastMarkup()}</div>`;
+  const commandBar = enterpriseCommandBar();
+  app.innerHTML = `<div class="owner-app ${state.mode === 'professional' ? 'professional-mode' : 'simple-mode'}">${header()}<main id="main-content" class="owner-main" tabindex="-1">${routeMarkup}</main>${commandBar}${navigation}${dialogMarkup()}${toastMarkup()}</div>`;
   mountPreparedFocusPreview();
+  requestAnimationFrame(syncEnterpriseDockInset);
 }
 
 function ownerProjectsFromPayload(payload) {
@@ -65,6 +143,32 @@ async function loadLibrary({ quiet = false } = {}) {
     item.artifacts = [];
     item.releases = [];
     item.error = { code: error?.code || 'LIBRARY_UNAVAILABLE', message: error?.message || 'Pandora could not load the Library index.' };
+  } finally {
+    item.loading = false;
+    render();
+  }
+}
+
+async function loadTeamMembers({ quiet = false } = {}) {
+  const item = state.team;
+  if (!item || item.loading) return;
+  item.loading = true;
+  if (!quiet) item.error = null;
+  if (!quiet) render();
+  try {
+    const payload = await window.MCPMasterAuth?.edgeRequest?.('pandora-user-admin', ['members'], { method: 'GET' });
+    if (!payload || !Array.isArray(payload.members)) {
+      throw new Error('Pandora returned an invalid Team & Access directory.');
+    }
+    item.members = payload.members;
+    item.loadedAt = new Date().toISOString();
+    item.error = null;
+  } catch (error) {
+    if (!item.loadedAt) item.members = [];
+    item.error = {
+      code: error?.code || 'TEAM_DIRECTORY_UNAVAILABLE',
+      message: error?.message || 'Pandora could not load the Team & Access directory.',
+    };
   } finally {
     item.loading = false;
     render();
@@ -165,6 +269,7 @@ async function refreshLiveStatus() {
   await refresh();
   if (state.route === 'project') await loadProjectWorkspace(routeResourceFromLocation(), { quiet: true });
   if (state.route === 'library') await loadLibrary({ quiet: true });
+  if (state.route === 'professional-team') await loadTeamMembers({ quiet: true });
 }
 
 async function beginOwnerSession({ announce = true } = {}) {
@@ -184,17 +289,89 @@ async function beginOwnerSession({ announce = true } = {}) {
   }
 }
 
-async function askPandora() {
+function validEnterpriseActivityEvent(event, jobId) {
+  if (!event || typeof event !== 'object') return false;
+  if (String(event.jobId || '') !== jobId) return false;
+  if (!Number.isInteger(Number(event.sequence)) || Number(event.sequence) < 1) return false;
+  if (typeof event.state !== 'string' || !event.state) return false;
+  if (typeof event.message !== 'string' || !event.message) return false;
+  return true;
+}
+
+async function replayEnterpriseActivity(jobId, afterSequence = 0) {
+  const payload = await window.MCPMasterAuth?.replayActivity?.(jobId, afterSequence, 100);
+  if (!payload || !Array.isArray(payload.events)) {
+    throw new Error('Pandora returned an invalid activity replay.');
+  }
+  const events = payload.events.filter((event) => validEnterpriseActivityEvent(event, jobId));
+  const existing = new Map(
+    (Array.isArray(state.ask.activityEvents) ? state.ask.activityEvents : [])
+      .map((event) => [Number(event.sequence), event]),
+  );
+  for (const event of events) existing.set(Number(event.sequence), event);
+  state.ask.activityEvents = [...existing.values()].sort((a, b) => Number(a.sequence) - Number(b.sequence));
+  state.ask.activityTerminalState = payload.terminalState || null;
+  state.ask.activityError = null;
+  render();
+  return Number(payload.watermarkSequence || afterSequence || 0);
+}
+
+async function watchEnterpriseActivity(jobId) {
+  let cursor = 0;
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    if (state.ask.activityJobId !== jobId) return;
+    try {
+      cursor = await replayEnterpriseActivity(jobId, cursor);
+      if (state.ask.activityTerminalState) return;
+    } catch (error) {
+      state.ask.activityError = error?.message || 'Pandora activity is temporarily unavailable.';
+      render();
+      return;
+    }
+    if (!state.ask.sending && attempt > 0) return;
+    await sleep(500);
+  }
+}
+
+async function askPandora({ enterpriseContext = null } = {}) {
   const message = state.ask.message.trim();
   if (!message || state.ask.sending) return;
+  const enterprise = Boolean(enterpriseContext);
   state.ask.sending = true;
   state.ask.error = null;
+  if (enterprise) {
+    state.ask.reply = '';
+    state.ask.handoff = null;
+    state.ask.activityJobId = null;
+    state.ask.activityEvents = [];
+    state.ask.activityTerminalState = null;
+    state.ask.activityError = null;
+  }
   render();
+
+  let activityJobId = null;
   try {
+    if (enterprise && window.MCPMasterAuth?.beginActivityJob) {
+      try {
+        activityJobId = await window.MCPMasterAuth.beginActivityJob({
+          requestId: `enterprise-web:${crypto.randomUUID()}`,
+          threadId: state.ask.threadId || null,
+          projectId: state.ask.projectId || null,
+        });
+        state.ask.activityJobId = activityJobId;
+        render();
+        void watchEnterpriseActivity(activityJobId);
+      } catch (error) {
+        state.ask.activityError = error?.message || 'Verified activity is unavailable for this request.';
+      }
+    }
+
     const payload = await window.MCPMasterAuth?.invokeFunction?.('pandora-intelligence-chat', {
       message,
       ...(state.ask.threadId ? { threadId: state.ask.threadId } : {}),
       ...(state.ask.projectId ? { projectId: state.ask.projectId } : {}),
+      ...(enterpriseContext ? { enterpriseContext } : {}),
+      ...(activityJobId ? { activityJobId } : {}),
       mode: 'auto',
     });
     if (!payload?.threadId || typeof payload?.reply !== 'string') {
@@ -209,10 +386,20 @@ async function askPandora() {
     state.ask.clarifyingQuestion = payload.clarifyingQuestion || '';
     state.ask.handoff = payload.handoff || null;
     state.ask.message = '';
+    if (state.route === 'professional-team') {
+      await loadTeamMembers({ quiet: true });
+    }
   } catch (error) {
     state.ask.error = error?.message || 'Pandora is temporarily unavailable.';
   } finally {
     state.ask.sending = false;
+    if (activityJobId) {
+      try {
+        await replayEnterpriseActivity(activityJobId, 0);
+      } catch (error) {
+        state.ask.activityError = error?.message || 'Pandora activity readback is unavailable.';
+      }
+    }
     render();
   }
 }
@@ -742,7 +929,11 @@ async function approve(planId, trigger) {
 
 app.addEventListener('input', (event) => {
   const input = event.target.closest('[data-ask-message]');
-  if (input) state.ask.message = input.value;
+  if (input) {
+    state.ask.message = input.value;
+    const submit = input.closest('form')?.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = state.ask.sending || !input.value.trim();
+  }
   const projectChange = event.target.closest('[data-project-change-message]');
   if (projectChange) {
     if (projectChange.value !== state.projectWorkspace.changeMessage && !state.projectWorkspace.changing) {
@@ -769,8 +960,9 @@ app.addEventListener('submit', async (event) => {
   if (!form) return;
   event.preventDefault();
   if (!state.ask.message.trim()) return;
-  if (state.route !== 'ask') navigate('ask');
-  await askPandora();
+  const isEnterprise = form.matches('[data-enterprise-command]');
+  if (!isEnterprise && state.route !== 'ask') navigate('ask');
+  await askPandora({ enterpriseContext: isEnterprise ? enterpriseContextForRoute() : null });
 });
 
 app.addEventListener('click', async (event) => {
@@ -780,6 +972,7 @@ app.addEventListener('click', async (event) => {
   if (route) {
     navigate(route);
     if (route === 'library') void loadLibrary();
+    if (route === 'professional-team') void loadTeamMembers();
     return;
   }
   const action = target.dataset.action;
@@ -788,7 +981,7 @@ app.addEventListener('click', async (event) => {
     state.mode = nextMode;
     localStorage.setItem('pandoras-owner-mode', nextMode);
     document.documentElement.dataset.ownerMode = nextMode;
-    navigate(nextMode === 'professional' ? 'professional-home' : 'home');
+    navigate(nextMode === 'professional' ? 'professional-overview' : 'home');
     return;
   }
   if (action === 'clear-ask-project') {
@@ -808,6 +1001,7 @@ app.addEventListener('click', async (event) => {
       return;
     }
     await refresh({ announce: true });
+    if (state.route === 'professional-team') await loadTeamMembers({ quiet: true });
     return;
   }
   if (action === 'later') {
@@ -938,10 +1132,12 @@ app.addEventListener('click', async (event) => {
     state.plans = [];
     state.logs = [];
     state.business = { data: null, loading: false, error: null, loadedAt: null };
+    state.team = { members: [], loading: false, error: null, loadedAt: null };
     state.error = { code: 'SIGNED_OUT', message: 'Sign in again to view protected live information.' };
     state.ask = {
       message: '', threadId: null, projectId: null, projectName: '', reply: '', intent: '', confidence: null,
       needsClarification: false, clarifyingQuestion: '', handoff: null, sending: false, error: null,
+      activityJobId: null, activityEvents: [], activityTerminalState: null, activityError: null,
     };
     state.projectWorkspace = {
       sourceId: null, source: null, ownerSummary: null, detail: null, runtime: null,
@@ -989,6 +1185,7 @@ window.addEventListener('popstate', () => {
   render();
   if (state.route === 'project') void loadProjectWorkspace(routeResourceFromLocation());
   if (state.route === 'library') void loadLibrary();
+  if (state.route === 'professional-team') void loadTeamMembers();
 });
 
 window.addEventListener('focus', refreshLiveStatus);
@@ -1027,6 +1224,7 @@ window.addEventListener('mcpmaster-auth-changed', (event) => {
     state.plans = [];
     state.logs = [];
     state.business = { data: null, loading: false, error: null, loadedAt: null };
+    state.team = { members: [], loading: false, error: null, loadedAt: null };
     state.library = {
       loading: false, loadedAt: null, generatedAt: null,
       artifacts: [], releases: [], error: null,
@@ -1043,6 +1241,7 @@ if (state.session?.authenticated) {
   void refresh().then(() => {
     if (state.route === 'project') void loadProjectWorkspace(routeResourceFromLocation());
     if (state.route === 'library') void loadLibrary();
+    if (state.route === 'professional-team') void loadTeamMembers();
   });
 } else {
   state.loading = false;

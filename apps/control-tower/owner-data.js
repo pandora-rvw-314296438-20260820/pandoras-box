@@ -1,8 +1,9 @@
 const BRAND_MARK = 'https://raw.githubusercontent.com/mbanatao/Battle/c3594e4721097714118a3e1a6854e9836410b00a/public/brand/banatao/red-apple-mark-96.png';
 const API_BASE = '/api/operator';
 const PROFESSIONAL_ROUTES = new Set([
-  'professional-home', 'build', 'run', 'connect', 'memory', 'verify',
-  'professional-business', 'library', 'settings',
+  'professional-overview', 'professional-operations', 'professional-guests',
+  'professional-team', 'professional-revenue', 'professional-needs-you',
+  'professional-activity', 'settings',
 ]);
 const ROUTES = new Set([
   'home', 'projects', 'project', 'ask', 'needs', 'business', 'approvals', 'activity', 'more',
@@ -40,7 +41,7 @@ const initialMode = PROFESSIONAL_ROUTES.has(initialRoute)
     : 'simple';
 
 const initialResolvedRoute = initialMode === 'professional' && initialRoute === 'home' && !window.location.hash
-  ? 'professional-home'
+  ? 'professional-overview'
   : initialRoute;
 
 const state = {
@@ -56,6 +57,12 @@ const state = {
   metrics: null,
   business: {
     data: null,
+    loading: false,
+    error: null,
+    loadedAt: null,
+  },
+  team: {
+    members: [],
     loading: false,
     error: null,
     loadedAt: null,
@@ -80,6 +87,10 @@ const state = {
     handoff: null,
     sending: false,
     error: null,
+    activityJobId: null,
+    activityEvents: [],
+    activityTerminalState: null,
+    activityError: null,
   },
   library: {
     loading: false,
