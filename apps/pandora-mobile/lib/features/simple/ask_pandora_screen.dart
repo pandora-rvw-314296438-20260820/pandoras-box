@@ -29,6 +29,8 @@ class AskPandoraScreen extends StatefulWidget {
     this.onProjects,
     this.onSearchChats,
     this.onMore,
+    this.enterpriseContext,
+    this.assistantLabel = 'Pandora',
   });
 
   final String? initialPrompt;
@@ -36,17 +38,19 @@ class AskPandoraScreen extends StatefulWidget {
   final VoidCallback? onProjects;
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
+  final Map<String, Object?>? enterpriseContext;
+  final String assistantLabel;
 
   @override
   State<AskPandoraScreen> createState() => AskPandoraScreenState();
 }
 
 class AskPandoraScreenState extends State<AskPandoraScreen> {
-  static const _suggestions = <String>[
-    "Give me today's PLP Boracay management briefing: sales, occupancy, arrivals, departures, anything needing attention, and what Pandora has handled.",
+  List<String> get _suggestions => <String>[
+    "Give me today's PLP Boracay management briefing: sales, occupancy, arrivals, departures, anything needing attention, and what ${widget.assistantLabel} has handled.",
     "Show me today's and upcoming PLP Boracay bookings, arrivals, departures, and room availability.",
     'Analyze PLP Boracay business performance: revenue, occupancy, booking trends, and anything I should know.',
-    'I want Pandora to handle a change for PLP Boracay: ',
+    'I want ${widget.assistantLabel} to handle a change for PLP Boracay: ',
   ];
 
   final TextEditingController _objective = TextEditingController();
@@ -355,7 +359,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
       return;
     }
     if (objective.isEmpty) {
-      setState(() => _error = 'Message Pandora first.');
+      setState(() => _error = 'Message ${widget.assistantLabel} first.');
       _objectiveFocus.requestFocus();
       return;
     }
@@ -428,6 +432,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
         projectId: _projectContext?.id,
         textAttachment: _attachment,
         imageAttachment: _imageAttachment,
+        enterpriseContext: widget.enterpriseContext,
       );
       await _watchActivity(execution);
       final turn = await execution.turn;
@@ -612,7 +617,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Pandora intelligence is temporarily unavailable.';
+        _error = '${widget.assistantLabel} is temporarily unavailable.';
         _submissionKey = null;
       });
     } finally {

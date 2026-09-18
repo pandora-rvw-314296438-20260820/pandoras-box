@@ -244,7 +244,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
           _sectionTitle(Icons.sync_rounded, 'Connecting live business data'),
           const SizedBox(height: 8),
           const Text(
-            'Pandora will show verified occupancy, sales, arrivals, departures and room readiness here as soon as the first live update arrives.',
+            'Alfred will show verified occupancy, sales, arrivals, departures and room readiness here as soon as the first live update arrives.',
             style: TextStyle(color: PandoraV2Colors.muted, height: 1.45),
           ),
           if (total > 0) ...[
@@ -512,7 +512,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionTitle(Icons.auto_awesome_rounded, 'Pandora handled'),
+            _sectionTitle(Icons.auto_awesome_rounded, 'Alfred handled'),
             const SizedBox(height: 10),
             for (final item in data.activity) _activityRow(item),
           ],
@@ -561,7 +561,7 @@ class _PlpOverviewScreenState extends State<PlpOverviewScreen> {
     EnterpriseCommandDraftBus.shared.offer(prompt);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Command prepared in the Pandora bar below.'),
+        content: Text('Command prepared in the Alfred bar below.'),
         duration: Duration(seconds: 2),
       ),
     );

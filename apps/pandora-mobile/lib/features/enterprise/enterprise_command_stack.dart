@@ -79,14 +79,14 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
     final objective = value.trim();
     if (objective.isEmpty || _submitting) return;
 
+    final pageContext = EnterprisePageContextScope.of(context);
+    final assistantLabel = pageContext.personaLabel ?? 'Pandora';
     final dependencies = PandoraDependencies.of(context);
     final intelligence = dependencies.intelligence;
     if (intelligence == null) {
-      setState(() => _error = 'Pandora intelligence is not connected.');
+      setState(() => _error = '$assistantLabel is temporarily unavailable.');
       return;
     }
-
-    final pageContext = EnterprisePageContextScope.of(context);
     await _activity.clear();
     _notifiedVerifiedResultEventId = null;
     if (!mounted) return;
@@ -115,7 +115,7 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = 'Pandora could not complete that command safely.',
+          () => _error = '$assistantLabel could not complete that command safely.',
         );
       }
     } finally {
@@ -126,6 +126,8 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
   @override
   Widget build(BuildContext context) {
     final latest = pandoraLatestPresentableActivity(_activity.events);
+    final pageContext = EnterprisePageContextScope.of(context);
+    final assistantLabel = pageContext.personaLabel ?? 'Pandora';
     return FocusTraversalGroup(
       policy: WidgetOrderTraversalPolicy(),
       child: Column(
@@ -184,7 +186,7 @@ class _EnterpriseCommandStackState extends State<EnterpriseCommandStack> {
             child: PandoraV2IntentSurface(
               key: const ValueKey<String>('enterprise-command-bar'),
               controller: _controller,
-              hintText: 'Ask Pandora about this page',
+              hintText: 'Ask $assistantLabel about this page',
               onSubmit: _submit,
               enabled: !_submitting,
               submitTooltip: _submitting ? 'Command running' : 'Send command',
