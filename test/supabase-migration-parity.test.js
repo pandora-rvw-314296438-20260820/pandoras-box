@@ -355,6 +355,10 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260917104600_create_pandora_staging_registry_v1.sql',
     '20260917104836_enforce_staging_source_secret_scan_receipts_v1.sql',
     '20260917105153_harden_ci_rescue_rpc_execute_grants_20260917.sql',
+    '20260918023000_pandora_direct_capability_runtime_v1.sql',
+    '20260918024500_pandora_direct_capability_provider_fallback_v1.sql',
+    '20260918031500_pandora_native_project_registry_surface_v1.sql',
+    '20260918033800_pandora_native_capability_registry_v1.sql',
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -643,6 +647,10 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260917104600_create_pandora_staging_registry_v1.sql',
     '20260917104836_enforce_staging_source_secret_scan_receipts_v1.sql',
     '20260917105153_harden_ci_rescue_rpc_execute_grants_20260917.sql',
+    '20260918023000_pandora_direct_capability_runtime_v1.sql',
+    '20260918024500_pandora_direct_capability_provider_fallback_v1.sql',
+    '20260918031500_pandora_native_project_registry_surface_v1.sql',
+    '20260918033800_pandora_native_capability_registry_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -883,6 +891,10 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260917104600_create_pandora_staging_registry_v1.sql',
     '20260917104836_enforce_staging_source_secret_scan_receipts_v1.sql',
     '20260917105153_harden_ci_rescue_rpc_execute_grants_20260917.sql',
+    '20260918023000_pandora_direct_capability_runtime_v1.sql',
+    '20260918024500_pandora_direct_capability_provider_fallback_v1.sql',
+    '20260918031500_pandora_native_project_registry_surface_v1.sql',
+    '20260918033800_pandora_native_capability_registry_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
