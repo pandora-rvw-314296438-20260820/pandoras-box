@@ -51,7 +51,7 @@
   },
   "executionFabric": {
     "governedDefault": true,
-    "projectOSForGovernedProviderWork": true,
+    "pandoraForGovernedProviderWork": true,
     "deviceAgentForPhoneWork": true,
     "edgeRuntimeForLocalWork": true,
     "directProviderWritesAreFallbackOnly": true,
