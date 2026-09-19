@@ -1,23 +1,25 @@
 services:
-  workspace:
-    image: mcr.microsoft.com/devcontainers/universal:2-linux
-    volumes:
-      - ..:/workspaces/pandoras-box
-    command: sleep infinity
-
   builder:
     image: mcr.microsoft.com/devcontainers/universal:2-linux
     volumes:
       - ..:/workspaces/pandoras-box
     working_dir: /workspaces/pandoras-box
-    environment:
-      PANDORA_BUILD_NONCE: ${PANDORA_BUILD_NONCE:-}
     ports:
       - "9114:9114"
-    command: >
-      bash -lc '
-        bash .devcontainer/build-picker-apk.sh;
-        rc=$$?;
-        echo "$$rc" > .devcontainer/builder-exit-code.txt;
+    command:
+      - bash
+      - -lc
+      - |
+        for i in $(seq 1 180); do
+          if [ -f /workspaces/pandoras-box/.devcontainer/build-picker-apk.sh ]; then
+            break
+          fi
+          sleep 2
+        done
+        cd /workspaces/pandoras-box || exit 1
+        echo "builder_started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > .devcontainer/builder-runtime.txt
+        bash .devcontainer/build-picker-apk.sh
+        rc=$?
+        echo "builder_exit_code=$rc" >> .devcontainer/builder-runtime.txt
+        echo "builder_finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .devcontainer/builder-runtime.txt
         exec sleep infinity
-      '
