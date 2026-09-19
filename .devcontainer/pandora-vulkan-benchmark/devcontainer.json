@@ -1,0 +1,6 @@
+{
+  "name": "Pandora Vulkan Benchmark Builder",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "postCreateCommand": "bash tools/pandora-vulkan-benchmark/codespace-build.sh",
+  "remoteUser": "vscode"
+}
