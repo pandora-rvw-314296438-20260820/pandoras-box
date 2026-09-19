@@ -55,6 +55,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
   final TextEditingController _objective = TextEditingController();
   final FocusNode _objectiveFocus = FocusNode();
+  final GlobalKey _headerKey = GlobalKey();
+  final GlobalKey _composerKey = GlobalKey();
+  double _headerHeight = 0;
+  double _composerHeight = 0;
+  bool _overlayMeasureScheduled = false;
   final IdempotencyKeyFactory _keys = IdempotencyKeyFactory();
   final List<_ChatMessage> _messages = <_ChatMessage>[];
   PandoraTextAttachment? _attachment;
@@ -82,6 +87,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _activityController.addListener(_handleActivityTimelineChanged);
     final initial = widget.initialPrompt?.trim();
     if (initial != null && initial.isNotEmpty) {
@@ -103,6 +109,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _activityController.removeListener(_handleActivityTimelineChanged);
     _activityController.dispose();
     _objective.dispose();
@@ -110,7 +117,40 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     super.dispose();
   }
 
+
+  @override
+  void didChangeMetrics() {
+    _scheduleOverlayMeasure();
+  }
+
+  void _scheduleOverlayMeasure() {
+    if (_overlayMeasureScheduled) return;
+    _overlayMeasureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayMeasureScheduled = false;
+      if (!mounted) return;
+
+      final headerBox =
+          _headerKey.currentContext?.findRenderObject() as RenderBox?;
+      final composerBox =
+          _composerKey.currentContext?.findRenderObject() as RenderBox?;
+      final nextHeaderHeight = headerBox?.size.height ?? _headerHeight;
+      final nextComposerHeight = composerBox?.size.height ?? _composerHeight;
+
+      if ((nextHeaderHeight - _headerHeight).abs() < 0.5 &&
+          (nextComposerHeight - _composerHeight).abs() < 0.5) {
+        return;
+      }
+
+      setState(() {
+        _headerHeight = nextHeaderHeight;
+        _composerHeight = nextComposerHeight;
+      });
+    });
+  }
+
   Future<void> _watchActivity(PandoraIntelligenceExecution execution) async {
+
     _activeActivityJobId = execution.jobId;
     await _activityController.bind(
       jobId: execution.jobId,
