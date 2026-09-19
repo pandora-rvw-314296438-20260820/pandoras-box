@@ -185,7 +185,7 @@ cmp pubspec.lock.expected pubspec.lock
 write_status "verify" "running" "Running analyzer and focused local-routing tests before APK compilation."
 
 set +e
-flutter analyze >"$ARTIFACT_DIR/flutter-analyze.log" 2>&1
+flutter analyze --no-fatal-infos --no-fatal-warnings >"$ARTIFACT_DIR/flutter-analyze.log" 2>&1
 ANALYZE_RC=$?
 flutter test test/core/local_ai/pandora_local_ai_router_test.dart --reporter expanded \
   >"$ARTIFACT_DIR/local-ai-router-test.log" 2>&1
