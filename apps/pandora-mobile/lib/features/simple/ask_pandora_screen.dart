@@ -32,6 +32,7 @@ class AskPandoraScreen extends StatefulWidget {
     this.onProjects,
     this.onSearchChats,
     this.onMore,
+    this.enterpriseContext,
   });
 
   final String? initialPrompt;
@@ -39,6 +40,7 @@ class AskPandoraScreen extends StatefulWidget {
   final VoidCallback? onProjects;
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
+  final Map<String, Object?>? enterpriseContext;
 
   @override
   State<AskPandoraScreen> createState() => AskPandoraScreenState();
@@ -470,6 +472,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         projectId: _projectContext?.id,
         textAttachment: _attachment,
         imageAttachment: _imageAttachment,
+        enterpriseContext: widget.enterpriseContext,
       );
       await _watchActivity(execution);
       final turn = await execution.turn;
@@ -1036,12 +1039,14 @@ class _ChatHeader extends StatelessWidget {
     required this.onNewChat,
     this.onSearchChats,
     this.onMore,
+    this.enterpriseContext,
   });
 
   final bool active;
   final VoidCallback onNewChat;
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
+  final Map<String, Object?>? enterpriseContext;
 
   @override
   Widget build(BuildContext context) => PandoraPageHeader(
