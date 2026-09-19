@@ -5,6 +5,8 @@ import android.app.ActivityManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
@@ -12,6 +14,7 @@ import android.os.Debug
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.OpenableColumns
+import android.provider.Settings
 import com.arm.aichat.AiChat
 import com.arm.aichat.InferenceEngine
 import io.flutter.plugin.common.BinaryMessenger
@@ -21,10 +24,12 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
@@ -67,6 +72,7 @@ If the request clearly requires live data, connected services, account data, ext
     private var eventSink: EventChannel.EventSink? = null
     private var pendingModelResult: MethodChannel.Result? = null
     private var activeGeneration: Job? = null
+    private var activeAcceptance: Job? = null
     private var loadedModelPath: String? = null
     private var lastModelLoadMs: Long? = null
     private var lastTimeToFirstTokenMs: Long? = null
@@ -119,6 +125,7 @@ If the request clearly requires live data, connected services, account data, ext
 
     fun close() {
         activeGeneration?.cancel()
+        activeAcceptance?.cancel()
         methodChannel.setMethodCallHandler(null)
         eventChannel.setStreamHandler(null)
         scope.cancel()
@@ -130,15 +137,245 @@ If the request clearly requires live data, connected services, account data, ext
             "pickModel" -> startModelPicker(result)
             "warm" -> warm(result)
             "generate" -> generate(call, result)
+            "runAcceptance" -> runAcceptance(call, result)
             "cancel" -> {
                 activeGeneration?.cancel()
+                activeAcceptance?.cancel()
                 activeGeneration = null
+                activeAcceptance = null
                 result.success(null)
             }
             "resetConversation" -> resetConversation(result)
             "unload" -> unload(result)
             else -> result.notImplemented()
         }
+    }
+
+    private fun runAcceptance(call: MethodCall, result: MethodChannel.Result) {
+        if (activeGeneration?.isActive == true || activeAcceptance?.isActive == true) {
+            result.error("LOCAL_AI_BUSY", "Pandora local AI is already running.", null)
+            return
+        }
+        val sourceSha = call.argument<String>("sourceSha")?.trim()?.lowercase().orEmpty()
+        val challengeNonce = call.argument<String>("challengeNonce")?.trim().orEmpty()
+        val expectedApkSha256 =
+            call.argument<String>("expectedApkSha256")?.trim()?.lowercase().orEmpty()
+        if (!sourceSha.matches(Regex("^[0-9a-f]{40}$")) ||
+            challengeNonce.isEmpty() ||
+            !expectedApkSha256.matches(Regex("^[0-9a-f]{64}$"))
+        ) {
+            result.error(
+                "LOCAL_AI_ACCEPTANCE_INVALID_CHALLENGE",
+                "Pandora received an invalid physical acceptance challenge.",
+                null,
+            )
+            return
+        }
+
+        activeAcceptance = scope.launch {
+            try {
+                val networkState = acceptanceNetworkState()
+                if (networkState != "offline") {
+                    throw IllegalStateException(
+                        "Physical acceptance requires Wi-Fi and mobile data to be off.",
+                    )
+                }
+                val emulatorDetected = isLikelyEmulator()
+                if (emulatorDetected) {
+                    throw IllegalStateException(
+                        "Physical acceptance cannot run on an emulator.",
+                    )
+                }
+                val modelName = preferences.getString(MODEL_NAME, null)?.trim().orEmpty()
+                val modelSha256 =
+                    preferences.getString(MODEL_SHA256, null)?.trim()?.lowercase().orEmpty()
+                require(modelFile.isFile && modelFile.length() > 0L) {
+                    "Import the local GGUF model before physical acceptance."
+                }
+                require(modelName.isNotEmpty()) {
+                    "Pandora could not identify the imported local model."
+                }
+                require(modelSha256.matches(Regex("^[0-9a-f]{64}$"))) {
+                    "Pandora could not verify the imported local model hash."
+                }
+
+                val apkSha256 = withContext(Dispatchers.IO) {
+                    sha256File(File(activity.applicationInfo.sourceDir))
+                }
+                require(apkSha256 == expectedApkSha256) {
+                    "Installed APK does not match the exact verified build."
+                }
+
+                unloadInternal()
+                require(warmInternal()) {
+                    "Pandora could not load the local model for acceptance."
+                }
+                val measuredLoadMs = lastModelLoadMs
+
+                val generationStarted = SystemClock.elapsedRealtime()
+                var firstTokenAt: Long? = null
+                var tokenEvents = 0
+                val generated = StringBuilder()
+                val prompt =
+                    "Offline physical acceptance challenge $challengeNonce. " +
+                        "Reply with one short sentence confirming local execution."
+                engine.sendUserPrompt(prompt, 96).collect { token ->
+                    if (token.isNotEmpty()) {
+                        val now = SystemClock.elapsedRealtime()
+                        if (firstTokenAt == null) firstTokenAt = now
+                        tokenEvents += 1
+                        generated.append(token)
+                    }
+                }
+                val generationMs =
+                    (SystemClock.elapsedRealtime() - generationStarted).coerceAtLeast(1L)
+                val ttftMs =
+                    (firstTokenAt ?: throw IllegalStateException(
+                        "Local acceptance generated no token.",
+                    )) - generationStarted
+                require(tokenEvents > 0 && generated.isNotEmpty()) {
+                    "Local acceptance generated no output."
+                }
+                val tokenRate = tokenEvents.toDouble() * 1000.0 / generationMs.toDouble()
+
+                var cancellationVerified = false
+                val firstCancellationToken = CompletableDeferred<Unit>()
+                val cancellationJob = launch {
+                    try {
+                        engine.sendUserPrompt(
+                            "Count upward one number at a time until stopped.",
+                            512,
+                        ).collect { token ->
+                            if (token.isNotEmpty() && !firstCancellationToken.isCompleted) {
+                                firstCancellationToken.complete(Unit)
+                            }
+                        }
+                    } catch (_: CancellationException) {
+                        cancellationVerified = true
+                        throw
+                    }
+                }
+                try {
+                    withTimeout(15_000L) { firstCancellationToken.await() }
+                } finally {
+                    cancellationJob.cancelAndJoin()
+                }
+                require(cancellationVerified) {
+                    "Local generation cancellation did not verify."
+                }
+
+                unloadInternal()
+                val unloaded = loadedModelPath == null
+                val reloaded = warmInternal()
+                val unloadReloadVerified = unloaded && reloaded
+                require(unloadReloadVerified) {
+                    "Local model unload/reload did not verify."
+                }
+
+                lastGenerationMs = generationMs
+                lastTimeToFirstTokenMs = ttftMs
+                lastGeneratedTokenEvents = tokenEvents
+                lastTokenEventsPerSecond = tokenRate
+                lastGenerationOutcome = "acceptance_completed"
+
+                val androidId =
+                    Settings.Secure.getString(
+                        activity.contentResolver,
+                        Settings.Secure.ANDROID_ID,
+                    ).orEmpty()
+                val deviceIdHash = sha256Text(
+                    listOf(
+                        androidId,
+                        Build.FINGERPRINT,
+                        Build.MANUFACTURER,
+                        Build.MODEL,
+                        activity.packageName,
+                    ).joinToString("|"),
+                )
+
+                result.success(
+                    statusMap() + mapOf(
+                        "sourceSha" to sourceSha,
+                        "challengeNonce" to challengeNonce,
+                        "apkSha256" to apkSha256,
+                        "packageName" to activity.packageName,
+                        "modelName" to modelName,
+                        "modelSha256" to modelSha256,
+                        "deviceIdHash" to deviceIdHash,
+                        "runtimeBackend" to "cpu",
+                        "networkState" to networkState,
+                        "localOnlyPathVerified" to true,
+                        "cloudUsed" to false,
+                        "physicalDevice" to true,
+                        "emulatorDetected" to false,
+                        "cancellationVerified" to cancellationVerified,
+                        "unloadReloadVerified" to unloadReloadVerified,
+                        "modelLoadMs" to measuredLoadMs,
+                        "timeToFirstTokenMs" to ttftMs,
+                        "generationMs" to generationMs,
+                        "generatedTokenEvents" to tokenEvents,
+                        "tokenEventsPerSecond" to tokenRate,
+                        "generatedTextSha256" to sha256Text(generated.toString()),
+                        "acceptancePromptSha256" to sha256Text(prompt),
+                    ),
+                )
+            } catch (error: Exception) {
+                result.error(
+                    "LOCAL_AI_ACCEPTANCE_FAILED",
+                    error.message ?: "Pandora physical acceptance failed.",
+                    null,
+                )
+            } finally {
+                activeAcceptance = null
+            }
+        }
+    }
+
+    private fun acceptanceNetworkState(): String {
+        val manager =
+            activity.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val active = manager.activeNetwork ?: return "offline"
+        val capabilities = manager.getNetworkCapabilities(active) ?: return "offline"
+        return when {
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "mobile_data"
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) -> "online"
+            else -> "offline"
+        }
+    }
+
+    private fun isLikelyEmulator(): Boolean {
+        val fingerprint = Build.FINGERPRINT.lowercase()
+        val model = Build.MODEL.lowercase()
+        val hardware = Build.HARDWARE.lowercase()
+        val product = Build.PRODUCT.lowercase()
+        return fingerprint.startsWith("generic") ||
+            fingerprint.contains("emulator") ||
+            model.contains("google_sdk") ||
+            model.contains("emulator") ||
+            model.contains("android sdk built for") ||
+            hardware.contains("goldfish") ||
+            hardware.contains("ranchu") ||
+            product.contains("sdk_gphone") ||
+            product.contains("emulator")
+    }
+
+    private fun sha256Text(value: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(value.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+
+    private fun sha256File(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().buffered(4 * 1024 * 1024).use { input ->
+            val buffer = ByteArray(4 * 1024 * 1024)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                if (count > 0) digest.update(buffer, 0, count)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun startModelPicker(result: MethodChannel.Result) {
@@ -150,7 +387,7 @@ If the request clearly requires live data, connected services, account data, ext
             )
             return
         }
-        if (activeGeneration?.isActive == true) {
+        if (activeGeneration?.isActive == true || activeAcceptance?.isActive == true) {
             result.error(
                 "LOCAL_AI_BUSY",
                 "Wait for the current local response to finish.",
@@ -195,7 +432,7 @@ If the request clearly requires live data, connected services, account data, ext
     }
 
     private fun generate(call: MethodCall, result: MethodChannel.Result) {
-        if (activeGeneration?.isActive == true) {
+        if (activeGeneration?.isActive == true || activeAcceptance?.isActive == true) {
             result.error(
                 "LOCAL_AI_BUSY",
                 "Pandora local AI is already generating.",

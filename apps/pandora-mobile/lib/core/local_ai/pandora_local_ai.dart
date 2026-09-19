@@ -144,6 +144,40 @@ class PandoraLocalAi {
     }
   }
 
+  Future<Map<String, Object?>> runAcceptance({
+    required String sourceSha,
+    required String challengeNonce,
+    required String expectedApkSha256,
+  }) async {
+    try {
+      final raw = await _methods.invokeMethod<Object?>(
+        'runAcceptance',
+        <String, Object?>{
+          'sourceSha': sourceSha,
+          'challengeNonce': challengeNonce,
+          'expectedApkSha256': expectedApkSha256,
+        },
+      );
+      if (raw is! Map<Object?, Object?>) {
+        throw const PandoraLocalAiException(
+          'Pandora could not read physical acceptance evidence.',
+        );
+      }
+      return <String, Object?>{
+        for (final entry in raw.entries)
+          if (entry.key is String) (entry.key as String): entry.value,
+      };
+    } on MissingPluginException {
+      throw const PandoraLocalAiException(
+        'Physical acceptance is unavailable on this build.',
+      );
+    } on PlatformException catch (error) {
+      throw PandoraLocalAiException(
+        error.message ?? 'Pandora physical acceptance failed.',
+      );
+    }
+  }
+
   Stream<String> generate(String prompt, {int predictLength = 192}) async* {
     final normalized = prompt.trim();
     if (normalized.isEmpty) {

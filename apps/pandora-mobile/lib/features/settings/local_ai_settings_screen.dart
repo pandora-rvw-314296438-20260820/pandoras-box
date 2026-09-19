@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/design/pandora_tokens.dart';
 import '../../core/local_ai/pandora_local_ai.dart';
 import '../../core/widgets/owner_experience.dart';
 import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/status_badge.dart';
+import '../../pandora_config.dart';
 
 class LocalAiSettingsScreen extends StatefulWidget {
   const LocalAiSettingsScreen({super.key});
@@ -17,6 +19,10 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
   PandoraLocalAiStatus? _status;
   bool _busy = false;
   String? _error;
+  Map<String, Object?>? _acceptanceChallenge;
+  Map<String, Object?>? _pendingAcceptanceEvidence;
+  Map<String, Object?>? _acceptanceReceipt;
+  String? _acceptanceStatus;
 
   @override
   void initState() {
@@ -86,6 +92,113 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
     if (!mounted) return;
     setState(() => _busy = false);
     await _refresh();
+  }
+
+  Map<String, Object?> _record(Object? raw) {
+    if (raw is! Map) {
+      throw const PandoraLocalAiException(
+        'Pandora received invalid acceptance evidence.',
+      );
+    }
+    return <String, Object?>{
+      for (final entry in raw.entries)
+        if (entry.key is String) (entry.key as String): entry.value,
+    };
+  }
+
+  Future<void> _runPhysicalAcceptance() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final client = Supabase.instance.client;
+
+      if (_pendingAcceptanceEvidence != null &&
+          _acceptanceChallenge != null) {
+        final challenge = _acceptanceChallenge!;
+        final receipt = _record(
+          await client.rpc(
+            'capture_phone_local_ai_acceptance',
+            params: <String, Object?>{
+              'p_challenge_id': challenge['challengeId'],
+              'p_nonce': challenge['nonce'],
+              'p_evidence': _pendingAcceptanceEvidence,
+            },
+          ),
+        );
+        if (!mounted) return;
+        setState(() {
+          _acceptanceReceipt = receipt;
+          _pendingAcceptanceEvidence = null;
+          _acceptanceChallenge = null;
+          _acceptanceStatus =
+              'VERIFIED · physical offline local inference receipt captured.';
+        });
+        await _refresh();
+        return;
+      }
+
+      if (_acceptanceChallenge == null) {
+        final challenge = _record(
+          await client.rpc(
+            'begin_phone_local_ai_acceptance',
+            params: <String, Object?>{
+              'p_organization_id': PandoraConfig.organizationId,
+              'p_source_sha': PandoraConfig.sourceRevision,
+            },
+          ),
+        );
+        if (!mounted) return;
+        setState(() {
+          _acceptanceChallenge = challenge;
+          _acceptanceStatus =
+              'Challenge ready. Turn off Wi-Fi and mobile data, then run the offline test.';
+        });
+      }
+
+      final challenge = _acceptanceChallenge!;
+      final evidence = await PandoraLocalAi.instance.runAcceptance(
+        sourceSha: PandoraConfig.sourceRevision,
+        challengeNonce: challenge['nonce'].toString(),
+        expectedApkSha256: challenge['expectedApkSha256'].toString(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _pendingAcceptanceEvidence = evidence;
+        _acceptanceStatus =
+            'Offline local test passed. Reconnect to the internet, then submit the receipt.';
+      });
+    } on PandoraLocalAiException catch (error) {
+      if (!mounted) return;
+      final offlineRequired =
+          error.message.toLowerCase().contains('wi-fi and mobile data');
+      setState(() {
+        if (offlineRequired && _acceptanceChallenge != null) {
+          _acceptanceStatus =
+              'Challenge ready. Turn off Wi-Fi and mobile data, then tap again.';
+        } else {
+          _error = error.message;
+        }
+      });
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        if (_pendingAcceptanceEvidence != null) {
+          _acceptanceStatus =
+              'Receipt not submitted. Reconnect and tap again; the offline evidence is still pending.';
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Pandora could not complete physical local-AI acceptance.';
+      });
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   String _sizeLabel(int? bytes) {
@@ -238,6 +351,20 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
               ),
             ),
           ],
+          if (_acceptanceStatus != null) ...[
+            const SizedBox(height: PandoraSpacing.sm),
+            Text(
+              _acceptanceStatus!,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (_acceptanceReceipt != null)
+              Text(
+                'Receipt ' +
+                    (_acceptanceReceipt!['receiptSha256']?.toString() ??
+                        'captured'),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+          ],
           if (_error != null) ...[
             const SizedBox(height: PandoraSpacing.sm),
             Text(
@@ -268,6 +395,18 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                 loaded ? Icons.power_settings_new_rounded : Icons.bolt_rounded,
               ),
               label: Text(loaded ? 'Unload local model' : 'Warm local model'),
+            ),
+            const SizedBox(height: PandoraSpacing.sm),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _runPhysicalAcceptance,
+              icon: const Icon(Icons.verified_user_outlined),
+              label: Text(
+                _pendingAcceptanceEvidence != null
+                    ? 'Submit physical acceptance'
+                    : _acceptanceChallenge != null
+                    ? 'Run offline acceptance'
+                    : 'Prepare physical acceptance',
+              ),
             ),
           ],
           const SizedBox(height: PandoraSpacing.lg),
