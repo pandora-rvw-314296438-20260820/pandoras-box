@@ -627,7 +627,7 @@ revoke all on table private.pandora_ci_rescue_jobs from public, anon, authentica
 revoke insert, update, delete, truncate on table private.pandora_ci_rescue_jobs from service_role;
 grant select on table private.pandora_ci_rescue_jobs to service_role;
 
-create or replace function private.pandora_ci_rescue_agent_config_v2()
+create or replace function public.pandora_ci_rescue_agent_config_v2()
 returns jsonb
 language plpgsql
 security definer
@@ -659,8 +659,8 @@ begin
 end;
 $function$;
 
-revoke all on function private.pandora_ci_rescue_agent_config_v2() from public, anon, authenticated;
-grant execute on function private.pandora_ci_rescue_agent_config_v2() to service_role;
+revoke all on function public.pandora_ci_rescue_agent_config_v2() from public, anon, authenticated;
+grant execute on function public.pandora_ci_rescue_agent_config_v2() to service_role;
 
 create or replace function private.pandora_ci_rescue_dispatch_tick_v1()
 returns jsonb
