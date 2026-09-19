@@ -1,0 +1,271 @@
+import 'dart:async';
+
+import 'package:flutter/services.dart';
+
+class PandoraLocalAiStatus {
+  const PandoraLocalAiStatus({
+    required this.supported,
+    required this.configured,
+    required this.loaded,
+    this.modelName,
+    this.modelBytes,
+    this.modelSha256,
+    this.engineState,
+  });
+
+  final bool supported;
+  final bool configured;
+  final bool loaded;
+  final String? modelName;
+  final int? modelBytes;
+  final String? modelSha256;
+  final String? engineState;
+
+  static const unavailable = PandoraLocalAiStatus(
+    supported: false,
+    configured: false,
+    loaded: false,
+  );
+
+  factory PandoraLocalAiStatus.fromMap(Map<Object?, Object?> value) {
+    int? asInt(Object? raw) => switch (raw) {
+      int number => number,
+      num number => number.toInt(),
+      String text => int.tryParse(text),
+      _ => null,
+    };
+    String? asText(Object? raw) {
+      final text = raw?.toString().trim();
+      return text == null || text.isEmpty ? null : text;
+    }
+
+    return PandoraLocalAiStatus(
+      supported: value['supported'] == true,
+      configured: value['configured'] == true,
+      loaded: value['loaded'] == true,
+      modelName: asText(value['modelName']),
+      modelBytes: asInt(value['modelBytes']),
+      modelSha256: asText(value['modelSha256']),
+      engineState: asText(value['engineState']),
+    );
+  }
+}
+
+class PandoraLocalAiException implements Exception {
+  const PandoraLocalAiException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+class PandoraLocalAi {
+  PandoraLocalAi._();
+
+  static final PandoraLocalAi instance = PandoraLocalAi._();
+
+  static const MethodChannel _methods = MethodChannel('pandora/local_ai');
+  static const EventChannel _events = EventChannel('pandora/local_ai_tokens');
+
+  Stream<dynamic>? _sharedEvents;
+
+  Stream<dynamic> get _eventStream =>
+      _sharedEvents ??= _events.receiveBroadcastStream().asBroadcastStream();
+
+  Future<PandoraLocalAiStatus> status() async {
+    try {
+      final raw = await _methods.invokeMethod<Object?>('status');
+      if (raw is Map<Object?, Object?>) {
+        return PandoraLocalAiStatus.fromMap(raw);
+      }
+      return PandoraLocalAiStatus.unavailable;
+    } on MissingPluginException {
+      return PandoraLocalAiStatus.unavailable;
+    } on PlatformException {
+      return PandoraLocalAiStatus.unavailable;
+    }
+  }
+
+  Future<PandoraLocalAiStatus?> chooseModel() async {
+    try {
+      final raw = await _methods.invokeMethod<Object?>('pickModel');
+      if (raw == null) return null;
+      if (raw is Map<Object?, Object?>) {
+        return PandoraLocalAiStatus.fromMap(raw);
+      }
+      throw const PandoraLocalAiException(
+        'Pandora could not read the selected local model.',
+      );
+    } on PlatformException catch (error) {
+      throw PandoraLocalAiException(
+        error.message ?? 'Pandora could not import that GGUF model.',
+      );
+    }
+  }
+
+  Future<bool> warm() async {
+    try {
+      return await _methods.invokeMethod<bool>('warm') ?? false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  Future<void> unload() async {
+    try {
+      await _methods.invokeMethod<void>('unload');
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  Future<void> resetConversation() async {
+    try {
+      await _methods.invokeMethod<void>('resetConversation');
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  Future<void> cancel() async {
+    try {
+      await _methods.invokeMethod<void>('cancel');
+    } on MissingPluginException {
+      return;
+    }
+  }
+
+  Stream<String> generate(String prompt, {int predictLength = 192}) async* {
+    final normalized = prompt.trim();
+    if (normalized.isEmpty) {
+      throw const PandoraLocalAiException('Local AI prompt cannot be empty.');
+    }
+
+    final requestId =
+        'local-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}';
+    final controller = StreamController<String>();
+    late final StreamSubscription<dynamic> subscription;
+
+    subscription = _eventStream.listen(
+      (event) {
+        if (event is! Map<Object?, Object?> ||
+            event['requestId'] != requestId) {
+          return;
+        }
+        final type = event['type']?.toString();
+        if (type == 'token') {
+          final text = event['text']?.toString() ?? '';
+          if (text.isNotEmpty && !controller.isClosed) controller.add(text);
+          return;
+        }
+        if (type == 'done') {
+          if (!controller.isClosed) controller.close();
+          return;
+        }
+        if (type == 'error' && !controller.isClosed) {
+          controller.addError(
+            PandoraLocalAiException(
+              event['message']?.toString() ?? 'Pandora local inference failed.',
+            ),
+          );
+          controller.close();
+        }
+      },
+      onError: (Object error, StackTrace stack) {
+        if (!controller.isClosed) {
+          controller.addError(error, stack);
+          controller.close();
+        }
+      },
+    );
+
+    try {
+      final accepted =
+          await _methods.invokeMethod<bool>('generate', <String, Object?>{
+            'requestId': requestId,
+            'prompt': normalized,
+            'predictLength': predictLength.clamp(32, 512),
+          }) ??
+          false;
+      if (!accepted) {
+        throw const PandoraLocalAiException(
+          'Pandora local inference is unavailable.',
+        );
+      }
+      yield* controller.stream;
+    } on MissingPluginException {
+      throw const PandoraLocalAiException(
+        'Pandora local inference is unavailable on this device.',
+      );
+    } on PlatformException catch (error) {
+      throw PandoraLocalAiException(
+        error.message ?? 'Pandora local inference could not start.',
+      );
+    } finally {
+      await subscription.cancel();
+      if (!controller.isClosed) await controller.close();
+    }
+  }
+}
+
+class PandoraLocalAiRouter {
+  const PandoraLocalAiRouter._();
+
+  static bool shouldUseLocal({
+    required String message,
+    required bool hasAttachment,
+    required bool hasProjectContext,
+    required bool hasSelectedCapability,
+    required bool hasCharacterContext,
+  }) {
+    final value = message.trim();
+    if (value.isEmpty ||
+        value.length > 4000 ||
+        hasAttachment ||
+        hasProjectContext ||
+        hasSelectedCapability ||
+        hasCharacterContext) {
+      return false;
+    }
+
+    final lower = value.toLowerCase();
+    const liveTerms = <String>[
+      'latest',
+      'today',
+      'right now',
+      'current',
+      'weather',
+      'stock',
+      'price',
+      'what time',
+      'time in',
+      'score',
+      'news',
+      'look up',
+      'search the web',
+      'browse',
+      'github',
+      'supabase',
+      'vercel',
+      'posthog',
+      'google drive',
+      'gmail',
+      'calendar',
+      'email',
+    ];
+    if (liveTerms.any(lower.contains)) return false;
+
+    final externalAction = RegExp(
+      r'^\s*(build|deploy|publish|merge|commit|push|send|call|text|'
+      r'create|delete|remove|update|change|fix|install|download|upload|'
+      r'open|run|execute|schedule|remind|book|buy)\b',
+      caseSensitive: false,
+    );
+    if (externalAction.hasMatch(value)) return false;
+
+    return true;
+  }
+}
