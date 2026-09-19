@@ -1,4 +1,4 @@
-phase=toolchain
-detail=Installing Android SDK and Gradle
+phase=source
+detail=Fetching exact llama.cpp 44be98f057e9f9902a8ee12630e181c7f8ec2953
 source_sha=fa9948654e095ae4bc78434dc7efcad794f2bd9e
-timestamp_utc=2026-09-19T13:58:45Z
+timestamp_utc=2026-09-19T13:59:32Z
