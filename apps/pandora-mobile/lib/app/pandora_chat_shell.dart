@@ -61,6 +61,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   final Map<int, Widget> _roots = <int, Widget>{};
   Map<String, Object?>? _activeEnterpriseContext;
   EnterpriseWorkspaceSelection? _activeWorkspaceSelection;
+  String? _pendingChatPrompt;
   final Set<int> _visited = <int>{9};
   List<PandoraIntelligenceThread> _threads =
       const <PandoraIntelligenceThread>[];
@@ -142,6 +143,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     setState(() {
       _activeEnterpriseContext = null;
       _activeWorkspaceSelection = null;
+      _pendingChatPrompt = null;
       _roots.remove(0);
       _visited.add(0);
     });
@@ -169,6 +171,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     setState(() {
       _activeEnterpriseContext = null;
       _activeWorkspaceSelection = null;
+      _pendingChatPrompt = null;
       _roots.remove(0);
       _visited.add(0);
     });
@@ -441,20 +444,34 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
 
-  void _openVisionChat() {
+  void _openVisionChat(
+    String prompt,
+    Map<String, String>? cameraSelection,
+  ) {
     setState(() {
       _activeWorkspaceSelection = null;
+      _pendingChatPrompt = prompt;
       _activeEnterpriseContext = <String, Object?>{
-        'surface': 'enterprise_overview',
-        'route': '/enterprise/vision-intelligence',
-        'capabilities': const <String>[],
+        'surface': 'enterprise_vision',
+        'route': '/enterprise/vision',
+        'capabilities': const <String>[
+          'vision.read',
+          'vision.camera.read',
+          'vision.event.read',
+          'vision.alert.manage',
+          'vision.clip.request',
+          'vision.incident.create',
+          'vision.observation.verify',
+        ],
         'identityScope': 'enterprise_workspace',
-        'selectedObject': <String, String>{
-          'feature': 'vision_intelligence',
-          'feed': 'kabukicho_camstreamer',
-          'source': 'CamStreamer',
-          'analysisState': 'display_only_public_demo',
-        },
+        'selectedObject': cameraSelection ??
+            <String, String>{
+              'kind': 'public_vision_feed',
+              'feature': 'vision_intelligence',
+              'feed': 'kabukicho_camstreamer',
+              'source': 'CamStreamer',
+              'analysisState': 'display_only_public_feed',
+            },
       };
       _roots.remove(0);
       _visited.add(0);
@@ -480,6 +497,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
                   onMore: () => _select(3),
                   onHome: () => _select(9),
                   enterpriseContext: _activeEnterpriseContext,
+                  initialPrompt: _pendingChatPrompt,
                 ),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
