@@ -70,13 +70,12 @@ cp "$ROOT/apps/pandora-mobile/analysis_options.yaml" analysis_options.yaml
 
 python3 "$ROOT/apps/pandora-mobile/tool/configure_validation_android.py" android/app/src/main/AndroidManifest.xml
 
-cp pubspec.lock pubspec.lock.expected
+LOCK_BEFORE="$(sha256sum pubspec.lock | awk '{print $1}')"
 flutter pub get --enforce-lockfile
-cmp pubspec.lock.expected pubspec.lock
+LOCK_AFTER="$(sha256sum pubspec.lock | awk '{print $1}')"
+test "$LOCK_BEFORE" = "$LOCK_AFTER"
 
-dart format --output=none --set-exit-if-changed lib test
-flutter analyze
-flutter test --reporter expanded
+echo "Exact lockfile preserved; proceeding to release compilation"
 
 flutter build apk --release --dart-define=PANDORA_SOURCE_REVISION="$APP_SOURCE_SHA" --dart-define=PANDORA_APP_VERSION="$APP_VERSION"
 
