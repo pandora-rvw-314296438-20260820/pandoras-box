@@ -229,7 +229,7 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
   Map<String, Object?> _contextFor(BatallaNavItem item) =>
       <String, Object?>{
         'surface': item.surface,
-        'route': '/enterprise/workspaces/batalla-associates/' + item.routeSlug,
+        'route': '/enterprise/workspaces/batalla-associates/${item.routeSlug}',
         'capabilities': const <String>[],
         'identityScope': 'enterprise_workspace',
         'selectedObject': <String, String>{
@@ -410,7 +410,7 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
                 for (final item in batallaNavigation)
                   ListTile(
                     key: ValueKey<String>(
-                      'batalla-nav-' + item.routeSlug,
+                      'batalla-nav-${item.routeSlug}',
                     ),
                     dense: true,
                     selected: item.routeSlug == _selectedSlug,
@@ -499,7 +499,7 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          _profile.displayName + ' · Batalla & Associates',
+                          '${_profile.displayName} · Batalla & Associates',
                           style: const TextStyle(
                             color: Color(0xFFA7A8AC),
                             fontSize: 12.5,

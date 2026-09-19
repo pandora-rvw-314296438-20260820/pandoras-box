@@ -51,10 +51,7 @@ class EnterpriseWorkspaceSelection {
 
   Map<String, Object?> get enterpriseContext => <String, Object?>{
         'surface': section.surface,
-        'route': '/enterprise/workspaces/' +
-            workspace.key +
-            '/' +
-            section.routeSlug,
+        'route': '/enterprise/workspaces/${workspace.key}/${section.routeSlug}',
         'capabilities': const <String>[],
         'identityScope': 'enterprise_workspace',
         'selectedObject': <String, String>{
@@ -425,7 +422,7 @@ class _WorkspaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final home = workspace.sections.first;
     return Material(
-      key: ValueKey<String>('workspace-card-' + workspace.key),
+      key: ValueKey<String>('workspace-card-${workspace.key}'),
       color: const Color(0xC90B0E12),
       borderRadius: BorderRadius.circular(25),
       clipBehavior: Clip.antiAlias,
@@ -477,7 +474,7 @@ class _WorkspaceCard extends StatelessWidget {
                     ),
                     IconButton(
                       key: ValueKey<String>(
-                          'workspace-expand-' + workspace.key),
+                          'workspace-expand-${workspace.key}'),
                       tooltip: expanded ? 'Collapse workspace' : 'Open workspace',
                       onPressed: onToggle,
                       icon: AnimatedRotation(
@@ -492,7 +489,7 @@ class _WorkspaceCard extends StatelessWidget {
                     ),
                     PopupMenuButton<_WorkspaceAction>(
                       key: ValueKey<String>(
-                          'workspace-more-' + workspace.key),
+                          'workspace-more-${workspace.key}'),
                       tooltip: 'Workspace options',
                       icon: const Icon(
                         Icons.more_vert_rounded,
@@ -534,7 +531,7 @@ class _WorkspaceCard extends StatelessWidget {
                         for (final section in workspace.sections)
                           ListTile(
                             key: ValueKey<String>(
-                                workspace.key + '-' + section.routeSlug),
+                                '${workspace.key}-${section.routeSlug}'),
                             contentPadding:
                                 const EdgeInsets.fromLTRB(20, 1, 14, 1),
                             leading: Icon(

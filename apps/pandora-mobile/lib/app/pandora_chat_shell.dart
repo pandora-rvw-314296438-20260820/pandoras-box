@@ -432,10 +432,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     unawaited(
       OwnerAnalytics.shared.capture(
         OwnerAnalyticsEvent.screenViewed,
-        resultClass: 'enterprise_workspace_' +
-            selection.workspace.key +
-            '_' +
-            selection.section.routeSlug,
+        resultClass:
+            'enterprise_workspace_${selection.workspace.key}_${selection.section.routeSlug}',
       ),
     );
   }

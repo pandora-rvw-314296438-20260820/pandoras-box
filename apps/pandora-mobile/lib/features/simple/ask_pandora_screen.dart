@@ -32,7 +32,6 @@ class AskPandoraScreen extends StatefulWidget {
     this.onProjects,
     this.onSearchChats,
     this.onMore,
-    this.enterpriseContext,
   });
 
   final String? initialPrompt;
@@ -78,6 +77,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   bool _outcomeUnknown = false;
   String? _submissionKey;
   String? _error;
+  final GlobalKey _headerKey = GlobalKey(debugLabel: 'ask-pandora-header');
+  final GlobalKey _composerKey = GlobalKey(debugLabel: 'ask-pandora-composer');
+  double _headerHeight = 0;
+  double _composerHeight = 0;
+  bool _overlayMeasureScheduled = false;
 
   @override
   void initState() {
@@ -923,6 +927,26 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     });
   }
 
+  void _scheduleOverlayMeasure() {
+    if (_overlayMeasureScheduled) return;
+    _overlayMeasureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayMeasureScheduled = false;
+      if (!mounted) return;
+      final headerHeight = _headerKey.currentContext?.size?.height ?? 0;
+      final composerHeight = _composerKey.currentContext?.size?.height ?? 0;
+      final headerChanged =
+          headerHeight > 0 && (headerHeight - _headerHeight).abs() >= .5;
+      final composerChanged =
+          composerHeight > 0 && (composerHeight - _composerHeight).abs() >= .5;
+      if (!headerChanged && !composerChanged) return;
+      setState(() {
+        if (headerChanged) _headerHeight = headerHeight;
+        if (composerChanged) _composerHeight = composerHeight;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     _scheduleOverlayMeasure();
@@ -1039,14 +1063,12 @@ class _ChatHeader extends StatelessWidget {
     required this.onNewChat,
     this.onSearchChats,
     this.onMore,
-    this.enterpriseContext,
   });
 
   final bool active;
   final VoidCallback onNewChat;
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
-  final Map<String, Object?>? enterpriseContext;
 
   @override
   Widget build(BuildContext context) => PandoraPageHeader(
@@ -1374,6 +1396,26 @@ class _ConversationState extends State<_Conversation> {
     super.dispose();
   }
 
+  void _scheduleOverlayMeasure() {
+    if (_overlayMeasureScheduled) return;
+    _overlayMeasureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayMeasureScheduled = false;
+      if (!mounted) return;
+      final headerHeight = _headerKey.currentContext?.size?.height ?? 0;
+      final composerHeight = _composerKey.currentContext?.size?.height ?? 0;
+      final headerChanged =
+          headerHeight > 0 && (headerHeight - _headerHeight).abs() >= .5;
+      final composerChanged =
+          composerHeight > 0 && (composerHeight - _composerHeight).abs() >= .5;
+      if (!headerChanged && !composerChanged) return;
+      setState(() {
+        if (headerChanged) _headerHeight = headerHeight;
+        if (composerChanged) _composerHeight = composerHeight;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final items = <Widget>[];
@@ -1467,6 +1509,26 @@ class _ChatBubble extends StatelessWidget {
   const _ChatBubble({required this.message});
 
   final _ChatMessage message;
+
+  void _scheduleOverlayMeasure() {
+    if (_overlayMeasureScheduled) return;
+    _overlayMeasureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayMeasureScheduled = false;
+      if (!mounted) return;
+      final headerHeight = _headerKey.currentContext?.size?.height ?? 0;
+      final composerHeight = _composerKey.currentContext?.size?.height ?? 0;
+      final headerChanged =
+          headerHeight > 0 && (headerHeight - _headerHeight).abs() >= .5;
+      final composerChanged =
+          composerHeight > 0 && (composerHeight - _composerHeight).abs() >= .5;
+      if (!headerChanged && !composerChanged) return;
+      setState(() {
+        if (headerChanged) _headerHeight = headerHeight;
+        if (composerChanged) _composerHeight = composerHeight;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
