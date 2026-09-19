@@ -486,7 +486,7 @@ function releaseSummary(value: unknown) {
 
 async function loadProjectSummaries(context: UserContext) {
   const { data: rows, error: projectsError } = await context.client
-    .from("projectos_projects")
+    .from("pandora_projects")
     .select(
       "id, project_key, name, repository, status, objective, current_phase_key, progress_percent, last_reconciled_at, updated_at",
     )
@@ -501,7 +501,7 @@ async function loadProjectSummaries(context: UserContext) {
   if (!projectIds.length) return [];
 
   const { data: projectionRows, error: projectionsError } = await context.client
-    .from("projectos_projections")
+    .from("pandora_projections")
     .select("project_id, projection, computed_at, stale_after")
     .eq("organization_id", context.organizationId)
     .in("project_id", projectIds);
@@ -743,7 +743,7 @@ async function project(context: UserContext, identifier: string) {
   const uuid =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
       .test(identifier);
-  let query = context.client.from("projectos_projects").select("*").eq(
+  let query = context.client.from("pandora_projects").select("*").eq(
     "organization_id",
     context.organizationId,
   );
@@ -754,21 +754,21 @@ async function project(context: UserContext, identifier: string) {
   if (error) throw new Error("BACKEND_READ_FAILED");
   if (!projectRow) throw new Error("PROJECT_NOT_FOUND");
   const [phases, tasks, evidence, projection, experience, theatre] = await Promise.all([
-    context.client.from("projectos_phases").select(
+    context.client.from("pandora_phases").select(
       "id, phase_key, name, sequence, status, exit_criteria, started_at, completed_at",
     )
       .eq("organization_id", context.organizationId).eq(
         "project_id",
         projectRow.id,
       ).order("sequence"),
-    context.client.from("projectos_tasks").select(
+    context.client.from("pandora_tasks").select(
       "id, task_key, title, description, sequence, priority, status, risk_class, completion_criteria, current_head_sha, result_summary, updated_at",
     )
       .eq("organization_id", context.organizationId).eq(
         "project_id",
         projectRow.id,
       ).order("sequence"),
-    context.client.from("projectos_evidence").select(
+    context.client.from("pandora_evidence").select(
       "id, task_id, evidence_type, provider, external_id, status, verdict, source_url, head_sha, payload_redacted, observed_at",
     )
       .eq("organization_id", context.organizationId).eq(
@@ -776,7 +776,7 @@ async function project(context: UserContext, identifier: string) {
         projectRow.id,
       ).is("invalidated_at", null).order("observed_at", { ascending: false })
       .limit(50),
-    context.client.from("projectos_projections")
+    context.client.from("pandora_projections")
       .select("projection, computed_at, stale_after")
       .eq("organization_id", context.organizationId)
       .eq("project_id", projectRow.id)
@@ -1257,7 +1257,7 @@ async function approvals(context: UserContext, limit: number) {
   const governed = (Array.isArray(plans) ? plans : [])
     .map(asRecord)
     .filter((plan) =>
-      plan.tool === "projectos.worker.verify" &&
+      plan.tool === "pandora.worker.verify" &&
       plan.risk === "write" && plan.status === "pending_approval"
     )
     .map((plan) => ({
@@ -1322,7 +1322,7 @@ async function resolveMemoryProject(
   const uuid =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
       .test(identifier);
-  let query = context.client.from("projectos_projects")
+  let query = context.client.from("pandora_projects")
     .select("id, project_key, name")
     .eq("organization_id", context.organizationId);
   query = uuid ? query.eq("id", identifier) : query.eq("project_key", identifier);
@@ -1342,23 +1342,23 @@ async function memory(
   const project = await resolveMemoryProject(context, requestedProject);
   const projectId = textValue(project?.id);
 
-  let decisionsQuery = context.client.from("projectos_decisions")
+  let decisionsQuery = context.client.from("pandora_decisions")
     .select("id, project_id, statement, rationale, confidence, created_at")
     .eq("organization_id", context.organizationId)
     .order("created_at", { ascending: false })
     .limit(50);
-  let tasksQuery = context.client.from("projectos_tasks")
+  let tasksQuery = context.client.from("pandora_tasks")
     .select("id, project_id, title, description, status, updated_at")
     .eq("organization_id", context.organizationId)
     .order("updated_at", { ascending: false })
     .limit(50);
-  let lessonsQuery = context.client.from("projectos_lessons")
+  let lessonsQuery = context.client.from("pandora_lessons")
     .select("id, project_id, category, lesson, status, confidence, updated_at")
     .eq("organization_id", context.organizationId)
     .eq("status", "active")
     .order("updated_at", { ascending: false })
     .limit(50);
-  let evidenceQuery = context.client.from("projectos_evidence")
+  let evidenceQuery = context.client.from("pandora_evidence")
     .select(
       "id, project_id, evidence_type, provider, status, verdict, observed_at",
     )
@@ -1474,7 +1474,7 @@ function integrationFreshness(value: unknown, now: number) {
 }
 
 async function canonicalSafetyProjectId(context: UserContext) {
-  const { data, error } = await context.client.from("projectos_projects")
+  const { data, error } = await context.client.from("pandora_projects")
     .select("id")
     .eq("organization_id", context.organizationId)
     .eq("repository", CANONICAL_REPOSITORY)
@@ -1494,11 +1494,11 @@ async function safety(context: UserContext) {
   });
   const safetyProjectId = await canonicalSafetyProjectId(context);
   const [policy, health, audit] = await Promise.all([
-    context.client.from("projectos_policies").select("*").eq(
+    context.client.from("pandora_policies").select("*").eq(
       "organization_id",
       context.organizationId,
     ).maybeSingle(),
-    context.client.from("projectos_integration_health").select(
+    context.client.from("pandora_integration_health").select(
       "project_id, provider, status, last_event_at, last_success_at, stale_after, details, updated_at",
     )
       .eq("organization_id", context.organizationId)
@@ -1595,7 +1595,7 @@ async function completeConnectedServicesRead(
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: completion, error: completionError } = await admin.rpc(
-    "projectos_complete_owner_read_intake",
+    "pandora_complete_owner_read_intake",
     {
       p_organization_id: context.organizationId,
       p_intake_id: textValue(intake.id),
@@ -1796,7 +1796,7 @@ function createOwnerWorkerAdapter(context: UserContext) {
     },
     async createPlan(input: JsonRecord) {
       const { data, error } = await admin.rpc(
-        "projectos_create_or_get_worker_plan",
+        "pandora_create_or_get_worker_plan",
         {
           p_organization_id: input.organizationId,
           p_intake_id: input.intakeId,
@@ -1987,7 +1987,7 @@ async function acceptIntake(
     const uuid =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
         .test(requestedProject);
-    let query = context.client.from("projectos_projects")
+    let query = context.client.from("pandora_projects")
       .select("project_key")
       .eq("organization_id", context.organizationId);
     query = uuid
@@ -2008,7 +2008,7 @@ async function acceptIntake(
   const automaticFingerprint = await sha256Hex(
     [
       normalizeIntakeFingerprintPart(operationName),
-      normalizeIntakeFingerprintPart(projectKey || "projectos-inbox"),
+      normalizeIntakeFingerprintPart(projectKey || "pandora-inbox"),
       normalizeIntakeFingerprintPart(message),
     ].join("\n"),
   );
@@ -2029,7 +2029,7 @@ async function acceptIntake(
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const result = await admin.rpc("projectos_accept_governed_worker_intake", {
+    const result = await admin.rpc("pandora_accept_governed_worker_intake", {
       p_organization_id: context.organizationId,
       p_requester_id: context.userId,
       p_request_text: message,
@@ -2040,7 +2040,7 @@ async function acceptIntake(
     data = result.data;
     error = result.error;
   } else {
-    const result = await context.client.rpc("projectos_accept_intake", {
+    const result = await context.client.rpc("pandora_accept_intake", {
       p_organization_id: context.organizationId,
       p_requester_id: context.userId,
       p_request_text: message,

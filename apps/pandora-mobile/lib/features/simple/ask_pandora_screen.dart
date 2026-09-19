@@ -670,7 +670,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
       // `intelligence.chat` owns exactly one dispatch for this turn. Explicit
       // selected-project changes execute through the real project runtime in
-      // this chat. They never navigate away, never reopen ProjectOS intake,
+      // this chat. They never navigate away, never reopen Pandora intake,
       // and never resubmit the owner instruction as a second intelligence turn.
       // Progress and verified terminal evidence remain authoritative.
     } on PandoraCharacterException catch (error) {

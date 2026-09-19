@@ -23,7 +23,7 @@ Five states. They are not synonyms, and collapsing them is the most common and m
 | `deployed` | An exact artifact is live in a named environment | It behaves correctly |
 | `production_verified` | Observed correct behavior in production, with rollback proven | It will keep working |
 
-These five strings are not a stylistic convention — they are the enforced `proofStage` enum on `projectos_plan_memory_submitEvidenceCandidate`. Using the wrong one writes a false claim into canonical Memory.
+These five strings are not a stylistic convention — they are the enforced `proofStage` enum on `pandora_plan_memory_submitEvidenceCandidate`. Using the wrong one writes a false claim into canonical Memory.
 
 **None of these count as proof of the next state up:** code exists · a migration file exists · tests passed · CI is green · a build succeeded · a Vercel deployment reports READY · a PR merged · an AI agent said it finished.
 

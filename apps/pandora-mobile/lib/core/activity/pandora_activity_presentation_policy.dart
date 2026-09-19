@@ -93,7 +93,7 @@ bool _isMeaningfulActivity(PandoraActivityProjection event) {
   if (event.source.sourceType == 'tool' ||
       event.source.sourceType == 'device' ||
       event.source.sourceType == 'provider' ||
-      event.source.sourceType == 'projectos') {
+      event.source.sourceType == 'pandora') {
     return true;
   }
   final capability = event.capability?.trim().toLowerCase();
