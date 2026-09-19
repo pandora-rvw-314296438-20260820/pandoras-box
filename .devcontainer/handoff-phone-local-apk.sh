@@ -55,7 +55,7 @@ trap publish_status EXIT
   echo "GitHub-only artifact handoff. No model inference is executed here."
   gh auth status
   rm -f "$OUT_APK"
-  gh codespace cp -c "$SOURCE_CODESPACE" "remote:$REMOTE_APK" "$OUT_APK"
+  gh codespace cp -e -c "$SOURCE_CODESPACE" "remote:$REMOTE_APK" "$OUT_APK"
 
   test -s "$OUT_APK"
   ACTUAL_SHA="$(sha256sum "$OUT_APK" | awk '{print $1}')"
