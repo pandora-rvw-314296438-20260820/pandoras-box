@@ -11,13 +11,13 @@ class EnterpriseVisionScreen extends StatelessWidget {
   const EnterpriseVisionScreen({super.key});
 
   static final Uri _sourceUri = Uri.parse(
-    'https://perdidokeyog.com/live-cam/',
+    'https://www.youtube.com/watch?v=z-jYdOIKcTQ',
   );
 
   void _askPandora(BuildContext context) {
     EnterpriseCommandDraftBus.shared.offer(
       'Explain the Vision Intelligence capability shown on this page. '
-      'The World Port Cams feed is a public visual demo only: do not claim '
+      'The live Times Square feed is display-only in this build: do not claim '
       'Pandora is analyzing, identifying, tracking, retaining, or alerting '
       'on people or objects in this public feed. Explain what becomes '
       'available when an enterprise connects a camera it is authorized to use.',
@@ -47,7 +47,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
               builder: (context, constraints) {
                 final wide = constraints.maxWidth >= 920;
                 final camera = _camera(context);
-                final status = _demoStatus(context);
+                final status = _feedStatus(context);
                 if (!wide) {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -77,13 +77,13 @@ class EnterpriseVisionScreen extends StatelessWidget {
       );
 
   Widget _intro() => PandoraSurface(
-        title: 'Public Vision Demo',
-        subtitle: 'Perdido Key · Florida Gulf Coast',
+        title: 'Live Vision Feed',
+        subtitle: 'Times Square · New York City',
         leading: const Icon(Icons.videocam_rounded),
         child: const Text(
-          'A real public live camera is embedded to demonstrate how Vision '
-          'Intelligence fits inside Pandora Enterprise. Automated analysis is '
-          'deliberately disabled for this public demo feed.',
+          'A live Times Square camera provides continuous pedestrian and vehicle '
+          'activity inside Pandora Enterprise. Automated analysis is '
+          'not connected to this public source.',
           style: TextStyle(
             color: PandoraV2Colors.muted,
             height: 1.45,
@@ -93,7 +93,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
 
   Widget _camera(BuildContext context) => PandoraSurface(
         title: 'Live camera',
-        subtitle: 'Embedded from Perdido Key OG',
+        subtitle: 'EarthCam live via YouTube',
         leading: const Icon(Icons.live_tv_rounded),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -133,7 +133,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
                                     ),
                                     SizedBox(width: 6),
                                     Text(
-                                      'PUBLIC LIVE DEMO',
+                                      'LIVE TIMES SQUARE',
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 10.5,
@@ -155,8 +155,8 @@ class EnterpriseVisionScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Source: World Port Cams · Powered-by attribution remains visible '
-              'inside the embedded player.',
+              'Source: EarthCam via YouTube · live public urban camera. '
+              '',
               style: TextStyle(
                 color: PandoraV2Colors.muted,
                 fontSize: 12,
@@ -184,9 +184,9 @@ class EnterpriseVisionScreen extends StatelessWidget {
         ),
       );
 
-  Widget _demoStatus(BuildContext context) => PandoraSurface(
-        title: 'Demo status',
-        subtitle: 'Truthful separation between display and analysis',
+  Widget _feedStatus(BuildContext context) => PandoraSurface(
+        title: 'Live feed status',
+        subtitle: 'Current source and analysis state',
         leading: const Icon(Icons.verified_user_outlined),
         child: const Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -194,13 +194,13 @@ class EnterpriseVisionScreen extends StatelessWidget {
             _VisionStatusRow(
               icon: Icons.public_rounded,
               label: 'Live source',
-              value: 'Perdido Key OG',
+              value: 'EarthCam · Times Square',
             ),
             SizedBox(height: 12),
             _VisionStatusRow(
               icon: Icons.psychology_alt_outlined,
               label: 'AI analysis',
-              value: 'Off for public demo',
+              value: 'Not connected to public source',
             ),
             SizedBox(height: 12),
             _VisionStatusRow(
@@ -300,7 +300,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
 
   Widget _architecture() => PandoraSurface(
         title: 'Enterprise camera path',
-        subtitle: 'Public demo today · governed customer ingest next',
+        subtitle: 'Live feed now · governed customer ingest next',
         leading: const Icon(Icons.account_tree_outlined),
         child: const Wrap(
           spacing: 8,
