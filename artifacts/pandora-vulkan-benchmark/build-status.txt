@@ -1,4 +1,4 @@
-phase=publishing
-detail=Publishing APK to GitHub prerelease
+phase=success
+detail=release_tag=pandora-vulkan-benchmark-84263210
 source_sha=84263210f1b911a273d3ae22921a790b6bd51405
-timestamp_utc=2026-09-19T14:15:09Z
+timestamp_utc=2026-09-19T14:15:16Z
