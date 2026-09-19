@@ -378,7 +378,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
           5 => const PluginsScreen(),
           6 => const OfflineEvidenceScreen(),
           7 => const SimpleSafetyScreen(),
-          8 => const PandoraOperationsRoomScreen(),
+          8 => PandoraOperationsRoomScreen(onHome: () => _select(0)),
           _ => AskPandoraScreen(key: _chatKey),
         },
       );

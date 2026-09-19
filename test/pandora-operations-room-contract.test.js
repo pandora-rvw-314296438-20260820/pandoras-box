@@ -16,6 +16,18 @@ const room = readFileSync(
   ),
   'utf8',
 );
+const roles = readFileSync(
+  join(
+    root,
+    'apps',
+    'pandora-mobile',
+    'lib',
+    'features',
+    'operations',
+    'operations_room_roles.dart',
+  ),
+  'utf8',
+);
 const shell = readFileSync(
   join(root, 'apps', 'pandora-mobile', 'lib', 'app', 'pandora_chat_shell.dart'),
   'utf8',
@@ -31,52 +43,63 @@ const intelligence = readFileSync(
   'utf8',
 );
 
-test('Operations Room is a first-class Pandora navigation surface', () => {
+const ROSTER = [
+  'ATHENA',
+  'APOLLO',
+  'HERMES',
+  'HEPHAESTUS',
+  'ARTEMIS',
+  'THEMIS',
+  'MNEMOSYNE',
+  'HESTIA',
+  'IRIS',
+  'ASCLEPIUS',
+  'NIKE',
+  'HECATE',
+  'PROMETHEUS',
+  'DEMETER',
+];
+
+test('Operations Room is a first-class persistent Pandora navigation surface', () => {
   assert.match(shell, /Operations Room/);
-  assert.match(shell, /PandoraOperationsRoomScreen/);
+  assert.match(shell, /PandoraOperationsRoomScreen\(onHome: \(\) => _select\(0\)\)/);
   assert.match(room, /operations-room-chat/);
   assert.match(room, /operations-room-composer/);
+  assert.match(room, /recentThreads\(limit: 100\)/);
+  assert.match(room, /intelligence\.messages\(room\.id, limit: 500\)/);
+  assert.match(room, /_roomThreadPrefix/);
+  assert.match(room, /mode\.name/);
 });
 
-test('Operations Room binds the six canonical specialist roles', () => {
-  for (const role of [
-    'ATHENA',
-    'APOLLO',
-    'HERMES',
-    'HEPHAESTUS',
-    'THEMIS',
-    'ARTEMIS',
-  ]) {
-    assert.match(room, new RegExp(role));
-    assert.match(intelligence, new RegExp('\\[\\[ROLE:' + role + '\\]\\]'));
+test('Operations Room binds all fourteen specialist identities in one registry', () => {
+  for (const role of ROSTER) {
+    assert.match(roles, new RegExp(role));
+    assert.match(intelligence, new RegExp(role));
   }
+  assert.match(roles, /operationsRoomRoles/);
+  assert.match(room, /import 'operations_room_roles\.dart'/);
+  assert.match(room, /hiddenCount specialists/);
 });
 
-test('Operations Room preserves real runtime evidence and mode semantics', () => {
-  assert.match(room, /PandoraActivityTimelineController/);
-  assert.match(room, /PandoraActivityTimelineView/);
-  assert.match(room, /OperationsRoomMode\.execution/);
-  assert.match(room, /OperationsRoomMode\.council/);
-  assert.match(room, /OperationsRoomMode\.incident/);
-  assert.match(room, /specialist_analysis/);
-  assert.match(room, /athena_synthesis/);
-  assert.match(room, /Independent specialist findings/);
-  assert.match(intelligence, /enterprise_operations_room/);
-  assert.match(intelligence, /runtime evidence remains authoritative/);
-  assert.match(intelligence, /real independent specialist turn/);
-  assert.match(intelligence, /athena_synthesis/);
+test('automatic routing selects a bounded relevant team rather than all specialists', () => {
+  assert.match(room, /operationsRoomRecommendedRoles/);
+  assert.match(room, /return selected\.take\(4\)/);
+  assert.match(room, /HECATE.*NIKE.*PROMETHEUS/s);
+  assert.match(room, /HEPHAESTUS.*HESTIA.*ASCLEPIUS.*ARTEMIS/s);
+  assert.match(room, /HEPHAESTUS.*THEMIS.*ARTEMIS.*ASCLEPIUS.*HESTIA/s);
 });
 
-test('Council and Incident use independent specialist turns before Athena synthesis', () => {
-  for (const role of ['APOLLO', 'HERMES', 'HEPHAESTUS', 'THEMIS', 'ARTEMIS']) {
-    assert.match(room, new RegExp("'" + role + "'"));
-  }
-  assert.match(room, /for \(final role in roles\)/);
+test('real specialist turns precede Athena coordination', () => {
+  assert.match(room, /stage: 'specialist_analysis'/);
   assert.match(room, /targetRole: role/);
-  assert.match(room, /targetRole: 'ATHENA'/);
+  assert.match(room, /findings\.add/);
+  assert.match(room, /stage: allowExecution \? 'lead' : 'athena_synthesis'/);
+  assert.match(room, /OPERATIONS_ROOM_INTERNAL/);
+  assert.match(intelligence, /real specialist turn/);
+  assert.match(intelligence, /no specialist message or provider event may be invented/);
 });
 
-test('advisory specialist and synthesis turns cannot execute capabilities', () => {
+test('advisory turns remain analysis-only while execution lead retains capability routing', () => {
   assert.match(
     intelligence,
     /operationsStage==="specialist_analysis"\|\|operationsStage==="athena_synthesis"/,
@@ -85,4 +108,21 @@ test('advisory specialist and synthesis turns cannot execute capabilities', () =
     intelligence,
     /dispatched=operationsAdvisory\?null:await universalDispatch/,
   );
+  assert.match(room, /allowExecution = _mode == OperationsRoomMode\.execution/);
+});
+
+test('mobile room uses compact roster, unclipped mode buttons, home navigation and live evidence', () => {
+  assert.match(room, /14 specialists · shared team thread/);
+  assert.match(room, /operations-room-roster/);
+  assert.match(room, /operations-room-home/);
+  assert.match(room, /operations-room-live-event/);
+  assert.match(room, /Flexible\(/);
+  assert.doesNotMatch(room, /SegmentedButton<OperationsRoomMode>/);
+});
+
+test('working state is driven only by real in-flight room turns', () => {
+  assert.match(room, /_setActive\(role\)/);
+  assert.match(room, /_setActive\('ATHENA'\)/);
+  assert.match(room, /_activeRoles = const <String>\{\}/);
+  assert.ok(room.includes('activeRoles.length == 1'));
 });
