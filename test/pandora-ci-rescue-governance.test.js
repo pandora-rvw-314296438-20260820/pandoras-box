@@ -65,3 +65,15 @@ test("runner checks agent configuration before claiming and never weakens fencin
   assert.equal(runner.includes("pandora_ci_rescue_claim_v1"), false);
   assert.equal(runner.includes("pandora_ci_rescue_update_v1"), false);
 });
+
+test("agent completion requires independent GitHub provider readback", () => {
+  assert.match(migration, /pandora_ci_rescue_verify_provider_v2/);
+  assert.match(migration, /v_run_conclusion = 'success'/);
+  assert.match(migration, /v_branch_sha = v_sha/);
+  const verifyIndex = runner.indexOf("pandora_ci_rescue_verify_provider_v2");
+  const transitionIndex = runner.indexOf("pandora_ci_rescue_transition_v2");
+  assert.ok(verifyIndex >= 0);
+  assert.ok(transitionIndex > verifyIndex);
+  assert.match(runner, /PROVIDER_READBACK_NOT_GREEN/);
+  assert.match(runner, /providerReadback/);
+});
