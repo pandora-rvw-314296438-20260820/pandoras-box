@@ -1,4 +1,4 @@
-phase=failed
-detail=exit=1 line=108
-source_sha=61e8630ecb16165bd4b3374e2b9b55a039f185e6
-timestamp_utc=2026-09-19T10:42:44Z
+phase=started
+detail=Codespace builder started
+source_sha=4caddfbe447865b37956c8ee7ae549ea1d850d0f
+timestamp_utc=2026-09-19T13:28:35Z
