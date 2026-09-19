@@ -1,10 +1,9 @@
+
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "git": {
-    "deploymentEnabled": false
-  },
-  "buildCommand": "bash scripts/ci/vercel-mobile-apk-verify.sh",
+  "git": {"deploymentEnabled": false},
+  "buildCommand": "bash scripts/ci/vercel-apk-handoff.sh",
   "installCommand": "",
-  "outputDirectory": "vercel-apk-output",
+  "outputDirectory": "vercel-apk-handoff-output",
   "framework": null
 }
