@@ -1,21 +1,21 @@
 -- Canonical physical Android proof is accepted only through an enrolled,
--- signed observer boundary. Generic projectos_evidence rows are historical
+-- signed observer boundary. Generic pandora_evidence rows are historical
 -- context and cannot authorize a release review after this migration.
 
 do $roles$
 begin
   if not exists (
-    select 1 from pg_roles where rolname = 'projectos_physical_android_ingest'
+    select 1 from pg_roles where rolname = 'pandora_physical_android_ingest'
   ) then
-    create role projectos_physical_android_ingest nologin noinherit;
+    create role pandora_physical_android_ingest nologin noinherit;
   end if;
   if exists (select 1 from pg_roles where rolname = 'authenticator') then
-    execute 'grant projectos_physical_android_ingest to authenticator';
+    execute 'grant pandora_physical_android_ingest to authenticator';
   end if;
 end
 $roles$;
 
-grant usage on schema public to projectos_physical_android_ingest;
+grant usage on schema public to pandora_physical_android_ingest;
 
 create table private.physical_android_observer_identities (
   organization_id uuid not null references public.organizations(id) on delete restrict,
@@ -104,8 +104,8 @@ create table private.canonical_physical_android_receipts (
   owner_plan_id uuid not null references private.execution_plans(id) on delete restrict,
   owner_dispatch_id uuid not null references private.execution_dispatch_outbox(id) on delete restrict,
   worker_evidence_sha256 text not null check (worker_evidence_sha256 ~ '^[0-9a-f]{64}$'),
-  verification_evidence_id uuid not null references public.projectos_evidence(id) on delete restrict,
-  reviewer_runtime_proof_id uuid not null references public.projectos_agent_runtime_proofs(id) on delete restrict,
+  verification_evidence_id uuid not null references public.pandora_evidence(id) on delete restrict,
+  reviewer_runtime_proof_id uuid not null references public.pandora_agent_runtime_proofs(id) on delete restrict,
   request_nonce text not null check (request_nonce ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$'),
   nonce_sha256 text not null check (nonce_sha256 ~ '^[0-9a-f]{64}$'),
   signed_timestamp text not null check (
@@ -144,13 +144,13 @@ alter table private.physical_android_authority_rate_limits enable row level secu
 alter table private.canonical_physical_android_receipts enable row level security;
 
 revoke all on table private.physical_android_observer_identities
-  from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+  from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 revoke all on table private.physical_android_authority_jtis
-  from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+  from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 revoke all on table private.physical_android_authority_rate_limits
-  from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+  from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 revoke all on table private.canonical_physical_android_receipts
-  from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+  from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 
 create or replace function private.assert_physical_android_ingest_role()
 returns void
@@ -160,7 +160,7 @@ set search_path = ''
 as $$
 begin
   if session_user <> 'postgres'
-     and coalesce(auth.jwt() ->> 'role', '') <> 'projectos_physical_android_ingest' then
+     and coalesce(auth.jwt() ->> 'role', '') <> 'pandora_physical_android_ingest' then
     raise exception 'physical Android ingest role required' using errcode = '42501';
   end if;
 end;
@@ -182,7 +182,7 @@ declare
 begin
   perform private.assert_physical_android_ingest_role();
   if coalesce(claims ->> 'iss', '') <> 'pandora-physical-android-authority-v1'
-     or coalesce(claims ->> 'aud', '') <> 'projectos_physical_android_ingest'
+     or coalesce(claims ->> 'aud', '') <> 'pandora_physical_android_ingest'
      or coalesce(claims ->> 'purpose', '') <> 'canonical_physical_android_capture'
      or coalesce(claims ->> 'organization_id', '') <> p_organization_id::text then
     raise exception 'external physical Android authority required'
@@ -438,9 +438,9 @@ begin
   ), 'sha256'), 'hex');
   authority_issuer := coalesce(authority_claims ->> 'iss', '');
   authority_jti := coalesce(authority_claims ->> 'jti', '');
-  if coalesce(authority_claims ->> 'role', '') <> 'projectos_physical_android_ingest'
+  if coalesce(authority_claims ->> 'role', '') <> 'pandora_physical_android_ingest'
      or authority_issuer <> 'pandora-physical-android-authority-v1'
-     or coalesce(authority_claims ->> 'aud', '') <> 'projectos_physical_android_ingest'
+     or coalesce(authority_claims ->> 'aud', '') <> 'pandora_physical_android_ingest'
      or coalesce(authority_claims ->> 'purpose', '') <> 'canonical_physical_android_capture'
      or coalesce(authority_claims ->> 'sub', '') <> p_observer_id
      or authority_jti !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$'
@@ -495,7 +495,7 @@ begin
   from private.execution_plans
   where organization_id = p_organization_id
     and id = p_owner_plan_id
-    and tool = 'projectos.worker.verify'
+    and tool = 'pandora.worker.verify'
     and status in ('completed', 'failed')
     and args ->> 'repository' = p_repository
     and args ->> 'exactSha' = p_source_sha;
@@ -981,20 +981,20 @@ end;
 $$;
 
 revoke all on function private.assert_physical_android_ingest_role()
-  from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+  from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 revoke all on function private.bind_release_review_to_physical_android_receipts()
-  from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+  from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 revoke all on function public.consume_physical_android_authority_rate_limit(uuid)
-  from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+  from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 revoke all on function public.register_physical_android_observer_identity(uuid,text,text,text[])
-  from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+  from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 revoke all on function public.resolve_physical_android_observer_identity(uuid,text)
-  from public, anon, authenticated, projectos_physical_android_ingest;
+  from public, anon, authenticated, pandora_physical_android_ingest;
 revoke all on function public.capture_canonical_physical_android_receipt(
   uuid,uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text[],uuid,uuid,text,uuid,uuid,text,text,text,text
-) from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+) from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 revoke all on function public.get_canonical_physical_android_release_status(uuid,text,text)
-  from public, anon, authenticated, projectos_physical_android_ingest;
+  from public, anon, authenticated, pandora_physical_android_ingest;
 revoke all on function public.get_canonical_release_status_without_physical_android_authority(uuid,text,text)
   from public, anon, authenticated;
 revoke all on function public.get_canonical_release_status(uuid,text,text)
@@ -1004,9 +1004,9 @@ grant execute on function public.resolve_physical_android_observer_identity(uuid
   to service_role;
 grant execute on function public.capture_canonical_physical_android_receipt(
   uuid,uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text[],uuid,uuid,text,uuid,uuid,text,text,text,text
-) to projectos_physical_android_ingest;
+) to pandora_physical_android_ingest;
 grant execute on function public.consume_physical_android_authority_rate_limit(uuid)
-  to projectos_physical_android_ingest;
+  to pandora_physical_android_ingest;
 grant execute on function public.get_canonical_physical_android_release_status(uuid,text,text)
   to service_role;
 grant execute on function public.get_canonical_release_status_without_physical_android_authority(uuid,text,text)

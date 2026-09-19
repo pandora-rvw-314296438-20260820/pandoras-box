@@ -68,7 +68,7 @@ Deno.serve(async(req)=>{
     const {data:rate,error:rateError}=await admin.rpc("consume_runtime_rate_limit",{p_organization_id:org,p_key_hash:await sha(uid+":GET:pandora-base44-bridge"),p_limit:120,p_window_seconds:60});
     if(rateError)throw new Error("RATE_LIMIT_UNAVAILABLE"); if(rec(rate).allowed!==true)throw new Error("RATE_LIMITED");
     const [p,e,t]=await Promise.all([
-      admin.from("projectos_projects").select("id,project_key,objective,status,organization_id").eq("id",projectId).eq("organization_id",org).maybeSingle(),
+      admin.from("pandora_projects").select("id,project_key,objective,status,organization_id").eq("id",projectId).eq("organization_id",org).maybeSingle(),
       admin.from("pandora_project_experience_projection").select("experience_state,current_verified,public_message,needs_you,retry_available,can_focus,can_change,can_undo,can_publish,can_rollback,verification_summary,change_summary,safe_failure_code,safe_failure_message,updated_at").eq("project_id",projectId).eq("organization_id",org).maybeSingle(),
       admin.from("pandora_build_theatre_projection").select("build_job_id,owner_state,owner_stage,progress_percent,public_message,preview_url,live_url,needs_you,retry_available,updated_at").eq("project_id",projectId).eq("organization_id",org).maybeSingle()
     ]);

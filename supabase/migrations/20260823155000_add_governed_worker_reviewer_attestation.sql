@@ -4,22 +4,22 @@
 do $roles$
 begin
   if not exists (
-    select 1 from pg_roles where rolname = 'projectos_reviewer_ingest'
+    select 1 from pg_roles where rolname = 'pandora_reviewer_ingest'
   ) then
-    create role projectos_reviewer_ingest nologin noinherit;
+    create role pandora_reviewer_ingest nologin noinherit;
   end if;
   if exists (select 1 from pg_roles where rolname = 'authenticator') then
-    execute 'grant projectos_reviewer_ingest to authenticator';
+    execute 'grant pandora_reviewer_ingest to authenticator';
   end if;
 end
 $roles$;
 
-grant usage on schema public to projectos_reviewer_ingest;
+grant usage on schema public to pandora_reviewer_ingest;
 
 create table private.compute_reviewer_identities (
   organization_id uuid not null references public.organizations(id) on delete cascade,
   reviewer_id text not null check (reviewer_id ~ '^[a-z0-9][a-z0-9._:-]{2,127}$'),
-  runtime_proof_id uuid not null references public.projectos_agent_runtime_proofs(id) on delete restrict,
+  runtime_proof_id uuid not null references public.pandora_agent_runtime_proofs(id) on delete restrict,
   vendor text not null check (vendor ~ '^[a-z0-9][a-z0-9._-]{0,63}$'),
   public_key_b64 text not null check (public_key_b64 ~ '^[A-Za-z0-9+/]{43}=$'),
   key_fingerprint text not null check (key_fingerprint ~ '^[0-9a-f]{64}$'),
@@ -79,7 +79,7 @@ create table private.governed_worker_review_attestations (
   dispatch_id uuid not null references private.execution_dispatch_outbox(id) on delete restrict,
   plan_id uuid not null references private.execution_plans(id) on delete restrict,
   reviewer_id text not null,
-  reviewer_runtime_proof_id uuid not null references public.projectos_agent_runtime_proofs(id) on delete restrict,
+  reviewer_runtime_proof_id uuid not null references public.pandora_agent_runtime_proofs(id) on delete restrict,
   reviewer_key_fingerprint text not null check (reviewer_key_fingerprint ~ '^[0-9a-f]{64}$'),
   reviewer_nonce_sha256 text not null check (reviewer_nonce_sha256 ~ '^[0-9a-f]{64}$'),
   signed_timestamp text not null check (
@@ -88,7 +88,7 @@ create table private.governed_worker_review_attestations (
   signed_at timestamptz not null,
   signature_b64 text not null check (signature_b64 ~ '^[A-Za-z0-9+/]{86}==$'),
   signature_basis_sha256 text not null check (signature_basis_sha256 ~ '^[0-9a-f]{64}$'),
-  evidence_id uuid not null unique references public.projectos_evidence(id) on delete restrict,
+  evidence_id uuid not null unique references public.pandora_evidence(id) on delete restrict,
   decision text not null check (decision in ('completed', 'failed')),
   worker_evidence_sha256 text not null check (worker_evidence_sha256 ~ '^[0-9a-f]{64}$'),
   review_artifact_sha256 text not null check (review_artifact_sha256 ~ '^[0-9a-f]{64}$'),
@@ -114,9 +114,9 @@ revoke all on table private.compute_reviewer_identities
 revoke all on table private.compute_reviewer_nonces
   from public, anon, authenticated, service_role;
 revoke all on table private.reviewer_ingest_token_nonces
-  from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+  from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 revoke all on table private.governed_worker_review_attestations
-  from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+  from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 
 create or replace function private.assert_reviewer_ingest_role()
 returns void
@@ -126,14 +126,14 @@ set search_path = ''
 as $$
 begin
   if session_user <> 'postgres'
-     and coalesce(auth.jwt() ->> 'role', '') <> 'projectos_reviewer_ingest' then
+     and coalesce(auth.jwt() ->> 'role', '') <> 'pandora_reviewer_ingest' then
     raise exception 'reviewer ingest role required' using errcode = '42501';
   end if;
 end;
 $$;
 
 revoke all on function private.assert_reviewer_ingest_role()
-  from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+  from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 
 create or replace function private.assert_reviewer_ingest_request(
   p_purpose text,
@@ -163,9 +163,9 @@ begin
      or p_organization_id is null
      or normalized_reviewer_id !~ '^[a-z0-9][a-z0-9._:-]{2,127}$'
      or coalesce(p_request_sha256, '') !~ '^[0-9a-f]{64}$'
-     or coalesce(claims ->> 'role', '') <> 'projectos_reviewer_ingest'
+     or coalesce(claims ->> 'role', '') <> 'pandora_reviewer_ingest'
      or token_issuer <> 'pandora-independent-review-authority'
-     or coalesce(claims ->> 'pandora_audience', '') <> 'projectos-reviewer-ingest'
+     or coalesce(claims ->> 'pandora_audience', '') <> 'pandora-reviewer-ingest'
      or coalesce(claims ->> 'pandora_purpose', '') <> p_purpose
      or coalesce(claims ->> 'pandora_organization_id', '') <> p_organization_id::text
      or lower(coalesce(claims ->> 'pandora_reviewer_id', '')) <> normalized_reviewer_id
@@ -218,7 +218,7 @@ end;
 $$;
 
 revoke all on function private.assert_reviewer_ingest_request(text,uuid,text,text)
-  from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+  from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 
 create or replace function public.register_compute_reviewer_identity(
   p_organization_id uuid,
@@ -233,7 +233,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  proof public.projectos_agent_runtime_proofs%rowtype;
+  proof public.pandora_agent_runtime_proofs%rowtype;
   identity private.compute_reviewer_identities%rowtype;
   normalized_repositories text[];
   fingerprint text;
@@ -266,11 +266,11 @@ begin
   end if;
 
   select * into proof
-  from public.projectos_agent_runtime_proofs
+  from public.pandora_agent_runtime_proofs
   where id = p_runtime_proof_id
     and organization_id = p_organization_id
   for update;
-  canonical_vendor := private.projectos_canonical_agent_vendor(proof.vendor);
+  canonical_vendor := private.pandora_canonical_agent_vendor(proof.vendor);
   if proof.id is null
      or proof.agent_key <> p_reviewer_id
      or proof.role <> 'reviewer'
@@ -285,10 +285,10 @@ begin
      or canonical_vendor is null
      or not (normalized_repositories <@ proof.repository_scopes)
      or not (
-       'projectos.worker.verify.review' = any(proof.proven_capabilities)
-       or 'projectos.worker.verify.review:node_regression' = any(proof.proven_capabilities)
-       or 'projectos.worker.verify.review:supabase_migration_replay' = any(proof.proven_capabilities)
-       or 'projectos.release.review' = any(proof.proven_capabilities)
+       'pandora.worker.verify.review' = any(proof.proven_capabilities)
+       or 'pandora.worker.verify.review:node_regression' = any(proof.proven_capabilities)
+       or 'pandora.worker.verify.review:supabase_migration_replay' = any(proof.proven_capabilities)
+       or 'pandora.release.review' = any(proof.proven_capabilities)
      ) then
     raise exception 'fresh reviewer runtime proof unavailable'
       using errcode = '42501';
@@ -463,10 +463,10 @@ declare
   identity private.compute_reviewer_identities%rowtype;
   dispatch private.execution_dispatch_outbox%rowtype;
   plan private.execution_plans%rowtype;
-  intake public.projectos_intake_requests%rowtype;
-  proof public.projectos_agent_runtime_proofs%rowtype;
+  intake public.pandora_intake_requests%rowtype;
+  proof public.pandora_agent_runtime_proofs%rowtype;
   existing private.governed_worker_review_attestations%rowtype;
-  evidence public.projectos_evidence%rowtype;
+  evidence public.pandora_evidence%rowtype;
   require_independent_vendor boolean;
   terminal_decision text;
   evidence_status text;
@@ -636,7 +636,7 @@ begin
   for update;
   if plan.id is null
      or plan.status <> 'executing'
-     or not private.projectos_worker_plan_is_valid(
+     or not private.pandora_worker_plan_is_valid(
        plan.tool, plan.risk, plan.args, plan.payload_hash
      )
      or plan.args ->> 'repository' is distinct from p_repository
@@ -650,14 +650,14 @@ begin
   end if;
 
   select * into intake
-  from public.projectos_intake_requests
+  from public.pandora_intake_requests
   where organization_id = p_organization_id and id = plan.intake_id;
   if intake.id is null then
     raise exception 'reviewed worker intake missing' using errcode = '55000';
   end if;
 
   select * into proof
-  from public.projectos_agent_runtime_proofs
+  from public.pandora_agent_runtime_proofs
   where id = p_verifier_runtime_proof_id
     and organization_id = p_organization_id
     and project_id = intake.project_id
@@ -675,25 +675,25 @@ begin
     and health_state = 'healthy'
     and p_repository = any(repository_scopes)
     and (
-      'projectos.worker.verify.review' = any(proven_capabilities)
-      or ('projectos.worker.verify.review:' || (plan.args ->> 'jobClass')) =
+      'pandora.worker.verify.review' = any(proven_capabilities)
+      or ('pandora.worker.verify.review:' || (plan.args ->> 'jobClass')) =
         any(proven_capabilities)
     )
   for update;
   if proof.id is null
-     or private.projectos_canonical_agent_vendor(proof.vendor) is distinct from identity.vendor then
+     or private.pandora_canonical_agent_vendor(proof.vendor) is distinct from identity.vendor then
     raise exception 'fresh bound reviewer runtime proof unavailable'
       using errcode = '42501';
   end if;
 
   select coalesce(policy.require_independent_vendor_review, true)
   into require_independent_vendor
-  from public.projectos_policies policy
+  from public.pandora_policies policy
   where policy.organization_id = p_organization_id;
   require_independent_vendor := coalesce(require_independent_vendor, true);
   if require_independent_vendor
-     and private.projectos_canonical_agent_vendor(proof.vendor) =
-       private.projectos_canonical_agent_vendor(dispatch.builder_vendor) then
+     and private.pandora_canonical_agent_vendor(proof.vendor) =
+       private.pandora_canonical_agent_vendor(dispatch.builder_vendor) then
     raise exception 'reviewer vendor is not independent from worker builder'
       using errcode = '42501';
   end if;
@@ -732,7 +732,7 @@ begin
 
   evidence_status := case when terminal_decision = 'completed' then 'passing' else 'failing' end;
   evidence_verdict := case when terminal_decision = 'completed' then 'pass' else 'fail' end;
-  insert into public.projectos_evidence (
+  insert into public.pandora_evidence (
     organization_id, project_id, evidence_type, provider, external_id,
     repository, head_sha, status, verdict, payload_redacted, observed_at
   ) values (
@@ -859,12 +859,12 @@ for each row execute function private.guard_governed_worker_review_attestation()
 
 revoke all on function public.register_compute_reviewer_identity(
   uuid, uuid, text, text, text[]
-) from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+) from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 revoke all on function public.resolve_compute_reviewer_identity(uuid, text)
-  from public, anon, authenticated, projectos_reviewer_ingest;
+  from public, anon, authenticated, pandora_reviewer_ingest;
 revoke all on function public.consume_compute_reviewer_nonce(
   uuid, text, text, text
-) from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+) from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 revoke all on function public.record_governed_worker_review_attestation(
   uuid, uuid, text, text, uuid, uuid, uuid, text, text, text, text, text, text,
   text, text, text
@@ -874,4 +874,4 @@ grant execute on function public.resolve_compute_reviewer_identity(uuid, text)
 grant execute on function public.record_governed_worker_review_attestation(
   uuid, uuid, text, text, uuid, uuid, uuid, text, text, text, text, text, text,
   text, text, text
-) to projectos_reviewer_ingest;
+) to pandora_reviewer_ingest;

@@ -4,7 +4,7 @@ begin;
 create table if not exists public.pandora_build_stream_sessions (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   requested_by uuid not null references auth.users(id) on delete cascade,
   idempotency_key text not null,
   status text not null default 'queued' check (status in ('queued','streaming','assembling','building','completed','failed','cancelled')),
@@ -20,7 +20,7 @@ create table if not exists public.pandora_build_stream_events (
   id bigint generated always as identity primary key,
   stream_id uuid not null references public.pandora_build_stream_sessions(id) on delete cascade,
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   build_job_id uuid null references public.pandora_build_jobs(id) on delete set null,
   event_type text not null check (event_type in (
     'stream_started','file_started','code_chunk','file_completed','generation_completed',

@@ -4,7 +4,7 @@
 -- This migration persists customer-safe control-plane truth only. It does not execute providers.
 
 create table if not exists public.pandora_build_theatre_projection (
-  project_id uuid primary key references public.projectos_projects(id) on delete cascade,
+  project_id uuid primary key references public.pandora_projects(id) on delete cascade,
   organization_id uuid not null references public.organizations(id) on delete cascade,
   build_job_id uuid null references public.pandora_build_jobs(id) on delete set null,
   project_spec_id uuid null references public.pandora_project_specs(id) on delete set null,

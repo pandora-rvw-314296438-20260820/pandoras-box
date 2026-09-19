@@ -107,7 +107,7 @@ function validateAuthorityJwt(
     if (segments.length !== 3 || segments.some((segment) => !segment)) throw new Error("invalid");
     const claims = asRecord(JSON.parse(new TextDecoder().decode(decodeBase64Url(segments[1]))));
     if (
-      claims.role !== "projectos_reviewer_ingest" ||
+      claims.role !== "pandora_reviewer_ingest" ||
       claims.iss !== "pandora-independent-review-authority" ||
       claims.pandora_audience !== "pandora-intelligence-certification" ||
       claims.pandora_purpose !== "intelligence_asset_certification" ||

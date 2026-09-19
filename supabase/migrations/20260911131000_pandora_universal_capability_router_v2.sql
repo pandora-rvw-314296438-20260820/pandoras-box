@@ -29,7 +29,7 @@ declare
   v_registry jsonb;
   v_intake jsonb;
   v_idempotency text;
-  v_project public.projectos_projects%rowtype;
+  v_project public.pandora_projects%rowtype;
   v_project_key text;
   v_project_name text;
   v_repository text;
@@ -370,7 +370,7 @@ begin
   if v_provider='vercel' and v_mutating then
     if p_project_id is not null then
       select * into v_project
-      from public.projectos_projects
+      from public.pandora_projects
       where organization_id=p_organization_id and id=p_project_id
       limit 1;
       if not found then
@@ -389,7 +389,7 @@ begin
       'hex'
     );
 
-    v_intake := public.projectos_accept_intake(
+    v_intake := public.pandora_accept_intake(
       p_organization_id,
       v_uid,
       v_message,
@@ -401,7 +401,7 @@ begin
       v_idempotency
     );
 
-    v_reply := 'I resolved this request to Vercel deployment.write and sent it to ProjectOS for governed execution. It is not complete until provider readback and verification succeed.';
+    v_reply := 'I resolved this request to Vercel deployment.write and sent it to Pandora for governed execution. It is not complete until provider readback and verification succeed.';
 
     if v_thread_id is not null then
       if not exists (
@@ -446,7 +446,7 @@ begin
         ),
         'capabilityResult',jsonb_build_object(
           'provider','vercel',
-          'authority','projectos',
+          'authority','pandora',
           'intakeId',v_intake #>> '{intake,id}',
           'projectId',v_intake #>> '{project,id}',
           'status',v_intake #>> '{intake,status}'
@@ -473,14 +473,14 @@ begin
             'required',true,
             'request',v_message,
             'projectId',v_intake #>> '{project,id}',
-            'source','projectos_intake',
+            'source','pandora_intake',
             'intakeId',v_intake #>> '{intake,id}'
           )
         else null
       end,
       'capabilityResult',jsonb_build_object(
         'provider','vercel',
-        'authority','projectos',
+        'authority','pandora',
         'action','deployment.write',
         'mode','write',
         'intakeId',v_intake #>> '{intake,id}',
@@ -590,4 +590,4 @@ revoke all on function public.pandora_chat_universal_dispatch_v2(uuid,text,uuid,
 grant execute on function public.pandora_chat_universal_dispatch_v2(uuid,text,uuid,uuid) to authenticated;
 
 comment on function public.pandora_chat_universal_dispatch_v2(uuid,text,uuid,uuid)
-is 'Deterministic universal capability router. Resolves natural-language provider/action intent before model chat, asks instead of guessing on multi-provider ambiguity, preserves ProjectOS governance, and keeps Projects optional.';
+is 'Deterministic universal capability router. Resolves natural-language provider/action intent before model chat, asks instead of guessing on multi-provider ambiguity, preserves Pandora governance, and keeps Projects optional.';

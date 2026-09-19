@@ -139,7 +139,7 @@ begin
 
   v_payload := jsonb_strip_nulls(jsonb_build_object(
     'schema_version',1,
-    'product_key','projectos',
+    'product_key','pandora',
     'source_event_id',p_source_event_id,
     'source_request_id',p_source_event_id,
     'organization_id',p_organization_id,

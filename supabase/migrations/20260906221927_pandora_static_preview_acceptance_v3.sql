@@ -222,7 +222,7 @@ begin
   v_runtime_digest:=encode(extensions.digest(convert_to(coalesce(v_runtime_body,''),'utf8'),'sha256'),'hex');
   v_acceptance_ok:=v_runtime_ok and private.pandora_static_preview_acceptance_v3(
     v_runtime_body,
-    (select name from public.projectos_projects where id=v_ver.project_id),
+    (select name from public.pandora_projects where id=v_ver.project_id),
     v_spec.business_summary,
     v_spec.acceptance_scope
   );

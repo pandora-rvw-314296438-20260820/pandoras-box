@@ -613,12 +613,12 @@ security definer
 set search_path = ''
 as $$
 declare
-  production public.projectos_evidence%rowtype;
+  production public.pandora_evidence%rowtype;
   rollback_transition private.canonical_vercel_rehearsal_receipts%rowtype;
   rollback_restoration private.canonical_vercel_rehearsal_receipts%rowtype;
   migration_manifest private.canonical_supabase_release_receipts%rowtype;
-  wifi public.projectos_evidence%rowtype;
-  mobile_data public.projectos_evidence%rowtype;
+  wifi public.pandora_evidence%rowtype;
+  mobile_data public.pandora_evidence%rowtype;
   vercel_token text;
   vercel_team_id text;
   production_response extensions.http_response;
@@ -643,7 +643,7 @@ begin
   end if;
 
   select evidence.* into production
-  from public.projectos_evidence evidence
+  from public.pandora_evidence evidence
   where evidence.organization_id = p_organization_id
     and evidence.repository = p_repository
     and evidence.head_sha = p_source_sha
@@ -937,7 +937,7 @@ begin
   if vercel_receipt is not null
      and rollback_restoration.id is not null then
     select evidence.* into wifi
-    from public.projectos_evidence evidence
+    from public.pandora_evidence evidence
     where evidence.organization_id = p_organization_id
       and evidence.repository = p_repository
       and evidence.head_sha = p_source_sha
@@ -994,7 +994,7 @@ begin
 
     if wifi.id is not null then
       select evidence.* into mobile_data
-      from public.projectos_evidence evidence
+      from public.pandora_evidence evidence
       where evidence.organization_id = p_organization_id
         and evidence.repository = p_repository
         and evidence.head_sha = p_source_sha

@@ -124,7 +124,7 @@ create index if not exists pandora_model_runs_cohort_idx
 create table if not exists public.pandora_model_attempts (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   run_id uuid not null references public.pandora_model_runs(id) on delete cascade,
   fallback_chain_id uuid not null,
   attempt_index integer not null,

@@ -13,7 +13,7 @@ set search_path = ''
 as $$
   select exists (
     select 1
-    from public.projectos_projects p
+    from public.pandora_projects p
     where p.id = p_project_id
       and p.organization_id = p_organization_id
   );
@@ -25,7 +25,7 @@ grant execute on function private.pandora_control_plane_project_org_matches(uuid
 create table if not exists public.pandora_project_intents (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   requester_id uuid null references auth.users(id) on delete set null,
   intent_kind text not null default 'build',
   intent_text text not null,
@@ -56,7 +56,7 @@ create index if not exists pandora_project_intents_project_received_idx
 create table if not exists public.pandora_project_specs (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   version integer not null,
   status text not null default 'active',
   source_intent_id uuid not null references public.pandora_project_intents(id) on delete restrict,
@@ -253,7 +253,7 @@ for each row execute function private.pandora_reject_immutable_control_plane_mut
 create table if not exists public.pandora_project_business_objectives (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   project_spec_id uuid not null references public.pandora_project_specs(id) on delete restrict,
   ordinal integer not null default 1,
   objective text not null,
@@ -274,7 +274,7 @@ create table if not exists public.pandora_project_business_objectives (
 create table if not exists public.pandora_project_requirements (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   project_spec_id uuid not null references public.pandora_project_specs(id) on delete restrict,
   source_intent_id uuid null references public.pandora_project_intents(id) on delete restrict,
   requirement_key text not null,
@@ -299,7 +299,7 @@ create table if not exists public.pandora_project_requirements (
 create table if not exists public.pandora_project_constraints (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   project_spec_id uuid not null references public.pandora_project_specs(id) on delete restrict,
   source_intent_id uuid null references public.pandora_project_intents(id) on delete restrict,
   constraint_key text not null,
@@ -323,7 +323,7 @@ create table if not exists public.pandora_project_constraints (
 create table if not exists public.pandora_project_acceptance_criteria (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   project_spec_id uuid not null references public.pandora_project_specs(id) on delete restrict,
   requirement_id uuid null references public.pandora_project_requirements(id) on delete restrict,
   criterion_key text not null,
@@ -440,19 +440,19 @@ create index if not exists pandora_project_constraints_project_spec_idx
 create index if not exists pandora_project_acceptance_project_spec_idx
   on public.pandora_project_acceptance_criteria(project_id, project_spec_id, required);
 
-alter table public.projectos_decisions
+alter table public.pandora_decisions
   add column if not exists project_spec_id uuid null references public.pandora_project_specs(id) on delete restrict,
   add column if not exists source_intent_id uuid null references public.pandora_project_intents(id) on delete restrict,
   add column if not exists provenance jsonb not null default '{}'::jsonb;
 
-create index if not exists projectos_decisions_project_spec_idx
-  on public.projectos_decisions(project_id, project_spec_id)
+create index if not exists pandora_decisions_project_spec_idx
+  on public.pandora_decisions(project_id, project_spec_id)
   where project_spec_id is not null;
-create index if not exists projectos_decisions_source_intent_idx
-  on public.projectos_decisions(project_id, source_intent_id)
+create index if not exists pandora_decisions_source_intent_idx
+  on public.pandora_decisions(project_id, source_intent_id)
   where source_intent_id is not null;
 
-create or replace function private.pandora_validate_projectos_decision_lineage()
+create or replace function private.pandora_validate_pandora_decision_lineage()
 returns trigger
 language plpgsql
 security definer
@@ -494,12 +494,12 @@ begin
 end;
 $$;
 
-revoke all on function private.pandora_validate_projectos_decision_lineage() from public;
+revoke all on function private.pandora_validate_pandora_decision_lineage() from public;
 
-drop trigger if exists projectos_decisions_pandora_lineage_guard on public.projectos_decisions;
-create trigger projectos_decisions_pandora_lineage_guard
-before insert or update of project_spec_id, source_intent_id on public.projectos_decisions
-for each row execute function private.pandora_validate_projectos_decision_lineage();
+drop trigger if exists pandora_decisions_pandora_lineage_guard on public.pandora_decisions;
+create trigger pandora_decisions_pandora_lineage_guard
+before insert or update of project_spec_id, source_intent_id on public.pandora_decisions
+for each row execute function private.pandora_validate_pandora_decision_lineage();
 
 alter table public.pandora_project_intents enable row level security;
 alter table public.pandora_project_specs enable row level security;

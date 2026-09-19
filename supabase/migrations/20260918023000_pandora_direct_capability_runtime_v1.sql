@@ -1,6 +1,6 @@
 -- Pandora direct capability runtime v1
 -- Canonical source for the live cutover applied 2026-09-18.
--- ProjectOS is not in the active Pandora Chat execution path; legacy data remains for audit/rollback.
+-- Pandora is not in the active Pandora Chat execution path; legacy data remains for audit/rollback.
 
 CREATE OR REPLACE FUNCTION private.pandora_direct_box_code_edit_v1(p_organization_id uuid, p_message text, p_thread_id uuid DEFAULT NULL::uuid, p_project_id uuid DEFAULT NULL::uuid)
  RETURNS jsonb
@@ -143,8 +143,8 @@ begin
       (case when lower(e->>'path') like 'packages/pandora-tools/%' then 80 else 0 end) +
       (case when lower(e->>'path') like 'apps/pandora-mobile/%' then 55 else 0 end) +
       (case when lower(e->>'path') like 'test/%' then 35 else 0 end) +
-      (case when lower(v_message) ~ '\m(chat|ask pandora|capability|router|execute|execution|projectos)\M'
-             and lower(e->>'path') ~ '(intelligence-chat|pandora-intelligence|capability|projectos-retirement)' then 110 else 0 end) +
+      (case when lower(v_message) ~ '\m(chat|ask pandora|capability|router|execute|execution|pandora)\M'
+             and lower(e->>'path') ~ '(intelligence-chat|pandora-intelligence|capability|pandora-retirement)' then 110 else 0 end) +
       (case when lower(v_message) ~ '\m(activity|theatre|theater|progress|stream|event)\M'
              and lower(e->>'path') ~ '(activity|theatre|theater)' then 110 else 0 end) +
       (case when lower(v_message) ~ '\m(android|mobile|emulator|phone|flutter)\M'
@@ -548,12 +548,12 @@ begin
 
   v_direct_action := v_norm ~ E'\\\\m(build|fix|change|update|repair|edit|implement|create|configure|improve|upgrade|add|remove|restore|apply|redesign|refactor|rewrite|finish|complete|make)\\\\M';
   v_plp_explicit := v_norm ~ E'\\\\m(plp|pueblo[[:space:]]+la[[:space:]]+perla)\\\\M';
-  v_box_explicit := v_norm ~ E'\\\\m(pandoras-box|pandora''?s[[:space:]-]+box|mcpmaster|projectos|ask[[:space:]]+pandora|pandora[[:space:]]+chat|activity[[:space:]]+theatre|build[[:space:]]+theatre|canonical[[:space:]]+repo|this[[:space:]]+repo)\\\\M';
+  v_box_explicit := v_norm ~ E'\\\\m(pandoras-box|pandora''?s[[:space:]-]+box|mcpmaster|pandora|ask[[:space:]]+pandora|pandora[[:space:]]+chat|activity[[:space:]]+theatre|build[[:space:]]+theatre|canonical[[:space:]]+repo|this[[:space:]]+repo)\\\\M';
 
   if p_thread_id is not null and (not v_plp_explicit or not v_box_explicit) then
     select
       coalesce(bool_or(lower(recent.content) ~ E'\\\\m(plp|pueblo[[:space:]]+la[[:space:]]+perla)\\\\M'),false),
-      coalesce(bool_or(lower(recent.content) ~ E'\\\\m(pandoras-box|pandora''?s[[:space:]-]+box|mcpmaster|projectos|ask[[:space:]]+pandora|pandora[[:space:]]+chat|activity[[:space:]]+theatre|build[[:space:]]+theatre|canonical[[:space:]]+repo)\\\\M'),false)
+      coalesce(bool_or(lower(recent.content) ~ E'\\\\m(pandoras-box|pandora''?s[[:space:]-]+box|mcpmaster|pandora|ask[[:space:]]+pandora|pandora[[:space:]]+chat|activity[[:space:]]+theatre|build[[:space:]]+theatre|canonical[[:space:]]+repo)\\\\M'),false)
     into v_plp_context,v_box_context
     from (
       select m.content
@@ -593,7 +593,7 @@ $function$;
 
 revoke all on function public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid) from public,anon;
 grant execute on function public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid) to authenticated;
-comment on function public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid) is 'Pandora-native chat router. Direct PLP and canonical pandoras-box edits execute through bounded provider adapters. No ProjectOS fallback exists in the active route.';
+comment on function public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid) is 'Pandora-native chat router. Direct PLP and canonical pandoras-box edits execute through bounded provider adapters. No Pandora fallback exists in the active route.';
 
 CREATE OR REPLACE FUNCTION public.pandora_activity_admit_event_v1(p_job_id uuid, p_event jsonb)
  RETURNS jsonb
@@ -646,8 +646,8 @@ do $contract$
 declare v_definition text;
 begin
   select pg_get_functiondef('public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid)'::regprocedure) into v_definition;
-  if position('projectos_accept_intake' in lower(v_definition)) > 0 or position('v9_legacy_20260917' in lower(v_definition)) > 0 or position('universal_dispatch_v8' in lower(v_definition)) > 0 then
-    raise exception 'pandora_native_router_projectos_regression' using errcode='55000';
+  if position('pandora_accept_intake' in lower(v_definition)) > 0 or position('v9_legacy_20260917' in lower(v_definition)) > 0 or position('universal_dispatch_v8' in lower(v_definition)) > 0 then
+    raise exception 'pandora_native_router_pandora_regression' using errcode='55000';
   end if;
   if position('pandora_direct_box_code_edit_v1' in v_definition)=0 or position('pandora_native_intelligence' in v_definition)=0 then
     raise exception 'pandora_native_router_direct_capability_missing' using errcode='55000';

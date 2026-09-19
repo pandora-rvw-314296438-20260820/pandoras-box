@@ -3,7 +3,7 @@
 -- This is a forward-only hardening migration; historical migration bytes remain
 -- unchanged.
 
-create or replace function private.projectos_worker_active_lease_count(
+create or replace function private.pandora_worker_active_lease_count(
   p_runtime_proof_id uuid
 )
 returns integer
@@ -19,10 +19,10 @@ as $$
     and dispatch.lease_expires_at > now()
 $$;
 
-revoke all on function private.projectos_worker_active_lease_count(uuid)
+revoke all on function private.pandora_worker_active_lease_count(uuid)
   from public, anon, authenticated, service_role;
 
-create or replace function private.guard_projectos_runtime_proof_active_leases()
+create or replace function private.guard_pandora_runtime_proof_active_leases()
 returns trigger
 language plpgsql
 security definer
@@ -30,21 +30,21 @@ set search_path = ''
 as $$
 begin
   -- active_leases is an output of the dispatch ledger, never caller input.
-  new.active_leases := private.projectos_worker_active_lease_count(new.id);
+  new.active_leases := private.pandora_worker_active_lease_count(new.id);
   return new;
 end;
 $$;
 
-revoke all on function private.guard_projectos_runtime_proof_active_leases()
+revoke all on function private.guard_pandora_runtime_proof_active_leases()
   from public, anon, authenticated, service_role;
 
-drop trigger if exists guard_projectos_runtime_proof_active_leases
-  on public.projectos_agent_runtime_proofs;
-create trigger guard_projectos_runtime_proof_active_leases
-before insert or update on public.projectos_agent_runtime_proofs
-for each row execute function private.guard_projectos_runtime_proof_active_leases();
+drop trigger if exists guard_pandora_runtime_proof_active_leases
+  on public.pandora_agent_runtime_proofs;
+create trigger guard_pandora_runtime_proof_active_leases
+before insert or update on public.pandora_agent_runtime_proofs
+for each row execute function private.guard_pandora_runtime_proof_active_leases();
 
-create or replace function private.sync_projectos_worker_active_leases()
+create or replace function private.sync_pandora_worker_active_leases()
 returns trigger
 language plpgsql
 security definer
@@ -53,8 +53,8 @@ as $$
 begin
   if tg_op = 'DELETE' then
     if old.runtime_proof_id is not null then
-      update public.projectos_agent_runtime_proofs proof
-      set active_leases = private.projectos_worker_active_lease_count(proof.id),
+      update public.pandora_agent_runtime_proofs proof
+      set active_leases = private.pandora_worker_active_lease_count(proof.id),
           updated_at = now()
       where proof.id = old.runtime_proof_id;
     end if;
@@ -64,15 +64,15 @@ begin
   if tg_op = 'UPDATE'
      and old.runtime_proof_id is not null
      and old.runtime_proof_id is distinct from new.runtime_proof_id then
-    update public.projectos_agent_runtime_proofs proof
-    set active_leases = private.projectos_worker_active_lease_count(proof.id),
+    update public.pandora_agent_runtime_proofs proof
+    set active_leases = private.pandora_worker_active_lease_count(proof.id),
         updated_at = now()
     where proof.id = old.runtime_proof_id;
   end if;
 
   if new.runtime_proof_id is not null then
-    update public.projectos_agent_runtime_proofs proof
-    set active_leases = private.projectos_worker_active_lease_count(proof.id),
+    update public.pandora_agent_runtime_proofs proof
+    set active_leases = private.pandora_worker_active_lease_count(proof.id),
         updated_at = now()
     where proof.id = new.runtime_proof_id;
   end if;
@@ -80,31 +80,31 @@ begin
 end;
 $$;
 
-revoke all on function private.sync_projectos_worker_active_leases()
+revoke all on function private.sync_pandora_worker_active_leases()
   from public, anon, authenticated, service_role;
 
-drop trigger if exists sync_projectos_worker_active_leases
+drop trigger if exists sync_pandora_worker_active_leases
   on private.execution_dispatch_outbox;
-create trigger sync_projectos_worker_active_leases
+create trigger sync_pandora_worker_active_leases
 after insert or update or delete on private.execution_dispatch_outbox
-for each row execute function private.sync_projectos_worker_active_leases();
+for each row execute function private.sync_pandora_worker_active_leases();
 
 -- Repair any counter that was previously supplied by a runtime-proof refresh.
-update public.projectos_agent_runtime_proofs proof
-set active_leases = private.projectos_worker_active_lease_count(proof.id)
+update public.pandora_agent_runtime_proofs proof
+set active_leases = private.pandora_worker_active_lease_count(proof.id)
 where proof.active_leases is distinct from
-  private.projectos_worker_active_lease_count(proof.id);
+  private.pandora_worker_active_lease_count(proof.id);
 
 -- Preserve the existing validated upsert implementation behind a private
 -- wrapper, then replace its caller-visible activeLeases echo with the value
 -- actually stored by the database-owned lease guard.
-alter function public.projectos_upsert_agent_runtime_proof(uuid, text, jsonb)
+alter function public.pandora_upsert_agent_runtime_proof(uuid, text, jsonb)
   set schema private;
-revoke all on function private.projectos_upsert_agent_runtime_proof(
+revoke all on function private.pandora_upsert_agent_runtime_proof(
   uuid, text, jsonb
 ) from public, anon, authenticated, service_role;
 
-create or replace function public.projectos_upsert_agent_runtime_proof(
+create or replace function public.pandora_upsert_agent_runtime_proof(
   p_organization_id uuid,
   p_project_key text,
   p_proof jsonb
@@ -118,14 +118,14 @@ declare
   result_payload jsonb;
   durable_active_leases integer;
 begin
-  result_payload := private.projectos_upsert_agent_runtime_proof(
+  result_payload := private.pandora_upsert_agent_runtime_proof(
     p_organization_id,
     p_project_key,
     p_proof
   );
 
   select proof.active_leases into durable_active_leases
-  from public.projectos_agent_runtime_proofs proof
+  from public.pandora_agent_runtime_proofs proof
   where proof.organization_id = p_organization_id
     and proof.id = (result_payload ->> 'proofId')::uuid;
   if durable_active_leases is null then
@@ -142,10 +142,10 @@ begin
 end;
 $$;
 
-revoke all on function public.projectos_upsert_agent_runtime_proof(
+revoke all on function public.pandora_upsert_agent_runtime_proof(
   uuid, text, jsonb
 ) from public, anon;
-grant execute on function public.projectos_upsert_agent_runtime_proof(
+grant execute on function public.pandora_upsert_agent_runtime_proof(
   uuid, text, jsonb
 ) to authenticated, service_role;
 

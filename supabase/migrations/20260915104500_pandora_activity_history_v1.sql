@@ -80,7 +80,7 @@ begin
   end if;
   if p_source_types is not null and exists (
     select 1 from unnest(p_source_types) s
-    where lower(trim(s)) not in ('runtime','device','provider','projectos','model','tool')
+    where lower(trim(s)) not in ('runtime','device','provider','pandora','model','tool')
   ) then
     raise exception 'pandora_activity_history_source_invalid' using errcode='22023';
   end if;

@@ -73,7 +73,7 @@ set input_micros_per_million_tokens=excluded.input_micros_per_million_tokens,
 create table if not exists public.pandora_source_model_budget_reservations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   project_spec_id uuid not null references public.pandora_project_specs(id) on delete cascade,
   queue_id uuid not null references public.pandora_source_generation_queue(id) on delete cascade,
   budget_limit_id uuid not null references public.pandora_budget_limits(id) on delete restrict,

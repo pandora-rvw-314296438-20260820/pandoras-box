@@ -1,6 +1,6 @@
 -- Pandora Chat capability loop v1
 -- Runtime/provider truth is read at execution time. Models remain proposal-only;
--- mutating provider requests are admitted into ProjectOS rather than executed here.
+-- mutating provider requests are admitted into Pandora rather than executed here.
 
 create or replace function public.pandora_chat_capability_registry_v1(
   p_organization_id uuid
@@ -57,7 +57,7 @@ begin
       h.last_success_at,
       h.stale_after,
       h.updated_at
-    from public.projectos_integration_health h
+    from public.pandora_integration_health h
     where h.organization_id = p_organization_id
       and h.provider in ('github','supabase','vercel','posthog')
     order by h.provider, h.updated_at desc nulls last
@@ -82,11 +82,11 @@ begin
       end status,
       l.last_success_at last_verified_at,
       (not v_github_credential or l.status = 'down') temporarily_unavailable,
-      'ProjectOS governs writes; reads use provider truth.'::text authorization,
+      'Pandora governs writes; reads use provider truth.'::text authorization,
       jsonb_build_array(
         jsonb_build_object('name','repository.read','mode','read','available',v_github_credential),
         jsonb_build_object('name','pull_request.read','mode','read','available',v_github_credential),
-        jsonb_build_object('name','repository.write','mode','write','available',v_github_credential,'approval','projectos')
+        jsonb_build_object('name','repository.write','mode','write','available',v_github_credential,'approval','pandora')
       ) capabilities
     from (select 1) x
     left join latest l on l.provider='github'
@@ -102,10 +102,10 @@ begin
       end,
       l.last_success_at,
       (not v_supabase_credential or l.status = 'down'),
-      'ProjectOS governs writes; project reads use the Supabase Management API.',
+      'Pandora governs writes; project reads use the Supabase Management API.',
       jsonb_build_array(
         jsonb_build_object('name','project.read','mode','read','available',v_supabase_credential),
-        jsonb_build_object('name','project.write','mode','write','available',v_supabase_credential,'approval','projectos')
+        jsonb_build_object('name','project.write','mode','write','available',v_supabase_credential,'approval','pandora')
       )
     from (select 1) x
     left join latest l on l.provider='supabase'
@@ -124,7 +124,7 @@ begin
       'A governed PostHog query credential is required. Ingest tokens are never treated as query authority.',
       jsonb_build_array(
         jsonb_build_object('name','analytics.query','mode','read','available',v_posthog_query_credential),
-        jsonb_build_object('name','analytics.manage','mode','write','available',false,'approval','projectos')
+        jsonb_build_object('name','analytics.manage','mode','write','available',false,'approval','pandora')
       )
     from (select 1) x
     left join latest l on l.provider='posthog'
@@ -133,13 +133,13 @@ begin
     select 4, 'google_drive', false, 'needs_authorization', null::timestamptz, true,
       'Google Workspace authorization is required.',
       jsonb_build_array(jsonb_build_object('name','files.read','mode','read','available',false),
-                        jsonb_build_object('name','files.write','mode','write','available',false,'approval','projectos'))
+                        jsonb_build_object('name','files.write','mode','write','available',false,'approval','pandora'))
 
     union all
     select 5, 'google_sheets', false, 'needs_authorization', null::timestamptz, true,
       'Google Workspace authorization is required.',
       jsonb_build_array(jsonb_build_object('name','sheets.read','mode','read','available',false),
-                        jsonb_build_object('name','sheets.write','mode','write','available',false,'approval','projectos'))
+                        jsonb_build_object('name','sheets.write','mode','write','available',false,'approval','pandora'))
   ) p;
 
   return jsonb_build_object(
@@ -171,7 +171,7 @@ declare
   v_provider text;
   v_mutating boolean := false;
   v_thread_id uuid := p_thread_id;
-  v_project public.projectos_projects%rowtype;
+  v_project public.pandora_projects%rowtype;
   v_repo text;
   v_project_ref text;
   v_token text;
@@ -207,7 +207,7 @@ begin
 
   if p_project_id is not null then
     select * into v_project
-    from public.projectos_projects
+    from public.pandora_projects
     where organization_id = p_organization_id
       and id = p_project_id
     limit 1;
@@ -263,7 +263,7 @@ begin
         'hex'
       );
 
-      v_intake := public.projectos_accept_intake(
+      v_intake := public.pandora_accept_intake(
         p_organization_id,
         v_uid,
         v_message,
@@ -282,12 +282,12 @@ begin
       end;
 
       v_reply := format(
-        'I sent this %s action to ProjectOS for governed execution. Pandora has not marked it complete; provider readback and verification are still required. If approval is needed, it will appear in Needs You.',
+        'I sent this %s action to Pandora for governed execution. Pandora has not marked it complete; provider readback and verification are still required. If approval is needed, it will appear in Needs You.',
         initcap(v_provider)
       );
       v_evidence := jsonb_build_object(
         'provider',v_provider,
-        'authority','projectos',
+        'authority','pandora',
         'intakeId',v_intake #>> '{intake,id}',
         'projectId',v_intake #>> '{project,id}',
         'status',v_intake #>> '{intake,status}',
@@ -309,7 +309,7 @@ begin
         if not (
           v_repo in ('pandora-rvw-314296438-20260820/pandoras-box','pandora-rvw-314296438-20260820/pandoras-box-memory')
           or exists (
-            select 1 from public.projectos_projects p
+            select 1 from public.pandora_projects p
             where p.organization_id = p_organization_id
               and p.repository = v_repo
           )
@@ -409,7 +409,7 @@ begin
       v_project_ref := substring(lower(v_message) from '([a-z]{20})');
       if v_project_ref is null and p_project_id is not null then
         select h.details->>'projectRef' into v_project_ref
-        from public.projectos_integration_health h
+        from public.pandora_integration_health h
         where h.organization_id=p_organization_id
           and h.project_id=p_project_id
           and h.provider='supabase'
@@ -418,7 +418,7 @@ begin
       end if;
       if v_project_ref is null and v_message ~* '\mpandora' then
         select h.details->>'projectRef' into v_project_ref
-        from public.projectos_integration_health h
+        from public.pandora_integration_health h
         where h.organization_id=p_organization_id
           and h.provider='supabase'
           and h.details->>'projectRef'='jcyqixttuebxqqfkjonq'
@@ -430,7 +430,7 @@ begin
         v_reply := 'Supabase is available, but I need the project reference before I can perform a live Management API read.';
         v_evidence := jsonb_build_object('provider','supabase','registry',v_registry,'observedAt',now());
       elsif not exists (
-        select 1 from public.projectos_integration_health h
+        select 1 from public.pandora_integration_health h
         where h.organization_id=p_organization_id
           and h.provider='supabase'
           and h.details->>'projectRef'=v_project_ref
@@ -530,7 +530,7 @@ begin
       'needsClarification',false,
       'clarifyingQuestion',null,
       'capabilityResult',v_evidence,
-      'authority',case when v_mutating then 'projectos' else 'provider_readback' end
+      'authority',case when v_mutating then 'pandora' else 'provider_readback' end
     ),
     'pandora_capability_gateway',
     'deterministic-v1'
@@ -558,7 +558,7 @@ revoke all on function public.pandora_chat_capability_dispatch_v1(uuid,text,uuid
 grant execute on function public.pandora_chat_capability_dispatch_v1(uuid,text,uuid,uuid) to authenticated;
 
 comment on function public.pandora_chat_capability_registry_v1(uuid)
-is 'Owner/admin runtime capability registry for Pandora Chat. Provider availability is derived from current credentials and ProjectOS integration health; no model can invent capabilities.';
+is 'Owner/admin runtime capability registry for Pandora Chat. Provider availability is derived from current credentials and Pandora integration health; no model can invent capabilities.';
 
 comment on function public.pandora_chat_capability_dispatch_v1(uuid,text,uuid,uuid)
-is 'Deterministic Pandora Chat capability gateway: executes bounded provider reads with exact provider readback and routes provider mutations into ProjectOS intake. Models never become execution authority.';
+is 'Deterministic Pandora Chat capability gateway: executes bounded provider reads with exact provider readback and routes provider mutations into Pandora intake. Models never become execution authority.';

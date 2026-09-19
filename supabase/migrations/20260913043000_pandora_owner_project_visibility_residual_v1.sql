@@ -1,7 +1,7 @@
 -- Recording 4998 residual owner visibility cleanup v1
 -- Explicitly hide only the remaining verified internal/test rows that escaped v1.
 
-update public.projectos_projects
+update public.pandora_projects
 set config = coalesce(config,'{}'::jsonb) || jsonb_build_object(
       'ownerVisible',false,
       'ownerVisibilityReason','internal_control_or_verification'
