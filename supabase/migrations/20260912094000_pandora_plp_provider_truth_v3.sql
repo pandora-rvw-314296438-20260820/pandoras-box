@@ -5,7 +5,7 @@
 -- and the recorded Vercel project returned 404 under the current owner/team.
 -- Preserve those identities as history, downgrade the bindings, and fail closed in Chat.
 
-update public.projectos_project_resources
+update public.pandora_project_resources
 set binding_state = 'degraded',
     configuration = coalesce(configuration, '{}'::jsonb) || jsonb_build_object(
       'provider_readback_status', 404,
@@ -21,7 +21,7 @@ where organization_id = '2270b266-59da-4c39-bfd9-9f8d08352af0'::uuid
   and resource_type = 'repository'
   and external_id = 'pandora-rvw-314296438-20260820/plp';
 
-update public.projectos_project_resources
+update public.pandora_project_resources
 set binding_state = 'degraded',
     configuration = coalesce(configuration, '{}'::jsonb) || jsonb_build_object(
       'provider_readback_status', 404,
@@ -50,8 +50,8 @@ as $$
 declare
   v_message text := lower(trim(coalesce(p_message,'')));
   v_repository text;
-  v_project public.projectos_projects%rowtype;
-  v_resource public.projectos_project_resources%rowtype;
+  v_project public.pandora_projects%rowtype;
+  v_resource public.pandora_project_resources%rowtype;
   v_previous jsonb;
   v_continuation boolean := false;
 begin
@@ -84,7 +84,7 @@ begin
   end if;
 
   if v_message ~ '(pandoras[- ]box|pandora''?s[ -]box|mcpmaster)' then
-    select * into v_project from public.projectos_projects p
+    select * into v_project from public.pandora_projects p
     where p.organization_id=p_organization_id and p.project_key='mcpmaster' and p.status<>'archived'
     order by p.updated_at desc limit 1;
     return jsonb_build_object(
@@ -95,9 +95,9 @@ begin
     );
   end if;
 
-  -- PLP is resolved from current ProjectOS provider truth, never from a stale hardcoded receipt.
+  -- PLP is resolved from current Pandora provider truth, never from a stale hardcoded receipt.
   if v_message ~ '\mplp\M|plp[- ]boracay|pueblo la perla' then
-    select * into v_project from public.projectos_projects p
+    select * into v_project from public.pandora_projects p
     where p.organization_id=p_organization_id and p.project_key='plp-boracay' and p.status<>'archived'
     order by p.updated_at desc limit 1;
 
@@ -109,7 +109,7 @@ begin
       );
     end if;
 
-    select * into v_resource from public.projectos_project_resources r
+    select * into v_resource from public.pandora_project_resources r
     where r.organization_id=p_organization_id
       and r.project_id=v_project.id
       and r.provider='github'
@@ -137,7 +137,7 @@ begin
   end if;
 
   if p_explicit_project_id is not null then
-    select * into v_project from public.projectos_projects p
+    select * into v_project from public.pandora_projects p
     where p.organization_id=p_organization_id and p.id=p_explicit_project_id and p.status<>'archived'
     limit 1;
     if found then
@@ -169,7 +169,7 @@ begin
 
     select p.* into v_project
     from public.pandora_intelligence_threads t
-    join public.projectos_projects p on p.id=t.project_id
+    join public.pandora_projects p on p.id=t.project_id
     where t.id=p_thread_id
       and t.organization_id=p_organization_id
       and t.created_by=auth.uid()
@@ -223,7 +223,7 @@ begin
   v_actionable := v_message ~* '\m(audit|inspect|review|check|read|show|open|scan|analy[sz]e|debug|fix|change|update|repair|edit|merge|branch|commit|deploy|publish|build|continue|finish|run|test|implement|work|proceed|create|write|apply|configure|install|remove|restore)\M|go ahead|do it';
 
   -- A named target with degraded provider truth is handled in Chat as a blocker.
-  -- Do not fall through to older routers and do not create a ProjectOS mutation intake.
+  -- Do not fall through to older routers and do not create a Pandora mutation intake.
   if v_actionable and coalesce(v_target->>'state','')='degraded' then
     v_target_project_id := nullif(v_target->>'projectId','')::uuid;
     v_reply := format(
@@ -306,7 +306,7 @@ begin
   end if;
 
   -- Repository target resolution grants no mutation authority. Consequential work
-  -- still requires ProjectOS authorization, a one-time claim, provider readback,
+  -- still requires Pandora authorization, a one-time claim, provider readback,
   -- and evidence before Pandora can report the action complete.
   v_result := private.pandora_governed_mutation_request_v1(
     p_organization_id,'github','repository.write',v_execution_message,v_target_project_id
@@ -314,8 +314,8 @@ begin
 
   if coalesce((v_result->>'ok')::boolean,false) then
     v_reply := case
-      when v_repository is not null then format('I resolved this to %s and routed your exact request through ProjectOS. Execution stays in this chat and is not complete until provider readback and evidence verify it.',v_repository)
-      else format('I resolved this to existing project %s and routed your exact request through ProjectOS. Execution stays in this chat; the source binding must verify before Pandora can claim completion.',coalesce(v_target->>'projectKey','the selected project'))
+      when v_repository is not null then format('I resolved this to %s and routed your exact request through Pandora. Execution stays in this chat and is not complete until provider readback and evidence verify it.',v_repository)
+      else format('I resolved this to existing project %s and routed your exact request through Pandora. Execution stays in this chat; the source binding must verify before Pandora can claim completion.',coalesce(v_target->>'projectKey','the selected project'))
     end;
   else
     v_reply := case
@@ -344,7 +344,7 @@ begin
       'handoff',case when coalesce((v_result->>'ok')::boolean,false)
         then jsonb_strip_nulls(jsonb_build_object(
           'required',true,'request',v_execution_message,'projectId',v_target_project_id,
-          'source','projectos_intake','intakeId',v_result->>'intakeId'))
+          'source','pandora_intake','intakeId',v_result->>'intakeId'))
         else null end
     ),'pandora_repository_router','repository-target-v3');
   update public.pandora_intelligence_threads set last_message_at=now(),updated_at=now() where id=v_thread_id;
@@ -356,7 +356,7 @@ begin
     'handoff',case when coalesce((v_result->>'ok')::boolean,false)
       then jsonb_strip_nulls(jsonb_build_object(
         'required',true,'request',v_execution_message,'projectId',v_target_project_id,
-        'source','projectos_intake','intakeId',v_result->>'intakeId'))
+        'source','pandora_intake','intakeId',v_result->>'intakeId'))
       else null end,
     'capabilityResult',v_result
   );

@@ -18,10 +18,10 @@ type ControlRpc =
   | "list_execution_plans"
   | "list_execution_audit"
   | "verify_execution_audit_chain"
-  | "save_projectos_checkpoint"
-  | "get_projectos_checkpoint"
-  | "list_projectos_events"
-  | "verify_projectos_event_chain"
+  | "save_pandora_checkpoint"
+  | "get_pandora_checkpoint"
+  | "list_pandora_events"
+  | "verify_pandora_event_chain"
   | "consume_runtime_rate_limit"
   | "get_canonical_release_status"
   | "capture_canonical_supabase_release_receipt"
@@ -38,10 +38,10 @@ type ControlAction =
   | "execution_plan_list"
   | "execution_audit_list"
   | "execution_audit_verify"
-  | "projectos_checkpoint_save"
-  | "projectos_checkpoint_get"
-  | "projectos_event_list"
-  | "projectos_event_verify"
+  | "pandora_checkpoint_save"
+  | "pandora_checkpoint_get"
+  | "pandora_event_list"
+  | "pandora_event_verify"
   | "runtime_rate_limit_consume"
   | "canonical_release_status"
   | "canonical_supabase_receipt_capture"
@@ -321,7 +321,7 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     };
   }
 
-  if (input.action === "projectos_checkpoint_save") {
+  if (input.action === "pandora_checkpoint_save") {
     const projectKey = requiredString(input, "projectKey");
     const expectedVersion = requiredInteger(input, "expectedVersion", 0, Number.MAX_SAFE_INTEGER);
     const status = requiredString(input, "status");
@@ -333,7 +333,7 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     const primaryTaskKey = typeof input.primaryTaskKey === "string" && input.primaryTaskKey.length <= 160
       ? input.primaryTaskKey
       : null;
-    const eventType = typeof input.eventType === "string" ? input.eventType : "projectos.checkpoint.saved";
+    const eventType = typeof input.eventType === "string" ? input.eventType : "pandora.checkpoint.saved";
     const runId = typeof input.runId === "string" ? input.runId : null;
     const stepId = typeof input.stepId === "string" ? input.stepId : null;
     if (
@@ -349,11 +349,11 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
       || !["active", "blocked", "paused", "complete", "archived"].includes(status)
       || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(sourceRepository)
       || !/^[0-9a-f]{40}$/.test(sourceCommitSha)
-      || !/^projectos\.[a-z0-9_.-]{1,127}$/.test(eventType)
+      || !/^pandora\.[a-z0-9_.-]{1,127}$/.test(eventType)
     ) return undefined;
     return {
-      action: "projectos_checkpoint_save",
-      rpc: "save_projectos_checkpoint",
+      action: "pandora_checkpoint_save",
+      rpc: "save_pandora_checkpoint",
       responseKey: "checkpoint",
       params: {
         p_project_key: projectKey,
@@ -373,23 +373,23 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     };
   }
 
-  if (input.action === "projectos_checkpoint_get") {
+  if (input.action === "pandora_checkpoint_get") {
     const projectKey = requiredString(input, "projectKey");
     if (!projectKey || !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/.test(projectKey)) return undefined;
     return {
-      action: "projectos_checkpoint_get",
-      rpc: "get_projectos_checkpoint",
+      action: "pandora_checkpoint_get",
+      rpc: "get_pandora_checkpoint",
       responseKey: "checkpoint",
       params: { p_project_key: projectKey },
     };
   }
 
-  if (input.action === "projectos_event_list") {
+  if (input.action === "pandora_event_list") {
     const projectKey = requiredString(input, "projectKey");
     if (!projectKey || !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/.test(projectKey)) return undefined;
     return {
-      action: "projectos_event_list",
-      rpc: "list_projectos_events",
+      action: "pandora_event_list",
+      rpc: "list_pandora_events",
       responseKey: "events",
       params: {
         p_project_key: projectKey,
@@ -398,12 +398,12 @@ function routeForInput(input: Record<string, unknown>): ControlRoute | undefined
     };
   }
 
-  if (input.action === "projectos_event_verify") {
+  if (input.action === "pandora_event_verify") {
     const projectKey = requiredString(input, "projectKey");
     if (!projectKey || !/^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,159}$/.test(projectKey)) return undefined;
     return {
-      action: "projectos_event_verify",
-      rpc: "verify_projectos_event_chain",
+      action: "pandora_event_verify",
+      rpc: "verify_pandora_event_chain",
       responseKey: "verification",
       params: { p_project_key: projectKey },
     };

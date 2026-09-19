@@ -19,10 +19,10 @@ grant select, insert, update on private.integration_secrets to service_role;
 -- Fresh replays receive a database-generated, environment-scoped value.
 -- Preserve any pre-existing credential instead of overwriting it.
 insert into private.integration_secrets(secret_name, secret_value)
-values ('projectos_fxpass_intake_hmac', encode(extensions.gen_random_bytes(32), 'hex'))
+values ('pandora_fxpass_intake_hmac', encode(extensions.gen_random_bytes(32), 'hex'))
 on conflict (secret_name) do nothing;
 
-create or replace function public.projectos_service_secret(p_secret_name text)
+create or replace function public.pandora_service_secret(p_secret_name text)
 returns text
 language sql
 security definer
@@ -30,8 +30,8 @@ set search_path = private, public
 as $$
   select secret_value from private.integration_secrets where secret_name = p_secret_name;
 $$;
-revoke all on function public.projectos_service_secret(text) from public, anon, authenticated;
-grant execute on function public.projectos_service_secret(text) to service_role;
+revoke all on function public.pandora_service_secret(text) from public, anon, authenticated;
+grant execute on function public.pandora_service_secret(text) to service_role;
 
 create table if not exists private.product_intake_payloads (
   id uuid primary key default gen_random_uuid(),
@@ -49,4 +49,4 @@ revoke all on private.product_intake_payloads from public, anon, authenticated;
 grant select, insert, update on private.product_intake_payloads to service_role;
 create index if not exists product_intake_payloads_received_at_idx on private.product_intake_payloads(received_at desc);
 
-comment on table private.product_intake_payloads is 'Service-role-only product discovery payloads accepted into ProjectOS and linked to durable workflow runs.';
+comment on table private.product_intake_payloads is 'Service-role-only product discovery payloads accepted into Pandora and linked to durable workflow runs.';

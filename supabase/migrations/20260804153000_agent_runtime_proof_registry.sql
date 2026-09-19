@@ -3,10 +3,10 @@
 -- Production history is never rewritten; live hashes remain in the recovery manifest.
 -- Semantic recovery of the provider-recorded SQL payload; comments and terminal newline may differ.
 
-create table public.projectos_agent_runtime_proofs (
+create table public.pandora_agent_runtime_proofs (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   agent_key text not null check (agent_key ~ '^[a-z0-9][a-z0-9._:-]{0,127}$'),
   vendor text not null check (vendor ~ '^[a-z0-9][a-z0-9._-]{0,63}$'),
   role text not null check (role in ('planner','builder','reviewer','operator','analyst')),
@@ -32,8 +32,8 @@ create table public.projectos_agent_runtime_proofs (
   unique (organization_id, project_id, agent_key, role)
 );
 
-create index projectos_agent_runtime_proofs_route_idx
-  on public.projectos_agent_runtime_proofs (
+create index pandora_agent_runtime_proofs_route_idx
+  on public.pandora_agent_runtime_proofs (
     organization_id,
     project_id,
     role,
@@ -41,29 +41,29 @@ create index projectos_agent_runtime_proofs_route_idx
   )
   where is_active;
 
-create index projectos_agent_runtime_proofs_agent_idx
-  on public.projectos_agent_runtime_proofs (
+create index pandora_agent_runtime_proofs_agent_idx
+  on public.pandora_agent_runtime_proofs (
     organization_id,
     agent_key,
     verified_at desc
   );
 
-create trigger projectos_agent_runtime_proofs_updated
-before update on public.projectos_agent_runtime_proofs
+create trigger pandora_agent_runtime_proofs_updated
+before update on public.pandora_agent_runtime_proofs
 for each row execute function private.set_updated_at();
 
-alter table public.projectos_agent_runtime_proofs enable row level security;
+alter table public.pandora_agent_runtime_proofs enable row level security;
 
-create policy projectos_agent_runtime_proofs_member_read
-on public.projectos_agent_runtime_proofs
+create policy pandora_agent_runtime_proofs_member_read
+on public.pandora_agent_runtime_proofs
 for select to authenticated
 using (private.is_org_member(organization_id));
 
-revoke all on public.projectos_agent_runtime_proofs from anon, authenticated;
-grant select on public.projectos_agent_runtime_proofs to authenticated;
-grant all on public.projectos_agent_runtime_proofs to service_role;
+revoke all on public.pandora_agent_runtime_proofs from anon, authenticated;
+grant select on public.pandora_agent_runtime_proofs to authenticated;
+grant all on public.pandora_agent_runtime_proofs to service_role;
 
-create or replace function private.projectos_canonical_agent_vendor(p_vendor text)
+create or replace function private.pandora_canonical_agent_vendor(p_vendor text)
 returns text
 language sql
 immutable
@@ -84,10 +84,10 @@ as $$
   from normalized;
 $$;
 
-revoke all on function private.projectos_canonical_agent_vendor(text) from public, anon, authenticated;
-grant execute on function private.projectos_canonical_agent_vendor(text) to service_role;
+revoke all on function private.pandora_canonical_agent_vendor(text) from public, anon, authenticated;
+grant execute on function private.pandora_canonical_agent_vendor(text) to service_role;
 
-create or replace function public.projectos_upsert_agent_runtime_proof(
+create or replace function public.pandora_upsert_agent_runtime_proof(
   p_organization_id uuid,
   p_project_key text,
   p_proof jsonb
@@ -124,7 +124,7 @@ begin
        p_organization_id,
        array['owner','admin','operator']::public.member_role[]
      ) then
-    raise exception using errcode = '42501', message = 'projectos_forbidden';
+    raise exception using errcode = '42501', message = 'pandora_forbidden';
   end if;
 
   if jsonb_typeof(p_proof) <> 'object' then
@@ -149,13 +149,13 @@ begin
   end if;
 
   select id into strict v_project_id
-  from public.projectos_projects
+  from public.pandora_projects
   where organization_id = p_organization_id
     and project_key = p_project_key
     and status <> 'archived';
 
   v_agent_key := lower(trim(coalesce(p_proof ->> 'agent_key', '')));
-  v_vendor := private.projectos_canonical_agent_vendor(coalesce(p_proof ->> 'vendor', ''));
+  v_vendor := private.pandora_canonical_agent_vendor(coalesce(p_proof ->> 'vendor', ''));
   v_role := lower(trim(coalesce(p_proof ->> 'role', '')));
   v_credential_state := lower(trim(coalesce(p_proof ->> 'credential_state', '')));
   v_quota_state := lower(trim(coalesce(p_proof ->> 'quota_state', '')));
@@ -288,7 +288,7 @@ begin
     from jsonb_array_elements(p_proof -> 'evidence_refs') ref;
   end if;
 
-  insert into public.projectos_agent_runtime_proofs (
+  insert into public.pandora_agent_runtime_proofs (
     organization_id, project_id, agent_key, vendor, role,
     repository_scopes, proven_capabilities, phone_only_compatible,
     credential_state, quota_state, health_state,
@@ -345,7 +345,7 @@ begin
 end;
 $$;
 
-create or replace function public.projectos_get_agent_routing_evidence(
+create or replace function public.pandora_get_agent_routing_evidence(
   p_organization_id uuid,
   p_project_key text,
   p_role text,
@@ -368,7 +368,7 @@ declare
 begin
   if auth.role() <> 'service_role'
      and not private.is_org_member(p_organization_id) then
-    raise exception using errcode = '42501', message = 'projectos_forbidden';
+    raise exception using errcode = '42501', message = 'pandora_forbidden';
   end if;
   if v_role not in ('planner','builder','reviewer','operator','analyst') then
     raise exception using errcode = '22023', message = 'routing role is invalid';
@@ -382,7 +382,7 @@ begin
   end if;
 
   select id into strict v_project_id
-  from public.projectos_projects
+  from public.pandora_projects
   where organization_id = p_organization_id
     and project_key = p_project_key
     and status <> 'archived';
@@ -390,7 +390,7 @@ begin
   with observations as (
     select
       lower(trim(agent_key)) as agent_key,
-      private.projectos_canonical_agent_vendor(vendor) as vendor,
+      private.pandora_canonical_agent_vendor(vendor) as vendor,
       role,
       count(*)::integer as observation_count,
       count(*) filter (where success)::integer as success_count,
@@ -398,10 +398,10 @@ begin
       avg(coalesce(quality_score, case when success then 75 else 25 end)) as average_quality,
       avg(repair_attempts::numeric) as average_repairs,
       max(observed_at) as latest_observed_at
-    from public.projectos_agent_observations
+    from public.pandora_agent_observations
     where organization_id = p_organization_id
       and role = v_role
-    group by lower(trim(agent_key)), private.projectos_canonical_agent_vendor(vendor), role
+    group by lower(trim(agent_key)), private.pandora_canonical_agent_vendor(vendor), role
   ), eligible as (
     select
       proof.id as proof_id,
@@ -438,7 +438,7 @@ begin
         + case proof.cost_class when 'free' then 0.05 when 'subscription-included' then 0.04 else 0 end
         - least(0.20, observation.average_repairs * 0.04)
       ) as score
-    from public.projectos_agent_runtime_proofs proof
+    from public.pandora_agent_runtime_proofs proof
     join observations observation
       on observation.agent_key = proof.agent_key
      and observation.vendor = proof.vendor
@@ -496,7 +496,7 @@ begin
   from ranked;
 
   return jsonb_build_object(
-    'schemaVersion', 'projectos-agent-routing-evidence-v1',
+    'schemaVersion', 'pandora-agent-routing-evidence-v1',
     'projectKey', p_project_key,
     'repository', v_repository,
     'capability', v_capability,
@@ -510,11 +510,11 @@ begin
 end;
 $$;
 
-revoke all on function public.projectos_upsert_agent_runtime_proof(uuid,text,jsonb)
+revoke all on function public.pandora_upsert_agent_runtime_proof(uuid,text,jsonb)
   from public, anon;
-revoke all on function public.projectos_get_agent_routing_evidence(uuid,text,text,text,text,integer)
+revoke all on function public.pandora_get_agent_routing_evidence(uuid,text,text,text,text,integer)
   from public, anon;
-grant execute on function public.projectos_upsert_agent_runtime_proof(uuid,text,jsonb)
+grant execute on function public.pandora_upsert_agent_runtime_proof(uuid,text,jsonb)
   to authenticated, service_role;
-grant execute on function public.projectos_get_agent_routing_evidence(uuid,text,text,text,text,integer)
+grant execute on function public.pandora_get_agent_routing_evidence(uuid,text,text,text,text,integer)
   to authenticated, service_role;

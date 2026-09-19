@@ -3,7 +3,7 @@
 -- Production history is never rewritten; live hashes remain in the recovery manifest.
 -- Semantic recovery of the provider-recorded SQL payload; comments and terminal newline may differ.
 
-create or replace function public.projectos_accept_fxpass_product_intake(
+create or replace function public.pandora_accept_fxpass_product_intake(
   p_source_submission_id uuid,
   p_payload jsonb
 )
@@ -29,7 +29,7 @@ begin
   limit 1;
 
   if v_org_id is null then
-    raise exception 'projectos_organization_missing';
+    raise exception 'pandora_organization_missing';
   end if;
 
   select user_id into v_requester_id
@@ -41,7 +41,7 @@ begin
   limit 1;
 
   if v_requester_id is null then
-    raise exception 'projectos_owner_missing';
+    raise exception 'pandora_owner_missing';
   end if;
 
   select workflow_run_id into v_existing_run_id
@@ -109,29 +109,29 @@ begin
     organization_id, run_id, step_key, sequence, tool_name, status, risk, approval_required, idempotency_key, input_redacted, result_redacted, started_at, completed_at
   ) values
   (
-    v_org_id, v_run_id, 'intake.capture', 1, 'projectos.product_intake', 'succeeded', 'R0', false,
+    v_org_id, v_run_id, 'intake.capture', 1, 'pandora.product_intake', 'succeeded', 'R0', false,
     v_idempotency_key || ':capture',
     jsonb_build_object('source', 'fxpass', 'submission_id', p_source_submission_id),
     jsonb_build_object('captured', true, 'analysis_supplied', true, 'plan_supplied', true),
     timezone('utc', now()), timezone('utc', now())
   ),
   (
-    v_org_id, v_run_id, 'product.plan.reconcile', 2, 'projectos.plan_reconciler', 'pending', 'R1', false,
+    v_org_id, v_run_id, 'product.plan.reconcile', 2, 'pandora.plan_reconciler', 'pending', 'R1', false,
     v_idempotency_key || ':reconcile',
     jsonb_build_object('repository', 'mbanatao/fong', 'canonical_plan', 'CANONICAL_MASTER_PLAN.md'), null, null, null
   ),
   (
-    v_org_id, v_run_id, 'roadmap.decompose', 3, 'projectos.task_planner', 'pending', 'R1', false,
+    v_org_id, v_run_id, 'roadmap.decompose', 3, 'pandora.task_planner', 'pending', 'R1', false,
     v_idempotency_key || ':decompose',
     jsonb_build_object('dependency_aware', true, 'preserve_current_state', true), null, null, null
   ),
   (
-    v_org_id, v_run_id, 'independent.review', 4, 'projectos.review_router', 'pending', 'R1', false,
+    v_org_id, v_run_id, 'independent.review', 4, 'pandora.review_router', 'pending', 'R1', false,
     v_idempotency_key || ':review',
     jsonb_build_object('builder_must_not_self_approve', true, 'exact_version_required', true), null, null, null
   ),
   (
-    v_org_id, v_run_id, 'execution.queue', 5, 'projectos.execution_router', 'pending', 'R2', true,
+    v_org_id, v_run_id, 'execution.queue', 5, 'pandora.execution_router', 'pending', 'R2', true,
     v_idempotency_key || ':queue',
     jsonb_build_object('target_repository', 'mbanatao/fong', 'production_release_not_authorized', true), null, null, null
   );
@@ -140,5 +140,5 @@ begin
 end;
 $$;
 
-revoke all on function public.projectos_accept_fxpass_product_intake(uuid, jsonb) from public, anon, authenticated;
-grant execute on function public.projectos_accept_fxpass_product_intake(uuid, jsonb) to service_role;
+revoke all on function public.pandora_accept_fxpass_product_intake(uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.pandora_accept_fxpass_product_intake(uuid, jsonb) to service_role;
