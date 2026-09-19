@@ -5,9 +5,9 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
 
-const String _viewType = 'pandora-world-port-cams-key-largo';
+const String _viewType = 'pandora-world-port-cams-cape-marina';
 const String _embedUrl =
-    'https://worldportcams.com/embed/usa/florida/courtyard-key-largo';
+    'https://worldportcams.com/embed/usa/florida/cape-marina-live-webcam-hd-stream-canaveral-fl';
 
 bool _registered = false;
 
@@ -29,7 +29,7 @@ Widget buildEnterpriseVisionEmbed() {
         iframe.setAttribute('loading', 'lazy');
         iframe.setAttribute(
           'title',
-          'World Port Cams live camera — Courtyard Key Largo',
+          'World Port Cams live camera — Cape Marina, Canaveral',
         );
         return iframe;
       },
