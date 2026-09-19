@@ -15,6 +15,8 @@ APK_SHA=""
 APK_SIZE=""
 DOWNLOAD_URL=""
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+RELEASE_TAG="pandora-local-ai-mainline-93c41ecc-build"
+RELEASE_ID=""
 CODESPACE="$(printenv CODESPACE_NAME || true)"
 
 mkdir -p "$PUBLIC_DIR"
@@ -49,6 +51,85 @@ write_status "running" ""
 
 exec > >(tee "$LOG") 2>&1
 
+publish_release_report() {
+  token="${GITHUB_TOKEN:-}"
+  repo="${GITHUB_REPOSITORY:-pandora-rvw-314296438-20260820/pandoras-box}"
+  if [ -z "$token" ]; then
+    echo "GITHUB_TOKEN unavailable; cannot publish build report." >&2
+    return 0
+  fi
+
+  owner="${repo%%/*}"
+  name="${repo#*/}"
+  api="${GITHUB_API_URL:-https://api.github.com}"
+
+  existing="$(curl -fsS \
+    -H "Authorization: Bearer $token" \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2026-03-10" \
+    "$api/repos/$repo/releases/tags/$RELEASE_TAG" 2>/dev/null || true)"
+  existing_id="$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("id",""))' <<<"$existing" 2>/dev/null || true)"
+  if [ -n "$existing_id" ]; then
+    curl -fsS -X DELETE \
+      -H "Authorization: Bearer $token" \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2026-03-10" \
+      "$api/repos/$repo/releases/$existing_id" >/dev/null || true
+  fi
+
+  payload="$(python3 - "$RELEASE_TAG" "$SOURCE_SHA" "$STEP" <<'PY'
+import json,sys
+tag,source,step=sys.argv[1:]
+print(json.dumps({
+  "tag_name": tag,
+  "target_commitish": source,
+  "name": "Pandora Local AI Mainline Build 93c41ecc",
+  "body": f"GitHub-hosted Codespaces build report for exact source {source}. Final step: {step}. Validation only.",
+  "draft": False,
+  "prerelease": True
+}))
+PY
+)"
+  release="$(curl -fsS -X POST \
+    -H "Authorization: Bearer $token" \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2026-03-10" \
+    -H "Content-Type: application/json" \
+    "$api/repos/$repo/releases" --data-binary "$payload" || true)"
+  RELEASE_ID="$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("id",""))' <<<"$release" 2>/dev/null || true)"
+  if [ -z "$RELEASE_ID" ]; then
+    echo "Could not create GitHub build-report release." >&2
+    return 0
+  fi
+
+  upload() {
+    local file="$1"
+    local asset_name="$2"
+    local content_type="$3"
+    [ -s "$file" ] || return 0
+    curl -fsS -X POST \
+      -H "Authorization: Bearer $token" \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2026-03-10" \
+      -H "Content-Type: $content_type" \
+      --data-binary "@$file" \
+      "https://uploads.github.com/repos/$owner/$name/releases/$RELEASE_ID/assets?name=$asset_name" \
+      >/dev/null || true
+  }
+
+  upload "$STATUS" "build-status.json" "application/json"
+  upload "$LOG" "build.log" "text/plain"
+  upload "$PUBLIC_DIR/apk-receipt.txt" "apk-receipt.txt" "text/plain"
+  upload "$PUBLIC_DIR/badging.txt" "badging.txt" "text/plain"
+  upload "$PUBLIC_DIR/signing.txt" "signing.txt" "text/plain"
+  upload "$PUBLIC_DIR/zipalign.txt" "zipalign.txt" "text/plain"
+  upload "$PUBLIC_DIR/permissions.txt" "permissions.txt" "text/plain"
+  upload "$PUBLIC_DIR/apk-files.txt" "apk-files.txt" "text/plain"
+  if [ -n "$APK_SHA" ] && [ -s "$PUBLIC_DIR/$APK_NAME" ]; then
+    upload "$PUBLIC_DIR/$APK_NAME" "$APK_NAME" "application/vnd.android.package-archive"
+  fi
+}
+
 finish() {
   code=$?
   trap - EXIT
@@ -57,6 +138,7 @@ finish() {
   else
     write_status "failed" "$code"
   fi
+  publish_release_report || true
   exit "$code"
 }
 trap finish EXIT
