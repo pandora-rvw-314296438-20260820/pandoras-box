@@ -86,7 +86,7 @@ export PATH="$FLUTTER_ROOT/bin:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDRO
 STEP="install-android-sdk"
 mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
 cd /tmp
-curl -fL --retry 4 --retry-all-errors -o android-cmdline.zip https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip
+curl -fL --retry 4 -o android-cmdline.zip https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip
 echo "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583  android-cmdline.zip" | sha256sum -c -
 rm -rf /tmp/android-cmdline
 mkdir -p /tmp/android-cmdline
