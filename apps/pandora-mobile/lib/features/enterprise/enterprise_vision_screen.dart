@@ -11,7 +11,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
   const EnterpriseVisionScreen({super.key});
 
   static final Uri _sourceUri = Uri.parse(
-    'https://worldportcams.com/en/usa/florida/courtyard-key-largo',
+    'https://worldportcams.com/en/usa/florida/cape-marina-live-webcam-hd-stream-canaveral-fl',
   );
 
   void _askPandora(BuildContext context) {
@@ -78,7 +78,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
 
   Widget _intro() => PandoraSurface(
         title: 'Public Vision Demo',
-        subtitle: 'Courtyard Key Largo · Florida Keys',
+        subtitle: 'Cape Marina · Canaveral, Florida',
         leading: const Icon(Icons.videocam_rounded),
         child: const Text(
           'A real public live camera is embedded to demonstrate how Vision '
@@ -171,7 +171,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: _openSource,
                   icon: const Icon(Icons.open_in_new_rounded),
-                  label: const Text('Open camera source'),
+                  label: const Text('Open live source'),
                 ),
                 FilledButton.icon(
                   onPressed: () => _askPandora(context),
