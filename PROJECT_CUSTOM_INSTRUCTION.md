@@ -468,7 +468,7 @@ Default route:
 
 Owner/User
 → Pandora
-→ ProjectOS
+→ Pandora
 → governed provider/agent adapters
 → execution
 → verification

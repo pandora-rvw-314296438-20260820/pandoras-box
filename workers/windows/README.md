@@ -15,7 +15,7 @@ The controller fails closed when any of these are absent:
 
 - an enrolled Ed25519 Worker-01 identity;
 - a fresh exact-request JWT from the independently operated worker authority;
-- fresh, independently recorded ProjectOS runtime proof;
+- fresh, independently recorded Pandora runtime proof;
 - a valid control-plane signature and unused nonce;
 - exact plan, organization, repository, SHA, and job-class binding;
 - digest-pinned acquisition and runner images;

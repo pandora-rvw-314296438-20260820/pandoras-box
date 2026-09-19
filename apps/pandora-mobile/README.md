@@ -23,7 +23,7 @@ authorized environment with `PANDORA_ORGANIZATION_ID`.
 The protected `verify-exact-source` action has a dedicated mobile contract. It
 always supplies:
 
-- a required ProjectOS `projectId`;
+- a required Pandora `projectId`;
 - an exact 40-character hexadecimal commit `exactSha`;
 - either `node_regression` or `supabase_migration_replay` as `jobClass`; and
 - an optional `maxRuntimeSeconds` bounded to 30–1800 seconds.

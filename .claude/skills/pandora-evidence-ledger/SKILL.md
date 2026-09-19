@@ -12,9 +12,9 @@ Work that is not recorded did not durably happen. The next session, the next age
 Evidence enters Memory as a **candidate for human review**. It never becomes canonical automatically. That is the design: an agent can propose, only a human can canonize.
 
 ```
-projectos_plan_memory_submitEvidenceCandidate  → durable plan (not executed)
-projectos_approve_plan                          → authenticated owner/admin approval
-projectos_execute_plan                          → one-time claim + submit
+pandora_plan_memory_submitEvidenceCandidate  → durable plan (not executed)
+pandora_approve_plan                          → authenticated owner/admin approval
+pandora_execute_plan                          → one-time claim + submit
 ```
 
 Three separate calls. Creating a plan does nothing on its own; approving it does nothing on its own. This separation is what makes the write path auditable.
@@ -59,7 +59,7 @@ Prefer content-addressed references — commit SHAs, tree SHAs, SHA-256 hashes, 
 
 Before submitting, confirm the canonical project key. Key drift silently partitions a project's history across several keys, and the damage is only visible much later when a query returns two thirds of the truth.
 
-Check `projectos_list_plans` for the keys actually in use and reconcile against the canonical instruction. If you find drift, that itself is a finding worth recording — and worth escalating, because merging partitioned history is a repair someone has to authorize.
+Check `pandora_list_plans` for the keys actually in use and reconcile against the canonical instruction. If you find drift, that itself is a finding worth recording — and worth escalating, because merging partitioned history is a repair someone has to authorize.
 
 Note that Pandora's intake derives a fallback key when arguments carry no repository, so an omitted `projectKey` does not mean "no key" — it means a default was chosen for you. Pass the key explicitly.
 

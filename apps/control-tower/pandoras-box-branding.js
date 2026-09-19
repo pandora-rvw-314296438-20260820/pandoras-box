@@ -1,6 +1,6 @@
 const CANONICAL_NAME = "Pandoras-Box";
-const LEGACY_DISPLAY_NAME = "ProjectOS";
-const TECHNICAL_NAMESPACE = "projectos";
+const LEGACY_DISPLAY_NAME = "Pandora";
+const TECHNICAL_NAMESPACE = "pandora";
 
 function replaceDisplayName(value) {
   return typeof value === "string"

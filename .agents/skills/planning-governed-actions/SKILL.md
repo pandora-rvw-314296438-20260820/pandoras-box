@@ -1,6 +1,6 @@
 ---
 name: planning-governed-actions
-description: "Creates dependency-aware, evidence-bound ProjectOS plans. Use before any connected write, provider mutation, deployment, release, database change, approval-sensitive action, or multi-step implementation."
+description: "Creates dependency-aware, evidence-bound Pandora plans. Use before any connected write, provider mutation, deployment, release, database change, approval-sensitive action, or multi-step implementation."
 ---
 
 # Planning Governed Actions

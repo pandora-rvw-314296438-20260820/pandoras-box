@@ -36,9 +36,9 @@ Start at `pandora-router`. It classifies the request into one of four bands and 
 
 ## The two rules everything rests on
 
-**The proof ladder.** `documented → implemented → tested → deployed → production_verified`. These are not synonyms, and they are the enforced `proofStage` enum on `projectos_plan_memory_submitEvidenceCandidate` — using the wrong one writes a false claim into canonical Memory. Nothing counts as proof of the next state up: not green CI, not a merged PR, not a READY deployment, not an agent's assertion.
+**The proof ladder.** `documented → implemented → tested → deployed → production_verified`. These are not synonyms, and they are the enforced `proofStage` enum on `pandora_plan_memory_submitEvidenceCandidate` — using the wrong one writes a false claim into canonical Memory. Nothing counts as proof of the next state up: not green CI, not a merged PR, not a READY deployment, not an agent's assertion.
 
-**Governed mutation.** Reads are direct; state changes never are. Every mutation goes plan → approve → execute through ProjectOS, with payload integrity, a one-time claim, and a hash-linked audit chain. Once a provider confirms a mutation, a downstream failure must never reclassify it as retryable.
+**Governed mutation.** Reads are direct; state changes never are. Every mutation goes plan → approve → execute through Pandora, with payload integrity, a one-time claim, and a hash-linked audit chain. Once a provider confirms a mutation, a downstream failure must never reclassify it as retryable.
 
 ## Source-of-truth hierarchy
 

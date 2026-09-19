@@ -25,7 +25,7 @@ export async function callPandoraMachineGateway(
 
   // Vercel mints a short-lived signed workload identity for this exact
   // project/environment. No Vercel protection-bypass secret or Pandora
-  // shared password is distributed to ProjectOS.
+  // shared password is distributed to Pandora.
   const workloadToken = await getVercelOidcToken();
   if (!workloadToken) {
     throw new Error("pandora_workload_identity_unavailable");

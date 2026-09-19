@@ -46,7 +46,7 @@ Test each boundary explicitly. A role that can escalate itself, grant itself per
 
 ## Service and workload identity
 
-Machine access uses workload identity (OIDC) rather than long-lived shared secrets where the platform supports it — Pandora's own ProjectOS-to-Memory connection works this way. Scope every principal to the minimum, per project. Never let a service principal inherit a human's full authority. Rotate credentials, and keep the superseded one retrievable for rollback rather than deleting it immediately.
+Machine access uses workload identity (OIDC) rather than long-lived shared secrets where the platform supports it — Pandora's own Pandora-to-Memory connection works this way. Scope every principal to the minimum, per project. Never let a service principal inherit a human's full authority. Rotate credentials, and keep the superseded one retrievable for rollback rather than deleting it immediately.
 
 ## OAuth and OIDC
 
