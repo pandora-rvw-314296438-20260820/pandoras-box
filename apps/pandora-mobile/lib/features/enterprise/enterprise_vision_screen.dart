@@ -11,13 +11,13 @@ class EnterpriseVisionScreen extends StatelessWidget {
   const EnterpriseVisionScreen({super.key});
 
   static final Uri _sourceUri = Uri.parse(
-    'https://webcamlivestream.com/japan/tokyo/shibuya-ai-vision-miyamasuzaka/',
+    'https://camstreamer.com/live/stream/47239-live-dong-jing-xin-su-ge-wu-ji-ting',
   );
 
   void _askPandora(BuildContext context) {
     EnterpriseCommandDraftBus.shared.offer(
       'Explain the Vision Intelligence capability shown on this page. '
-      'The live Shibuya feed is display-only in this build: do not claim '
+      'The live Kabukicho feed is display-only in this build: do not claim '
       'Pandora is analyzing, identifying, tracking, retaining, or alerting '
       'on people or objects in this public feed. Explain what becomes '
       'available when an enterprise connects a camera it is authorized to use.',
@@ -78,10 +78,10 @@ class EnterpriseVisionScreen extends StatelessWidget {
 
   Widget _intro() => PandoraSurface(
         title: 'Live Vision Feed',
-        subtitle: 'Shibuya · Tokyo, Japan',
+        subtitle: 'Kabukicho · Shinjuku, Tokyo',
         leading: const Icon(Icons.videocam_rounded),
         child: const Text(
-          'A live Shibuya intersection camera provides continuous pedestrian and vehicle '
+          'A live Kabukicho street camera provides continuous pedestrian and vehicle '
           'activity inside Pandora Enterprise. Automated analysis is '
           'not connected to this public source.',
           style: TextStyle(
@@ -93,7 +93,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
 
   Widget _camera(BuildContext context) => PandoraSurface(
         title: 'Live camera',
-        subtitle: 'Shibuya Ai Vision · live channel feed',
+        subtitle: 'CamStreamer · live street feed',
         leading: const Icon(Icons.live_tv_rounded),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -133,7 +133,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
                                     ),
                                     SizedBox(width: 6),
                                     Text(
-                                      'LIVE SHIBUYA',
+                                      'LIVE KABUKICHO',
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 10.5,
@@ -155,7 +155,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Source: Shibuya Ai Vision Miyamasuzaka · live public urban camera. '
+              'Source: CamStreamer · Shinjuku Kabukicho 24/7 live street camera. '
               '',
               style: TextStyle(
                 color: PandoraV2Colors.muted,
@@ -194,7 +194,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
             _VisionStatusRow(
               icon: Icons.public_rounded,
               label: 'Live source',
-              value: 'Shibuya Ai Vision',
+              value: 'CamStreamer · Kabukicho',
             ),
             SizedBox(height: 12),
             _VisionStatusRow(
