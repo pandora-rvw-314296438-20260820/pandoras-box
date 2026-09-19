@@ -54,7 +54,6 @@ PY
 }
 
 exec > >(tee "$LOG") 2>&1
-report_status "running" "bootstrap" 0 ""
 
 put_receipt() {
   remote_path="$1"
@@ -103,6 +102,7 @@ PY
   exit "$code"
 }
 trap record_status EXIT
+report_status "running" "bootstrap" 0 ""
 
 STEP="install-host-tools"
 sudo rm -f /etc/apt/sources.list.d/yarn.list /etc/apt/sources.list.d/yarn.sources
