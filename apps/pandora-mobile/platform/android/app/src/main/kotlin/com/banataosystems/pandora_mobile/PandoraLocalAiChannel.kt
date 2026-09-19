@@ -1,6 +1,7 @@
 package com.banataosystems.pandora_mobile
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -146,17 +147,23 @@ If the request clearly requires live data, connected services, account data, ext
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "*/*"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        if (intent.resolveActivity(activity.packageManager) == null) {
+        pendingModelResult = result
+        try {
+            // Do not preflight with PackageManager.resolveActivity(). On recent
+            // Android builds, package visibility can return null even when the
+            // system document picker is available. The benchmark app on this
+            // same device already proved ACTION_OPEN_DOCUMENT works.
+            activity.startActivityForResult(intent, MODEL_PICK_REQUEST)
+        } catch (_: ActivityNotFoundException) {
+            pendingModelResult = null
             result.error(
                 "LOCAL_MODEL_PICK_UNAVAILABLE",
                 "Android could not open the document picker.",
                 null,
             )
-            return
         }
-        pendingModelResult = result
-        activity.startActivityForResult(intent, MODEL_PICK_REQUEST)
     }
 
     private fun warm(result: MethodChannel.Result) {
