@@ -793,6 +793,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       );
 }
 
+const _plpBoracayProjectId = '73b1afe9-91b5-4bf5-864c-22c071c4471a';
+
 class _PandoraSidePanel extends StatelessWidget {
   const _PandoraSidePanel({
     this.glass = false,
@@ -834,66 +836,82 @@ class _PandoraSidePanel extends StatelessWidget {
                   destinations: destinations,
                   selectedIndex: selectedIndex,
                   onSelected: onSelected,
+                  threads: threads,
+                  historyLoading: historyLoading,
+                  onOpenThread: onOpenThread,
+                  onManageThread: onManageThread,
                 ),
-                const SizedBox(height: 16),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
-                  child: Text(
-                    'Recent chats',
-                    style: TextStyle(
-                      color: PandoraV2Colors.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                if (historyLoading && threads.isEmpty)
+                if (selectedIndex < 8) ...[
+                  const SizedBox(height: 16),
                   const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Center(
-                      child: SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 1.8),
-                      ),
-                    ),
-                  )
-                else if (threads.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(10, 4, 10, 14),
+                    padding: EdgeInsets.fromLTRB(10, 0, 10, 7),
                     child: Text(
-                      'Your conversations will appear here.',
+                      'Recent chats',
                       style: TextStyle(
                         color: PandoraV2Colors.muted,
-                        fontSize: 12.5,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  )
-                else
-                  for (final thread in threads.take(12))
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: ListTile(
-                        dense: true,
-                        visualDensity: const VisualDensity(vertical: -2),
-                        key: ValueKey<String>('pandora-thread-${thread.id}'),
-                        title: Text(
-                          thread.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w500,
+                  ),
+                  if (historyLoading &&
+                      threads
+                          .where((thread) =>
+                              thread.projectId != _plpBoracayProjectId)
+                          .isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(
+                        child: SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 1.8),
+                        ),
+                      ),
+                    )
+                  else if (threads
+                      .where((thread) =>
+                          thread.projectId != _plpBoracayProjectId)
+                      .isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(10, 4, 10, 14),
+                      child: Text(
+                        'Your conversations will appear here.',
+                        style: TextStyle(
+                          color: PandoraV2Colors.muted,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    )
+                  else
+                    for (final thread in threads
+                        .where((thread) =>
+                            thread.projectId != _plpBoracayProjectId)
+                        .take(12))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: ListTile(
+                          dense: true,
+                          visualDensity: const VisualDensity(vertical: -2),
+                          key: ValueKey<String>('pandora-thread-${thread.id}'),
+                          title: Text(
+                            thread.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
+                          trailing: IconButton(
+                            tooltip: 'Conversation options',
+                            icon: const Icon(Icons.more_horiz_rounded, size: 19),
+                            onPressed: () => onManageThread(thread),
+                          ),
+                          onTap: () => onOpenThread(thread),
                         ),
-                        trailing: IconButton(
-                          tooltip: 'Conversation options',
-                          icon: const Icon(Icons.more_horiz_rounded, size: 19),
-                          onPressed: () => onManageThread(thread),
-                        ),
-                        onTap: () => onOpenThread(thread),
                       ),
-                    ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
                 for (final index in const <int>[0, 1, 2, 4, 5, 6, 7, 3])
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
@@ -999,16 +1017,27 @@ class _EnterpriseMenu extends StatelessWidget {
     required this.destinations,
     required this.selectedIndex,
     required this.onSelected,
+    required this.threads,
+    required this.historyLoading,
+    required this.onOpenThread,
+    required this.onManageThread,
   });
 
   final List<_ChatDestination> destinations;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
+  final List<PandoraIntelligenceThread> threads;
+  final bool historyLoading;
+  final ValueChanged<PandoraIntelligenceThread> onOpenThread;
+  final ValueChanged<PandoraIntelligenceThread> onManageThread;
 
   @override
   Widget build(BuildContext context) {
     const ownerIndexes = <int>[8, 23, 24, 9, 25, 26, 27, 21];
     const systemIndexes = <int>[10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22];
+    final plpThreads = threads
+        .where((thread) => thread.projectId == _plpBoracayProjectId)
+        .toList(growable: false);
     return ExpansionTile(
       key: const ValueKey<String>('pandora-enterprise-menu'),
       initiallyExpanded: selectedIndex >= 8,
@@ -1047,6 +1076,77 @@ class _EnterpriseMenu extends StatelessWidget {
         style: TextStyle(fontSize: 11.5, color: PandoraV2Colors.muted),
       ),
       children: [
+        ExpansionTile(
+          key: const ValueKey<String>('pandora-plp-recent-chats'),
+          initiallyExpanded: plpThreads.isNotEmpty,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+          childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          collapsedShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          leading: const Icon(Icons.chat_bubble_outline_rounded, size: 19),
+          title: const Text(
+            'Recent chats',
+            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+          ),
+          children: [
+            if (historyLoading && plpThreads.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Center(
+                  child: SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 1.8),
+                  ),
+                ),
+              )
+            else if (plpThreads.isEmpty)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(10, 3, 10, 10),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'No PLP Boracay chats yet.',
+                    style: TextStyle(
+                      color: PandoraV2Colors.muted,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+              )
+            else
+              for (final thread in plpThreads.take(6))
+                ListTile(
+                  dense: true,
+                  visualDensity: const VisualDensity(vertical: -2),
+                  key: ValueKey<String>('pandora-plp-thread-${thread.id}'),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12),
+                  title: Text(
+                    thread.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'Conversation options',
+                    icon: const Icon(Icons.more_horiz_rounded, size: 18),
+                    onPressed: () => onManageThread(thread),
+                  ),
+                  onTap: () => onOpenThread(thread),
+                ),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(14, 4, 14, 4),
+          child: Divider(),
+        ),
         const Padding(
           padding: EdgeInsets.fromLTRB(18, 8, 18, 6),
           child: Align(
