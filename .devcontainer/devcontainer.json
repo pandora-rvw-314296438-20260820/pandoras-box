@@ -1,0 +1,21 @@
+
+{
+  "name": "Pandora APK exact-source builder",
+  "image": "ghcr.io/cirruslabs/flutter:3.47.0",
+  "remoteUser": "root",
+  "updateRemoteUserUID": false,
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "Pandora APK",
+      "onAutoForward": "silent",
+      "visibility": "public"
+    }
+  },
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  "postCreateCommand": "bash .devcontainer/build-apk-and-publish.sh"
+}
