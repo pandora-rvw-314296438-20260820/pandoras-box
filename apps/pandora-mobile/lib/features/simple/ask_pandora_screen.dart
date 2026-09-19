@@ -1245,6 +1245,7 @@ class _Conversation extends StatefulWidget {
     required this.activityRequested,
     required this.activitySuppressed,
     required this.activityEvents,
+    required this.contentPadding,
     this.activityError,
   });
 
@@ -1255,6 +1256,7 @@ class _Conversation extends StatefulWidget {
   final bool activityRequested;
   final bool activitySuppressed;
   final List<PandoraActivityProjection> activityEvents;
+  final EdgeInsets contentPadding;
   final String? activityError;
 
   @override
@@ -1264,6 +1266,7 @@ class _Conversation extends StatefulWidget {
 class _ConversationState extends State<_Conversation> {
   final ScrollController _scrollController = ScrollController();
   late int _lastRenderedItemCount;
+  bool _followLatest = true;
 
   bool get _hasPending =>
       widget.pendingMessage != null && widget.pendingMessage!.isNotEmpty;
@@ -1300,12 +1303,20 @@ class _ConversationState extends State<_Conversation> {
         oldWidget.activityError != widget.activityError ||
         oldWidget.activityRequested != widget.activityRequested ||
         oldWidget.activitySuppressed != widget.activitySuppressed;
+    final threadChanged = oldWidget.threadIdentity != widget.threadIdentity;
     final messagesChanged =
-        oldWidget.messages.length != widget.messages.length ||
-            oldWidget.threadIdentity != widget.threadIdentity;
-    if (nextCount != _lastRenderedItemCount || activityChanged) {
+        oldWidget.messages.length != widget.messages.length || threadChanged;
+    final userSubmitted =
+        oldWidget.pendingMessage != widget.pendingMessage && _hasPending;
+    final viewportChanged = oldWidget.contentPadding != widget.contentPadding;
+    if (threadChanged || userSubmitted) {
+      _followLatest = true;
+    }
+    if (nextCount != _lastRenderedItemCount ||
+        activityChanged ||
+        viewportChanged) {
       _lastRenderedItemCount = nextCount;
-      _scheduleScrollToLatest();
+      _scheduleScrollToLatest(jump: threadChanged);
     }
     if (messagesChanged && widget.messages.isNotEmpty) {
       unawaited(_cacheMessages());
@@ -1336,6 +1347,7 @@ class _ConversationState extends State<_Conversation> {
   }
 
   void _scheduleScrollToLatest({bool jump = false}) {
+    if (!jump && !_followLatest) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
       final target = _scrollController.position.maxScrollExtent;
@@ -1383,14 +1395,29 @@ class _ConversationState extends State<_Conversation> {
     }
     if (activitySlot != null) items.add(activitySlot);
 
-    return ListView.separated(
-      controller: _scrollController,
-      reverse: false,
-      padding: const EdgeInsets.fromLTRB(16, 22, 16, 24),
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      itemCount: items.length,
-      itemBuilder: (context, index) => items[index],
-      separatorBuilder: (_, __) => const SizedBox(height: 18),
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification is ScrollUpdateNotification ||
+            notification is UserScrollNotification ||
+            notification is ScrollEndNotification) {
+          _followLatest = notification.metrics.extentAfter < 72;
+        }
+        return false;
+      },
+      child: ListView.separated(
+        controller: _scrollController,
+        reverse: false,
+        padding: EdgeInsets.fromLTRB(
+          16,
+          widget.contentPadding.top + 22,
+          16,
+          widget.contentPadding.bottom + 24,
+        ),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        itemCount: items.length,
+        itemBuilder: (context, index) => items[index],
+        separatorBuilder: (_, __) => const SizedBox(height: 18),
+      ),
     );
   }
 }
