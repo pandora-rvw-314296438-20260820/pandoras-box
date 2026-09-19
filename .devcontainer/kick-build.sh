@@ -11,11 +11,12 @@ mkdir -p .devcontainer
 trigger="${1:-unknown}"
 printf '%s trigger=%s rev=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$trigger" "${PANDORA_BUILDER_REV:-unset}" >> .devcontainer/kick-history.log
 
-nohup bash -c '
+nohup setsid bash -lc '
   exec 9>/tmp/pandora-local-ai-picker-build.lock
   flock -n 9 || exit 0
   cd /workspaces/pandoras-box || exit 1
-  bash .devcontainer/build-picker-apk.sh
-' >> .devcontainer/kick.log 2>&1 &
+  exec bash .devcontainer/build-picker-apk.sh
+' </dev/null >/tmp/pandora-local-ai-picker-build.log 2>&1 &
 
+disown || true
 exit 0
