@@ -54,6 +54,7 @@ PY
 }
 
 exec > >(tee "$LOG") 2>&1
+report_status "running" "bootstrap" 0 ""
 
 put_receipt() {
   remote_path="$1"
