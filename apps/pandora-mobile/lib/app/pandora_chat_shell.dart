@@ -10,6 +10,7 @@ import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
+import '../features/enterprise/enterprise_workspace_home.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/plugins/plugins_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
@@ -44,18 +45,20 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         'Verify & Safety', Icons.shield_outlined, Icons.shield_rounded),
     _ChatDestination(
         'Operations Room', Icons.groups_2_outlined, Icons.groups_2_rounded),
+    _ChatDestination('Home', Icons.home_outlined, Icons.home_rounded),
   ];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<AskPandoraScreenState> _chatKey =
       GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
-  final Set<int> _visited = <int>{0};
+  Map<String, Object?>? _activeEnterpriseContext;
+  final Set<int> _visited = <int>{9};
   List<PandoraIntelligenceThread> _threads =
       const <PandoraIntelligenceThread>[];
   bool _historyLoading = false;
   bool _historyLoaded = false;
-  int _index = 0;
+  int _index = 9;
 
   @override
   void initState() {
@@ -64,7 +67,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     unawaited(
       OwnerAnalytics.shared.capture(
         OwnerAnalyticsEvent.screenViewed,
-        resultClass: 'pandora_chat',
+        resultClass: 'enterprise_home',
       ),
     );
   }
@@ -115,6 +118,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       6 => 'saved_evidence',
       7 => 'verify_safety',
       8 => 'operations_room',
+      9 => 'enterprise_home',
       _ => 'pandora_chat',
     };
     unawaited(
@@ -126,8 +130,12 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
   void _newChat() {
+    setState(() {
+      _activeEnterpriseContext = null;
+      _roots.remove(0);
+      _visited.add(0);
+    });
     _select(0);
-    _chatKey.currentState?.newChat();
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
       _scaffoldKey.currentState?.closeDrawer();
     }
@@ -148,7 +156,13 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
   Future<void> _openThread(PandoraIntelligenceThread thread) async {
+    setState(() {
+      _activeEnterpriseContext = null;
+      _roots.remove(0);
+      _visited.add(0);
+    });
     _select(0);
+    await WidgetsBinding.instance.endOfFrame;
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
       _scaffoldKey.currentState?.closeDrawer();
     }
@@ -363,6 +377,24 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _openWorkspace(EnterpriseWorkspaceSelection selection) {
+    setState(() {
+      _activeEnterpriseContext = selection.enterpriseContext;
+      _roots.remove(0);
+      _visited.add(0);
+    });
+    _select(0);
+    unawaited(
+      OwnerAnalytics.shared.capture(
+        OwnerAnalyticsEvent.screenViewed,
+        resultClass: 'enterprise_workspace_' +
+            selection.workspace.key +
+            '_' +
+            selection.section.routeSlug,
+      ),
+    );
+  }
+
   Widget _root(int index) => _roots.putIfAbsent(
         index,
         () => switch (index) {
@@ -370,6 +402,8 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               key: _chatKey,
               onSearchChats: _searchChats,
               onMore: () => _select(3),
+              onHome: () => _select(9),
+              enterpriseContext: _activeEnterpriseContext,
             ),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
@@ -378,7 +412,13 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
           5 => const PluginsScreen(),
           6 => const OfflineEvidenceScreen(),
           7 => const SimpleSafetyScreen(),
-          8 => PandoraOperationsRoomScreen(onHome: () => _select(0)),
+          8 => PandoraOperationsRoomScreen(onHome: () => _select(9)),
+          9 => EnterpriseWorkspaceHome(
+              onOpen: _openWorkspace,
+              onSearchChats: _searchChats,
+              onActivity: () => _select(4),
+              onMore: () => _select(3),
+            ),
           _ => AskPandoraScreen(key: _chatKey),
         },
       );
@@ -643,7 +683,7 @@ class _PandoraSidePanel extends StatelessWidget {
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(height: 1, color: PandoraV2Colors.line),
                   ),
-                  for (final index in const <int>[0, 8, 1, 2, 4, 5, 6, 7, 3])
+                  for (final index in const <int>[9, 0, 8, 1, 2, 4, 5, 6, 7, 3])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: ListTile(
