@@ -1,11 +1,11 @@
 {
   "schema": "pandora.github-hosted-build-live.v1",
   "state": "running",
-  "step": "test-local-router",
+  "step": "build-arm64-apk",
   "detail": "",
   "sourceSha": "a5d5b60551e5c4f02c8aa14c8af4d8b3a268b082",
   "apkSha256": null,
   "apkSizeBytes": null,
   "startedAtUtc": "2026-09-19T10:31:03Z",
-  "updatedAtUtc": "2026-09-19T10:35:06.884382Z"
+  "updatedAtUtc": "2026-09-19T10:35:18.066925Z"
 }
