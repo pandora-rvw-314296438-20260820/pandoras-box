@@ -97,3 +97,12 @@ test("control revisions preserve workspace scope across every provider body", ()
     "request(effectiveMessage,i.attachments,prior,ctx,i.enterpriseContext,tctx)",
   ));
 });
+
+
+test("workspace home matches the screenshot header hierarchy", () => {
+  assert.ok(hub.includes("workspace-home-brand"));
+  assert.ok(!hub.includes("Icons.menu_rounded"));
+  assert.ok(hub.includes("workspace-home-search"));
+  assert.ok(hub.includes("workspace-home-activity"));
+  assert.ok(hub.includes("workspace-home-more"));
+});
