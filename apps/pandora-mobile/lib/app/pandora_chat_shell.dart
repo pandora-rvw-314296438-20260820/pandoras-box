@@ -1062,6 +1062,34 @@ class _EnterpriseMenu extends StatelessWidget {
             ),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: ListTile(
+            key: const ValueKey<String>('pandora-enterprise-home'),
+            dense: true,
+            selected: selectedIndex == 0,
+            selectedColor: PandoraV2Colors.ink,
+            iconColor: PandoraV2Colors.muted,
+            textColor: PandoraV2Colors.ink,
+            selectedTileColor: Colors.white.withValues(alpha: .06),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            leading: Icon(
+              selectedIndex == 0 ? Icons.home_rounded : Icons.home_outlined,
+              size: 21,
+            ),
+            title: Text(
+              'Home',
+              style: TextStyle(
+                fontSize: 14.5,
+                fontWeight:
+                    selectedIndex == 0 ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            onTap: () => onSelected(0),
+          ),
+        ),
         for (final index in ownerIndexes)
           _EnterpriseNavTile(
             destination: destinations[index],
