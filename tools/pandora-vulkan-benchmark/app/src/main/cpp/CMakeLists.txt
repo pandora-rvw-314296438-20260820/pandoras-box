@@ -23,8 +23,8 @@ set(LLAMA_BUILD_APP OFF CACHE BOOL "" FORCE)
 set(LLAMA_OPENSSL OFF CACHE BOOL "" FORCE)
 set(LLAMA_SUBPROCESS OFF CACHE BOOL "" FORCE)
 
-if(NOT EXISTS "\${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/CMakeLists.txt")
-    message(FATAL_ERROR "llama.cpp source missing. GitHub Actions must clone the exact upstream SHA before Gradle build.")
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/CMakeLists.txt")
+    message(FATAL_ERROR "llama.cpp source missing. Codespace builder must clone the exact upstream SHA before Gradle build.")
 endif()
 
 add_subdirectory(llama.cpp llama-build)
