@@ -59,7 +59,9 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
 rm -rf "$APP_DIR/app/src/main/cpp/vulkan-headers"
 mkdir -p "$APP_DIR/app/src/main/cpp/vulkan-headers/include"
 cp -a /usr/include/vulkan "$APP_DIR/app/src/main/cpp/vulkan-headers/include/"
+cp -a /usr/include/spirv "$APP_DIR/app/src/main/cpp/vulkan-headers/include/"
 test -f "$APP_DIR/app/src/main/cpp/vulkan-headers/include/vulkan/vulkan.hpp"
+test -f "$APP_DIR/app/src/main/cpp/vulkan-headers/include/spirv/unified1/spirv.hpp"
 
 publish_status "toolchain" "Installing Android SDK and Gradle"
 
