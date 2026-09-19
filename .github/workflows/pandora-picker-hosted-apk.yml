@@ -1,0 +1,168 @@
+name: Pandora picker fix hosted APK
+
+on:
+  push:
+    branches:
+      - build/picker-a5d5-github-hosted-20260919
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    name: GitHub-hosted ARM64 APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      SOURCE_SHA: a5d5b60551e5c4f02c8aa14c8af4d8b3a268b082
+      FLUTTER_VERSION: '3.47.0'
+      EXPECTED_APP_VERSION: '0.4.0-rc.4+11'
+      LLAMA_CPP_SHA: '44be98f057e9f9902a8ee12630e181c7f8ec2953'
+      ARTIFACT_NAME: pandora-local-ai-picker-a5d5b605
+    steps:
+      - name: Check out exact Pandora source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          path: src
+          persist-credentials: false
+
+      - name: Verify exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C src rev-parse HEAD)" = "$SOURCE_SHA"
+          grep -Fq 'activity.startActivityForResult(intent, MODEL_PICK_REQUEST)'             src/apps/pandora-mobile/platform/android/app/src/main/kotlin/com/banataosystems/pandora_mobile/PandoraLocalAiChannel.kt
+          ! grep -Fq 'intent.resolveActivity(activity.packageManager)'             src/apps/pandora-mobile/platform/android/app/src/main/kotlin/com/banataosystems/pandora_mobile/PandoraLocalAiChannel.kt
+
+      - name: Install pinned JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
+        with:
+          distribution: temurin
+          java-version: '17.0.20+8'
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"             'platforms;android-36'             'build-tools;36.0.0'             'ndk;29.0.13113456'             'cmake;3.31.6'
+
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Materialize exact Android build
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build-mobile
+          mkdir build-mobile
+          cd build-mobile
+          flutter create             --platforms=android,web             --org com.banataosystems             --project-name pandora_mobile             .
+          cp -R ../src/apps/pandora-mobile/platform/android/. ./android/
+
+          git init -q android/llama.cpp
+          git -C android/llama.cpp remote add origin https://github.com/ggml-org/llama.cpp.git
+          git -C android/llama.cpp fetch --depth 1 origin "$LLAMA_CPP_SHA"
+          git -C android/llama.cpp checkout -q --detach FETCH_HEAD
+          test "$(git -C android/llama.cpp rev-parse HEAD)" = "$LLAMA_CPP_SHA"
+
+          mkdir -p android/app/src/main/kotlin/com/arm/aichat/internal
+          cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/AiChat.kt             android/app/src/main/kotlin/com/arm/aichat/AiChat.kt
+          cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/InferenceEngine.kt             android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
+          cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/internal/InferenceEngineImpl.kt             android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt
+
+          rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
+          cp -R ../src/apps/pandora-mobile/lib ./lib
+          cp -R ../src/apps/pandora-mobile/test ./test
+          cp -R ../src/apps/pandora-mobile/assets ./assets
+          cp -R ../src/apps/pandora-mobile/platform ./platform
+          cp ../src/apps/pandora-mobile/pubspec.yaml ./pubspec.yaml
+          cp ../src/apps/pandora-mobile/pubspec.lock ./pubspec.lock
+          cp ../src/apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
+
+          python3 ../src/apps/pandora-mobile/tool/configure_validation_android.py             android/app/src/main/AndroidManifest.xml
+          python3 ../src/apps/pandora-mobile/tool/configure_local_ai_android.py             android/app/build.gradle.kts             android/gradle.properties
+
+      - name: Resolve exact lockfile
+        working-directory: build-mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp pubspec.lock pubspec.lock.expected
+          flutter pub get --enforce-lockfile
+          cmp pubspec.lock.expected pubspec.lock
+
+      - name: Test local AI routing
+        working-directory: build-mobile
+        run: flutter test test/core/local_ai/pandora_local_ai_router_test.dart --reporter expanded
+
+      - name: Build exact ARM64 APK
+        working-directory: build-mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = "$EXPECTED_APP_VERSION"
+          flutter build apk --debug             --target-platform android-arm64             --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"             --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
+
+      - name: Verify APK identity, signature, alignment, and native AI
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk=build-mobile/build/app/outputs/flutter-apk/app-debug.apk
+          evidence=build-mobile/picker-evidence
+          mkdir -p "$evidence"
+          aapt="${ANDROID_HOME:?}/build-tools/36.0.0/aapt"
+          apksigner="${ANDROID_HOME:?}/build-tools/36.0.0/apksigner"
+          zipalign="${ANDROID_HOME:?}/build-tools/36.0.0/zipalign"
+
+          "$aapt" dump badging "$apk" | tee "$evidence/badging.txt"
+          "$apksigner" verify --verbose --print-certs "$apk" | tee "$evidence/signing.txt"
+          "$zipalign" -c -v 4 "$apk" > "$evidence/zipalign.txt"
+          unzip -l "$apk" > "$evidence/apk-files.txt"
+
+          grep -Fq "package: name='com.banataosystems.pandora_mobile'" "$evidence/badging.txt"
+          grep -Fq "versionCode='11'" "$evidence/badging.txt"
+          grep -Fq "versionName='0.4.0-rc.4'" "$evidence/badging.txt"
+          grep -Fq "native-code: 'arm64-v8a'" "$evidence/badging.txt"
+          grep -Fq 'lib/arm64-v8a/libai-chat.so' "$evidence/apk-files.txt"
+          grep -Fq 'lib/arm64-v8a/libllama.so' "$evidence/apk-files.txt"
+          grep -Fq 'lib/arm64-v8a/libggml.so' "$evidence/apk-files.txt"
+          grep -Fq 'Verification successful' "$evidence/zipalign.txt"
+
+          apk_sha="$(sha256sum "$apk" | cut -d ' ' -f1)"
+          apk_size="$(stat -c '%s' "$apk")"
+          {
+            echo "source_sha=$SOURCE_SHA"
+            echo "llama_cpp_sha=$LLAMA_CPP_SHA"
+            echo "flutter_version=$FLUTTER_VERSION"
+            echo "app_version=$EXPECTED_APP_VERSION"
+            echo "android_package=com.banataosystems.pandora_mobile"
+            echo "abi=arm64-v8a"
+            echo "apk_sha256=$apk_sha"
+            echo "apk_size_bytes=$apk_size"
+            echo "picker_fix=direct_ACTION_OPEN_DOCUMENT_launch"
+            echo "github_hosted_runner=ubuntu-24.04"
+          } | tee build-mobile/pandora-picker-build-manifest.txt
+
+          {
+            echo "### Pandora picker-fix Android artifact"
+            echo
+            echo "- Exact source: `$SOURCE_SHA`"
+            echo "- APK SHA-256: `$apk_sha`"
+            echo "- APK size: `$apk_size` bytes"
+            echo "- ABI: `arm64-v8a`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload verified APK artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: |
+            build-mobile/build/app/outputs/flutter-apk/app-debug.apk
+            build-mobile/pandora-picker-build-manifest.txt
+            build-mobile/picker-evidence
+          if-no-files-found: error
+          retention-days: 7
