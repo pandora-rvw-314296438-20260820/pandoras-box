@@ -115,8 +115,10 @@ class PandoraLocalAi {
       return await _methods.invokeMethod<bool>('warm') ?? false;
     } on MissingPluginException {
       return false;
-    } on PlatformException {
-      return false;
+    } on PlatformException catch (error) {
+      throw PandoraLocalAiException(
+        error.message ?? 'Pandora could not warm the selected local model.',
+      );
     }
   }
 

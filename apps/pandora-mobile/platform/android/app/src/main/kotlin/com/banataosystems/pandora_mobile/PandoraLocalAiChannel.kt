@@ -558,6 +558,11 @@ If the request clearly requires live data, connected services, account data, ext
         if (loadedModelPath != null) unloadInternal()
         val loadStarted = SystemClock.elapsedRealtime()
         engine.loadModel(canonicalPath)
+        val loadedState = engine.state.value
+        require(loadedState is InferenceEngine.State.ModelReady) {
+            "llama.cpp did not reach ModelReady after loading the GGUF; state=" +
+                loadedState.javaClass.simpleName
+        }
         engine.setSystemPrompt(SYSTEM_PROMPT.trim())
         lastModelLoadMs = SystemClock.elapsedRealtime() - loadStarted
         loadedModelPath = canonicalPath
@@ -571,6 +576,13 @@ If the request clearly requires live data, connected services, account data, ext
                 is InferenceEngine.State.ModelReady -> return@withTimeout
                 is InferenceEngine.State.Error -> {
                     engine.cleanUp()
+                    val recovered = engine.state.first {
+                        it is InferenceEngine.State.Initialized ||
+                            it is InferenceEngine.State.Error
+                    }
+                    require(recovered is InferenceEngine.State.Initialized) {
+                        "Local inference engine could not recover from Error state."
+                    }
                     return@withTimeout
                 }
                 else -> {
@@ -749,6 +761,8 @@ If the request clearly requires live data, connected services, account data, ext
             "runtimeBackendConfigured" to "cpu",
             "cpuOptimizationConfigured" to "KleidiAI+OpenMP",
             "runtimeNativeAbi" to "arm64-v8a",
+            "runtimeContextTokens" to 2048,
+            "runtimeBatchTokens" to 256,
             "gpuAccelerationUsed" to false,
             "npuAccelerationUsed" to false,
             "nnapiAccelerationUsed" to false,

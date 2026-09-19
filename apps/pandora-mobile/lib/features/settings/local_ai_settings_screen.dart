@@ -71,15 +71,20 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
       _busy = true;
       _error = null;
     });
-    final warmed = await PandoraLocalAi.instance.warm();
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
+    try {
+      final warmed = await PandoraLocalAi.instance.warm();
+      if (!mounted) return;
       if (!warmed) {
-        _error = 'Pandora could not warm the selected local model.';
+        setState(() {
+          _error = 'Pandora could not warm the selected local model.';
+        });
       }
-    });
-    await _refresh();
+      await _refresh();
+    } on PandoraLocalAiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _unload() async {
