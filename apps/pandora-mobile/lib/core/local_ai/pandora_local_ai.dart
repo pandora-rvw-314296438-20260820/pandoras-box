@@ -51,7 +51,7 @@ class PandoraLocalAiStatus {
       engineState: asText(value['engineState']),
       diagnostics: <String, Object?>{
         for (final entry in value.entries)
-          if (entry.key is String) entry.key as String: entry.value,
+          if (entry.key is String) (entry.key as String): entry.value,
       },
     );
   }
