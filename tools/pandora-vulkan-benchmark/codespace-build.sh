@@ -53,7 +53,7 @@ publish_status "started" "Codespace builder started"
 
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  openjdk-17-jdk curl unzip git build-essential ninja-build \
+  openjdk-17-jdk curl unzip git gh build-essential ninja-build \
   libvulkan-dev glslc spirv-headers spirv-tools
 
 rm -rf "$APP_DIR/app/src/main/cpp/vulkan-headers"
