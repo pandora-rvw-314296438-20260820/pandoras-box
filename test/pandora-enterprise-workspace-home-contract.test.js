@@ -15,6 +15,10 @@ const ask = fs.readFileSync(
   "apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart",
   "utf8",
 );
+const backend = fs.readFileSync(
+  "supabase/functions/pandora-intelligence-chat/index.ts",
+  "utf8",
+);
 
 test("owner workspace home exposes the four requested businesses", () => {
   for (const value of [
@@ -76,4 +80,20 @@ test("workspace scope is passed to Ask Pandora without visible message injection
   assert.match(ask, /final Map<String, Object\?>\? enterpriseContext;/);
   assert.match(ask, /enterpriseContext: widget\.enterpriseContext,/);
   assert.match(ask, /_sanitizeVisiblePandoraText/);
+});
+
+
+test("control revisions preserve workspace scope across every provider body", () => {
+  assert.ok(!backend.includes(
+    "request(effectiveMessage,i.attachments,prior,ctx,tctx)",
+  ));
+  assert.ok(!backend.includes(
+    "kimiBody(effectiveMessage,i.attachments,prior,ctx,tctx,modelClass)",
+  ));
+  assert.ok(!backend.includes(
+    "openaiBody(effectiveMessage,i.attachments,prior,ctx,tctx,modelClass)",
+  ));
+  assert.ok(backend.includes(
+    "request(effectiveMessage,i.attachments,prior,ctx,i.enterpriseContext,tctx)",
+  ));
 });
