@@ -1,0 +1,10 @@
+GitHub-only artifact handoff. No model inference is executed here.
+github.com
+  ✓ Logged in to github.com account pandora-rvw-314296438-20260820 (GITHUB_TOKEN)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: ghu_************************************
+actual_sha256=2775acce3eb32d2446d6541c4e92a338707d714fe66e0c0a536202f238074565
+actual_size=119941041
+https://github.com/pandora-rvw-314296438-20260820/pandoras-box/releases/tag/untagged-a9a050cbdf98e965f47b
+fatal: unable to read tree (b78f328c467b7d0f3312d1c88cdbe7c00be2c29d)
