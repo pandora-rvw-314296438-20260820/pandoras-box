@@ -11,13 +11,13 @@ class EnterpriseVisionScreen extends StatelessWidget {
   const EnterpriseVisionScreen({super.key});
 
   static final Uri _sourceUri = Uri.parse(
-    'https://www.youtube.com/watch?v=z-jYdOIKcTQ',
+    'https://webcamlivestream.com/japan/tokyo/shibuya-ai-vision-miyamasuzaka/',
   );
 
   void _askPandora(BuildContext context) {
     EnterpriseCommandDraftBus.shared.offer(
       'Explain the Vision Intelligence capability shown on this page. '
-      'The live Times Square feed is display-only in this build: do not claim '
+      'The live Shibuya feed is display-only in this build: do not claim '
       'Pandora is analyzing, identifying, tracking, retaining, or alerting '
       'on people or objects in this public feed. Explain what becomes '
       'available when an enterprise connects a camera it is authorized to use.',
@@ -78,10 +78,10 @@ class EnterpriseVisionScreen extends StatelessWidget {
 
   Widget _intro() => PandoraSurface(
         title: 'Live Vision Feed',
-        subtitle: 'Times Square · New York City',
+        subtitle: 'Shibuya · Tokyo, Japan',
         leading: const Icon(Icons.videocam_rounded),
         child: const Text(
-          'A live Times Square camera provides continuous pedestrian and vehicle '
+          'A live Shibuya intersection camera provides continuous pedestrian and vehicle '
           'activity inside Pandora Enterprise. Automated analysis is '
           'not connected to this public source.',
           style: TextStyle(
@@ -93,7 +93,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
 
   Widget _camera(BuildContext context) => PandoraSurface(
         title: 'Live camera',
-        subtitle: 'EarthCam live via YouTube',
+        subtitle: 'Shibuya Ai Vision · live channel feed',
         leading: const Icon(Icons.live_tv_rounded),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -133,7 +133,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
                                     ),
                                     SizedBox(width: 6),
                                     Text(
-                                      'LIVE TIMES SQUARE',
+                                      'LIVE SHIBUYA',
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 10.5,
@@ -155,7 +155,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Source: EarthCam via YouTube · live public urban camera. '
+              'Source: Shibuya Ai Vision Miyamasuzaka · live public urban camera. '
               '',
               style: TextStyle(
                 color: PandoraV2Colors.muted,
@@ -186,7 +186,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
 
   Widget _feedStatus(BuildContext context) => PandoraSurface(
         title: 'Live feed status',
-        subtitle: 'Current source and analysis state',
+        subtitle: 'Current live source and analysis state',
         leading: const Icon(Icons.verified_user_outlined),
         child: const Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -194,7 +194,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
             _VisionStatusRow(
               icon: Icons.public_rounded,
               label: 'Live source',
-              value: 'EarthCam · Times Square',
+              value: 'Shibuya Ai Vision',
             ),
             SizedBox(height: 12),
             _VisionStatusRow(
@@ -300,7 +300,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
 
   Widget _architecture() => PandoraSurface(
         title: 'Enterprise camera path',
-        subtitle: 'Live feed now · governed customer ingest next',
+        subtitle: 'Live Shibuya feed now · governed customer ingest next',
         leading: const Icon(Icons.account_tree_outlined),
         child: const Wrap(
           spacing: 8,
