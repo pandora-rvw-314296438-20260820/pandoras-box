@@ -1,14 +1,17 @@
 {
-    "name": "Pandora Exact Local AI APK Builder",
-    "image": "mcr.microsoft.com/devcontainers/universal:2-linux",
-    "remoteUser": "codespace",
-    "containerEnv": {
-        "PANDORA_BUILDER_REV": "5"
-    },
-    "hostRequirements": {
-        "cpus": 4,
-        "memory": "16gb",
-        "storage": "32gb"
-    },
-    "postCreateCommand": "echo PANDORA_BUILDER_REV_5 && bash .devcontainer/build-picker-apk.sh"
+  "name": "Pandora Exact Local AI APK Builder",
+  "image": "mcr.microsoft.com/devcontainers/universal:2-linux",
+  "remoteUser": "codespace",
+  "containerEnv": {
+    "PANDORA_BUILDER_REV": "6"
+  },
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb",
+    "storage": "32gb"
+  },
+  "onCreateCommand": "bash .devcontainer/kick-build.sh onCreate",
+  "updateContentCommand": "bash .devcontainer/kick-build.sh updateContent",
+  "postCreateCommand": "bash .devcontainer/kick-build.sh postCreate",
+  "postStartCommand": "bash .devcontainer/kick-build.sh postStart"
 }
