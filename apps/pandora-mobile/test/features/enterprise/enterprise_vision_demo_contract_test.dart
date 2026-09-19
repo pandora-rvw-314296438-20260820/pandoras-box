@@ -33,16 +33,16 @@ void main() {
     expect(section, contains('EnterpriseVisionScreen'));
   });
 
-  test('public demo uses the permitted World Port Cams embed', () {
+  test('public demo uses the permitted Perdido Key OG embed', () {
     expect(
       webEmbed,
       contains(
-        'https://worldportcams.com/embed/usa/florida/cape-marina-live-webcam-hd-stream-canaveral-fl',
+        'https://perdidokeyog.com/embed/cam/',
       ),
     );
     expect(webEmbed, contains('allowfullscreen'));
-    expect(screen, contains('World Port Cams'));
-    expect(screen, contains('Powered-by attribution remains visible'));
+    expect(screen, contains('Perdido Key OG'));
+    expect(screen, contains('source attribution visible in the player'));
   });
 
   test('public feed never claims automated analysis', () {
