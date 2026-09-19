@@ -8,14 +8,16 @@ const mobilePath = new URL('../apps/pandora-mobile/lib/core/data/pandora_intelli
 const doctrinePath = new URL('../PROJECT_CUSTOM_INSTRUCTION.md', import.meta.url);
 const roadmapPath = new URL('../docs/roadmaps/PANDORAS_BOX_CANONICAL_ROADMAP_V2.md', import.meta.url);
 const screenPlanPath = new URL('../docs/product/PANDORA_SCREEN_MASTER_PLAN.md', import.meta.url);
+const askPandoraScreenPath = new URL('../apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart', import.meta.url);
 
-const [edge, migration, mobile, doctrine, roadmap, screenPlan] = await Promise.all([
+const [edge, migration, mobile, doctrine, roadmap, screenPlan, askPandoraScreen] = await Promise.all([
   readFile(edgePath, 'utf8'),
   readFile(migrationPath, 'utf8'),
   readFile(mobilePath, 'utf8'),
   readFile(doctrinePath, 'utf8'),
   readFile(roadmapPath, 'utf8'),
   readFile(screenPlanPath, 'utf8'),
+  readFile(askPandoraScreenPath, 'utf8'),
 ]);
 
 test('Ask Pandora uses the Vault-backed model provider boundary', () => {
@@ -67,4 +69,26 @@ test('durable conversation history is owner-readable but service-written', () =>
 test('the APK calls Pandora intelligence and carries no provider secret contract', () => {
   assert.match(mobile, /functionName = 'pandora-intelligence-chat'/);
   assert.doesNotMatch(mobile, /gemini_api_key|x-goog-api-key|service[_-]?role/i);
+});
+
+
+test('mobile chat uses a full-height floating overlay with keyboard-aware bottom anchoring', () => {
+  assert.match(askPandoraScreen, /resizeToAvoidBottomInset:\s*true/);
+  assert.match(askPandoraScreen, /bottom:\s*composerHeight/);
+  assert.doesNotMatch(askPandoraScreen, /bottom:\s*keyboardInset\s*\+\s*composerHeight/);
+  assert.match(askPandoraScreen, /viewportSize:\s*viewportSize/);
+  assert.match(askPandoraScreen, /oldWidget\.viewportSize\s*!=\s*widget\.viewportSize/);
+  assert.match(askPandoraScreen, /bool force = false/);
+  assert.match(askPandoraScreen, /jump:\s*threadChanged\s*\|\|\s*viewportChanged/);
+  assert.match(askPandoraScreen, /force:\s*threadChanged\s*\|\|\s*userSubmitted/);
+  assert.match(askPandoraScreen, /notification\.dragDetails\s*!=\s*null/);
+  assert.match(askPandoraScreen, /bottom:\s*0,[\s\S]*?key:\s*_composerKey/);
+});
+
+test('internal Enterprise context is sanitized before persistence, API response, and mobile rendering', () => {
+  assert.match(edge, /const cleanReply=visibleReply\(v\.reply\)/);
+  assert.match(edge, /author_role:"assistant",content:cleanReply/);
+  assert.match(edge, /responsePayload=\{threadId:tid,reply:cleanReply/);
+  assert.match(askPandoraScreen, /_sanitizeVisiblePandoraText/);
+  assert.match(askPandoraScreen, /bounded enterprise page context:/i);
 });

@@ -971,14 +971,18 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     final topInset = media.padding.top;
     final headerHeight = _headerHeight > 0 ? _headerHeight : 56.0;
     final composerHeight = _composerHeight > 0 ? _composerHeight : 88.0;
+    final viewportHeight = media.size.height > keyboardInset
+        ? media.size.height - keyboardInset
+        : 0.0;
     final conversationPadding = EdgeInsets.only(
       top: topInset + headerHeight,
-      bottom: keyboardInset + composerHeight,
+      bottom: composerHeight,
     );
+    final viewportSize = Size(media.size.width, viewportHeight);
 
     return Scaffold(
       backgroundColor: PandoraSimpleColors.canvas,
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           Positioned.fill(
@@ -1011,6 +1015,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                         activityEvents: _activityController.events,
                         activityError: _activityController.publicError,
                         contentPadding: conversationPadding,
+                        viewportSize: viewportSize,
                       ),
           ),
           Positioned(
@@ -1032,7 +1037,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           Positioned(
             left: 0,
             right: 0,
-            bottom: keyboardInset,
+            bottom: 0,
             child: KeyedSubtree(
               key: _composerKey,
               child: _Composer(
@@ -1048,6 +1053,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                 disabled: _outcomeUnknown,
                 onChanged: () {
                   if (_error != null) setState(() => _error = null);
+                  _scheduleOverlayMeasure();
                 },
                 onCamera: () => _pickImage(camera: true),
                 onPhotos: () => _pickImage(camera: false),
@@ -1291,6 +1297,7 @@ class _Conversation extends StatefulWidget {
     required this.activitySuppressed,
     required this.activityEvents,
     required this.contentPadding,
+    required this.viewportSize,
     this.activityError,
   });
 
@@ -1302,6 +1309,7 @@ class _Conversation extends StatefulWidget {
   final bool activitySuppressed;
   final List<PandoraActivityProjection> activityEvents;
   final EdgeInsets contentPadding;
+  final Size viewportSize;
   final String? activityError;
 
   @override
@@ -1353,7 +1361,8 @@ class _ConversationState extends State<_Conversation> {
         oldWidget.messages.length != widget.messages.length || threadChanged;
     final userSubmitted =
         oldWidget.pendingMessage != widget.pendingMessage && _hasPending;
-    final viewportChanged = oldWidget.contentPadding != widget.contentPadding;
+    final viewportChanged = oldWidget.contentPadding != widget.contentPadding ||
+        oldWidget.viewportSize != widget.viewportSize;
     if (threadChanged || userSubmitted) {
       _followLatest = true;
     }
@@ -1361,7 +1370,10 @@ class _ConversationState extends State<_Conversation> {
         activityChanged ||
         viewportChanged) {
       _lastRenderedItemCount = nextCount;
-      _scheduleScrollToLatest(jump: threadChanged);
+      _scheduleScrollToLatest(
+        jump: threadChanged || viewportChanged,
+        force: threadChanged || userSubmitted,
+      );
     }
     if (messagesChanged && widget.messages.isNotEmpty) {
       unawaited(_cacheMessages());
@@ -1391,8 +1403,11 @@ class _ConversationState extends State<_Conversation> {
     }
   }
 
-  void _scheduleScrollToLatest({bool jump = false}) {
-    if (!jump && !_followLatest) return;
+  void _scheduleScrollToLatest({
+    bool jump = false,
+    bool force = false,
+  }) {
+    if (!force && !_followLatest) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
       final target = _scrollController.position.maxScrollExtent;
@@ -1442,10 +1457,10 @@ class _ConversationState extends State<_Conversation> {
 
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
-        if (notification is ScrollUpdateNotification ||
-            notification is UserScrollNotification ||
-            notification is ScrollEndNotification) {
-          _followLatest = notification.metrics.extentAfter < 72;
+        if (notification is UserScrollNotification ||
+            (notification is ScrollUpdateNotification &&
+                notification.dragDetails != null)) {
+          _followLatest = notification.metrics.extentAfter < 96;
         }
         return false;
       },
@@ -1453,10 +1468,10 @@ class _ConversationState extends State<_Conversation> {
         controller: _scrollController,
         reverse: false,
         padding: EdgeInsets.fromLTRB(
-          16,
-          widget.contentPadding.top + 22,
-          16,
-          widget.contentPadding.bottom + 24,
+          12,
+          widget.contentPadding.top + 10,
+          12,
+          widget.contentPadding.bottom + 14,
         ),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         itemCount: items.length,
@@ -1540,9 +1555,9 @@ class _ChatBubble extends StatelessWidget {
       children: [
         const Padding(
           padding: EdgeInsets.only(top: 2),
-          child: PandoraMark(size: 24, color: Colors.white),
+          child: PandoraMark(size: 20, color: Colors.white),
         ),
-        const SizedBox(width: 11),
+        const SizedBox(width: 8),
         Expanded(
           child: SelectableText(
             message.text,
