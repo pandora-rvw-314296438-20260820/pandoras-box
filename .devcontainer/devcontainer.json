@@ -1,0 +1,9 @@
+{
+  "name": "Pandora picker APK builder",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "workspace",
+  "workspaceFolder": "/workspaces/pandoras-box",
+  "runServices": ["workspace", "builder"],
+  "shutdownAction": "stopCompose",
+  "forwardPorts": [9114]
+}
