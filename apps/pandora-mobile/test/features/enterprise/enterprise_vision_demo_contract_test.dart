@@ -33,17 +33,18 @@ void main() {
     expect(section, contains('EnterpriseVisionScreen'));
   });
 
-  test('live feed uses the event-rich EarthCam Times Square embed', () {
+  test('live feed uses the provider-controlled CamStreamer Kabukicho embed', () {
     expect(
       webEmbed,
       contains(
-        'https://www.youtube.com/embed/z-jYdOIKcTQ?autoplay=1&mute=1&playsinline=1&rel=0',
+        'https://camstreamer.com/embed/VSnOa4OubclxMcFKpTws6Yv7U2rt0VbMfcrHomkq?rel=0',
       ),
     );
     expect(webEmbed, contains('allowfullscreen'));
     expect(webEmbed, contains('strict-origin-when-cross-origin'));
-    expect(screen, contains('EarthCam'));
-    expect(screen, contains('LIVE TIMES SQUARE'));
+    expect(webEmbed, isNot(contains('youtube.com/embed/')));
+    expect(screen, contains('CamStreamer'));
+    expect(screen, contains('LIVE KABUKICHO'));
   });
 
   test('public feed never claims automated analysis', () {
