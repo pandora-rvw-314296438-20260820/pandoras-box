@@ -25,3 +25,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/brand/pandora-product-mark-ui-1024.png
+    - assets/workspaces/

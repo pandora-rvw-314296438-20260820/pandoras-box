@@ -25,6 +25,7 @@ class EnterpriseWorkspaceProfile {
     required this.subtitle,
     required this.initials,
     required this.icon,
+    required this.logoAsset,
     required this.accent,
     required this.sections,
   });
@@ -34,6 +35,7 @@ class EnterpriseWorkspaceProfile {
   final String subtitle;
   final String initials;
   final IconData icon;
+  final String logoAsset;
   final Color accent;
   final List<EnterpriseWorkspaceSection> sections;
 }
@@ -71,6 +73,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
     subtitle: 'Luxury Resort',
     initials: 'PLP',
     icon: Icons.hotel_rounded,
+    logoAsset: 'assets/workspaces/plp.webp',
     accent: Color(0xFFD5A16E),
     sections: <EnterpriseWorkspaceSection>[
       EnterpriseWorkspaceSection('Home', 'enterprise_overview', 'home',
@@ -106,6 +109,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
     subtitle: 'Import/Export',
     initials: '1064',
     icon: Icons.set_meal_rounded,
+    logoAsset: 'assets/workspaces/eurofish.webp',
     accent: Color(0xFF6AA9FF),
     sections: <EnterpriseWorkspaceSection>[
       EnterpriseWorkspaceSection('Home', 'enterprise_overview', 'home',
@@ -148,6 +152,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
     subtitle: 'Law & Business Offices',
     initials: 'B&A',
     icon: Icons.balance_rounded,
+    logoAsset: 'assets/workspaces/batalla.webp',
     accent: Color(0xFFD5A24F),
     sections: <EnterpriseWorkspaceSection>[
       EnterpriseWorkspaceSection('Home', 'enterprise_overview', 'home',
@@ -190,6 +195,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
     subtitle: 'Food & Hospitality Group',
     initials: 'BOK',
     icon: Icons.restaurant_rounded,
+    logoAsset: 'assets/workspaces/bok.webp',
     accent: Color(0xFFD1B874),
     sections: <EnterpriseWorkspaceSection>[
       EnterpriseWorkspaceSection('Home', 'enterprise_overview', 'home',
@@ -568,18 +574,22 @@ class _WorkspaceLogo extends StatelessWidget {
             ),
           ],
         ),
-        child: Center(
-          child: workspace.key == '1064-euro-fish-traders'
-              ? Icon(workspace.icon, color: Colors.white, size: 30)
-              : Text(
-                  workspace.initials,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: workspace.initials.length > 3 ? 14 : 18,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -.5,
-                  ),
+        child: ClipOval(
+          child: Image.asset(
+            workspace.logoAsset,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (_, __, ___) => Center(
+              child: Text(
+                workspace.initials,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
                 ),
+              ),
+            ),
+          ),
         ),
       );
 }
