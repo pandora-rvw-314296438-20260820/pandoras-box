@@ -50,7 +50,7 @@ export ANDROID_HOME="$SDK"
 export ANDROID_SDK_ROOT="$SDK"
 export PATH="$SDK/cmdline-tools/latest/bin:$SDK/platform-tools:$SDK/emulator:$PATH"
 yes | sdkmanager --licenses >/dev/null 2>&1 || true
-sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "emulator" "system-images;android-35;google_apis;x86_64" | tee "$OUT/sdkmanager.txt"
+sdkmanager "platform-tools" "platforms;android-35" "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358" "cmake;3.22.1" "emulator" "system-images;android-35;google_apis;x86_64" | tee "$OUT/sdkmanager.txt"
 flutter config --android-sdk "$SDK" >/dev/null
 pass "Android SDK and emulator image"
 mkdir -p "$APP"
@@ -72,13 +72,6 @@ if Path("pubspec.lock").read_bytes() != Path("pubspec.lock.expected").read_bytes
 PYLOCK
 flutter analyze --no-fatal-infos --no-fatal-warnings | tee "$OUT/flutter-analyze.txt"
 pass "flutter analyze exact product source"
-flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" | tee "$OUT/production-apk-build.txt"
-APK="$(find build/app/outputs/flutter-apk -name '*arm64-v8a-release.apk' -o -name 'app-release.apk' | head -1)"
-[[ -n "$APK" && -s "$APK" ]] || fail "production arm64 APK missing"
-APK_SHA="$(sha256sum "$APK" | awk '{print $1}')"
-APK_SIZE="$(stat -c%s "$APK")"
-cp "$APK" "$OUT/artifacts/pandora-mobile-$SOURCE_SHA-arm64.apk"
-pass "production APK sha256=$APK_SHA size=$APK_SIZE"
 python3 - <<'PY'
 from pathlib import Path
 p=Path('pubspec.yaml')
@@ -121,6 +114,17 @@ for name in initial under-floating-header keyboard-open composer-grown keyboard-
   fi
 done
 adb exec-out screencap -p > "$OUT/screenshots/final-device.png" || true
+kill "$EMU_PID" >/dev/null 2>&1 || true
+wait "$EMU_PID" 2>/dev/null || true
+trap - EXIT
+pass "Android runtime interaction evidence captured"
+flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" | tee "$OUT/production-apk-build.txt"
+APK="$(find build/app/outputs/flutter-apk -name '*arm64-v8a-release.apk' -o -name 'app-release.apk' | head -1)"
+[[ -n "$APK" && -s "$APK" ]] || fail "production arm64 APK missing"
+APK_SHA="$(sha256sum "$APK" | awk '{print $1}')"
+APK_SIZE="$(stat -c%s "$APK")"
+cp "$APK" "$OUT/artifacts/pandora-mobile-$SOURCE_SHA-arm64.apk"
+pass "production APK sha256=$APK_SHA size=$APK_SIZE"
 cat > "$OUT/artifact-manifest.json" <<EOF
 {"verification_branch_sha":"$SOURCE_SHA","canonical_product_base_sha":"$PRODUCT_BASE_SHA","mobile_product_tree_sha":"$PRODUCT_TREE","flutter_version":"$FLUTTER_VERSION","android_runtime":{"device":"Android emulator API 35 x86_64 software acceleration","status":"PASS"},"production_apk":{"file":"artifacts/pandora-mobile-$SOURCE_SHA-arm64.apk","sha256":"$APK_SHA","size_bytes":$APK_SIZE,"abi":"arm64-v8a","mode":"release"}}
 EOF
