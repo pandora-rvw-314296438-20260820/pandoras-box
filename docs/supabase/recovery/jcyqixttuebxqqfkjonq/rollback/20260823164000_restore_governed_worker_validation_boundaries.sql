@@ -5,7 +5,7 @@
 
 begin;
 
-revoke execute on function public.projectos_create_or_get_worker_plan(
+revoke execute on function public.pandora_create_or_get_worker_plan(
   uuid, uuid, jsonb, text, timestamptz
 ) from service_role;
 
@@ -24,6 +24,6 @@ revoke execute on function public.attach_execution_plan_context(
 revoke execute on function public.record_governed_worker_review_attestation(
   uuid, uuid, text, text, uuid, uuid, uuid, text, text, text, text, text, text,
   text, text, text
-) from projectos_reviewer_ingest;
+) from pandora_reviewer_ingest;
 
 commit;

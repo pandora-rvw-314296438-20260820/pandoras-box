@@ -400,7 +400,7 @@ View details
 
 High-risk actions must remain fail-closed.
 
-Do not weaken existing ProjectOS/Pandora security merely to simplify the interface.
+Do not weaken existing Pandora/Pandora security merely to simplify the interface.
 
 ## MEMORY
 
