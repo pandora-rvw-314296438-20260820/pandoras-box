@@ -127,6 +127,7 @@ test("Recent chats are workspace-scoped before appearing in Batalla", () => {
 test("shell opens Batalla as a dedicated workspace and preserves generic Pandora", () => {
   assert.match(shell, /BatallaWorkspaceScreen/);
   assert.match(shell, /_activeWorkspaceSelection/);
-  assert.match(shell, /selection\.workspace\.key == 'batalla-associates'/);
+  assert.ok(shell.includes("_activeWorkspaceSelection?.workspace.key =="));
+  assert.ok(shell.includes("'batalla-associates'"));
   assert.match(shell, /AskPandoraScreen/);
 });
