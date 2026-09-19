@@ -1,0 +1,10 @@
+{
+  "detail": "Exact-source Codespaces Android compilation failed; see build.log.",
+  "generated_at_utc": "2026-09-19T19:39:18.108103+00:00",
+  "local_inference_verified": false,
+  "outcome": "failed",
+  "phase": "build",
+  "physical_device_verified": false,
+  "source_sha": "73f4340fc01756b8a96cb4233bab84bcc86cb1f3",
+  "source_tree_sha": "b2ed767a7aed5c57d787163341c04b3c63e03174"
+}
