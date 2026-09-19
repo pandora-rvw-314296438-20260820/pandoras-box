@@ -44,6 +44,11 @@ test('active web shell never loads ProjectOS', () => {
   );
 });
 
+test('active Vercel routing contains no ProjectOS alias', () => {
+  const vercel = read('vercel.json');
+  assert.doesNotMatch(vercel, /projectos/i);
+});
+
 test('active GitHub workflows contain no ProjectOS workflow and no self-hosted runner', () => {
   const workflowDir = path.join(root, '.github', 'workflows');
   const names = fs.readdirSync(workflowDir).filter((name) => /\.ya?ml$/i.test(name));
