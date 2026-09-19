@@ -37,7 +37,7 @@ void main() {
     expect(
       webEmbed,
       contains(
-        'https://worldportcams.com/embed/usa/florida/courtyard-key-largo',
+        'https://worldportcams.com/embed/usa/florida/cape-marina-live-webcam-hd-stream-canaveral-fl',
       ),
     );
     expect(webEmbed, contains('allowfullscreen'));
