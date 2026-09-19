@@ -10,6 +10,7 @@ GRADLE_VERSION="8.11.1"
 NDK_VERSION="27.2.12479018"
 STATUS_DIR="$ROOT/artifacts/pandora-vulkan-benchmark"
 STATUS_FILE="$STATUS_DIR/build-status.txt"
+ERROR_FILE="$STATUS_DIR/build-error-tail.txt"
 
 publish_status() {
   local phase="$1"
@@ -27,6 +28,9 @@ publish_status() {
     git config user.name "Pandora Codespace Builder"
     git config user.email "pandora-codespace-builder@users.noreply.github.com"
     git add artifacts/pandora-vulkan-benchmark/build-status.txt
+    if [ -f "$ERROR_FILE" ]; then
+      git add artifacts/pandora-vulkan-benchmark/build-error-tail.txt
+    fi
     git commit -m "build: Vulkan benchmark status $phase [skip ci]" || true
     git push origin HEAD:chatgpt/vulkan-benchmark-20260919 || true
   ) >/tmp/pandora-status-publish.log 2>&1 || true
@@ -36,11 +40,15 @@ on_error() {
   local code="$?"
   local line="$1"
   trap - ERR
+  if [ -f /tmp/pandora-gradle-build.log ]; then
+    tail -n 500 /tmp/pandora-gradle-build.log > "$ERROR_FILE" || true
+  fi
   publish_status "failed" "exit=$code line=$line"
   exit "$code"
 }
 trap 'on_error $LINENO' ERR
 
+rm -f "$ERROR_FILE"
 publish_status "started" "Codespace builder started"
 
 sudo apt-get update
@@ -96,7 +104,16 @@ test "$(git -C "$APP_DIR/app/src/main/cpp/llama.cpp" rev-parse HEAD)" = "$LLAMA_
 publish_status "building" "Gradle assembleDebug with GGML_VULKAN=ON"
 
 cd "$APP_DIR"
-gradle --no-daemon :app:assembleDebug --stacktrace
+set +e
+gradle --no-daemon :app:assembleDebug --stacktrace 2>&1 | tee /tmp/pandora-gradle-build.log
+GRADLE_RC="\${PIPESTATUS[0]}"
+set -e
+if [ "$GRADLE_RC" -ne 0 ]; then
+  tail -n 500 /tmp/pandora-gradle-build.log > "$ERROR_FILE"
+  trap - ERR
+  publish_status "failed" "gradle_exit=$GRADLE_RC"
+  exit "$GRADLE_RC"
+fi
 
 mkdir -p dist
 cp app/build/outputs/apk/debug/app-debug.apk dist/Pandora-Vulkan-Benchmark.apk
@@ -135,4 +152,5 @@ else
 fi
 
 trap - ERR
+rm -f "$ERROR_FILE"
 publish_status "success" "release_tag=$TAG"
