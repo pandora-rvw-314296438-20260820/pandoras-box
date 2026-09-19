@@ -1,11 +1,11 @@
 -- Pandora customer project runtime: immutable versions, deployments, and domains.
--- This preserves Pandora as the internal project model while exposing Projects
+-- This preserves ProjectOS as the internal project model while exposing Projects
 -- as the customer-facing lifecycle.
 
 create table if not exists public.pandora_project_versions (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   sequence_no bigint generated always as identity,
   kind text not null default 'preview',
   source_payload jsonb not null default '{}'::jsonb,
@@ -27,7 +27,7 @@ create index if not exists pandora_project_versions_org_project_idx
 create table if not exists public.pandora_project_deployments (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   version_id uuid not null references public.pandora_project_versions(id) on delete restrict,
   provider text not null default 'vercel',
   environment text not null,
@@ -58,7 +58,7 @@ create index if not exists pandora_project_deployments_org_project_idx
 create table if not exists public.pandora_project_domains (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   provider text not null default 'vercel',
   domain text not null,
   status text not null default 'pending',

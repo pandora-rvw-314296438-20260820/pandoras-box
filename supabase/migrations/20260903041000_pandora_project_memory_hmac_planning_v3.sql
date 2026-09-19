@@ -13,7 +13,7 @@ set search_path=pg_catalog,private,public,extensions
 as $$
 declare
   v_intent public.pandora_project_intents%rowtype;
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_memory_project_key text;
   v_secret text;
   v_query_basis text;
@@ -28,7 +28,7 @@ begin
   end if;
   select * into v_intent from public.pandora_project_intents where id=p_source_intent_id;
   if v_intent.id is null then raise exception 'INTENT_NOT_AVAILABLE' using errcode='P0002'; end if;
-  select * into v_project from public.pandora_projects
+  select * into v_project from public.projectos_projects
     where id=v_intent.project_id and organization_id=v_intent.organization_id;
   if v_project.id is null or v_project.status='archived' then
     raise exception 'PROJECT_NOT_AVAILABLE' using errcode='P0002';
@@ -38,21 +38,21 @@ begin
     raise exception 'MEMORY_PROJECT_KEY_INVALID' using errcode='22023';
   end if;
   v_query_basis:=array_to_string(array[
-    'pandora-planning-query-v1',v_intent.organization_id::text,v_project.id::text,v_memory_project_key,p_decision_type
+    'projectos-planning-query-v1',v_intent.organization_id::text,v_project.id::text,v_memory_project_key,p_decision_type
   ],E'\n');
   v_query_hash:=encode(extensions.digest(convert_to(v_query_basis,'utf8'),'sha256'),'hex');
   v_request_basis:=array_to_string(array[
-    'pandora-planning-context-v1',p_request_id::text,v_intent.organization_id::text,v_project.id::text,
+    'projectos-planning-context-v1',p_request_id::text,v_intent.organization_id::text,v_project.id::text,
     v_memory_project_key,p_decision_type,v_query_hash
   ],E'\n');
   select secret_value into v_secret from private.integration_secrets
-    where secret_name='pandora_memory_learning_hmac';
+    where secret_name='projectos_memory_learning_hmac';
   if coalesce(v_secret,'')='' then raise exception 'MEMORY_PLANNING_SECRET_UNAVAILABLE' using errcode='55000'; end if;
   v_timestamp:=floor(extract(epoch from clock_timestamp())*1000)::bigint::text;
   v_signature:=encode(extensions.hmac(v_timestamp||'.'||v_request_basis,v_secret,'sha256'),'hex');
   return jsonb_build_object(
     'body',jsonb_build_object(
-      'schema_version',1,'purpose','pandora-planning-context-v1','request_id',p_request_id,
+      'schema_version',1,'purpose','projectos-planning-context-v1','request_id',p_request_id,
       'organization_id',v_intent.organization_id,'visible_project_id',v_project.id,
       'project_key',v_memory_project_key,'decision_type',p_decision_type,'query_hash',v_query_hash
     ),
@@ -84,7 +84,7 @@ set search_path=pg_catalog,private,public
 as $$
 declare
   v_intent public.pandora_project_intents%rowtype;
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_expected_key text;
   v_expected_query_hash text;
   v_envelope jsonb;
@@ -98,12 +98,12 @@ begin
   end if;
   select * into v_intent from public.pandora_project_intents where id=p_source_intent_id;
   if v_intent.id is null then raise exception 'INTENT_NOT_AVAILABLE' using errcode='P0002'; end if;
-  select * into v_project from public.pandora_projects where id=v_intent.project_id and organization_id=v_intent.organization_id;
+  select * into v_project from public.projectos_projects where id=v_intent.project_id and organization_id=v_intent.organization_id;
   if v_project.id is null then raise exception 'PROJECT_NOT_AVAILABLE' using errcode='P0002'; end if;
   v_expected_key:=case when v_project.project_key='mcpmaster' then 'mcpmaster-pandoras-box' else v_project.project_key end;
   if p_memory_project_key<>v_expected_key then raise exception 'MEMORY_CONTEXT_PROJECT_MISMATCH' using errcode='22023'; end if;
   v_expected_query_hash:=encode(extensions.digest(convert_to(array_to_string(array[
-    'pandora-planning-query-v1',v_intent.organization_id::text,v_project.id::text,v_expected_key,p_decision_type
+    'projectos-planning-query-v1',v_intent.organization_id::text,v_project.id::text,v_expected_key,p_decision_type
   ],E'\n'),'utf8'),'sha256'),'hex');
   if p_query_hash<>v_expected_query_hash then raise exception 'MEMORY_CONTEXT_QUERY_HASH_MISMATCH' using errcode='22023'; end if;
   if (p_context_status='available' and coalesce(cardinality(p_approved_memory_item_ids),0)<1)

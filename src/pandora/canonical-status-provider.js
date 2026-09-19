@@ -793,7 +793,7 @@ async function readMemoryStatus({ env, fetchFn }) {
   return {
     ok: true,
     observedAt: new Date().toISOString(),
-    healthStatus: health.status,
+    healthStatus: typeof health.status === "string" && health.status.endsWith("-connected") ? "pandora-connected" : health.status,
     authentication: health.authentication,
     contextState: context.degraded ? "degraded" : "healthy",
     fresh: !context.degraded,

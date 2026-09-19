@@ -200,9 +200,9 @@ begin
 end;
 $$;
 
-drop trigger if exists pandora_project_auto_repository_v1 on public.pandora_projects;
+drop trigger if exists pandora_project_auto_repository_v1 on public.projectos_projects;
 create trigger pandora_project_auto_repository_v1
-before insert on public.pandora_projects
+before insert on public.projectos_projects
 for each row
 when (
   (new.repository is null or btrim(new.repository) = '')

@@ -1,6 +1,6 @@
 
 -- CHAT-FINISH-002
--- Correct the historical Pandora Memory repository binding without
+-- Correct the historical ProjectOS Memory repository binding without
 -- reactivating the archived project or erasing the prior repository identity.
 -- Clean replays may not contain this historical row, so absence is a safe no-op.
 do $$
@@ -9,7 +9,7 @@ declare
 begin
   select repository
     into v_repository
-  from public.pandora_projects
+  from public.projectos_projects
   where id = '0306198e-38e5-4b1d-8932-efd58da3b856'::uuid
     and project_key = 'pandoras-box-memory'
     and status = 'archived'
@@ -20,7 +20,7 @@ begin
   end if;
 
   if v_repository = 'banataosystems/pandoras-box-memory' then
-    update public.pandora_projects
+    update public.projectos_projects
        set repository = 'pandora-rvw-314296438-20260820/pandoras-box-memory',
            config = coalesce(config, '{}'::jsonb) || jsonb_build_object(
              'repositoryAuthorityCorrection',

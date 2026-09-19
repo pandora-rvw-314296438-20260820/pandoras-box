@@ -1,4 +1,4 @@
--- Owner decision: ordinary Pandora approvals require an authenticated,
+-- Owner decision: ordinary ProjectOS approvals require an authenticated,
 -- permanent owner/admin account, but do not require an AAL2/TOTP session.
 -- High-risk separation of duty and all plan-state/audit controls remain intact.
 
@@ -104,7 +104,7 @@ comment on function public.decide_approval(
   uuid,
   public.approval_decision,
   text
-) is 'Decides an eligible pending approval for a permanent Pandora owner/admin account; AAL2 is not required. High-risk separation of duty, expiry, assignment, and audit controls remain enforced.';
+) is 'Decides an eligible pending approval for a permanent ProjectOS owner/admin account; AAL2 is not required. High-risk separation of duty, expiry, assignment, and audit controls remain enforced.';
 
 revoke execute on function public.decide_approval(
   uuid,

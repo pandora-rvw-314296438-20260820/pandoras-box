@@ -6,7 +6,7 @@
 
 create table if not exists public.pandora_project_experience_projection (
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid primary key references public.pandora_projects(id) on delete cascade,
+  project_id uuid primary key references public.projectos_projects(id) on delete cascade,
   experience_state text not null
     check (experience_state in ('START','UNDERSTAND','BUILD','LIVE','REBUILD','REVIEW','PUBLISH')),
   transition_sequence bigint not null default 1
@@ -111,7 +111,7 @@ set search_path = pg_catalog, public, private
 as $$
 with project_row as (
   select p.id, p.organization_id
-  from public.pandora_projects p
+  from public.projectos_projects p
   where p.id = p_project_id
 ),
 latest_product_intent as (
@@ -748,7 +748,7 @@ as $$
 declare
   v_project_id uuid;
 begin
-  if tg_table_name = 'pandora_projects' then
+  if tg_table_name = 'projectos_projects' then
     if tg_op = 'DELETE' then
       v_project_id := old.id;
     else
@@ -773,9 +773,9 @@ $$;
 
 revoke all on function private.pandora_project_experience_touch_v1() from public;
 
-drop trigger if exists pandora_project_experience_project_touch on public.pandora_projects;
+drop trigger if exists pandora_project_experience_project_touch on public.projectos_projects;
 create trigger pandora_project_experience_project_touch
-after insert or update on public.pandora_projects
+after insert or update on public.projectos_projects
 for each row execute function private.pandora_project_experience_touch_v1();
 
 drop trigger if exists pandora_project_experience_intent_touch on public.pandora_project_intents;
@@ -829,7 +829,7 @@ declare
 begin
   for r in
     select p.id
-    from public.pandora_projects p
+    from public.projectos_projects p
     order by p.created_at, p.id
   loop
     perform private.pandora_refresh_project_experience_projection_v1(r.id);

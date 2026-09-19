@@ -29,11 +29,11 @@ begin
   from pg_proc p
   join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='private'
-    and p.proname='pandora_refresh_integration_health'
+    and p.proname='projectos_refresh_integration_health'
   limit 1;
 
   if v_definition is null then
-    raise notice 'pandora_refresh_integration_health is absent in this replay state; skipping history-only transformation';
+    raise notice 'projectos_refresh_integration_health is absent in this replay state; skipping history-only transformation';
     return;
   end if;
 
@@ -42,7 +42,7 @@ begin
   end if;
 
   if position(v_old in v_definition) = 0 then
-    raise notice 'pandora_refresh_integration_health differs from the live post-recovery body; skipping history-only transformation';
+    raise notice 'projectos_refresh_integration_health differs from the live post-recovery body; skipping history-only transformation';
     return;
   end if;
 

@@ -2,7 +2,7 @@
 -- Source parent: 17e71c657935f5a75531d5f356ca987b03836fbf
 -- Evidence: GET /repos/pandora-rvw-314296438-20260820/pandoras-box/rules/branches/main returned the active no-bypass Pandora main ruleset.
 
-CREATE OR REPLACE FUNCTION private.pandora_reconcile_control_plane()
+CREATE OR REPLACE FUNCTION private.projectos_reconcile_control_plane()
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -49,7 +49,7 @@ begin
            policy.required_ci_checks,
            policy.provider_observation_max_age
     from private.project_canonical_registry registry
-    join public.pandora_projects project on project.id = registry.project_id
+    join public.projectos_projects project on project.id = registry.project_id
     left join private.project_release_policies policy on policy.project_id = registry.project_id
     where registry.canonical_provider = 'github'
       and registry.source_state in ('active','recovered','degraded')
@@ -115,7 +115,7 @@ begin
           else 'mismatched'
         end;
 
-        perform public.pandora_record_provider_observation(
+        perform public.projectos_record_provider_observation(
           v_registry.organization_id,
           v_registry.project_key,
           jsonb_build_object(
@@ -173,7 +173,7 @@ begin
         raise exception 'GitHub branch rules readback failed with status %', v_response.status;
       end if;
 
-      perform public.pandora_record_provider_observation(
+      perform public.projectos_record_provider_observation(
         v_registry.organization_id,
         v_registry.project_key,
         jsonb_build_object(
@@ -227,7 +227,7 @@ begin
         where item->>'head_sha' = v_registry.canonical_sha
           and (
             (v_check = 'pandora-mobile-integration' and item->>'path' = '.github/workflows/pandora-mobile-integration.yml')
-            or (v_check = 'pandora-security' and item->>'path' = '.github/workflows/pandora-security.yml')
+            or (v_check = 'projectos-security' and item->>'path' = '.github/workflows/projectos-security.yml')
             or item->>'name' = v_check
           )
         order by (item->>'created_at')::timestamptz desc
@@ -238,7 +238,7 @@ begin
         v_run_conclusion := nullif(v_run->>'conclusion', '');
         v_observed_sha := nullif(lower(coalesce(v_run->>'head_sha', '')), '');
 
-        perform public.pandora_record_provider_observation(
+        perform public.projectos_record_provider_observation(
           v_registry.organization_id,
           v_registry.project_key,
           jsonb_build_object(
@@ -319,7 +319,7 @@ begin
           else 'failed'
         end;
 
-        perform public.pandora_record_provider_observation(
+        perform public.projectos_record_provider_observation(
           v_registry.organization_id,
           v_registry.project_key,
           jsonb_build_object(
@@ -352,7 +352,7 @@ begin
 
       perform public.record_audit_event(
         v_registry.organization_id,
-        'pandora.control_plane_reconciled',
+        'projectos.control_plane_reconciled',
         'system'::public.audit_actor_type,
         jsonb_build_object(
           'projectKey', v_registry.project_key,
@@ -383,7 +383,7 @@ begin
 
       perform public.record_audit_event(
         v_registry.organization_id,
-        'pandora.control_plane_reconciliation_failed',
+        'projectos.control_plane_reconciliation_failed',
         'system'::public.audit_actor_type,
         jsonb_build_object(
           'projectKey', v_registry.project_key,

@@ -1,5 +1,5 @@
 -- Pandora consequential action evidence v1
--- Promote terminal Pandora execution truth into the existing public evidence and hash-chained activity models.
+-- Promote terminal ProjectOS execution truth into the existing public evidence and hash-chained activity models.
 -- Raw provider payloads remain outside these owner-facing records; only bounded identifiers, outcomes and hashes are promoted.
 
 create or replace function private.pandora_record_execution_plan_evidence_v1(
@@ -11,8 +11,8 @@ set search_path = pg_catalog, public, private, extensions, pg_temp
 as $$
 declare
   v_plan private.execution_plans%rowtype;
-  v_intake public.pandora_intake_requests%rowtype;
-  v_project public.pandora_projects%rowtype;
+  v_intake public.projectos_intake_requests%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_provider text;
   v_summary jsonb;
   v_source_sha text;
@@ -28,10 +28,10 @@ begin
   select * into v_plan from private.execution_plans where id=p_plan_id;
   if v_plan.id is null or v_plan.status not in ('completed','failed') then return null; end if;
 
-  select * into v_intake from public.pandora_intake_requests
+  select * into v_intake from public.projectos_intake_requests
   where id=v_plan.intake_id and organization_id=v_plan.organization_id;
   if v_intake.id is null then return null; end if;
-  select * into v_project from public.pandora_projects
+  select * into v_project from public.projectos_projects
   where id=v_intake.project_id and organization_id=v_plan.organization_id;
   if v_project.id is null then return null; end if;
 
@@ -43,7 +43,7 @@ begin
     when lower(v_plan.tool) like '%posthog%' then 'posthog'
     when lower(v_plan.tool) like '%google%drive%' then 'google_drive'
     when lower(v_plan.tool) like '%google%sheet%' then 'google_sheets'
-    else 'pandora' end;
+    else 'projectos' end;
 
   v_source_sha := lower(trim(coalesce(
     v_summary->>'headSha',v_summary->>'head_sha',v_summary->>'sourceSha',v_summary->>'source_sha',v_summary#>>'{providerReadback,headSha}',v_summary#>>'{providerReadback,sourceSha}','')));
@@ -82,10 +82,10 @@ begin
     ))
   ));
 
-  insert into public.pandora_evidence(
+  insert into public.projectos_evidence(
     organization_id,project_id,evidence_type,provider,external_id,source_url,repository,head_sha,status,verdict,payload_redacted,observed_at
   ) values (
-    v_plan.organization_id,v_project.id,'pandora_execution_outcome',v_provider,v_plan.id::text,v_source_url,
+    v_plan.organization_id,v_project.id,'projectos_execution_outcome',v_provider,v_plan.id::text,v_source_url,
     v_project.repository,v_source_sha,
     case when v_plan.status='completed' then 'passing' else 'failing' end,
     case when v_plan.status='completed' then 'pass' else 'fail' end,
@@ -95,15 +95,15 @@ begin
   returning id into v_evidence_id;
 
   if v_evidence_id is null then
-    select id into v_evidence_id from public.pandora_evidence
+    select id into v_evidence_id from public.projectos_evidence
     where organization_id=v_plan.organization_id and provider=v_provider
-      and evidence_type='pandora_execution_outcome' and external_id=v_plan.id::text limit 1;
+      and evidence_type='projectos_execution_outcome' and external_id=v_plan.id::text limit 1;
     return v_evidence_id;
   end if;
 
   perform private.append_audit_event(
     v_plan.organization_id,null,null,'system'::public.audit_actor_type,null,
-    'pandora_execution_evidence_recorded',
+    'projectos_execution_evidence_recorded',
     jsonb_build_object(
       'summary',v_payload->>'summary','evidenceId',v_evidence_id,'planId',v_plan.id,
       'projectId',v_project.id,'provider',v_provider,'outcome',v_plan.status,
@@ -145,8 +145,8 @@ begin
     select p.id from private.execution_plans p
     where p.status in ('completed','failed')
       and not exists (
-        select 1 from public.pandora_evidence e
-        where e.organization_id=p.organization_id and e.evidence_type='pandora_execution_outcome' and e.external_id=p.id::text
+        select 1 from public.projectos_evidence e
+        where e.organization_id=p.organization_id and e.evidence_type='projectos_execution_outcome' and e.external_id=p.id::text
       )
     order by p.completed_at nulls last,p.created_at
   loop
@@ -176,10 +176,10 @@ begin
       'details',e.payload_redacted,'observedAt',e.observed_at
     ) order by e.observed_at desc)
     from (
-      select * from public.pandora_evidence
-      where organization_id=p_organization_id and evidence_type='pandora_execution_outcome' and invalidated_at is null
+      select * from public.projectos_evidence
+      where organization_id=p_organization_id and evidence_type='projectos_execution_outcome' and invalidated_at is null
       order by observed_at desc limit least(greatest(coalesce(p_limit,100),1),500)
-    ) e join public.pandora_projects p on p.id=e.project_id and p.organization_id=e.organization_id
+    ) e join public.projectos_projects p on p.id=e.project_id and p.organization_id=e.organization_id
   ),'[]'::jsonb);
 end;
 $$;

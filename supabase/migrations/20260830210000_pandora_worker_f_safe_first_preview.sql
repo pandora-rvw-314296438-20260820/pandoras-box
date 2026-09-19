@@ -13,7 +13,7 @@ AS $function$
 declare
   v_ver public.pandora_project_versions%rowtype;
   v_art public.pandora_artifact_versions%rowtype;
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_op public.pandora_runtime_operations%rowtype;
   v_team text;
   v_provider_project_id text;
@@ -43,7 +43,7 @@ begin
   if v_ver.lifecycle_status not in ('built','verification_pending','verified','preview_ready') then raise exception 'version is not preview eligible' using errcode='22023'; end if;
   select * into v_art from public.pandora_artifact_versions where id=v_ver.root_artifact_version_id and project_id=p_project_id and organization_id=v_ver.organization_id;
   if not found or v_art.storage_provider<>'supabase_storage' or v_art.storage_bucket<>'pandora-build-artifacts' or v_art.content_sha256<>v_ver.artifact_digest_sha256 then raise exception 'runtime artifact identity mismatch' using errcode='22023'; end if;
-  select * into v_project from public.pandora_projects where id=p_project_id and organization_id=v_ver.organization_id;
+  select * into v_project from public.projectos_projects where id=p_project_id and organization_id=v_ver.organization_id;
   if not found then raise exception 'project unavailable' using errcode='22023'; end if;
   select * into v_op from public.pandora_runtime_operations where id=p_operation_id and project_id=p_project_id and project_version_id=p_version_id and action='create_preview' for update;
   if not found or v_op.status not in ('failed','claimed','running') then raise exception 'preview operation is not resumable' using errcode='22023'; end if;
@@ -120,7 +120,7 @@ begin
   on conflict(project_id,environment) do update set provider=excluded.provider,provider_project_id=excluded.provider_project_id,status=excluded.status,current_version_id=excluded.current_version_id,current_deployment_id=excluded.current_deployment_id,verification_state=excluded.verification_state,last_reconciled_at=excluded.last_reconciled_at,updated_at=excluded.updated_at;
 
   update public.pandora_project_versions set lifecycle_status=case when v_provider_state in ('ERROR','CANCELED') then 'rejected' else 'verification_pending' end where id=p_version_id;
-  update public.pandora_projects set config=jsonb_set(coalesce(config,'{}'::jsonb),'{customerJourney}',coalesce(config->'customerJourney','{}'::jsonb)||jsonb_build_object('stage',case when v_provider_state='READY' then 'preview_ready' when v_provider_state in ('ERROR','CANCELED') then 'needs_attention' else 'building' end,'runtimeStatus',case when v_provider_state='READY' then 'verifying' when v_provider_state in ('ERROR','CANCELED') then 'failed' else 'working' end,'previewUrl',v_url,'previewVersionId',p_version_id::text,'previewDeploymentId',v_provider_deployment_id,'previewVerificationState',v_verification_state,'runtimeUpdatedAt',clock_timestamp()),true),updated_at=clock_timestamp() where id=p_project_id;
+  update public.projectos_projects set config=jsonb_set(coalesce(config,'{}'::jsonb),'{customerJourney}',coalesce(config->'customerJourney','{}'::jsonb)||jsonb_build_object('stage',case when v_provider_state='READY' then 'preview_ready' when v_provider_state in ('ERROR','CANCELED') then 'needs_attention' else 'building' end,'runtimeStatus',case when v_provider_state='READY' then 'verifying' when v_provider_state in ('ERROR','CANCELED') then 'failed' else 'working' end,'previewUrl',v_url,'previewVersionId',p_version_id::text,'previewDeploymentId',v_provider_deployment_id,'previewVerificationState',v_verification_state,'runtimeUpdatedAt',clock_timestamp()),true),updated_at=clock_timestamp() where id=p_project_id;
   update public.pandora_runtime_operations set status=case when v_provider_state in ('ERROR','CANCELED') then 'failed' else 'succeeded' end,ambiguous=false,provider_resource_id=v_provider_deployment_id,result_facts=jsonb_build_object('projectVersionId',p_version_id,'providerDeploymentId',v_provider_deployment_id,'artifactDigest',v_ver.artifact_digest_sha256,'sourceCommit',v_ver.source_commit,'verificationState',v_verification_state),finished_at=clock_timestamp(),last_reconciled_at=clock_timestamp(),updated_at=clock_timestamp() where id=p_operation_id;
   return jsonb_build_object('ok',true,'deploymentId',v_dep_id,'providerDeploymentId',v_provider_deployment_id,'providerState',v_provider_state,'previewUrl',v_url,'verificationState',v_verification_state);
 end;

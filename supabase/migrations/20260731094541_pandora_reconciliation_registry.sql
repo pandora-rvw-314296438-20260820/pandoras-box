@@ -3,7 +3,7 @@
 -- Production history is never rewritten; live hashes remain in the recovery manifest.
 -- Semantic recovery of the provider-recorded SQL payload; comments and terminal newline may differ.
 
-create or replace function public.pandora_get_registry(
+create or replace function public.projectos_get_registry(
   p_organization_id uuid
 ) returns jsonb
 language sql
@@ -12,7 +12,7 @@ set search_path = public, private, auth, pg_temp
 as $$
   select jsonb_build_object(
     'organizationId', p_organization_id,
-    'policy', (select to_jsonb(policy_row) from public.pandora_policies policy_row where policy_row.organization_id = p_organization_id),
+    'policy', (select to_jsonb(policy_row) from public.projectos_policies policy_row where policy_row.organization_id = p_organization_id),
     'projects', coalesce(jsonb_agg(jsonb_build_object(
       'id', project.id,
       'key', project.project_key,
@@ -31,7 +31,7 @@ as $$
           'bindingState', resource.binding_state,
           'configuration', resource.configuration
         ) order by resource.provider, resource.binding_state, resource.external_name)
-        from public.pandora_project_resources resource
+        from public.projectos_project_resources resource
         where resource.project_id = project.id
       ), '[]'::jsonb),
       'tasks', coalesce((
@@ -50,13 +50,13 @@ as $$
           'reviewerAgent', task.reviewer_agent,
           'reviewerVendor', task.reviewer_vendor
         ) order by task.sequence)
-        from public.pandora_tasks task
+        from public.projectos_tasks task
         where task.project_id = project.id and task.status <> 'cancelled'
       ), '[]'::jsonb)
     ) order by project.updated_at desc), '[]'::jsonb)
   )
-  from public.pandora_projects project
+  from public.projectos_projects project
   where project.organization_id = p_organization_id and project.status <> 'archived';
 $$;
 
-grant execute on function public.pandora_get_registry(uuid) to authenticated, service_role;
+grant execute on function public.projectos_get_registry(uuid) to authenticated, service_role;

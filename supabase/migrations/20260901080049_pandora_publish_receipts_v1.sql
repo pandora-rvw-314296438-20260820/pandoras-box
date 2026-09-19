@@ -5,7 +5,7 @@
 create table if not exists public.pandora_publish_receipts (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   version_id uuid not null references public.pandora_project_versions(id) on delete restrict,
   production_deployment_id uuid not null references public.pandora_project_deployments(id) on delete restrict,
   provider text not null,
@@ -140,7 +140,7 @@ begin
 
   select nullif(p.config #>> '{customerJourney,liveUrl}', '')
     into v_live_url
-  from public.pandora_projects p
+  from public.projectos_projects p
   where p.id = new.project_id
     and p.organization_id = new.organization_id;
 
@@ -208,7 +208,7 @@ begin
   end if;
 
   select p.organization_id into v_organization_id
-  from public.pandora_projects p
+  from public.projectos_projects p
   where p.id = p_project_id;
 
   if v_organization_id is null then

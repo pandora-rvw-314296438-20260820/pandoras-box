@@ -7,7 +7,7 @@ begin;
 create table if not exists private.pandora_project_memory_context_receipts (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   source_intent_id uuid not null references public.pandora_project_intents(id) on delete cascade,
   decision_type text not null check (decision_type in ('project_spec','build','repair')),
   memory_project_id uuid,
@@ -77,7 +77,7 @@ as $$
 declare
   v_user uuid:=auth.uid();
   v_intent public.pandora_project_intents%rowtype;
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_expected_memory_key text;
   v_hash text;
   v_retrieved_at timestamptz;
@@ -90,7 +90,7 @@ begin
 
   select * into v_intent from public.pandora_project_intents where id=p_source_intent_id;
   if v_intent.id is null then raise exception 'INTENT_NOT_AVAILABLE' using errcode='P0002'; end if;
-  select * into v_project from public.pandora_projects
+  select * into v_project from public.projectos_projects
     where id=v_intent.project_id and organization_id=v_intent.organization_id;
   if v_project.id is null or not private.is_org_member(v_project.organization_id) then
     raise exception 'PROJECT_ACCESS_REQUIRED' using errcode='42501';
@@ -112,7 +112,7 @@ begin
     raise exception 'MEMORY_CONTEXT_RECEIPT_INVALID' using errcode='22023';
   end if;
 
-  v_hash:=private.pandora_context_json_sha256(private.pandora_canonical_context_json(p_context_envelope));
+  v_hash:=private.projectos_context_json_sha256(private.projectos_canonical_context_json(p_context_envelope));
   if v_hash<>p_context_hash then raise exception 'MEMORY_CONTEXT_HASH_MISMATCH' using errcode='22023'; end if;
   begin v_retrieved_at:=(p_context_envelope->>'retrievedAt')::timestamptz;
   exception when others then raise exception 'MEMORY_CONTEXT_TIMESTAMP_INVALID' using errcode='22023'; end;
@@ -204,7 +204,7 @@ begin
     p_decision_type,p_decision_id,p_decision_run_id,v_receipt.approved_memory_item_ids
   ),'utf8'),'sha256'),'hex');
   v_payload:=jsonb_build_object(
-    'schema_version',1,'product_key','pandora','source_event_id',p_decision_id,'source_request_id',v_receipt.id,
+    'schema_version',1,'product_key','projectos','source_event_id',p_decision_id,'source_request_id',v_receipt.id,
     'organization_id',v_receipt.organization_id,'intake_id',null,'project_id',v_receipt.memory_project_id,
     'project_key',v_receipt.memory_project_key,'tool','visible_creation.memory_decision_influence','risk','write',
     'outcome_status','completed','duration_ms',0,'completed_at',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
@@ -251,7 +251,7 @@ begin
     v_receipt.approved_memory_item_ids
   ),'utf8'),'sha256'),'hex');
   v_payload:=jsonb_build_object(
-    'schema_version',1,'product_key','pandora','source_event_id',p_outcome_run_id,'source_request_id',v_receipt.id,
+    'schema_version',1,'product_key','projectos','source_event_id',p_outcome_run_id,'source_request_id',v_receipt.id,
     'organization_id',v_receipt.organization_id,'intake_id',null,'project_id',v_receipt.memory_project_id,
     'project_key',v_receipt.memory_project_key,'tool','visible_creation.memory_decision_outcome','risk','write',
     'outcome_status','completed','duration_ms',0,'completed_at',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),

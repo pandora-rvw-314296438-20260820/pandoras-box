@@ -38,7 +38,7 @@ grant execute on function private.pandora_control_plane_prevent_history_mutation
 create table if not exists public.pandora_budget_limits (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   project_spec_id uuid null references public.pandora_project_specs(id) on delete cascade,
   build_job_id uuid null references public.pandora_build_jobs(id) on delete cascade,
   budget_kind text not null,
@@ -118,7 +118,7 @@ grant execute on function private.pandora_release_budget(uuid,bigint) to service
 grant execute on function private.pandora_commit_budget(uuid,bigint) to service_role;
 
 create table if not exists public.pandora_cost_entries (
-  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.projectos_projects(id) on delete cascade,
   project_spec_id uuid null references public.pandora_project_specs(id) on delete set null, build_job_id uuid null references public.pandora_build_jobs(id) on delete set null,
   model_run_id uuid null references public.pandora_model_runs(id) on delete set null, tool_call_id uuid null references public.pandora_tool_calls(id) on delete set null,
   project_version_id uuid null references public.pandora_project_versions(id) on delete set null, budget_limit_id uuid null references public.pandora_budget_limits(id) on delete set null,
@@ -156,7 +156,7 @@ drop trigger if exists pandora_cost_entries_append_only on public.pandora_cost_e
 create trigger pandora_cost_entries_append_only before update or delete on public.pandora_cost_entries for each row execute function private.pandora_control_plane_prevent_history_mutation();
 
 create table if not exists public.pandora_project_nodes (
-  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.projectos_projects(id) on delete cascade,
   project_spec_id uuid not null references public.pandora_project_specs(id) on delete cascade, node_key text not null, node_type text not null, label text not null, summary text null,
   requirement_id uuid null references public.pandora_project_requirements(id) on delete set null, artifact_version_id uuid null references public.pandora_artifact_versions(id) on delete set null,
   project_version_id uuid null references public.pandora_project_versions(id) on delete set null, status text not null default 'active', provenance_redacted jsonb not null default '{}'::jsonb,
@@ -187,7 +187,7 @@ drop trigger if exists pandora_project_nodes_scope_guard on public.pandora_proje
 create trigger pandora_project_nodes_scope_guard before insert or update on public.pandora_project_nodes for each row execute function private.pandora_validate_project_node_scope();
 
 create table if not exists public.pandora_project_relationships (
-  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.projectos_projects(id) on delete cascade,
   project_spec_id uuid not null references public.pandora_project_specs(id) on delete cascade, from_node_id uuid not null references public.pandora_project_nodes(id) on delete cascade,
   to_node_id uuid not null references public.pandora_project_nodes(id) on delete cascade, relationship_type text not null,
   requirement_id uuid null references public.pandora_project_requirements(id) on delete set null, artifact_version_id uuid null references public.pandora_artifact_versions(id) on delete set null,
@@ -220,8 +220,8 @@ drop trigger if exists pandora_project_relationships_scope_guard on public.pando
 create trigger pandora_project_relationships_scope_guard before insert or update on public.pandora_project_relationships for each row execute function private.pandora_validate_project_relationship_scope();
 
 create table if not exists public.pandora_runtime_resources (
-  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.pandora_projects(id) on delete cascade,
-  project_version_id uuid null references public.pandora_project_versions(id) on delete set null, project_resource_id uuid null references public.pandora_project_resources(id) on delete set null,
+  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_version_id uuid null references public.pandora_project_versions(id) on delete set null, project_resource_id uuid null references public.projectos_project_resources(id) on delete set null,
   resource_type text not null, provider text not null, environment text not null, isolation_mode text not null, external_ref text not null, region text null, status text not null default 'planned',
   configuration_redacted jsonb not null default '{}'::jsonb, provisioned_at timestamptz null, verified_at timestamptz null, retired_at timestamptz null,
   created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
@@ -243,9 +243,9 @@ declare v_org uuid; v_project uuid; v_provider text; v_external text;
 begin
   if new.project_version_id is not null then select organization_id,project_id into v_org,v_project from public.pandora_project_versions where id=new.project_version_id; if v_project is null or v_org<>new.organization_id or v_project<>new.project_id then raise exception 'runtime resource version scope mismatch' using errcode='23514'; end if; end if;
   if new.project_resource_id is not null then
-    select organization_id,project_id,provider,external_id into v_org,v_project,v_provider,v_external from public.pandora_project_resources where id=new.project_resource_id;
-    if v_project is null or v_org<>new.organization_id or v_project<>new.project_id then raise exception 'runtime resource Pandora binding scope mismatch' using errcode='23514'; end if;
-    if lower(v_provider)<>lower(new.provider) or v_external<>new.external_ref then raise exception 'runtime resource Pandora binding identity mismatch' using errcode='23514'; end if;
+    select organization_id,project_id,provider,external_id into v_org,v_project,v_provider,v_external from public.projectos_project_resources where id=new.project_resource_id;
+    if v_project is null or v_org<>new.organization_id or v_project<>new.project_id then raise exception 'runtime resource ProjectOS binding scope mismatch' using errcode='23514'; end if;
+    if lower(v_provider)<>lower(new.provider) or v_external<>new.external_ref then raise exception 'runtime resource ProjectOS binding identity mismatch' using errcode='23514'; end if;
   end if;
   if tg_op='UPDATE' and (new.organization_id<>old.organization_id or new.project_id<>old.project_id or new.provider<>old.provider or new.environment<>old.environment or new.resource_type<>old.resource_type or new.external_ref<>old.external_ref or new.isolation_mode<>old.isolation_mode) then raise exception 'runtime resource identity/isolation is immutable' using errcode='23514'; end if;
   new.updated_at:=now(); if new.status='ready' and new.verified_at is null then new.verified_at:=now(); end if; if new.status='retired' and new.retired_at is null then new.retired_at:=now(); end if; return new;
@@ -254,7 +254,7 @@ drop trigger if exists pandora_runtime_resources_scope_guard on public.pandora_r
 create trigger pandora_runtime_resources_scope_guard before insert or update on public.pandora_runtime_resources for each row execute function private.pandora_validate_runtime_resource_scope();
 
 create table if not exists public.pandora_secret_references (
-  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.projectos_projects(id) on delete cascade,
   runtime_resource_id uuid null references public.pandora_runtime_resources(id) on delete set null, provider text not null, environment text not null, secret_name text not null, purpose text not null,
   scope_labels text[] not null default '{}'::text[], reference_kind text not null, reference_locator text not null, version_label text null, rotation_status text not null default 'current',
   last_rotated_at timestamptz null, last_used_at timestamptz null, revoked_at timestamptz null, created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
@@ -281,7 +281,7 @@ drop trigger if exists pandora_secret_references_scope_guard on public.pandora_s
 create trigger pandora_secret_references_scope_guard before insert or update on public.pandora_secret_references for each row execute function private.pandora_validate_secret_reference_scope();
 
 create table if not exists public.pandora_database_change_plans (
-  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.projectos_projects(id) on delete cascade,
   project_spec_id uuid not null references public.pandora_project_specs(id) on delete restrict, project_version_id uuid null references public.pandora_project_versions(id) on delete set null,
   build_job_id uuid null references public.pandora_build_jobs(id) on delete set null, target_runtime_resource_id uuid not null references public.pandora_runtime_resources(id) on delete restrict,
   environment text not null, status text not null default 'planned', migration_set_sha256 text not null, schema_before_sha256 text not null, schema_after_sha256 text not null,
@@ -336,7 +336,7 @@ drop trigger if exists pandora_database_change_plans_guard on public.pandora_dat
 create trigger pandora_database_change_plans_guard before insert or update on public.pandora_database_change_plans for each row execute function private.pandora_validate_database_change_plan();
 
 create table if not exists public.pandora_database_change_items (
-  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.organizations(id) on delete cascade, project_id uuid not null references public.projectos_projects(id) on delete cascade,
   database_change_plan_id uuid not null references public.pandora_database_change_plans(id) on delete cascade, sequence integer not null, change_kind text not null, object_type text not null,
   object_name_sha256 text not null, destructive boolean not null default false, backward_compatible boolean not null default true, risk text not null default 'low', public_summary text null, created_at timestamptz not null default now(),
   constraint pandora_database_change_items_sequence_check check (sequence >= 0), constraint pandora_database_change_items_kind_check check (change_kind in ('create','alter','drop','rename','data_backfill','index','policy','function','trigger','other')),

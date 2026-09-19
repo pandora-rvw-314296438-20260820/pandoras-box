@@ -1,6 +1,6 @@
 
 -- Pandora repository analysis execution v1
--- Deep repository analysis is a governed Pandora research intake, not a metadata read.
+-- Deep repository analysis is a governed ProjectOS research intake, not a metadata read.
 
 create or replace function private.pandora_governed_repository_analysis_request_v1(
   p_organization_id uuid,
@@ -18,7 +18,7 @@ declare
   v_repo text := trim(coalesce(p_repository,''));
   v_request text := trim(coalesce(p_request_text,''));
   v_readback jsonb;
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_intake jsonb;
   v_idempotency text;
   v_pushed_at text;
@@ -39,18 +39,18 @@ begin
   if not coalesce((v_readback->>'ok')::boolean,false) then
     return jsonb_build_object(
       'ok',false,'provider','github','action','repository.analyze',
-      'authority','pandora','repository',v_repo,'verifiedComplete',false,
+      'authority','projectos','repository',v_repo,'verifiedComplete',false,
       'executionState','blocked','reason','repository_preflight_failed',
       'repositoryReadback',v_readback,'observedAt',now()
     );
   end if;
 
   if p_project_id is not null then
-    select * into v_project from public.pandora_projects p
+    select * into v_project from public.projectos_projects p
     where p.organization_id=p_organization_id and p.id=p_project_id and p.status<>'archived' limit 1;
   end if;
   if v_project.id is null then
-    select * into v_project from public.pandora_projects p
+    select * into v_project from public.projectos_projects p
     where p.organization_id=p_organization_id and p.repository=v_repo and p.status<>'archived'
     order by p.updated_at desc limit 1;
   end if;
@@ -61,7 +61,7 @@ begin
     'sha256'
   ),'hex');
 
-  v_intake := public.pandora_accept_intake(
+  v_intake := public.projectos_accept_intake(
     p_organization_id,
     v_uid,
     v_request,
@@ -77,7 +77,7 @@ begin
     'ok',true,
     'provider','github',
     'action','repository.analyze',
-    'authority','pandora',
+    'authority','projectos',
     'repository',v_repo,
     'projectId',coalesce(v_intake#>>'{project,id}',v_project.id::text),
     'intakeId',v_intake#>>'{intake,id}',
@@ -85,7 +85,7 @@ begin
     'executionState','accepted',
     'verifiedComplete',false,
     'repositoryReadback',v_readback,
-    'completionRule','Pandora execution, analysis evidence, and verified terminal state are required before completion may be claimed.',
+    'completionRule','ProjectOS execution, analysis evidence, and verified terminal state are required before completion may be claimed.',
     'observedAt',now()
   );
 end;
@@ -149,14 +149,14 @@ begin
   -- An audit/analysis is not a metadata lookup. Verify the repository as a
   -- preflight, then create a governed research intake that keeps the exact owner
   -- request and target context. Build Theatre may project only real persisted
-  -- Pandora/provider events from that intake.
+  -- ProjectOS/provider events from that intake.
   if v_deep_analysis and v_repository is not null then
     v_result := private.pandora_governed_repository_analysis_request_v1(
       p_organization_id,v_repository,v_message,v_target_project_id
     );
     if coalesce((v_result->>'ok')::boolean,false) then
       v_reply := format(
-        'I verified %s and admitted your full repository analysis to Pandora. The repository lookup is only preflight evidence; the analysis is not complete until Pandora produces and verifies the actual result.',
+        'I verified %s and admitted your full repository analysis to ProjectOS. The repository lookup is only preflight evidence; the analysis is not complete until ProjectOS produces and verifies the actual result.',
         v_repository
       );
     else
@@ -190,7 +190,7 @@ begin
             'request',v_message,
             'projectId',coalesce(nullif(v_result->>'projectId','')::uuid,v_target_project_id),
             'repository',v_repository,
-            'source','pandora_intake',
+            'source','projectos_intake',
             'intakeId',v_result->>'intakeId',
             'executionKind','repository_analysis'
           )) else null end
@@ -207,7 +207,7 @@ begin
           'request',v_message,
           'projectId',coalesce(nullif(v_result->>'projectId','')::uuid,v_target_project_id),
           'repository',v_repository,
-          'source','pandora_intake',
+          'source','projectos_intake',
           'intakeId',v_result->>'intakeId',
           'executionKind','repository_analysis'
         )) else null end,
@@ -244,8 +244,8 @@ begin
 
   if coalesce((v_result->>'ok')::boolean,false) then
     v_reply := case
-      when v_repository is not null then format('I resolved this to %s and routed your exact request through Pandora. Execution stays in this chat and is not complete until provider readback and evidence verify it.',v_repository)
-      else format('I resolved this to existing project %s and routed your exact request through Pandora. Execution stays in this chat; the source binding must verify before Pandora can claim completion.',coalesce(v_target->>'projectKey','the selected project'))
+      when v_repository is not null then format('I resolved this to %s and routed your exact request through ProjectOS. Execution stays in this chat and is not complete until provider readback and evidence verify it.',v_repository)
+      else format('I resolved this to existing project %s and routed your exact request through ProjectOS. Execution stays in this chat; the source binding must verify before Pandora can claim completion.',coalesce(v_target->>'projectKey','the selected project'))
     end;
   else
     v_reply := case
@@ -274,7 +274,7 @@ begin
       'handoff',case when coalesce((v_result->>'ok')::boolean,false)
         then jsonb_strip_nulls(jsonb_build_object(
           'required',true,'request',v_execution_message,'projectId',v_target_project_id,
-          'source','pandora_intake','intakeId',v_result->>'intakeId'))
+          'source','projectos_intake','intakeId',v_result->>'intakeId'))
         else null end
     ),'pandora_repository_router','repository-target-v2');
   update public.pandora_intelligence_threads set last_message_at=now(),updated_at=now() where id=v_thread_id;
@@ -286,7 +286,7 @@ begin
     'handoff',case when coalesce((v_result->>'ok')::boolean,false)
       then jsonb_strip_nulls(jsonb_build_object(
         'required',true,'request',v_execution_message,'projectId',v_target_project_id,
-        'source','pandora_intake','intakeId',v_result->>'intakeId'))
+        'source','projectos_intake','intakeId',v_result->>'intakeId'))
       else null end,
     'capabilityResult',v_result
   );
@@ -297,4 +297,4 @@ revoke all on function public.pandora_chat_universal_dispatch_v7(uuid,text,uuid,
 grant execute on function public.pandora_chat_universal_dispatch_v7(uuid,text,uuid,uuid) to authenticated;
 
 comment on function public.pandora_chat_universal_dispatch_v7(uuid,text,uuid,uuid)
-is 'Universal Chat repository execution v1: deep audit/analyze requests create governed Pandora research intake after provider preflight; bounded status reads stay direct; mutations retain Pandora authority.';
+is 'Universal Chat repository execution v1: deep audit/analyze requests create governed ProjectOS research intake after provider preflight; bounded status reads stay direct; mutations retain ProjectOS authority.';

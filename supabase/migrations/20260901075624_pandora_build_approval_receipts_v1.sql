@@ -7,7 +7,7 @@ begin;
 create table if not exists public.pandora_build_authorization_receipts (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   source_intent_id uuid not null references public.pandora_project_intents(id) on delete restrict,
   project_spec_id uuid not null references public.pandora_project_specs(id) on delete restrict,
   approved_spec_sha256 text not null,
@@ -145,7 +145,7 @@ begin
   end if;
 
   select p.organization_id into v_organization_id
-  from public.pandora_projects p
+  from public.projectos_projects p
   where p.id = p_project_id;
 
   if v_organization_id is null then

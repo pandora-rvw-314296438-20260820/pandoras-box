@@ -41,8 +41,8 @@ begin
             'detail','Supabase is Connected only when management authority exists and fresh provider health says it is usable.'
           )
           when 'vercel' then jsonb_build_object(
-            'requires','fresh_pandora_provider_health',
-            'detail','Vercel is Connected only when current Pandora provider evidence says deployment authority is usable.'
+            'requires','fresh_projectos_provider_health',
+            'detail','Vercel is Connected only when current ProjectOS provider evidence says deployment authority is usable.'
           )
           when 'posthog' then jsonb_build_object(
             'requires','query_credential_plus_fresh_provider_health',

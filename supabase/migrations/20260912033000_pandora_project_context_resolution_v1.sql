@@ -15,7 +15,7 @@ declare
   v_repository text;
   v_top_score integer := 0;
   v_top_count integer := 0;
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_candidates jsonb := '[]'::jsonb;
 begin
   if p_organization_id is null then
@@ -27,7 +27,7 @@ begin
 
   if p_explicit_project_id is not null then
     select * into v_project
-    from public.pandora_projects p
+    from public.projectos_projects p
     where p.organization_id=p_organization_id
       and p.id=p_explicit_project_id
       and p.status <> 'archived'
@@ -74,7 +74,7 @@ begin
         when length(trim(p.name)) >= 4 and position(lower(p.name) in v_message) > 0 then 70
         else 0
       end as score
-    from public.pandora_projects p
+    from public.projectos_projects p
     where p.organization_id=p_organization_id
       and p.status <> 'archived'
   ), ranked as (
@@ -105,7 +105,7 @@ begin
         when length(trim(p.name)) >= 4 and position(lower(p.name) in v_message) > 0 then 70
         else 0
       end as score
-    from public.pandora_projects p
+    from public.projectos_projects p
     where p.organization_id=p_organization_id
       and p.status <> 'archived'
   ), top_candidates as (
@@ -133,7 +133,7 @@ begin
   end if;
 
   select p.* into v_project
-  from public.pandora_projects p
+  from public.projectos_projects p
   join jsonb_array_elements(v_candidates) c(value) on (c.value->>'projectId')::uuid=p.id
   where p.organization_id=p_organization_id
   limit 1;
@@ -274,7 +274,7 @@ begin
 
   v_reply := case v_workflow->>'status'
     when 'verified' then format('Pandora completed %s governed read steps and verified each provider result.',v_workflow->>'stepCount')
-    when 'awaiting_governed_execution' then format('Pandora resolved %s ordered capability steps. Safe reads are verified; consequential steps are routed through Pandora and are not complete until provider readback and evidence succeed.',v_workflow->>'stepCount')
+    when 'awaiting_governed_execution' then format('Pandora resolved %s ordered capability steps. Safe reads are verified; consequential steps are routed through ProjectOS and are not complete until provider readback and evidence succeed.',v_workflow->>'stepCount')
     else format('Pandora resolved %s ordered capability steps, but at least one step is blocked or unresolved. No blocked step was treated as complete.',v_workflow->>'stepCount')
   end;
 

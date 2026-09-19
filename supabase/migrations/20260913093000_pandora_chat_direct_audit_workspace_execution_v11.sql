@@ -1,7 +1,7 @@
 -- Pandora Chat direct repository audit + project workspace execution v11
 -- Read-only project audits use verified repository source in the intelligence turn.
 -- Routine selected-project changes hand off directly to the existing real project
--- workspace/build runtime. Pandora remains internal for other governed mutations.
+-- workspace/build runtime. ProjectOS remains internal for other governed mutations.
 
 create or replace function private.pandora_project_github_read_v1(
   p_organization_id uuid,
@@ -37,7 +37,7 @@ begin
 
   if not exists (
     select 1
-    from public.pandora_projects p
+    from public.projectos_projects p
     where p.organization_id=p_organization_id
       and p.repository=v_repo
       and p.status <> 'archived'
@@ -106,7 +106,7 @@ as $$
 declare
   v_uid uuid := auth.uid();
   v_role text;
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_repo_response jsonb;
   v_repo_body jsonb;
   v_branch_response jsonb;
@@ -149,7 +149,7 @@ begin
   end if;
 
   select * into v_project
-  from public.pandora_projects p
+  from public.projectos_projects p
   where p.organization_id=p_organization_id
     and p.id=p_project_id
     and p.status <> 'archived'
@@ -442,7 +442,7 @@ begin
 
   if v_workspace_change then
     if not exists (
-      select 1 from public.pandora_projects p
+      select 1 from public.projectos_projects p
       where p.id=p_project_id
         and p.organization_id=p_organization_id
         and p.status <> 'archived'

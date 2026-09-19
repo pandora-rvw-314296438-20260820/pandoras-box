@@ -144,8 +144,8 @@ begin
       (case when lower(e->>'path') like 'packages/pandora-tools/%' then 80 else 0 end) +
       (case when lower(e->>'path') like 'apps/pandora-mobile/%' then 55 else 0 end) +
       (case when lower(e->>'path') like 'test/%' then 35 else 0 end) +
-      (case when lower(v_message) ~ '\m(chat|ask pandora|capability|router|execute|execution|pandora)\M'
-             and lower(e->>'path') ~ '(intelligence-chat|pandora-intelligence|capability|pandora-retirement)' then 110 else 0 end) +
+      (case when lower(v_message) ~ '\m(chat|ask pandora|capability|router|execute|execution|projectos)\M'
+             and lower(e->>'path') ~ '(intelligence-chat|pandora-intelligence|capability|projectos-retirement)' then 110 else 0 end) +
       (case when lower(v_message) ~ '\m(activity|theatre|theater|progress|stream|event)\M'
              and lower(e->>'path') ~ '(activity|theatre|theater)' then 110 else 0 end) +
       (case when lower(v_message) ~ '\m(android|mobile|emulator|phone|flutter)\M'

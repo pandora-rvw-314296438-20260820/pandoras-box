@@ -1,5 +1,5 @@
 -- Pandora governed mutations v1
--- Every supported mutation enters Pandora with deterministic idempotency and remains incomplete until execution readback/evidence.
+-- Every supported mutation enters ProjectOS with deterministic idempotency and remains incomplete until execution readback/evidence.
 
 create or replace function private.pandora_governed_mutation_request_v1(
   p_organization_id uuid,
@@ -20,7 +20,7 @@ declare
   v_message text := trim(coalesce(p_message,''));
   v_registry jsonb;
   v_available boolean := false;
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_idempotency text;
   v_intake jsonb;
 begin
@@ -29,7 +29,7 @@ begin
   if v_role not in ('owner','admin') then raise exception 'pandora_mutation_owner_required' using errcode='42501'; end if;
   if v_message='' or length(v_message)>8000 then raise exception 'pandora_mutation_invalid_message' using errcode='22023'; end if;
   if not ((v_provider='github' and v_action='repository.write') or (v_provider='supabase' and v_action='project.write') or (v_provider='vercel' and v_action='deployment.write')) then
-    return jsonb_build_object('ok',false,'provider',v_provider,'action',v_action,'reason','mutation_route_not_supported','authority','pandora','verifiedComplete',false,'observedAt',now());
+    return jsonb_build_object('ok',false,'provider',v_provider,'action',v_action,'reason','mutation_route_not_supported','authority','projectos','verifiedComplete',false,'observedAt',now());
   end if;
 
   v_registry := public.pandora_plugin_runtime_registry_v4(p_organization_id);
@@ -44,11 +44,11 @@ begin
   ) into v_available;
 
   if not v_available then
-    return jsonb_build_object('ok',false,'provider',v_provider,'action',v_action,'reason','runtime_authority_unavailable','authority','pandora','verifiedComplete',false,'observedAt',now());
+    return jsonb_build_object('ok',false,'provider',v_provider,'action',v_action,'reason','runtime_authority_unavailable','authority','projectos','verifiedComplete',false,'observedAt',now());
   end if;
 
   if p_project_id is not null then
-    select * into v_project from public.pandora_projects where organization_id=p_organization_id and id=p_project_id limit 1;
+    select * into v_project from public.projectos_projects where organization_id=p_organization_id and id=p_project_id limit 1;
     if not found then raise exception 'pandora_mutation_project_not_found' using errcode='22023'; end if;
   end if;
 
@@ -56,7 +56,7 @@ begin
     p_organization_id::text||':'||v_uid::text||':'||coalesce(p_project_id::text,'')||':'||v_provider||':'||v_action||':'||lower(v_message),
     'sha256'),'hex');
 
-  v_intake := public.pandora_accept_intake(
+  v_intake := public.projectos_accept_intake(
     p_organization_id,
     v_uid,
     v_message,
@@ -69,7 +69,7 @@ begin
   );
 
   return jsonb_build_object(
-    'ok',true,'provider',v_provider,'action',v_action,'authority','pandora',
+    'ok',true,'provider',v_provider,'action',v_action,'authority','projectos',
     'idempotencyKey',v_idempotency,
     'intakeId',v_intake#>>'{intake,id}',
     'projectId',v_intake#>>'{project,id}',
@@ -122,7 +122,7 @@ begin
   v_result := private.pandora_governed_mutation_request_v1(p_organization_id,v_provider,v_action,v_message,p_project_id);
 
   if coalesce((v_result->>'ok')::boolean,false) then
-    v_reply := format('I routed this %s mutation into Pandora. It is not complete until authorization, one-time execution, provider readback, and evidence verification succeed.',initcap(replace(v_provider,'_',' ')));
+    v_reply := format('I routed this %s mutation into ProjectOS. It is not complete until authorization, one-time execution, provider readback, and evidence verification succeed.',initcap(replace(v_provider,'_',' ')));
   else
     v_reply := format('Pandora resolved this as %s %s, but current governed runtime authority is unavailable. No mutation was executed.',initcap(replace(v_provider,'_',' ')),v_action);
   end if;
@@ -145,7 +145,7 @@ begin
 
   return jsonb_build_object('handled',true,'threadId',v_thread_id,'reply',v_reply,
     'intent',case when v_provider='vercel' then 'publish' else 'change_project' end,'confidence',1,'needsClarification',false,'clarifyingQuestion',null,
-    'handoff',case when coalesce((v_result->>'ok')::boolean,false) and nullif(v_result->>'projectId','') is not null then jsonb_build_object('required',true,'request',v_message,'projectId',v_result->>'projectId','source','pandora_intake','intakeId',v_result->>'intakeId') else null end,
+    'handoff',case when coalesce((v_result->>'ok')::boolean,false) and nullif(v_result->>'projectId','') is not null then jsonb_build_object('required',true,'request',v_message,'projectId',v_result->>'projectId','source','projectos_intake','intakeId',v_result->>'intakeId') else null end,
     'capabilityResult',v_result);
 end;
 $$;

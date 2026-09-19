@@ -1,7 +1,7 @@
 -- P0: enforce explicit Publish separation, exact GitHub ref readback, and verified-only release promotion.
 -- Generated from the live production function definitions after provider-verified incident analysis.
 
-CREATE OR REPLACE FUNCTION private.pandora_reconcile_control_plane()
+CREATE OR REPLACE FUNCTION private.projectos_reconcile_control_plane()
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -47,7 +47,7 @@ begin
            policy.required_ci_checks,
            policy.provider_observation_max_age
     from private.project_canonical_registry registry
-    join public.pandora_projects project on project.id = registry.project_id
+    join public.projectos_projects project on project.id = registry.project_id
     left join private.project_release_policies policy on policy.project_id = registry.project_id
     where registry.canonical_provider = 'github'
       and registry.source_state in ('active','recovered','degraded')
@@ -113,7 +113,7 @@ begin
           else 'mismatched'
         end;
 
-        perform public.pandora_record_provider_observation(
+        perform public.projectos_record_provider_observation(
           v_registry.organization_id,
           v_registry.project_key,
           jsonb_build_object(
@@ -147,7 +147,7 @@ begin
       where item->>'name' = regexp_replace(v_registry.canonical_ref, '^refs/heads/', '')
       limit 1;
 
-      perform public.pandora_record_provider_observation(
+      perform public.projectos_record_provider_observation(
         v_registry.organization_id,
         v_registry.project_key,
         jsonb_build_object(
@@ -196,7 +196,7 @@ begin
         where item->>'head_sha' = v_registry.canonical_sha
           and (
             (v_check = 'pandora-mobile-integration' and item->>'path' = '.github/workflows/pandora-mobile-integration.yml')
-            or (v_check = 'pandora-security' and item->>'path' = '.github/workflows/pandora-security.yml')
+            or (v_check = 'projectos-security' and item->>'path' = '.github/workflows/projectos-security.yml')
             or item->>'name' = v_check
           )
         order by (item->>'created_at')::timestamptz desc
@@ -207,7 +207,7 @@ begin
         v_run_conclusion := nullif(v_run->>'conclusion', '');
         v_observed_sha := nullif(lower(coalesce(v_run->>'head_sha', '')), '');
 
-        perform public.pandora_record_provider_observation(
+        perform public.projectos_record_provider_observation(
           v_registry.organization_id,
           v_registry.project_key,
           jsonb_build_object(
@@ -288,7 +288,7 @@ begin
           else 'failed'
         end;
 
-        perform public.pandora_record_provider_observation(
+        perform public.projectos_record_provider_observation(
           v_registry.organization_id,
           v_registry.project_key,
           jsonb_build_object(
@@ -321,7 +321,7 @@ begin
 
       perform public.record_audit_event(
         v_registry.organization_id,
-        'pandora.control_plane_reconciled',
+        'projectos.control_plane_reconciled',
         'system'::public.audit_actor_type,
         jsonb_build_object(
           'projectKey', v_registry.project_key,
@@ -352,7 +352,7 @@ begin
 
       perform public.record_audit_event(
         v_registry.organization_id,
-        'pandora.control_plane_reconciliation_failed',
+        'projectos.control_plane_reconciliation_failed',
         'system'::public.audit_actor_type,
         jsonb_build_object(
           'projectKey', v_registry.project_key,
@@ -381,14 +381,14 @@ end;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.pandora_record_release_receipt_base_v1(p_organization_id uuid, p_project_key text, p_receipt jsonb)
+CREATE OR REPLACE FUNCTION public.projectos_record_release_receipt_base_v1(p_organization_id uuid, p_project_key text, p_receipt jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO ''
 AS $function$
 declare
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_payload jsonb := coalesce(p_receipt, '{}'::jsonb);
   v_source_sha text;
   v_automation_sha text;
@@ -396,13 +396,13 @@ declare
   v_result private.project_release_receipts%rowtype;
   v_inserted boolean := false;
 begin
-  perform private.pandora_control_plane_assert_service();
+  perform private.projectos_control_plane_assert_service();
   if jsonb_typeof(v_payload) <> 'object' then
     raise exception 'receipt payload must be an object' using errcode = '22023';
   end if;
 
   select * into v_project
-  from public.pandora_projects
+  from public.projectos_projects
   where organization_id = p_organization_id and project_key = p_project_key;
   if v_project.id is null then
     raise exception 'project not found' using errcode = 'P0002';
@@ -524,7 +524,7 @@ begin
   if v_inserted then
     perform public.record_audit_event(
       p_organization_id,
-      'pandora.release_receipt_recorded',
+      'projectos.release_receipt_recorded',
       'provider'::public.audit_actor_type,
       jsonb_build_object(
         'projectKey', p_project_key,

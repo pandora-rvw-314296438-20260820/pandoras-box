@@ -3,10 +3,10 @@
 -- Production history is never rewritten; live hashes remain in the recovery manifest.
 -- Semantic recovery of the provider-recorded SQL payload; comments and terminal newline may differ.
 
--- Remove PostgreSQL's implicit PUBLIC execution from every Pandora
+-- Remove PostgreSQL's implicit PUBLIC execution from every ProjectOS
 -- SECURITY DEFINER function, then restore only the intended role grants.
 
-create or replace function public.pandora_get_registry(
+create or replace function public.projectos_get_registry(
   p_organization_id uuid
 )
 returns jsonb
@@ -19,14 +19,14 @@ declare
 begin
   if coalesce(auth.role(), '') <> 'service_role'
      and not private.is_org_member(p_organization_id) then
-    raise exception using errcode = '42501', message = 'pandora_forbidden';
+    raise exception using errcode = '42501', message = 'projectos_forbidden';
   end if;
 
   select jsonb_build_object(
     'organizationId', p_organization_id,
     'policy', (
       select to_jsonb(policy_row)
-      from public.pandora_policies policy_row
+      from public.projectos_policies policy_row
       where policy_row.organization_id = p_organization_id
     ),
     'projects', coalesce(jsonb_agg(jsonb_build_object(
@@ -47,7 +47,7 @@ begin
           'bindingState', resource.binding_state,
           'configuration', resource.configuration
         ) order by resource.provider, resource.binding_state, resource.external_name)
-        from public.pandora_project_resources resource
+        from public.projectos_project_resources resource
         where resource.project_id = project.id
       ), '[]'::jsonb),
       'tasks', coalesce((
@@ -66,14 +66,14 @@ begin
           'reviewerAgent', task.reviewer_agent,
           'reviewerVendor', task.reviewer_vendor
         ) order by task.sequence)
-        from public.pandora_tasks task
+        from public.projectos_tasks task
         where task.project_id = project.id
           and task.status <> 'cancelled'
       ), '[]'::jsonb)
     ) order by project.updated_at desc), '[]'::jsonb)
   )
   into v_result
-  from public.pandora_projects project
+  from public.projectos_projects project
   where project.organization_id = p_organization_id
     and project.status <> 'archived';
 
@@ -90,7 +90,7 @@ begin
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
-      and p.proname like 'pandora\_%' escape '\'
+      and p.proname like 'projectos\_%' escape '\'
       and p.prosecdef
   loop
     execute format(
@@ -107,15 +107,15 @@ $hardening$;
 
 -- Authenticated callers may use only RPCs whose bodies enforce organization
 -- membership or an explicit owner/admin/operator role.
-grant execute on function public.pandora_accept_intake(uuid,uuid,text,text,text,text,text,text,text) to authenticated;
-grant execute on function public.pandora_get_agent_routing_evidence(uuid,text,text,text,text,integer) to authenticated;
-grant execute on function public.pandora_get_context(uuid,text,text) to authenticated;
-grant execute on function public.pandora_get_dashboard(uuid,text) to authenticated;
-grant execute on function public.pandora_get_registry(uuid) to authenticated;
-grant execute on function public.pandora_recommend_agents(uuid,text,text,integer) to authenticated;
-grant execute on function public.pandora_recompute_project(uuid,text) to authenticated;
-grant execute on function public.pandora_register_project(uuid,text,text,text,text,uuid) to authenticated;
-grant execute on function public.pandora_upsert_agent_runtime_proof(uuid,text,jsonb) to authenticated;
+grant execute on function public.projectos_accept_intake(uuid,uuid,text,text,text,text,text,text,text) to authenticated;
+grant execute on function public.projectos_get_agent_routing_evidence(uuid,text,text,text,text,integer) to authenticated;
+grant execute on function public.projectos_get_context(uuid,text,text) to authenticated;
+grant execute on function public.projectos_get_dashboard(uuid,text) to authenticated;
+grant execute on function public.projectos_get_registry(uuid) to authenticated;
+grant execute on function public.projectos_recommend_agents(uuid,text,text,integer) to authenticated;
+grant execute on function public.projectos_recompute_project(uuid,text) to authenticated;
+grant execute on function public.projectos_register_project(uuid,text,text,text,text,uuid) to authenticated;
+grant execute on function public.projectos_upsert_agent_runtime_proof(uuid,text,jsonb) to authenticated;
 
-comment on function public.pandora_get_registry(uuid) is
-  'Returns the organization-scoped Pandora registry after service-role or membership authorization.';
+comment on function public.projectos_get_registry(uuid) is
+  'Returns the organization-scoped ProjectOS registry after service-role or membership authorization.';

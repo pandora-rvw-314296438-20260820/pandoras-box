@@ -3,7 +3,7 @@
 -- Production history is never rewritten; live hashes remain in the recovery manifest.
 -- Semantic recovery of the provider-recorded SQL payload; comments and terminal newline may differ.
 
-create or replace function public.pandora_apply_manifest(
+create or replace function public.projectos_apply_manifest(
   p_organization_id uuid,
   p_manifest jsonb,
   p_created_by uuid default null
@@ -18,7 +18,7 @@ declare
   v_task_json jsonb;
   v_resource_json jsonb;
   v_dependency_json jsonb;
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_phase_id uuid;
   v_task_id uuid;
   v_dependency_id uuid;
@@ -29,9 +29,9 @@ begin
   perform private.assert_control_service_role();
   if jsonb_typeof(p_manifest) <> 'object'
     or jsonb_typeof(coalesce(p_manifest->'projects','[]'::jsonb)) <> 'array'
-  then raise exception 'invalid_pandora_manifest'; end if;
+  then raise exception 'invalid_projectos_manifest'; end if;
 
-  insert into public.pandora_policies (
+  insert into public.projectos_policies (
     organization_id,mandatory_control_layer,require_project_workspace,
     require_evidence_for_completion,require_exact_sha_review,
     require_independent_vendor_review,require_owner_release_approval,
@@ -62,7 +62,7 @@ begin
     updated_at=now();
 
   for v_project_json in select value from jsonb_array_elements(p_manifest->'projects') loop
-    perform public.pandora_register_project(
+    perform public.projectos_register_project(
       p_organization_id,
       v_project_json->>'key',
       v_project_json->>'name',
@@ -70,12 +70,12 @@ begin
       coalesce(v_project_json->>'objective',''),
       p_created_by
     );
-    select * into strict v_project from public.pandora_projects
+    select * into strict v_project from public.projectos_projects
       where organization_id=p_organization_id and project_key=v_project_json->>'key';
     v_project_count := v_project_count + 1;
 
     for v_resource_json in select value from jsonb_array_elements(coalesce(v_project_json->'resources','[]'::jsonb)) loop
-      insert into public.pandora_project_resources (
+      insert into public.projectos_project_resources (
         organization_id,project_id,provider,resource_type,external_id,external_name,
         environment,canonical_url,binding_state,configuration,verified_at
       ) values (
@@ -93,7 +93,7 @@ begin
     end loop;
 
     for v_phase_json in select value from jsonb_array_elements(coalesce(v_project_json->'phases','[]'::jsonb)) loop
-      insert into public.pandora_phases (
+      insert into public.projectos_phases (
         organization_id,project_id,phase_key,name,sequence,status,exit_criteria
       ) values (
         p_organization_id,v_project.id,v_phase_json->>'key',v_phase_json->>'name',
@@ -105,9 +105,9 @@ begin
     end loop;
 
     for v_task_json in select value from jsonb_array_elements(coalesce(v_project_json->'tasks','[]'::jsonb)) loop
-      select id into v_phase_id from public.pandora_phases
+      select id into v_phase_id from public.projectos_phases
         where project_id=v_project.id and phase_key=v_task_json->>'phaseKey';
-      insert into public.pandora_tasks (
+      insert into public.projectos_tasks (
         organization_id,project_id,phase_id,task_key,title,description,sequence,
         priority,status,continuation_role,blocks_phase_exit,risk_class,
         builder_agent,builder_vendor,reviewer_agent,reviewer_vendor,
@@ -130,20 +130,20 @@ begin
         risk_class=excluded.risk_class,builder_agent=excluded.builder_agent,
         builder_vendor=excluded.builder_vendor,reviewer_agent=excluded.reviewer_agent,
         reviewer_vendor=excluded.reviewer_vendor,completion_criteria=excluded.completion_criteria,
-        current_branch=coalesce(excluded.current_branch,pandora_tasks.current_branch),
-        current_pr_number=coalesce(excluded.current_pr_number,pandora_tasks.current_pr_number),
-        current_head_sha=coalesce(excluded.current_head_sha,pandora_tasks.current_head_sha),
-        result_summary=pandora_tasks.result_summary || excluded.result_summary;
+        current_branch=coalesce(excluded.current_branch,projectos_tasks.current_branch),
+        current_pr_number=coalesce(excluded.current_pr_number,projectos_tasks.current_pr_number),
+        current_head_sha=coalesce(excluded.current_head_sha,projectos_tasks.current_head_sha),
+        result_summary=projectos_tasks.result_summary || excluded.result_summary;
       v_task_count := v_task_count + 1;
     end loop;
 
     for v_dependency_json in select value from jsonb_array_elements(coalesce(v_project_json->'dependencies','[]'::jsonb)) loop
-      select id into v_task_id from public.pandora_tasks
+      select id into v_task_id from public.projectos_tasks
         where project_id=v_project.id and task_key=v_dependency_json->>'taskKey';
-      select id into v_dependency_id from public.pandora_tasks
+      select id into v_dependency_id from public.projectos_tasks
         where project_id=v_project.id and task_key=v_dependency_json->>'dependsOnTaskKey';
       if v_task_id is not null and v_dependency_id is not null then
-        insert into public.pandora_task_dependencies (
+        insert into public.projectos_task_dependencies (
           organization_id,project_id,task_id,depends_on_task_id,dependency_type
         ) values (
           p_organization_id,v_project.id,v_task_id,v_dependency_id,
@@ -152,14 +152,14 @@ begin
           dependency_type=excluded.dependency_type;
       end if;
     end loop;
-    perform public.pandora_recompute_project(p_organization_id,v_project.project_key);
+    perform public.projectos_recompute_project(p_organization_id,v_project.project_key);
   end loop;
 
   return jsonb_build_object('ok',true,'projects',v_project_count,'tasks',v_task_count,'resources',v_resource_count);
 end;
 $$;
 
-create or replace function public.pandora_plan_intake(
+create or replace function public.projectos_plan_intake(
   p_organization_id uuid,
   p_intake_id uuid,
   p_plan jsonb
@@ -169,8 +169,8 @@ security definer
 set search_path = public, private, auth, pg_temp
 as $$
 declare
-  v_intake public.pandora_intake_requests%rowtype;
-  v_project public.pandora_projects%rowtype;
+  v_intake public.projectos_intake_requests%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_phase_json jsonb;
   v_task_json jsonb;
   v_dependency_json jsonb;
@@ -179,13 +179,13 @@ declare
   v_dependency_id uuid;
 begin
   perform private.assert_control_service_role();
-  select * into strict v_intake from public.pandora_intake_requests
+  select * into strict v_intake from public.projectos_intake_requests
     where organization_id=p_organization_id and id=p_intake_id for update;
-  select * into strict v_project from public.pandora_projects where id=v_intake.project_id;
-  if jsonb_typeof(p_plan) <> 'object' then raise exception 'invalid_pandora_plan'; end if;
+  select * into strict v_project from public.projectos_projects where id=v_intake.project_id;
+  if jsonb_typeof(p_plan) <> 'object' then raise exception 'invalid_projectos_plan'; end if;
 
   for v_phase_json in select value from jsonb_array_elements(coalesce(p_plan->'phases','[]'::jsonb)) loop
-    insert into public.pandora_phases (
+    insert into public.projectos_phases (
       organization_id,project_id,phase_key,name,sequence,status,exit_criteria
     ) values (
       p_organization_id,v_project.id,v_phase_json->>'key',v_phase_json->>'name',
@@ -196,9 +196,9 @@ begin
   end loop;
 
   for v_task_json in select value from jsonb_array_elements(coalesce(p_plan->'tasks','[]'::jsonb)) loop
-    select id into v_phase_id from public.pandora_phases
+    select id into v_phase_id from public.projectos_phases
       where project_id=v_project.id and phase_key=v_task_json->>'phaseKey';
-    insert into public.pandora_tasks (
+    insert into public.projectos_tasks (
       organization_id,project_id,phase_id,task_key,title,description,sequence,priority,
       status,continuation_role,blocks_phase_exit,risk_class,builder_agent,builder_vendor,
       reviewer_agent,reviewer_vendor,completion_criteria,result_summary
@@ -211,7 +211,7 @@ begin
       nullif(v_task_json->>'builderAgent',''),nullif(v_task_json->>'builderVendor',''),
       nullif(v_task_json->>'reviewerAgent',''),nullif(v_task_json->>'reviewerVendor',''),
       coalesce(v_task_json->'completionCriteria','[]'::jsonb),
-      jsonb_build_object('intakeId',v_intake.id,'planSource',coalesce(p_plan->>'source','pandora'))
+      jsonb_build_object('intakeId',v_intake.id,'planSource',coalesce(p_plan->>'source','projectos'))
     ) on conflict (project_id,task_key) do update set
       phase_id=excluded.phase_id,title=excluded.title,description=excluded.description,
       sequence=excluded.sequence,priority=excluded.priority,
@@ -219,16 +219,16 @@ begin
       risk_class=excluded.risk_class,builder_agent=excluded.builder_agent,
       builder_vendor=excluded.builder_vendor,reviewer_agent=excluded.reviewer_agent,
       reviewer_vendor=excluded.reviewer_vendor,completion_criteria=excluded.completion_criteria,
-      result_summary=pandora_tasks.result_summary || excluded.result_summary;
+      result_summary=projectos_tasks.result_summary || excluded.result_summary;
   end loop;
 
   for v_dependency_json in select value from jsonb_array_elements(coalesce(p_plan->'dependencies','[]'::jsonb)) loop
-    select id into v_task_id from public.pandora_tasks
+    select id into v_task_id from public.projectos_tasks
       where project_id=v_project.id and task_key=v_dependency_json->>'taskKey';
-    select id into v_dependency_id from public.pandora_tasks
+    select id into v_dependency_id from public.projectos_tasks
       where project_id=v_project.id and task_key=v_dependency_json->>'dependsOnTaskKey';
     if v_task_id is not null and v_dependency_id is not null then
-      insert into public.pandora_task_dependencies (
+      insert into public.projectos_task_dependencies (
         organization_id,project_id,task_id,depends_on_task_id,dependency_type
       ) values (
         p_organization_id,v_project.id,v_task_id,v_dependency_id,
@@ -237,17 +237,17 @@ begin
     end if;
   end loop;
 
-  update public.pandora_intake_requests set
+  update public.projectos_intake_requests set
     status='planned',analysis=coalesce(p_plan->'analysis','{}'::jsonb),updated_at=now()
   where id=v_intake.id;
   return jsonb_build_object(
     'intakeId',v_intake.id,'projectKey',v_project.project_key,
-    'projection',public.pandora_recompute_project(p_organization_id,v_project.project_key)
+    'projection',public.projectos_recompute_project(p_organization_id,v_project.project_key)
   );
 end;
 $$;
 
-create or replace function public.pandora_recommend_agents(
+create or replace function public.projectos_recommend_agents(
   p_organization_id uuid,
   p_project_key text,
   p_role text default 'builder',
@@ -260,7 +260,7 @@ as $$
   with authorized as (
     select 1 as ok where auth.role()='service_role' or private.is_org_member(p_organization_id)
   ), target as (
-    select project.id from public.pandora_projects project, authorized
+    select project.id from public.projectos_projects project, authorized
     where project.organization_id=p_organization_id and project.project_key=p_project_key
   ), scored as (
     select
@@ -278,7 +278,7 @@ as $$
         + least(1,sum(case when observation.project_id=(select id from target) then 1 else 0 end)::numeric/5)*0.10
         - least(0.20,avg(observation.repair_attempts::numeric)*0.04)
       ) as score
-    from public.pandora_agent_observations observation, authorized
+    from public.projectos_agent_observations observation, authorized
     where observation.organization_id=p_organization_id and observation.role=p_role
     group by observation.agent_key,observation.vendor,observation.role
   ), ranked as (
@@ -294,7 +294,7 @@ as $$
   from ranked;
 $$;
 
-create or replace function public.pandora_get_context(
+create or replace function public.projectos_get_context(
   p_organization_id uuid,
   p_project_key text,
   p_task_key text default null
@@ -309,30 +309,30 @@ declare
   v_projection jsonb;
 begin
   if auth.role()<>'service_role' and not private.is_org_member(p_organization_id) then
-    raise exception 'pandora_forbidden';
+    raise exception 'projectos_forbidden';
   end if;
-  select id into strict v_project_id from public.pandora_projects
+  select id into strict v_project_id from public.projectos_projects
     where organization_id=p_organization_id and project_key=p_project_key;
-  v_projection := public.pandora_recompute_project(p_organization_id,p_project_key);
+  v_projection := public.projectos_recompute_project(p_organization_id,p_project_key);
   if p_task_key is not null then
-    select to_jsonb(task) into v_task from public.pandora_tasks task
+    select to_jsonb(task) into v_task from public.projectos_tasks task
       where task.project_id=v_project_id and task.task_key=p_task_key;
   end if;
   return jsonb_build_object(
     'projection',v_projection,'task',v_task,
     'projectLessons',coalesce((select jsonb_agg(to_jsonb(lesson) order by lesson.confidence desc,lesson.evidence_count desc)
-      from public.pandora_lessons lesson where lesson.organization_id=p_organization_id
+      from public.projectos_lessons lesson where lesson.organization_id=p_organization_id
       and lesson.project_id=v_project_id and lesson.status in ('candidate','promoted')),'[]'::jsonb),
     'portfolioLessons',coalesce((select jsonb_agg(to_jsonb(lesson) order by lesson.confidence desc,lesson.evidence_count desc)
-      from public.pandora_lessons lesson where lesson.organization_id=p_organization_id
+      from public.projectos_lessons lesson where lesson.organization_id=p_organization_id
       and lesson.scope in ('portfolio','operational') and lesson.status='promoted'),'[]'::jsonb),
-    'builderRecommendations',public.pandora_recommend_agents(p_organization_id,p_project_key,'builder',5),
-    'reviewerRecommendations',public.pandora_recommend_agents(p_organization_id,p_project_key,'reviewer',5)
+    'builderRecommendations',public.projectos_recommend_agents(p_organization_id,p_project_key,'builder',5),
+    'reviewerRecommendations',public.projectos_recommend_agents(p_organization_id,p_project_key,'reviewer',5)
   );
 end;
 $$;
 
-grant execute on function public.pandora_apply_manifest(uuid,jsonb,uuid) to service_role;
-grant execute on function public.pandora_plan_intake(uuid,uuid,jsonb) to service_role;
-grant execute on function public.pandora_recommend_agents(uuid,text,text,integer) to authenticated,service_role;
-grant execute on function public.pandora_get_context(uuid,text,text) to authenticated,service_role;
+grant execute on function public.projectos_apply_manifest(uuid,jsonb,uuid) to service_role;
+grant execute on function public.projectos_plan_intake(uuid,uuid,jsonb) to service_role;
+grant execute on function public.projectos_recommend_agents(uuid,text,text,integer) to authenticated,service_role;
+grant execute on function public.projectos_get_context(uuid,text,text) to authenticated,service_role;

@@ -1,5 +1,5 @@
 -- Pandora Universal Chat standing-authority UX v8
--- Routine owner instructions continue automatically. Pandora/Tool Gateway are implementation details,
+-- Routine owner instructions continue automatically. ProjectOS/Tool Gateway are implementation details,
 -- not owner-facing gates. Worker/tool credentials remain isolated from the model.
 
 create or replace function public.pandora_chat_universal_dispatch_v8(
@@ -58,7 +58,7 @@ begin
       if v_intake_id is not null then
         select i.status, i.project_id
         into v_intake_status, v_intake_project_id
-        from public.pandora_intake_requests i
+        from public.projectos_intake_requests i
         where i.id=v_intake_id
           and i.organization_id=p_organization_id
         limit 1;
@@ -169,4 +169,4 @@ revoke all on function public.pandora_chat_universal_dispatch_v8(uuid,text,uuid,
 grant execute on function public.pandora_chat_universal_dispatch_v8(uuid,text,uuid,uuid) to authenticated;
 
 comment on function public.pandora_chat_universal_dispatch_v8(uuid,text,uuid,uuid)
-is 'Universal Chat v8: standing-authority owner UX, exact persisted execution-status follow-ups, no Pandora/Tool Gateway front-door language, and truthful completion claims.';
+is 'Universal Chat v8: standing-authority owner UX, exact persisted execution-status follow-ups, no ProjectOS/Tool Gateway front-door language, and truthful completion claims.';

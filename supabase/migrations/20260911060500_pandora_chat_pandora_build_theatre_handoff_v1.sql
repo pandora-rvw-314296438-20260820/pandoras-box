@@ -1,6 +1,6 @@
 -- Pandora Chat governed mutation handoff v1
 -- A mutating capability request is first admitted by the existing deterministic
--- gateway into Pandora. This wrapper only exposes the resulting governed
+-- gateway into ProjectOS. This wrapper only exposes the resulting governed
 -- project handoff so the mobile client enters the existing real workspace/build
 -- stream. It does not execute a provider mutation and it never fabricates build
 -- progress.
@@ -36,7 +36,7 @@ begin
   );
 
   if coalesce(v_result->>'handled','false') = 'true'
-     and v_result #>> '{capabilityResult,authority}' = 'pandora' then
+     and v_result #>> '{capabilityResult,authority}' = 'projectos' then
     v_project_id := nullif(v_result #>> '{capabilityResult,projectId}','');
     if v_project_id is not null then
       v_result := jsonb_set(
@@ -46,7 +46,7 @@ begin
           'required', true,
           'request', trim(coalesce(p_message,'')),
           'projectId', v_project_id,
-          'source', 'pandora_intake',
+          'source', 'projectos_intake',
           'intakeId', v_result #>> '{capabilityResult,intakeId}'
         ),
         true
@@ -66,4 +66,4 @@ comment on function public.pandora_chat_capability_dispatch_core_v1(uuid,text,uu
 is 'Internal deterministic capability gateway retained as the execution/readback core. Direct authenticated execution is intentionally revoked; use pandora_chat_capability_dispatch_v1.';
 
 comment on function public.pandora_chat_capability_dispatch_v1(uuid,text,uuid,uuid)
-is 'Authenticated Pandora Chat gateway. Stateful requests remain Pandora-governed, then return a real project handoff so the existing workspace can render Build Theatre from backend execution events.';
+is 'Authenticated Pandora Chat gateway. Stateful requests remain ProjectOS-governed, then return a real project handoff so the existing workspace can render Build Theatre from backend execution events.';

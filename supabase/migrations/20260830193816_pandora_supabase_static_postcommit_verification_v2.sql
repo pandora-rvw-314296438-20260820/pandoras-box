@@ -24,7 +24,7 @@ begin
   v_old:=$block$
   v_verification:=private.pandora_worker_e_verify_supabase_production_20260831(v_prod_id,p_requested_by);
   if upper(coalesce(v_verification->>'status',''))<>'PASS' then
-    update public.pandora_projects set config=jsonb_set(coalesce(config,'{}'::jsonb),'{customerJourney}',coalesce(config->'customerJourney','{}'::jsonb)||jsonb_build_object('stage','needs_attention','runtimeStatus','failed','productionVerificationState','failed','runtimeUpdatedAt',clock_timestamp()),true),updated_at=clock_timestamp() where id=p_project_id;
+    update public.projectos_projects set config=jsonb_set(coalesce(config,'{}'::jsonb),'{customerJourney}',coalesce(config->'customerJourney','{}'::jsonb)||jsonb_build_object('stage','needs_attention','runtimeStatus','failed','productionVerificationState','failed','runtimeUpdatedAt',clock_timestamp()),true),updated_at=clock_timestamp() where id=p_project_id;
     return jsonb_build_object('deploymentId',v_prod_id,'projectVersionId',p_version_id,'verificationRunId',v_verification->>'verificationRunId','state','blocked','stage','production_verification','provider','supabase_static');
   end if;
   v_run_id:=(v_verification->>'verificationRunId')::uuid;
@@ -85,7 +85,7 @@ begin
     v_run_id:=(v_verification->>'verificationRunId')::uuid;
     return private.pandora_finalize_verified_production_20260830(v_dep.id,v_run_id)||jsonb_build_object('provider',v_dep.provider);
   end if;
-  update public.pandora_projects
+  update public.projectos_projects
      set config=jsonb_set(coalesce(config,'{}'::jsonb),'{customerJourney}',coalesce(config->'customerJourney','{}'::jsonb)||jsonb_build_object(
        'stage','needs_attention','runtimeStatus','failed','productionVerificationState','failed','runtimeUpdatedAt',clock_timestamp()
      ),true),updated_at=clock_timestamp()

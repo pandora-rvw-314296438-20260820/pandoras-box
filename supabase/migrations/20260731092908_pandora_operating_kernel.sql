@@ -3,13 +3,13 @@
 -- Production history is never rewritten; live hashes remain in the recovery manifest.
 -- Semantic recovery of the provider-recorded SQL payload; comments and terminal newline may differ.
 
-create table public.pandora_projects (
+create table public.projectos_projects (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   project_key text not null check (project_key ~ '^[a-z0-9][a-z0-9._-]{0,79}$'),
   name text not null check (char_length(name) between 1 and 160),
   repository text check (repository is null or repository ~ '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'),
-  workspace_path text not null check (workspace_path ~ '^pandora/projects/[a-z0-9][a-z0-9._-]{0,79}$'),
+  workspace_path text not null check (workspace_path ~ '^projectos/projects/[a-z0-9][a-z0-9._-]{0,79}$'),
   status text not null default 'active' check (status in ('active','blocked','paused','complete','archived')),
   objective text not null default '',
   roadmap_version text not null default '1.0.0',
@@ -25,10 +25,10 @@ create table public.pandora_projects (
   unique (organization_id, repository)
 );
 
-create table public.pandora_project_resources (
+create table public.projectos_project_resources (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   provider text not null check (provider ~ '^[a-z][a-z0-9_-]{1,63}$'),
   resource_type text not null check (resource_type ~ '^[a-z][a-z0-9_-]{1,63}$'),
   external_id text not null,
@@ -43,10 +43,10 @@ create table public.pandora_project_resources (
   unique (project_id, provider, resource_type, external_id)
 );
 
-create table public.pandora_phases (
+create table public.projectos_phases (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   phase_key text not null check (phase_key ~ '^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$'),
   name text not null check (char_length(name) between 1 and 200),
   sequence integer not null check (sequence >= 0),
@@ -60,11 +60,11 @@ create table public.pandora_phases (
   unique (project_id, sequence)
 );
 
-create table public.pandora_tasks (
+create table public.projectos_tasks (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
-  phase_id uuid references public.pandora_phases(id) on delete set null,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  phase_id uuid references public.projectos_phases(id) on delete set null,
   task_key text not null check (task_key ~ '^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$'),
   title text not null check (char_length(title) between 1 and 240),
   description text not null default '',
@@ -91,21 +91,21 @@ create table public.pandora_tasks (
   unique (project_id, sequence)
 );
 
-create table public.pandora_task_dependencies (
+create table public.projectos_task_dependencies (
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
-  task_id uuid not null references public.pandora_tasks(id) on delete cascade,
-  depends_on_task_id uuid not null references public.pandora_tasks(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  task_id uuid not null references public.projectos_tasks(id) on delete cascade,
+  depends_on_task_id uuid not null references public.projectos_tasks(id) on delete cascade,
   dependency_type text not null default 'hard' check (dependency_type in ('hard','soft','evidence')),
   created_at timestamptz not null default now(),
   primary key (task_id, depends_on_task_id),
   check (task_id <> depends_on_task_id)
 );
 
-create table public.pandora_intake_requests (
+create table public.projectos_intake_requests (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid references public.pandora_projects(id) on delete set null,
+  project_id uuid references public.projectos_projects(id) on delete set null,
   requester_id uuid references auth.users(id),
   source text not null default 'operator' check (source in ('operator','chatgpt','github','slack','email','api','system')),
   request_type text not null default 'work' check (request_type in ('work','research','incident','maintenance','release','idea','decision')),
@@ -121,10 +121,10 @@ create table public.pandora_intake_requests (
   unique (organization_id, idempotency_key)
 );
 
-create table public.pandora_external_events (
+create table public.projectos_external_events (
   id bigint generated always as identity primary key,
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid references public.pandora_projects(id) on delete set null,
+  project_id uuid references public.projectos_projects(id) on delete set null,
   provider text not null check (provider ~ '^[a-z][a-z0-9_-]{1,63}$'),
   delivery_id text not null,
   event_type text not null,
@@ -139,11 +139,11 @@ create table public.pandora_external_events (
   unique (organization_id, provider, delivery_id)
 );
 
-create table public.pandora_evidence (
+create table public.projectos_evidence (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
-  task_id uuid references public.pandora_tasks(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  task_id uuid references public.projectos_tasks(id) on delete cascade,
   evidence_type text not null check (evidence_type ~ '^[a-z][a-z0-9_.-]{1,127}$'),
   provider text not null check (provider ~ '^[a-z][a-z0-9_-]{1,63}$'),
   external_id text,
@@ -158,15 +158,15 @@ create table public.pandora_evidence (
   invalidation_reason text,
   created_at timestamptz not null default now()
 );
-create unique index pandora_evidence_external_unique
-  on public.pandora_evidence (organization_id, provider, evidence_type, external_id)
+create unique index projectos_evidence_external_unique
+  on public.projectos_evidence (organization_id, provider, evidence_type, external_id)
   where external_id is not null;
-create index pandora_evidence_task_idx on public.pandora_evidence (task_id, observed_at desc);
+create index projectos_evidence_task_idx on public.projectos_evidence (task_id, observed_at desc);
 
-create table public.pandora_reconciliation_runs (
+create table public.projectos_reconciliation_runs (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid references public.pandora_projects(id) on delete cascade,
+  project_id uuid references public.projectos_projects(id) on delete cascade,
   provider text not null,
   status text not null default 'running' check (status in ('running','succeeded','partial','failed')),
   cursor_before jsonb not null default '{}'::jsonb,
@@ -177,9 +177,9 @@ create table public.pandora_reconciliation_runs (
   completed_at timestamptz
 );
 
-create table public.pandora_integration_health (
+create table public.projectos_integration_health (
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   provider text not null,
   status text not null default 'unknown' check (status in ('healthy','degraded','down','unknown','not_configured')),
   last_event_at timestamptz,
@@ -190,26 +190,26 @@ create table public.pandora_integration_health (
   primary key (project_id, provider)
 );
 
-create table public.pandora_decisions (
+create table public.projectos_decisions (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
-  task_id uuid references public.pandora_tasks(id) on delete set null,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  task_id uuid references public.projectos_tasks(id) on delete set null,
   decision_type text not null,
   statement text not null check (char_length(statement) between 1 and 10000),
   rationale text not null default '',
   confidence numeric(4,3) not null default 1 check (confidence between 0 and 1),
   source text not null default 'operator',
-  supersedes_id uuid references public.pandora_decisions(id) on delete set null,
+  supersedes_id uuid references public.projectos_decisions(id) on delete set null,
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now()
 );
 
-create table public.pandora_task_outcomes (
+create table public.projectos_task_outcomes (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
-  task_id uuid not null references public.pandora_tasks(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  task_id uuid not null references public.projectos_tasks(id) on delete cascade,
   planned jsonb not null default '{}'::jsonb,
   actual jsonb not null default '{}'::jsonb,
   success boolean not null,
@@ -222,12 +222,12 @@ create table public.pandora_task_outcomes (
   unique (task_id)
 );
 
-create table public.pandora_lessons (
+create table public.projectos_lessons (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   scope text not null check (scope in ('project','portfolio','operational')),
-  project_id uuid references public.pandora_projects(id) on delete cascade,
-  source_task_id uuid references public.pandora_tasks(id) on delete set null,
+  project_id uuid references public.projectos_projects(id) on delete cascade,
+  source_task_id uuid references public.projectos_tasks(id) on delete set null,
   category text not null,
   lesson text not null check (char_length(lesson) between 1 and 10000),
   pattern jsonb not null default '{}'::jsonb,
@@ -241,11 +241,11 @@ create table public.pandora_lessons (
   check ((scope = 'project' and project_id is not null) or scope <> 'project')
 );
 
-create table public.pandora_agent_observations (
+create table public.projectos_agent_observations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid references public.pandora_projects(id) on delete set null,
-  task_id uuid references public.pandora_tasks(id) on delete set null,
+  project_id uuid references public.projectos_projects(id) on delete set null,
+  task_id uuid references public.projectos_tasks(id) on delete set null,
   agent_key text not null,
   vendor text not null,
   role text not null check (role in ('planner','builder','reviewer','operator','analyst')),
@@ -258,12 +258,12 @@ create table public.pandora_agent_observations (
   notes jsonb not null default '{}'::jsonb,
   observed_at timestamptz not null default now()
 );
-create index pandora_agent_observations_agent_idx on public.pandora_agent_observations (organization_id, agent_key, observed_at desc);
+create index projectos_agent_observations_agent_idx on public.projectos_agent_observations (organization_id, agent_key, observed_at desc);
 
-create table public.pandora_workspace_documents (
+create table public.projectos_workspace_documents (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   document_key text not null check (document_key in ('identity','objectives','architecture','roadmap','tasks','decisions','risks','integrations','deployments','analytics','evidence','audit','lessons','current_state','next_action')),
   version integer not null default 1 check (version > 0),
   content jsonb not null default '{}'::jsonb,
@@ -273,21 +273,21 @@ create table public.pandora_workspace_documents (
   unique (project_id, document_key)
 );
 
-create table public.pandora_projections (
+create table public.projectos_projections (
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   version bigint not null default 1 check (version > 0),
   projection jsonb not null default '{}'::jsonb,
-  source_event_id bigint references public.pandora_external_events(id) on delete set null,
+  source_event_id bigint references public.projectos_external_events(id) on delete set null,
   computed_at timestamptz not null default now(),
   stale_after timestamptz,
   primary key (project_id)
 );
 
-create table public.pandora_learning_runs (
+create table public.projectos_learning_runs (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid references public.pandora_projects(id) on delete cascade,
+  project_id uuid references public.projectos_projects(id) on delete cascade,
   status text not null default 'running' check (status in ('running','succeeded','failed','no_change')),
   inputs jsonb not null default '{}'::jsonb,
   outputs jsonb not null default '{}'::jsonb,
@@ -296,7 +296,7 @@ create table public.pandora_learning_runs (
   error_code text
 );
 
-create table public.pandora_policies (
+create table public.projectos_policies (
   organization_id uuid primary key references public.organizations(id) on delete cascade,
   mandatory_control_layer boolean not null default true,
   require_project_workspace boolean not null default true,
@@ -311,74 +311,74 @@ create table public.pandora_policies (
   updated_at timestamptz not null default now()
 );
 
-create trigger pandora_projects_updated before update on public.pandora_projects for each row execute function private.set_updated_at();
-create trigger pandora_project_resources_updated before update on public.pandora_project_resources for each row execute function private.set_updated_at();
-create trigger pandora_phases_updated before update on public.pandora_phases for each row execute function private.set_updated_at();
-create trigger pandora_tasks_updated before update on public.pandora_tasks for each row execute function private.set_updated_at();
-create trigger pandora_intake_updated before update on public.pandora_intake_requests for each row execute function private.set_updated_at();
-create trigger pandora_lessons_updated before update on public.pandora_lessons for each row execute function private.set_updated_at();
-create trigger pandora_workspace_documents_updated before update on public.pandora_workspace_documents for each row execute function private.set_updated_at();
+create trigger projectos_projects_updated before update on public.projectos_projects for each row execute function private.set_updated_at();
+create trigger projectos_project_resources_updated before update on public.projectos_project_resources for each row execute function private.set_updated_at();
+create trigger projectos_phases_updated before update on public.projectos_phases for each row execute function private.set_updated_at();
+create trigger projectos_tasks_updated before update on public.projectos_tasks for each row execute function private.set_updated_at();
+create trigger projectos_intake_updated before update on public.projectos_intake_requests for each row execute function private.set_updated_at();
+create trigger projectos_lessons_updated before update on public.projectos_lessons for each row execute function private.set_updated_at();
+create trigger projectos_workspace_documents_updated before update on public.projectos_workspace_documents for each row execute function private.set_updated_at();
 
-alter table public.pandora_projects enable row level security;
-alter table public.pandora_project_resources enable row level security;
-alter table public.pandora_phases enable row level security;
-alter table public.pandora_tasks enable row level security;
-alter table public.pandora_task_dependencies enable row level security;
-alter table public.pandora_intake_requests enable row level security;
-alter table public.pandora_external_events enable row level security;
-alter table public.pandora_evidence enable row level security;
-alter table public.pandora_reconciliation_runs enable row level security;
-alter table public.pandora_integration_health enable row level security;
-alter table public.pandora_decisions enable row level security;
-alter table public.pandora_task_outcomes enable row level security;
-alter table public.pandora_lessons enable row level security;
-alter table public.pandora_agent_observations enable row level security;
-alter table public.pandora_workspace_documents enable row level security;
-alter table public.pandora_projections enable row level security;
-alter table public.pandora_learning_runs enable row level security;
-alter table public.pandora_policies enable row level security;
+alter table public.projectos_projects enable row level security;
+alter table public.projectos_project_resources enable row level security;
+alter table public.projectos_phases enable row level security;
+alter table public.projectos_tasks enable row level security;
+alter table public.projectos_task_dependencies enable row level security;
+alter table public.projectos_intake_requests enable row level security;
+alter table public.projectos_external_events enable row level security;
+alter table public.projectos_evidence enable row level security;
+alter table public.projectos_reconciliation_runs enable row level security;
+alter table public.projectos_integration_health enable row level security;
+alter table public.projectos_decisions enable row level security;
+alter table public.projectos_task_outcomes enable row level security;
+alter table public.projectos_lessons enable row level security;
+alter table public.projectos_agent_observations enable row level security;
+alter table public.projectos_workspace_documents enable row level security;
+alter table public.projectos_projections enable row level security;
+alter table public.projectos_learning_runs enable row level security;
+alter table public.projectos_policies enable row level security;
 
 do $$
 declare t text;
 begin
   foreach t in array array[
-    'pandora_projects','pandora_project_resources','pandora_phases','pandora_tasks',
-    'pandora_task_dependencies','pandora_intake_requests','pandora_external_events',
-    'pandora_evidence','pandora_reconciliation_runs','pandora_integration_health',
-    'pandora_decisions','pandora_task_outcomes','pandora_lessons',
-    'pandora_agent_observations','pandora_workspace_documents','pandora_projections',
-    'pandora_learning_runs','pandora_policies'
+    'projectos_projects','projectos_project_resources','projectos_phases','projectos_tasks',
+    'projectos_task_dependencies','projectos_intake_requests','projectos_external_events',
+    'projectos_evidence','projectos_reconciliation_runs','projectos_integration_health',
+    'projectos_decisions','projectos_task_outcomes','projectos_lessons',
+    'projectos_agent_observations','projectos_workspace_documents','projectos_projections',
+    'projectos_learning_runs','projectos_policies'
   ] loop
     execute format('create policy %I on public.%I for select to authenticated using (private.is_org_member(organization_id))', t || '_member_read', t);
   end loop;
 end $$;
 
-create policy pandora_projects_operator_write on public.pandora_projects for all to authenticated
+create policy projectos_projects_operator_write on public.projectos_projects for all to authenticated
   using (private.has_org_role(organization_id, array['owner','admin','operator']::member_role[]))
   with check (private.has_org_role(organization_id, array['owner','admin','operator']::member_role[]));
-create policy pandora_resources_operator_write on public.pandora_project_resources for all to authenticated
+create policy projectos_resources_operator_write on public.projectos_project_resources for all to authenticated
   using (private.has_org_role(organization_id, array['owner','admin','operator']::member_role[]))
   with check (private.has_org_role(organization_id, array['owner','admin','operator']::member_role[]));
-create policy pandora_phases_operator_write on public.pandora_phases for all to authenticated
+create policy projectos_phases_operator_write on public.projectos_phases for all to authenticated
   using (private.has_org_role(organization_id, array['owner','admin','operator']::member_role[]))
   with check (private.has_org_role(organization_id, array['owner','admin','operator']::member_role[]));
-create policy pandora_tasks_operator_write on public.pandora_tasks for all to authenticated
+create policy projectos_tasks_operator_write on public.projectos_tasks for all to authenticated
   using (private.has_org_role(organization_id, array['owner','admin','operator']::member_role[]))
   with check (private.has_org_role(organization_id, array['owner','admin','operator']::member_role[]));
-create policy pandora_dependencies_operator_write on public.pandora_task_dependencies for all to authenticated
+create policy projectos_dependencies_operator_write on public.projectos_task_dependencies for all to authenticated
   using (private.has_org_role(organization_id, array['owner','admin','operator']::member_role[]))
   with check (private.has_org_role(organization_id, array['owner','admin','operator']::member_role[]));
-create policy pandora_intake_member_insert on public.pandora_intake_requests for insert to authenticated
+create policy projectos_intake_member_insert on public.projectos_intake_requests for insert to authenticated
   with check (private.is_org_member(organization_id) and (requester_id is null or requester_id = auth.uid()));
-create policy pandora_intake_operator_update on public.pandora_intake_requests for update to authenticated
+create policy projectos_intake_operator_update on public.projectos_intake_requests for update to authenticated
   using (private.has_org_role(organization_id, array['owner','admin','operator']::member_role[]))
   with check (private.has_org_role(organization_id, array['owner','admin','operator']::member_role[]));
-create policy pandora_policies_owner_write on public.pandora_policies for all to authenticated
+create policy projectos_policies_owner_write on public.projectos_policies for all to authenticated
   using (private.has_org_role(organization_id, array['owner','admin']::member_role[]))
   with check (private.has_org_role(organization_id, array['owner','admin']::member_role[]));
 
 grant select on all tables in schema public to authenticated;
-grant insert, update, delete on public.pandora_projects, public.pandora_project_resources, public.pandora_phases, public.pandora_tasks, public.pandora_task_dependencies to authenticated;
-grant insert, update on public.pandora_intake_requests to authenticated;
-grant insert, update, delete on public.pandora_policies to authenticated;
-grant usage, select on sequence public.pandora_external_events_id_seq to authenticated;
+grant insert, update, delete on public.projectos_projects, public.projectos_project_resources, public.projectos_phases, public.projectos_tasks, public.projectos_task_dependencies to authenticated;
+grant insert, update on public.projectos_intake_requests to authenticated;
+grant insert, update, delete on public.projectos_policies to authenticated;
+grant usage, select on sequence public.projectos_external_events_id_seq to authenticated;

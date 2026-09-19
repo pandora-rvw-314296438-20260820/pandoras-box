@@ -25,7 +25,7 @@ create table if not exists public.pandora_primitive_catalog_entries(
 create table if not exists public.pandora_project_spec_primitive_resolutions(
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   project_spec_id uuid not null references public.pandora_project_specs(id) on delete cascade,
   require_trusted boolean not null,
   state text not null,
@@ -44,7 +44,7 @@ create table if not exists public.pandora_project_spec_primitive_selections(
   id uuid primary key default gen_random_uuid(),
   resolution_id uuid not null references public.pandora_project_spec_primitive_resolutions(id) on delete cascade,
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.pandora_projects(id) on delete cascade,
+  project_id uuid not null references public.projectos_projects(id) on delete cascade,
   project_spec_id uuid not null references public.pandora_project_specs(id) on delete cascade,
   primitive_name text not null,
   primitive_version text not null,

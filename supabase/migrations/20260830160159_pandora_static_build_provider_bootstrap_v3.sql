@@ -5,7 +5,7 @@ security definer
 set search_path='pg_catalog','private','public','extensions'
 as $function$
 declare
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_journey jsonb;
   v_team text;
   v_name text;
@@ -16,7 +16,7 @@ declare
   v_provider_name text;
   v_now timestamptz := clock_timestamp();
 begin
-  select * into v_project from public.pandora_projects where id=p_project_id for update;
+  select * into v_project from public.projectos_projects where id=p_project_id for update;
   if not found then raise exception 'STATIC_PROVIDER_PROJECT_NOT_FOUND' using errcode='22023'; end if;
 
   v_journey:=coalesce(v_project.config->'customerJourney','{}'::jsonb);
@@ -66,7 +66,7 @@ begin
     raise exception 'STATIC_PROVIDER_PROJECT_INVALID' using errcode='55000';
   end if;
 
-  update public.pandora_projects
+  update public.projectos_projects
   set config=jsonb_set(
         coalesce(config,'{}'::jsonb),
         '{customerJourney}',

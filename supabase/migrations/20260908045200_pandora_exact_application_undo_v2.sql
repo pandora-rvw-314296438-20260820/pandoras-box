@@ -23,7 +23,7 @@ declare
   v_preview_env public.pandora_runtime_environments%rowtype;
   v_production_env public.pandora_runtime_environments%rowtype;
   v_latest_id uuid;
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_parent_is_production boolean := false;
   v_now timestamptz := clock_timestamp();
   v_next_config jsonb;
@@ -39,7 +39,7 @@ begin
 
   select *
     into v_project
-  from public.pandora_projects
+  from public.projectos_projects
   where id=p_project_id
     and organization_id=p_organization_id
   for update;
@@ -191,7 +191,7 @@ begin
       )
     );
 
-  update public.pandora_projects
+  update public.projectos_projects
   set config=v_next_config,
       updated_at=v_now
   where id=p_project_id
@@ -272,7 +272,7 @@ declare
   r record;
 begin
   for r in
-    select id from public.pandora_projects order by created_at,id
+    select id from public.projectos_projects order by created_at,id
   loop
     perform private.pandora_refresh_project_experience_projection_v1(r.id);
   end loop;

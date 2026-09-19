@@ -188,7 +188,7 @@ security definer
 set search_path='pg_catalog','private','public','extensions'
 as $$
 declare
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_ver public.pandora_project_versions%rowtype;
   v_preview public.pandora_project_deployments%rowtype;
   v_preview_run public.pandora_verification_runs%rowtype;
@@ -207,7 +207,7 @@ declare
   v_final jsonb;
   v_now timestamptz:=clock_timestamp();
 begin
-  select * into v_project from public.pandora_projects where id=p_project_id for update;
+  select * into v_project from public.projectos_projects where id=p_project_id for update;
   if not found then raise exception 'PROJECT_NOT_FOUND' using errcode='22023'; end if;
   if not exists(select 1 from public.memberships where organization_id=v_project.organization_id and user_id=p_requested_by and status='active' and role::text in ('owner','admin')) then
     raise exception 'OWNER_ROLE_REQUIRED' using errcode='42501';
@@ -296,14 +296,14 @@ begin
     update public.pandora_project_versions set rollback_eligible=true where id=p_expected_production_version_id and organization_id=v_project.organization_id and project_id=p_project_id;
   end if;
   update public.pandora_project_versions set lifecycle_status='production_candidate',promoted_at=v_now,rollback_eligible=true where id=p_version_id;
-  update public.pandora_projects
+  update public.projectos_projects
      set config=jsonb_set(coalesce(config,'{}'::jsonb),'{customerJourney}',coalesce(config->'customerJourney','{}'::jsonb)||jsonb_build_object('stage','publishing','runtimeStatus','verifying','productionCandidateUrl',v_url,'productionDeploymentId',v_provider_id,'publishedVersionId',p_version_id::text,'productionVerificationState','ready_for_verification','runtimeUpdatedAt',v_now),true),updated_at=v_now
    where id=p_project_id and organization_id=v_project.organization_id;
   update public.pandora_runtime_operations set status='succeeded',provider_resource_id=v_provider_id,result_facts=jsonb_build_object('projectVersionId',p_version_id,'providerDeploymentId',v_provider_id,'previewVerificationRunId',v_preview_run.id,'provider','supabase_static','verificationState','ready_for_verification'),finished_at=v_now,last_reconciled_at=v_now,updated_at=v_now where id=v_publish_op.id;
 
   v_verification:=private.pandora_worker_e_verify_supabase_production_20260831(v_prod_id,p_requested_by);
   if upper(coalesce(v_verification->>'status',''))<>'PASS' then
-    update public.pandora_projects set config=jsonb_set(coalesce(config,'{}'::jsonb),'{customerJourney}',coalesce(config->'customerJourney','{}'::jsonb)||jsonb_build_object('stage','needs_attention','runtimeStatus','failed','productionVerificationState','failed','runtimeUpdatedAt',clock_timestamp()),true),updated_at=clock_timestamp() where id=p_project_id;
+    update public.projectos_projects set config=jsonb_set(coalesce(config,'{}'::jsonb),'{customerJourney}',coalesce(config->'customerJourney','{}'::jsonb)||jsonb_build_object('stage','needs_attention','runtimeStatus','failed','productionVerificationState','failed','runtimeUpdatedAt',clock_timestamp()),true),updated_at=clock_timestamp() where id=p_project_id;
     return jsonb_build_object('deploymentId',v_prod_id,'projectVersionId',p_version_id,'verificationRunId',v_verification->>'verificationRunId','state','blocked','stage','production_verification','provider','supabase_static');
   end if;
   v_run_id:=(v_verification->>'verificationRunId')::uuid;

@@ -13,7 +13,7 @@ lock table private.execution_plan_contexts in share row exclusive mode;
 -- object key recursively sorted by bytewise (C-collation) order. Scalar JSON
 -- uses PostgreSQL jsonb text encoding. The Node producer implements the same
 -- contract before hashing, so object insertion order cannot change the digest.
-create or replace function private.pandora_canonical_context_json(
+create or replace function private.projectos_canonical_context_json(
   p_value jsonb
 )
 returns text
@@ -30,7 +30,7 @@ begin
     when 'object' then
       select '{' || coalesce(string_agg(
         to_jsonb(entry.key)::text || ':' ||
-          private.pandora_canonical_context_json(entry.value),
+          private.projectos_canonical_context_json(entry.value),
         ',' order by entry.key collate "C"
       ), '') || '}'
       into canonical
@@ -38,7 +38,7 @@ begin
       return canonical;
     when 'array' then
       select '[' || coalesce(string_agg(
-        private.pandora_canonical_context_json(entry.value),
+        private.projectos_canonical_context_json(entry.value),
         ',' order by entry.ordinality
       ), '') || ']'
       into canonical
@@ -50,14 +50,14 @@ begin
 end;
 $$;
 
-revoke all on function private.pandora_canonical_context_json(jsonb)
+revoke all on function private.projectos_canonical_context_json(jsonb)
   from public, anon, authenticated, service_role;
 
 -- BEGIN EXECUTION PLAN CONTEXT HASH CONTRACT
 -- Historical rows are immutable evidence. Their original context_hash bytes
 -- must not be rewritten merely because the producer now uses a canonical JSON
 -- serializer. Record the serializer that produced each durable hash instead.
-create or replace function private.pandora_legacy_node_context_json(
+create or replace function private.projectos_legacy_node_context_json(
   p_value jsonb
 )
 returns text
@@ -202,24 +202,24 @@ begin
       ',"semanticMatches":' || (p_value #> '{counts,semanticMatches}')::text ||
     '}' ||
     ',"highlights":{"project":' ||
-      private.pandora_canonical_context_json(p_value #> '{highlights,project}') ||
+      private.projectos_canonical_context_json(p_value #> '{highlights,project}') ||
       ',"risks":' ||
-      private.pandora_canonical_context_json(p_value #> '{highlights,risks}') ||
+      private.projectos_canonical_context_json(p_value #> '{highlights,risks}') ||
       ',"openLoops":' ||
-      private.pandora_canonical_context_json(p_value #> '{highlights,openLoops}') ||
+      private.projectos_canonical_context_json(p_value #> '{highlights,openLoops}') ||
       ',"recent":' ||
-      private.pandora_canonical_context_json(p_value #> '{highlights,recent}') ||
+      private.projectos_canonical_context_json(p_value #> '{highlights,recent}') ||
       ',"semantic":' ||
-      private.pandora_canonical_context_json(p_value #> '{highlights,semantic}') ||
+      private.projectos_canonical_context_json(p_value #> '{highlights,semantic}') ||
     '}' ||
     ',"warnings":' ||
-      private.pandora_canonical_context_json(p_value -> 'warnings') ||
+      private.projectos_canonical_context_json(p_value -> 'warnings') ||
     failure_json ||
   '}';
 end;
 $$;
 
-create or replace function private.pandora_context_json_sha256(
+create or replace function private.projectos_context_json_sha256(
   p_serialized text
 )
 returns text
@@ -235,7 +235,7 @@ as $$
   )
 $$;
 
-create or replace function private.pandora_context_hash_matches_contract(
+create or replace function private.projectos_context_hash_matches_contract(
   p_context_hash text,
   p_context_envelope jsonb,
   p_hash_contract text
@@ -248,26 +248,26 @@ set search_path = ''
 as $$
   select coalesce(case p_hash_contract
     when 'canonical-json-c-utf8-sha256-v1' then
-      p_context_hash = private.pandora_context_json_sha256(
-        private.pandora_canonical_context_json(p_context_envelope)
+      p_context_hash = private.projectos_context_json_sha256(
+        private.projectos_canonical_context_json(p_context_envelope)
       )
     when 'legacy-js-json-stringify-envelope-v1' then
-      p_context_hash = private.pandora_context_json_sha256(
-        private.pandora_legacy_node_context_json(p_context_envelope)
+      p_context_hash = private.projectos_context_json_sha256(
+        private.projectos_legacy_node_context_json(p_context_envelope)
       )
     when 'legacy-postgres-jsonb-text-sha256-v1' then
-      p_context_hash = private.pandora_context_json_sha256(
+      p_context_hash = private.projectos_context_json_sha256(
         p_context_envelope::text
       )
     else false
   end, false)
 $$;
 
-revoke all on function private.pandora_legacy_node_context_json(jsonb)
+revoke all on function private.projectos_legacy_node_context_json(jsonb)
   from public, anon, authenticated, service_role;
-revoke all on function private.pandora_context_json_sha256(text)
+revoke all on function private.projectos_context_json_sha256(text)
   from public, anon, authenticated, service_role;
-revoke all on function private.pandora_context_hash_matches_contract(text, jsonb, text)
+revoke all on function private.projectos_context_hash_matches_contract(text, jsonb, text)
   from public, anon, authenticated, service_role;
 
 alter table private.execution_plan_contexts
@@ -285,13 +285,13 @@ declare
   evidence_row_count_after bigint;
   unclassified_count bigint;
 begin
-  select count(*), private.pandora_context_json_sha256(coalesce(string_agg(
+  select count(*), private.projectos_context_json_sha256(coalesce(string_agg(
     evidence.row_hash, E'\n' order by evidence.plan_id
   ), '')) into evidence_row_count_before, evidence_before
   from (
     select
       plan_id,
-      private.pandora_context_json_sha256(
+      private.projectos_context_json_sha256(
         plan_id::text || ':' || context_hash || ':' || context_envelope::text
       ) as row_hash
     from private.execution_plan_contexts
@@ -300,28 +300,28 @@ begin
   update private.execution_plan_contexts
   set
     hash_contract = case
-      when context_hash = private.pandora_context_json_sha256(
-        private.pandora_legacy_node_context_json(context_envelope)
+      when context_hash = private.projectos_context_json_sha256(
+        private.projectos_legacy_node_context_json(context_envelope)
       ) then 'legacy-js-json-stringify-envelope-v1'
-      when context_hash = private.pandora_context_json_sha256(
+      when context_hash = private.projectos_context_json_sha256(
         context_envelope::text
       ) then 'legacy-postgres-jsonb-text-sha256-v1'
-      when context_hash = private.pandora_context_json_sha256(
-        private.pandora_canonical_context_json(context_envelope)
+      when context_hash = private.projectos_context_json_sha256(
+        private.projectos_canonical_context_json(context_envelope)
       ) then 'canonical-json-c-utf8-sha256-v1'
       else null
     end,
-    canonical_context_hash = private.pandora_context_json_sha256(
-      private.pandora_canonical_context_json(context_envelope)
+    canonical_context_hash = private.projectos_context_json_sha256(
+      private.projectos_canonical_context_json(context_envelope)
     );
 
-  select count(*), private.pandora_context_json_sha256(coalesce(string_agg(
+  select count(*), private.projectos_context_json_sha256(coalesce(string_agg(
     evidence.row_hash, E'\n' order by evidence.plan_id
   ), '')) into evidence_row_count_after, evidence_after
   from (
     select
       plan_id,
-      private.pandora_context_json_sha256(
+      private.projectos_context_json_sha256(
         plan_id::text || ':' || context_hash || ':' || context_envelope::text
       ) as row_hash
     from private.execution_plan_contexts
@@ -336,10 +336,10 @@ begin
   select count(*) into unclassified_count
   from private.execution_plan_contexts
   where hash_contract is null
-     or canonical_context_hash is distinct from private.pandora_context_json_sha256(
-       private.pandora_canonical_context_json(context_envelope)
+     or canonical_context_hash is distinct from private.projectos_context_json_sha256(
+       private.projectos_canonical_context_json(context_envelope)
      )
-     or private.pandora_context_hash_matches_contract(
+     or private.projectos_context_hash_matches_contract(
        context_hash,
        context_envelope,
        hash_contract
@@ -378,8 +378,8 @@ as $$
 declare
   expected_canonical_hash text;
 begin
-  expected_canonical_hash := private.pandora_context_json_sha256(
-    private.pandora_canonical_context_json(new.context_envelope)
+  expected_canonical_hash := private.projectos_context_json_sha256(
+    private.projectos_canonical_context_json(new.context_envelope)
   );
   if new.hash_contract is distinct from 'canonical-json-c-utf8-sha256-v1'
      or new.context_hash is distinct from expected_canonical_hash
@@ -426,7 +426,7 @@ for each row execute function
 -- Schema 2.0.0 is the full-capacity Memory envelope already governed by
 -- 20260817130000. Keep its validation explicit here so hardening the hash
 -- boundary cannot make the previously accepted contract unreachable.
-create or replace function private.pandora_full_capacity_context_is_valid(
+create or replace function private.projectos_full_capacity_context_is_valid(
   p_value jsonb
 )
 returns boolean
@@ -589,10 +589,10 @@ begin
          'utilizationPercentage'
        ]::text[])
        or p_value #>> '{capabilityContract,status}' is distinct from 'verified'
-       or p_value #>> '{capabilityContract,id}' is distinct from 'pandora-pandora-memory-puzzle'
+       or p_value #>> '{capabilityContract,id}' is distinct from 'pandora-projectos-memory-puzzle'
        or p_value #>> '{capabilityContract,version}' is distinct from '1.0.0'
        or p_value #>> '{capabilityContract,schemaVersion}' is distinct from '1.0.0'
-       or p_value #>> '{capabilityContract,path}' is distinct from '/.well-known/pandora-pandora-memory-contract-v1.json'
+       or p_value #>> '{capabilityContract,path}' is distinct from '/.well-known/pandora-projectos-memory-contract-v1.json'
        or p_value #>> '{capabilityContract,authorityRepository}' is distinct from 'banataosystems/pandoras-box-memory'
        or p_value #>> '{capabilityContract,authorityOrigin}' is distinct from 'https://pandorasbox-memory.vercel.app'
        or p_value #> '{capabilityContract,compatible}' is distinct from 'true'::jsonb
@@ -666,8 +666,8 @@ begin
        'observedSections', 'missingRequiredSections', 'utilizationPercentage'
      ]::text[])
      or p_value #>> '{capabilityContract,status}' is distinct from 'unavailable'
-     or p_value #>> '{capabilityContract,id}' is distinct from 'pandora-pandora-memory-puzzle'
-     or p_value #>> '{capabilityContract,path}' is distinct from '/.well-known/pandora-pandora-memory-contract-v1.json'
+     or p_value #>> '{capabilityContract,id}' is distinct from 'pandora-projectos-memory-puzzle'
+     or p_value #>> '{capabilityContract,path}' is distinct from '/.well-known/pandora-projectos-memory-contract-v1.json'
      or p_value #> '{capabilityContract,compatible}' is distinct from 'false'::jsonb
      or observed_sections is distinct from '[]'::jsonb
      or missing_sections is distinct from expected_sections
@@ -738,7 +738,7 @@ exception when others then
 end;
 $$;
 
-revoke all on function private.pandora_full_capacity_context_is_valid(jsonb)
+revoke all on function private.projectos_full_capacity_context_is_valid(jsonb)
   from public, anon, authenticated, service_role;
 
 create or replace function public.attach_execution_plan_context(
@@ -806,10 +806,10 @@ begin
   if context_row.plan_id is not null then
     if context_row.context_hash = p_context_hash
        and context_row.context_envelope = p_context_envelope
-       and context_row.canonical_context_hash = private.pandora_context_json_sha256(
-         private.pandora_canonical_context_json(context_row.context_envelope)
+       and context_row.canonical_context_hash = private.projectos_context_json_sha256(
+         private.projectos_canonical_context_json(context_row.context_envelope)
        )
-       and private.pandora_context_hash_matches_contract(
+       and private.projectos_context_hash_matches_contract(
          context_row.context_hash,
          context_row.context_envelope,
          context_row.hash_contract
@@ -856,7 +856,7 @@ begin
 
   context_schema_version := p_context_envelope ->> 'schemaVersion';
   if context_schema_version = '1.0.0' then
-    if private.pandora_legacy_node_context_json(p_context_envelope) is null
+    if private.projectos_legacy_node_context_json(p_context_envelope) is null
        or (
          (p_context_envelope ->> 'status' = 'unavailable')
          <> (p_context_envelope ? 'failure')
@@ -931,7 +931,7 @@ begin
       raise exception 'invalid context envelope contract'
         using errcode = '22023';
     end if;
-  elsif private.pandora_full_capacity_context_is_valid(p_context_envelope)
+  elsif private.projectos_full_capacity_context_is_valid(p_context_envelope)
       is not true then
     raise exception 'invalid full-capacity context envelope' using errcode = '22023';
   end if;
@@ -941,8 +941,8 @@ begin
       using errcode = '22023';
   end if;
 
-  canonical_context := private.pandora_canonical_context_json(p_context_envelope);
-  derived_context_hash := private.pandora_context_json_sha256(canonical_context);
+  canonical_context := private.projectos_canonical_context_json(p_context_envelope);
+  derived_context_hash := private.projectos_context_json_sha256(canonical_context);
 
   context_status := p_context_envelope ->> 'status';
   context_namespace := p_context_envelope ->> 'namespace';

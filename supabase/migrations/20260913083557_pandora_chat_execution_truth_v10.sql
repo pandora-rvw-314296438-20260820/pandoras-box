@@ -41,42 +41,42 @@ begin
     v_src := replace(v_src,v_old,v_new);
 
     v_old := $old$            when 'executing' then 'Yes — it is executing now. Pandora will keep going unless something genuinely needs you.'$old$;
-    v_new := $new$            when 'executing' then 'The request is executing now according to persisted Pandora state. Completion has not been verified yet.'$new$;
+    v_new := $new$            when 'executing' then 'The request is executing now according to persisted ProjectOS state. Completion has not been verified yet.'$new$;
     if position(v_old in v_src) = 0 then
       raise exception 'pandora_chat_v10_executing_anchor_missing' using errcode='55000';
     end if;
     v_src := replace(v_src,v_old,v_new);
 
     v_old := $old$            when 'completed' then 'The execution step is complete. Pandora is verifying the requested outcome before calling it finished.'$old$;
-    v_new := $new$            when 'completed' then 'Pandora records the execution step as completed. Pandora will only call the requested outcome verified when provider or evidence checks explicitly prove it.'$new$;
+    v_new := $new$            when 'completed' then 'ProjectOS records the execution step as completed. Pandora will only call the requested outcome verified when provider or evidence checks explicitly prove it.'$new$;
     if position(v_old in v_src) = 0 then
       raise exception 'pandora_chat_v10_completed_anchor_missing' using errcode='55000';
     end if;
     v_src := replace(v_src,v_old,v_new);
 
     v_old := $old$            when 'blocked' then 'The execution is genuinely blocked. Pandora should surface the specific blocker in Needs You instead of asking you to submit the request again.'$old$;
-    v_new := $new$            when 'blocked' then 'The request is blocked in persisted Pandora state. It is not running; Pandora should surface the recorded blocker in Needs You.'$new$;
+    v_new := $new$            when 'blocked' then 'The request is blocked in persisted ProjectOS state. It is not running; Pandora should surface the recorded blocker in Needs You.'$new$;
     if position(v_old in v_src) = 0 then
       raise exception 'pandora_chat_v10_blocked_anchor_missing' using errcode='55000';
     end if;
     v_src := replace(v_src,v_old,v_new);
 
     v_old := $old$            else format('The work is currently %s. Pandora will continue automatically unless a real blocker needs you.',coalesce(v_intake_status,'unknown'))$old$;
-    v_new := $new$            else format('Persisted Pandora status is %s. Pandora will not claim progress or an ETA beyond that recorded state.',coalesce(v_intake_status,'unknown'))$new$;
+    v_new := $new$            else format('Persisted ProjectOS status is %s. Pandora will not claim progress or an ETA beyond that recorded state.',coalesce(v_intake_status,'unknown'))$new$;
     if position(v_old in v_src) = 0 then
       raise exception 'pandora_chat_v10_default_status_anchor_missing' using errcode='55000';
     end if;
     v_src := replace(v_src,v_old,v_new);
 
     v_old := $old$        when 'repository_analysis' then 'I found the target and started handling the analysis. Pandora will keep working automatically in this chat and only stop if something genuinely needs you. I will report completion only after verified evidence.'$old$;
-    v_new := $new$        when 'repository_analysis' then 'I found the target and accepted the analysis request into Pandora. Acceptance is not execution. I will only report it as running after persisted execution evidence says a worker started, and I will only report completion after verified evidence.'$new$;
+    v_new := $new$        when 'repository_analysis' then 'I found the target and accepted the analysis request into ProjectOS. Acceptance is not execution. I will only report it as running after persisted execution evidence says a worker started, and I will only report completion after verified evidence.'$new$;
     if position(v_old in v_src) = 0 then
       raise exception 'pandora_chat_v10_repository_analysis_anchor_missing' using errcode='55000';
     end if;
     v_src := replace(v_src,v_old,v_new);
 
     v_old := $old$        else 'I found the target and started handling the request. Pandora will keep going automatically in this chat and only stop if something genuinely needs you. I will report completion only after verified provider evidence.'$old$;
-    v_new := $new$        else 'I found the target and accepted the request into Pandora. Acceptance is not execution. I will only report it as running after persisted execution evidence says a worker started, and I will only report completion after verified provider evidence.'$new$;
+    v_new := $new$        else 'I found the target and accepted the request into ProjectOS. Acceptance is not execution. I will only report it as running after persisted execution evidence says a worker started, and I will only report completion after verified provider evidence.'$new$;
     if position(v_old in v_src) = 0 then
       raise exception 'pandora_chat_v10_repository_action_anchor_missing' using errcode='55000';
     end if;
@@ -86,7 +86,7 @@ begin
   end if;
 
   -- The owner-selected "pandoras-box" project predates the verified canonical
-  -- Pandora mcpmaster root and has no repository column value. Resolve that
+  -- ProjectOS mcpmaster root and has no repository column value. Resolve that
   -- selected context to the verified canonical repository without mutating the
   -- project row or creating a second canonical source of truth.
   select pg_get_functiondef('private.pandora_resolve_repository_target_v2(uuid,text,uuid,uuid)'::regprocedure)
@@ -134,7 +134,7 @@ end
 $migration$;
 
 comment on function public.pandora_chat_universal_dispatch_v8(uuid,text,uuid,uuid)
-is 'Standing-authority universal chat. Admission/accepted state is never represented as execution; owner-facing progress comes from persisted Pandora state and verified evidence.';
+is 'Standing-authority universal chat. Admission/accepted state is never represented as execution; owner-facing progress comes from persisted ProjectOS state and verified evidence.';
 
 comment on function private.pandora_resolve_repository_target_v2(uuid,text,uuid,uuid)
 is 'Resolves repository context. The legacy owner-selected pandoras-box project key deterministically maps to the independently verified canonical Pandora repository when its repository column is empty.';

@@ -1,4 +1,4 @@
--- Generic owner decision path for consequential Pandora execution plans.
+-- Generic owner decision path for consequential ProjectOS execution plans.
 -- Approval records permission only; it never claims or executes the plan.
 
 create or replace function public.decide_execution_plan_v1(
@@ -14,8 +14,8 @@ set search_path = ''
 as $$
 declare
   plan private.execution_plans%rowtype;
-  intake public.pandora_intake_requests%rowtype;
-  project public.pandora_projects%rowtype;
+  intake public.projectos_intake_requests%rowtype;
+  project public.projectos_projects%rowtype;
   transition jsonb;
 begin
   perform private.assert_control_service_role();
@@ -30,7 +30,7 @@ begin
   for update;
 
   -- Specialized worker plans retain their exact dispatch protocol.
-  if plan.id is null or plan.tool = 'pandora.worker.verify' then
+  if plan.id is null or plan.tool = 'projectos.worker.verify' then
     return null;
   end if;
 
@@ -40,7 +40,7 @@ begin
   end if;
 
   select * into intake
-  from public.pandora_intake_requests
+  from public.projectos_intake_requests
   where organization_id = p_organization_id and id = plan.intake_id
   for update;
   if intake.id is null then
@@ -48,7 +48,7 @@ begin
   end if;
 
   select * into project
-  from public.pandora_projects
+  from public.projectos_projects
   where organization_id = p_organization_id and id = intake.project_id;
 
   if plan.status in ('pending_approval', 'approved') and plan.expires_at <= now() then
@@ -103,7 +103,7 @@ begin
     where id = plan.id
     returning * into plan;
 
-    update public.pandora_intake_requests
+    update public.projectos_intake_requests
     set analysis = coalesce(analysis, '{}'::jsonb) || jsonb_build_object(
           'latestExecutionPlanId', plan.id,
           'latestExecutionStatus', plan.status

@@ -148,12 +148,12 @@ begin
   v_old :=
     '  v_acceptance_ok:=v_runtime_ok and jsonb_typeof(v_spec.acceptance_scope->''functional'')=''array'' and jsonb_array_length(v_spec.acceptance_scope->''functional'')>0;'||chr(10)||
     '  if v_acceptance_ok and nullif(v_spec.business_summary,'''') is not null then'||chr(10)||
-    '    v_acceptance_ok:=position(lower(left(v_spec.business_summary,80)) in lower(v_runtime_body))>0 or position(lower(left((select name from public.pandora_projects where id=v_ver.project_id),80)) in lower(v_runtime_body))>0;'||chr(10)||
+    '    v_acceptance_ok:=position(lower(left(v_spec.business_summary,80)) in lower(v_runtime_body))>0 or position(lower(left((select name from public.projectos_projects where id=v_ver.project_id),80)) in lower(v_runtime_body))>0;'||chr(10)||
     '  end if;';
   v_new :=
     '  v_acceptance_ok:=v_runtime_ok and private.pandora_static_preview_acceptance_v4('||chr(10)||
     '    v_runtime_body,'||chr(10)||
-    '    (select name from public.pandora_projects where id=v_ver.project_id),'||chr(10)||
+    '    (select name from public.projectos_projects where id=v_ver.project_id),'||chr(10)||
     '    v_spec.business_summary,'||chr(10)||
     '    v_spec.acceptance_scope'||chr(10)||
     '  );';

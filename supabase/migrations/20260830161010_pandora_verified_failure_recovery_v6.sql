@@ -126,7 +126,7 @@ begin
   update public.pandora_runtime_environments
      set status='ready',current_version_id=v_ver.id,current_deployment_id=v_dep.id,verification_state='live_verified',last_reconciled_at=v_now,updated_at=v_now
    where organization_id=v_job.organization_id and project_id=v_job.project_id and environment='preview';
-  update public.pandora_projects
+  update public.projectos_projects
      set config=jsonb_set(coalesce(config,'{}'::jsonb),'{customerJourney}',coalesce(config->'customerJourney','{}'::jsonb)||
        jsonb_build_object('stage','preview_ready','runtimeStatus','ready','previewUrl',v_dep.url,'previewProvider',v_dep.provider,
          'previewVersionId',v_ver.id::text,'previewDeploymentId',v_dep.provider_deployment_id,'previewVerificationState','verified','runtimeUpdatedAt',v_now),true),

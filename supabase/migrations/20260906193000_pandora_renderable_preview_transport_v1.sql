@@ -235,7 +235,7 @@ from public.pandora_project_deployments d
 where d.id=e.current_deployment_id
   and d.url ~ '^https://mcpmaster[.]vercel[.]app/preview/[0-9a-f]{64}/index[.]html$';
 
-update public.pandora_projects p
+update public.projectos_projects p
 set config=jsonb_set(
   coalesce(p.config,'{}'::jsonb),
   '{customerJourney}',

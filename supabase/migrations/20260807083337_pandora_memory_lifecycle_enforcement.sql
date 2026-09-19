@@ -13,7 +13,7 @@ create extension if not exists pg_cron;
 -- Preserve any pre-existing credential instead of overwriting it.
 insert into private.integration_secrets (secret_name, secret_value, created_at, updated_at)
 values (
-  'pandora_memory_learning_hmac',
+  'projectos_memory_learning_hmac',
   encode(extensions.gen_random_bytes(32), 'hex'),
   now(),
   now()
@@ -58,7 +58,7 @@ strict
 set search_path = ''
 as $$
   select array_to_string(array[
-    'pandora-learning-v1',
+    'projectos-learning-v1',
     coalesce(p_payload->>'source_event_id', ''),
     coalesce(p_payload->>'source_request_id', ''),
     coalesce(p_payload->>'organization_id', ''),
@@ -99,7 +99,7 @@ begin
     and request_id = new.request_id;
 
   if v_context.plan_id is null then
-    raise exception 'pandora_memory_context_missing'
+    raise exception 'projectos_memory_context_missing'
       using errcode = '55000';
   end if;
 
@@ -110,24 +110,24 @@ begin
      or v_context.context_envelope->>'status' <> v_context.context_status
      or v_context.context_envelope#>>'{queryBasis,tool}' <> new.tool
      or v_context.context_hash !~ '^[0-9a-f]{64}$' then
-    raise exception 'pandora_memory_context_invalid'
+    raise exception 'projectos_memory_context_invalid'
       using errcode = '55000';
   end if;
 
   if new.risk = 'read' then
     if v_context.context_status not in ('available', 'empty') then
-      raise exception 'pandora_memory_context_unavailable'
+      raise exception 'projectos_memory_context_unavailable'
         using errcode = '55000';
     end if;
   elsif v_context.context_status <> 'available' then
-    raise exception 'pandora_memory_context_unavailable_for_stateful_action'
+    raise exception 'projectos_memory_context_unavailable_for_stateful_action'
       using errcode = '55000';
   end if;
 
   begin
     v_retrieved_at := nullif(v_context.context_envelope->>'retrievedAt', '')::timestamptz;
   exception when others then
-    raise exception 'pandora_memory_context_timestamp_invalid'
+    raise exception 'projectos_memory_context_timestamp_invalid'
       using errcode = '55000';
   end;
 
@@ -136,7 +136,7 @@ begin
      or v_retrieved_at > clock_timestamp() + interval '1 minute'
      or v_context.recorded_at < new.created_at - interval '2 seconds'
      or v_context.recorded_at > clock_timestamp() + interval '1 minute' then
-    raise exception 'pandora_memory_context_stale'
+    raise exception 'projectos_memory_context_stale'
       using errcode = '55000';
   end if;
 
@@ -144,10 +144,10 @@ begin
 end;
 $$;
 
-drop trigger if exists pandora_require_memory_context_before_execute
+drop trigger if exists projectos_require_memory_context_before_execute
   on private.execution_plans;
 
-create trigger pandora_require_memory_context_before_execute
+create trigger projectos_require_memory_context_before_execute
 before update of status on private.execution_plans
 for each row
 when (new.status = 'executing' and old.status is distinct from new.status)
@@ -194,10 +194,10 @@ begin
   select secret_value
   into v_secret
   from private.integration_secrets
-  where secret_name = 'pandora_memory_learning_hmac';
+  where secret_name = 'projectos_memory_learning_hmac';
 
   if coalesce(v_secret, '') = '' then
-    raise exception 'pandora memory learning secret unavailable'
+    raise exception 'projectos memory learning secret unavailable'
       using errcode = '55000';
   end if;
 
@@ -209,7 +209,7 @@ begin
   );
 
   select net.http_post(
-    url := 'https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-pandora-learning',
+    url := 'https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-projectos-learning',
     headers := jsonb_build_object(
       'content-type', 'application/json',
       'x-pandora-timestamp', v_timestamp,
@@ -383,21 +383,21 @@ begin
     and request_id = new.request_id;
 
   if v_context.plan_id is null then
-    raise exception 'pandora_memory_context_missing_at_completion'
+    raise exception 'projectos_memory_context_missing_at_completion'
       using errcode = '55000';
   end if;
 
   select intake.project_id, project.project_key
   into v_project_id, v_project_key
-  from public.pandora_intake_requests intake
-  join public.pandora_projects project
+  from public.projectos_intake_requests intake
+  join public.projectos_projects project
     on project.id = intake.project_id
    and project.organization_id = intake.organization_id
   where intake.id = new.intake_id
     and intake.organization_id = new.organization_id;
 
   if v_project_id is null or coalesce(v_project_key, '') = '' then
-    raise exception 'pandora_project_context_missing_at_completion'
+    raise exception 'projectos_project_context_missing_at_completion'
       using errcode = '55000';
   end if;
 
@@ -418,7 +418,7 @@ begin
 
   v_payload := jsonb_strip_nulls(jsonb_build_object(
     'schema_version', 1,
-    'product_key', 'pandora',
+    'product_key', 'projectos',
     'source_event_id', new.id,
     'source_request_id', new.request_id,
     'organization_id', new.organization_id,
@@ -485,17 +485,17 @@ begin
 end;
 $$;
 
-drop trigger if exists pandora_enqueue_memory_learning_after_finish
+drop trigger if exists projectos_enqueue_memory_learning_after_finish
   on private.execution_plans;
 
-create trigger pandora_enqueue_memory_learning_after_finish
+create trigger projectos_enqueue_memory_learning_after_finish
 after update of status on private.execution_plans
 for each row
 when (new.status in ('completed', 'failed') and old.status is distinct from new.status)
 execute function private.enqueue_execution_learning();
 
 select cron.schedule(
-  'pandora-memory-learning-outbox',
+  'projectos-memory-learning-outbox',
   '* * * * *',
   $job$select private.process_execution_learning_outbox(20);$job$
 );

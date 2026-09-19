@@ -157,7 +157,7 @@ begin
   v_runtime_digest:=encode(extensions.digest(convert_to(coalesce(v_runtime_body,''),'utf8'),'sha256'),'hex');
   v_acceptance_ok:=v_runtime_ok and jsonb_typeof(v_spec.acceptance_scope->'functional')='array' and jsonb_array_length(v_spec.acceptance_scope->'functional')>0;
   if v_acceptance_ok and nullif(v_spec.business_summary,'') is not null then
-    v_acceptance_ok:=position(lower(left(v_spec.business_summary,80)) in lower(v_runtime_body))>0 or position(lower(left((select name from public.pandora_projects where id=v_ver.project_id),80)) in lower(v_runtime_body))>0;
+    v_acceptance_ok:=position(lower(left(v_spec.business_summary,80)) in lower(v_runtime_body))>0 or position(lower(left((select name from public.projectos_projects where id=v_ver.project_id),80)) in lower(v_runtime_body))>0;
   end if;
   if v_profile='production_release' then
     if exists(select 1 from public.pandora_project_domains d where d.organization_id=v_ver.organization_id and d.project_id=v_ver.project_id and d.primary_domain=true) then
@@ -255,7 +255,7 @@ create or replace function private.pandora_worker_f_provision_isolated_database_
 declare v_schema text; v_role text; v_env text:=lower(coalesce(p_environment,'')); v_resource uuid; v_project_resource uuid; v_now timestamptz:=clock_timestamp(); v_external text;
 begin
  if p_organization_id is null or p_project_id is null or p_project_version_id is null or v_env not in ('preview','production') or length(coalesce(p_authorization_ref,''))<8 then raise exception 'invalid isolated database request' using errcode='22023'; end if;
- if not exists(select 1 from public.pandora_projects where id=p_project_id and organization_id=p_organization_id) or not exists(select 1 from public.pandora_project_versions where id=p_project_version_id and project_id=p_project_id and organization_id=p_organization_id) then raise exception 'project lineage unavailable' using errcode='22023'; end if;
+ if not exists(select 1 from public.projectos_projects where id=p_project_id and organization_id=p_organization_id) or not exists(select 1 from public.pandora_project_versions where id=p_project_version_id and project_id=p_project_id and organization_id=p_organization_id) then raise exception 'project lineage unavailable' using errcode='22023'; end if;
  v_schema:='cust_'||substr(replace(p_project_id::text,'-',''),1,20)||'_'||v_env; v_role:='app_'||substr(encode(extensions.digest(convert_to(p_project_id::text||':'||v_env,'utf8'),'sha256'),'hex'),1,20); v_external:='jcyqixttuebxqqfkjonq:'||v_schema;
  execute format('create schema if not exists %I',v_schema); execute format('revoke all on schema %I from public',v_schema);
  if not exists(select 1 from pg_roles where rolname=v_role) then execute format('create role %I nologin noinherit',v_role); end if;
@@ -263,7 +263,7 @@ begin
  execute format('create table if not exists %I.runtime_healthcheck(id uuid primary key default gen_random_uuid(), created_at timestamptz not null default now())',v_schema);
  execute format('grant select on %I.runtime_healthcheck to %I',v_schema,v_role);
  if has_table_privilege(v_role,'public.pandora_project_versions','select') or has_table_privilege(v_role,'public.pandora_runtime_provider_configs','select') then raise exception 'customer database role can access Pandora internal tables' using errcode='42501'; end if;
- insert into public.pandora_project_resources(organization_id,project_id,provider,resource_type,external_id,external_name,environment,binding_state,configuration,verified_at)
+ insert into public.projectos_project_resources(organization_id,project_id,provider,resource_type,external_id,external_name,environment,binding_state,configuration,verified_at)
  values(p_organization_id,p_project_id,'supabase','application_database',v_external,v_schema,v_env,'verified',jsonb_build_object('projectRef','jcyqixttuebxqqfkjonq','schema',v_schema,'isolationMode','shared_isolated'),v_now)
  on conflict(project_id,provider,resource_type,external_id) do update set binding_state='verified',configuration=excluded.configuration,verified_at=v_now,updated_at=v_now returning id into v_project_resource;
  insert into public.pandora_runtime_resources(organization_id,project_id,project_version_id,project_resource_id,resource_type,provider,environment,isolation_mode,external_ref,region,status,configuration_redacted,provisioned_at,verified_at)

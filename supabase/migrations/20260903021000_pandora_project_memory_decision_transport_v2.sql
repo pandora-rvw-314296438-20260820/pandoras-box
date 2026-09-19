@@ -40,15 +40,15 @@ begin
   v_kind:=coalesce(v_outbox.payload->>'learning_kind','');
   v_target_url:=case
     when v_kind in ('visible_creation_decision_influence_v1','visible_creation_decision_outcome_v1')
-      then 'https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-pandora-decision-lineage'
-    else 'https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-pandora-learning'
+      then 'https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-projectos-decision-lineage'
+    else 'https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-projectos-learning'
   end;
 
   select secret_value into v_secret
   from private.integration_secrets
-  where secret_name='pandora_memory_learning_hmac';
+  where secret_name='projectos_memory_learning_hmac';
   if coalesce(v_secret,'')='' then
-    raise exception 'pandora memory learning secret unavailable' using errcode='55000';
+    raise exception 'projectos memory learning secret unavailable' using errcode='55000';
   end if;
 
   v_timestamp:=floor(extract(epoch from clock_timestamp())*1000)::bigint::text;

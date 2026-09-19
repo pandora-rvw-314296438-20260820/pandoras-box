@@ -8,7 +8,7 @@
 create table if not exists private.intelligence_reviewer_identities (
   reviewer_id text primary key check (reviewer_id ~ '^[a-z0-9][a-z0-9._:-]{2,127}$'),
   authority_organization_id uuid not null references public.organizations(id) on delete restrict,
-  runtime_proof_id uuid not null unique references public.pandora_agent_runtime_proofs(id) on delete restrict,
+  runtime_proof_id uuid not null unique references public.projectos_agent_runtime_proofs(id) on delete restrict,
   vendor text not null,
   public_key_b64 text not null check (public_key_b64 ~ '^[A-Za-z0-9+/]{43}=$'),
   key_fingerprint text not null unique check (key_fingerprint ~ '^[0-9a-f]{64}$'),
@@ -57,16 +57,16 @@ create index if not exists intelligence_review_attestations_pending_idx
 alter table private.intelligence_reviewer_identities enable row level security;
 alter table private.intelligence_reviewer_scope_grants enable row level security;
 alter table private.intelligence_review_attestations enable row level security;
-revoke all on private.intelligence_reviewer_identities from public,anon,authenticated,service_role,pandora_reviewer_ingest;
-revoke all on private.intelligence_reviewer_scope_grants from public,anon,authenticated,service_role,pandora_reviewer_ingest;
-revoke all on private.intelligence_review_attestations from public,anon,authenticated,service_role,pandora_reviewer_ingest;
+revoke all on private.intelligence_reviewer_identities from public,anon,authenticated,service_role,projectos_reviewer_ingest;
+revoke all on private.intelligence_reviewer_scope_grants from public,anon,authenticated,service_role,projectos_reviewer_ingest;
+revoke all on private.intelligence_review_attestations from public,anon,authenticated,service_role,projectos_reviewer_ingest;
 
 create or replace function private.pandora_intelligence_reviewer_proof_is_fresh(
   p_reviewer_id text,
   p_runtime_proof_id uuid
 ) returns boolean language sql stable security definer set search_path='' as $$
   select exists(
-    select 1 from public.pandora_agent_runtime_proofs proof
+    select 1 from public.projectos_agent_runtime_proofs proof
     where proof.id=p_runtime_proof_id
       and proof.agent_key=p_reviewer_id
       and proof.role='reviewer'
@@ -79,11 +79,11 @@ create or replace function private.pandora_intelligence_reviewer_proof_is_fresh(
       and proof.health_state='healthy'
       and proof.verified_by<>proof.agent_key
       and 'pandora-rvw-314296438-20260820/pandoras-box'=any(proof.repository_scopes)
-      and 'pandora.intelligence.verify'=any(proof.proven_capabilities)
+      and 'projectos.intelligence.verify'=any(proof.proven_capabilities)
   );
 $$;
 revoke all on function private.pandora_intelligence_reviewer_proof_is_fresh(text,uuid)
-  from public,anon,authenticated,service_role,pandora_reviewer_ingest;
+  from public,anon,authenticated,service_role,projectos_reviewer_ingest;
 
 create or replace function public.pandora_register_intelligence_reviewer(
   p_runtime_proof_id uuid,
@@ -91,7 +91,7 @@ create or replace function public.pandora_register_intelligence_reviewer(
   p_public_key_b64 text
 ) returns jsonb language plpgsql security definer set search_path='' as $$
 declare
-  v_proof public.pandora_agent_runtime_proofs%rowtype;
+  v_proof public.projectos_agent_runtime_proofs%rowtype;
   v_existing private.intelligence_reviewer_identities%rowtype;
   v_reviewer text := lower(trim(coalesce(p_reviewer_id,'')));
   v_fingerprint text;
@@ -112,13 +112,13 @@ begin
     raise exception 'invalid reviewer public key' using errcode='22023';
   end;
 
-  select * into v_proof from public.pandora_agent_runtime_proofs
+  select * into v_proof from public.projectos_agent_runtime_proofs
    where id=p_runtime_proof_id for update;
   if v_proof.id is null
      or not private.pandora_intelligence_reviewer_proof_is_fresh(v_reviewer,p_runtime_proof_id) then
     raise exception 'fresh independent intelligence reviewer runtime proof required' using errcode='42501';
   end if;
-  v_vendor := private.pandora_canonical_agent_vendor(v_proof.vendor);
+  v_vendor := private.projectos_canonical_agent_vendor(v_proof.vendor);
   if v_vendor is null then raise exception 'canonical reviewer vendor required' using errcode='42501'; end if;
   v_fingerprint := encode(extensions.digest(decode(p_public_key_b64,'base64'),'sha256'),'hex');
 
@@ -142,7 +142,7 @@ begin
   return jsonb_build_object('reviewerId',v_reviewer,'keyFingerprint',v_fingerprint,'runtimeProofId',p_runtime_proof_id,'idempotentReplay',false);
 end; $$;
 revoke all on function public.pandora_register_intelligence_reviewer(uuid,text,text)
-  from public,anon,authenticated,service_role,pandora_reviewer_ingest;
+  from public,anon,authenticated,service_role,projectos_reviewer_ingest;
 
 create or replace function public.pandora_grant_intelligence_reviewer_scope(
   p_reviewer_id text,
@@ -175,7 +175,7 @@ begin
   if p_expires_at is null or p_expires_at<=now() or p_expires_at>now()+v_max_ttl then
     raise exception 'review scope expiry exceeds bounded grant window' using errcode='22023';
   end if;
-  if p_expires_at>(select expires_at from public.pandora_agent_runtime_proofs where id=v_identity.runtime_proof_id) then
+  if p_expires_at>(select expires_at from public.projectos_agent_runtime_proofs where id=v_identity.runtime_proof_id) then
     raise exception 'review scope cannot outlive reviewer runtime proof' using errcode='22023';
   end if;
   insert into private.intelligence_reviewer_scope_grants(reviewer_id,scope_key,expires_at)
@@ -185,7 +185,7 @@ begin
   return jsonb_build_object('reviewerId',v_identity.reviewer_id,'scopeKey',v_scope,'expiresAt',p_expires_at);
 end; $$;
 revoke all on function public.pandora_grant_intelligence_reviewer_scope(text,text,timestamptz)
-  from public,anon,authenticated,service_role,pandora_reviewer_ingest;
+  from public,anon,authenticated,service_role,projectos_reviewer_ingest;
 
 create or replace function public.pandora_resolve_intelligence_review_target(
   p_asset_id uuid,
@@ -330,7 +330,7 @@ begin
   return jsonb_build_object('attestationId',v_row.id,'scopeKey',v_scope,'keyFingerprint',v_row.key_fingerprint,'idempotentReplay',false);
 end; $$;
 revoke all on function public.pandora_record_intelligence_review_attestation(uuid,text,text,text,text,text,text,text,text,text)
-  from public,anon,authenticated,pandora_reviewer_ingest;
+  from public,anon,authenticated,projectos_reviewer_ingest;
 grant execute on function public.pandora_record_intelligence_review_attestation(uuid,text,text,text,text,text,text,text,text,text) to service_role;
 
 create or replace function public.pandora_finalize_intelligence_review_attestation(
@@ -385,12 +385,12 @@ end; $$;
 revoke all on function public.pandora_finalize_intelligence_review_attestation(uuid,text,timestamptz)
   from public,anon,authenticated,service_role;
 grant execute on function public.pandora_finalize_intelligence_review_attestation(uuid,text,timestamptz)
-  to pandora_reviewer_ingest;
+  to projectos_reviewer_ingest;
 
 -- Retire the direct reviewer-role path. The function remains for historical
 -- source compatibility but no runtime role may call it directly anymore.
 revoke execute on function public.pandora_worker_e_certify_intelligence_asset(uuid,text,text,text,text,text,timestamptz)
-  from pandora_reviewer_ingest;
+  from projectos_reviewer_ingest;
 
 comment on table private.intelligence_reviewer_identities is 'Enrolled independent intelligence reviewers. Enrollment grants no review scope.';
 comment on table private.intelligence_reviewer_scope_grants is 'Explicit, time-bounded intelligence review scope grants. No global grant is created by migration.';

@@ -1,13 +1,13 @@
 -- Pandora native capability registry + provider readback v1
--- Active Chat uses Pandora-native capability/provider surfaces. Historical Pandora storage remains compatibility-only.
+-- Active Chat uses Pandora-native capability/provider surfaces. Historical ProjectOS storage remains compatibility-only.
 
 create or replace view public.pandora_provider_health with (security_invoker = true) as
 select organization_id, project_id, provider, status, last_event_at, last_success_at, stale_after, details, updated_at
-from public.pandora_integration_health;
+from public.projectos_integration_health;
 
 revoke all on public.pandora_provider_health from public, anon;
 grant select on public.pandora_provider_health to authenticated, service_role;
-comment on view public.pandora_provider_health is 'Pandora-native provider health compatibility surface over historical integration-health storage. Active runtime must use this view rather than Pandora naming.';
+comment on view public.pandora_provider_health is 'Pandora-native provider health compatibility surface over historical integration-health storage. Active runtime must use this view rather than ProjectOS naming.';
 
 CREATE OR REPLACE FUNCTION public.pandora_chat_capability_registry_v3(p_organization_id uuid)
  RETURNS jsonb
@@ -684,8 +684,8 @@ begin
   select pg_get_functiondef('public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid)'::regprocedure) into v_router;
   select pg_get_functiondef('public.pandora_chat_capability_dispatch_native_v1(uuid,text,uuid,uuid)'::regprocedure) into v_native;
   select pg_get_functiondef('public.pandora_chat_capability_registry_v3(uuid)'::regprocedure) into v_registry;
-  if position('pandora' in lower(v_router))>0 or position('pandora' in lower(v_native))>0 or position('pandora' in lower(v_registry))>0 then
-    raise exception 'pandora_native_capability_pandora_regression' using errcode='55000';
+  if position('projectos' in lower(v_router))>0 or position('projectos' in lower(v_native))>0 or position('projectos' in lower(v_registry))>0 then
+    raise exception 'pandora_native_capability_projectos_regression' using errcode='55000';
   end if;
   if position('pandora_chat_capability_dispatch_native_v1' in v_router)=0 or position('pandora_direct_box_code_edit_v1' in v_router)=0 then
     raise exception 'pandora_native_capability_route_missing' using errcode='55000';

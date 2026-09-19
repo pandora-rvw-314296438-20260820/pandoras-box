@@ -98,7 +98,7 @@ begin
       updated_at=v_now
   where id=v_env.id;
 
-  update public.pandora_projects
+  update public.projectos_projects
   set config=jsonb_set(
         coalesce(config,'{}'::jsonb),
         '{customerJourney}',

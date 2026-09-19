@@ -3,7 +3,7 @@
 -- Production history is never rewritten; live hashes remain in the recovery manifest.
 -- Semantic recovery of the provider-recorded SQL payload; comments and terminal newline may differ.
 
-insert into private.pandora_event_contracts
+insert into private.projectos_event_contracts
 (organization_id,product_key,event_name,purpose,privacy_tier,allowed_properties,retention_days,active,created_at,updated_at)
 values
 ('2270b266-59da-4c39-bfd9-9f8d08352af0','fxpass','page_viewed','First-party acquisition and navigation signal','pseudonymous_product',array['environment','app_version','event_schema_version','source_repo','privacy_tier','route_group','screen','channel','device_type','browser','os','funnel_step','entrypoint','source_path','campaign','source','medium','actor_type']::text[],730,true,now(),now()),

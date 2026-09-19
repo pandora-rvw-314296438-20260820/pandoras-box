@@ -1,5 +1,5 @@
 -- Remove candidate-controlled service-role authority from governed owner and
--- worker mutations. Ordinary Pandora plan decisions remain AAL1-capable,
+-- worker mutations. Ordinary ProjectOS plan decisions remain AAL1-capable,
 -- but are bound to auth.uid(), a live unexpired Auth session, and live
 -- owner/admin membership. Worker claims and completions require fresh,
 -- externally issued, exact-request JWTs whose JTIs are consumed atomically.
@@ -10,17 +10,17 @@
 do $roles$
 begin
   if not exists (
-    select 1 from pg_roles where rolname = 'pandora_worker_ingest'
+    select 1 from pg_roles where rolname = 'projectos_worker_ingest'
   ) then
-    create role pandora_worker_ingest nologin noinherit;
+    create role projectos_worker_ingest nologin noinherit;
   end if;
   if exists (select 1 from pg_roles where rolname = 'authenticator') then
-    execute 'grant pandora_worker_ingest to authenticator';
+    execute 'grant projectos_worker_ingest to authenticator';
   end if;
 end
 $roles$;
 
-grant usage on schema public to pandora_worker_ingest;
+grant usage on schema public to projectos_worker_ingest;
 
 create table private.worker_authority_jtis (
   issuer text not null check (issuer = 'pandora-independent-worker-authority'),
@@ -54,7 +54,7 @@ create index worker_authority_jtis_expiry_idx
 
 alter table private.worker_authority_jtis enable row level security;
 revoke all on table private.worker_authority_jtis
-  from public, anon, authenticated, service_role, pandora_worker_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest;
 
 alter table private.execution_dispatch_outbox
   add column worker_claim_request_id uuid,
@@ -119,14 +119,14 @@ set search_path = ''
 as $$
 begin
   if session_user <> 'postgres'
-     and coalesce(auth.jwt() ->> 'role', '') <> 'pandora_worker_ingest' then
+     and coalesce(auth.jwt() ->> 'role', '') <> 'projectos_worker_ingest' then
     raise exception 'worker ingest role required' using errcode = '42501';
   end if;
 end;
 $$;
 
 revoke all on function private.assert_worker_ingest_role()
-  from public, anon, authenticated, service_role, pandora_worker_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest;
 
 create or replace function private.consume_worker_authority(
   p_purpose text,
@@ -162,9 +162,9 @@ begin
      or coalesce(p_worker_key_fingerprint, '') !~ '^[0-9a-f]{64}$'
      or p_request_id is null
      or coalesce(p_request_sha256, '') !~ '^[0-9a-f]{64}$'
-     or coalesce(claims ->> 'role', '') <> 'pandora_worker_ingest'
+     or coalesce(claims ->> 'role', '') <> 'projectos_worker_ingest'
      or coalesce(claims ->> 'iss', '') <> 'pandora-independent-worker-authority'
-     or coalesce(claims ->> 'aud', '') <> 'pandora_worker_ingest'
+     or coalesce(claims ->> 'aud', '') <> 'projectos_worker_ingest'
      or coalesce(claims ->> 'purpose', '') <> p_purpose
      or coalesce(claims ->> 'sub', '') <> p_request_id::text
      or coalesce(claims ->> 'organization_id', '') <> p_organization_id::text
@@ -221,7 +221,7 @@ $$;
 
 revoke all on function private.consume_worker_authority(
   text,uuid,text,text,uuid,uuid,uuid,text
-) from public, anon, authenticated, service_role, pandora_worker_ingest;
+) from public, anon, authenticated, service_role, projectos_worker_ingest;
 
 create or replace function private.consume_worker_signed_nonce(
   p_organization_id uuid,
@@ -269,7 +269,7 @@ end;
 $$;
 
 revoke all on function private.consume_worker_signed_nonce(uuid,text,text)
-  from public, anon, authenticated, service_role, pandora_worker_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest;
 
 create or replace function private.assert_live_plan_approver(
   p_organization_id uuid
@@ -329,7 +329,7 @@ end;
 $$;
 
 revoke all on function private.assert_live_plan_approver(uuid)
-  from public, anon, authenticated, service_role, pandora_worker_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest;
 
 -- The four-argument implementation remains internal. This caller-visible
 -- wrapper derives decidedBy from auth.uid() and elevates only for the already
@@ -368,12 +368,12 @@ end;
 $$;
 
 revoke all on function public.decide_governed_worker_execution_plan(uuid,uuid,text)
-  from public, anon, authenticated, service_role, pandora_worker_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest;
 grant execute on function public.decide_governed_worker_execution_plan(uuid,uuid,text)
   to authenticated;
 
 revoke all on function public.decide_governed_worker_execution_plan(uuid,uuid,text,text)
-  from public, anon, authenticated, service_role, pandora_worker_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest;
 
 create or replace function public.claim_governed_worker_dispatch_authorized(
   p_organization_id uuid,
@@ -531,7 +531,7 @@ begin
      or p_dispatch_id is null
      or p_plan_id is null
      or coalesce(p_job_digest, '') !~ '^[0-9a-f]{64}$'
-     or private.pandora_worker_job_payload_is_valid(p_job_payload) is distinct from true
+     or private.projectos_worker_job_payload_is_valid(p_job_payload) is distinct from true
      or coalesce(p_job_signature, '') !~ '^[A-Za-z0-9+/]{86}==$' then
     raise exception 'invalid authorized worker job envelope' using errcode = '22023';
   end if;
@@ -569,9 +569,9 @@ begin
       using errcode = '42501';
   end if;
 
-  if coalesce(claims ->> 'role', '') <> 'pandora_worker_ingest'
+  if coalesce(claims ->> 'role', '') <> 'projectos_worker_ingest'
      or coalesce(claims ->> 'iss', '') <> 'pandora-independent-worker-authority'
-     or coalesce(claims ->> 'aud', '') <> 'pandora_worker_ingest'
+     or coalesce(claims ->> 'aud', '') <> 'projectos_worker_ingest'
      or coalesce(claims ->> 'purpose', '') <> 'worker_claim'
      or coalesce(claims ->> 'sub', '') <> dispatch.worker_claim_request_id::text
      or coalesce(claims ->> 'organization_id', '') <> p_organization_id::text
@@ -599,7 +599,7 @@ begin
       using errcode = '42501';
   end if;
 
-  if p_job_digest is distinct from private.pandora_worker_job_digest(p_job_payload) then
+  if p_job_digest is distinct from private.projectos_worker_job_digest(p_job_payload) then
     raise exception 'authorized worker job digest mismatch' using errcode = '55000';
   end if;
 
@@ -663,7 +663,7 @@ begin
      or coalesce(p_duration_ms, -1) not between 0 and 2100000
      or coalesce(p_job_digest, '') !~ '^[0-9a-f]{64}$'
      or coalesce(p_evidence_sha256, '') !~ '^[0-9a-f]{64}$'
-     or private.pandora_worker_result_summary_is_valid(p_result_summary) is distinct from true
+     or private.projectos_worker_result_summary_is_valid(p_result_summary) is distinct from true
      or coalesce(p_nonce, '') !~ '^[A-Za-z0-9._:-]{16,128}$'
      or coalesce(p_timestamp, '') !~
        '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$'
@@ -854,7 +854,7 @@ end;
 $$;
 
 revoke all on function private.guard_worker_authority_receipts()
-  from public, anon, authenticated, service_role, pandora_worker_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest;
 
 create trigger guard_worker_authority_receipts
 before update on private.execution_dispatch_outbox
@@ -902,7 +902,7 @@ begin
   new.worker_completion_authority_request_sha256 :=
     dispatch.worker_completion_authority_request_sha256;
 
-  update public.pandora_evidence evidence
+  update public.projectos_evidence evidence
   set payload_redacted = evidence.payload_redacted || jsonb_build_object(
     'workerCompletion', jsonb_build_object(
       'requestId', dispatch.worker_completion_request_id,
@@ -927,8 +927,8 @@ end;
 $$;
 
 revoke all on function private.bind_worker_completion_to_review()
-  from public, anon, authenticated, service_role, pandora_worker_ingest,
-       pandora_reviewer_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest,
+       projectos_reviewer_ingest;
 
 create trigger bind_worker_completion_to_review
 before insert on private.governed_worker_review_attestations
@@ -950,7 +950,7 @@ begin
      and attestation.plan_id = dispatch.plan_id
      and attestation.evidence_id = dispatch.verification_evidence_id
      and attestation.reviewer_runtime_proof_id = dispatch.verifier_runtime_proof_id
-    join public.pandora_evidence evidence
+    join public.projectos_evidence evidence
       on evidence.organization_id = attestation.organization_id
      and evidence.id = attestation.evidence_id
     where dispatch.organization_id = new.organization_id
@@ -987,8 +987,8 @@ end;
 $$;
 
 revoke all on function private.guard_physical_android_worker_completion()
-  from public, anon, authenticated, service_role, pandora_worker_ingest,
-       pandora_reviewer_ingest, pandora_physical_android_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest,
+       projectos_reviewer_ingest, projectos_physical_android_ingest;
 
 create trigger guard_physical_android_worker_completion
 before insert on private.canonical_physical_android_receipts
@@ -1006,7 +1006,7 @@ begin
      and not exists (
        select 1
        from private.governed_worker_review_attestations attestation
-       join public.pandora_evidence evidence
+       join public.projectos_evidence evidence
          on evidence.id = attestation.evidence_id
         and evidence.organization_id = attestation.organization_id
        where attestation.organization_id = new.organization_id
@@ -1044,45 +1044,45 @@ end;
 $$;
 
 revoke all on function private.guard_governed_worker_review_attestation()
-  from public, anon, authenticated, service_role, pandora_worker_ingest,
-       pandora_reviewer_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest,
+       projectos_reviewer_ingest;
 
 -- Remove every candidate service-role path that can claim, write a job, or
 -- report a result. Only the externally authenticated wrappers are executable.
 revoke all on function public.consume_compute_worker_nonce(uuid,text,text)
-  from public, anon, authenticated, service_role, pandora_worker_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest;
 revoke all on function public.consume_compute_worker_nonce(uuid,text,text,text)
-  from public, anon, authenticated, service_role, pandora_worker_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest;
 revoke all on function public.claim_governed_worker_dispatch(uuid,text)
-  from public, anon, authenticated, service_role, pandora_worker_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest;
 revoke all on function public.claim_governed_worker_dispatch(uuid,text,text)
-  from public, anon, authenticated, service_role, pandora_worker_ingest;
+  from public, anon, authenticated, service_role, projectos_worker_ingest;
 revoke all on function public.record_governed_worker_job_envelope(
   uuid,uuid,uuid,text,text,jsonb,text
-) from public, anon, authenticated, service_role, pandora_worker_ingest;
+) from public, anon, authenticated, service_role, projectos_worker_ingest;
 revoke all on function public.finish_governed_worker_dispatch(
   uuid,uuid,uuid,text,text,integer,text,text,jsonb
-) from public, anon, authenticated, service_role, pandora_worker_ingest;
+) from public, anon, authenticated, service_role, projectos_worker_ingest;
 revoke all on function public.finish_governed_worker_dispatch(
   uuid,uuid,uuid,text,text,text,integer,text,text,jsonb
-) from public, anon, authenticated, service_role, pandora_worker_ingest;
+) from public, anon, authenticated, service_role, projectos_worker_ingest;
 
 revoke all on function public.claim_governed_worker_dispatch_authorized(
   uuid,text,text,uuid,text,text,text
-) from public, anon, authenticated, service_role, pandora_worker_ingest;
+) from public, anon, authenticated, service_role, projectos_worker_ingest;
 revoke all on function public.record_governed_worker_job_envelope_authorized(
   uuid,uuid,uuid,text,text,text,jsonb,text
-) from public, anon, authenticated, service_role, pandora_worker_ingest;
+) from public, anon, authenticated, service_role, projectos_worker_ingest;
 revoke all on function public.finish_governed_worker_dispatch_authorized(
   uuid,uuid,uuid,text,text,text,integer,text,text,jsonb,uuid,text,text,text
-) from public, anon, authenticated, service_role, pandora_worker_ingest;
+) from public, anon, authenticated, service_role, projectos_worker_ingest;
 
 grant execute on function public.claim_governed_worker_dispatch_authorized(
   uuid,text,text,uuid,text,text,text
-) to pandora_worker_ingest;
+) to projectos_worker_ingest;
 grant execute on function public.record_governed_worker_job_envelope_authorized(
   uuid,uuid,uuid,text,text,text,jsonb,text
-) to pandora_worker_ingest;
+) to projectos_worker_ingest;
 grant execute on function public.finish_governed_worker_dispatch_authorized(
   uuid,uuid,uuid,text,text,text,integer,text,text,jsonb,uuid,text,text,text
-) to pandora_worker_ingest;
+) to projectos_worker_ingest;

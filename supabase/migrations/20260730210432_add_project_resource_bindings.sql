@@ -25,7 +25,7 @@ create table if not exists private.project_resource_bindings (
 );
 
 comment on table private.project_resource_bindings is
-  'Canonical Pandora registry binding each GitHub repository to its verified Supabase and Vercel resources. Null or not_identified bindings must never be guessed.';
+  'Canonical ProjectOS registry binding each GitHub repository to its verified Supabase and Vercel resources. Null or not_identified bindings must never be guessed.';
 
 revoke all on table private.project_resource_bindings from public, anon, authenticated, service_role;
 
@@ -44,7 +44,7 @@ insert into private.project_resource_bindings (
 ('mbanatao/lakeview','read_write',null,null,'not_identified',null,null,null,'not_identified',null,'No dedicated Supabase or Vercel project verified.',now(),now()),
 ('mbanatao/launchos','read_write','qjarspsifemjubmzsdgy','Launchos','project_empty',null,null,null,'not_identified',null,'Dedicated Supabase project exists but public schema is empty; no Vercel project verified.',now(),now()),
 ('mbanatao/legacy','read_write',null,null,'not_identified','team_3yw1CN59ce4pj5SwyQGCAqN3','prj_kuNkaautToz57Szq5RhysB7ZsAkb','legacy','verified',null,'Vercel project verified; no dedicated Supabase binding identified.',now(),now()),
-('mbanatao/mcpmaster','read_write','jcyqixttuebxqqfkjonq','MCPMaster Meta Staging','verified_schema','team_3yw1CN59ce4pj5SwyQGCAqN3','prj_aG8ekiHMsCEYn6dbIK5Mk4HeNuZ8','mcpmaster','verified','mcpmasterz.vercel.app','Pandora control plane; production-targeted Vercel project and live control database.',now(),now()),
+('mbanatao/mcpmaster','read_write','jcyqixttuebxqqfkjonq','MCPMaster Meta Staging','verified_schema','team_3yw1CN59ce4pj5SwyQGCAqN3','prj_aG8ekiHMsCEYn6dbIK5Mk4HeNuZ8','mcpmaster','verified','mcpmasterz.vercel.app','ProjectOS control plane; production-targeted Vercel project and live control database.',now(),now()),
 ('mbanatao/Memory','read_write','ivmvufhcsezyhczzondn','Memory','verified_schema','team_3yw1CN59ce4pj5SwyQGCAqN3','prj_Sav0aQAgZxEs3J4pplcgp6dsFZhp','memory','verified','memory-psi-steel.vercel.app','Dedicated database verified with 67 public tables and production-targeted Vercel deployment.',now(),now()),
 ('mbanatao/pandorasbox','read_write',null,null,'not_identified',null,null,null,'not_identified',null,'No dedicated Supabase or Vercel project verified.',now(),now()),
 ('mbanatao/realmatch','read_write','ijqivgnlqndddftgazxc','realmatch','verified_schema','team_3yw1CN59ce4pj5SwyQGCAqN3','prj_Zuyr4F6cpULzBwfNpAiKAHw4DlBx','realmatch','verified','realmatch-one.vercel.app','Canonical repository provisioning record; database restored to ACTIVE_HEALTHY. Duplicate rkthpfdzzisudaxxqvgn is quarantined.',now(),now())

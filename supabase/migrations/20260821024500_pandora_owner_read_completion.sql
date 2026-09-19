@@ -1,5 +1,5 @@
--- Phase 0: complete one allowlisted owner read without weakening Pandora mutation gates.
-create or replace function public.pandora_complete_owner_read_intake(
+-- Phase 0: complete one allowlisted owner read without weakening ProjectOS mutation gates.
+create or replace function public.projectos_complete_owner_read_intake(
   p_organization_id uuid,
   p_intake_id uuid,
   p_operation text,
@@ -10,7 +10,7 @@ security definer
 set search_path = ''
 as $function$
 declare
-  v_intake public.pandora_intake_requests%rowtype;
+  v_intake public.projectos_intake_requests%rowtype;
   v_safe_result jsonb;
   v_fingerprint text;
   v_event_id bigint;
@@ -25,13 +25,13 @@ begin
   end if;
 
   select * into v_intake
-  from public.pandora_intake_requests
+  from public.projectos_intake_requests
   where id = p_intake_id
     and organization_id = p_organization_id
   for update;
 
   if v_intake.id is null then
-    raise exception 'pandora intake not found' using errcode = 'P0002';
+    raise exception 'projectos intake not found' using errcode = 'P0002';
   end if;
   if v_intake.source <> 'api' or v_intake.request_type <> 'work' then
     raise exception 'owner_read_intake_scope_mismatch' using errcode = '55000';
@@ -70,7 +70,7 @@ begin
 
   v_event_id := public.record_audit_event(
     p_organization_id,
-    'pandora.owner_read_completed',
+    'projectos.owner_read_completed',
     'system'::public.audit_actor_type,
     v_safe_result || jsonb_build_object('operation', p_operation),
     null,
@@ -78,7 +78,7 @@ begin
     v_intake.requester_id
   );
 
-  update public.pandora_intake_requests
+  update public.projectos_intake_requests
   set status = 'completed',
       analysis = coalesce(analysis, '{}'::jsonb) || jsonb_build_object(
         'nextAction', 'owner_read_completed',
@@ -104,5 +104,5 @@ begin
 end;
 $function$;
 
-revoke all on function public.pandora_complete_owner_read_intake(uuid, uuid, text, jsonb) from public, anon, authenticated;
-grant execute on function public.pandora_complete_owner_read_intake(uuid, uuid, text, jsonb) to service_role;
+revoke all on function public.projectos_complete_owner_read_intake(uuid, uuid, text, jsonb) from public, anon, authenticated;
+grant execute on function public.projectos_complete_owner_read_intake(uuid, uuid, text, jsonb) to service_role;

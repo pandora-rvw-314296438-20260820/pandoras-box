@@ -142,7 +142,7 @@ begin
   if p_project_id is null or p_capability not in ('read','search','diff','export') then
     raise exception 'INVALID_SOURCE_ENTITLEMENT_REQUEST' using errcode='22023';
   end if;
-  select p.organization_id into v_org from public.pandora_projects p where p.id=p_project_id;
+  select p.organization_id into v_org from public.projectos_projects p where p.id=p_project_id;
   if v_org is null or not private.is_org_member(v_org) then
     raise exception 'PROJECT_ACCESS_REQUIRED' using errcode='42501';
   end if;

@@ -35,7 +35,7 @@ DECLARE
     'evidence_count'
   ];
 BEGIN
-  INSERT INTO private.pandora_product_registry (
+  INSERT INTO private.projectos_product_registry (
     organization_id,
     product_key,
     title,
@@ -49,7 +49,7 @@ BEGIN
   ) VALUES (
     v_organization_id,
     'pandoras_box',
-    'Pandoras-Box / Pandora',
+    'Pandoras-Box / ProjectOS',
     'banataosystems/Pandoras-box',
     526760,
     1934160,
@@ -62,7 +62,7 @@ BEGIN
 
   IF NOT EXISTS (
     SELECT 1
-    FROM private.pandora_product_registry
+    FROM private.projectos_product_registry
     WHERE organization_id = v_organization_id
       AND product_key = 'pandoras_box'
   ) THEN
@@ -71,7 +71,7 @@ BEGIN
 
   IF EXISTS (
     SELECT 1
-    FROM private.pandora_product_registry
+    FROM private.projectos_product_registry
     WHERE organization_id = v_organization_id
       AND product_key = 'pandoras_box'
       AND (
@@ -84,14 +84,14 @@ BEGIN
     RAISE EXCEPTION 'pandora_product_registry_identity_conflict';
   END IF;
 
-  UPDATE private.pandora_product_registry
+  UPDATE private.projectos_product_registry
   SET repo_full_name = 'banataosystems/Pandoras-box',
       updated_at = now()
   WHERE organization_id = v_organization_id
     AND product_key = 'pandoras_box'
     AND repo_full_name IS DISTINCT FROM 'banataosystems/Pandoras-box';
 
-  INSERT INTO private.pandora_event_contracts (
+  INSERT INTO private.projectos_event_contracts (
     organization_id,
     product_key,
     event_name,
@@ -133,5 +133,5 @@ BEGIN
 END;
 $migration$;
 
-COMMENT ON TABLE private.pandora_event_contracts IS
+COMMENT ON TABLE private.projectos_event_contracts IS
   'Allowlisted product-signal contracts. Pandora lifecycle contracts added by Phase 1 remain inactive until isolation, privacy, CI, non-production readback, rollback, independent-review, and owner-production gates pass.';

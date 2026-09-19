@@ -86,4 +86,4 @@ revoke all on function public.pandora_chat_universal_dispatch_v6(uuid,text,uuid,
 grant execute on function public.pandora_chat_universal_dispatch_v6(uuid,text,uuid,uuid) to authenticated;
 
 comment on function public.pandora_chat_universal_dispatch_v6(uuid,text,uuid,uuid)
-is 'Universal Chat dispatch where normal conversation is the default and explicit action language is required before an existing provider target is routed for governed execution; Pandora governance remains mandatory for consequential execution.';
+is 'Universal Chat dispatch where normal conversation is the default and explicit action language is required before an existing provider target is routed for governed execution; ProjectOS governance remains mandatory for consequential execution.';

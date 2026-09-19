@@ -42,7 +42,7 @@ with legacy_candidates as (
     on i.id=s.source_intent_id
    and i.organization_id=s.organization_id
    and i.project_id=s.project_id
-  join public.pandora_projects p
+  join public.projectos_projects p
     on p.id=s.project_id
    and p.organization_id=s.organization_id
    and p.status='active'

@@ -3,7 +3,7 @@
 -- Production history is never rewritten; live hashes remain in the recovery manifest.
 -- Semantic recovery of the provider-recorded SQL payload; comments and terminal newline may differ.
 
-create or replace function public.pandora_begin_reconciliation(
+create or replace function public.projectos_begin_reconciliation(
   p_organization_id uuid,
   p_project_key text,
   p_provider text,
@@ -15,12 +15,12 @@ set search_path = public, private, auth, pg_temp
 as $$
 declare
   v_project_id uuid;
-  v_run public.pandora_reconciliation_runs%rowtype;
+  v_run public.projectos_reconciliation_runs%rowtype;
 begin
   perform private.assert_control_service_role();
-  select id into strict v_project_id from public.pandora_projects
+  select id into strict v_project_id from public.projectos_projects
     where organization_id=p_organization_id and project_key=p_project_key;
-  insert into public.pandora_reconciliation_runs(
+  insert into public.projectos_reconciliation_runs(
     organization_id,project_id,provider,status,cursor_before
   ) values (
     p_organization_id,v_project_id,p_provider,'running',coalesce(p_cursor_before,'{}'::jsonb)
@@ -29,7 +29,7 @@ begin
 end;
 $$;
 
-create or replace function public.pandora_finish_reconciliation(
+create or replace function public.projectos_finish_reconciliation(
   p_organization_id uuid,
   p_run_id uuid,
   p_status text,
@@ -42,13 +42,13 @@ security definer
 set search_path = public, private, auth, pg_temp
 as $$
 declare
-  v_run public.pandora_reconciliation_runs%rowtype;
+  v_run public.projectos_reconciliation_runs%rowtype;
 begin
   perform private.assert_control_service_role();
   if p_status not in ('succeeded','partial','failed') then
     raise exception 'invalid_reconciliation_status';
   end if;
-  update public.pandora_reconciliation_runs set
+  update public.projectos_reconciliation_runs set
     status=p_status,
     cursor_after=coalesce(p_cursor_after,'{}'::jsonb),
     stats=coalesce(p_stats,'{}'::jsonb),
@@ -60,5 +60,5 @@ begin
 end;
 $$;
 
-grant execute on function public.pandora_begin_reconciliation(uuid,text,text,jsonb) to service_role;
-grant execute on function public.pandora_finish_reconciliation(uuid,uuid,text,jsonb,jsonb,text) to service_role;
+grant execute on function public.projectos_begin_reconciliation(uuid,text,text,jsonb) to service_role;
+grant execute on function public.projectos_finish_reconciliation(uuid,uuid,text,jsonb,jsonb,text) to service_role;

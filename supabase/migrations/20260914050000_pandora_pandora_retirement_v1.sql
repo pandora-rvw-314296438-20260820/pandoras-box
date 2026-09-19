@@ -1,7 +1,7 @@
--- Pandora Pandora retirement cutover v1
+-- Pandora ProjectOS retirement cutover v1
 --
--- Active Universal Chat never falls back into the legacy Pandora dispatcher.
--- Historical Pandora tables and migrations remain untouched for audit/rollback.
+-- Active Universal Chat never falls back into the legacy ProjectOS dispatcher.
+-- Historical ProjectOS tables and migrations remain untouched for audit/rollback.
 
 create or replace function public.pandora_chat_universal_dispatch_v9(
   p_organization_id uuid,
@@ -61,7 +61,7 @@ begin
 
     if v_project_mode='workspace_action' then
       if not exists (
-        select 1 from public.pandora_projects p
+        select 1 from public.projectos_projects p
         where p.id=p_project_id
           and p.organization_id=p_organization_id
           and p.status <> 'archived'
@@ -146,7 +146,7 @@ grant execute on function public.pandora_chat_universal_dispatch_v9(uuid,text,uu
   to authenticated;
 
 comment on function public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid)
-is 'Universal Chat Pandora retirement cutover: selected-project actions remain on the Pandora project runtime; every other request returns to Pandora intelligence without invoking the legacy Pandora dispatcher.';
+is 'Universal Chat ProjectOS retirement cutover: selected-project actions remain on the Pandora project runtime; every other request returns to Pandora intelligence without invoking the legacy ProjectOS dispatcher.';
 
 do $contract$
 declare
@@ -156,13 +156,13 @@ begin
     'public.pandora_chat_universal_dispatch_v9(uuid,text,uuid,uuid)'::regprocedure
   ) into v_definition;
   if position('pandora_chat_universal_dispatch_v8' in v_definition) > 0 then
-    raise exception 'pandora_pandora_retirement_v8_fallback_present' using errcode='55000';
+    raise exception 'pandora_projectos_retirement_v8_fallback_present' using errcode='55000';
   end if;
-  if position('pandora_accept_intake' in v_definition) > 0 or position('pandora_intake' in v_definition) > 0 then
-    raise exception 'pandora_pandora_retirement_intake_present' using errcode='55000';
+  if position('projectos_accept_intake' in v_definition) > 0 or position('projectos_intake' in v_definition) > 0 then
+    raise exception 'pandora_projectos_retirement_intake_present' using errcode='55000';
   end if;
   if position('pandora_native_intelligence' in v_definition) = 0 then
-    raise exception 'pandora_pandora_retirement_native_fallback_missing' using errcode='55000';
+    raise exception 'pandora_projectos_retirement_native_fallback_missing' using errcode='55000';
   end if;
 end
 $contract$;

@@ -11,7 +11,7 @@ create table if not exists public.pandora_project_creation_requests (
   requester_id uuid not null references auth.users(id) on delete cascade,
   idempotency_key text not null,
   request_sha256 text not null,
-  project_id uuid references public.pandora_projects(id) on delete restrict,
+  project_id uuid references public.projectos_projects(id) on delete restrict,
   state text not null default 'claimed',
   created_at timestamptz not null default now(),
   completed_at timestamptz,
@@ -50,7 +50,7 @@ set search_path = ''
 as $function$
 declare
   v_request public.pandora_project_creation_requests%rowtype;
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_project_id uuid;
   v_project_key text;
   v_slug text;
@@ -104,7 +104,7 @@ begin
   if v_request.project_id is not null then
     select *
       into strict v_project
-    from public.pandora_projects
+    from public.projectos_projects
     where id = v_request.project_id
       and organization_id = p_organization_id;
 
@@ -132,12 +132,12 @@ begin
     )
   );
 
-  insert into public.pandora_projects(
+  insert into public.projectos_projects(
     id, organization_id, project_key, name, workspace_path, status,
     objective, roadmap_version, config, created_by, created_at, updated_at
   ) values (
     v_project_id, p_organization_id, v_project_key, btrim(p_name),
-    'pandora/projects/' || v_project_key, 'active',
+    'projectos/projects/' || v_project_key, 'active',
     btrim(p_objective), '2.0.0', v_config, p_requester_id, v_now, v_now
   )
   returning * into v_project;

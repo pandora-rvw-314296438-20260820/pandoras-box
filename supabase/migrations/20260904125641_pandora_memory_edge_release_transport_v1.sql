@@ -1,7 +1,7 @@
 
 -- P5 Task17: exact signed Memory-main -> canonical Memory Edge bridge release transport.
--- Fixed scope: pandoras-box-memory / ivmvufhcsezyhczzondn / pandora-pandora-bridge only.
-create or replace function private.pandora_memory_release_deploy_pandora_bridge_20260904(p_commit_sha text)
+-- Fixed scope: pandoras-box-memory / ivmvufhcsezyhczzondn / pandora-projectos-bridge only.
+create or replace function private.pandora_memory_release_deploy_projectos_bridge_20260904(p_commit_sha text)
 returns jsonb
 language plpgsql
 security definer
@@ -49,7 +49,7 @@ begin
 
   v_git := private.pandora_integration_github_api_20260825(
     'GET',
-    '/repos/pandora-rvw-314296438-20260820/pandoras-box-memory/contents/supabase/functions/pandora-pandora-bridge/index.ts?ref='||p_commit_sha,
+    '/repos/pandora-rvw-314296438-20260820/pandoras-box-memory/contents/supabase/functions/pandora-projectos-bridge/index.ts?ref='||p_commit_sha,
     null
   );
   if coalesce((v_git->>'status')::integer,0) <> 200 then
@@ -66,7 +66,7 @@ begin
 
   v_git_deno := private.pandora_integration_github_api_20260825(
     'GET',
-    '/repos/pandora-rvw-314296438-20260820/pandoras-box-memory/contents/supabase/functions/pandora-pandora-bridge/deno.json?ref='||p_commit_sha,
+    '/repos/pandora-rvw-314296438-20260820/pandoras-box-memory/contents/supabase/functions/pandora-projectos-bridge/deno.json?ref='||p_commit_sha,
     null
   );
   if coalesce((v_git_deno->>'status')::integer,0) <> 200 then
@@ -89,7 +89,7 @@ begin
   end if;
 
   v_metadata := jsonb_build_object(
-    'name','pandora-pandora-bridge',
+    'name','pandora-projectos-bridge',
     'entrypoint_path','index.ts',
     'import_map_path','deno.json',
     'verify_jwt',false
@@ -124,7 +124,7 @@ begin
 
   select * into v_response from extensions.http((
     'POST'::extensions.http_method,
-    'https://api.supabase.com/v1/projects/ivmvufhcsezyhczzondn/functions/deploy?slug=pandora-pandora-bridge'::varchar,
+    'https://api.supabase.com/v1/projects/ivmvufhcsezyhczzondn/functions/deploy?slug=pandora-projectos-bridge'::varchar,
     array[
       extensions.http_header('authorization','Bearer '||v_token),
       extensions.http_header('accept','application/json'),
@@ -152,7 +152,7 @@ begin
     'commitSha',p_commit_sha,
     'treeSha',v_tree_sha,
     'projectRef','ivmvufhcsezyhczzondn',
-    'slug','pandora-pandora-bridge',
+    'slug','pandora-projectos-bridge',
     'sourceSha256',v_source_sha,
     'denoSha256',v_deno_sha,
     'verifyJwt',false,
@@ -162,16 +162,16 @@ begin
 end;
 $function$;
 
-revoke all on function private.pandora_memory_release_deploy_pandora_bridge_20260904(text) from public,anon,authenticated;
-grant execute on function private.pandora_memory_release_deploy_pandora_bridge_20260904(text) to service_role;
+revoke all on function private.pandora_memory_release_deploy_projectos_bridge_20260904(text) from public,anon,authenticated;
+grant execute on function private.pandora_memory_release_deploy_projectos_bridge_20260904(text) to service_role;
 
-create or replace function public.pandora_memory_release_deploy_pandora_bridge_v1(p_commit_sha text)
+create or replace function public.pandora_memory_release_deploy_projectos_bridge_v1(p_commit_sha text)
 returns jsonb
 language sql
 security definer
 set search_path to 'pg_catalog','private','public'
 as $wrapper$
-  select private.pandora_memory_release_deploy_pandora_bridge_20260904(p_commit_sha)
+  select private.pandora_memory_release_deploy_projectos_bridge_20260904(p_commit_sha)
 $wrapper$;
-revoke all on function public.pandora_memory_release_deploy_pandora_bridge_v1(text) from public,anon,authenticated;
-grant execute on function public.pandora_memory_release_deploy_pandora_bridge_v1(text) to service_role;
+revoke all on function public.pandora_memory_release_deploy_projectos_bridge_v1(text) from public,anon,authenticated;
+grant execute on function public.pandora_memory_release_deploy_projectos_bridge_v1(text) to service_role;

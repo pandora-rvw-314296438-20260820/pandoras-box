@@ -84,7 +84,7 @@ begin
 
   if v_intent_kind = 'create' then
     select config into v_config
-    from public.pandora_projects
+    from public.projectos_projects
     where id=v_project and organization_id=v_org
     for update;
     if not found then
@@ -97,7 +97,7 @@ begin
       'autoNamedAt',now(),
       'autoNameLocked',false
     );
-    update public.pandora_projects
+    update public.projectos_projects
     set name=v_project_name,
         config=jsonb_set(coalesce(v_config,'{}'::jsonb),'{customerJourney}',v_journey,true),
         updated_at=now()

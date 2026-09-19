@@ -127,9 +127,9 @@ begin
 end;
 $$;
 
-drop trigger if exists pandora_project_auto_vercel_v1 on public.pandora_projects;
+drop trigger if exists pandora_project_auto_vercel_v1 on public.projectos_projects;
 create trigger pandora_project_auto_vercel_v1
-before insert on public.pandora_projects
+before insert on public.projectos_projects
 for each row
 when (coalesce(new.config #>> '{customerJourney,createdFrom}','') = 'simple_mode')
 execute function private.pandora_project_auto_vercel_20260901();
@@ -229,9 +229,9 @@ begin
 end;
 $$;
 
-drop trigger if exists pandora_project_verified_vercel_domain_v1 on public.pandora_projects;
+drop trigger if exists pandora_project_verified_vercel_domain_v1 on public.projectos_projects;
 create trigger pandora_project_verified_vercel_domain_v1
-before update of config on public.pandora_projects
+before update of config on public.projectos_projects
 for each row
 when (coalesce(new.config #>> '{customerJourney,productionVerificationState}','') = 'live_verified')
 execute function private.pandora_project_verified_vercel_domain_20260901();

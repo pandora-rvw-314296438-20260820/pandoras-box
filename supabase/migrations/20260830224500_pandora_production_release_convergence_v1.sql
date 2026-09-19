@@ -104,7 +104,7 @@ declare
   v_env public.pandora_runtime_environments%rowtype;
   v_ver public.pandora_project_versions%rowtype;
   v_run public.pandora_verification_runs%rowtype;
-  v_project public.pandora_projects%rowtype;
+  v_project public.projectos_projects%rowtype;
   v_domain public.pandora_project_domains%rowtype;
   v_domain_ready boolean:=false;
   v_live_url text;
@@ -114,7 +114,7 @@ begin
    where id=p_deployment_id and environment='production' for update;
   if not found then raise exception 'PRODUCTION_DEPLOYMENT_REQUIRED' using errcode='22023'; end if;
   if v_dep.verification_state='live_verified' then
-    select * into v_project from public.pandora_projects where id=v_dep.project_id;
+    select * into v_project from public.projectos_projects where id=v_dep.project_id;
     return jsonb_build_object('deploymentId',v_dep.id,'projectVersionId',v_dep.version_id,'state','live','liveUrl',v_project.config->'customerJourney'->>'liveUrl','replayed',true);
   end if;
   if v_dep.verification_state<>'ready_for_verification' then
@@ -172,8 +172,8 @@ begin
    where id=v_ver.id and lifecycle_status='production_candidate';
   if not found then raise exception 'PRODUCTION_VERSION_RACE' using errcode='40001'; end if;
 
-  select * into v_project from public.pandora_projects where id=v_dep.project_id for update;
-  update public.pandora_projects
+  select * into v_project from public.projectos_projects where id=v_dep.project_id for update;
+  update public.projectos_projects
      set config=jsonb_set(coalesce(v_project.config,'{}'::jsonb),'{customerJourney}',
        coalesce(v_project.config->'customerJourney','{}'::jsonb)||jsonb_build_object(
          'stage','live','runtimeStatus','ready','liveUrl',v_live_url,'productionCandidateUrl',null,
@@ -225,7 +225,7 @@ begin
     v_run_id:=(v_verification->>'verificationRunId')::uuid;
     return private.pandora_finalize_verified_production_20260830(v_dep.id,v_run_id);
   end if;
-  update public.pandora_projects
+  update public.projectos_projects
      set config=jsonb_set(coalesce(config,'{}'::jsonb),'{customerJourney}',coalesce(config->'customerJourney','{}'::jsonb)||jsonb_build_object(
        'stage','needs_attention','runtimeStatus','failed','productionVerificationState','failed','runtimeUpdatedAt',clock_timestamp()
      ),true),updated_at=clock_timestamp()

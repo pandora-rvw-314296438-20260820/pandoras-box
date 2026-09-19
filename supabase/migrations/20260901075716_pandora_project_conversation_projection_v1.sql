@@ -53,7 +53,7 @@ begin
   end if;
 
   select p.organization_id into v_organization_id
-  from public.pandora_projects p
+  from public.projectos_projects p
   where p.id = p_project_id;
 
   if v_organization_id is null then

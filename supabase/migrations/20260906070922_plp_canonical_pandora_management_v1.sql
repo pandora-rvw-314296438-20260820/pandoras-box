@@ -26,7 +26,7 @@ declare
 begin
   select organization_id,name,repository
     into v_org_id,v_project_name,v_current_repo
-  from public.pandora_projects
+  from public.projectos_projects
   where id=v_project_id
   for update;
 
@@ -67,7 +67,7 @@ begin
     raise exception 'PLP_GITHUB_CONNECTOR_NOT_ACTIVE' using errcode='55000';
   end if;
 
-  update public.pandora_projects
+  update public.projectos_projects
      set repository=v_new_repo,
          config=coalesce(config,'{}'::jsonb)
            || jsonb_build_object(
@@ -94,7 +94,7 @@ begin
          updated_at=now()
    where id=v_project_id;
 
-  update public.pandora_project_resources
+  update public.projectos_project_resources
      set external_id=v_new_repo,
          external_name='PLP',
          canonical_url='https://github.com/'||v_new_repo,
@@ -116,7 +116,7 @@ begin
   returning id into v_repo_resource_id;
 
   if v_repo_resource_id is null then
-    insert into public.pandora_project_resources(
+    insert into public.projectos_project_resources(
       organization_id,project_id,provider,resource_type,external_id,external_name,
       environment,canonical_url,binding_state,configuration,verified_at
     ) values (
@@ -151,7 +151,7 @@ begin
     raise exception 'PLP_VERCEL_CONNECTOR_NOT_ACTIVE' using errcode='55000';
   end if;
 
-  insert into public.pandora_project_resources(
+  insert into public.projectos_project_resources(
     organization_id,project_id,provider,resource_type,external_id,external_name,
     environment,canonical_url,binding_state,configuration,verified_at
   ) values (
@@ -185,7 +185,7 @@ begin
     (v_org_id,v_project_id,null,v_vercel_resource_id,'web_runtime','vercel','production','dedicated',v_vercel_project_id,'ready',jsonb_build_object('default_domain',v_default_domain,'repository',v_new_repo),now(),now())
   on conflict do nothing;
 
-  update public.pandora_projects
+  update public.projectos_projects
      set config=jsonb_set(
            coalesce(config,'{}'::jsonb),
            '{customerJourney}',

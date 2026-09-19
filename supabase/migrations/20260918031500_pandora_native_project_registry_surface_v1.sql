@@ -1,13 +1,13 @@
 -- Pandora native project registry surface v1
--- Removes Pandora naming from the active chat/activity read path while preserving historical storage for audit compatibility.
+-- Removes ProjectOS naming from the active chat/activity read path while preserving historical storage for audit compatibility.
 
 create or replace view public.pandora_projects with (security_invoker = true) as 
 select id, organization_id, project_key, name, repository, workspace_path, status, objective, roadmap_version, current_phase_key, current_task_key, progress_percent, config, created_by, last_reconciled_at, created_at, updated_at
-from public.pandora_projects;
+from public.projectos_projects;
 
 revoke all on public.pandora_projects from public, anon;
 grant select on public.pandora_projects to authenticated, service_role;
-comment on view public.pandora_projects is 'Pandora-native project registry compatibility surface. The historical pandora_projects table remains only as storage/audit compatibility; active Pandora runtime must query this neutral surface.';
+comment on view public.pandora_projects is 'Pandora-native project registry compatibility surface. The historical projectos_projects table remains only as storage/audit compatibility; active Pandora runtime must query this neutral surface.';
 
 CREATE OR REPLACE FUNCTION public.pandora_activity_job_begin_v1(p_organization_id uuid, p_request_id text, p_thread_id uuid DEFAULT NULL::uuid, p_project_id uuid DEFAULT NULL::uuid)
  RETURNS jsonb
@@ -120,7 +120,7 @@ do $contract$
 declare v_activity text;
 begin
   select pg_get_functiondef('public.pandora_activity_job_begin_v1(uuid,text,uuid,uuid)'::regprocedure) into v_activity;
-  if position('pandora_projects' in lower(v_activity)) > 0 or position('pandora_projects' in lower(v_activity)) = 0 then
+  if position('projectos_projects' in lower(v_activity)) > 0 or position('pandora_projects' in lower(v_activity)) = 0 then
     raise exception 'pandora_project_registry_runtime_contract_failed' using errcode='55000';
   end if;
 end

@@ -79,7 +79,7 @@ begin
       if v_provider='github' then
         v_repo := substring(v_part from '([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)');
         if v_repo is null and p_project_id is not null then
-          select repository into v_repo from public.pandora_projects where id=p_project_id and organization_id=p_organization_id;
+          select repository into v_repo from public.projectos_projects where id=p_project_id and organization_id=p_organization_id;
         end if;
         if v_repo is null and v_part ~* '\mpandora' then v_repo := 'pandora-rvw-314296438-20260820/pandoras-box'; end if;
         begin v_pr := nullif(substring(v_part from '#([0-9]{1,9})'),'')::integer; exception when others then v_pr := null; end;
@@ -88,7 +88,7 @@ begin
       elsif v_provider='supabase' then
         v_action := 'project.read'; v_project_ref := substring(lower(v_part) from '([a-z]{20})');
         if v_project_ref is null and p_project_id is not null then
-          select h.details->>'projectRef' into v_project_ref from public.pandora_integration_health h
+          select h.details->>'projectRef' into v_project_ref from public.projectos_integration_health h
           where h.organization_id=p_organization_id and h.project_id=p_project_id and h.provider='supabase' order by h.updated_at desc limit 1;
         end if;
         if v_project_ref is null and v_part ~* '\mpandora' then v_project_ref := 'jcyqixttuebxqqfkjonq'; end if;
@@ -98,7 +98,7 @@ begin
         if p_project_id is not null then select e.provider_project_id into v_vercel_project from public.pandora_runtime_environments e
           where e.organization_id=p_organization_id and e.project_id=p_project_id and e.provider='vercel'
           order by case e.environment when 'production' then 0 when 'preview' then 1 else 2 end,e.updated_at desc limit 1; end if;
-        if v_vercel_project is null then select d.provider_project_id into v_vercel_project from public.pandora_project_domains d join public.pandora_projects p on p.id=d.project_id
+        if v_vercel_project is null then select d.provider_project_id into v_vercel_project from public.pandora_project_domains d join public.projectos_projects p on p.id=d.project_id
           where p.organization_id=p_organization_id and d.provider='vercel' and (v_part ilike '%'||d.provider_project_id||'%' or v_part ilike '%'||p.name||'%')
           order by d.updated_at desc nulls last limit 1; end if;
         if v_vercel_project is not null then v_target := jsonb_build_object('project',v_vercel_project); end if;
@@ -119,7 +119,7 @@ begin
     if not coalesce((v_result->>'ok')::boolean,false) then v_failed := true; end if;
     v_steps := v_steps || jsonb_build_array(jsonb_build_object(
       'index',v_index,'clause',v_part,'provider',v_provider,'action',v_action,'mode',v_mode,
-      'status',case when coalesce((v_result->>'ok')::boolean,false) then case when v_mode='write' then 'routed_to_pandora' else 'verified_read' end else 'blocked' end,
+      'status',case when coalesce((v_result->>'ok')::boolean,false) then case when v_mode='write' then 'routed_to_projectos' else 'verified_read' end else 'blocked' end,
       'result',v_result,'verifiedComplete',case when v_mode='read' then coalesce((v_result->>'ok')::boolean,false) else false end));
     v_index := v_index + 1;
   end loop;
@@ -129,7 +129,7 @@ begin
     'handled',true,'workflow',true,'status',case when v_failed then 'blocked_or_partial' else case when v_write_count>0 then 'awaiting_governed_execution' else 'verified' end end,
     'stepCount',v_index,'readCount',v_read_count,'writeCount',v_write_count,'steps',v_steps,
     'verifiedComplete',case when not v_failed and v_write_count=0 then true else false end,
-    'completionRequires',case when v_write_count>0 then jsonb_build_array('all_pandora_plans_authorized','one_time_execution_claims','provider_readbacks','evidence') else '[]'::jsonb end,
+    'completionRequires',case when v_write_count>0 then jsonb_build_array('all_projectos_plans_authorized','one_time_execution_claims','provider_readbacks','evidence') else '[]'::jsonb end,
     'observedAt',now());
 end;
 $$;
@@ -164,7 +164,7 @@ begin
 
   v_reply := case v_workflow->>'status'
     when 'verified' then format('Pandora completed %s governed read steps and verified each provider result.',v_workflow->>'stepCount')
-    when 'awaiting_governed_execution' then format('Pandora resolved %s ordered capability steps. Safe reads are verified; consequential steps are routed through Pandora and are not complete until provider readback and evidence succeed.',v_workflow->>'stepCount')
+    when 'awaiting_governed_execution' then format('Pandora resolved %s ordered capability steps. Safe reads are verified; consequential steps are routed through ProjectOS and are not complete until provider readback and evidence succeed.',v_workflow->>'stepCount')
     else format('Pandora resolved %s ordered capability steps, but at least one step is blocked or unresolved. No blocked step was treated as complete.',v_workflow->>'stepCount') end;
 
   if v_thread_id is not null then

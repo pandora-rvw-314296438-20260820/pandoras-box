@@ -63,7 +63,7 @@ begin
 
     if v_project_mode='workspace_action' then
       if not exists (
-        select 1 from public.pandora_projects p
+        select 1 from public.projectos_projects p
         where p.id=p_project_id
           and p.organization_id=p_organization_id
           and p.status <> 'archived'
