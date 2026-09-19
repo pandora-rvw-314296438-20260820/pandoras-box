@@ -27,6 +27,12 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/CMakeLists.txt")
     message(FATAL_ERROR "llama.cpp source missing. Codespace builder must clone the exact upstream SHA before Gradle build.")
 endif()
 
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vulkan-headers/include/vulkan/vulkan.hpp")
+    message(FATAL_ERROR "Vulkan C++ headers missing. Codespace builder must stage vulkan.hpp before Gradle build.")
+endif()
+
+include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/vulkan-headers/include")
+
 add_subdirectory(llama.cpp llama-build)
 
 find_package(Threads REQUIRED)
