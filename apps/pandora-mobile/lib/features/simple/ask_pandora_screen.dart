@@ -80,6 +80,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   bool _activityTheatreRequested = false;
   bool _activityTheatreSuppressed = false;
   bool _submitting = false;
+  bool _localAiGenerating = false;
   bool _loadingThread = false;
   bool _outcomeUnknown = false;
   String? _submissionKey;
@@ -421,6 +422,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
     var response = '';
     var started = false;
+    _localAiGenerating = true;
     try {
       await for (final chunk in PandoraLocalAi.instance.generate(objective)) {
         if (!mounted) return true;
@@ -441,6 +443,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       if (!started) return false;
       setState(() => _error = error.message);
       return true;
+    } finally {
+      _localAiGenerating = false;
     }
 
     if (!mounted) return true;
@@ -468,6 +472,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
   Future<void> _submit() async {
     final objective = _objective.text.trim();
+    if (_submitting && _localAiGenerating && objective.isEmpty) {
+      await PandoraLocalAi.instance.cancel();
+      return;
+    }
     if (_submitting && _activeActivityJobId != null) {
       await _submitActiveControl(objective);
       return;
