@@ -1446,6 +1446,7 @@ class _ConversationState extends State<_Conversation> {
     }
 
     for (final message in widget.messages) {
+      if (message.text.trim().isEmpty) continue;
       items.add(_ChatBubble(message: message));
     }
     if (_hasPending) {
@@ -2175,7 +2176,7 @@ class _ComposerMenuItem extends StatelessWidget {
       );
 }
 
-String _sanitizeVisiblePandoraText(String input) {
+String _stripInternalContext(String input) {
   final output = <String>[];
   for (final line in input.split('\n')) {
     final trimmed = line.trim();
@@ -2200,17 +2201,23 @@ String _sanitizeVisiblePandoraText(String input) {
     }
     output.add(line);
   }
-  final clean =
-      output.join('\n').replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
+  return output.join('\n').replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
+}
+
+String _sanitizeVisiblePandoraText(String input) {
+  final clean = _stripInternalContext(input);
   return clean.isEmpty
       ? "I couldn't produce a clean reply for that turn. Please try again."
       : clean;
 }
 
+String _sanitizeVisibleUserText(String input) => _stripInternalContext(input);
+
 class _ChatMessage {
   const _ChatMessage._(this.text, this.isUser);
 
-  const _ChatMessage.user(String text) : this._(text, true);
+  _ChatMessage.user(String text)
+      : this._(_sanitizeVisibleUserText(text), true);
   _ChatMessage.pandora(String text)
       : this._(_sanitizeVisiblePandoraText(text), false);
 
