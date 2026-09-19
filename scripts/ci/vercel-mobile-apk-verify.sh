@@ -64,7 +64,23 @@ if expected != actual:
     raise SystemExit('pubspec.lock changed after flutter pub get --enforce-lockfile')
 PY
 
+set +e
 flutter analyze 2>&1 | tee ../vercel-apk-output/flutter-analyze.log
+ANALYZE_EXIT="${PIPESTATUS[0]}"
+set -e
+python3 - "$ANALYZE_EXIT" <<'PY'
+from pathlib import Path
+import sys
+code = int(sys.argv[1])
+text = Path('../vercel-apk-output/flutter-analyze.log').read_text(errors='replace')
+if code not in (0, 1):
+    raise SystemExit(f'flutter analyze exited unexpectedly: {code}')
+if 'error •' in text:
+    raise SystemExit('flutter analyze reported at least one error-severity issue')
+if code == 1 and 'issues found.' not in text:
+    raise SystemExit('flutter analyze failed for a reason other than lint/warning findings')
+PY
+
 flutter test --reporter expanded 2>&1 | tee ../vercel-apk-output/flutter-test.log
 
 test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = "$EXPECTED_APP_VERSION"
@@ -96,6 +112,7 @@ PY
   echo "android_build_tools=36.0.0"
   echo "app_version=$EXPECTED_APP_VERSION"
   echo "android_package=com.banataosystems.pandora_mobile"
+  echo "analyze_policy=no-error-severity"
   echo "artifact_class=validation-candidate"
   echo "production_release=false"
   echo "physical_device_verified=false"
