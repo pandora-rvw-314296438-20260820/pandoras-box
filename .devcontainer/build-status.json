@@ -1,12 +1,12 @@
 {
   "schema": "pandora.codespace-apk-build.v1",
   "status": "failed",
-  "exitCode": 100,
-  "step": "install-host-tools",
+  "exitCode": 2,
+  "step": "install-android-sdk",
   "sourceSha": "a5d5b60551e5c4f02c8aa14c8af4d8b3a268b082",
   "apkSha256": null,
   "apkSizeBytes": null,
   "releaseUrl": null,
-  "startedAtUtc": "2026-09-19T06:10:42Z",
-  "finishedAtUtc": "2026-09-19T06:10:50.284778Z"
+  "startedAtUtc": "2026-09-19T06:19:25Z",
+  "finishedAtUtc": "2026-09-19T06:20:32.650286Z"
 }
