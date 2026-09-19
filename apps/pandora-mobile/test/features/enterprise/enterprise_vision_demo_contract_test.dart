@@ -33,27 +33,28 @@ void main() {
     expect(section, contains('EnterpriseVisionScreen'));
   });
 
-  test('public demo uses the permitted Perdido Key OG embed', () {
+  test('live feed uses the event-rich EarthCam Times Square embed', () {
     expect(
       webEmbed,
       contains(
-        'https://perdidokeyog.com/embed/cam/',
+        'https://www.youtube-nocookie.com/embed/z-jYdOIKcTQ?autoplay=1&mute=1&playsinline=1&rel=0',
       ),
     );
     expect(webEmbed, contains('allowfullscreen'));
-    expect(screen, contains('Perdido Key OG'));
-    expect(screen, contains('source attribution visible in the player'));
+    expect(screen, contains('EarthCam'));
+    expect(screen, contains('LIVE TIMES SQUARE'));
   });
 
   test('public feed never claims automated analysis', () {
     expect(screen, contains('AI analysis'));
-    expect(screen, contains('Off for public demo'));
+    expect(screen, contains('Not connected to public source'));
     expect(screen, contains('Biometrics'));
     expect(screen, contains('Pandora retention'));
     expect(screen, contains('None'));
+    expect(screen.toLowerCase(), isNot(contains('demo')));
     expect(
       screen,
-      contains('Automated analysis is deliberately disabled for this public demo feed.'),
+      contains('not connected to this public source.'),
     );
   });
 
