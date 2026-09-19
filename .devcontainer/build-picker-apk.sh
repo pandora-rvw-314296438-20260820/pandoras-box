@@ -72,6 +72,8 @@ STEP="github-auth"
 gh auth status
 
 STEP="install-host-tools"
+sudo rm -f /etc/apt/sources.list.d/yarn.list /etc/apt/sources.list.d/yarn.sources
+sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -iname '*yarn*' -delete 2>/dev/null || true
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y curl unzip zip xz-utils libglu1-mesa git python3 openjdk-17-jdk ca-certificates
 
