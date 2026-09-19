@@ -69,6 +69,7 @@ jobs:
       SOURCE_SHA: ${{ github.sha }}
       FLUTTER_VERSION: '3.47.0'
       EXPECTED_APP_VERSION: '0.4.0-rc.4+11'
+      LLAMA_CPP_SHA: '44be98f057e9f9902a8ee12630e181c7f8ec2953'
       ANDROID_ARTIFACT_NAME: pandora-mobile-android-validation-${{ github.sha }}
     steps:
       - name: Check out the exact candidate
@@ -138,7 +139,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;36.0.0'
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            'platforms;android-36' \
+            'build-tools;36.0.0' \
+            'ndk;29.0.13113456' \
+            'cmake;3.31.6'
 
       - name: Install pinned Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
@@ -159,6 +164,18 @@ jobs:
             --project-name pandora_mobile \
             .
           cp -R ../apps/pandora-mobile/platform/android/. ./android/
+          git init -q android/llama.cpp
+          git -C android/llama.cpp remote add origin https://github.com/ggml-org/llama.cpp.git
+          git -C android/llama.cpp fetch --depth 1 origin "$LLAMA_CPP_SHA"
+          git -C android/llama.cpp checkout -q --detach FETCH_HEAD
+          test "$(git -C android/llama.cpp rev-parse HEAD)" = "$LLAMA_CPP_SHA"
+          mkdir -p android/app/src/main/kotlin/com/arm/aichat/internal
+          cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/AiChat.kt \
+            android/app/src/main/kotlin/com/arm/aichat/AiChat.kt
+          cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/InferenceEngine.kt \
+            android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
+          cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/internal/InferenceEngineImpl.kt \
+            android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt
           rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
           cp -R ../apps/pandora-mobile/lib ./lib
           cp -R ../apps/pandora-mobile/test ./test
@@ -169,6 +186,9 @@ jobs:
           cp ../apps/pandora-mobile/analysis_options.yaml ./analysis_options.yaml
           python3 ../apps/pandora-mobile/tool/configure_validation_android.py \
             android/app/src/main/AndroidManifest.xml
+          python3 ../apps/pandora-mobile/tool/configure_local_ai_android.py \
+            android/app/build.gradle.kts \
+            android/gradle.properties
 
       - name: Resolve the exact lockfile
         working-directory: .pandora-mobile-build
@@ -271,6 +291,7 @@ jobs:
           test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = \
             "$EXPECTED_APP_VERSION"
           flutter build apk --debug \
+            --target-platform android-arm64 \
             --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
             --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
 
@@ -431,6 +452,7 @@ jobs:
       SOURCE_SHA: ${{ github.sha }}
       FLUTTER_VERSION: '3.47.0'
       EXPECTED_APP_VERSION: '0.4.0-rc.4+11'
+      LLAMA_CPP_SHA: '44be98f057e9f9902a8ee12630e181c7f8ec2953'
     steps:
       - name: Check out the exact candidate
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
