@@ -49,7 +49,7 @@ const entries = [
     manifest('supabase.read-project-api', 'supabase', 'read', false, 'project', ['projects:read'], { confirmationKind: 'supabase-project-api' }),
     manifest('supabase.write-project-api', 'supabase', 'write', true, 'project', ['projects:write'], { confirmationKind: 'supabase-project-api', highImpactCapable: true }),
     manifest('supabase.database-query', 'supabase', 'write', true, 'project', ['projects:read', 'projects:write'], { confirmationKind: 'supabase-database-query' }),
-    // These are ProjectOS connector-policy scopes. Passing them does not prove
+    // These are Pandora connector-policy scopes. Passing them does not prove
     // that the downstream Supabase token has effective DB/environment access;
     // every provider response remains authoritative and fail-closed.
     manifest('supabase.write-child-database-query', 'supabase', 'write', true, 'branch', ['projects:read', 'projects:write'], { confirmationKind: 'supabase-child-database-query' }),

@@ -13,8 +13,8 @@ const express_1 = __importDefault(require("express"));
 const http_server_js_1 = require("./http-server.js");
 const operator_public_config_js_1 = require("./operator-public-config.js");
 const memory_js_1 = require("./tools/memory.js");
-const canonical_status_provider_js_1 = require("./projectos/canonical-status-provider.js");
-const worker_plan_context_provider_js_1 = require("./projectos/worker-plan-context-provider.js");
+const canonical_status_provider_js_1 = require("./pandora/canonical-status-provider.js");
+const worker_plan_context_provider_js_1 = require("./pandora/worker-plan-context-provider.js");
 const aws_bedrock_runtime_js_1 = require("./providers/aws-bedrock-runtime.js");
 const CANONICAL_MEMORY_ORIGIN = 'https://pandorasbox-memory.vercel.app';
 const CANONICAL_MEMORY_PROJECT_KEY = 'mcpmaster-pandoras-box';
@@ -81,7 +81,7 @@ function createCanonicalMemoryHealthProbe(environment = process.env, fetchFn = g
                     includeOpenLoops: true,
                 });
                 if (health.ok !== true
-                    || health.status !== 'projectos-connected'
+                    || health.status !== 'pandora-connected'
                     || health.authentication !== 'vercel_oidc'
                     || search.ok !== true
                     || search.namespace !== 'real_life') {
@@ -203,7 +203,7 @@ function createPandoraContainerApp(environment = process.env) {
         response.json({
             status: 'healthy',
             service: 'pandora-runtime-container',
-            mode: 'projectos',
+            mode: 'pandora',
             timestamp: new Date().toISOString(),
         });
     });
@@ -247,7 +247,7 @@ function createPandoraContainerApp(environment = process.env) {
     app.use('/api/operator', createContainerOperatorRuntime(environment));
     app.use('/api', (0, http_server_js_1.createHttpApp)());
     app.get([
-        '/control-tower/projectos-status.json',
+        '/control-tower/pandora-status.json',
         '/control-tower/release.json',
     ], (_request, response) => {
         response.setHeader('Cache-Control', 'no-store');
@@ -310,13 +310,13 @@ function startPandoraContainerServer(environment = process.env) {
     const host = environment.HOST?.trim() || '0.0.0.0';
     const app = createPandoraContainerApp(environment);
     const server = app.listen(port, host, () => {
-        console.log(`ProjectOS container listening on ${host}:${port}`);
+        console.log(`Pandora container listening on ${host}:${port}`);
     });
     const shutdown = (signal) => {
-        console.log(`Received ${signal}; shutting down ProjectOS container.`);
+        console.log(`Received ${signal}; shutting down Pandora container.`);
         server.close((error) => {
             if (error) {
-                console.error('ProjectOS container shutdown failed');
+                console.error('Pandora container shutdown failed');
                 process.exitCode = 1;
             }
             process.exit();
@@ -326,4 +326,4 @@ function startPandoraContainerServer(environment = process.env) {
     process.once('SIGINT', () => shutdown('SIGINT'));
     return server;
 }
-//# sourceMappingURL=projectos-container-server.js.map
+//# sourceMappingURL=pandora-container-server.js.map

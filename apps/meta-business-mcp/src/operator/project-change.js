@@ -190,7 +190,7 @@ function createProjectChangeExecutor(options) {
         let project;
         let projection;
         try {
-            project = oneRow(await client.requestJson(`/rest/v1/projectos_projects?select=id&organization_id=eq.${q(organizationId)}&id=eq.${q(projectId)}&limit=1`));
+            project = oneRow(await client.requestJson(`/rest/v1/pandora_projects?select=id&organization_id=eq.${q(organizationId)}&id=eq.${q(projectId)}&limit=1`));
             projection = oneRow(await client.requestJson(`/rest/v1/pandora_project_experience_projection?select=can_change,current_version_id,candidate_version_id,production_version_id&organization_id=eq.${q(organizationId)}&project_id=eq.${q(projectId)}&limit=1`));
         } catch {
             throw new ProjectChangeError("PROJECT_CHANGE_UNAVAILABLE", 503, "Pandora could not verify the current project state.");

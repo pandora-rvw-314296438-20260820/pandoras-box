@@ -97,22 +97,22 @@ function clearPrivilegedCallerHeaders(request) {
 function requiredOperatorScope(request) {
     if (request.method === 'POST'
         && /^\/worker-plans\/[0-9a-f-]+\/context$/i.test(request.path))
-        return 'projectos:plan';
+        return 'pandora:plan';
     if (request.method === 'POST' && request.path === '/tools/plan')
-        return 'projectos:plan';
+        return 'pandora:plan';
     if (request.method === 'POST' && request.path === '/tools/approve')
-        return 'projectos:approve';
+        return 'pandora:approve';
     if (request.method === 'POST'
         && /^\/projects\/[0-9a-f-]+\/focus-preview$/i.test(request.path))
-        return 'projectos:read';
+        return 'pandora:read';
     if (request.method === 'POST'
         && /^\/projects\/[0-9a-f-]+\/change$/i.test(request.path))
-        return 'projectos:execute';
+        return 'pandora:execute';
     if (request.method === 'POST'
         && (request.path === '/tools/execute' || request.path === '/tools'))
-        return 'projectos:execute';
+        return 'pandora:execute';
     if (request.method === 'GET')
-        return 'projectos:read';
+        return 'pandora:read';
     return undefined;
 }
 function oauthScopeAllowed(current, requiredScope) {
@@ -121,7 +121,7 @@ function oauthScopeAllowed(current, requiredScope) {
     const granted = new Set(Array.isArray(current.identity.scopes) ? current.identity.scopes : []);
     return Boolean(requiredScope
         && granted.has('openid')
-        && (granted.has(requiredScope) || granted.has('projectos:*')));
+        && (granted.has(requiredScope) || granted.has('pandora:*')));
 }
 function operatorAuthentication(options) {
     return async (request, response, next) => {
@@ -252,16 +252,16 @@ function createOperatorApiApp(options) {
     });
     router.use('/connect/pandoras-box', (request, response, next) => {
         const current = actor(response);
-        const requiredScope = 'projectos:read';
+        const requiredScope = 'pandora:read';
         if (!current || !oauthScopeAllowed(current, requiredScope)) {
             noStore(response);
-            response.setHeader('WWW-Authenticate', 'Bearer error="insufficient_scope", scope="projectos:read"');
+            response.setHeader('WWW-Authenticate', 'Bearer error="insufficient_scope", scope="pandora:read"');
             response.status(403).json({
                 ok: false,
                 connected: false,
                 error: {
                     code: 'OPERATOR_SCOPE_REQUIRED',
-                    message: 'OAuth scope projectos:read is required for Vercel Connect.',
+                    message: 'OAuth scope pandora:read is required for Vercel Connect.',
                 },
             });
             return;
@@ -361,12 +361,12 @@ function createOperatorApiApp(options) {
         const requiredScope = requiredOperatorScope(request);
         if (!oauthScopeAllowed(current, requiredScope)) {
             noStore(response);
-            response.setHeader('WWW-Authenticate', `Bearer error="insufficient_scope", scope="${requiredScope || 'projectos'}"`);
+            response.setHeader('WWW-Authenticate', `Bearer error="insufficient_scope", scope="${requiredScope || 'pandora'}"`);
             response.status(403).json({
                 ok: false,
                 error: {
                     code: 'OPERATOR_SCOPE_REQUIRED',
-                    message: `OAuth scope ${requiredScope || 'projectos'} is required for this operator action.`,
+                    message: `OAuth scope ${requiredScope || 'pandora'} is required for this operator action.`,
                 },
             });
             return;

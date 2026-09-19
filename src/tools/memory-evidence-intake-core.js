@@ -101,7 +101,7 @@ function failureEnvelope(input) {
 class MemoryEvidenceSubmissionError extends Error {
   constructor(input) {
     const failure = failureEnvelope(input);
-    // The JSON message is deliberate: ProjectOS currently stores a bounded
+    // The JSON message is deliberate: Pandora currently stores a bounded
     // error string in its hash-linked audit ledger. Serializing this fixed,
     // allowlisted envelope keeps both the caller and audit structurally useful
     // without accepting arbitrary provider text or confidential response data.
@@ -549,7 +549,7 @@ async function submitEvidenceCandidate(args, configuration, fetchFn = globalThis
   try {
     let response;
     try {
-      response = await fetchFn(`${origin}/api/projectos/memory/evidence-candidates`, {
+      response = await fetchFn(`${origin}/api/pandora/memory/evidence-candidates`, {
         method: "POST",
         redirect: "error",
         cache: "no-store",

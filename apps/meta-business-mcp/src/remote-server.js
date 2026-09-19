@@ -7,15 +7,15 @@ function resolveEntrypointMode() {
     const runtime = require('../../../dist/container-runtime.js');
     return runtime.resolveContainerRuntimeMode(process.env);
 }
-function startProjectOsFallback() {
-    const runtime = require('../../../dist/projectos-container-server.js');
-    console.warn('Legacy Meta container entrypoint invoked; starting ProjectOS safe default');
-    runtime.startProjectOsContainerServer();
+function startPandoraFallback() {
+    const runtime = require('../../../dist/pandora-container-server.js');
+    console.warn('Legacy Meta container entrypoint invoked; starting Pandora safe default');
+    runtime.startPandoraContainerServer();
 }
 async function main() {
     const mode = resolveEntrypointMode();
-    if (mode === 'projectos') {
-        startProjectOsFallback();
+    if (mode === 'pandora') {
+        startPandoraFallback();
         return;
     }
     const config = (0, remote_config_1.loadMetaRemoteMcpConfig)();

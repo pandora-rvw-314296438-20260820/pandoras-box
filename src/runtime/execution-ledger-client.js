@@ -294,7 +294,7 @@ class ExecutionLedgerClient {
         this.maxResponseBytes = boundedPositiveInteger(options.maxResponseBytes, DEFAULT_MAX_RESPONSE_BYTES, DEFAULT_MAX_RESPONSE_BYTES);
         this.fetchFn = options.fetchFn || globalThis.fetch;
         this.enforceMandatoryIntake = false;
-        // ProjectOS is retired from the active runtime. A legacy intake provider may only
+        // Pandora is retired from the active runtime. A legacy intake provider may only
         // be injected explicitly for bounded reconciliation of historical evidence.
         this.intakeProvider = options.intakeProvider || undefined;
         const automaticContext = (0, plan_memory_context_js_1.shouldHydratePlanMemoryContext)();
@@ -333,10 +333,10 @@ class ExecutionLedgerClient {
         };
         this.assertRequestSize(createPayload);
         // Intake is intentionally completed before Memory retrieval. Keep provider args immutable:
-        // the accepted ProjectOS control workspace remains the plan identity, while Memory hydration
+        // the accepted Pandora control workspace remains the plan identity, while Memory hydration
         // receives its own canonical project scope derived from the fail-closed source authority policy.
         const memoryProjectKey = intake?.projectKey
-            ? (0, source_authority_js_1.memoryProjectKeyForProjectOsIntake)(intake.projectKey)
+            ? (0, source_authority_js_1.memoryProjectKeyForPandoraIntake)(intake.projectKey)
             : undefined;
         const contextArgs = memoryProjectKey
             ? { ...input.args, projectKey: memoryProjectKey }

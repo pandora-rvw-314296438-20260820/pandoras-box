@@ -24,7 +24,7 @@ const PRESENTATION_LIMITS = Object.freeze({
 
 function contractError(category, phase) {
   return Object.assign(
-    new Error("Provider response contract is invalid or exceeds bounded ProjectOS limits"),
+    new Error("Provider response contract is invalid or exceeds bounded Pandora limits"),
     {
       name: "ProviderResultContractError",
       status: 502,
