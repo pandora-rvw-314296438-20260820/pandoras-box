@@ -381,7 +381,18 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+
+  String _activeWorkspaceProfileKey() {
+    final selected = _activeEnterpriseContext?['selectedObject'];
+    if (selected is Map) {
+      final value = selected['workspaceProfile'];
+      if (value is String && value.trim().isNotEmpty) return value.trim();
+    }
+    return 'atty_batalla';
+  }
+
   void _openWorkspace(EnterpriseWorkspaceSelection selection) {
+
     setState(() {
       _activeEnterpriseContext = selection.enterpriseContext;
       _activeWorkspaceSelection = selection;
@@ -408,7 +419,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               ? BatallaWorkspaceScreen(
                   initialRouteSlug:
                       _activeWorkspaceSelection!.section.routeSlug,
-                  profileKey: 'atty_batalla',
+                  profileKey: _activeWorkspaceProfileKey(),
                   onBackToWorkspaces: () => _select(9),
                 )
               : AskPandoraScreen(

@@ -7,6 +7,7 @@ import '../../app/pandora_dependencies.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../simple/ask_pandora_screen.dart';
 
+// workspace_profile controls presentation only; authorization remains server-enforced.
 enum BatallaWorkspaceProfile {
   attyBatalla,
   dan,
@@ -349,7 +350,7 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
             leading: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
             title: const Text(
               'Recent chats',
-              style: TextStyle(fontWeight: FontWeight.w650),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             children: [
               if (_recentLoading)
@@ -492,7 +493,7 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 22,
-                            fontWeight: FontWeight.w750,
+                            fontWeight: FontWeight.w700,
                             letterSpacing: -.4,
                           ),
                         ),
@@ -952,7 +953,7 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
               'Access review',
             ],
             boundary:
-                'workspace_profile changes presentation only. Authorization remains server-enforced.',
+                'Personalized workspace presentation never grants or expands authorization. Access remains server-enforced.',
           ),
         'activity-audit' => const _BatallaSectionSpec(
             summary:
@@ -1017,7 +1018,7 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 25,
-                  fontWeight: FontWeight.w750,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: -.5,
                 ),
               ),

@@ -58,7 +58,7 @@ test("Batalla Home implements the three workspace_profile presentations", () => 
     "Executive Command Center",
     "Dan's Desk",
     "Secretary Quick Desk",
-    "workspace_profile changes presentation only. Authorization remains server-enforced.",
+    "workspace_profile controls presentation only; authorization remains server-enforced.",
   ]) {
     assert.ok(screen.includes(value), "missing " + value);
   }
