@@ -16,6 +16,10 @@ const outboxEdge = fs.readFileSync(
   "utf8",
 );
 const vercel = JSON.parse(fs.readFileSync("vercel.json", "utf8"));
+const scheduler = fs.readFileSync(
+  "supabase/migrations/20260919130000_plp_learning_drain_scheduler_v1.sql",
+  "utf8",
+);
 
 test("PLP only queues learning from verified execution paths", () => {
   assert.match(intelligence, /queuePlpVerifiedLearning/);
@@ -75,13 +79,11 @@ test("Vercel drain uses workload OIDC and verified-learning gateway", () => {
   );
 });
 
-test("Vercel schedules the bounded learning drain", () => {
+test("Supabase schedules the bounded learning drain without Vercel Cron plan coupling", () => {
   assert.equal(vercel.functions["api/plp-learning-drain.ts"].maxDuration, 55);
-  const cron = (vercel.crons || []).find(
-    (entry) => entry.path === "/api/plp-learning-drain",
-  );
-  assert.deepEqual(cron, {
-    path: "/api/plp-learning-drain",
-    schedule: "* * * * *",
-  });
+  assert.equal(Array.isArray(vercel.crons) ? vercel.crons.length : 0, 0);
+  assert.match(scheduler, /cron\.schedule/);
+  assert.match(scheduler, /\* \* \* \* \*/);
+  assert.match(scheduler, /plp_enterprise_cron_secret/);
+  assert.match(scheduler, /enterprise-omega-five\.vercel\.app\/api\/plp-learning-drain/);
 });
