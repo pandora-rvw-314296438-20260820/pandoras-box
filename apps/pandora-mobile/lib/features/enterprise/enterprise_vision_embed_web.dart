@@ -5,9 +5,9 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
 
-const String _viewType = 'pandora-times-square-live-cam';
+const String _viewType = 'pandora-shibuya-ai-vision-live-cam';
 const String _embedUrl =
-    'https://www.youtube.com/embed/z-jYdOIKcTQ?autoplay=1&mute=1&playsinline=1&rel=0';
+    'https://www.youtube.com/embed/live_stream?channel=UCfvMaqBPqsHXSbmmKzpDvow&autoplay=1&mute=1&playsinline=1&rel=0';
 
 bool _registered = false;
 
@@ -33,7 +33,7 @@ Widget buildEnterpriseVisionEmbed() {
         iframe.setAttribute('loading', 'lazy');
         iframe.setAttribute(
           'title',
-          'EarthCam live Times Square camera',
+          'Shibuya Ai Vision Miyamasuzaka live camera',
         );
         return iframe;
       },
