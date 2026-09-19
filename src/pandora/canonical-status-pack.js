@@ -188,7 +188,7 @@ function taskForStage(stage, complete, blockers, repository, proofLadder) {
     blockerIds: complete ? [] : blockers,
     evidenceIds: [],
     blocksPhaseExit: true,
-    builderAgent: "ProjectOS",
+    builderAgent: "Pandora",
     reviewerAgent: "independent-review",
   };
 }
@@ -217,7 +217,7 @@ function buildCanonicalStatusPack(input) {
     && triage.decisions.length === triage.total
     && github.triageExactHeadMatches === true;
   const memoryCurrent = memory.ok === true
-    && memory.healthStatus === "projectos-connected"
+    && memory.healthStatus === "pandora-connected"
     && memory.contextState === "healthy"
     && memory.fresh === true
     && Array.isArray(memory.approvedRecordIds)
@@ -619,7 +619,7 @@ function buildCanonicalStatusPack(input) {
         ...(!authorityDocumentsCurrent ? ["canonical-authority-or-historical-registry-unbound"] : []),
         ...(!freshness.currentAtGeneration ? ["status-pack-expiry-window-invalid"] : []),
       ],
-      owner: "ProjectOS",
+      owner: "Pandora",
       nextAction: authorityDocumentsCurrent && freshness.currentAtGeneration
         ? "keep-authenticated-status-refresh-current"
         : "restore-canonical-status-authority-and-refresh-window",
@@ -634,7 +634,7 @@ function buildCanonicalStatusPack(input) {
         triageComplete ? "triage-heads:exact-provider-match" : null,
       ],
       blockers: ["github-pr-triage-stale-or-incomplete"],
-      owner: "ProjectOS",
+      owner: "Pandora",
       nextAction: triageComplete
         ? "execute-approved-triage-decisions-without-changing-the-registry"
         : "reconcile-all-41-provider-heads-and-decisions",
@@ -649,7 +649,7 @@ function buildCanonicalStatusPack(input) {
         tested ? "workflow:Windows worker contract" : null,
       ],
       blockers: ["owner-worker-clean-main-proof-not-green"],
-      owner: "ProjectOS",
+      owner: "Pandora",
       nextAction: tested
         ? "keep-owner-worker-contract-green-on-protected-main"
         : "complete-owner-worker-contract-on-one-clean-protected-main-source",
@@ -665,7 +665,7 @@ function buildCanonicalStatusPack(input) {
         tested ? "required-checks:all-green-on-exact-source" : null,
       ],
       blockers: ["exact-test-source-deployment-rollback-binding-unproven"],
-      owner: "ProjectOS",
+      owner: "Pandora",
       nextAction: deployed
         ? "preserve-exact-release-and-rollback-receipts"
         : "complete-all-tests-and-provider-bound-deployment-rollback-proof",

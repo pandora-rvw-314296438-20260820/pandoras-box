@@ -5,14 +5,14 @@ const { ExecutionLedgerClient } = require("../runtime/execution-ledger-client.js
 const {
   PandoraPlanMemoryContextProvider,
 } = require("../runtime/plan-memory-context.js");
-const { memoryProjectKeyForProjectOsIntake } = require("../runtime/source-authority.js");
+const { memoryProjectKeyForPandoraIntake } = require("../runtime/source-authority.js");
 const { PlanContextLedgerClient } = require("../runtime/plan-context-ledger-client.js");
 const {
   resolveVercelWorkloadToken,
 } = require("../runtime/vercel-workload-identity.js");
 
 const CANONICAL_REPOSITORY = "pandora-rvw-314296438-20260820/pandoras-box";
-const WORKER_TOOL = "projectos.worker.verify";
+const WORKER_TOOL = "pandora.worker.verify";
 const ALLOWED_JOB_CLASSES = new Set([
   "node_regression",
   "supabase_migration_replay",
@@ -95,7 +95,7 @@ class WorkerPlanContextProvider {
       };
     }
 
-    const memoryProjectKey = memoryProjectKeyForProjectOsIntake(plan.projectKey);
+    const memoryProjectKey = memoryProjectKeyForPandoraIntake(plan.projectKey);
     const contextArgs = memoryProjectKey
       ? { ...plan.args, projectKey: memoryProjectKey }
       : plan.args;
