@@ -2,6 +2,7 @@
 name: Pandora APK export
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - verify/mobile-main-100430e9-apk-20260919
