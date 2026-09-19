@@ -972,9 +972,18 @@ class _PandoraSidePanel extends StatelessWidget {
                                   color: const Color(0x66D0A16F),
                                 ),
                               ),
-                              child: Image.asset(
-                                'assets/enterprise/plp_logo.webp',
-                                fit: BoxFit.contain,
+                              child: ColorFiltered(
+                                colorFilter: const ColorFilter.matrix(<double>[
+                                  0.6378, 2.1468, 0.2178, 0, -255,
+                                  0.6378, 2.1468, 0.2178, 0, -255,
+                                  0.6378, 2.1468, 0.2178, 0, -255,
+                                  0, 0, 0, 1, 0,
+                                ]),
+                                child: Image.asset(
+                                  'assets/enterprise/plp_logo.webp',
+                                  fit: BoxFit.contain,
+                                  filterQuality: FilterQuality.high,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 11),
