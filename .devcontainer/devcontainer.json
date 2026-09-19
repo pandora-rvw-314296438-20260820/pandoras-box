@@ -1,9 +1,17 @@
 {
   "name": "Pandora picker APK builder",
   "dockerComposeFile": "docker-compose.yml",
-  "service": "workspace",
+  "service": "builder",
   "workspaceFolder": "/workspaces/pandoras-box",
-  "runServices": ["workspace", "builder"],
+  "runServices": ["builder"],
   "shutdownAction": "stopCompose",
-  "forwardPorts": [9114]
+  "overrideCommand": false,
+  "forwardPorts": [9114],
+  "portsAttributes": {
+    "9114": {
+      "label": "Verified Pandora picker APK",
+      "onAutoForward": "silent",
+      "visibility": "public"
+    }
+  }
 }
