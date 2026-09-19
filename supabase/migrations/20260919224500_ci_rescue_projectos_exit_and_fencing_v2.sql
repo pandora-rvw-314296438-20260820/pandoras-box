@@ -720,6 +720,100 @@ $function$;
 revoke all on function public.pandora_ci_rescue_agent_config_v2() from public, anon, authenticated;
 grant execute on function public.pandora_ci_rescue_agent_config_v2() to service_role;
 
+
+create or replace function public.pandora_ci_rescue_verify_provider_v2(
+  p_branch text,
+  p_expected_sha text,
+  p_workflow_run_id bigint,
+  p_workflow_name text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'pg_catalog', 'private', 'public'
+as $function$
+declare
+  v_branch text := trim(coalesce(p_branch,''));
+  v_sha text := lower(trim(coalesce(p_expected_sha,'')));
+  v_workflow text := trim(coalesce(p_workflow_name,''));
+  v_ref jsonb;
+  v_run jsonb;
+  v_ref_body jsonb;
+  v_run_body jsonb;
+  v_branch_sha text;
+  v_run_sha text;
+  v_run_status text;
+  v_run_conclusion text;
+  v_run_workflow text;
+  v_run_attempt integer;
+  v_verified boolean;
+begin
+  perform private.assert_control_service_role();
+
+  if v_branch='' or v_branch='main'
+     or v_branch !~ '^[A-Za-z0-9._/-]{1,220}$'
+     or v_sha !~ '^[0-9a-f]{40}$'
+     or p_workflow_run_id is null or p_workflow_run_id < 1
+     or v_workflow='' or length(v_workflow) > 200 then
+    raise exception 'invalid ci rescue provider readback request' using errcode='22023';
+  end if;
+
+  v_ref := private.pandora_integration_github_api_20260825(
+    'GET',
+    '/repos/pandora-rvw-314296438-20260820/pandoras-box/git/ref/heads/' || v_branch,
+    '{}'::jsonb
+  );
+  v_run := private.pandora_integration_github_api_20260825(
+    'GET',
+    '/repos/pandora-rvw-314296438-20260820/pandoras-box/actions/runs/' || p_workflow_run_id::text,
+    '{}'::jsonb
+  );
+
+  if coalesce((v_ref->>'status')::integer,0) <> 200
+     or coalesce((v_run->>'status')::integer,0) <> 200 then
+    return jsonb_build_object(
+      'verified',false,
+      'reason','provider_readback_failed',
+      'branchHttpStatus',v_ref->>'status',
+      'runHttpStatus',v_run->>'status'
+    );
+  end if;
+
+  v_ref_body := v_ref->'body';
+  v_run_body := v_run->'body';
+  v_branch_sha := lower(coalesce(v_ref_body#>>'{object,sha}',''));
+  v_run_sha := lower(coalesce(v_run_body->>'head_sha',''));
+  v_run_status := lower(coalesce(v_run_body->>'status',''));
+  v_run_conclusion := lower(coalesce(v_run_body->>'conclusion',''));
+  v_run_workflow := coalesce(v_run_body->>'name','');
+  v_run_attempt := nullif(v_run_body->>'run_attempt','')::integer;
+
+  v_verified :=
+    v_branch_sha = v_sha
+    and v_run_sha = v_sha
+    and v_run_status = 'completed'
+    and v_run_conclusion = 'success'
+    and v_run_workflow = v_workflow;
+
+  return jsonb_build_object(
+    'verified',v_verified,
+    'branchSha',nullif(v_branch_sha,''),
+    'runHeadSha',nullif(v_run_sha,''),
+    'runStatus',nullif(v_run_status,''),
+    'runConclusion',nullif(v_run_conclusion,''),
+    'workflow',nullif(v_run_workflow,''),
+    'runAttempt',v_run_attempt,
+    'workflowRunId',p_workflow_run_id,
+    'checkedAt',clock_timestamp()
+  );
+end;
+$function$;
+
+revoke execute on function public.pandora_ci_rescue_verify_provider_v2(text,text,bigint,text)
+  from public, anon, authenticated;
+grant execute on function public.pandora_ci_rescue_verify_provider_v2(text,text,bigint,text)
+  to service_role;
+
 create or replace function private.pandora_ci_rescue_dispatch_tick_v1()
 returns jsonb
 language plpgsql
