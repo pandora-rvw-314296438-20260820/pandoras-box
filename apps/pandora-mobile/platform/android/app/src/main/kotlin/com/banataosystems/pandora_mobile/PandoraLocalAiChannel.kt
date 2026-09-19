@@ -1,9 +1,16 @@
 package com.banataosystems.pandora_mobile
 
 import android.app.Activity
+import android.app.ActivityManager
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.BatteryManager
+import android.os.Build
+import android.os.Debug
+import android.os.PowerManager
+import android.os.SystemClock
 import android.provider.OpenableColumns
 import com.arm.aichat.AiChat
 import com.arm.aichat.InferenceEngine
@@ -37,6 +44,7 @@ class PandoraLocalAiChannel(
         private const val MODEL_SHA256 = "model_sha256"
         private const val MIN_MODEL_BYTES = 64L * 1024L * 1024L
         private const val MAX_MODEL_BYTES = 8L * 1024L * 1024L * 1024L
+        private const val STORAGE_RESERVE_BYTES = 256L * 1024L * 1024L
         private const val SYSTEM_PROMPT = """
 You are Pandora's fast on-device conversational layer.
 Answer naturally, directly, and concisely.
@@ -60,6 +68,12 @@ If the request clearly requires live data, connected services, account data, ext
     private var pendingModelResult: MethodChannel.Result? = null
     private var activeGeneration: Job? = null
     private var loadedModelPath: String? = null
+    private var lastModelLoadMs: Long? = null
+    private var lastTimeToFirstTokenMs: Long? = null
+    private var lastGenerationMs: Long? = null
+    private var lastGeneratedTokenEvents: Int? = null
+    private var lastTokenEventsPerSecond: Double? = null
+    private var lastGenerationOutcome: String? = null
 
     init {
         eventChannel.setStreamHandler(
@@ -203,12 +217,22 @@ If the request clearly requires live data, connected services, account data, ext
         }
 
         activeGeneration = scope.launch {
+            val generationStarted = SystemClock.elapsedRealtime()
+            var firstTokenAt: Long? = null
+            var emittedTokenEvents = 0
+            lastGenerationOutcome = "running"
             try {
                 if (!warmInternal()) {
                     throw IllegalStateException("No local GGUF model is configured.")
                 }
                 engine.sendUserPrompt(prompt, predictLength).collect { token ->
                     if (token.isNotEmpty()) {
+                        val now = SystemClock.elapsedRealtime()
+                        if (firstTokenAt == null) {
+                            firstTokenAt = now
+                            lastTimeToFirstTokenMs = now - generationStarted
+                        }
+                        emittedTokenEvents += 1
                         eventSink?.success(
                             mapOf(
                                 "requestId" to requestId,
@@ -218,14 +242,17 @@ If the request clearly requires live data, connected services, account data, ext
                         )
                     }
                 }
+                lastGenerationOutcome = "completed"
                 eventSink?.success(
                     mapOf("requestId" to requestId, "type" to "done"),
                 )
             } catch (_: CancellationException) {
+                lastGenerationOutcome = "cancelled"
                 eventSink?.success(
                     mapOf("requestId" to requestId, "type" to "done"),
                 )
             } catch (error: Exception) {
+                lastGenerationOutcome = "failed"
                 eventSink?.success(
                     mapOf(
                         "requestId" to requestId,
@@ -235,6 +262,12 @@ If the request clearly requires live data, connected services, account data, ext
                     ),
                 )
             } finally {
+                val elapsedMs =
+                    (SystemClock.elapsedRealtime() - generationStarted).coerceAtLeast(1L)
+                lastGenerationMs = elapsedMs
+                lastGeneratedTokenEvents = emittedTokenEvents
+                lastTokenEventsPerSecond =
+                    emittedTokenEvents.toDouble() * 1000.0 / elapsedMs.toDouble()
                 activeGeneration = null
             }
         }
@@ -286,8 +319,10 @@ If the request clearly requires live data, connected services, account data, ext
 
         awaitEngineInitialized()
         if (loadedModelPath != null) unloadInternal()
+        val loadStarted = SystemClock.elapsedRealtime()
         engine.loadModel(canonicalPath)
         engine.setSystemPrompt(SYSTEM_PROMPT.trim())
+        lastModelLoadMs = SystemClock.elapsedRealtime() - loadStarted
         loadedModelPath = canonicalPath
         return true
     }
@@ -340,6 +375,15 @@ If the request clearly requires live data, connected services, account data, ext
         }
 
         modelDirectory.mkdirs()
+        val initialUsableBytes = modelDirectory.usableSpace
+        require(initialUsableBytes > STORAGE_RESERVE_BYTES + MIN_MODEL_BYTES) {
+            "Pandora does not have enough free storage for a local GGUF model."
+        }
+        if (declaredBytes != null) {
+            require(declaredBytes + STORAGE_RESERVE_BYTES <= initialUsableBytes) {
+                "Pandora does not have enough free storage for this GGUF model."
+            }
+        }
         val temporary = File(modelDirectory, "model.gguf.importing")
         if (temporary.exists()) temporary.delete()
 
@@ -356,6 +400,9 @@ If the request clearly requires live data, connected services, account data, ext
                     copied += count
                     require(copied <= MAX_MODEL_BYTES) {
                         "The selected GGUF is too large."
+                    }
+                    require(modelDirectory.usableSpace > STORAGE_RESERVE_BYTES) {
+                        "Pandora ran out of safe free storage while importing the GGUF."
                     }
                     digest.update(buffer, 0, count)
                     output.write(buffer, 0, count)
@@ -413,6 +460,34 @@ If the request clearly requires live data, connected services, account data, ext
 
     private fun statusMap(): Map<String, Any?> {
         val configured = modelFile.isFile && modelFile.length() > 0L
+        val activityManager =
+            activity.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val memory = ActivityManager.MemoryInfo().also(activityManager::getMemoryInfo)
+        val processMemory = Debug.MemoryInfo().also(Debug::getMemoryInfo)
+        val batteryManager =
+            activity.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        val powerManager =
+            activity.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val featureNames =
+            activity.packageManager.systemAvailableFeatures
+                .mapNotNull { it.name }
+                .toSet()
+        val vulkanFeatureExposed =
+            featureNames.any {
+                it == "android.hardware.vulkan.level" ||
+                    it == "android.hardware.vulkan.version"
+            }
+        val thermalStatus =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                thermalStatusName(powerManager.currentThermalStatus)
+            } else {
+                null
+            }
+        val batteryPercent =
+            batteryManager
+                .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                .takeIf { it in 0..100 }
+
         return mapOf(
             "supported" to true,
             "configured" to configured,
@@ -420,6 +495,7 @@ If the request clearly requires live data, connected services, account data, ext
                 (loadedModelPath != null &&
                     engine.state.value is InferenceEngine.State.ModelReady),
             "modelName" to preferences.getString(MODEL_NAME, null),
+            "modelPath" to if (configured) modelFile.absolutePath else null,
             "modelBytes" to
                 if (configured) {
                     preferences.getLong(MODEL_BYTES, modelFile.length())
@@ -427,7 +503,84 @@ If the request clearly requires live data, connected services, account data, ext
                     null
                 },
             "modelSha256" to preferences.getString(MODEL_SHA256, null),
+            "requiresModelImport" to !configured,
+            "modelImportMethod" to "android_document_picker",
+            "modelDownloadSupported" to false,
+            "modelDownloadResumeSupported" to false,
             "engineState" to engine.state.value.javaClass.simpleName,
+            "nativeRuntime" to "llama.cpp",
+            "runtimeBackendConfigured" to "cpu",
+            "cpuOptimizationConfigured" to "KleidiAI+OpenMP",
+            "runtimeNativeAbi" to "arm64-v8a",
+            "gpuAccelerationUsed" to false,
+            "npuAccelerationUsed" to false,
+            "nnapiAccelerationUsed" to false,
+            "acceleratorVerified" to false,
+            "lastModelLoadMs" to lastModelLoadMs,
+            "lastTimeToFirstTokenMs" to lastTimeToFirstTokenMs,
+            "lastGenerationMs" to lastGenerationMs,
+            "lastGeneratedTokenEvents" to lastGeneratedTokenEvents,
+            "tokensPerSecond" to lastTokenEventsPerSecond,
+            "tokensPerSecondBasis" to "non_empty_inference_flow_emissions",
+            "lastGenerationOutcome" to lastGenerationOutcome,
+            "androidVersion" to Build.VERSION.RELEASE,
+            "androidSdk" to Build.VERSION.SDK_INT,
+            "manufacturer" to Build.MANUFACTURER,
+            "model" to Build.MODEL,
+            "device" to Build.DEVICE,
+            "product" to Build.PRODUCT,
+            "hardware" to Build.HARDWARE,
+            "board" to Build.BOARD,
+            "socManufacturer" to
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Build.SOC_MANUFACTURER
+                } else {
+                    null
+                },
+            "socModel" to
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Build.SOC_MODEL
+                } else {
+                    null
+                },
+            "supportedAbis" to Build.SUPPORTED_ABIS.toList(),
+            "cpuArchitecture" to Build.SUPPORTED_ABIS.firstOrNull(),
+            "cpuCores" to Runtime.getRuntime().availableProcessors(),
+            "totalRamBytes" to memory.totalMem,
+            "availableRamBytes" to memory.availMem,
+            "memoryLow" to memory.lowMemory,
+            "memoryPressureThresholdBytes" to memory.threshold,
+            "processPssBytes" to processMemory.totalPss.toLong() * 1024L,
+            "totalStorageBytes" to modelDirectory.totalSpace,
+            "availableStorageBytes" to modelDirectory.usableSpace,
+            "batteryPercent" to batteryPercent,
+            "charging" to
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    batteryManager.isCharging
+                } else {
+                    null
+                },
+            "thermalStatus" to thermalStatus,
+            "nnapiApiAvailable" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1),
+            "vulkanFeatureExposed" to vulkanFeatureExposed,
+            "openClSupport" to null,
+            "openClProbe" to "not_exposed_by_public_android_api",
+            "gpu" to null,
+            "gpuProbe" to "not_exposed_without_runtime_graphics_probe",
+            "npu" to null,
+            "npuProbe" to "not_exposed_by_standard_android_api",
         )
     }
+
+    private fun thermalStatusName(status: Int): String =
+        when (status) {
+            PowerManager.THERMAL_STATUS_NONE -> "none"
+            PowerManager.THERMAL_STATUS_LIGHT -> "light"
+            PowerManager.THERMAL_STATUS_MODERATE -> "moderate"
+            PowerManager.THERMAL_STATUS_SEVERE -> "severe"
+            PowerManager.THERMAL_STATUS_CRITICAL -> "critical"
+            PowerManager.THERMAL_STATUS_EMERGENCY -> "emergency"
+            PowerManager.THERMAL_STATUS_SHUTDOWN -> "shutdown"
+            else -> "unknown"
+        }
 }
