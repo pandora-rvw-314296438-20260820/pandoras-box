@@ -28,6 +28,23 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+
+    if (size.width >= 900) {
+      await tester.tap(find.widgetWithText(ListTile, 'Pandora'));
+    } else {
+      await tester.tap(
+        find.byKey(const ValueKey<String>('workspace-home-brand')),
+      );
+      await tester.pumpAndSettle();
+      final drawer = find.byType(Drawer);
+      await tester.tap(
+        find.descendant(
+          of: drawer,
+          matching: find.widgetWithText(ListTile, 'Pandora'),
+        ),
+      );
+    }
+    await tester.pumpAndSettle();
   }
 
   final menu = find.byTooltip('Open navigation');
