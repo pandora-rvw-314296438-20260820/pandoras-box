@@ -1,5 +1,7 @@
+// Reuses a retired one-shot Edge Function slot because this Supabase project
+// is at its function-count cap. The deployed code is the PLP learning outbox.
 const OUTBOX_URL =
-  "https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/pandora-plp-learning-outbox";
+  "https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/pandora-pr181-supersede-close-20260831";
 const MEMORY_GATEWAY_URL =
   "https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-machine-gateway";
 
