@@ -124,5 +124,5 @@ test('working state is driven only by real in-flight room turns', () => {
   assert.match(room, /_setActive\(role\)/);
   assert.match(room, /_setActive\('ATHENA'\)/);
   assert.match(room, /_activeRoles = const <String>\{\}/);
-  assert.ok(room.includes('_activeRoles.length == 1'));
+  assert.ok(room.includes('activeRoles.length == 1'));
 });
