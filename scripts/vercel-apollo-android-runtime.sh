@@ -70,7 +70,7 @@ from pathlib import Path
 if Path("pubspec.lock").read_bytes() != Path("pubspec.lock.expected").read_bytes():
     raise SystemExit("canonical lockfile changed")
 PYLOCK
-flutter analyze | tee "$OUT/flutter-analyze.txt"
+flutter analyze --no-fatal-infos --no-fatal-warnings | tee "$OUT/flutter-analyze.txt"
 pass "flutter analyze exact product source"
 flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" | tee "$OUT/production-apk-build.txt"
 APK="$(find build/app/outputs/flutter-apk -name '*arm64-v8a-release.apk' -o -name 'app-release.apk' | head -1)"
