@@ -7,7 +7,7 @@ import 'package:flutter/widgets.dart';
 
 const String _viewType = 'pandora-times-square-live-cam';
 const String _embedUrl =
-    'https://www.youtube-nocookie.com/embed/z-jYdOIKcTQ?autoplay=1&mute=1&playsinline=1&rel=0';
+    'https://www.youtube.com/embed/z-jYdOIKcTQ?autoplay=1&mute=1&playsinline=1&rel=0';
 
 bool _registered = false;
 
@@ -26,6 +26,10 @@ Widget buildEnterpriseVisionEmbed() {
           'autoplay; fullscreen; picture-in-picture',
         );
         iframe.setAttribute('allowfullscreen', 'true');
+        iframe.setAttribute(
+          'referrerpolicy',
+          'strict-origin-when-cross-origin',
+        );
         iframe.setAttribute('loading', 'lazy');
         iframe.setAttribute(
           'title',
