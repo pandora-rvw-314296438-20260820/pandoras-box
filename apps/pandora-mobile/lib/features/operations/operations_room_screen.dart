@@ -9,6 +9,7 @@ import '../../core/activity/pandora_activity_timeline_controller.dart';
 import '../../core/activity/pandora_activity_timeline_view.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/network/idempotency_key.dart';
+import '../../core/widgets/pandora_navigation.dart';
 import '../simple/pandora_v2_ui.dart';
 import 'operations_room_roles.dart';
 
