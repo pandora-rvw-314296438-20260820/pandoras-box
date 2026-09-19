@@ -613,7 +613,7 @@ class _PandoraOperationsRoomScreenState
       body: SafeArea(
         child: Column(
           children: [
-            const PandoraPageHeader(title: 'Operations Room'),
+            PandoraPageHeader(title: 'Operations Room'),
             _RoomHeader(
               mode: _mode,
               activeRoles: _activeRoles,
