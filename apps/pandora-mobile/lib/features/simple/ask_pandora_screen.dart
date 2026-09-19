@@ -81,6 +81,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   bool _activityTheatreSuppressed = false;
   bool _submitting = false;
   bool _localAiGenerating = false;
+  bool _lastTurnUsedLocalAi = false;
   bool _loadingThread = false;
   bool _outcomeUnknown = false;
   String? _submissionKey;
@@ -403,11 +404,21 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     });
   }
 
-  Future<bool> _trySubmitLocalAi(String objective) async {
-    // Historical cloud threads are not routed locally until their context can
-    // be reconstructed on-device without guessing.
-    if (_threadId != null) return false;
+  String _boundedRouteBridge(String objective) {
+    if (_messages.isEmpty) return objective;
+    final start = _messages.length > 4 ? _messages.length - 4 : 0;
+    final context = _messages
+        .sublist(start)
+        .map((message) => '${message.isUser ? 'User' : 'Pandora'}: ${message.text}')
+        .join('\n');
+    final bounded = context.length > 2800
+        ? context.substring(context.length - 2800)
+        : context;
+    return 'Recent conversation context from the other inference route:\n'
+        '$bounded\n\nCurrent user request:\n$objective';
+  }
 
+  Future<bool> _trySubmitLocalAi(String objective) async {
     final status = await PandoraLocalAi.instance.status();
     final route = PandoraLocalAiRouter.decide(
       message: objective,
@@ -418,13 +429,20 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       status: status,
     );
     if (!route.useLocal) return false;
+
+    final bridgeFromOtherRoute = !_lastTurnUsedLocalAi && _messages.isNotEmpty;
+    if (bridgeFromOtherRoute) {
+      await PandoraLocalAi.instance.unload();
+    }
     if (!await PandoraLocalAi.instance.warm()) return false;
+    final localPrompt =
+        bridgeFromOtherRoute ? _boundedRouteBridge(objective) : objective;
 
     var response = '';
     var started = false;
     _localAiGenerating = true;
     try {
-      await for (final chunk in PandoraLocalAi.instance.generate(objective)) {
+      await for (final chunk in PandoraLocalAi.instance.generate(localPrompt)) {
         if (!mounted) return true;
         response += chunk;
         setState(() {
@@ -466,6 +484,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _submissionKey = null;
       _outcomeUnknown = false;
       _pendingMessage = null;
+      _lastTurnUsedLocalAi = true;
     });
     return true;
   }
@@ -516,6 +535,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     });
     try {
       if (_characterContext != null) {
+        _lastTurnUsedLocalAi = false;
         await _submitCharacter(objective);
         return;
       }
@@ -524,6 +544,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         now: DateTime.now(),
       );
       if (calendarParse != null) {
+        _lastTurnUsedLocalAi = false;
         if (!calendarParse.isReady) {
           setState(() {
             _messages.add(_ChatMessage.user(objective));
@@ -550,11 +571,18 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         objective,
       );
       if (deviceCommunication != null) {
+        _lastTurnUsedLocalAi = false;
         await _handleDeviceCommunication(
             dependencies, objective, deviceCommunication);
         return;
       }
+      final priorTurnUsedLocalAi = _lastTurnUsedLocalAi;
       if (await _trySubmitLocalAi(objective)) return;
+
+      final routedObjective = priorTurnUsedLocalAi && _messages.isNotEmpty
+          ? _boundedRouteBridge(objective)
+          : objective;
+      _lastTurnUsedLocalAi = false;
 
       final intelligence = dependencies.intelligence;
       if (intelligence == null) {
@@ -563,7 +591,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         // the general governed ask path instead of creating a Project.
         _submissionKey ??= _keys.create('simple-intake');
         final receipt = await dependencies.repository.ask(
-          message: objective,
+          message: routedObjective,
           idempotencyKey: _submissionKey,
         );
         if (!mounted) return;
@@ -582,7 +610,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         'pandora-chat-turn',
       );
       final execution = await intelligence.startChatExecution(
-        message: objective,
+        message: routedObjective,
         requestId: turnRequestId,
         threadId: _threadId,
         projectId: _projectContext?.id,
@@ -958,6 +986,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     _activityTheatreSuppressed = false;
     unawaited(_activityController.clear());
     unawaited(PandoraLocalAi.instance.resetConversation());
+    _lastTurnUsedLocalAi = false;
     setState(() {
       _messages.clear();
       _objective.clear();
