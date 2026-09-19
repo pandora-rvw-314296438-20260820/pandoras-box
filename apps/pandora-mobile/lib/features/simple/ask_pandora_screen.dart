@@ -2143,7 +2143,7 @@ String _sanitizeVisiblePandoraText(String input) {
   final clean =
       output.join('\n').replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
   return clean.isEmpty
-      ? 'I couldn''t produce a clean reply for that turn. Please try again.'
+      ? "I couldn't produce a clean reply for that turn. Please try again."
       : clean;
 }
 
