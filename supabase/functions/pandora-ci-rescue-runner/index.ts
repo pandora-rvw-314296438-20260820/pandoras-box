@@ -172,6 +172,53 @@ Deno.serve(async (request: Request) => {
       };
     }
 
+    if (transitionStatus === "completed") {
+      const expectedSha =
+        text(transitionPatch.repairCommitSha) || text(job.currentFailingSha);
+      const verifiedRunId =
+        integer(transitionPatch.workflowRunId) ?? integer(job.workflowRunId);
+      const expectedWorkflow = text(job.workflowName);
+
+      if (!expectedSha || verifiedRunId === null || !expectedWorkflow) {
+        transitionStatus = "blocked";
+        transitionPatch = {
+          lastErrorCode: "PROVIDER_READBACK_INPUT_INVALID",
+          evidence: { requestedCompletion: true },
+        };
+      } else {
+        const { data: readbackRaw, error: readbackError } = await supabase.rpc(
+          "pandora_ci_rescue_verify_provider_v2",
+          {
+            p_branch: text(job.branch),
+            p_expected_sha: expectedSha,
+            p_workflow_run_id: verifiedRunId,
+            p_workflow_name: expectedWorkflow,
+          },
+        );
+        const readback = asRecord(readbackRaw);
+        if (readbackError || readback.verified !== true) {
+          transitionStatus = "blocked";
+          transitionPatch = {
+            lastErrorCode: "PROVIDER_READBACK_NOT_GREEN",
+            evidence: {
+              requestedCompletion: true,
+              providerReadback: readback,
+            },
+          };
+        } else {
+          transitionPatch = {
+            ...transitionPatch,
+            currentFailingSha: expectedSha,
+            workflowRunId: verifiedRunId,
+            evidence: {
+              ...asRecord(transitionPatch.evidence),
+              providerReadback: readback,
+            },
+          };
+        }
+      }
+    }
+
     const { data: transitioned, error: transitionError } = await supabase.rpc(
       "pandora_ci_rescue_transition_v2",
       {
