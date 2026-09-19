@@ -20,8 +20,7 @@ STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 export GH_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
 BUILD_ID="picker-a5d5-20260919"
 CALLBACK_NONCE="b7f4c1d9a26e4f30a5d5b60551e5c4f0"
-SUPABASE_URL="https://jcyqixttuebxqqfkjonq.supabase.co"
-SUPABASE_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjeXFpeHR0dWVieHFxZmtqb25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4NTE5MjUsImV4cCI6MjEwMDQyNzkyNX0.YrLcwmMe9u8Mwxa97w89szgm64nxsahPJX8uP4BrUa4"
+CALLBACK_URL="https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/pandora-local-ai-build-callback-20260919"
 TUNNEL_URL=""
 
 report_status() {
@@ -29,12 +28,11 @@ report_status() {
   r_step="$2"
   r_code="$3"
   r_tunnel="${4:-}"
-  python3 - "$BUILD_ID" "$CALLBACK_NONCE" "$r_status" "$r_step" "$SOURCE_SHA" "$APK_SHA" "$APK_SIZE" "$r_tunnel" "$r_code" <<'PY' >/tmp/pandora-build-report.json
+  python3 - "$BUILD_ID" "$r_status" "$r_step" "$SOURCE_SHA" "$APK_SHA" "$APK_SIZE" "$r_tunnel" "$r_code" <<'PY' >/tmp/pandora-build-report.json
 import json,sys
-build_id,nonce,status,step,source,sha,size,tunnel,code=sys.argv[1:]
+build_id,status,step,source,sha,size,tunnel,code=sys.argv[1:]
 print(json.dumps({
   "build_id": build_id,
-  "callback_nonce": nonce,
   "status": status,
   "step": step,
   "source_sha": source,
@@ -44,12 +42,9 @@ print(json.dumps({
   "detail": "exitCode=" + code,
 }))
 PY
-  curl -fsS -X POST \
-    "$SUPABASE_URL/rest/v1/pandora_local_ai_build_receipts?on_conflict=build_id" \
-    -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
-    -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY" \
+  curl -fsS -X POST "$CALLBACK_URL" \
+    -H "x-pandora-build-nonce: $CALLBACK_NONCE" \
     -H "Content-Type: application/json" \
-    -H "Prefer: resolution=merge-duplicates,return=minimal" \
     --data-binary @/tmp/pandora-build-report.json >/dev/null || true
 }
 
