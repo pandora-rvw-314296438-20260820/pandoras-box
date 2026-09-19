@@ -234,15 +234,15 @@ begin
 
   if new.status = old.status then
     v_allowed := true;
-  elsif old.status='queued' and new.status in ('retrying','analyzing','blocked','superseded','failed') then
+  elsif old.status='queued' and new.status in ('retrying','analyzing','repairing','verifying','completed','blocked','superseded','failed') then
     v_allowed := true;
-  elsif old.status='retrying' and new.status in ('analyzing','verifying','blocked','superseded','failed') then
+  elsif old.status='retrying' and new.status in ('analyzing','repairing','verifying','completed','blocked','superseded','failed') then
     v_allowed := true;
-  elsif old.status='analyzing' and new.status in ('repairing','blocked','superseded','failed') then
+  elsif old.status='analyzing' and new.status in ('repairing','verifying','completed','blocked','superseded','failed') then
     v_allowed := true;
-  elsif old.status='repairing' and new.status in ('verifying','blocked','superseded','failed') then
+  elsif old.status='repairing' and new.status in ('verifying','completed','blocked','superseded','failed') then
     v_allowed := true;
-  elsif old.status='verifying' and new.status in ('completed','analyzing','blocked','superseded','failed') then
+  elsif old.status='verifying' and new.status in ('analyzing','repairing','completed','blocked','superseded','failed') then
     v_allowed := true;
   end if;
 
@@ -250,8 +250,9 @@ begin
     raise exception 'ci rescue illegal state transition % -> %', old.status, new.status using errcode='55000';
   end if;
 
-  if new.source_attempt_count = old.source_attempt_count + 1 and new.status <> 'repairing' then
-    raise exception 'source attempt may increment only when entering repairing' using errcode='55000';
+  if new.source_attempt_count = old.source_attempt_count + 1
+     and new.status not in ('repairing','verifying','completed','blocked','failed') then
+    raise exception 'source attempt increment requires a real repair outcome state' using errcode='55000';
   end if;
 
   if new.transient_retry_count = old.transient_retry_count + 1 and new.status <> 'retrying' then
