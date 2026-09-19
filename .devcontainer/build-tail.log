@@ -1,200 +1,200 @@
-Setting up x11-utils (7.7+5) ...
-Setting up libglu1-mesa:amd64 (9.0.1-1build1) ...
-Setting up libatk-wrapper-java (0.37.1-1) ...
-Setting up libatk-wrapper-java-jni:amd64 (0.37.1-1) ...
-Setting up ca-certificates-java (20190405ubuntu1.1) ...
-head: cannot open '/etc/ssl/certs/java/cacerts' for reading: No such file or directory
-Adding debian:Certum_Trusted_Network_CA_2.pem
-Adding debian:AffirmTrust_Commercial.pem
-Adding debian:Entrust_Root_Certification_Authority.pem
-Adding debian:Sectigo_Public_Server_Authentication_Root_R46.pem
-Adding debian:Izenpe.com.pem
-Adding debian:GLOBALTRUST_2020.pem
-Adding debian:Entrust_Root_Certification_Authority_-_G2.pem
-Adding debian:Trustwave_Global_ECC_P384_Certification_Authority.pem
-Adding debian:GDCA_TrustAUTH_R5_ROOT.pem
-Adding debian:Certigna_Root_CA.pem
-Adding debian:D-TRUST_Root_Class_3_CA_2_2009.pem
-Adding debian:D-TRUST_BR_Root_CA_1_2020.pem
-Adding debian:Microsoft_RSA_Root_Certificate_Authority_2017.pem
-Adding debian:ISRG_Root_X1.pem
-Adding debian:SecureSign_RootCA11.pem
-Adding debian:HARICA_TLS_RSA_Root_CA_2021.pem
-Adding debian:Amazon_Root_CA_4.pem
-Adding debian:TrustAsia_Global_Root_CA_G3.pem
-Adding debian:GTS_Root_R1.pem
-Adding debian:Entrust_Root_Certification_Authority_-_EC1.pem
-Adding debian:Security_Communication_RootCA3.pem
-Adding debian:AffirmTrust_Premium.pem
-Adding debian:Telia_Root_CA_v2.pem
-Adding debian:GTS_Root_R4.pem
-Adding debian:CommScope_Public_Trust_ECC_Root-01.pem
-Adding debian:vTrus_ECC_Root_CA.pem
-Adding debian:GlobalSign_Root_CA_-_R3.pem
-Adding debian:Security_Communication_ECC_RootCA1.pem
-Adding debian:Microsoft_ECC_Root_Certificate_Authority_2017.pem
-Adding debian:Trustwave_Global_ECC_P256_Certification_Authority.pem
-Adding debian:COMODO_Certification_Authority.pem
-Adding debian:ISRG_Root_X2.pem
-Adding debian:COMODO_ECC_Certification_Authority.pem
-Adding debian:Certigna.pem
-Adding debian:D-TRUST_EV_Root_CA_1_2020.pem
-Adding debian:Comodo_AAA_Services_root.pem
-Adding debian:AffirmTrust_Premium_ECC.pem
-Adding debian:Certainly_Root_E1.pem
-Adding debian:SSL.com_EV_Root_Certification_Authority_ECC.pem
-Adding debian:ePKI_Root_Certification_Authority.pem
-Adding debian:Hongkong_Post_Root_CA_3.pem
-Adding debian:QuoVadis_Root_CA_3_G3.pem
-Adding debian:emSign_Root_CA_-_G1.pem
-Adding debian:NAVER_Global_Root_Certification_Authority.pem
-Adding debian:TWCA_Root_Certification_Authority.pem
-Adding debian:TWCA_Global_Root_CA.pem
-Adding debian:COMODO_RSA_Certification_Authority.pem
-Adding debian:SecureTrust_CA.pem
-Adding debian:Atos_TrustedRoot_Root_CA_RSA_TLS_2021.pem
-Adding debian:SwissSign_Silver_CA_-_G2.pem
-Adding debian:CFCA_EV_ROOT.pem
-Adding debian:QuoVadis_Root_CA_2.pem
-Adding debian:QuoVadis_Root_CA_3.pem
-Adding debian:USERTrust_RSA_Certification_Authority.pem
-Adding debian:DigiCert_TLS_ECC_P384_Root_G5.pem
-Adding debian:Actalis_Authentication_Root_CA.pem
-Adding debian:TunTrust_Root_CA.pem
-Adding debian:Buypass_Class_3_Root_CA.pem
-Adding debian:T-TeleSec_GlobalRoot_Class_2.pem
-Adding debian:emSign_Root_CA_-_C1.pem
-Adding debian:e-Szigno_Root_CA_2017.pem
-Adding debian:HARICA_TLS_ECC_Root_CA_2021.pem
-Adding debian:Buypass_Class_2_Root_CA.pem
-Adding debian:OISTE_WISeKey_Global_Root_GC_CA.pem
-Adding debian:Amazon_Root_CA_1.pem
-Adding debian:TrustAsia_Global_Root_CA_G4.pem
-Adding debian:Certum_EC-384_CA.pem
-Adding debian:SSL.com_TLS_ECC_Root_CA_2022.pem
-Adding debian:CA_Disig_Root_R2.pem
-Adding debian:certSIGN_ROOT_CA.pem
-Adding debian:GlobalSign_Root_E46.pem
-Adding debian:NetLock_Arany_=Class_Gold=_Főtanúsítvány.pem
-Adding debian:D-TRUST_Root_Class_3_CA_2_EV_2009.pem
-Adding debian:OISTE_WISeKey_Global_Root_GB_CA.pem
-Adding debian:UCA_Extended_Validation_Root.pem
-Adding debian:SSL.com_TLS_RSA_Root_CA_2022.pem
-Adding debian:DigiCert_Global_Root_G2.pem
-Adding debian:SwissSign_Gold_CA_-_G2.pem
-Adding debian:Atos_TrustedRoot_2011.pem
-Adding debian:DigiCert_High_Assurance_EV_Root_CA.pem
-Adding debian:DigiCert_Assured_ID_Root_G3.pem
-Adding debian:ANF_Secure_Server_Root_CA.pem
-Adding debian:DigiCert_TLS_RSA4096_Root_G5.pem
-Adding debian:Certum_Trusted_Root_CA.pem
-Adding debian:Amazon_Root_CA_2.pem
-Adding debian:USERTrust_ECC_Certification_Authority.pem
-Adding debian:DigiCert_Global_Root_G3.pem
-Adding debian:Go_Daddy_Class_2_CA.pem
-Adding debian:Amazon_Root_CA_3.pem
-Adding debian:UCA_Global_G2_Root.pem
-Adding debian:DigiCert_Global_Root_CA.pem
-Adding debian:Sectigo_Public_Server_Authentication_Root_E46.pem
-Adding debian:Starfield_Services_Root_Certificate_Authority_-_G2.pem
-Adding debian:vTrus_Root_CA.pem
-Adding debian:emSign_ECC_Root_CA_-_G3.pem
-Adding debian:SZAFIR_ROOT_CA2.pem
-Adding debian:DigiCert_Assured_ID_Root_G2.pem
-Adding debian:GlobalSign_ECC_Root_CA_-_R5.pem
-Adding debian:DigiCert_Assured_ID_Root_CA.pem
-Adding debian:SSL.com_Root_Certification_Authority_RSA.pem
-Adding debian:CommScope_Public_Trust_RSA_Root-01.pem
-Adding debian:Security_Communication_Root_CA.pem
-Adding debian:Secure_Global_CA.pem
-Adding debian:TeliaSonera_Root_CA_v1.pem
-Adding debian:GTS_Root_R3.pem
-Adding debian:QuoVadis_Root_CA_2_G3.pem
-Adding debian:Microsec_e-Szigno_Root_CA_2009.pem
-Adding debian:emSign_ECC_Root_CA_-_C3.pem
-Adding debian:IdenTrust_Public_Sector_Root_CA_1.pem
-Adding debian:Autoridad_de_Certificacion_Firmaprofesional_CIF_A62634068.pem
-Adding debian:certSIGN_Root_CA_G2.pem
-Adding debian:Baltimore_CyberTrust_Root.pem
-Adding debian:DigiCert_Trusted_Root_G4.pem
-Adding debian:SSL.com_EV_Root_Certification_Authority_RSA_R2.pem
-Adding debian:ACCVRAIZ1.pem
-Adding debian:Security_Communication_RootCA2.pem
-Adding debian:Certum_Trusted_Network_CA.pem
-Adding debian:SSL.com_Root_Certification_Authority_ECC.pem
-Adding debian:GlobalSign_ECC_Root_CA_-_R4.pem
-Adding debian:GlobalSign_Root_CA_-_R6.pem
-Adding debian:AC_RAIZ_FNMT-RCM.pem
-Adding debian:Entrust_Root_Certification_Authority_-_G4.pem
-Adding debian:GTS_Root_R2.pem
-Adding debian:IdenTrust_Commercial_Root_CA_1.pem
-Adding debian:GlobalSign_Root_CA.pem
-Adding debian:CommScope_Public_Trust_ECC_Root-02.pem
-Adding debian:Trustwave_Global_Certification_Authority.pem
-Adding debian:Starfield_Class_2_CA.pem
-Adding debian:AC_RAIZ_FNMT-RCM_SERVIDORES_SEGUROS.pem
-Adding debian:CommScope_Public_Trust_RSA_Root-02.pem
-Adding debian:T-TeleSec_GlobalRoot_Class_3.pem
-Adding debian:Entrust.net_Premium_2048_Secure_Server_CA.pem
-Adding debian:TUBITAK_Kamu_SM_SSL_Kok_Sertifikasi_-_Surum_1.pem
-Adding debian:Hellenic_Academic_and_Research_Institutions_RootCA_2015.pem
-Adding debian:HiPKI_Root_CA_-_G1.pem
-Adding debian:GlobalSign_Root_R46.pem
-Adding debian:Starfield_Root_Certificate_Authority_-_G2.pem
-Adding debian:BJCA_Global_Root_CA1.pem
-Adding debian:XRamp_Global_CA_Root.pem
-Adding debian:Go_Daddy_Root_Certificate_Authority_-_G2.pem
-Adding debian:BJCA_Global_Root_CA2.pem
-Adding debian:Atos_TrustedRoot_Root_CA_ECC_TLS_2021.pem
-Adding debian:Hellenic_Academic_and_Research_Institutions_ECC_RootCA_2015.pem
-Adding debian:AffirmTrust_Networking.pem
-Adding debian:QuoVadis_Root_CA_1_G3.pem
-Adding debian:Certainly_Root_R1.pem
-done.
-Processing triggers for libc-bin (2.31-0ubuntu9.17) ...
-Processing triggers for man-db (2.9.1-1) ...
-Processing triggers for ca-certificates (20240203~20.04.1) ...
-Updating certificates in /etc/ssl/certs...
-0 added, 0 removed; done.
-Running hooks in /etc/ca-certificates/update.d...
-
-done.
-done.
-Setting up openjdk-17-jre-headless:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/java to provide /usr/bin/java (java) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jpackage to provide /usr/bin/jpackage (jpackage) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/keytool to provide /usr/bin/keytool (keytool) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/rmiregistry to provide /usr/bin/rmiregistry (rmiregistry) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/lib/jexec to provide /usr/bin/jexec (jexec) in auto mode
-Processing triggers for fontconfig (2.13.1-2ubuntu3) ...
-Processing triggers for mime-support (3.64ubuntu1) ...
-Processing triggers for hicolor-icon-theme (0.17-2) ...
-Setting up openjdk-17-jre:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
-Setting up openjdk-17-jdk-headless:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jar to provide /usr/bin/jar (jar) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jarsigner to provide /usr/bin/jarsigner (jarsigner) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/javac to provide /usr/bin/javac (javac) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/javadoc to provide /usr/bin/javadoc (javadoc) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/javap to provide /usr/bin/javap (javap) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jcmd to provide /usr/bin/jcmd (jcmd) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jdb to provide /usr/bin/jdb (jdb) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jdeprscan to provide /usr/bin/jdeprscan (jdeprscan) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jdeps to provide /usr/bin/jdeps (jdeps) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jfr to provide /usr/bin/jfr (jfr) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jimage to provide /usr/bin/jimage (jimage) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jinfo to provide /usr/bin/jinfo (jinfo) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jlink to provide /usr/bin/jlink (jlink) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jmap to provide /usr/bin/jmap (jmap) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jmod to provide /usr/bin/jmod (jmod) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jps to provide /usr/bin/jps (jps) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jrunscript to provide /usr/bin/jrunscript (jrunscript) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jshell to provide /usr/bin/jshell (jshell) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jstack to provide /usr/bin/jstack (jstack) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jstat to provide /usr/bin/jstat (jstat) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jstatd to provide /usr/bin/jstatd (jstatd) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/serialver to provide /usr/bin/serialver (serialver) in auto mode
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jhsdb to provide /usr/bin/jhsdb (jhsdb) in auto mode
-Setting up openjdk-17-jdk:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
-update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jconsole to provide /usr/bin/jconsole (jconsole) in auto mode
-curl: option --retry-all-errors: is unknown
-curl: try 'curl --help' or 'curl --manual' for more information
+  postgrest 2.8.0 (2.9.1 available)
+  realtime_client 2.10.0 (2.13.0 available)
+  shared_preferences_android 2.4.27 (2.4.28 available)
+  shared_preferences_foundation 2.5.6 (2.5.7 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  storage_client 2.6.0 (2.8.0 available)
+  supabase 2.13.4 (2.16.1 available)
+  supabase_flutter 2.15.4 (2.17.2 available)
+  test_api 0.7.12 (0.7.14 available)
+  url_launcher_android 6.3.32 (6.3.33 available)
+  url_launcher_ios 6.4.1 (6.4.2 available)
+  url_launcher_linux 3.2.2 (3.2.3 available)
+  url_launcher_macos 3.2.5 (3.2.6 available)
+  url_launcher_windows 3.1.5 (3.1.6 available)
+  vector_math 2.4.2 (2.4.3 available)
+  vm_service 15.2.0 (15.3.0 available)
+Got dependencies!
+27 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /tmp/pandora-mobile-build/test/core/local_ai/pandora_local_ai_router_test.dart
+00:00 +0: PandoraLocalAiRouter keeps routine conversation local
+00:00 +1: PandoraLocalAiRouter routes provider work to cloud intelligence
+00:00 +2: PandoraLocalAiRouter routes external mutations away from local AI
+00:00 +3: PandoraLocalAiRouter routes contextual turns away from local AI
+00:00 +4: All tests passed!
+[1/1] Android SDK
+  ├─ [1/6] android-arm-profile/linux-x64                         1,657ms
+  ├─ [2/6] android-arm-release/linux-x64                         1,447ms
+  ├─ [3/6] android-arm64-profile/linux-x64                       1,436ms
+  ├─ [4/6] android-arm64-release/linux-x64                       1,452ms
+  ├─ [5/6] android-x64-profile/linux-x64                         1,491ms
+  └─ [6/6] android-x64-release/linux-x64                         1,457ms
+Running Gradle task 'assembleDebug'...                          
+Checking the license for package NDK (Side by side) 28.2.13676358 in /home/codespace/android-sdk/licenses
+License for package NDK (Side by side) 28.2.13676358 accepted.
+Preparing "Install NDK (Side by side) 28.2.13676358 v.28.2.13676358".
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" ready.
+Installing NDK (Side by side) 28.2.13676358 in /home/codespace/android-sdk/ndk/28.2.13676358
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" complete.
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" finished.
+Checking the license for package Android SDK Platform 35 in /home/codespace/android-sdk/licenses
+License for package Android SDK Platform 35 accepted.
+Preparing "Install Android SDK Platform 35 (revision 2)".
+"Install Android SDK Platform 35 (revision 2)" ready.
+Installing Android SDK Platform 35 in /home/codespace/android-sdk/platforms/android-35
+"Install Android SDK Platform 35 (revision 2)" complete.
+"Install Android SDK Platform 35 (revision 2)" finished.
+[=========                              ] 25%                                   
+Checking the license for package CMake 3.22.1 in /home/codespace/android-sdk/licenses
+License for package CMake 3.22.1 accepted.
+Preparing "Install CMake 3.22.1 v.3.22.1".
+"Install CMake 3.22.1 v.3.22.1" ready.
+Installing CMake 3.22.1 in /home/codespace/android-sdk/cmake/3.22.1
+"Install CMake 3.22.1 v.3.22.1" complete.
+"Install CMake 3.22.1 v.3.22.1" finished.
+Running Gradle task 'assembleDebug'...                            692.2s
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+package: name='com.banataosystems.pandora_mobile' versionCode='11' versionName='0.4.0-rc.4' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
+sdkVersion:'24'
+targetSdkVersion:'36'
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.READ_CONTACTS'
+uses-permission: name='android.permission.SEND_SMS'
+uses-permission: name='android.permission.CALL_PHONE'
+uses-permission: name='android.permission.SCHEDULE_EXACT_ALARM'
+uses-permission: name='android.permission.POST_NOTIFICATIONS'
+uses-permission: name='android.permission.WRITE_CALENDAR'
+uses-permission: name='android.permission.READ_CALENDAR'
+uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
+uses-permission: name='com.banataosystems.pandora_mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+application-label:'Pandora'
+application-label-af:'Pandora'
+application-label-am:'Pandora'
+application-label-ar:'Pandora'
+application-label-as:'Pandora'
+application-label-az:'Pandora'
+application-label-be:'Pandora'
+application-label-bg:'Pandora'
+application-label-bn:'Pandora'
+application-label-bs:'Pandora'
+application-label-ca:'Pandora'
+application-label-cs:'Pandora'
+application-label-da:'Pandora'
+application-label-de:'Pandora'
+application-label-el:'Pandora'
+application-label-en-AU:'Pandora'
+application-label-en-CA:'Pandora'
+application-label-en-GB:'Pandora'
+application-label-en-IN:'Pandora'
+application-label-en-XC:'Pandora'
+application-label-es:'Pandora'
+application-label-es-US:'Pandora'
+application-label-et:'Pandora'
+application-label-eu:'Pandora'
+application-label-fa:'Pandora'
+application-label-fi:'Pandora'
+application-label-fr:'Pandora'
+application-label-fr-CA:'Pandora'
+application-label-gl:'Pandora'
+application-label-gu:'Pandora'
+application-label-hi:'Pandora'
+application-label-hr:'Pandora'
+application-label-hu:'Pandora'
+application-label-hy:'Pandora'
+application-label-in:'Pandora'
+application-label-is:'Pandora'
+application-label-it:'Pandora'
+application-label-iw:'Pandora'
+application-label-ja:'Pandora'
+application-label-ka:'Pandora'
+application-label-kk:'Pandora'
+application-label-km:'Pandora'
+application-label-kn:'Pandora'
+application-label-ko:'Pandora'
+application-label-ky:'Pandora'
+application-label-lo:'Pandora'
+application-label-lt:'Pandora'
+application-label-lv:'Pandora'
+application-label-mk:'Pandora'
+application-label-ml:'Pandora'
+application-label-mn:'Pandora'
+application-label-mr:'Pandora'
+application-label-ms:'Pandora'
+application-label-my:'Pandora'
+application-label-nb:'Pandora'
+application-label-ne:'Pandora'
+application-label-nl:'Pandora'
+application-label-or:'Pandora'
+application-label-pa:'Pandora'
+application-label-pl:'Pandora'
+application-label-pt:'Pandora'
+application-label-pt-BR:'Pandora'
+application-label-pt-PT:'Pandora'
+application-label-ro:'Pandora'
+application-label-ru:'Pandora'
+application-label-si:'Pandora'
+application-label-sk:'Pandora'
+application-label-sl:'Pandora'
+application-label-sq:'Pandora'
+application-label-sr:'Pandora'
+application-label-sr-Latn:'Pandora'
+application-label-sv:'Pandora'
+application-label-sw:'Pandora'
+application-label-ta:'Pandora'
+application-label-te:'Pandora'
+application-label-th:'Pandora'
+application-label-tl:'Pandora'
+application-label-tr:'Pandora'
+application-label-uk:'Pandora'
+application-label-ur:'Pandora'
+application-label-uz:'Pandora'
+application-label-vi:'Pandora'
+application-label-zh-CN:'Pandora'
+application-label-zh-HK:'Pandora'
+application-label-zh-TW:'Pandora'
+application-label-zu:'Pandora'
+application-icon-160:'res/drawable/pandora_launcher_icon.xml'
+application-icon-240:'res/drawable/pandora_launcher_icon.xml'
+application-icon-320:'res/drawable/pandora_launcher_icon.xml'
+application-icon-480:'res/drawable/pandora_launcher_icon.xml'
+application-icon-640:'res/drawable/pandora_launcher_icon.xml'
+application-icon-65535:'res/drawable/pandora_launcher_icon.xml'
+application: label='Pandora' icon='res/drawable/pandora_launcher_icon.xml'
+application-debuggable
+launchable-activity: name='com.banataosystems.pandora_mobile.MainActivity'  label='' icon=''
+uses-library-not-required:'androidx.window.extensions'
+uses-library-not-required:'androidx.window.sidecar'
+feature-group: label=''
+  uses-feature: name='android.hardware.faketouch'
+  uses-implied-feature: name='android.hardware.faketouch' reason='default feature for all apps'
+  uses-feature: name='android.hardware.telephony'
+  uses-implied-feature: name='android.hardware.telephony' reason='requested a telephony permission'
+provides-component:'launcher'
+main
+other-activities
+other-receivers
+supports-screens: 'small' 'normal' 'large' 'xlarge'
+supports-any-density: 'true'
+locales: '--_--' 'af' 'am' 'ar' 'as' 'az' 'be' 'bg' 'bn' 'bs' 'ca' 'cs' 'da' 'de' 'el' 'en-AU' 'en-CA' 'en-GB' 'en-IN' 'en-XC' 'es' 'es-US' 'et' 'eu' 'fa' 'fi' 'fr' 'fr-CA' 'gl' 'gu' 'hi' 'hr' 'hu' 'hy' 'in' 'is' 'it' 'iw' 'ja' 'ka' 'kk' 'km' 'kn' 'ko' 'ky' 'lo' 'lt' 'lv' 'mk' 'ml' 'mn' 'mr' 'ms' 'my' 'nb' 'ne' 'nl' 'or' 'pa' 'pl' 'pt' 'pt-BR' 'pt-PT' 'ro' 'ru' 'si' 'sk' 'sl' 'sq' 'sr' 'sr-Latn' 'sv' 'sw' 'ta' 'te' 'th' 'tl' 'tr' 'uk' 'ur' 'uz' 'vi' 'zh-CN' 'zh-HK' 'zh-TW' 'zu'
+densities: '160' '240' '320' '480' '640' '65535'
+native-code: 'arm64-v8a'
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+Signer #1 certificate DN: C=US, O=Android, CN=Android Debug
+Signer #1 certificate SHA-256 digest: 50a47ef069ef22f6983c72ee63c5fc48c2e2d72463a7c97bae9ff48422931a37
+Signer #1 certificate SHA-1 digest: 28fb401db7ac12fb2da43e267274a7dc44483d5a
+Signer #1 certificate MD5 digest: c60915e4a02b2fd6f1b77954672ad3a5
+Signer #1 key algorithm: RSA
+Signer #1 key size (bits): 2048
+Signer #1 public key SHA-256 digest: bb406e17fd740c23c7f046d37e3bbd5cce2e133e27a72d6b141da7dd1cb4afa1
+Signer #1 public key SHA-1 digest: 6f02a62feb4f45612b4ea2e8951819ce6623cf53
+Signer #1 public key MD5 digest: c878b1aa0c80359d2643088c22864b3f
+https://github.com/pandora-rvw-314296438-20260820/pandoras-box/releases/tag/pandora-local-ai-picker-a5d5b605
+PANDORA_APK_READY source=a5d5b60551e5c4f02c8aa14c8af4d8b3a268b082 sha256=e0b64b3ed5e157d7fe8707a08df4956cf0b98c1e8f13d5b1989c6dffaf21fc87 size=119813568 release=https://github.com/pandora-rvw-314296438-20260820/pandoras-box/releases/tag/pandora-local-ai-picker-a5d5b605
