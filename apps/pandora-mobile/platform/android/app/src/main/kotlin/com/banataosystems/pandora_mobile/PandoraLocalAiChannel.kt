@@ -250,9 +250,9 @@ If the request clearly requires live data, connected services, account data, ext
                                 firstCancellationToken.complete(Unit)
                             }
                         }
-                    } catch (_: CancellationException) {
+                    } catch (error: CancellationException) {
                         cancellationVerified = true
-                        throw
+                        throw error
                     }
                 }
                 try {
