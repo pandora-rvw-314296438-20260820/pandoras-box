@@ -56,6 +56,11 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   openjdk-17-jdk curl unzip git build-essential ninja-build \
   libvulkan-dev glslc spirv-headers spirv-tools
 
+rm -rf "$APP_DIR/app/src/main/cpp/vulkan-headers"
+mkdir -p "$APP_DIR/app/src/main/cpp/vulkan-headers/include"
+cp -a /usr/include/vulkan "$APP_DIR/app/src/main/cpp/vulkan-headers/include/"
+test -f "$APP_DIR/app/src/main/cpp/vulkan-headers/include/vulkan/vulkan.hpp"
+
 publish_status "toolchain" "Installing Android SDK and Gradle"
 
 mkdir -p "$ANDROID_HOME/cmdline-tools"
