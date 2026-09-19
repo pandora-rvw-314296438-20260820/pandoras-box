@@ -86,6 +86,27 @@ void main() {
     );
   });
 
+  test('phone-local AI routing prioritizes implementation and verification', () {
+    expect(
+      operationsRoomRecommendedRoles(
+        'Run Qwen2.5 3B Q4_K_M on the phone and verify GPU/NPU acceleration.',
+        OperationsRoomMode.execution,
+      ),
+      <String>['HECATE', 'HEPHAESTUS', 'ARTEMIS', 'THEMIS'],
+    );
+  });
+
+  test('operations room exposes the active phone-local architecture constraint', () {
+    expect(operationsRoomActiveArchitecture, contains('Qwen2.5 3B Q4_K_M'));
+    expect(operationsRoomActiveArchitecture, contains('Gemini'));
+    expect(operationsRoomActiveArchitecture, contains('GitHub'));
+    expect(operationsRoomActiveArchitecture, contains('Supabase'));
+    expect(operationsRoomActiveArchitecture, contains('Vercel'));
+    expect(operationsRoomActiveArchitecture, contains('RDP-hosted LLMs'));
+    expect(operationsRoomActiveArchitecture, contains('AWS'));
+    expect(operationsRoomActiveArchitecture, contains('Bedrock'));
+  });
+
   test('direct mention overrides automatic routing', () {
     expect(
       operationsRoomRecommendedRoles(

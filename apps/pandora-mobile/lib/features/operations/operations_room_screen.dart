@@ -19,6 +19,14 @@ enum OperationsRoomMode { execution, council, incident }
 
 const _roomThreadPrefix = 'Operations Room';
 const _internalRoomMarker = '[OPERATIONS_ROOM_INTERNAL]';
+const operationsRoomActiveArchitecture =
+    'Phone-resident local AI first when appropriate. '
+    'Qwen2.5 3B Q4_K_M is the primary phone-local candidate. '
+    'Escalate to Gemini or another approved cloud model only when the phone '
+    'should not handle the workload. No RDP-hosted LLMs, AWS, Bedrock, or '
+    'continuously available desktop compute. GitHub, Supabase, and Vercel '
+    'are the active infrastructure and control providers. GPU/NPU '
+    'acceleration remains unverified until measured on the physical phone.';
 
 class OperationsRoomParsedMessage {
   const OperationsRoomParsedMessage({
@@ -142,6 +150,20 @@ List<String> operationsRoomRecommendedRoles(
     'recovery',
   ])) {
     add(const <String>['HEPHAESTUS', 'HESTIA', 'ASCLEPIUS', 'ARTEMIS']);
+  }
+  if (hasAny(<String>[
+    'phone local',
+    'phone-local',
+    'on-device',
+    'local ai',
+    'local inference',
+    'qwen',
+    'q4_k_m',
+    'gguf',
+    'gpu',
+    'npu',
+  ])) {
+    add(const <String>['HECATE', 'HEPHAESTUS', 'ARTEMIS', 'THEMIS']);
   }
   if (hasAny(<String>[
     'model',
@@ -439,6 +461,12 @@ class _PandoraOperationsRoomScreenState
           'orchestrationStage': stage,
           'targetRole': targetRole,
           'roomRosterVersion': 'operations-room-v2-14',
+          'architectureVersion': 'phone-local-v1',
+          'executionTopology': 'phone-local-first-cloud-escalation',
+          'localModelCandidate': 'Qwen2.5 3B Q4_K_M',
+          'infrastructurePolicy': 'github-supabase-vercel-only',
+          'accelerationPolicy': 'physical-device-verification-required',
+          'forbiddenCompute': 'rdp-hosted-llm,aws,bedrock,desktop-hosted-llm',
         },
       },
     );
@@ -468,7 +496,8 @@ class _PandoraOperationsRoomScreenState
             '${priorFindings.join('\n\n')}';
     return '$objective\n\n$_internalRoomMarker\n'
         'Take the next real Operations Room turn as $role. '
-        'Respond only from $role authority. Do not claim actions that did not run.'
+        'Respond only from $role authority. Do not claim actions that did not run. '
+        'Active architecture constraint: $operationsRoomActiveArchitecture'
         '$handoff';
   }
 
@@ -481,7 +510,8 @@ class _PandoraOperationsRoomScreenState
       'Specialist messages already produced in this same room:\n'
       '${findings.join('\n\n')}\n\n'
       'ATHENA: coordinate these real specialist findings into the next owner-facing result. '
-      '${allowExecution ? 'Execution mode is active: use only real admitted capability routes when the owner objective requires action, and report provider/runtime evidence rather than promises.' : 'This is an advisory synthesis turn. Preserve material disagreement and do not execute capabilities.'}';
+      '${allowExecution ? 'Execution mode is active: use only real admitted capability routes when the owner objective requires action, and report provider/runtime evidence rather than promises.' : 'This is an advisory synthesis turn. Preserve material disagreement and do not execute capabilities.'} '
+      'Active architecture constraint: $operationsRoomActiveArchitecture';
 
   Future<void> _submit(String value) async {
     final message = value.trim();
