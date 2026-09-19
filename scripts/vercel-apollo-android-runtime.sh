@@ -65,7 +65,11 @@ cp "$ROOT/apps/pandora-mobile/pubspec.lock" ./pubspec.lock
 cp "$ROOT/apps/pandora-mobile/analysis_options.yaml" ./analysis_options.yaml
 cp pubspec.lock pubspec.lock.expected
 flutter pub get --enforce-lockfile | tee "$OUT/flutter-pub-get.txt"
-cmp -s pubspec.lock pubspec.lock.expected || fail "canonical lockfile changed"
+python3 - <<'PYLOCK'
+from pathlib import Path
+if Path("pubspec.lock").read_bytes() != Path("pubspec.lock.expected").read_bytes():
+    raise SystemExit("canonical lockfile changed")
+PYLOCK
 flutter analyze | tee "$OUT/flutter-analyze.txt"
 pass "flutter analyze exact product source"
 flutter build apk --release --split-per-abi --target-platform android-arm64 --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" | tee "$OUT/production-apk-build.txt"
