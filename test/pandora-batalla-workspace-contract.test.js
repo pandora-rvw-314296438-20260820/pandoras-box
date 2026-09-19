@@ -68,8 +68,10 @@ test("Atty decision queue makes counts secondary and exposes decision facts", ()
   for (const value of [
     "Counts are secondary",
     "What needs my decision?",
+    "Preparer",
     "Dan's recommendation",
     "Urgency",
+    "Folder state",
     "Who is waiting",
     "Physical folder location",
     "Who owns the next action",
@@ -93,6 +95,9 @@ test("Secretary quick desk preserves the repository safety flow", () => {
     "Write it down",
     "Please check",
     "Save and add to the office queue",
+    "Drafts are retained",
+    "Duplicate protection",
+    "Controlled choices and minimal typing",
   ]) {
     assert.ok(screen.includes(value), "missing " + value);
   }

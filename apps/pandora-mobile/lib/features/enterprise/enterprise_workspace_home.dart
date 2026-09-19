@@ -254,7 +254,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
   ),
 ];
 
-enum _WorkspaceAction { openHome, openOverview }
+enum _WorkspaceAction { openHome, showSections }
 
 class EnterpriseWorkspaceHome extends StatefulWidget {
   const EnterpriseWorkspaceHome({
@@ -426,9 +426,6 @@ class _WorkspaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final home = workspace.sections.first;
-    final overview = workspace.sections.length > 1
-        ? workspace.sections[1]
-        : workspace.sections.first;
     return Material(
       key: ValueKey<String>('workspace-card-' + workspace.key),
       color: const Color(0xC90B0E12),
@@ -509,8 +506,8 @@ class _WorkspaceCard extends StatelessWidget {
                           case _WorkspaceAction.openHome:
                             onOpen(home);
                             break;
-                          case _WorkspaceAction.openOverview:
-                            onOpen(overview);
+                          case _WorkspaceAction.showSections:
+                            onToggle();
                             break;
                         }
                       },
@@ -520,8 +517,8 @@ class _WorkspaceCard extends StatelessWidget {
                           child: Text('Open workspace'),
                         ),
                         PopupMenuItem(
-                          value: _WorkspaceAction.openOverview,
-                          child: Text('Open overview'),
+                          value: _WorkspaceAction.showSections,
+                          child: Text('Show sections'),
                         ),
                       ],
                     ),

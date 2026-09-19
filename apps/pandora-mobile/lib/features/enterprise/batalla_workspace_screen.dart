@@ -564,9 +564,11 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
             children: [
               _fieldGrid(const <String>[
                 'Client / intake identity',
+                'Preparer',
                 "Dan's recommendation",
                 'Urgency',
                 'Who is waiting',
+                'Folder state',
                 'Physical folder location',
                 'Who owns the next action',
                 'What can be printed now',
@@ -672,6 +674,18 @@ class _BatallaWorkspaceScreenState extends State<BatallaWorkspaceScreen> {
               _StepLine(number: '1', text: 'Write it down'),
               _StepLine(number: '2', text: 'Please check'),
               _StepLine(number: '3', text: 'Save and add to the office queue'),
+              _InfoLine(
+                icon: Icons.drafts_outlined,
+                text: 'Drafts are retained until the office can check them.',
+              ),
+              _InfoLine(
+                icon: Icons.copy_all_rounded,
+                text: 'Duplicate protection makes safe retries possible.',
+              ),
+              _InfoLine(
+                icon: Icons.touch_app_rounded,
+                text: 'Controlled choices and minimal typing come before free-form data entry.',
+              ),
             ],
           ),
         ],
