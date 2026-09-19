@@ -39,6 +39,7 @@ process.stdout.write(r.archive);
 curl --fail --location --retry 4 --retry-delay 2 "https://storage.googleapis.com/flutter_infra_release/releases/$FLUTTER_ARCHIVE" -o "$TOOLS/flutter.tar.xz"
 tar -xJf "$TOOLS/flutter.tar.xz" -C "$TOOLS"
 export PATH="$TOOLS/flutter/bin:$PATH"
+git config --global --add safe.directory "$TOOLS/flutter"
 
 flutter --version
 dart --version
