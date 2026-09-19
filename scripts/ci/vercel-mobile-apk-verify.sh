@@ -102,6 +102,28 @@ from pathlib import Path
 print(Path('vercel-apk-output/pandora-debug.apk').stat().st_size)
 PY
 )"
+python3 - <<'PY'
+from pathlib import Path
+import hashlib, json
+apk = Path('vercel-apk-output/pandora-debug.apk')
+chunk_dir = Path('vercel-apk-output/apk-chunks')
+chunk_dir.mkdir(parents=True, exist_ok=True)
+chunk_size = 24 * 1024 * 1024
+parts = []
+with apk.open('rb') as srcf:
+    index = 0
+    while True:
+        data = srcf.read(chunk_size)
+        if not data:
+            break
+        name = f'pandora-debug.apk.part-{index:03d}'
+        path = chunk_dir / name
+        path.write_bytes(data)
+        parts.append({'name': name, 'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()})
+        index += 1
+Path('vercel-apk-output/apk-chunks.json').write_text(json.dumps({'schema':1,'apk':'pandora-debug.apk','parts':parts}, separators=(',',':')))
+PY
+rm vercel-apk-output/pandora-debug.apk
 {
   echo "canonical_source_sha=$CANONICAL_SOURCE_SHA"
   echo "source_apps_tree=$EXPECTED_APPS_TREE"
@@ -120,4 +142,4 @@ PY
   echo "apk_size_bytes=$APK_SIZE"
 } > vercel-apk-output/pandora-mobile-artifact-manifest.txt
 
-printf '<!doctype html><meta charset="utf-8"><title>Pandora Android validation</title><h1>Pandora Android validation</h1><p>Canonical source: %s</p><p>Apps tree: %s</p><p>APK SHA-256: %s</p><ul><li><a href="/pandora-debug.apk">APK</a></li><li><a href="/pandora-mobile-artifact-manifest.txt">Manifest</a></li><li><a href="/flutter-analyze.log">Analyze log</a></li><li><a href="/flutter-test.log">Test log</a></li><li><a href="/flutter-build.log">Build log</a></li></ul>' "$CANONICAL_SOURCE_SHA" "$EXPECTED_APPS_TREE" "$APK_SHA" > vercel-apk-output/index.html
+printf '<!doctype html><meta charset="utf-8"><title>Pandora Android validation</title><h1>Pandora Android validation</h1><p>Canonical source: %s</p><p>Apps tree: %s</p><p>APK SHA-256: %s</p><ul><li><a href="/apk-chunks.json">APK chunk manifest</a></li><li><a href="/pandora-mobile-artifact-manifest.txt">Manifest</a></li><li><a href="/flutter-analyze.log">Analyze log</a></li><li><a href="/flutter-test.log">Test log</a></li><li><a href="/flutter-build.log">Build log</a></li></ul>' "$CANONICAL_SOURCE_SHA" "$EXPECTED_APPS_TREE" "$APK_SHA" > vercel-apk-output/index.html
