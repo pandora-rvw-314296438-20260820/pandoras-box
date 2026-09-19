@@ -1,36 +1,200 @@
-github.com
-  ✓ Logged in to github.com account pandora-rvw-314296438-20260820 (GH_TOKEN)
-  - Active account: true
-  - Git operations protocol: https
-  - Token: ghu_************************************
-Get:1 https://dl.yarnpkg.com/debian stable InRelease
-Get:2 https://repo.anaconda.com/pkgs/misc/debrepo/conda stable InRelease [3961 B]
-Err:1 https://dl.yarnpkg.com/debian stable InRelease
-  The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 62D54FD4003F6525
-Get:3 https://packages.microsoft.com/repos/microsoft-ubuntu-focal-prod focal InRelease [3632 B]
-Get:4 https://repo.anaconda.com/pkgs/misc/debrepo/conda stable/main amd64 Packages [4557 B]
-Get:5 https://packages.microsoft.com/repos/microsoft-ubuntu-focal-prod focal/main amd64 Packages [856 kB]
-Get:6 https://packages.microsoft.com/repos/microsoft-ubuntu-focal-prod focal/main all Packages [2948 B]
-Get:8 http://archive.ubuntu.com/ubuntu focal InRelease [265 kB]
-Get:9 http://security.ubuntu.com/ubuntu focal-security InRelease [128 kB]
-Get:7 https://packagecloud.io/github/git-lfs/ubuntu focal InRelease [29.1 kB]
-Get:11 http://security.ubuntu.com/ubuntu focal-security/restricted amd64 Packages [4710 kB]
-Get:10 https://packagecloud.io/github/git-lfs/ubuntu focal/main amd64 Packages [4064 B]
-Get:12 http://archive.ubuntu.com/ubuntu focal-updates InRelease [128 kB]
-Get:13 http://archive.ubuntu.com/ubuntu focal-backports InRelease [128 kB]
-Get:14 http://archive.ubuntu.com/ubuntu focal/universe amd64 Packages [11.3 MB]
-Get:15 http://security.ubuntu.com/ubuntu focal-security/main amd64 Packages [4368 kB]
-Get:16 http://security.ubuntu.com/ubuntu focal-security/universe amd64 Packages [1300 kB]
-Get:17 http://security.ubuntu.com/ubuntu focal-security/multiverse amd64 Packages [32.5 kB]
-Get:18 http://archive.ubuntu.com/ubuntu focal/main amd64 Packages [1275 kB]
-Get:19 http://archive.ubuntu.com/ubuntu focal/multiverse amd64 Packages [177 kB]
-Get:20 http://archive.ubuntu.com/ubuntu focal/restricted amd64 Packages [33.4 kB]
-Get:21 http://archive.ubuntu.com/ubuntu focal-updates/universe amd64 Packages [1588 kB]
-Get:22 http://archive.ubuntu.com/ubuntu focal-updates/multiverse amd64 Packages [36.2 kB]
-Get:23 http://archive.ubuntu.com/ubuntu focal-updates/restricted amd64 Packages [4904 kB]
-Get:24 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 Packages [4850 kB]
-Get:25 http://archive.ubuntu.com/ubuntu focal-backports/universe amd64 Packages [28.4 kB]
-Get:26 http://archive.ubuntu.com/ubuntu focal-backports/main amd64 Packages [54.7 kB]
-Reading package lists...
-W: GPG error: https://dl.yarnpkg.com/debian stable InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 62D54FD4003F6525
-E: The repository 'https://dl.yarnpkg.com/debian stable InRelease' is not signed.
+Setting up x11-utils (7.7+5) ...
+Setting up libglu1-mesa:amd64 (9.0.1-1build1) ...
+Setting up libatk-wrapper-java (0.37.1-1) ...
+Setting up libatk-wrapper-java-jni:amd64 (0.37.1-1) ...
+Setting up ca-certificates-java (20190405ubuntu1.1) ...
+head: cannot open '/etc/ssl/certs/java/cacerts' for reading: No such file or directory
+Adding debian:Certum_Trusted_Network_CA_2.pem
+Adding debian:AffirmTrust_Commercial.pem
+Adding debian:Entrust_Root_Certification_Authority.pem
+Adding debian:Sectigo_Public_Server_Authentication_Root_R46.pem
+Adding debian:Izenpe.com.pem
+Adding debian:GLOBALTRUST_2020.pem
+Adding debian:Entrust_Root_Certification_Authority_-_G2.pem
+Adding debian:Trustwave_Global_ECC_P384_Certification_Authority.pem
+Adding debian:GDCA_TrustAUTH_R5_ROOT.pem
+Adding debian:Certigna_Root_CA.pem
+Adding debian:D-TRUST_Root_Class_3_CA_2_2009.pem
+Adding debian:D-TRUST_BR_Root_CA_1_2020.pem
+Adding debian:Microsoft_RSA_Root_Certificate_Authority_2017.pem
+Adding debian:ISRG_Root_X1.pem
+Adding debian:SecureSign_RootCA11.pem
+Adding debian:HARICA_TLS_RSA_Root_CA_2021.pem
+Adding debian:Amazon_Root_CA_4.pem
+Adding debian:TrustAsia_Global_Root_CA_G3.pem
+Adding debian:GTS_Root_R1.pem
+Adding debian:Entrust_Root_Certification_Authority_-_EC1.pem
+Adding debian:Security_Communication_RootCA3.pem
+Adding debian:AffirmTrust_Premium.pem
+Adding debian:Telia_Root_CA_v2.pem
+Adding debian:GTS_Root_R4.pem
+Adding debian:CommScope_Public_Trust_ECC_Root-01.pem
+Adding debian:vTrus_ECC_Root_CA.pem
+Adding debian:GlobalSign_Root_CA_-_R3.pem
+Adding debian:Security_Communication_ECC_RootCA1.pem
+Adding debian:Microsoft_ECC_Root_Certificate_Authority_2017.pem
+Adding debian:Trustwave_Global_ECC_P256_Certification_Authority.pem
+Adding debian:COMODO_Certification_Authority.pem
+Adding debian:ISRG_Root_X2.pem
+Adding debian:COMODO_ECC_Certification_Authority.pem
+Adding debian:Certigna.pem
+Adding debian:D-TRUST_EV_Root_CA_1_2020.pem
+Adding debian:Comodo_AAA_Services_root.pem
+Adding debian:AffirmTrust_Premium_ECC.pem
+Adding debian:Certainly_Root_E1.pem
+Adding debian:SSL.com_EV_Root_Certification_Authority_ECC.pem
+Adding debian:ePKI_Root_Certification_Authority.pem
+Adding debian:Hongkong_Post_Root_CA_3.pem
+Adding debian:QuoVadis_Root_CA_3_G3.pem
+Adding debian:emSign_Root_CA_-_G1.pem
+Adding debian:NAVER_Global_Root_Certification_Authority.pem
+Adding debian:TWCA_Root_Certification_Authority.pem
+Adding debian:TWCA_Global_Root_CA.pem
+Adding debian:COMODO_RSA_Certification_Authority.pem
+Adding debian:SecureTrust_CA.pem
+Adding debian:Atos_TrustedRoot_Root_CA_RSA_TLS_2021.pem
+Adding debian:SwissSign_Silver_CA_-_G2.pem
+Adding debian:CFCA_EV_ROOT.pem
+Adding debian:QuoVadis_Root_CA_2.pem
+Adding debian:QuoVadis_Root_CA_3.pem
+Adding debian:USERTrust_RSA_Certification_Authority.pem
+Adding debian:DigiCert_TLS_ECC_P384_Root_G5.pem
+Adding debian:Actalis_Authentication_Root_CA.pem
+Adding debian:TunTrust_Root_CA.pem
+Adding debian:Buypass_Class_3_Root_CA.pem
+Adding debian:T-TeleSec_GlobalRoot_Class_2.pem
+Adding debian:emSign_Root_CA_-_C1.pem
+Adding debian:e-Szigno_Root_CA_2017.pem
+Adding debian:HARICA_TLS_ECC_Root_CA_2021.pem
+Adding debian:Buypass_Class_2_Root_CA.pem
+Adding debian:OISTE_WISeKey_Global_Root_GC_CA.pem
+Adding debian:Amazon_Root_CA_1.pem
+Adding debian:TrustAsia_Global_Root_CA_G4.pem
+Adding debian:Certum_EC-384_CA.pem
+Adding debian:SSL.com_TLS_ECC_Root_CA_2022.pem
+Adding debian:CA_Disig_Root_R2.pem
+Adding debian:certSIGN_ROOT_CA.pem
+Adding debian:GlobalSign_Root_E46.pem
+Adding debian:NetLock_Arany_=Class_Gold=_Főtanúsítvány.pem
+Adding debian:D-TRUST_Root_Class_3_CA_2_EV_2009.pem
+Adding debian:OISTE_WISeKey_Global_Root_GB_CA.pem
+Adding debian:UCA_Extended_Validation_Root.pem
+Adding debian:SSL.com_TLS_RSA_Root_CA_2022.pem
+Adding debian:DigiCert_Global_Root_G2.pem
+Adding debian:SwissSign_Gold_CA_-_G2.pem
+Adding debian:Atos_TrustedRoot_2011.pem
+Adding debian:DigiCert_High_Assurance_EV_Root_CA.pem
+Adding debian:DigiCert_Assured_ID_Root_G3.pem
+Adding debian:ANF_Secure_Server_Root_CA.pem
+Adding debian:DigiCert_TLS_RSA4096_Root_G5.pem
+Adding debian:Certum_Trusted_Root_CA.pem
+Adding debian:Amazon_Root_CA_2.pem
+Adding debian:USERTrust_ECC_Certification_Authority.pem
+Adding debian:DigiCert_Global_Root_G3.pem
+Adding debian:Go_Daddy_Class_2_CA.pem
+Adding debian:Amazon_Root_CA_3.pem
+Adding debian:UCA_Global_G2_Root.pem
+Adding debian:DigiCert_Global_Root_CA.pem
+Adding debian:Sectigo_Public_Server_Authentication_Root_E46.pem
+Adding debian:Starfield_Services_Root_Certificate_Authority_-_G2.pem
+Adding debian:vTrus_Root_CA.pem
+Adding debian:emSign_ECC_Root_CA_-_G3.pem
+Adding debian:SZAFIR_ROOT_CA2.pem
+Adding debian:DigiCert_Assured_ID_Root_G2.pem
+Adding debian:GlobalSign_ECC_Root_CA_-_R5.pem
+Adding debian:DigiCert_Assured_ID_Root_CA.pem
+Adding debian:SSL.com_Root_Certification_Authority_RSA.pem
+Adding debian:CommScope_Public_Trust_RSA_Root-01.pem
+Adding debian:Security_Communication_Root_CA.pem
+Adding debian:Secure_Global_CA.pem
+Adding debian:TeliaSonera_Root_CA_v1.pem
+Adding debian:GTS_Root_R3.pem
+Adding debian:QuoVadis_Root_CA_2_G3.pem
+Adding debian:Microsec_e-Szigno_Root_CA_2009.pem
+Adding debian:emSign_ECC_Root_CA_-_C3.pem
+Adding debian:IdenTrust_Public_Sector_Root_CA_1.pem
+Adding debian:Autoridad_de_Certificacion_Firmaprofesional_CIF_A62634068.pem
+Adding debian:certSIGN_Root_CA_G2.pem
+Adding debian:Baltimore_CyberTrust_Root.pem
+Adding debian:DigiCert_Trusted_Root_G4.pem
+Adding debian:SSL.com_EV_Root_Certification_Authority_RSA_R2.pem
+Adding debian:ACCVRAIZ1.pem
+Adding debian:Security_Communication_RootCA2.pem
+Adding debian:Certum_Trusted_Network_CA.pem
+Adding debian:SSL.com_Root_Certification_Authority_ECC.pem
+Adding debian:GlobalSign_ECC_Root_CA_-_R4.pem
+Adding debian:GlobalSign_Root_CA_-_R6.pem
+Adding debian:AC_RAIZ_FNMT-RCM.pem
+Adding debian:Entrust_Root_Certification_Authority_-_G4.pem
+Adding debian:GTS_Root_R2.pem
+Adding debian:IdenTrust_Commercial_Root_CA_1.pem
+Adding debian:GlobalSign_Root_CA.pem
+Adding debian:CommScope_Public_Trust_ECC_Root-02.pem
+Adding debian:Trustwave_Global_Certification_Authority.pem
+Adding debian:Starfield_Class_2_CA.pem
+Adding debian:AC_RAIZ_FNMT-RCM_SERVIDORES_SEGUROS.pem
+Adding debian:CommScope_Public_Trust_RSA_Root-02.pem
+Adding debian:T-TeleSec_GlobalRoot_Class_3.pem
+Adding debian:Entrust.net_Premium_2048_Secure_Server_CA.pem
+Adding debian:TUBITAK_Kamu_SM_SSL_Kok_Sertifikasi_-_Surum_1.pem
+Adding debian:Hellenic_Academic_and_Research_Institutions_RootCA_2015.pem
+Adding debian:HiPKI_Root_CA_-_G1.pem
+Adding debian:GlobalSign_Root_R46.pem
+Adding debian:Starfield_Root_Certificate_Authority_-_G2.pem
+Adding debian:BJCA_Global_Root_CA1.pem
+Adding debian:XRamp_Global_CA_Root.pem
+Adding debian:Go_Daddy_Root_Certificate_Authority_-_G2.pem
+Adding debian:BJCA_Global_Root_CA2.pem
+Adding debian:Atos_TrustedRoot_Root_CA_ECC_TLS_2021.pem
+Adding debian:Hellenic_Academic_and_Research_Institutions_ECC_RootCA_2015.pem
+Adding debian:AffirmTrust_Networking.pem
+Adding debian:QuoVadis_Root_CA_1_G3.pem
+Adding debian:Certainly_Root_R1.pem
+done.
+Processing triggers for libc-bin (2.31-0ubuntu9.17) ...
+Processing triggers for man-db (2.9.1-1) ...
+Processing triggers for ca-certificates (20240203~20.04.1) ...
+Updating certificates in /etc/ssl/certs...
+0 added, 0 removed; done.
+Running hooks in /etc/ca-certificates/update.d...
+
+done.
+done.
+Setting up openjdk-17-jre-headless:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/java to provide /usr/bin/java (java) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jpackage to provide /usr/bin/jpackage (jpackage) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/keytool to provide /usr/bin/keytool (keytool) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/rmiregistry to provide /usr/bin/rmiregistry (rmiregistry) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/lib/jexec to provide /usr/bin/jexec (jexec) in auto mode
+Processing triggers for fontconfig (2.13.1-2ubuntu3) ...
+Processing triggers for mime-support (3.64ubuntu1) ...
+Processing triggers for hicolor-icon-theme (0.17-2) ...
+Setting up openjdk-17-jre:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
+Setting up openjdk-17-jdk-headless:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jar to provide /usr/bin/jar (jar) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jarsigner to provide /usr/bin/jarsigner (jarsigner) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/javac to provide /usr/bin/javac (javac) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/javadoc to provide /usr/bin/javadoc (javadoc) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/javap to provide /usr/bin/javap (javap) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jcmd to provide /usr/bin/jcmd (jcmd) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jdb to provide /usr/bin/jdb (jdb) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jdeprscan to provide /usr/bin/jdeprscan (jdeprscan) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jdeps to provide /usr/bin/jdeps (jdeps) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jfr to provide /usr/bin/jfr (jfr) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jimage to provide /usr/bin/jimage (jimage) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jinfo to provide /usr/bin/jinfo (jinfo) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jlink to provide /usr/bin/jlink (jlink) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jmap to provide /usr/bin/jmap (jmap) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jmod to provide /usr/bin/jmod (jmod) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jps to provide /usr/bin/jps (jps) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jrunscript to provide /usr/bin/jrunscript (jrunscript) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jshell to provide /usr/bin/jshell (jshell) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jstack to provide /usr/bin/jstack (jstack) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jstat to provide /usr/bin/jstat (jstat) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jstatd to provide /usr/bin/jstatd (jstatd) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/serialver to provide /usr/bin/serialver (serialver) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jhsdb to provide /usr/bin/jhsdb (jhsdb) in auto mode
+Setting up openjdk-17-jdk:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jconsole to provide /usr/bin/jconsole (jconsole) in auto mode
+curl: option --retry-all-errors: is unknown
+curl: try 'curl --help' or 'curl --manual' for more information
