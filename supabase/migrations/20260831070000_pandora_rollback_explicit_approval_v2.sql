@@ -16,7 +16,7 @@ security definer
 set search_path='pg_catalog','private','public','extensions'
 as $fn$
 declare
-  v_project public.projectos_projects%rowtype;
+  v_project public.pandora_projects%rowtype;
   v_env public.pandora_runtime_environments%rowtype;
   v_target public.pandora_project_versions%rowtype;
   v_args jsonb;
@@ -39,7 +39,7 @@ begin
   end if;
 
   select * into v_project
-  from public.projectos_projects
+  from public.pandora_projects
   where id=p_project_id and organization_id=p_organization_id and status='active';
   if not found then raise exception 'PROJECT_NOT_FOUND' using errcode='22023'; end if;
 

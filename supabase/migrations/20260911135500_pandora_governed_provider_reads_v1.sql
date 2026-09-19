@@ -39,7 +39,7 @@ begin
     v_repo := nullif(p_target->>'repository','');
     if v_repo is null then raise exception 'pandora_governed_read_repository_required' using errcode='22023'; end if;
     if not (v_repo in ('pandora-rvw-314296438-20260820/pandoras-box','pandora-rvw-314296438-20260820/pandoras-box-memory')
-      or exists (select 1 from public.projectos_projects p where p.organization_id=p_organization_id and p.repository=v_repo)) then
+      or exists (select 1 from public.pandora_projects p where p.organization_id=p_organization_id and p.repository=v_repo)) then
       raise exception 'pandora_governed_read_repository_not_allowlisted' using errcode='42501';
     end if;
     if v_action='pull_request.read' then
@@ -68,7 +68,7 @@ begin
     v_project_ref := nullif(lower(p_target->>'projectRef'),'');
     if v_project_ref is null or v_project_ref !~ '^[a-z]{20}$' then raise exception 'pandora_governed_read_supabase_project_required' using errcode='22023'; end if;
     if v_project_ref not in ('jcyqixttuebxqqfkjonq','ivmvufhcsezyhczzondn') and not exists (
-      select 1 from public.projectos_integration_health h where h.organization_id=p_organization_id and h.provider='supabase' and h.details->>'projectRef'=v_project_ref
+      select 1 from public.pandora_integration_health h where h.organization_id=p_organization_id and h.provider='supabase' and h.details->>'projectRef'=v_project_ref
     ) then raise exception 'pandora_governed_read_supabase_project_not_allowlisted' using errcode='42501'; end if;
     select decrypted_secret into v_token from vault.decrypted_secrets
     where name in ('mcpmaster_supabase_account_1_pat','Supabase_access') and nullif(trim(decrypted_secret),'') is not null
@@ -89,7 +89,7 @@ begin
   v_vercel_project := nullif(p_target->>'project','');
   if v_vercel_project is null then raise exception 'pandora_governed_read_vercel_project_required' using errcode='22023'; end if;
   if not exists (select 1 from public.pandora_runtime_environments e where e.organization_id=p_organization_id and e.provider='vercel' and e.provider_project_id=v_vercel_project)
-     and not exists (select 1 from public.pandora_project_domains d join public.projectos_projects p on p.id=d.project_id
+     and not exists (select 1 from public.pandora_project_domains d join public.pandora_projects p on p.id=d.project_id
        where p.organization_id=p_organization_id and d.provider='vercel' and d.provider_project_id=v_vercel_project) then
     raise exception 'pandora_governed_read_vercel_project_not_allowlisted' using errcode='42501';
   end if;
@@ -133,7 +133,7 @@ begin
 
   if v_provider='github' then
     v_repo := substring(v_message from '([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)');
-    if v_repo is null and p_project_id is not null then select repository into v_repo from public.projectos_projects where id=p_project_id and organization_id=p_organization_id; end if;
+    if v_repo is null and p_project_id is not null then select repository into v_repo from public.pandora_projects where id=p_project_id and organization_id=p_organization_id; end if;
     if v_repo is null and v_message ~* '\mpandora' then v_repo := 'pandora-rvw-314296438-20260820/pandoras-box'; end if;
     begin v_pr := nullif(substring(v_message from '#([0-9]{1,9})'),'')::integer; exception when others then v_pr := null; end;
     v_action := case when v_pr is not null and v_message ~* '\m(pr|pull request)\M' then 'pull_request.read' else 'repository.read' end;
@@ -141,7 +141,7 @@ begin
     v_target := jsonb_build_object('repository',v_repo,'pullRequest',v_pr);
   elsif v_provider='supabase' then
     v_action := 'project.read'; v_project_ref := substring(lower(v_message) from '([a-z]{20})');
-    if v_project_ref is null and p_project_id is not null then select h.details->>'projectRef' into v_project_ref from public.projectos_integration_health h
+    if v_project_ref is null and p_project_id is not null then select h.details->>'projectRef' into v_project_ref from public.pandora_integration_health h
       where h.organization_id=p_organization_id and h.project_id=p_project_id and h.provider='supabase' order by h.updated_at desc limit 1; end if;
     if v_project_ref is null and v_message ~* '\mpandora' then v_project_ref := 'jcyqixttuebxqqfkjonq'; end if;
     if v_project_ref is null then return public.pandora_chat_universal_dispatch_v2(p_organization_id,p_message,p_thread_id,p_project_id); end if;
@@ -151,7 +151,7 @@ begin
     if p_project_id is not null then select e.provider_project_id into v_vercel_project from public.pandora_runtime_environments e
       where e.organization_id=p_organization_id and e.project_id=p_project_id and e.provider='vercel'
       order by case e.environment when 'production' then 0 when 'preview' then 1 else 2 end,e.updated_at desc limit 1; end if;
-    if v_vercel_project is null then select d.provider_project_id into v_vercel_project from public.pandora_project_domains d join public.projectos_projects p on p.id=d.project_id
+    if v_vercel_project is null then select d.provider_project_id into v_vercel_project from public.pandora_project_domains d join public.pandora_projects p on p.id=d.project_id
       where p.organization_id=p_organization_id and d.provider='vercel' and (v_message ilike '%'||d.provider_project_id||'%' or v_message ilike '%'||p.name||'%')
       order by d.updated_at desc nulls last limit 1; end if;
     if v_vercel_project is null then return public.pandora_chat_universal_dispatch_v2(p_organization_id,p_message,p_thread_id,p_project_id); end if;

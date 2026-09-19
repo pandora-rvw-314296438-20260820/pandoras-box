@@ -3,7 +3,7 @@
 -- The isolated Base44 acceptance project is enrolled with publish disabled by default.
 
 create table if not exists public.pandora_base44_rollout_projects (
-  project_id uuid primary key references public.projectos_projects(id) on delete cascade,
+  project_id uuid primary key references public.pandora_projects(id) on delete cascade,
   enabled boolean not null default true,
   note text null check (note is null or char_length(note) <= 240),
   created_at timestamptz not null default now(),
@@ -26,7 +26,7 @@ select
   p.id,
   true,
   'Pandora Base44 isolated acceptance project; publish remains fail-closed until explicitly enabled.'
-from public.projectos_projects p
+from public.pandora_projects p
 where p.id = 'db007811-fe55-42b4-b0be-3a11324dcfff'::uuid
   and p.organization_id = '076a9306-5c4e-4d9d-98d3-e3a6fea968fb'::uuid
   and p.project_key = 'base44-acceptance'

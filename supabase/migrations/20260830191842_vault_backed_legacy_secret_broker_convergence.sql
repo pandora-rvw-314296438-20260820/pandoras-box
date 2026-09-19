@@ -47,8 +47,8 @@ begin
     where name in (
       'posthog_intelligence_hash_salt',
       'posthog_intelligence_webhook_secret',
-      'projectos_fxpass_intake_hmac',
-      'projectos_memory_learning_hmac'
+      'pandora_fxpass_intake_hmac',
+      'pandora_memory_learning_hmac'
     )
   $view$;
 

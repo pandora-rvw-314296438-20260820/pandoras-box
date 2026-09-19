@@ -6,7 +6,7 @@
 create table if not exists public.pandora_intelligence_assets (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid null references public.organizations(id) on delete cascade,
-  project_id uuid null references public.projectos_projects(id) on delete cascade,
+  project_id uuid null references public.pandora_projects(id) on delete cascade,
   asset_kind text not null,
   asset_key text not null,
   version text not null,
@@ -119,7 +119,7 @@ create table if not exists private.intelligence_asset_certification_nonces (
   check (consumed_at >= token_issued_at)
 );
 alter table private.intelligence_asset_certification_nonces enable row level security;
-revoke all on private.intelligence_asset_certification_nonces from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+revoke all on private.intelligence_asset_certification_nonces from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 
 create or replace function private.pandora_assert_intelligence_certifier(
   p_scope_key text,
@@ -139,7 +139,7 @@ declare
   normalized_reviewer text := lower(trim(coalesce(p_reviewer_id,'')));
   accepted text;
 begin
-  if coalesce(claims->>'role','') <> 'projectos_reviewer_ingest'
+  if coalesce(claims->>'role','') <> 'pandora_reviewer_ingest'
      or token_issuer <> 'pandora-independent-review-authority'
      or coalesce(claims->>'pandora_audience','') <> 'pandora-intelligence-certification'
      or coalesce(claims->>'pandora_purpose','') <> 'intelligence_asset_certification'
@@ -177,7 +177,7 @@ begin
   on conflict do nothing returning jti_sha256 into accepted;
   if accepted is null then raise exception 'Worker E authority token already consumed' using errcode='23505'; end if;
 end; $$;
-revoke all on function private.pandora_assert_intelligence_certifier(text,text,text) from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+revoke all on function private.pandora_assert_intelligence_certifier(text,text,text) from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 
 create or replace function public.pandora_register_intelligence_asset(
   p_organization_id uuid,
@@ -257,7 +257,7 @@ begin
   return true;
 end; $$;
 revoke all on function public.pandora_worker_e_certify_intelligence_asset(uuid,text,text,text,text,text,timestamptz) from public, anon, authenticated, service_role;
-grant execute on function public.pandora_worker_e_certify_intelligence_asset(uuid,text,text,text,text,text,timestamptz) to projectos_reviewer_ingest;
+grant execute on function public.pandora_worker_e_certify_intelligence_asset(uuid,text,text,text,text,text,timestamptz) to pandora_reviewer_ingest;
 
 create or replace function public.pandora_block_intelligence_asset(p_asset_id uuid,p_reason text)
 returns boolean language plpgsql security definer set search_path = '' as $$

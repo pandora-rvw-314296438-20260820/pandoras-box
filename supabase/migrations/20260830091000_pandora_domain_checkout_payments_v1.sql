@@ -49,7 +49,7 @@ $domain_contact_key$;
 create table if not exists public.pandora_domain_checkouts (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   quote_id uuid not null references public.pandora_domain_quotes(id) on delete restrict,
   requested_by uuid not null,
   domain text not null,

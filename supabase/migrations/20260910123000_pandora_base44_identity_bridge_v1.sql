@@ -6,7 +6,7 @@ create table if not exists private.pandora_base44_identity_links (
   base44_user_id text not null,
   pandora_user_id uuid not null references auth.users(id) on delete cascade,
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   enabled boolean not null default true,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now()),
@@ -26,7 +26,7 @@ as $fn$
   select jsonb_build_object('pandoraUserId',l.pandora_user_id,'organizationId',l.organization_id,'projectId',l.project_id)
   from private.pandora_base44_identity_links l
   join public.memberships m on m.organization_id=l.organization_id and m.user_id=l.pandora_user_id and m.status='active'
-  join public.projectos_projects p on p.id=l.project_id and p.organization_id=l.organization_id
+  join public.pandora_projects p on p.id=l.project_id and p.organization_id=l.organization_id
   where l.enabled=true and l.base44_origin=p_origin and l.base44_app_id=p_app_id and l.base44_user_id=p_base44_user_id
   order by l.updated_at desc limit 1
 $fn$;
@@ -55,7 +55,7 @@ join public.memberships m
   on m.user_id = u.id
  and m.organization_id = '076a9306-5c4e-4d9d-98d3-e3a6fea968fb'::uuid
  and m.status = 'active'
-join public.projectos_projects p
+join public.pandora_projects p
   on p.id = 'db007811-fe55-42b4-b0be-3a11324dcfff'::uuid
  and p.organization_id = m.organization_id
 where u.id = 'f17558e4-e1b2-4b8d-a215-b96775b1a470'::uuid

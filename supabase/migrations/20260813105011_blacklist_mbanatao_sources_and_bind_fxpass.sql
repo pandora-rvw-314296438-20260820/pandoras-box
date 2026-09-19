@@ -85,7 +85,7 @@ $$;
 revoke all on function private.enforce_repository_source_authority() from public, anon, authenticated;
 grant execute on function private.enforce_repository_source_authority() to service_role;
 
-update public.projectos_projects
+update public.pandora_projects
 set config = config || jsonb_build_object(
       'sourceAuthority', jsonb_build_object(
         'status', 'historical_only',
@@ -99,7 +99,7 @@ set config = config || jsonb_build_object(
 where repository is not null
   and lower(split_part(repository, '/', 1)) = 'mbanatao';
 
-update public.projectos_project_resources
+update public.pandora_project_resources
 set binding_state = 'quarantined',
     configuration = configuration || jsonb_build_object(
       'sourceAuthority', 'historical_only',
@@ -118,19 +118,19 @@ declare
   v_fong_id uuid;
 begin
   select id into v_fong_id
-  from public.projectos_projects
+  from public.pandora_projects
   where project_key = 'fong'
   limit 1;
 
   select id into v_fxpass_id
-  from public.projectos_projects
+  from public.pandora_projects
   where lower(repository) = 'banataosystems/fxpass'
      or project_key = 'fxpass'
   order by case when lower(repository) = 'banataosystems/fxpass' then 0 else 1 end
   limit 1;
 
   if v_fxpass_id is null and v_fong_id is not null then
-    insert into public.projectos_projects (
+    insert into public.pandora_projects (
       organization_id,
       project_key,
       name,
@@ -148,7 +148,7 @@ begin
       'fxpass',
       'FXPass',
       'banataosystems/fxpass',
-      'projectos/projects/fxpass',
+      'pandora/projects/fxpass',
       'active',
       objective,
       jsonb_build_object(
@@ -162,20 +162,20 @@ begin
       timezone('utc', now()),
       timezone('utc', now()),
       timezone('utc', now())
-    from public.projectos_projects
+    from public.pandora_projects
     where id = v_fong_id
     on conflict (organization_id, project_key) do update set
       name = excluded.name,
       repository = excluded.repository,
       workspace_path = excluded.workspace_path,
       status = excluded.status,
-      config = public.projectos_projects.config || excluded.config,
+      config = public.pandora_projects.config || excluded.config,
       last_reconciled_at = excluded.last_reconciled_at,
       updated_at = excluded.updated_at
     returning id into v_fxpass_id;
   end if;
 
-  insert into public.projectos_project_resources (
+  insert into public.pandora_project_resources (
     organization_id,
     project_id,
     provider,
@@ -208,7 +208,7 @@ begin
     timezone('utc', now()),
     timezone('utc', now()),
     timezone('utc', now())
-  from public.projectos_project_resources resource
+  from public.pandora_project_resources resource
   where resource.project_id = v_fong_id
     and (
       (resource.provider = 'supabase' and resource.external_id = 'jhygppdcfrmejbzyozud')
@@ -223,7 +223,7 @@ begin
     verified_at = excluded.verified_at,
     updated_at = excluded.updated_at;
 
-  update public.projectos_project_resources
+  update public.pandora_project_resources
   set binding_state = 'quarantined',
       configuration = configuration || jsonb_build_object(
         'sourceAuthority', 'historical_only',
@@ -233,7 +233,7 @@ begin
       updated_at = timezone('utc', now())
   where project_id = v_fong_id;
 
-  update public.projectos_projects
+  update public.pandora_projects
   set status = 'archived',
       config = config || jsonb_build_object(
         'sourceAuthority', jsonb_build_object(
@@ -247,7 +247,7 @@ begin
   where id = v_fong_id;
 
   if v_fxpass_id is not null then
-    update public.projectos_projects
+    update public.pandora_projects
     set name = 'FXPass',
         repository = 'banataosystems/fxpass',
         status = 'active',
@@ -333,7 +333,7 @@ declare
   v_definition text;
 begin
   select pg_get_functiondef(
-    'public.projectos_accept_fxpass_product_intake(uuid,jsonb)'::regprocedure
+    'public.pandora_accept_fxpass_product_intake(uuid,jsonb)'::regprocedure
   ) into v_definition;
   if v_definition is null then
     raise exception 'FXPass product intake function is missing';
@@ -343,11 +343,11 @@ begin
 end;
 $$;
 
-revoke all on function public.projectos_accept_fxpass_product_intake(uuid, jsonb) from public, anon, authenticated;
-grant execute on function public.projectos_accept_fxpass_product_intake(uuid, jsonb) to service_role;
+revoke all on function public.pandora_accept_fxpass_product_intake(uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.pandora_accept_fxpass_product_intake(uuid, jsonb) to service_role;
 
-drop trigger if exists enforce_repository_source_authority on public.projectos_projects;
+drop trigger if exists enforce_repository_source_authority on public.pandora_projects;
 create trigger enforce_repository_source_authority
-before insert or update of repository on public.projectos_projects
+before insert or update of repository on public.pandora_projects
 for each row execute function private.enforce_repository_source_authority();
 

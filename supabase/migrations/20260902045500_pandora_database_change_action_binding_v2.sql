@@ -59,14 +59,14 @@ begin
 
   v_args_sha:=encode(
     extensions.digest(
-      convert_to(private.projectos_canonical_context_json(v_args),'utf8'),
+      convert_to(private.pandora_canonical_context_json(v_args),'utf8'),
       'sha256'
     ),
     'hex'
   );
   v_action_hash:=encode(
     extensions.digest(
-      convert_to(private.projectos_canonical_context_json(v_envelope),'utf8'),
+      convert_to(private.pandora_canonical_context_json(v_envelope),'utf8'),
       'sha256'
     ),
     'hex'

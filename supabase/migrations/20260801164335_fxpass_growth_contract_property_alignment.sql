@@ -3,7 +3,7 @@
 -- Production history is never rewritten; live hashes remain in the recovery manifest.
 -- Semantic recovery of the provider-recorded SQL payload; comments and terminal newline may differ.
 
-update private.projectos_event_contracts
+update private.pandora_event_contracts
 set allowed_properties = array(
   select distinct property_key
   from unnest(

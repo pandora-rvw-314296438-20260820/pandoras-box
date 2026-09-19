@@ -150,7 +150,7 @@ AS $function$
 declare
   v_ver public.pandora_project_versions%rowtype;
   v_op public.pandora_runtime_operations%rowtype;
-  v_project public.projectos_projects%rowtype;
+  v_project public.pandora_projects%rowtype;
   v_token text;
   v_token_hash text;
   v_expires timestamptz:=clock_timestamp()+interval '7 days';
@@ -180,7 +180,7 @@ begin
   if exists(select 1 from public.pandora_project_deployments where project_id=p_project_id and version_id=p_version_id and environment='preview') then
     raise exception 'SUPABASE_PREVIEW_ALREADY_EXISTS' using errcode='23505';
   end if;
-  select * into v_project from public.projectos_projects
+  select * into v_project from public.pandora_projects
    where id=p_project_id and organization_id=v_ver.organization_id for update;
   if not found then raise exception 'SUPABASE_PREVIEW_PROJECT_INVALID' using errcode='22023'; end if;
 
@@ -209,7 +209,7 @@ begin
     verification_state=excluded.verification_state,last_reconciled_at=excluded.last_reconciled_at,updated_at=excluded.updated_at;
 
   update public.pandora_project_versions set lifecycle_status='verification_pending' where id=p_version_id and lifecycle_status='built';
-  update public.projectos_projects
+  update public.pandora_projects
      set config=jsonb_set(coalesce(config,'{}'::jsonb),'{customerJourney}',coalesce(config->'customerJourney','{}'::jsonb)||jsonb_build_object(
        'stage','preview_ready','runtimeStatus','verifying','previewUrl',v_url,'previewProvider','supabase_preview',
        'previewVersionId',p_version_id::text,'previewDeploymentId',v_provider_deployment_id,
@@ -379,7 +379,7 @@ begin
   v_acceptance_ok:=v_runtime_ok and jsonb_typeof(v_spec.acceptance_scope->'functional')='array' and jsonb_array_length(v_spec.acceptance_scope->'functional')>0;
   if v_acceptance_ok and nullif(v_spec.business_summary,'') is not null then
     v_acceptance_ok:=position(lower(left(v_spec.business_summary,80)) in lower(v_runtime_body))>0
-      or position(lower(left((select name from public.projectos_projects where id=v_ver.project_id),80)) in lower(v_runtime_body))>0;
+      or position(lower(left((select name from public.pandora_projects where id=v_ver.project_id),80)) in lower(v_runtime_body))>0;
   end if;
 
   v_identity:=encode(extensions.digest(convert_to(concat_ws('|',v_ver.id::text,v_dep.id::text,v_dep.provider_deployment_id,'static_site',v_ver.source_sha256,v_ver.artifact_digest_sha256,coalesce(v_ver.migration_set_digest_sha256,''),coalesce(v_ver.runtime_target_digest_sha256,'')),'utf8'),'sha256'),'hex');
@@ -459,7 +459,7 @@ begin
       update public.pandora_project_deployments set status='ready',verification_state='live_verified',last_provider_check_at=v_now,updated_at=v_now where id=v_dep.id;
       update public.pandora_runtime_environments set status='ready',verification_state='live_verified',last_reconciled_at=v_now,updated_at=v_now
        where organization_id=v_job.organization_id and project_id=v_job.project_id and environment='preview' and current_deployment_id=v_dep.id;
-      update public.projectos_projects
+      update public.pandora_projects
          set config=jsonb_set(coalesce(config,'{}'::jsonb),'{customerJourney}',coalesce(config->'customerJourney','{}'::jsonb)||
            jsonb_build_object('stage','preview_ready','runtimeStatus','ready','previewUrl',v_dep.url,'previewProvider','supabase_preview',
              'previewVersionId',v_ver.id::text,'previewDeploymentId',v_dep.provider_deployment_id,'previewVerificationState','verified','runtimeUpdatedAt',v_now),true),updated_at=v_now
