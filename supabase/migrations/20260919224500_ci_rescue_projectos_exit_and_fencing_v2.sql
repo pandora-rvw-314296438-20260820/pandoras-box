@@ -386,7 +386,64 @@ begin
     raise exception 'canonical project registry missing' using errcode='55000';
   end if;
 
-  v_key := p_repository || ':' || coalesce(p_pr_number,0)::text || ':' || v_sha || ':' || p_workflow_run_id::text;
+  v_key := p_repository || ':' || coalesce(p_pr_number,0)::text || ':' || v_sha;
+
+  select * into v_row
+  from private.pandora_ci_rescue_jobs
+  where idempotency_key=v_key
+  for update;
+
+  if v_row.id is not null then
+    if v_row.status in ('completed','superseded','blocked','failed') then
+      return jsonb_build_object(
+        'accepted',false,
+        'reason','sha_terminal',
+        'id',v_row.id,
+        'status',v_row.status,
+        'idempotencyKey',v_row.idempotency_key
+      );
+    end if;
+
+    update private.pandora_ci_rescue_jobs
+       set workflow_run_id=p_workflow_run_id,
+           workflow_name=v_name,
+           evidence=evidence || coalesce(p_evidence,'{}'::jsonb) || jsonb_build_object(
+             'latestDeliveryId',p_delivery_id,
+             'latestRunSeenAt',clock_timestamp()
+           ),
+           updated_at=clock_timestamp()
+     where id=v_row.id
+     returning * into v_row;
+
+    return jsonb_build_object(
+      'accepted',true,
+      'reused',true,
+      'id',v_row.id,
+      'status',v_row.status,
+      'idempotencyKey',v_row.idempotency_key,
+      'claimGeneration',v_row.claim_generation
+    );
+  end if;
+
+  update private.pandora_ci_rescue_jobs
+     set status='superseded',
+         superseded_by_sha=v_sha,
+         last_error_code='SUPERSEDED_BY_NEWER_SHA',
+         claimed_by=null,
+         lease_token=null,
+         lease_until=null,
+         updated_at=clock_timestamp(),
+         completed_at=clock_timestamp(),
+         evidence=evidence || jsonb_build_object(
+           'supersededAt',clock_timestamp(),
+           'supersededBySha',v_sha,
+           'supersedingDeliveryId',p_delivery_id
+         )
+   where repository=p_repository
+     and branch=v_branch
+     and pr_number is not distinct from p_pr_number
+     and current_failing_sha <> v_sha
+     and status not in ('completed','superseded','blocked','failed');
 
   insert into private.pandora_ci_rescue_jobs(
     external_event_id, delivery_id, organization_id, repository, branch,
