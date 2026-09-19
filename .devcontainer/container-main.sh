@@ -13,10 +13,8 @@ run_builder() {
     return 1
   fi
   git config --global --add safe.directory /workspaces/pandoras-box || true
-  su -s /bin/bash codespace -c '
-    cd /workspaces/pandoras-box || exit 1
-    bash .devcontainer/build-apk.sh
-  ' >/tmp/pandora-apk-builder.log 2>&1
+  cd /workspaces/pandoras-box || return 1
+  bash .devcontainer/build-apk.sh >/tmp/pandora-apk-builder.log 2>&1
 }
 run_builder &
 exec sleep infinity
