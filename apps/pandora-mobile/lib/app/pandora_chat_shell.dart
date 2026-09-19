@@ -140,6 +140,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       Icons.history_outlined,
       Icons.history_rounded,
     ),
+    _ChatDestination(
+      'Vision Intelligence',
+      Icons.videocam_outlined,
+      Icons.videocam_rounded,
+    ),
   ];
 
   static const _enterpriseDescriptions = <int, String>{
@@ -163,6 +168,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     25: 'Verified business reporting, comparisons and revenue evidence.',
     26: 'Only decisions, approvals or missing input that genuinely require you.',
     27: 'Business-readable verified activity and execution evidence.',
+    28: 'Live camera awareness, visual monitoring and incident review for authorized enterprise environments.',
   };
 
   static const _enterpriseItems = <int, List<String>>{
@@ -190,6 +196,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     25: ['Verified KPIs', 'Period comparisons', 'Reports and evidence'],
     26: ['Approvals', 'Consequential decisions', 'Missing access or input'],
     27: ['Verified business activity', 'Provider receipts', 'Execution evidence'],
+    28: ['Live public demo', 'Vision capabilities', 'Authorized camera path'],
   };
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -282,6 +289,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       25 => 'enterprise_revenue',
       26 => 'enterprise_needs_you',
       27 => 'enterprise_activity',
+      28 => 'enterprise_vision',
       _ => 'pandora_chat',
     };
     unawaited(
@@ -597,6 +605,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       25 => 'enterprise_analytics',
       26 => 'enterprise_workflows',
       27 => 'enterprise_logs',
+      28 => 'enterprise_vision',
       _ => throw StateError('Not an Enterprise destination.'),
     };
     final route = switch (index) {
@@ -620,6 +629,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       25 => '/enterprise/revenue',
       26 => '/enterprise/needs-you',
       27 => '/enterprise/activity',
+      28 => '/enterprise/vision',
       _ => throw StateError('Not an Enterprise destination.'),
     };
     final capabilities = switch (index) {
@@ -1081,7 +1091,7 @@ class _EnterpriseMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const ownerIndexes = <int>[8, 23, 24, 9, 25, 26, 27, 21];
+    const ownerIndexes = <int>[8, 23, 28, 24, 9, 25, 26, 27, 21];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../enterprise/enterprise_app_users_screen.dart';
 import '../enterprise/enterprise_live_screen.dart';
+import '../enterprise/enterprise_vision_screen.dart';
 import 'plp_overview_screen.dart';
 
 class EnterpriseSectionScreen extends StatelessWidget {
@@ -31,6 +32,9 @@ class EnterpriseSectionScreen extends StatelessWidget {
       return EnterpriseAppUsersScreen(
         onSelectionChanged: onSelectionChanged,
       );
+    }
+    if (surface == 'enterprise_vision') {
+      return const EnterpriseVisionScreen();
     }
     return EnterpriseLiveScreen(
       surface: surface,

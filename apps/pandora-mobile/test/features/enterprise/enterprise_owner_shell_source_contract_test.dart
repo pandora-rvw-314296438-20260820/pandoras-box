@@ -20,7 +20,7 @@ void main() {
   test('Enterprise owner shell removes developer navigation from owner menu',
       () {
     expect(source,
-        contains('const ownerIndexes = <int>[8, 23, 24, 9, 25, 26, 27, 21];'));
+        contains('const ownerIndexes = <int>[8, 23, 28, 24, 9, 25, 26, 27, 21];'));
     expect(source, isNot(contains('System / Developer')));
     expect(source, isNot(contains('Privileged technical surfaces')));
     expect(source, contains("'PROPERTY OPERATIONS'"));
@@ -29,5 +29,6 @@ void main() {
     expect(source, contains("'Operations'"));
     expect(source, contains("'Guests'"));
     expect(source, contains("'Revenue'"));
+    expect(source, contains("'Vision Intelligence'"));
   });
 }
