@@ -25,6 +25,7 @@ class EnterpriseWorkspaceProfile {
     required this.subtitle,
     required this.initials,
     required this.icon,
+    required this.logoAsset,
     required this.accent,
     required this.sections,
   });
@@ -34,6 +35,7 @@ class EnterpriseWorkspaceProfile {
   final String subtitle;
   final String initials;
   final IconData icon;
+  final String logoAsset;
   final Color accent;
   final List<EnterpriseWorkspaceSection> sections;
 }
@@ -71,6 +73,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
     subtitle: 'Luxury Resort',
     initials: 'PLP',
     icon: Icons.hotel_rounded,
+    logoAsset: 'assets/workspaces/plp.webp',
     accent: Color(0xFFD5A16E),
     sections: <EnterpriseWorkspaceSection>[
       EnterpriseWorkspaceSection('Home', 'enterprise_overview', 'home',
@@ -106,6 +109,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
     subtitle: 'Import/Export',
     initials: '1064',
     icon: Icons.set_meal_rounded,
+    logoAsset: 'assets/workspaces/eurofish.webp',
     accent: Color(0xFF6AA9FF),
     sections: <EnterpriseWorkspaceSection>[
       EnterpriseWorkspaceSection('Home', 'enterprise_overview', 'home',
@@ -142,42 +146,61 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
           icon: Icons.code_rounded),
     ],
   ),
+
   EnterpriseWorkspaceProfile(
     key: 'batalla-associates',
     name: 'Batalla & Associates',
     subtitle: 'Law & Business Offices',
     initials: 'B&A',
     icon: Icons.balance_rounded,
+    logoAsset: 'assets/workspaces/batalla.webp',
     accent: Color(0xFFD5A24F),
     sections: <EnterpriseWorkspaceSection>[
       EnterpriseWorkspaceSection('Home', 'enterprise_overview', 'home',
           icon: Icons.home_rounded),
-      EnterpriseWorkspaceSection('Overview', 'enterprise_overview', 'overview',
-          icon: Icons.dashboard_rounded),
-      EnterpriseWorkspaceSection(
-          'Matters & Cases', 'enterprise_workflows', 'matters-cases',
+      EnterpriseWorkspaceSection('Today', 'enterprise_overview', 'today',
+          icon: Icons.today_rounded),
+      EnterpriseWorkspaceSection('Matters', 'enterprise_data', 'matters',
           icon: Icons.gavel_rounded),
       EnterpriseWorkspaceSection(
-          'Clients & Contacts', 'enterprise_data', 'clients-contacts',
-          icon: Icons.contacts_rounded),
+          'Clients & Intake', 'enterprise_workflows', 'clients-intake',
+          icon: Icons.person_add_alt_1_rounded),
       EnterpriseWorkspaceSection(
-          'Documents & Drafts', 'enterprise_data', 'documents-drafts',
+          'Hearings & Calendar', 'enterprise_workflows', 'hearings-calendar',
+          icon: Icons.calendar_month_rounded),
+      EnterpriseWorkspaceSection(
+          'Reviews & Decisions', 'enterprise_workflows', 'reviews-decisions',
+          icon: Icons.fact_check_rounded),
+      EnterpriseWorkspaceSection(
+          'Documents & Evidence', 'enterprise_data', 'documents-evidence',
           icon: Icons.description_rounded),
       EnterpriseWorkspaceSection(
-          'Calendar & Deadlines', 'enterprise_workflows', 'calendar-deadlines',
-          icon: Icons.calendar_month_rounded),
+          'Paper Files', 'enterprise_data', 'paper-files',
+          icon: Icons.folder_copy_rounded),
+      EnterpriseWorkspaceSection(
+          'Scan & File', 'enterprise_workflows', 'scan-file',
+          icon: Icons.document_scanner_rounded),
+      EnterpriseWorkspaceSection(
+          'Calls & Communications', 'enterprise_workflows',
+          'calls-communications',
+          icon: Icons.call_rounded),
+      EnterpriseWorkspaceSection(
+          'Print Center', 'enterprise_workflows', 'print-center',
+          icon: Icons.print_rounded),
       EnterpriseWorkspaceSection(
           'Billing & Finance', 'enterprise_analytics', 'billing-finance',
           icon: Icons.receipt_long_rounded),
       EnterpriseWorkspaceSection(
-          'Research & Knowledge', 'enterprise_data', 'research-knowledge',
-          icon: Icons.menu_book_rounded),
+          'Reports', 'enterprise_analytics', 'reports',
+          icon: Icons.assessment_rounded),
       EnterpriseWorkspaceSection(
           'Team & Access', 'enterprise_security', 'team-access',
           icon: Icons.group_rounded),
-      EnterpriseWorkspaceSection('Activity', 'enterprise_logs', 'activity',
+      EnterpriseWorkspaceSection(
+          'Activity & Audit', 'enterprise_logs', 'activity-audit',
           icon: Icons.history_rounded),
-      EnterpriseWorkspaceSection('Settings', 'enterprise_settings', 'settings',
+      EnterpriseWorkspaceSection(
+          'Settings', 'enterprise_settings', 'settings',
           icon: Icons.settings_rounded),
       EnterpriseWorkspaceSection(
           'System / Developer', 'enterprise_code', 'system-developer',
@@ -190,6 +213,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
     subtitle: 'Food & Hospitality Group',
     initials: 'BOK',
     icon: Icons.restaurant_rounded,
+    logoAsset: 'assets/workspaces/bok.webp',
     accent: Color(0xFFD1B874),
     sections: <EnterpriseWorkspaceSection>[
       EnterpriseWorkspaceSection('Home', 'enterprise_overview', 'home',
@@ -228,7 +252,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
   ),
 ];
 
-enum _WorkspaceAction { openHome, openOverview }
+enum _WorkspaceAction { openHome, showSections }
 
 class EnterpriseWorkspaceHome extends StatefulWidget {
   const EnterpriseWorkspaceHome({
@@ -400,9 +424,6 @@ class _WorkspaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final home = workspace.sections.first;
-    final overview = workspace.sections.length > 1
-        ? workspace.sections[1]
-        : workspace.sections.first;
     return Material(
       key: ValueKey<String>('workspace-card-' + workspace.key),
       color: const Color(0xC90B0E12),
@@ -483,8 +504,8 @@ class _WorkspaceCard extends StatelessWidget {
                           case _WorkspaceAction.openHome:
                             onOpen(home);
                             break;
-                          case _WorkspaceAction.openOverview:
-                            onOpen(overview);
+                          case _WorkspaceAction.showSections:
+                            onToggle();
                             break;
                         }
                       },
@@ -494,8 +515,8 @@ class _WorkspaceCard extends StatelessWidget {
                           child: Text('Open workspace'),
                         ),
                         PopupMenuItem(
-                          value: _WorkspaceAction.openOverview,
-                          child: Text('Open overview'),
+                          value: _WorkspaceAction.showSections,
+                          child: Text('Show sections'),
                         ),
                       ],
                     ),
@@ -568,18 +589,22 @@ class _WorkspaceLogo extends StatelessWidget {
             ),
           ],
         ),
-        child: Center(
-          child: workspace.key == '1064-euro-fish-traders'
-              ? Icon(workspace.icon, color: Colors.white, size: 30)
-              : Text(
-                  workspace.initials,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: workspace.initials.length > 3 ? 14 : 18,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -.5,
-                  ),
+        child: ClipOval(
+          child: Image.asset(
+            workspace.logoAsset,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (_, __, ___) => Center(
+              child: Text(
+                workspace.initials,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
                 ),
+              ),
+            ),
+          ),
         ),
       );
 }
