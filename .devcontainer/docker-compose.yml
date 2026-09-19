@@ -1,0 +1,23 @@
+services:
+  workspace:
+    image: mcr.microsoft.com/devcontainers/universal:2-linux
+    volumes:
+      - ..:/workspaces/pandoras-box
+    command: sleep infinity
+
+  builder:
+    image: mcr.microsoft.com/devcontainers/universal:2-linux
+    volumes:
+      - ..:/workspaces/pandoras-box
+    working_dir: /workspaces/pandoras-box
+    environment:
+      PANDORA_BUILD_NONCE: ${PANDORA_BUILD_NONCE:-}
+    ports:
+      - "9114:9114"
+    command: >
+      bash -lc '
+        bash .devcontainer/build-picker-apk.sh;
+        rc=$$?;
+        echo "$$rc" > .devcontainer/builder-exit-code.txt;
+        exec sleep infinity
+      '
