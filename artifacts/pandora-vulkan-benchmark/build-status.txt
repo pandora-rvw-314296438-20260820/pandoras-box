@@ -1,4 +1,4 @@
-phase=building
-detail=Gradle assembleDebug with GGML_VULKAN=ON
+phase=publishing
+detail=Publishing APK to GitHub prerelease
 source_sha=84263210f1b911a273d3ae22921a790b6bd51405
-timestamp_utc=2026-09-19T14:10:06Z
+timestamp_utc=2026-09-19T14:15:09Z
