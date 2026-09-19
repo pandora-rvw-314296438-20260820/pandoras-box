@@ -4,7 +4,7 @@
 -- This reconstructs the intentionally history-only control-plane foundation for local migration replay only.
 
 create table if not exists private.project_canonical_registry (
-  project_id uuid primary key references public.projectos_projects(id) on delete cascade,
+  project_id uuid primary key references public.pandora_projects(id) on delete cascade,
   organization_id uuid not null references public.organizations(id) on delete cascade,
   canonical_provider text not null default 'github',
   canonical_repository text not null,
@@ -60,7 +60,7 @@ create unique index if not exists project_canonical_registry_org_repository_idx
 create table if not exists private.project_source_ref_expectations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   provider text not null,
   repository text not null,
   ref_name text not null,
@@ -87,7 +87,7 @@ create table if not exists private.project_provider_observations (
   id uuid primary key default gen_random_uuid(),
   observation_key text not null unique,
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   provider text not null,
   observation_kind text not null,
   repository text,
@@ -122,7 +122,7 @@ create index if not exists project_provider_observations_ref_idx
 create table if not exists private.project_release_receipts (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   source_repository text not null,
   source_ref text not null,
   source_sha text not null,
@@ -162,7 +162,7 @@ create index if not exists project_release_receipts_latest_idx
 create table if not exists private.project_recovery_artifacts (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   artifact_type text not null,
   storage_provider text not null,
   artifact_locator text not null,
@@ -188,7 +188,7 @@ create index if not exists project_recovery_artifacts_digest_idx
   on private.project_recovery_artifacts(project_id, sha256);
 
 create table if not exists private.project_release_policies (
-  project_id uuid primary key references public.projectos_projects(id) on delete cascade,
+  project_id uuid primary key references public.pandora_projects(id) on delete cascade,
   organization_id uuid not null references public.organizations(id) on delete cascade,
   mirror_required boolean not null default true,
   recovery_artifact_required boolean not null default true,
@@ -207,8 +207,8 @@ create table if not exists private.project_release_policies (
 );
 
 create table if not exists private.project_aliases (
-  alias_project_id uuid primary key references public.projectos_projects(id) on delete cascade,
-  canonical_project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  alias_project_id uuid primary key references public.pandora_projects(id) on delete cascade,
+  canonical_project_id uuid not null references public.pandora_projects(id) on delete cascade,
   organization_id uuid not null references public.organizations(id) on delete cascade,
   reason text not null,
   active boolean not null default true,
@@ -220,7 +220,7 @@ create table if not exists private.project_aliases (
 create index if not exists project_aliases_canonical_idx
   on private.project_aliases(canonical_project_id, active);
 
-create or replace function private.projectos_control_plane_touch_updated_at()
+create or replace function private.pandora_control_plane_touch_updated_at()
 returns trigger
 language plpgsql
 set search_path to ''
@@ -231,7 +231,7 @@ begin
 end;
 $$;
 
-create or replace function private.projectos_control_plane_reject_mutation()
+create or replace function private.pandora_control_plane_reject_mutation()
 returns trigger
 language plpgsql
 set search_path to ''
@@ -244,37 +244,37 @@ $$;
 drop trigger if exists project_canonical_registry_touch on private.project_canonical_registry;
 create trigger project_canonical_registry_touch
 before update on private.project_canonical_registry
-for each row execute function private.projectos_control_plane_touch_updated_at();
+for each row execute function private.pandora_control_plane_touch_updated_at();
 
 drop trigger if exists project_source_ref_expectations_touch on private.project_source_ref_expectations;
 create trigger project_source_ref_expectations_touch
 before update on private.project_source_ref_expectations
-for each row execute function private.projectos_control_plane_touch_updated_at();
+for each row execute function private.pandora_control_plane_touch_updated_at();
 
 drop trigger if exists project_release_policies_touch on private.project_release_policies;
 create trigger project_release_policies_touch
 before update on private.project_release_policies
-for each row execute function private.projectos_control_plane_touch_updated_at();
+for each row execute function private.pandora_control_plane_touch_updated_at();
 
 drop trigger if exists project_aliases_touch on private.project_aliases;
 create trigger project_aliases_touch
 before update on private.project_aliases
-for each row execute function private.projectos_control_plane_touch_updated_at();
+for each row execute function private.pandora_control_plane_touch_updated_at();
 
 drop trigger if exists project_provider_observations_immutable on private.project_provider_observations;
 create trigger project_provider_observations_immutable
 before update or delete on private.project_provider_observations
-for each row execute function private.projectos_control_plane_reject_mutation();
+for each row execute function private.pandora_control_plane_reject_mutation();
 
 drop trigger if exists project_release_receipts_immutable on private.project_release_receipts;
 create trigger project_release_receipts_immutable
 before update or delete on private.project_release_receipts
-for each row execute function private.projectos_control_plane_reject_mutation();
+for each row execute function private.pandora_control_plane_reject_mutation();
 
 drop trigger if exists project_recovery_artifacts_immutable on private.project_recovery_artifacts;
 create trigger project_recovery_artifacts_immutable
 before update or delete on private.project_recovery_artifacts
-for each row execute function private.projectos_control_plane_reject_mutation();
+for each row execute function private.pandora_control_plane_reject_mutation();
 
 do $$
 declare
@@ -296,8 +296,8 @@ begin
 end;
 $$;
 
-revoke all on function private.projectos_control_plane_touch_updated_at() from public, anon, authenticated;
-revoke all on function private.projectos_control_plane_reject_mutation() from public, anon, authenticated;
+revoke all on function private.pandora_control_plane_touch_updated_at() from public, anon, authenticated;
+revoke all on function private.pandora_control_plane_reject_mutation() from public, anon, authenticated;
 
 insert into storage.buckets(id, name, public, file_size_limit, allowed_mime_types)
 values (
