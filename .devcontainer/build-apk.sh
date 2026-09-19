@@ -2,9 +2,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SOURCE_SHA="1707e31b5c24fb72156e68260efc2de93157b6a7"
+SOURCE_SHA="93c41ecc29d246d948fd6e098fc9bad7ecf73214"
 EXPECTED_APP_VERSION="0.4.0-rc.4+11"
-APK_NAME="Pandora-0.4.0-rc.4-11-1707e31b-Kabukicho.apk"
+LLAMA_CPP_SHA="44be98f057e9f9902a8ee12630e181c7f8ec2953"
+APK_NAME="Pandora-Local-AI-mainline-93c41ecc.apk"
 WORKSPACE="$(git rev-parse --show-toplevel)"
 PUBLIC_DIR="/tmp/pandora-apk-public"
 LOG="$PUBLIC_DIR/build.log"
@@ -82,7 +83,7 @@ if [ -z "$SDKMANAGER" ] && [ -x "$SDKROOT/cmdline-tools/latest/bin/sdkmanager" ]
 fi
 test -x "$SDKMANAGER"
 yes | "$SDKMANAGER" --licenses >/dev/null || true
-"$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+"$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.13113456" "cmake;3.31.6"
 flutter config --android-sdk "$SDKROOT"
 
 STEP="checkout-exact-source"
@@ -99,6 +100,18 @@ BUILD="/tmp/pandora-mobile-build"
 rm -rf "$BUILD"
 flutter create --platforms=android,web --org com.banataosystems --project-name pandora_mobile "$BUILD"
 cp -R "$EXACT/apps/pandora-mobile/platform/android/." "$BUILD/android/"
+git init -q "$BUILD/android/llama.cpp"
+git -C "$BUILD/android/llama.cpp" remote add origin https://github.com/ggml-org/llama.cpp.git
+git -C "$BUILD/android/llama.cpp" fetch --depth 1 origin "$LLAMA_CPP_SHA"
+git -C "$BUILD/android/llama.cpp" checkout -q --detach FETCH_HEAD
+test "$(git -C "$BUILD/android/llama.cpp" rev-parse HEAD)" = "$LLAMA_CPP_SHA"
+mkdir -p "$BUILD/android/app/src/main/kotlin/com/arm/aichat/internal"
+cp "$BUILD/android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/AiChat.kt" \
+  "$BUILD/android/app/src/main/kotlin/com/arm/aichat/AiChat.kt"
+cp "$BUILD/android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/InferenceEngine.kt" \
+  "$BUILD/android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt"
+cp "$BUILD/android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/internal/InferenceEngineImpl.kt" \
+  "$BUILD/android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt"
 rm -rf "$BUILD/lib" "$BUILD/test" "$BUILD/assets"
 cp -R "$EXACT/apps/pandora-mobile/lib" "$BUILD/lib"
 cp -R "$EXACT/apps/pandora-mobile/test" "$BUILD/test"
@@ -109,6 +122,9 @@ cp "$EXACT/apps/pandora-mobile/pubspec.lock" "$BUILD/pubspec.lock"
 cp "$EXACT/apps/pandora-mobile/analysis_options.yaml" "$BUILD/analysis_options.yaml"
 python3 "$EXACT/apps/pandora-mobile/tool/configure_validation_android.py" \
   "$BUILD/android/app/src/main/AndroidManifest.xml"
+python3 "$EXACT/apps/pandora-mobile/tool/configure_local_ai_android.py" \
+  "$BUILD/android/app/build.gradle.kts" \
+  "$BUILD/android/gradle.properties"
 
 STEP="dependencies"
 write_status "running" ""
@@ -160,6 +176,11 @@ test -x "$ZIPALIGN"
 grep -Fq "package: name='com.banataosystems.pandora_mobile'" "$PUBLIC_DIR/badging.txt"
 grep -Fq "versionCode='11'" "$PUBLIC_DIR/badging.txt"
 grep -Fq "versionName='0.4.0-rc.4'" "$PUBLIC_DIR/badging.txt"
+grep -Fq "native-code: 'arm64-v8a'" "$PUBLIC_DIR/badging.txt"
+unzip -l "$APK" > "$PUBLIC_DIR/apk-files.txt"
+grep -Fq 'lib/arm64-v8a/libai-chat.so' "$PUBLIC_DIR/apk-files.txt"
+grep -Fq 'lib/arm64-v8a/libllama.so' "$PUBLIC_DIR/apk-files.txt"
+grep -Fq 'lib/arm64-v8a/libggml.so' "$PUBLIC_DIR/apk-files.txt"
 if grep -Eiq 'ACCESS_(FINE|COARSE|BACKGROUND)_LOCATION|WRITE_CONTACTS|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_|CAMERA|RECORD_AUDIO|BLUETOOTH_(SCAN|CONNECT|ADVERTISE)|QUERY_ALL_PACKAGES|REQUEST_INSTALL_PACKAGES|SYSTEM_ALERT_WINDOW' "$PUBLIC_DIR/permissions.txt"; then
   echo "Unexpected sensitive Android permission detected." >&2
   exit 1
@@ -176,6 +197,9 @@ source_sha=$SOURCE_SHA
 source_tree=$(git -C "$EXACT" rev-parse HEAD^{tree})
 app_version=$EXPECTED_APP_VERSION
 android_package=com.banataosystems.pandora_mobile
+llama_cpp_sha=$LLAMA_CPP_SHA
+local_ai_enabled=true
+abi=arm64-v8a
 apk_filename=$APK_NAME
 apk_sha256=$APK_SHA
 apk_size_bytes=$APK_SIZE
