@@ -11,7 +11,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
   const EnterpriseVisionScreen({super.key});
 
   static final Uri _sourceUri = Uri.parse(
-    'https://worldportcams.com/en/usa/florida/cape-marina-live-webcam-hd-stream-canaveral-fl',
+    'https://perdidokeyog.com/live-cam/',
   );
 
   void _askPandora(BuildContext context) {
@@ -78,7 +78,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
 
   Widget _intro() => PandoraSurface(
         title: 'Public Vision Demo',
-        subtitle: 'Cape Marina · Canaveral, Florida',
+        subtitle: 'Perdido Key · Florida Gulf Coast',
         leading: const Icon(Icons.videocam_rounded),
         child: const Text(
           'A real public live camera is embedded to demonstrate how Vision '
@@ -93,7 +93,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
 
   Widget _camera(BuildContext context) => PandoraSurface(
         title: 'Live camera',
-        subtitle: 'Embedded from World Port Cams',
+        subtitle: 'Embedded from Perdido Key OG',
         leading: const Icon(Icons.live_tv_rounded),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -194,7 +194,7 @@ class EnterpriseVisionScreen extends StatelessWidget {
             _VisionStatusRow(
               icon: Icons.public_rounded,
               label: 'Live source',
-              value: 'World Port Cams',
+              value: 'Perdido Key OG',
             ),
             SizedBox(height: 12),
             _VisionStatusRow(
