@@ -1,0 +1,4 @@
+phase=started
+detail=Codespace builder started
+source_sha=0ad069bb7538d0bc05c76c80412cc841d3ccfcce
+timestamp_utc=2026-09-19T10:32:07Z
