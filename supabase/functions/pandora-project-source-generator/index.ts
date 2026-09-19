@@ -14,8 +14,8 @@ const MAX_BASE_CONTEXT_BYTES = 120 * 1024;
 const MAX_STREAM_FRAME_BUFFER_BYTES = 256 * 1024;
 const MIN_STATIC_INDEX_BYTES = 1024;
 const BUCKET = "pandora-build-artifacts";
-const MEMORY_PLANNING_URL = "https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-projectos-planning-context";
-const MEMORY_PLANNING_PURPOSE = "projectos-planning-context-v1";
+const MEMORY_PLANNING_URL = "https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-pandora-planning-context";
+const MEMORY_PLANNING_PURPOSE = "pandora-planning-context-v1";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SAFE_PATH = /^(?!\.)(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9_@+.-]+(?:\/[A-Za-z0-9_@+.-]+)*$/;
 
@@ -123,7 +123,7 @@ async function prepareMemoryContext(admin: ReturnType<typeof adminClient>, inten
       || (text(body.context_status) === "available" && approvedIds.length < 1)
       || (text(body.context_status) === "empty" && approvedIds.length !== 0)) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
   const responseBasis = [
-    "projectos-planning-context-response-v1", requestId, text(body.organization_id), text(body.visible_project_id),
+    "pandora-planning-context-response-v1", requestId, text(body.organization_id), text(body.visible_project_id),
     text(body.memory_project_id), text(body.project_key), "build", text(body.query_hash), text(body.retrieval_log_id),
     text(body.context_status), approvedIds.join(","),
     ...highlights.map((item) => [item.id, item.memory_type, item.summary, item.updated_at].join("|")),
@@ -844,7 +844,7 @@ Deno.serve(async (req) => {
     const user = userClient(authorization);
     const { data: auth, error: authError } = await user.auth.getUser();
     if (authError || !auth.user) throw new Error("SIGN_IN_REQUIRED");
-    const { data: project, error: projectError } = await user.from("projectos_projects")
+    const { data: project, error: projectError } = await user.from("pandora_projects")
       .select("id,organization_id,name,objective").eq("id", projectId).maybeSingle();
     if (projectError || !project) throw new Error("PROJECT_NOT_AVAILABLE");
     const admin = adminClient();

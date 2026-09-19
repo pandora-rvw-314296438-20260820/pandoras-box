@@ -40,7 +40,7 @@ CREATE OR REPLACE FUNCTION public.pandora_create_domain_checkout(p_organization_
  SET search_path TO 'pg_catalog', 'public', 'private', 'auth', 'extensions'
 AS $function$
 declare
-  v_user uuid:=auth.uid(); v_quote public.pandora_domain_quotes%rowtype; v_project public.projectos_projects%rowtype;
+  v_user uuid:=auth.uid(); v_quote public.pandora_domain_quotes%rowtype; v_project public.pandora_projects%rowtype;
   v_gateway text:=lower(btrim(coalesce(p_gateway,''))); v_required text; v_phone text; v_country text;
   v_markup integer; v_retail numeric; v_operation_key text; v_checkout public.pandora_domain_checkouts%rowtype;
   v_existing public.pandora_domain_checkouts%rowtype; v_contact_key text; v_base text; v_return text; v_cancel text;
@@ -58,9 +58,9 @@ begin
   if v_quote.status<>'quoted' or not v_quote.available or v_quote.expires_at<=v_now or v_quote.purchase_price is null then raise exception 'DOMAIN_QUOTE_EXPIRED' using errcode='22023'; end if;
 
   if p_project_identifier ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
-    select * into v_project from public.projectos_projects where organization_id=p_organization_id and id=p_project_identifier::uuid and status<>'archived';
+    select * into v_project from public.pandora_projects where organization_id=p_organization_id and id=p_project_identifier::uuid and status<>'archived';
   else
-    select * into v_project from public.projectos_projects where organization_id=p_organization_id and project_key=p_project_identifier and status<>'archived';
+    select * into v_project from public.pandora_projects where organization_id=p_organization_id and project_key=p_project_identifier and status<>'archived';
   end if;
   if not found then raise exception 'PROJECT_NOT_FOUND' using errcode='P0002'; end if;
 
@@ -184,7 +184,7 @@ CREATE OR REPLACE FUNCTION public.pandora_reconcile_domain_checkout(p_organizati
  SET search_path TO 'pg_catalog', 'public', 'private', 'auth', 'extensions'
 AS $function$
 declare
-  v_user uuid:=auth.uid(); v_checkout public.pandora_domain_checkouts%rowtype; v_project public.projectos_projects%rowtype;
+  v_user uuid:=auth.uid(); v_checkout public.pandora_domain_checkouts%rowtype; v_project public.pandora_projects%rowtype;
   v_provider jsonb; v_provider_status integer; v_status text; v_reference text; v_payment_id text; v_payment_request_id text;
   v_capture jsonb; v_capture_id text; v_paid_amount numeric; v_paid_currency text; v_contact jsonb; v_purchase jsonb; v_code text;
   v_refund jsonb; v_refund_status text; v_refund_id text; v_refund_http integer; v_amount_text text; v_now timestamptz:=now();
@@ -194,7 +194,7 @@ begin
   select * into v_checkout from public.pandora_domain_checkouts
     where id=p_checkout_id and organization_id=p_organization_id and requested_by=v_user for update;
   if not found then raise exception 'DOMAIN_CHECKOUT_NOT_FOUND' using errcode='P0002'; end if;
-  select * into v_project from public.projectos_projects where id=v_checkout.project_id and organization_id=p_organization_id;
+  select * into v_project from public.pandora_projects where id=v_checkout.project_id and organization_id=p_organization_id;
   if not found then raise exception 'PROJECT_NOT_FOUND' using errcode='P0002'; end if;
 
   if v_checkout.status='fulfilled' then

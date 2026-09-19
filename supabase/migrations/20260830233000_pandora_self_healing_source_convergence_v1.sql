@@ -141,7 +141,7 @@ begin
       on i.id=s.source_intent_id
      and i.organization_id=s.organization_id
      and i.project_id=s.project_id
-    join public.projectos_projects p
+    join public.pandora_projects p
       on p.id=s.project_id
      and p.organization_id=s.organization_id
      and p.status='active'

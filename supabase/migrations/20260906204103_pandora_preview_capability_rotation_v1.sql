@@ -135,7 +135,7 @@ begin
   v_current:=found;
 
   if v_current then
-    update public.projectos_projects
+    update public.pandora_projects
     set config=jsonb_set(
           coalesce(config,'{}'::jsonb),
           '{customerJourney}',

@@ -7,7 +7,7 @@ begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '5min';
 
-create or replace function private.projectos_json_object_has_exact_nonnull_keys(
+create or replace function private.pandora_json_object_has_exact_nonnull_keys(
   p_value jsonb,
   p_required_keys text[]
 )
@@ -39,7 +39,7 @@ as $$
   end;
 $$;
 
-create or replace function private.projectos_worker_plan_is_valid(
+create or replace function private.pandora_worker_plan_is_valid(
   p_tool text,
   p_risk text,
   p_args jsonb,
@@ -52,9 +52,9 @@ security definer
 set search_path = ''
 as $$
   select coalesce(
-    p_tool = 'projectos.worker.verify'
+    p_tool = 'pandora.worker.verify'
     and p_risk = 'write'
-    and private.projectos_json_object_has_exact_nonnull_keys(
+    and private.pandora_json_object_has_exact_nonnull_keys(
       p_args,
       array[
         'schemaVersion', 'repository', 'exactSha', 'jobClass',
@@ -71,21 +71,21 @@ as $$
         then (p_args ->> 'maxRuntimeSeconds')::integer between 30 and 1800
       else false
     end
-    and p_payload_hash = private.projectos_worker_plan_payload_hash(p_args),
+    and p_payload_hash = private.pandora_worker_plan_payload_hash(p_args),
     false
   );
 $$;
 
-revoke all on function private.projectos_json_object_has_exact_nonnull_keys(jsonb, text[])
-  from public, anon, authenticated, service_role, projectos_reviewer_ingest;
-revoke all on function private.projectos_worker_plan_is_valid(text, text, jsonb, text)
-  from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+revoke all on function private.pandora_json_object_has_exact_nonnull_keys(jsonb, text[])
+  from public, anon, authenticated, service_role, pandora_reviewer_ingest;
+revoke all on function private.pandora_worker_plan_is_valid(text, text, jsonb, text)
+  from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 
 alter table private.execution_dispatch_outbox
   add constraint execution_dispatch_outbox_job_payload_contract
   check (
     job_payload is null
-    or private.projectos_json_object_has_exact_nonnull_keys(
+    or private.pandora_json_object_has_exact_nonnull_keys(
       job_payload,
       array[
         'schemaVersion', 'audience', 'organizationId', 'dispatchId', 'planId',
@@ -104,7 +104,7 @@ alter table private.execution_dispatch_outbox
   add constraint execution_dispatch_outbox_result_summary_contract
   check (
     result_summary is null
-    or private.projectos_json_object_has_exact_nonnull_keys(
+    or private.pandora_json_object_has_exact_nonnull_keys(
       result_summary,
       array[
         'schemaVersion', 'organizationId', 'dispatchId', 'planId', 'workerId',
@@ -126,10 +126,10 @@ alter table private.execution_dispatch_outbox
 alter table private.execution_plan_contexts
   add constraint execution_plan_contexts_hash_matches_envelope
   check (
-    canonical_context_hash = private.projectos_context_json_sha256(
-      private.projectos_canonical_context_json(context_envelope)
+    canonical_context_hash = private.pandora_context_json_sha256(
+      private.pandora_canonical_context_json(context_envelope)
     )
-    and private.projectos_context_hash_matches_contract(
+    and private.pandora_context_hash_matches_contract(
       context_hash, context_envelope, hash_contract
     ) is true
   ) not valid;
@@ -158,11 +158,11 @@ end;
 $$;
 
 revoke all on function private.assert_control_service_role()
-  from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+  from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 
 -- Moving this legacy definer to private preserved its old broad configuration.
 -- Its body already qualifies every application relation, so pin it empty now.
-alter function private.projectos_upsert_agent_runtime_proof(uuid, text, jsonb)
+alter function private.pandora_upsert_agent_runtime_proof(uuid, text, jsonb)
   set search_path = '';
 
 create or replace function private.reject_governed_worker_review_attestation_mutation()
@@ -178,7 +178,7 @@ end;
 $$;
 
 revoke all on function private.reject_governed_worker_review_attestation_mutation()
-  from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+  from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 
 drop trigger if exists governed_worker_review_attestations_immutable
   on private.governed_worker_review_attestations;

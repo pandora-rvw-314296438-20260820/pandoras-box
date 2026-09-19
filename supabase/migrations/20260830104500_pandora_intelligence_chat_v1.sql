@@ -4,7 +4,7 @@
 create table if not exists public.pandora_intelligence_threads (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid null references public.projectos_projects(id) on delete set null,
+  project_id uuid null references public.pandora_projects(id) on delete set null,
   created_by uuid not null references auth.users(id) on delete cascade,
   title text not null default 'New conversation',
   status text not null default 'active',
@@ -29,7 +29,7 @@ create table if not exists public.pandora_intelligence_messages (
   id uuid primary key default gen_random_uuid(),
   thread_id uuid not null references public.pandora_intelligence_threads(id) on delete cascade,
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid null references public.projectos_projects(id) on delete set null,
+  project_id uuid null references public.pandora_projects(id) on delete set null,
   author_role text not null,
   content text not null,
   attachment_manifest jsonb not null default '[]'::jsonb,

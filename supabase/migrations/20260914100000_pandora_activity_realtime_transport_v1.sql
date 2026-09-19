@@ -126,7 +126,7 @@ begin
     raise exception 'pandora_activity_thread_not_available' using errcode='42501';
   end if;
   if p_project_id is not null and not exists (
-    select 1 from public.projectos_projects p
+    select 1 from public.pandora_projects p
     where p.id=p_project_id
       and p.organization_id=p_organization_id
       and p.status <> 'archived'

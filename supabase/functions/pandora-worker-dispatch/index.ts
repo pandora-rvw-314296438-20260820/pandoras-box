@@ -121,9 +121,9 @@ function exactAuthorityClaims(
     : "";
   const planId = purpose === "worker_complete" ? String(request.planId || "") : "";
   if (
-    claims.role !== "projectos_worker_ingest" ||
+    claims.role !== "pandora_worker_ingest" ||
     claims.iss !== "pandora-independent-worker-authority" ||
-    claims.aud !== "projectos_worker_ingest" ||
+    claims.aud !== "pandora_worker_ingest" ||
     claims.purpose !== purpose ||
     claims.sub !== request.requestId ||
     claims.organization_id !== request.organizationId ||

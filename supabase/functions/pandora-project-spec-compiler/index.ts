@@ -8,8 +8,8 @@ const MODEL = Deno.env.get("PANDORA_PROJECT_SPEC_MODEL") || "gemini-3.5-flash-li
 const COMPILER_VERSION = "project-spec-compiler-v5";
 const MAX_BODY_BYTES = 2048;
 const MAX_MODEL_TEXT_BYTES = 262144;
-const MEMORY_PLANNING_URL = "https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-projectos-planning-context";
-const MEMORY_PLANNING_PURPOSE = "projectos-planning-context-v1";
+const MEMORY_PLANNING_URL = "https://ivmvufhcsezyhczzondn.supabase.co/functions/v1/pandora-pandora-planning-context";
+const MEMORY_PLANNING_PURPOSE = "pandora-planning-context-v1";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -268,7 +268,7 @@ async function prepareMemoryContext(admin: ReturnType<typeof adminClient>, inten
       || (text(body.context_status) === "empty" && approvedIds.length !== 0)) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
 
   const responseBasis = [
-    "projectos-planning-context-response-v1", requestId, text(body.organization_id), text(body.visible_project_id),
+    "pandora-planning-context-response-v1", requestId, text(body.organization_id), text(body.visible_project_id),
     text(body.memory_project_id), text(body.project_key), decisionType, text(body.query_hash), text(body.retrieval_log_id),
     text(body.context_status), approvedIds.join(","),
     ...highlights.map((item) => [item.id, item.memory_type, item.summary, item.updated_at].join("|")),
@@ -414,7 +414,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (intentError || !intent) throw new Error("INTENT_NOT_AVAILABLE");
     const { data: project, error: projectError } = await user
-      .from("projectos_projects")
+      .from("pandora_projects")
       .select("id,name,objective,config")
       .eq("id", intent.project_id)
       .eq("organization_id", intent.organization_id)

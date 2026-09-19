@@ -17,7 +17,7 @@ create table if not exists private.owner_command_bindings (
   idempotency_key text not null check (idempotency_key ~ '^[0-9a-f]{64}$'),
   request_fingerprint text not null check (request_fingerprint ~ '^[0-9a-f]{64}$'),
   operation text not null check (operation = 'verify_exact_source'),
-  intake_id uuid unique references public.projectos_intake_requests(id) on delete restrict,
+  intake_id uuid unique references public.pandora_intake_requests(id) on delete restrict,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (organization_id, idempotency_key)
@@ -38,7 +38,7 @@ create table if not exists private.execution_dispatch_outbox (
     worker_key_fingerprint is null or worker_key_fingerprint ~ '^[0-9a-f]{64}$'
   ),
   builder_vendor text,
-  runtime_proof_id uuid references public.projectos_agent_runtime_proofs(id) on delete restrict,
+  runtime_proof_id uuid references public.pandora_agent_runtime_proofs(id) on delete restrict,
   lease_expires_at timestamptz,
   job_digest text check (job_digest is null or job_digest ~ '^[0-9a-f]{64}$'),
   job_payload jsonb check (job_payload is null or jsonb_typeof(job_payload) = 'object'),
@@ -50,8 +50,8 @@ create table if not exists private.execution_dispatch_outbox (
     result_summary is null or jsonb_typeof(result_summary) = 'object'
   ),
   worker_reported_at timestamptz,
-  verifier_runtime_proof_id uuid references public.projectos_agent_runtime_proofs(id) on delete restrict,
-  verification_evidence_id uuid references public.projectos_evidence(id) on delete restrict,
+  verifier_runtime_proof_id uuid references public.pandora_agent_runtime_proofs(id) on delete restrict,
+  verification_evidence_id uuid references public.pandora_evidence(id) on delete restrict,
   verification_summary jsonb check (
     verification_summary is null or jsonb_typeof(verification_summary) = 'object'
   ),
@@ -134,7 +134,7 @@ revoke all on table private.execution_dispatch_outbox from service_role;
 revoke all on table private.owner_command_bindings from service_role;
 revoke all on table private.compute_worker_identities from service_role;
 
-create or replace function private.projectos_worker_plan_payload_hash(p_args jsonb)
+create or replace function private.pandora_worker_plan_payload_hash(p_args jsonb)
 returns text
 language sql
 immutable
@@ -146,7 +146,7 @@ as $$
     extensions.digest(
       convert_to(
         concat(
-          '{"tool":"projectos.worker.verify","args":{"exactSha":"',
+          '{"tool":"pandora.worker.verify","args":{"exactSha":"',
           p_args ->> 'exactSha',
           '","jobClass":"',
           p_args ->> 'jobClass',
@@ -164,7 +164,7 @@ as $$
   );
 $$;
 
-create or replace function private.projectos_worker_job_digest(p_payload jsonb)
+create or replace function private.pandora_worker_job_digest(p_payload jsonb)
 returns text
 language sql
 immutable
@@ -177,7 +177,7 @@ as $$
       convert_to(
         concat_ws(
           '|',
-          'projectos-worker-job-v1',
+          'pandora-worker-job-v1',
           p_payload ->> 'schemaVersion',
           p_payload ->> 'audience',
           p_payload ->> 'organizationId',
@@ -204,7 +204,7 @@ as $$
   );
 $$;
 
-create or replace function private.projectos_worker_identity_plan_payload_hash(
+create or replace function private.pandora_worker_identity_plan_payload_hash(
   p_args jsonb
 )
 returns text
@@ -218,7 +218,7 @@ as $$
     extensions.digest(
       convert_to(
         concat(
-          '{"tool":"projectos.worker.identity.register","args":{"allowedJobClasses":',
+          '{"tool":"pandora.worker.identity.register","args":{"allowedJobClasses":',
           replace((p_args -> 'allowedJobClasses')::text, ', ', ','),
           ',"allowedRepositories":',
           replace((p_args -> 'allowedRepositories')::text, ', ', ','),
@@ -238,7 +238,7 @@ as $$
   );
 $$;
 
-create or replace function private.projectos_worker_plan_is_valid(
+create or replace function private.pandora_worker_plan_is_valid(
   p_tool text,
   p_risk text,
   p_args jsonb,
@@ -253,7 +253,7 @@ as $$
   select case
     when jsonb_typeof(p_args) is distinct from 'object' then false
     else coalesce(
-      p_tool = 'projectos.worker.verify'
+      p_tool = 'pandora.worker.verify'
       and p_risk = 'write'
       and p_args ?& array[
         'schemaVersion', 'repository', 'exactSha', 'jobClass',
@@ -270,13 +270,13 @@ as $$
           then (p_args ->> 'maxRuntimeSeconds')::integer between 30 and 1800
         else false
       end
-      and p_payload_hash = private.projectos_worker_plan_payload_hash(p_args),
+      and p_payload_hash = private.pandora_worker_plan_payload_hash(p_args),
       false
     )
   end;
 $$;
 
-create or replace function private.projectos_worker_job_payload_is_valid(
+create or replace function private.pandora_worker_job_payload_is_valid(
   p_payload jsonb
 )
 returns boolean
@@ -325,7 +325,7 @@ as $$
   end;
 $$;
 
-create or replace function private.projectos_worker_result_summary_is_valid(
+create or replace function private.pandora_worker_result_summary_is_valid(
   p_result jsonb
 )
 returns boolean
@@ -385,7 +385,7 @@ as $$
   end;
 $$;
 
-create or replace function private.projectos_worker_evidence_hash(p_result jsonb)
+create or replace function private.pandora_worker_evidence_hash(p_result jsonb)
 returns text
 language sql
 immutable
@@ -398,7 +398,7 @@ as $$
       convert_to(
         concat_ws(
           '|',
-          'projectos-worker-evidence-v1',
+          'pandora-worker-evidence-v1',
           p_result ->> 'schemaVersion',
           p_result ->> 'organizationId',
           p_result ->> 'dispatchId',
@@ -431,22 +431,22 @@ as $$
   );
 $$;
 
-revoke all on function private.projectos_worker_plan_payload_hash(jsonb)
+revoke all on function private.pandora_worker_plan_payload_hash(jsonb)
   from public, anon, authenticated, service_role;
-revoke all on function private.projectos_worker_job_digest(jsonb)
+revoke all on function private.pandora_worker_job_digest(jsonb)
   from public, anon, authenticated, service_role;
-revoke all on function private.projectos_worker_identity_plan_payload_hash(jsonb)
+revoke all on function private.pandora_worker_identity_plan_payload_hash(jsonb)
   from public, anon, authenticated, service_role;
-revoke all on function private.projectos_worker_plan_is_valid(text, text, jsonb, text)
+revoke all on function private.pandora_worker_plan_is_valid(text, text, jsonb, text)
   from public, anon, authenticated, service_role;
-revoke all on function private.projectos_worker_job_payload_is_valid(jsonb)
+revoke all on function private.pandora_worker_job_payload_is_valid(jsonb)
   from public, anon, authenticated, service_role;
-revoke all on function private.projectos_worker_result_summary_is_valid(jsonb)
+revoke all on function private.pandora_worker_result_summary_is_valid(jsonb)
   from public, anon, authenticated, service_role;
-revoke all on function private.projectos_worker_evidence_hash(jsonb)
+revoke all on function private.pandora_worker_evidence_hash(jsonb)
   from public, anon, authenticated, service_role;
 
-create or replace function public.projectos_accept_governed_worker_intake(
+create or replace function public.pandora_accept_governed_worker_intake(
   p_organization_id uuid,
   p_requester_id uuid,
   p_request_text text,
@@ -461,8 +461,8 @@ set search_path = ''
 as $$
 declare
   binding private.owner_command_bindings%rowtype;
-  intake public.projectos_intake_requests%rowtype;
-  project public.projectos_projects%rowtype;
+  intake public.pandora_intake_requests%rowtype;
+  project public.pandora_projects%rowtype;
   accepted jsonb;
 begin
   perform private.assert_control_service_role();
@@ -498,13 +498,13 @@ begin
 
   if binding.intake_id is not null then
     select * into intake
-    from public.projectos_intake_requests
+    from public.pandora_intake_requests
     where organization_id = p_organization_id and id = binding.intake_id;
     if intake.id is null then
       raise exception 'bound owner intake missing' using errcode = '55000';
     end if;
     select * into project
-    from public.projectos_projects
+    from public.pandora_projects
     where organization_id = p_organization_id and id = intake.project_id;
     return jsonb_build_object(
       'intake', to_jsonb(intake),
@@ -513,7 +513,7 @@ begin
     );
   end if;
 
-  accepted := public.projectos_accept_intake(
+  accepted := public.pandora_accept_intake(
     p_organization_id,
     p_requester_id,
     p_request_text,
@@ -538,7 +538,7 @@ begin
 end;
 $$;
 
-create or replace function public.projectos_create_or_get_worker_plan(
+create or replace function public.pandora_create_or_get_worker_plan(
   p_organization_id uuid,
   p_intake_id uuid,
   p_args jsonb,
@@ -563,8 +563,8 @@ begin
   if binding.intake_id is null then
     raise exception 'governed owner intake binding missing' using errcode = '55000';
   end if;
-  if private.projectos_worker_plan_is_valid(
-    'projectos.worker.verify', 'write', p_args, p_payload_hash
+  if private.pandora_worker_plan_is_valid(
+    'pandora.worker.verify', 'write', p_args, p_payload_hash
   ) is distinct from true then
     raise exception 'worker plan identity invalid' using errcode = '22023';
   end if;
@@ -574,7 +574,7 @@ begin
   where organization_id = p_organization_id and intake_id = p_intake_id
   for update;
   if plan.id is not null then
-    if private.projectos_worker_plan_is_valid(
+    if private.pandora_worker_plan_is_valid(
       plan.tool, plan.risk, plan.args, plan.payload_hash
     ) is distinct from true
        or plan.args <> p_args
@@ -603,7 +603,7 @@ begin
     p_organization_id,
     p_intake_id,
     p_intake_id,
-    'projectos.worker.verify',
+    'pandora.worker.verify',
     'write',
     p_args,
     p_payload_hash,
@@ -689,7 +689,7 @@ begin
   -- rollback and only hash collisions broaden serialization.
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended(
-      'projectos:compute-worker:' || p_organization_id::text || ':' || p_worker_id,
+      'pandora:compute-worker:' || p_organization_id::text || ':' || p_worker_id,
       0
     )
   );
@@ -736,11 +736,11 @@ begin
   where organization_id = p_organization_id and id = p_registration_plan_id
   for update;
   if registration_plan.id is null
-     or registration_plan.tool <> 'projectos.worker.identity.register'
+     or registration_plan.tool <> 'pandora.worker.identity.register'
      or registration_plan.risk <> 'write'
      or registration_plan.args <> expected_args
      or registration_plan.payload_hash <>
-       private.projectos_worker_identity_plan_payload_hash(expected_args)
+       private.pandora_worker_identity_plan_payload_hash(expected_args)
      or registration_plan.approved_at is null
      or nullif(trim(coalesce(registration_plan.approved_by, '')), '') is null
      or registration_plan.approved_by = 'system:auto-read' then
@@ -977,7 +977,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if new.tool = 'projectos.worker.verify'
+  if new.tool = 'pandora.worker.verify'
      and new.status = 'executing'
      and old.status is distinct from 'executing'
      and not exists (
@@ -990,7 +990,7 @@ begin
     raise exception 'worker plan requires an atomically staged dispatch'
       using errcode = '55000';
   end if;
-  if new.tool = 'projectos.worker.verify'
+  if new.tool = 'pandora.worker.verify'
      and new.status in ('completed', 'failed')
      and old.status = 'executing'
      and not exists (
@@ -1048,7 +1048,7 @@ begin
   from private.execution_plans
   where organization_id = p_organization_id
     and id = p_plan_id
-    and tool = 'projectos.worker.verify'
+    and tool = 'pandora.worker.verify'
   for update;
   if plan.id is null then return null; end if;
 
@@ -1061,7 +1061,7 @@ begin
      and dispatch.status in ('claimed', 'envelope_ready')
      and dispatch.lease_expires_at <= now() then
     if dispatch.runtime_proof_id is not null then
-      update public.projectos_agent_runtime_proofs
+      update public.pandora_agent_runtime_proofs
       set active_leases = greatest(active_leases - 1, 0),
           updated_at = now()
       where id = dispatch.runtime_proof_id;
@@ -1153,7 +1153,7 @@ as $$
 declare
   plan private.execution_plans%rowtype;
   dispatch private.execution_dispatch_outbox%rowtype;
-  intake public.projectos_intake_requests%rowtype;
+  intake public.pandora_intake_requests%rowtype;
   transition jsonb;
 begin
   perform private.assert_control_service_role();
@@ -1168,17 +1168,17 @@ begin
   for update;
 
   -- A null result tells the owner API to use its ordinary approval lane.
-  if plan.id is null or plan.tool <> 'projectos.worker.verify' then
+  if plan.id is null or plan.tool <> 'pandora.worker.verify' then
     return null;
   end if;
-  if private.projectos_worker_plan_is_valid(
+  if private.pandora_worker_plan_is_valid(
     plan.tool, plan.risk, plan.args, plan.payload_hash
   ) is distinct from true then
     raise exception 'worker plan identity mismatch' using errcode = '55000';
   end if;
 
   select * into intake
-  from public.projectos_intake_requests
+  from public.pandora_intake_requests
   where organization_id = p_organization_id and id = plan.intake_id
   for update;
   if intake.id is null then
@@ -1225,7 +1225,7 @@ begin
         updated_at = now()
     where id = plan.id
     returning * into plan;
-    update public.projectos_intake_requests
+    update public.pandora_intake_requests
     set status = 'rejected',
         analysis = coalesce(analysis, '{}'::jsonb) || jsonb_build_object(
           'latestExecutionPlanId', plan.id,
@@ -1371,8 +1371,8 @@ declare
   dispatch private.execution_dispatch_outbox%rowtype;
   expired_dispatch private.execution_dispatch_outbox%rowtype;
   plan private.execution_plans%rowtype;
-  intake public.projectos_intake_requests%rowtype;
-  runtime public.projectos_agent_runtime_proofs%rowtype;
+  intake public.pandora_intake_requests%rowtype;
+  runtime public.pandora_agent_runtime_proofs%rowtype;
   repository text;
   exact_sha text;
   job_class text;
@@ -1401,7 +1401,7 @@ begin
   limit 1;
   if expired_dispatch.id is not null then
     if expired_dispatch.runtime_proof_id is not null then
-      update public.projectos_agent_runtime_proofs
+      update public.pandora_agent_runtime_proofs
       set active_leases = greatest(active_leases - 1, 0), updated_at = now()
       where id = expired_dispatch.runtime_proof_id;
     end if;
@@ -1475,7 +1475,7 @@ begin
   for update;
   if plan.id is null
      or plan.status <> 'executing'
-     or private.projectos_worker_plan_is_valid(
+     or private.pandora_worker_plan_is_valid(
        plan.tool, plan.risk, plan.args, plan.payload_hash
      ) is distinct from true then
     raise exception 'invalid worker plan state' using errcode = '55000';
@@ -1492,7 +1492,7 @@ begin
 
   if dispatch.status = 'queued' then
     select request.* into intake
-    from public.projectos_intake_requests request
+    from public.pandora_intake_requests request
     where request.id = plan.intake_id
       and request.organization_id = p_organization_id;
     if intake.id is null then
@@ -1500,7 +1500,7 @@ begin
     end if;
 
     select proof.* into runtime
-    from public.projectos_agent_runtime_proofs proof
+    from public.pandora_agent_runtime_proofs proof
     where proof.organization_id = p_organization_id
       and proof.project_id = intake.project_id
       and proof.agent_key = p_worker_identity
@@ -1516,8 +1516,8 @@ begin
       and proof.active_leases < proof.max_concurrent_leases
       and repository = any(proof.repository_scopes)
       and (
-        'projectos.worker.verify' = any(proof.proven_capabilities)
-        or ('projectos.worker.verify:' || job_class) = any(proof.proven_capabilities)
+        'pandora.worker.verify' = any(proof.proven_capabilities)
+        or ('pandora.worker.verify:' || job_class) = any(proof.proven_capabilities)
       )
     order by proof.verified_at desc
     for update
@@ -1540,7 +1540,7 @@ begin
     if dispatch.id is null then
       raise exception 'worker dispatch claim conflict' using errcode = '55000';
     end if;
-    update public.projectos_agent_runtime_proofs
+    update public.pandora_agent_runtime_proofs
     set active_leases = active_leases + 1, updated_at = now()
     where id = runtime.id;
     perform private.append_execution_audit(
@@ -1599,7 +1599,7 @@ begin
   perform private.assert_control_service_role();
   p_worker_identity := lower(trim(coalesce(p_worker_identity, '')));
   if coalesce(p_job_digest, '') !~ '^[0-9a-f]{64}$'
-     or private.projectos_worker_job_payload_is_valid(p_job_payload)
+     or private.pandora_worker_job_payload_is_valid(p_job_payload)
        is distinct from true
      or coalesce(p_job_signature, '') !~ '^[A-Za-z0-9+/]{86}==$' then
     raise exception 'invalid worker job envelope' using errcode = '22023';
@@ -1650,7 +1650,7 @@ begin
   where organization_id = p_organization_id and id = dispatch.plan_id;
   if plan.id is null
      or plan.status <> 'executing'
-     or private.projectos_worker_plan_is_valid(
+     or private.pandora_worker_plan_is_valid(
        plan.tool, plan.risk, plan.args, plan.payload_hash
      ) is distinct from true then
     raise exception 'worker plan identity mismatch' using errcode = '55000';
@@ -1685,7 +1685,7 @@ begin
      or issued_at > now() + interval '2 minutes'
      or expires_at <= now()
      or expires_at > dispatch.lease_expires_at
-     or p_job_digest is distinct from private.projectos_worker_job_digest(p_job_payload) then
+     or p_job_digest is distinct from private.pandora_worker_job_digest(p_job_payload) then
     raise exception 'worker envelope binding mismatch' using errcode = '55000';
   end if;
 
@@ -1757,7 +1757,7 @@ begin
      or coalesce(p_duration_ms, -1) not between 0 and 2100000
      or coalesce(p_job_digest, '') !~ '^[0-9a-f]{64}$'
      or coalesce(p_evidence_sha256, '') !~ '^[0-9a-f]{64}$'
-     or private.projectos_worker_result_summary_is_valid(p_result_summary)
+     or private.pandora_worker_result_summary_is_valid(p_result_summary)
        is distinct from true then
     raise exception 'invalid worker completion' using errcode = '22023';
   end if;
@@ -1810,7 +1810,7 @@ begin
   for update;
   if plan.id is null
      or plan.status <> 'executing'
-     or private.projectos_worker_plan_is_valid(
+     or private.pandora_worker_plan_is_valid(
        plan.tool, plan.risk, plan.args, plan.payload_hash
      ) is distinct from true then
     raise exception 'worker completion plan mismatch' using errcode = '55000';
@@ -1862,7 +1862,7 @@ begin
      or completed_at > now() + interval '2 minutes'
      or extract(epoch from (completed_at - started_at)) * 1000 > p_duration_ms + 5000
      or p_evidence_sha256 is distinct from
-       private.projectos_worker_evidence_hash(p_result_summary)
+       private.pandora_worker_evidence_hash(p_result_summary)
      or (p_outcome = 'completed' and (exit_code <> 0 or tests_discovered < 1)) then
     raise exception 'worker completion evidence mismatch' using errcode = '55000';
   end if;
@@ -1884,7 +1884,7 @@ begin
     raise exception 'worker completion transition conflict' using errcode = '55000';
   end if;
   if prior_status = 'envelope_ready' and dispatch.runtime_proof_id is not null then
-    update public.projectos_agent_runtime_proofs
+    update public.pandora_agent_runtime_proofs
     set active_leases = greatest(active_leases - 1, 0), updated_at = now()
     where id = dispatch.runtime_proof_id;
   end if;
@@ -1932,10 +1932,10 @@ as $$
 declare
   dispatch private.execution_dispatch_outbox%rowtype;
   plan private.execution_plans%rowtype;
-  intake public.projectos_intake_requests%rowtype;
-  builder_proof public.projectos_agent_runtime_proofs%rowtype;
-  verifier_proof public.projectos_agent_runtime_proofs%rowtype;
-  verification_evidence public.projectos_evidence%rowtype;
+  intake public.pandora_intake_requests%rowtype;
+  builder_proof public.pandora_agent_runtime_proofs%rowtype;
+  verifier_proof public.pandora_agent_runtime_proofs%rowtype;
+  verification_evidence public.pandora_evidence%rowtype;
   require_independent_vendor boolean;
   result_duration_ms integer;
 begin
@@ -1981,36 +1981,36 @@ begin
   for update;
   if plan.id is null
      or plan.status <> 'executing'
-     or private.projectos_worker_plan_is_valid(
+     or private.pandora_worker_plan_is_valid(
        plan.tool, plan.risk, plan.args, plan.payload_hash
      ) is distinct from true then
     raise exception 'worker review plan mismatch' using errcode = '55000';
   end if;
 
   select * into intake
-  from public.projectos_intake_requests
+  from public.pandora_intake_requests
   where organization_id = p_organization_id and id = plan.intake_id;
   if intake.id is null then
     raise exception 'worker review intake missing' using errcode = '55000';
   end if;
 
   select * into builder_proof
-  from public.projectos_agent_runtime_proofs
+  from public.pandora_agent_runtime_proofs
   where id = dispatch.runtime_proof_id
     and organization_id = p_organization_id
     and project_id = intake.project_id;
   if builder_proof.id is null
      or builder_proof.agent_key <> dispatch.worker_identity
      or builder_proof.role <> 'builder'
-     or private.projectos_canonical_agent_vendor(builder_proof.vendor)
+     or private.pandora_canonical_agent_vendor(builder_proof.vendor)
        is distinct from
-       private.projectos_canonical_agent_vendor(dispatch.builder_vendor) then
+       private.pandora_canonical_agent_vendor(dispatch.builder_vendor) then
     raise exception 'worker builder identity snapshot mismatch'
       using errcode = '55000';
   end if;
 
   select * into verifier_proof
-  from public.projectos_agent_runtime_proofs proof
+  from public.pandora_agent_runtime_proofs proof
   where proof.id = p_verifier_runtime_proof_id
     and proof.organization_id = p_organization_id
     and proof.project_id = intake.project_id
@@ -2027,9 +2027,9 @@ begin
     and proof.health_state = 'healthy'
     and (plan.args ->> 'repository') = any(proof.repository_scopes)
     and (
-      'projectos.worker.verify.review' = any(proof.proven_capabilities)
+      'pandora.worker.verify.review' = any(proof.proven_capabilities)
       or (
-        'projectos.worker.verify.review:' || (plan.args ->> 'jobClass')
+        'pandora.worker.verify.review:' || (plan.args ->> 'jobClass')
       ) = any(proof.proven_capabilities)
     )
   for update;
@@ -2040,18 +2040,18 @@ begin
 
   select coalesce(policy.require_independent_vendor_review, true)
   into require_independent_vendor
-  from public.projectos_policies policy
+  from public.pandora_policies policy
   where policy.organization_id = p_organization_id;
   require_independent_vendor := coalesce(require_independent_vendor, true);
   if require_independent_vendor
-     and private.projectos_canonical_agent_vendor(verifier_proof.vendor) =
-       private.projectos_canonical_agent_vendor(dispatch.builder_vendor) then
+     and private.pandora_canonical_agent_vendor(verifier_proof.vendor) =
+       private.pandora_canonical_agent_vendor(dispatch.builder_vendor) then
     raise exception 'reviewer vendor is not independent from worker builder'
       using errcode = '42501';
   end if;
 
   select * into verification_evidence
-  from public.projectos_evidence evidence
+  from public.pandora_evidence evidence
   where evidence.id = p_verification_evidence_id
     and evidence.organization_id = p_organization_id
     and evidence.project_id = intake.project_id
@@ -2061,8 +2061,8 @@ begin
   for update;
   if verification_evidence.id is null
      or verification_evidence.evidence_type <> 'worker_dispatch_review'
-     or private.projectos_canonical_agent_vendor(verification_evidence.provider) <>
-       private.projectos_canonical_agent_vendor(verifier_proof.vendor)
+     or private.pandora_canonical_agent_vendor(verification_evidence.provider) <>
+       private.pandora_canonical_agent_vendor(verifier_proof.vendor)
      or verification_evidence.observed_at <
        dispatch.worker_reported_at - interval '2 minutes'
      or verification_evidence.payload_redacted ->> 'dispatchId'
@@ -2073,9 +2073,9 @@ begin
      or verification_evidence.payload_redacted ->> 'reviewerAgent'
        is distinct from
        verifier_proof.agent_key
-     or coalesce(private.projectos_canonical_agent_vendor(
+     or coalesce(private.pandora_canonical_agent_vendor(
        verification_evidence.payload_redacted ->> 'reviewerVendor'
-     ), '') <> private.projectos_canonical_agent_vendor(verifier_proof.vendor)
+     ), '') <> private.pandora_canonical_agent_vendor(verifier_proof.vendor)
      or verification_evidence.payload_redacted ->> 'decision'
        is distinct from p_decision then
     raise exception 'exact worker review evidence unavailable'
@@ -2201,10 +2201,10 @@ $$;
 revoke all on function public.register_compute_worker_identity(
   uuid, uuid, text, text, text[], text[]
 ) from public, anon, authenticated;
-revoke all on function public.projectos_accept_governed_worker_intake(
+revoke all on function public.pandora_accept_governed_worker_intake(
   uuid, uuid, text, text, text, text
 ) from public, anon, authenticated;
-revoke all on function public.projectos_create_or_get_worker_plan(
+revoke all on function public.pandora_create_or_get_worker_plan(
   uuid, uuid, jsonb, text, timestamptz
 ) from public, anon, authenticated;
 revoke all on function public.resolve_compute_worker_identity(uuid, text)
@@ -2231,10 +2231,10 @@ revoke all on function public.verify_governed_worker_dispatch(
 grant execute on function public.register_compute_worker_identity(
   uuid, uuid, text, text, text[], text[]
 ) to service_role;
-grant execute on function public.projectos_accept_governed_worker_intake(
+grant execute on function public.pandora_accept_governed_worker_intake(
   uuid, uuid, text, text, text, text
 ) to service_role;
-grant execute on function public.projectos_create_or_get_worker_plan(
+grant execute on function public.pandora_create_or_get_worker_plan(
   uuid, uuid, jsonb, text, timestamptz
 ) to service_role;
 grant execute on function public.resolve_compute_worker_identity(uuid, text)

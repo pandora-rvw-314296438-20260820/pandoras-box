@@ -13,7 +13,7 @@ create table private.canonical_release_review_receipts (
   supabase_migration_chain_sha256 text not null check (supabase_migration_chain_sha256 ~ '^[0-9a-f]{64}$'),
   request_id uuid not null,
   reviewer_id text not null check (reviewer_id ~ '^[A-Za-z0-9][A-Za-z0-9._:@/-]{2,127}$'),
-  reviewer_runtime_proof_id uuid not null references public.projectos_agent_runtime_proofs(id) on delete restrict,
+  reviewer_runtime_proof_id uuid not null references public.pandora_agent_runtime_proofs(id) on delete restrict,
   reviewer_key_fingerprint text not null check (reviewer_key_fingerprint ~ '^[0-9a-f]{64}$'),
   review_external_id text not null check (review_external_id ~ '^[A-Za-z0-9][A-Za-z0-9._:@/-]{2,191}$'),
   review_source_url text not null check (
@@ -99,14 +99,14 @@ security definer
 set search_path = ''
 as $$
 declare
-  production public.projectos_evidence%rowtype;
+  production public.pandora_evidence%rowtype;
   rollback_transition private.canonical_vercel_rehearsal_receipts%rowtype;
   rollback_restoration private.canonical_vercel_rehearsal_receipts%rowtype;
   migration_receipt private.canonical_supabase_release_receipts%rowtype;
-  wifi public.projectos_evidence%rowtype;
-  mobile_data public.projectos_evidence%rowtype;
+  wifi public.pandora_evidence%rowtype;
+  mobile_data public.pandora_evidence%rowtype;
   identity private.compute_reviewer_identities%rowtype;
-  proof public.projectos_agent_runtime_proofs%rowtype;
+  proof public.pandora_agent_runtime_proofs%rowtype;
   existing private.canonical_release_review_receipts%rowtype;
   receipt private.canonical_release_review_receipts%rowtype;
   receipt_basis text;
@@ -194,7 +194,7 @@ begin
   for update;
 
   select candidate.* into proof
-  from public.projectos_agent_runtime_proofs candidate
+  from public.pandora_agent_runtime_proofs candidate
   where candidate.id = p_verifier_runtime_proof_id
     and candidate.organization_id = p_organization_id
     and candidate.agent_key = p_reviewer_id
@@ -207,12 +207,12 @@ begin
     and candidate.quota_state in ('available', 'limited')
     and candidate.health_state = 'healthy'
     and p_repository = any(candidate.repository_scopes)
-    and 'projectos.release.review' = any(candidate.proven_capabilities)
+    and 'pandora.release.review' = any(candidate.proven_capabilities)
   for update;
 
   if identity.reviewer_id is null
      or proof.id is null
-     or identity.vendor <> private.projectos_canonical_agent_vendor(proof.vendor) then
+     or identity.vendor <> private.pandora_canonical_agent_vendor(proof.vendor) then
     raise exception 'fresh independent release reviewer proof required' using errcode = '42501';
   end if;
 
@@ -272,7 +272,7 @@ begin
   end if;
 
   select evidence.* into production
-  from public.projectos_evidence evidence
+  from public.pandora_evidence evidence
   where evidence.organization_id = p_organization_id
     and evidence.repository = p_repository
     and evidence.head_sha = p_source_sha
@@ -333,7 +333,7 @@ begin
   limit 1;
 
   select evidence.* into wifi
-  from public.projectos_evidence evidence
+  from public.pandora_evidence evidence
   where evidence.organization_id = p_organization_id
     and evidence.repository = p_repository
     and evidence.head_sha = p_source_sha
@@ -355,7 +355,7 @@ begin
   limit 1;
 
   select evidence.* into mobile_data
-  from public.projectos_evidence evidence
+  from public.pandora_evidence evidence
   where evidence.organization_id = p_organization_id
     and evidence.repository = p_repository
     and evidence.head_sha = p_source_sha
@@ -835,7 +835,7 @@ revoke all on function public.get_canonical_release_status_without_final_attesta
   from public, anon, authenticated;
 revoke all on function public.capture_canonical_release_review_receipt(
   uuid,uuid,text,text,text,text,text,text,text,uuid,text,text,text,text,text,text,text,timestamptz
-) from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+) from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 revoke all on function public.capture_canonical_release_owner_authorization(
   uuid,text,uuid,text,text,uuid,text,text,text,timestamptz
 ) from public, anon, authenticated, service_role;
@@ -845,7 +845,7 @@ grant execute on function public.get_canonical_release_status_without_final_atte
   to service_role;
 grant execute on function public.capture_canonical_release_review_receipt(
   uuid,uuid,text,text,text,text,text,text,text,uuid,text,text,text,text,text,text,text,timestamptz
-) to projectos_reviewer_ingest;
+) to pandora_reviewer_ingest;
 grant execute on function public.capture_canonical_release_owner_authorization(
   uuid,text,uuid,text,text,uuid,text,text,text,timestamptz
 ) to authenticated;

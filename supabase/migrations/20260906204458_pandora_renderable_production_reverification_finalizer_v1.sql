@@ -15,7 +15,7 @@ declare
   v_ver public.pandora_project_versions%rowtype;
   v_job public.pandora_build_jobs%rowtype;
   v_run public.pandora_verification_runs%rowtype;
-  v_project public.projectos_projects%rowtype;
+  v_project public.pandora_projects%rowtype;
   v_verification jsonb;
   v_live_url text;
   v_now timestamptz:=clock_timestamp();
@@ -132,7 +132,7 @@ begin
     and lifecycle_status='live';
 
   select * into v_project
-  from public.projectos_projects
+  from public.pandora_projects
   where id=v_dep.project_id
     and organization_id=v_dep.organization_id
   for update;
@@ -145,7 +145,7 @@ begin
     v_dep.url
   );
 
-  update public.projectos_projects
+  update public.pandora_projects
   set config=jsonb_set(
         coalesce(v_project.config,'{}'::jsonb),
         '{customerJourney}',

@@ -21,7 +21,7 @@ begin
 
   select h.status, h.last_success_at, h.stale_after
   into v_vercel_status, v_vercel_last_verified, v_vercel_stale_after
-  from public.projectos_integration_health h
+  from public.pandora_integration_health h
   where h.organization_id = p_organization_id
     and h.provider = 'vercel'
   order by h.updated_at desc nulls last
@@ -40,10 +40,10 @@ begin
     'temporarilyUnavailable',
       not coalesce(v_vercel_status in ('healthy','available','ready','connected','success'), false)
       or (v_vercel_stale_after is not null and v_vercel_stale_after <= now()),
-    'authorization','ProjectOS governs deployment and other consequential Vercel mutations.',
+    'authorization','Pandora governs deployment and other consequential Vercel mutations.',
     'capabilities',jsonb_build_array(
       jsonb_build_object('name','deployment.read','mode','read','available',coalesce(v_vercel_status in ('healthy','available','ready','connected','success'), false)),
-      jsonb_build_object('name','deployment.write','mode','write','available',coalesce(v_vercel_status in ('healthy','available','ready','connected','success'), false),'approval','projectos')
+      jsonb_build_object('name','deployment.write','mode','write','available',coalesce(v_vercel_status in ('healthy','available','ready','connected','success'), false),'approval','pandora')
     )
   );
 
@@ -155,7 +155,7 @@ begin
     'Pandora is ready to work without a Project. Projects are optional persistent context, not a prerequisite.',
     E'\n\nPlugins and connectors right now:\n',
     coalesce(v_lines,'No plugin state is currently available.'),
-    E'\n\nTell me the outcome you want. I will use an authorized capability when one exists, route consequential changes through ProjectOS, and tell you when authorization or another dependency is actually required.'
+    E'\n\nTell me the outcome you want. I will use an authorized capability when one exists, route consequential changes through Pandora, and tell you when authorization or another dependency is actually required.'
   );
 
   if v_thread_id is not null then

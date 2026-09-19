@@ -7,7 +7,7 @@ create unique index if not exists pandora_project_specs_source_intent_uidx
 create table if not exists public.pandora_project_spec_compilations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  project_id uuid not null references public.projectos_projects(id) on delete cascade,
+  project_id uuid not null references public.pandora_projects(id) on delete cascade,
   source_intent_id uuid not null references public.pandora_project_intents(id) on delete restrict,
   status text not null default 'running',
   attempt_count integer not null default 1,
@@ -248,7 +248,7 @@ begin
     raise exception 'source intent not found' using errcode='22023';
   end if;
 
-  perform 1 from public.projectos_projects where id=v_project and organization_id=v_org for update;
+  perform 1 from public.pandora_projects where id=v_project and organization_id=v_org for update;
 
   select id into v_existing from public.pandora_project_specs
   where source_intent_id=p_source_intent_id;
