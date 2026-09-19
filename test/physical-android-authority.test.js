@@ -110,13 +110,13 @@ test('candidate runtime cannot mint or use physical authority', () => {
   assert.match(migration, /authority_expires_at > authority_issued_at/);
   assert.match(migration, /consumed_at >= authority_issued_at - interval '30 seconds'/);
   assert.match(migration, /primary key \(issuer, jti\)/);
-  assert.match(migration, /from public, anon, authenticated, service_role, projectos_physical_android_ingest/);
-  assert.match(migration, /\) to projectos_physical_android_ingest;/);
+  assert.match(migration, /from public, anon, authenticated, service_role, pandora_physical_android_ingest/);
+  assert.match(migration, /\) to pandora_physical_android_ingest;/);
   const captureGrant = migration.match(
     /grant execute on function public\.capture_canonical_physical_android_receipt\([\s\S]*?\) to ([^;]+);/,
   );
   assert.ok(captureGrant);
-  assert.equal(captureGrant[1].trim(), 'projectos_physical_android_ingest');
+  assert.equal(captureGrant[1].trim(), 'pandora_physical_android_ingest');
   assert.match(
     config,
     /\[functions\.pandora-physical-android-attestation\]\s+verify_jwt = true/,
@@ -147,7 +147,7 @@ test('physical Android rollback disables authority and preserves immutable evide
   assert.match(rollback, /revoke all on function public\.capture_canonical_physical_android_receipt/);
   assert.match(rollback, /revoke all on function public\.get_canonical_release_status_without_physical_android_authority/);
   assert.match(rollback, /get_canonical_release_status_without_final_attestations/);
-  assert.match(rollback, /revoke projectos_physical_android_ingest from authenticator/);
+  assert.match(rollback, /revoke pandora_physical_android_ingest from authenticator/);
   assert.match(rollback, /set status = 'draining'/);
   assert.match(rollback, /begin;[\s\S]*commit;/);
   assert.doesNotMatch(

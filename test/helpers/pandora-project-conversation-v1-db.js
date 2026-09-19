@@ -71,7 +71,7 @@ async function makeDb() {
       status text not null,
       primary key (organization_id, user_id)
     );
-    create table public.projectos_projects (
+    create table public.pandora_projects (
       id uuid primary key,
       organization_id uuid not null,
       name text not null
@@ -84,7 +84,7 @@ async function makeDb() {
     language sql stable
     as $$
       select exists (
-        select 1 from public.projectos_projects p
+        select 1 from public.pandora_projects p
         where p.id = p_project_id and p.organization_id = p_organization_id
       )
     $$;
@@ -273,7 +273,7 @@ async function seedCore(db) {
     insert into public.memberships(organization_id, user_id, status) values
       ('${UUID.org}', '${UUID.user}', 'active'),
       ('${UUID.otherOrg}', '${UUID.otherUser}', 'active');
-    insert into public.projectos_projects(id, organization_id, name) values
+    insert into public.pandora_projects(id, organization_id, name) values
       ('${UUID.project}', '${UUID.org}', 'BOK Direct'),
       ('${UUID.otherProject}', '${UUID.otherOrg}', 'Other Project');
 

@@ -25,11 +25,11 @@ test('universal router resolves provider and action intent before model chat', a
   assert.match(migration, /projectRequired',false/);
 });
 
-test('universal router preserves governed mutations and vercel ProjectOS intake', async () => {
+test('universal router preserves governed mutations and vercel Pandora intake', async () => {
   const migration = await readFile(migrationPath, 'utf8');
-  assert.match(migration, /projectos_accept_intake/);
+  assert.match(migration, /pandora_accept_intake/);
   assert.match(migration, /deployment\.write/);
-  assert.match(migration, /authority','projectos/);
+  assert.match(migration, /authority','pandora/);
   assert.match(migration, /provider readback and verification succeed/);
   assert.match(migration, /pandora_plugin_runtime_registry_v4/);
   assert.match(migration, /revoke all on function public\.pandora_chat_universal_dispatch_v2\(uuid,text,uuid,uuid\) from public, anon/);

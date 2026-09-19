@@ -40,7 +40,7 @@ test('focus-only HTML contains the same sandbox bridge contract without an ifram
 
 test('same-origin operator route uses read scope and independently verifies returned HTML', () => {
   assert.match(operator, /focus-preview/);
-  assert.match(operator, /return 'projectos:read'/);
+  assert.match(operator, /return 'pandora:read'/);
   assert.match(operator, /(?:change\|focus-preview|change\|focus-preview)/);
   assert.match(broker, /pandora-preview-content/);
   assert.match(broker, /mode: "web_focus"/);

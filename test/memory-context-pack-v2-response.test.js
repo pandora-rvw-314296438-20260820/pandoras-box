@@ -18,7 +18,7 @@ function governedPack() {
       allowedRecordTypes: ["project_fact"],
       canRead: true,
       environment: "production",
-      principalKey: "projectos-mcpmaster-production",
+      principalKey: "pandora-mcpmaster-production",
     },
     canonicalMemory: [{
       id: "0d174b3a-4389-4c15-ae34-fb1f471733e4",

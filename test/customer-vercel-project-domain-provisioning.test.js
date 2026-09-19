@@ -10,7 +10,7 @@ const migration = readFileSync(
 );
 
 test('Simple Mode project insert provisions a bounded Vercel project and stable address', () => {
-  assert.match(migration, /before insert on public\.projectos_projects/i);
+  assert.match(migration, /before insert on public\.pandora_projects/i);
   assert.match(migration, /createdFrom.*simple_mode/is);
   assert.match(migration, /private\.pandora_worker_f_vercel_api_20260829/);
   assert.match(migration, /\/v11\/projects\?teamId=/);
@@ -27,7 +27,7 @@ test('Vercel provisioning is deterministic and idempotently reconciles conflict'
 });
 
 test('stable Vercel domain can become client liveUrl only after exact production proof', () => {
-  assert.match(migration, /before update of config on public\.projectos_projects/i);
+  assert.match(migration, /before update of config on public\.pandora_projects/i);
   assert.match(migration, /productionVerificationState.*live_verified/is);
   assert.match(migration, /v_deployment\.verification_state <> 'live_verified'/);
   assert.match(migration, /targets.*production.*id/is);

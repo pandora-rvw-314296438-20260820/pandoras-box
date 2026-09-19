@@ -9,7 +9,7 @@ const { pathToFileURL } = require("node:url");
 
 const root = join(__dirname, "..");
 const workflowDirectory = join(root, ".github/workflows");
-const verifierPath = join(root, "scripts/verify-projectos-external-review.mjs");
+const verifierPath = join(root, "scripts/verify-pandora-external-review.mjs");
 const verifier = readFileSync(verifierPath, "utf8");
 const workflows = readdirSync(workflowDirectory, { withFileTypes: true })
   .filter((entry) => entry.isFile() && /\.ya?ml$/i.test(entry.name))
@@ -50,16 +50,16 @@ function commit(sha = reportHead) {
 function createFixture() {
   const reportContent = [
     "Google Jules independent review",
-    `projectos-target: ${repository}#137`,
-    `projectos-target-base: ${targetBase}`,
-    `projectos-target-head: ${targetHead}`,
-    `projectos-target-tree: ${targetTree}`,
-    "projectos-verdict: pass",
+    `pandora-target: ${repository}#137`,
+    `pandora-target-base: ${targetBase}`,
+    `pandora-target-head: ${targetHead}`,
+    `pandora-target-tree: ${targetTree}`,
+    "pandora-verdict: pass",
   ].join("\n");
   const state = {
     target: {
       number: 137,
-      body: `candidate\n<!-- projectos-external-review-issue: ${repository}#146 -->`,
+      body: `candidate\n<!-- pandora-external-review-issue: ${repository}#146 -->`,
       head: { sha: targetHead },
       base: { sha: targetBase, ref: "main", repo: { full_name: repository } },
     },
@@ -69,10 +69,10 @@ function createFixture() {
       number: 146,
       state: "open",
       body: [
-        `projectos-target: ${repository}#137`,
-        `projectos-target-base: ${targetBase}`,
-        `projectos-target-head: ${targetHead}`,
-        `projectos-target-tree: ${targetTree}`,
+        `pandora-target: ${repository}#137`,
+        `pandora-target-base: ${targetBase}`,
+        `pandora-target-head: ${targetHead}`,
+        `pandora-target-tree: ${targetTree}`,
       ].join("\n"),
     },
     comments: [
@@ -97,7 +97,7 @@ function createFixture() {
       number: 200,
       state: "open",
       draft: false,
-      title: `projectos-report-head: ${reportHead}`,
+      title: `pandora-report-head: ${reportHead}`,
       created_at: "2026-08-24T01:05:01Z",
       user: { login: "banataosystems", id: 314296438 },
       base: { sha: targetBase, ref: "main", repo: { full_name: repository } },
@@ -111,7 +111,7 @@ function createFixture() {
     },
     reportIssue: {
       number: 200,
-      title: `projectos-report-head: ${reportHead}`,
+      title: `pandora-report-head: ${reportHead}`,
       created_at: "2026-08-24T01:05:01Z",
       state: "open",
       pull_request: { url: `https://api.github.com/repos/${repository}/pulls/200` },
@@ -276,7 +276,7 @@ test("candidate-controlled workflows cannot produce the trusted external-review 
       /\b(?:createCheckRun|createCommitStatus)\b|\b(?:checks|statuses)\.(?:create|update)\b|\/check-runs\b|\/statuses(?:\/|\b)/i,
       name,
     );
-    assert.doesNotMatch(source, /verify-projectos-external-review\.mjs/, name);
+    assert.doesNotMatch(source, /verify-pandora-external-review\.mjs/, name);
   }
 
   const requirement = releaseContract.requiredChecks.find(
@@ -300,16 +300,16 @@ test("the non-authoritative review inspector still binds evidence to an exact PR
   assert.match(verifier, /TRUSTED_REVIEWER = "google-labs-jules"/);
   assert.match(verifier, /TRUSTED_REVIEW_APP_ID = 842251/);
   assert.match(verifier, /performed_via_github_app\?\.id === TRUSTED_REVIEW_APP_ID/);
-  assert.match(verifier, /\^projectos-report-head: \(\[0-9a-f\]\{40\}\)\$/);
+  assert.match(verifier, /\^pandora-report-head: \(\[0-9a-f\]\{40\}\)\$/);
   assert.match(verifier, /SAFE_REPORT_EVENTS/);
   assert.match(verifier, /report PR creation is not authenticated by App 842251/);
   assert.match(verifier, /time_period=year/);
   assert.match(verifier, /report PR timeline must contain exactly one committed event/);
   assert.match(verifier, /report ref must have exactly one repository activity/);
   assert.match(verifier, /loadReportEvidence\(reportOwner, reportRepo, referenceAgain\)/);
-  assert.match(verifier, /exactStructuredValue\(content, "projectos-target-head"/);
-  assert.match(verifier, /exactStructuredValue\(content, "projectos-target-tree"/);
-  assert.match(verifier, /verdicts\[0\] === "projectos-verdict: pass"/);
+  assert.match(verifier, /exactStructuredValue\(content, "pandora-target-head"/);
+  assert.match(verifier, /exactStructuredValue\(content, "pandora-target-tree"/);
+  assert.match(verifier, /verdicts\[0\] === "pandora-verdict: pass"/);
   assert.match(verifier, /nonblank\.at\(-1\) === verdicts\[0\]/);
   assert.match(verifier, /eventName === "pull_request" && reportOnly/);
 });
@@ -386,7 +386,7 @@ test("the inspector repeats mutable invariants immediately before success", asyn
     const original = structuredClone(state.report);
     const moved = structuredClone(state.report);
     moved.head.sha = "1".repeat(40);
-    moved.title = `projectos-report-head: ${moved.head.sha}`;
+    moved.title = `pandora-report-head: ${moved.head.sha}`;
     state.routes.report = ({ count }) => ({ body: count === 1 ? original : moved });
   }), /App-authenticated issue snapshots differ|report PR commit SHA differs|report head changed during verification/);
 
@@ -428,7 +428,7 @@ test("the inspector bounds complete pagination", async () => {
 
 test("all repository-owned required checks test the synthetic integration SHA", () => {
   const workflowPaths = [
-    ".github/workflows/projectos-security.yml",
+    ".github/workflows/pandora-security.yml",
     ".github/workflows/canonical-release-evidence.yml",
     ".github/workflows/windows-worker-contract.yml",
     ".github/workflows/pandora-mobile-integration.yml",

@@ -36,7 +36,7 @@ test('repository router preserves verified Pandora repos and fails closed on deg
   assert.match(routing, /pandora-rvw-314296438-20260820\/pandoras-box-memory/);
   assert.match(routing, /pandora-rvw-314296438-20260820\/pandoras-box/);
   assert.match(routing, /project_key='plp-boracay'/);
-  assert.match(routing, /projectos_project_resources/);
+  assert.match(routing, /pandora_project_resources/);
   assert.match(routing, /binding_state <> 'verified'/);
   assert.match(routing, /'state','degraded','resolved',false/);
   assert.match(routing, /repository_binding_degraded/);
@@ -52,11 +52,11 @@ test('build and short follow-ups reuse only an already resolved same-thread targ
   assert.match(routing, /'resolution','thread_continuation'/);
 });
 
-test('target resolution grants no mutation authority and handoff remains ProjectOS-governed', () => {
+test('target resolution grants no mutation authority and handoff remains Pandora-governed', () => {
   assert.match(routing, /pandora_governed_mutation_request_v1/);
   assert.match(routing, /authorization,[\s\S]*one-time claim,[\s\S]*provider readback,[\s\S]*evidence/i);
   assert.match(routing, /'projectRequired',false/);
-  assert.match(routing, /'source','projectos_intake'/);
+  assert.match(routing, /'source','pandora_intake'/);
   assert.match(api, /pandora_chat_universal_dispatch_v9/);
 });
 

@@ -40,7 +40,7 @@ test("worker plan claim and one-time dispatch are one guarded transaction", () =
   assert.match(migration, /private\.owner_command_bindings/);
   assert.match(migration, /request_fingerprint/);
   assert.match(migration, /owner_idempotency_conflict/);
-  assert.match(migration, /projectos_create_or_get_worker_plan/);
+  assert.match(migration, /pandora_create_or_get_worker_plan/);
   assert.match(migration, /unique \(plan_id\)/i);
   assert.match(migration, /status = 'staged'/);
   assert.match(migration, /public\.claim_execution_plan\(p_organization_id, plan\.id\)/);
@@ -51,7 +51,7 @@ test("worker plan claim and one-time dispatch are one guarded transaction", () =
 });
 
 test("worker plan identity is exact, write-risk, and cannot mutate production", () => {
-  assert.match(migration, /p_tool = 'projectos\.worker\.verify'/);
+  assert.match(migration, /p_tool = 'pandora\.worker\.verify'/);
   assert.match(migration, /p_risk = 'write'/);
   assert.match(
     migration,
@@ -71,7 +71,7 @@ test("worker plan identity is exact, write-risk, and cannot mutate production", 
 });
 
 test("worker eligibility uses a fresh pre-existing builder proof and polling cannot promote health", () => {
-  assert.match(migration, /projectos_agent_runtime_proofs/);
+  assert.match(migration, /pandora_agent_runtime_proofs/);
   assert.match(migration, /verified_at >= now\(\) - interval '2 hours'/);
   assert.match(migration, /context_updated_at >= now\(\) - interval '30 minutes'/);
   assert.match(migration, /credential_state = 'ready'/);
@@ -98,7 +98,7 @@ test("signature, nonce, lease, exact job, and evidence bindings fail closed", ()
   assert.match(migration, /status = 'ambiguous'/);
   assert.match(
     migration,
-    /p_evidence_sha256 is distinct from\s+private\.projectos_worker_evidence_hash/,
+    /p_evidence_sha256 is distinct from\s+private\.pandora_worker_evidence_hash/,
   );
   assert.match(migration, /tests_discovered < 1/);
   assert.match(migration, /sourceTreeSha'.*\^\[0-9a-f\]\{40\}\$/s);
@@ -118,7 +118,7 @@ test("worker output is attested report-only and a separate reviewer finalizes", 
   assert.match(verify, /workerEvidenceSha256/);
   assert.match(
     verify,
-    /from public\.projectos_evidence evidence[\s\S]*and evidence\.invalidated_at is null[\s\S]*for update/,
+    /from public\.pandora_evidence evidence[\s\S]*and evidence\.invalidated_at is null[\s\S]*for update/,
   );
   assert.match(verify, /set status = 'finalizing'/);
   assert.match(verify, /public\.finish_execution_plan/);
@@ -127,12 +127,12 @@ test("worker output is attested report-only and a separate reviewer finalizes", 
 test("worker key enrollment is bound to an approved exact registration plan", () => {
   const register = sqlFunctionBody("register_compute_worker_identity");
   assert.match(register, /p_registration_plan_id uuid/);
-  assert.match(register, /projectos\.worker\.identity\.register/);
+  assert.match(register, /pandora\.worker\.identity\.register/);
   assert.match(register, /registration_plan\.args <> expected_args/);
-  assert.match(register, /projectos_worker_identity_plan_payload_hash/);
+  assert.match(register, /pandora_worker_identity_plan_payload_hash/);
   assert.match(register, /active worker identity must be disabled before rotation/);
   assert.match(register, /pg_catalog\.pg_advisory_xact_lock/);
-  assert.match(register, /projectos:compute-worker:/);
+  assert.match(register, /pandora:compute-worker:/);
   assert.ok(
     register.indexOf("pg_catalog.pg_advisory_xact_lock") <
       register.indexOf("select * into existing_worker"),
@@ -179,6 +179,6 @@ test("Node and database share one fixed execution payload hash vector", async ()
   );
   assert.match(
     migration,
-    /\{\"tool\":\"projectos\.worker\.verify\",\"args\":\{\"exactSha\":\"/,
+    /\{\"tool\":\"pandora\.worker\.verify\",\"args\":\{\"exactSha\":\"/,
   );
 });

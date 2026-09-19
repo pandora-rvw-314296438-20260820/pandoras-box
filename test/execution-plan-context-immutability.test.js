@@ -27,7 +27,7 @@ const fullCapacityGateMigration = readFileSync(
     root,
     "supabase",
     "migrations",
-    "20260817130000_projectos_memory_full_capacity_context_gate.sql",
+    "20260817130000_pandora_memory_full_capacity_context_gate.sql",
   ),
   "utf8",
 );
@@ -76,7 +76,7 @@ const attachmentSql = sqlFunction(
 );
 const canonicalContextSql = sqlFunction(
   migration,
-  "private.projectos_canonical_context_json",
+  "private.pandora_canonical_context_json",
 );
 const hashContractSql = sqlSection(
   migration,
@@ -131,7 +131,7 @@ function legacyV1Envelope() {
     retrievedAt: "2026-08-23T16:30:00.000Z",
     queryHash: "b".repeat(64),
     queryBasis: {
-      tool: "projectos.worker.verify",
+      tool: "pandora.worker.verify",
       identifiers: {
         branch: "main",
         repository: "banataosystems/Pandoras-box",
@@ -196,7 +196,7 @@ function fullCapacityEnvelope({
     retrievedAt: "2026-08-23T16:30:00.000Z",
     queryHash: "d".repeat(64),
     queryBasis: {
-      tool: "projectos.worker.verify",
+      tool: "pandora.worker.verify",
       identifiers: { repository: "banataosystems/Pandoras-box" },
     },
     counts,
@@ -212,8 +212,8 @@ function fullCapacityEnvelope({
     capabilityContract: unavailable
       ? {
         status: "unavailable",
-        id: "pandora-projectos-memory-puzzle",
-        path: "/.well-known/pandora-projectos-memory-contract-v1.json",
+        id: "pandora-pandora-memory-puzzle",
+        path: "/.well-known/pandora-pandora-memory-contract-v1.json",
         compatible: false,
         requiredSections: [...FULL_CAPACITY_SECTIONS],
         observedSections: [],
@@ -222,13 +222,13 @@ function fullCapacityEnvelope({
       }
       : {
         status: "verified",
-        id: "pandora-projectos-memory-puzzle",
+        id: "pandora-pandora-memory-puzzle",
         version: "1.0.0",
         schemaVersion: "1.0.0",
         semanticHash: APPROVED_MEMORY_CAPABILITY_SEMANTIC_HASH,
         authorityRepository: "banataosystems/pandoras-box-memory",
         authorityOrigin: "https://pandorasbox-memory.vercel.app",
-        path: "/.well-known/pandora-projectos-memory-contract-v1.json",
+        path: "/.well-known/pandora-pandora-memory-contract-v1.json",
         compatible: true,
         requiredSections: [...FULL_CAPACITY_SECTIONS],
         observedSections: [...FULL_CAPACITY_SECTIONS],
@@ -342,7 +342,7 @@ async function createHashContractDb() {
 test("plan context replay requires the exact stored hash and envelope", () => {
   assert.match(
     attachmentSql,
-    /if context_row\.plan_id is not null then[\s\S]*context_row\.context_hash = p_context_hash[\s\S]*and context_row\.context_envelope = p_context_envelope[\s\S]*projectos_context_hash_matches_contract[\s\S]*is true then[\s\S]*return jsonb_build_object/,
+    /if context_row\.plan_id is not null then[\s\S]*context_row\.context_hash = p_context_hash[\s\S]*and context_row\.context_envelope = p_context_envelope[\s\S]*pandora_context_hash_matches_contract[\s\S]*is true then[\s\S]*return jsonb_build_object/,
   );
   assert.match(
     attachmentSql,
@@ -522,8 +522,8 @@ test(`production-shaped legacy hashes classify ${SANITIZED_LIVE_HASH_FIXTURE.leg
         count(*) filter (where context_hash = $1)::integer as node_rows,
         count(*) filter (where context_hash = $2)::integer as provider_text_rows,
         count(*) filter (
-          where canonical_context_hash = private.projectos_context_json_sha256(
-            private.projectos_canonical_context_json(context_envelope)
+          where canonical_context_hash = private.pandora_context_json_sha256(
+            private.pandora_canonical_context_json(context_envelope)
           )
         )::integer as canonical_derived_rows
       from private.execution_plan_contexts
@@ -650,7 +650,7 @@ test("database behavior permits only first pending attachment and exact replay",
     schemaVersion: "1.0.0",
     source: "pandora-memory",
     queryBasis: {
-      tool: "projectos.worker.verify",
+      tool: "pandora.worker.verify",
       identifiers: {
         branch: "main",
         repository: "banataosystems/Pandoras-box",
@@ -701,7 +701,7 @@ test("database behavior permits only first pending attachment and exact replay",
         repository: "banataosystems/Pandoras-box",
         branch: "main",
       },
-      tool: "projectos.worker.verify",
+      tool: "pandora.worker.verify",
     },
     source: envelope.source,
     schemaVersion: envelope.schemaVersion,
@@ -803,34 +803,34 @@ test("database behavior permits only first pending attachment and exact replay",
         (id, organization_id, request_id, tool, risk, payload_hash, status, expires_at)
       values
         ('${pendingPlanId}', '${organizationId}', '${pendingRequestId}',
-         'projectos.worker.verify', 'write', '${"c".repeat(64)}',
+         'pandora.worker.verify', 'write', '${"c".repeat(64)}',
          'pending_approval', now() + interval '10 minutes'),
         ('${approvedPlanId}', '${organizationId}', '${approvedRequestId}',
-         'projectos.worker.verify', 'write', '${"d".repeat(64)}',
+         'pandora.worker.verify', 'write', '${"d".repeat(64)}',
          'approved', now() + interval '10 minutes'),
         ('${expiredPlanId}', '${organizationId}', '${expiredRequestId}',
-         'projectos.worker.verify', 'write', '${"e".repeat(64)}',
+         'pandora.worker.verify', 'write', '${"e".repeat(64)}',
          'pending_approval', now() - interval '1 second'),
         ('${fullAvailablePlanId}', '${organizationId}', '${fullAvailableRequestId}',
-         'projectos.worker.verify', 'write', '${"1".repeat(64)}',
+         'pandora.worker.verify', 'write', '${"1".repeat(64)}',
          'pending_approval', now() + interval '10 minutes'),
         ('${fullEmptyPlanId}', '${organizationId}', '${fullEmptyRequestId}',
-         'projectos.worker.verify', 'read', '${"2".repeat(64)}',
+         'pandora.worker.verify', 'read', '${"2".repeat(64)}',
          'pending_approval', now() + interval '10 minutes'),
         ('${fullUnavailablePlanId}', '${organizationId}', '${fullUnavailableRequestId}',
-         'projectos.worker.verify', 'read', '${"3".repeat(64)}',
+         'pandora.worker.verify', 'read', '${"3".repeat(64)}',
          'pending_approval', now() + interval '10 minutes'),
         ('${fullUnavailableStatusPlanId}', '${organizationId}', '${fullUnavailableStatusRequestId}',
-         'projectos.worker.verify', 'read', '${"4".repeat(64)}',
+         'pandora.worker.verify', 'read', '${"4".repeat(64)}',
          'pending_approval', now() + interval '10 minutes'),
         ('${v1EmptyPlanId}', '${organizationId}', '${v1EmptyRequestId}',
-         'projectos.worker.verify', 'read', '${"6".repeat(64)}',
+         'pandora.worker.verify', 'read', '${"6".repeat(64)}',
          'pending_approval', now() + interval '10 minutes'),
         ('${v1UnavailablePlanId}', '${organizationId}', '${v1UnavailableRequestId}',
-         'projectos.worker.verify', 'read', '${"7".repeat(64)}',
+         'pandora.worker.verify', 'read', '${"7".repeat(64)}',
          'pending_approval', now() + interval '10 minutes'),
         ('${legacyReplayPlanId}', '${organizationId}', '${legacyReplayRequestId}',
-         'projectos.worker.verify', 'write', '${"5".repeat(64)}',
+         'pandora.worker.verify', 'write', '${"5".repeat(64)}',
          'approved', now() + interval '10 minutes');
     `);
 
@@ -853,7 +853,7 @@ test("database behavior permits only first pending attachment and exact replay",
     await db.exec(migration);
     await db.exec(fullCapacityGateMigration);
     await db.exec(`
-      create trigger projectos_require_memory_context_before_execute
+      create trigger pandora_require_memory_context_before_execute
       before update of status on private.execution_plans
       for each row
       when (new.status = 'executing' and old.status is distinct from new.status)
@@ -870,10 +870,10 @@ test("database behavior permits only first pending attachment and exact replay",
     );
     const sqlCanonical = await db.query(
       `select
-        private.projectos_canonical_context_json($1::jsonb) as canonical_json,
+        private.pandora_canonical_context_json($1::jsonb) as canonical_json,
         encode(
           extensions.digest(
-            convert_to(private.projectos_canonical_context_json($1::jsonb), 'UTF8'),
+            convert_to(private.pandora_canonical_context_json($1::jsonb), 'UTF8'),
             'sha256'
           ),
           'hex'
@@ -890,7 +890,7 @@ test("database behavior permits only first pending attachment and exact replay",
       },
     };
     const sqlOrderingProbe = await db.query(
-      "select private.projectos_canonical_context_json($1::jsonb) as canonical_json",
+      "select private.pandora_canonical_context_json($1::jsonb) as canonical_json",
       [JSON.stringify(unicodeOrderingProbe)],
     );
     assert.equal(
@@ -1517,7 +1517,7 @@ test("database behavior permits only first pending attachment and exact replay",
         [fullUnavailablePlanId],
       ),
       "55000",
-      /projectos_memory_full_capacity_contract_invalid/,
+      /pandora_memory_full_capacity_contract_invalid/,
     );
     const executionStatuses = await db.query(
       `select id, status from private.execution_plans

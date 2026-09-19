@@ -46,7 +46,7 @@ test("safety does not read historical integration health organization-wide", () 
   );
   const integrationQuery = between(
     safety,
-    'context.client.from("projectos_integration_health")',
+    'context.client.from("pandora_integration_health")',
     'admin.rpc("verify_execution_audit_chain"',
   );
   assert.match(
