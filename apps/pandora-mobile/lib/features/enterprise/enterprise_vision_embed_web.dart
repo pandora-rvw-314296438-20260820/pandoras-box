@@ -5,9 +5,9 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
 
-const String _viewType = 'pandora-world-port-cams-cape-marina';
+const String _viewType = 'pandora-perdido-key-live-cam';
 const String _embedUrl =
-    'https://worldportcams.com/embed/usa/florida/cape-marina-live-webcam-hd-stream-canaveral-fl';
+    'https://perdidokeyog.com/embed/cam/';
 
 bool _registered = false;
 
@@ -29,7 +29,7 @@ Widget buildEnterpriseVisionEmbed() {
         iframe.setAttribute('loading', 'lazy');
         iframe.setAttribute(
           'title',
-          'World Port Cams live camera — Cape Marina, Canaveral',
+          'Perdido Key OG live beach camera',
         );
         return iframe;
       },
