@@ -1,200 +1,200 @@
-  postgrest 2.8.0 (2.9.1 available)
-  realtime_client 2.10.0 (2.13.0 available)
-  shared_preferences_android 2.4.27 (2.4.28 available)
-  shared_preferences_foundation 2.5.6 (2.5.7 available)
-  stack_trace 1.12.1 (1.12.2 available)
-  storage_client 2.6.0 (2.8.0 available)
-  supabase 2.13.4 (2.16.1 available)
-  supabase_flutter 2.15.4 (2.17.2 available)
-  test_api 0.7.12 (0.7.14 available)
-  url_launcher_android 6.3.32 (6.3.33 available)
-  url_launcher_ios 6.4.1 (6.4.2 available)
-  url_launcher_linux 3.2.2 (3.2.3 available)
-  url_launcher_macos 3.2.5 (3.2.6 available)
-  url_launcher_windows 3.1.5 (3.1.6 available)
-  vector_math 2.4.2 (2.4.3 available)
-  vm_service 15.2.0 (15.3.0 available)
-Got dependencies!
-27 packages have newer versions incompatible with dependency constraints.
-Try `flutter pub outdated` for more information.
-00:00 +0: loading /tmp/pandora-mobile-build/test/core/local_ai/pandora_local_ai_router_test.dart
-00:00 +0: PandoraLocalAiRouter keeps routine conversation local
-00:00 +1: PandoraLocalAiRouter routes provider work to cloud intelligence
-00:00 +2: PandoraLocalAiRouter routes external mutations away from local AI
-00:00 +3: PandoraLocalAiRouter routes contextual turns away from local AI
-00:00 +4: All tests passed!
-[1/1] Android SDK
-  ├─ [1/6] android-arm-profile/linux-x64                         1,657ms
-  ├─ [2/6] android-arm-release/linux-x64                         1,447ms
-  ├─ [3/6] android-arm64-profile/linux-x64                       1,436ms
-  ├─ [4/6] android-arm64-release/linux-x64                       1,452ms
-  ├─ [5/6] android-x64-profile/linux-x64                         1,491ms
-  └─ [6/6] android-x64-release/linux-x64                         1,457ms
-Running Gradle task 'assembleDebug'...                          
-Checking the license for package NDK (Side by side) 28.2.13676358 in /home/codespace/android-sdk/licenses
-License for package NDK (Side by side) 28.2.13676358 accepted.
-Preparing "Install NDK (Side by side) 28.2.13676358 v.28.2.13676358".
-"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" ready.
-Installing NDK (Side by side) 28.2.13676358 in /home/codespace/android-sdk/ndk/28.2.13676358
-"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" complete.
-"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" finished.
-Checking the license for package Android SDK Platform 35 in /home/codespace/android-sdk/licenses
-License for package Android SDK Platform 35 accepted.
-Preparing "Install Android SDK Platform 35 (revision 2)".
-"Install Android SDK Platform 35 (revision 2)" ready.
-Installing Android SDK Platform 35 in /home/codespace/android-sdk/platforms/android-35
-"Install Android SDK Platform 35 (revision 2)" complete.
-"Install Android SDK Platform 35 (revision 2)" finished.
-[=========                              ] 25%                                   
-Checking the license for package CMake 3.22.1 in /home/codespace/android-sdk/licenses
-License for package CMake 3.22.1 accepted.
-Preparing "Install CMake 3.22.1 v.3.22.1".
-"Install CMake 3.22.1 v.3.22.1" ready.
-Installing CMake 3.22.1 in /home/codespace/android-sdk/cmake/3.22.1
-"Install CMake 3.22.1 v.3.22.1" complete.
-"Install CMake 3.22.1 v.3.22.1" finished.
-Running Gradle task 'assembleDebug'...                            692.2s
-✓ Built build/app/outputs/flutter-apk/app-debug.apk
-package: name='com.banataosystems.pandora_mobile' versionCode='11' versionName='0.4.0-rc.4' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
-sdkVersion:'24'
-targetSdkVersion:'36'
-uses-permission: name='android.permission.INTERNET'
-uses-permission: name='android.permission.READ_CONTACTS'
-uses-permission: name='android.permission.SEND_SMS'
-uses-permission: name='android.permission.CALL_PHONE'
-uses-permission: name='android.permission.SCHEDULE_EXACT_ALARM'
-uses-permission: name='android.permission.POST_NOTIFICATIONS'
-uses-permission: name='android.permission.WRITE_CALENDAR'
-uses-permission: name='android.permission.READ_CALENDAR'
-uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
-uses-permission: name='com.banataosystems.pandora_mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
-application-label:'Pandora'
-application-label-af:'Pandora'
-application-label-am:'Pandora'
-application-label-ar:'Pandora'
-application-label-as:'Pandora'
-application-label-az:'Pandora'
-application-label-be:'Pandora'
-application-label-bg:'Pandora'
-application-label-bn:'Pandora'
-application-label-bs:'Pandora'
-application-label-ca:'Pandora'
-application-label-cs:'Pandora'
-application-label-da:'Pandora'
-application-label-de:'Pandora'
-application-label-el:'Pandora'
-application-label-en-AU:'Pandora'
-application-label-en-CA:'Pandora'
-application-label-en-GB:'Pandora'
-application-label-en-IN:'Pandora'
-application-label-en-XC:'Pandora'
-application-label-es:'Pandora'
-application-label-es-US:'Pandora'
-application-label-et:'Pandora'
-application-label-eu:'Pandora'
-application-label-fa:'Pandora'
-application-label-fi:'Pandora'
-application-label-fr:'Pandora'
-application-label-fr-CA:'Pandora'
-application-label-gl:'Pandora'
-application-label-gu:'Pandora'
-application-label-hi:'Pandora'
-application-label-hr:'Pandora'
-application-label-hu:'Pandora'
-application-label-hy:'Pandora'
-application-label-in:'Pandora'
-application-label-is:'Pandora'
-application-label-it:'Pandora'
-application-label-iw:'Pandora'
-application-label-ja:'Pandora'
-application-label-ka:'Pandora'
-application-label-kk:'Pandora'
-application-label-km:'Pandora'
-application-label-kn:'Pandora'
-application-label-ko:'Pandora'
-application-label-ky:'Pandora'
-application-label-lo:'Pandora'
-application-label-lt:'Pandora'
-application-label-lv:'Pandora'
-application-label-mk:'Pandora'
-application-label-ml:'Pandora'
-application-label-mn:'Pandora'
-application-label-mr:'Pandora'
-application-label-ms:'Pandora'
-application-label-my:'Pandora'
-application-label-nb:'Pandora'
-application-label-ne:'Pandora'
-application-label-nl:'Pandora'
-application-label-or:'Pandora'
-application-label-pa:'Pandora'
-application-label-pl:'Pandora'
-application-label-pt:'Pandora'
-application-label-pt-BR:'Pandora'
-application-label-pt-PT:'Pandora'
-application-label-ro:'Pandora'
-application-label-ru:'Pandora'
-application-label-si:'Pandora'
-application-label-sk:'Pandora'
-application-label-sl:'Pandora'
-application-label-sq:'Pandora'
-application-label-sr:'Pandora'
-application-label-sr-Latn:'Pandora'
-application-label-sv:'Pandora'
-application-label-sw:'Pandora'
-application-label-ta:'Pandora'
-application-label-te:'Pandora'
-application-label-th:'Pandora'
-application-label-tl:'Pandora'
-application-label-tr:'Pandora'
-application-label-uk:'Pandora'
-application-label-ur:'Pandora'
-application-label-uz:'Pandora'
-application-label-vi:'Pandora'
-application-label-zh-CN:'Pandora'
-application-label-zh-HK:'Pandora'
-application-label-zh-TW:'Pandora'
-application-label-zu:'Pandora'
-application-icon-160:'res/drawable/pandora_launcher_icon.xml'
-application-icon-240:'res/drawable/pandora_launcher_icon.xml'
-application-icon-320:'res/drawable/pandora_launcher_icon.xml'
-application-icon-480:'res/drawable/pandora_launcher_icon.xml'
-application-icon-640:'res/drawable/pandora_launcher_icon.xml'
-application-icon-65535:'res/drawable/pandora_launcher_icon.xml'
-application: label='Pandora' icon='res/drawable/pandora_launcher_icon.xml'
-application-debuggable
-launchable-activity: name='com.banataosystems.pandora_mobile.MainActivity'  label='' icon=''
-uses-library-not-required:'androidx.window.extensions'
-uses-library-not-required:'androidx.window.sidecar'
-feature-group: label=''
-  uses-feature: name='android.hardware.faketouch'
-  uses-implied-feature: name='android.hardware.faketouch' reason='default feature for all apps'
-  uses-feature: name='android.hardware.telephony'
-  uses-implied-feature: name='android.hardware.telephony' reason='requested a telephony permission'
-provides-component:'launcher'
-main
-other-activities
-other-receivers
-supports-screens: 'small' 'normal' 'large' 'xlarge'
-supports-any-density: 'true'
-locales: '--_--' 'af' 'am' 'ar' 'as' 'az' 'be' 'bg' 'bn' 'bs' 'ca' 'cs' 'da' 'de' 'el' 'en-AU' 'en-CA' 'en-GB' 'en-IN' 'en-XC' 'es' 'es-US' 'et' 'eu' 'fa' 'fi' 'fr' 'fr-CA' 'gl' 'gu' 'hi' 'hr' 'hu' 'hy' 'in' 'is' 'it' 'iw' 'ja' 'ka' 'kk' 'km' 'kn' 'ko' 'ky' 'lo' 'lt' 'lv' 'mk' 'ml' 'mn' 'mr' 'ms' 'my' 'nb' 'ne' 'nl' 'or' 'pa' 'pl' 'pt' 'pt-BR' 'pt-PT' 'ro' 'ru' 'si' 'sk' 'sl' 'sq' 'sr' 'sr-Latn' 'sv' 'sw' 'ta' 'te' 'th' 'tl' 'tr' 'uk' 'ur' 'uz' 'vi' 'zh-CN' 'zh-HK' 'zh-TW' 'zu'
-densities: '160' '240' '320' '480' '640' '65535'
-native-code: 'arm64-v8a'
-Verifies
-Verified using v1 scheme (JAR signing): false
-Verified using v2 scheme (APK Signature Scheme v2): true
-Verified using v3 scheme (APK Signature Scheme v3): false
-Verified using v3.1 scheme (APK Signature Scheme v3.1): false
-Verified using v4 scheme (APK Signature Scheme v4): false
-Verified for SourceStamp: false
-Number of signers: 1
-Signer #1 certificate DN: C=US, O=Android, CN=Android Debug
-Signer #1 certificate SHA-256 digest: 50a47ef069ef22f6983c72ee63c5fc48c2e2d72463a7c97bae9ff48422931a37
-Signer #1 certificate SHA-1 digest: 28fb401db7ac12fb2da43e267274a7dc44483d5a
-Signer #1 certificate MD5 digest: c60915e4a02b2fd6f1b77954672ad3a5
-Signer #1 key algorithm: RSA
-Signer #1 key size (bits): 2048
-Signer #1 public key SHA-256 digest: bb406e17fd740c23c7f046d37e3bbd5cce2e133e27a72d6b141da7dd1cb4afa1
-Signer #1 public key SHA-1 digest: 6f02a62feb4f45612b4ea2e8951819ce6623cf53
-Signer #1 public key MD5 digest: c878b1aa0c80359d2643088c22864b3f
-https://github.com/pandora-rvw-314296438-20260820/pandoras-box/releases/tag/pandora-local-ai-picker-a5d5b605
-PANDORA_APK_READY source=a5d5b60551e5c4f02c8aa14c8af4d8b3a268b082 sha256=e0b64b3ed5e157d7fe8707a08df4956cf0b98c1e8f13d5b1989c6dffaf21fc87 size=119813568 release=https://github.com/pandora-rvw-314296438-20260820/pandoras-box/releases/tag/pandora-local-ai-picker-a5d5b605
+Adding debian:Go_Daddy_Class_2_CA.pem
+Adding debian:QuoVadis_Root_CA_1_G3.pem
+Adding debian:Certigna_Root_CA.pem
+Adding debian:DigiCert_TLS_RSA4096_Root_G5.pem
+Adding debian:QuoVadis_Root_CA_3.pem
+Adding debian:DigiCert_Global_Root_CA.pem
+Adding debian:e-Szigno_Root_CA_2017.pem
+Adding debian:Starfield_Class_2_CA.pem
+Adding debian:vTrus_Root_CA.pem
+Adding debian:OISTE_WISeKey_Global_Root_GC_CA.pem
+Adding debian:ANF_Secure_Server_Root_CA.pem
+Adding debian:TrustAsia_Global_Root_CA_G4.pem
+Adding debian:HARICA_TLS_RSA_Root_CA_2021.pem
+Adding debian:emSign_Root_CA_-_C1.pem
+Adding debian:Security_Communication_RootCA2.pem
+Adding debian:IdenTrust_Commercial_Root_CA_1.pem
+Adding debian:Microsoft_ECC_Root_Certificate_Authority_2017.pem
+Adding debian:SSL.com_EV_Root_Certification_Authority_RSA_R2.pem
+Adding debian:Actalis_Authentication_Root_CA.pem
+Adding debian:IdenTrust_Public_Sector_Root_CA_1.pem
+Adding debian:Entrust_Root_Certification_Authority_-_G2.pem
+Adding debian:Security_Communication_ECC_RootCA1.pem
+Adding debian:AC_RAIZ_FNMT-RCM.pem
+Adding debian:GlobalSign_Root_CA_-_R6.pem
+Adding debian:Buypass_Class_2_Root_CA.pem
+Adding debian:GlobalSign_Root_R46.pem
+Adding debian:certSIGN_Root_CA_G2.pem
+Adding debian:USERTrust_ECC_Certification_Authority.pem
+Adding debian:SwissSign_Silver_CA_-_G2.pem
+Adding debian:ISRG_Root_X1.pem
+Adding debian:D-TRUST_Root_Class_3_CA_2_EV_2009.pem
+Adding debian:SZAFIR_ROOT_CA2.pem
+Adding debian:USERTrust_RSA_Certification_Authority.pem
+Adding debian:Security_Communication_RootCA3.pem
+Adding debian:Baltimore_CyberTrust_Root.pem
+Adding debian:T-TeleSec_GlobalRoot_Class_2.pem
+Adding debian:GlobalSign_Root_E46.pem
+Adding debian:HiPKI_Root_CA_-_G1.pem
+Adding debian:COMODO_ECC_Certification_Authority.pem
+Adding debian:TWCA_Global_Root_CA.pem
+Adding debian:DigiCert_Global_Root_G2.pem
+Adding debian:TWCA_Root_Certification_Authority.pem
+Adding debian:CA_Disig_Root_R2.pem
+Adding debian:DigiCert_Assured_ID_Root_G3.pem
+Adding debian:Starfield_Root_Certificate_Authority_-_G2.pem
+Adding debian:GlobalSign_Root_CA_-_R3.pem
+Adding debian:Hellenic_Academic_and_Research_Institutions_RootCA_2015.pem
+Adding debian:TrustAsia_Global_Root_CA_G3.pem
+Adding debian:D-TRUST_EV_Root_CA_1_2020.pem
+Adding debian:D-TRUST_BR_Root_CA_1_2020.pem
+Adding debian:Sectigo_Public_Server_Authentication_Root_R46.pem
+Adding debian:DigiCert_Assured_ID_Root_G2.pem
+Adding debian:certSIGN_ROOT_CA.pem
+Adding debian:Go_Daddy_Root_Certificate_Authority_-_G2.pem
+Adding debian:Hongkong_Post_Root_CA_3.pem
+Adding debian:SSL.com_TLS_RSA_Root_CA_2022.pem
+Adding debian:Amazon_Root_CA_3.pem
+Adding debian:Microsec_e-Szigno_Root_CA_2009.pem
+Adding debian:CommScope_Public_Trust_RSA_Root-02.pem
+Adding debian:AffirmTrust_Commercial.pem
+Adding debian:Atos_TrustedRoot_Root_CA_RSA_TLS_2021.pem
+Adding debian:QuoVadis_Root_CA_2.pem
+Adding debian:Certum_EC-384_CA.pem
+Adding debian:Atos_TrustedRoot_Root_CA_ECC_TLS_2021.pem
+Adding debian:COMODO_Certification_Authority.pem
+Adding debian:HARICA_TLS_ECC_Root_CA_2021.pem
+Adding debian:SecureTrust_CA.pem
+Adding debian:SwissSign_Gold_CA_-_G2.pem
+Adding debian:XRamp_Global_CA_Root.pem
+Adding debian:DigiCert_Trusted_Root_G4.pem
+Adding debian:Certum_Trusted_Network_CA.pem
+Adding debian:QuoVadis_Root_CA_2_G3.pem
+Adding debian:DigiCert_High_Assurance_EV_Root_CA.pem
+Adding debian:Entrust_Root_Certification_Authority_-_G4.pem
+Adding debian:SecureSign_RootCA11.pem
+Adding debian:NetLock_Arany_=Class_Gold=_Főtanúsítvány.pem
+Adding debian:Sectigo_Public_Server_Authentication_Root_E46.pem
+Adding debian:COMODO_RSA_Certification_Authority.pem
+Adding debian:GTS_Root_R1.pem
+Adding debian:Hellenic_Academic_and_Research_Institutions_ECC_RootCA_2015.pem
+Adding debian:GTS_Root_R3.pem
+Adding debian:AffirmTrust_Premium.pem
+Adding debian:emSign_ECC_Root_CA_-_C3.pem
+Adding debian:Starfield_Services_Root_Certificate_Authority_-_G2.pem
+Adding debian:Certainly_Root_E1.pem
+Adding debian:AffirmTrust_Networking.pem
+Adding debian:ACCVRAIZ1.pem
+Adding debian:Atos_TrustedRoot_2011.pem
+Adding debian:TUBITAK_Kamu_SM_SSL_Kok_Sertifikasi_-_Surum_1.pem
+Adding debian:Entrust.net_Premium_2048_Secure_Server_CA.pem
+Adding debian:GTS_Root_R2.pem
+Adding debian:Amazon_Root_CA_4.pem
+Adding debian:Certigna.pem
+Adding debian:ePKI_Root_Certification_Authority.pem
+Adding debian:UCA_Extended_Validation_Root.pem
+Adding debian:CommScope_Public_Trust_RSA_Root-01.pem
+Adding debian:OISTE_WISeKey_Global_Root_GB_CA.pem
+Adding debian:AffirmTrust_Premium_ECC.pem
+Adding debian:Certum_Trusted_Root_CA.pem
+Adding debian:vTrus_ECC_Root_CA.pem
+Adding debian:SSL.com_Root_Certification_Authority_ECC.pem
+Adding debian:Entrust_Root_Certification_Authority_-_EC1.pem
+Adding debian:BJCA_Global_Root_CA1.pem
+Adding debian:Entrust_Root_Certification_Authority.pem
+Adding debian:Certum_Trusted_Network_CA_2.pem
+Adding debian:Microsoft_RSA_Root_Certificate_Authority_2017.pem
+Adding debian:DigiCert_TLS_ECC_P384_Root_G5.pem
+Adding debian:Amazon_Root_CA_2.pem
+Adding debian:Certainly_Root_R1.pem
+Adding debian:TunTrust_Root_CA.pem
+Adding debian:CFCA_EV_ROOT.pem
+Adding debian:UCA_Global_G2_Root.pem
+Adding debian:Trustwave_Global_Certification_Authority.pem
+Adding debian:emSign_ECC_Root_CA_-_G3.pem
+Adding debian:Amazon_Root_CA_1.pem
+Adding debian:Autoridad_de_Certificacion_Firmaprofesional_CIF_A62634068.pem
+Adding debian:GlobalSign_ECC_Root_CA_-_R4.pem
+Adding debian:ISRG_Root_X2.pem
+Adding debian:SSL.com_TLS_ECC_Root_CA_2022.pem
+Adding debian:D-TRUST_Root_Class_3_CA_2_2009.pem
+Adding debian:TeliaSonera_Root_CA_v1.pem
+Adding debian:GTS_Root_R4.pem
+Adding debian:Trustwave_Global_ECC_P256_Certification_Authority.pem
+Adding debian:GLOBALTRUST_2020.pem
+Adding debian:QuoVadis_Root_CA_3_G3.pem
+Adding debian:Comodo_AAA_Services_root.pem
+Adding debian:SSL.com_EV_Root_Certification_Authority_ECC.pem
+Adding debian:AC_RAIZ_FNMT-RCM_SERVIDORES_SEGUROS.pem
+Adding debian:CommScope_Public_Trust_ECC_Root-02.pem
+Adding debian:DigiCert_Assured_ID_Root_CA.pem
+Adding debian:Izenpe.com.pem
+Adding debian:Security_Communication_Root_CA.pem
+Adding debian:Buypass_Class_3_Root_CA.pem
+Adding debian:Telia_Root_CA_v2.pem
+Adding debian:GlobalSign_ECC_Root_CA_-_R5.pem
+Adding debian:GlobalSign_Root_CA.pem
+Adding debian:CommScope_Public_Trust_ECC_Root-01.pem
+Adding debian:T-TeleSec_GlobalRoot_Class_3.pem
+Adding debian:Trustwave_Global_ECC_P384_Certification_Authority.pem
+done.
+Processing triggers for libc-bin (2.31-0ubuntu9.17) ...
+Processing triggers for man-db (2.9.1-1) ...
+Processing triggers for ca-certificates (20240203~20.04.1) ...
+Updating certificates in /etc/ssl/certs...
+0 added, 0 removed; done.
+Running hooks in /etc/ca-certificates/update.d...
+
+done.
+done.
+Setting up openjdk-17-jre-headless:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/java to provide /usr/bin/java (java) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jpackage to provide /usr/bin/jpackage (jpackage) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/keytool to provide /usr/bin/keytool (keytool) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/rmiregistry to provide /usr/bin/rmiregistry (rmiregistry) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/lib/jexec to provide /usr/bin/jexec (jexec) in auto mode
+Processing triggers for fontconfig (2.13.1-2ubuntu3) ...
+Processing triggers for mime-support (3.64ubuntu1) ...
+Processing triggers for hicolor-icon-theme (0.17-2) ...
+Setting up openjdk-17-jre:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
+Setting up openjdk-17-jdk-headless:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jar to provide /usr/bin/jar (jar) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jarsigner to provide /usr/bin/jarsigner (jarsigner) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/javac to provide /usr/bin/javac (javac) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/javadoc to provide /usr/bin/javadoc (javadoc) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/javap to provide /usr/bin/javap (javap) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jcmd to provide /usr/bin/jcmd (jcmd) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jdb to provide /usr/bin/jdb (jdb) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jdeprscan to provide /usr/bin/jdeprscan (jdeprscan) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jdeps to provide /usr/bin/jdeps (jdeps) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jfr to provide /usr/bin/jfr (jfr) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jimage to provide /usr/bin/jimage (jimage) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jinfo to provide /usr/bin/jinfo (jinfo) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jlink to provide /usr/bin/jlink (jlink) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jmap to provide /usr/bin/jmap (jmap) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jmod to provide /usr/bin/jmod (jmod) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jps to provide /usr/bin/jps (jps) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jrunscript to provide /usr/bin/jrunscript (jrunscript) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jshell to provide /usr/bin/jshell (jshell) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jstack to provide /usr/bin/jstack (jstack) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jstat to provide /usr/bin/jstat (jstat) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jstatd to provide /usr/bin/jstatd (jstatd) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/serialver to provide /usr/bin/serialver (serialver) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jhsdb to provide /usr/bin/jhsdb (jhsdb) in auto mode
+Setting up openjdk-17-jdk:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jconsole to provide /usr/bin/jconsole (jconsole) in auto mode
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0 28  173M   28 48.7M    0     0  75.9M      0  0:00:02 --:--:--  0:00:02 75.9M100  173M  100  173M    0     0   111M      0  0:00:01  0:00:01 --:--:--  111M
+android-cmdline.zip: OK
+WARNING: The SDK Manager CLI tool (sdkmanager) is deprecated. Use Android CLI instead.
+The 'android' binary can also be found in the cmdline-tools directory, and 'android sdk' is the replacement for 'sdkmanager'.
+To learn more about the Android CLI and how to use it, see the documentation (https://d.android.com/tools/agents/android-cli)
+
+WARNING: The SDK Manager CLI tool (sdkmanager) is deprecated. Use Android CLI instead.
+The 'android' binary can also be found in the cmdline-tools directory, and 'android sdk' is the replacement for 'sdkmanager'.
+To learn more about the Android CLI and how to use it, see the documentation (https://d.android.com/tools/agents/android-cli)
+
+Loading package information...                                                  Loading local repository...                                                     [                                       ] 3% Loading local repository...        [                                       ] 3% Fetch remote repository...         [=                                      ] 3% Fetch remote repository...         [=                                      ] 4% Fetch remote repository...         [=                                      ] 5% Fetch remote repository...         [==                                     ] 5% Fetch remote repository...         [==                                     ] 6% Fetch remote repository...         [==                                     ] 7% Fetch remote repository...         [==                                     ] 7% Computing updates...               [===                                    ] 8% Computing updates...               [===                                    ] 10% Computing updates...              [===                                    ] 10% Installing CMake 3.31.6           [===                                    ] 10% Downloading cmake-3.31.6-linux.zip[====                                   ] 10% Downloading cmake-3.31.6-linux.zip[====                                   ] 11% Downloading cmake-3.31.6-linux.zip[====                                   ] 12% Downloading cmake-3.31.6-linux.zip[=====                                  ] 13% Downloading cmake-3.31.6-linux.zip[=====                                  ] 14% Downloading cmake-3.31.6-linux.zip[=====                                  ] 15% Downloading cmake-3.31.6-linux.zip[=====                                  ] 15% Unzipping...                      [=====                                  ] 15% Unzipping... bin/cmake            [======                                 ] 15% Unzipping... bin/cmake            [======                                 ] 16% Unzipping... bin/cmake            [======                                 ] 16% Unzipping... bin/cpack            [======                                 ] 17% Unzipping... bin/cpack            [======                                 ] 17% Unzipping... bin/ctest            [=======                                ] 18% Unzipping... bin/ctest            [=======                                ] 18% Unzipping... doc/openssl-openssl-3[=======                                ] 18% Unzipping... doc/cmake-3.31/Copyri[=======                                ] 18% Unzipping... doc/cmake-3.31/cmlibl[=======                                ] 18% Unzipping... doc/cmake-3.31/cmlibr[=======                                ] 18% Unzipping... doc/cmake-3.31/cmzstd[=======                                ] 18% Unzipping... doc/cmake-3.31/cmcurl[=======                                ] 18% Unzipping... doc/cmake-3.31/cmzlib[=======                                ] 18% Unzipping... doc/cmake-3.31/cmnght[=======                                ] 18% Unzipping... doc/cmake-3.31/cmcppd[=======                                ] 18% Unzipping... doc/cmake-3.31/cmliba[=======                                ] 18% Unzipping... doc/cmake-3.31/cmsys/[=======                                ] 18% Unzipping... doc/cmake-3.31/cmlibu[=======                                ] 18% Unzipping... share/emacs/site-lisp[=======                                ] 18% Unzipping... share/vim/vimfiles/sy[=======                                ] 18% Unzipping... share/vim/vimfiles/in[=======                                ] 18% Unzipping... share/aclocal/cmake.m[=======                                ] 18% Unzipping... share/bash-completion[=======                                ] 18% Unzipping... share/cmake-3.31/Modu[=======                                ] 19% Unzipping... share/cmake-3.31/Modu[=======                                ] 19% Unzipping... share/cmake-3.31/Temp[=======                                ] 19% Unzipping... share/cmake-3.31/Help[=======                                ] 19% Unzipping... share/cmake-3.31/incl[=======                                ] 19% Unzipping... source.properties    [=======                                ] 19% Unzipping... bin/ninja            [=======                                ] 19% Unzipping... doc/ninja/LICENSE    [=======                                ] 19% Unzipping... share/cmake-3.31/Modu[===========                            ] 28% Unzipping... share/cmake-3.31/Modu[===========                            ] 28% Installing NDK (Side by side) 29.0[===========                            ] 28% Downloading android-ndk-r29-beta1-[===========                            ] 29% Downloading android-ndk-r29-beta1-[===========                            ] 30% Downloading android-ndk-r29-beta1-[============                           ] 30% Downloading android-ndk-r29-beta1-[============                           ] 31% Downloading android-ndk-r29-beta1-[============                           ] 32% Downloading android-ndk-r29-beta1-[============                           ] 33% Downloading android-ndk-r29-beta1-[============                           ] 33% Unzipping... share/cmake-3.31/Modu[============                           ] 33% Unzipping... android-ndk-r29-beta1[=============                          ] 33% Unzipping... android-ndk-r29-beta1[=============                          ] 34% Unzipping... android-ndk-r29-beta1[=============                          ] 35% Unzipping... android-ndk-r29-beta1[==============                         ] 35% Unzipping... android-ndk-r29-beta1[==============                         ] 36% Unzipping... android-ndk-r29-beta1[==============                         ] 37% Unzipping... android-ndk-r29-beta1[==================                     ] 46% Unzipping... android-ndk-r29-beta1[==================                     ] 46% Installing Android SDK Build-Tools[==================                     ] 46% Downloading build-tools_r36_linux.[==================                     ] 47% Downloading build-tools_r36_linux.[===================                    ] 48% Downloading build-tools_r36_linux.[===================                    ] 49% Downloading build-tools_r36_linux.[===================                    ] 50% Downloading build-tools_r36_linux.[====================                   ] 50% Downloading build-tools_r36_linux.[====================                   ] 51% Downloading build-tools_r36_linux.[====================                   ] 51% Unzipping... android-ndk-r29-beta1[====================                   ] 51% Unzipping... android-16/NOTICE.txt[====================                   ] 51% Unzipping... android-16/aapt      [====================                   ] 51% Unzipping... android-16/aapt2     [====================                   ] 51% Unzipping... android-16/aarch64-li[====================                   ] 51% Unzipping... android-16/aidl      [====================                   ] 51% Unzipping... android-16/apksigner [====================                   ] 51% Unzipping... android-16/arm-linux-[====================                   ] 51% Unzipping... android-16/bcc_compat[====================                   ] 51% Unzipping... android-16/core-lambd[====================                   ] 51% Unzipping... android-16/d8        [====================                   ] 51% Unzipping... android-16/dexdump   [====================                   ] 51% Unzipping... android-16/i686-linux[====================                   ] 51% Unzipping... android-16/lld       [====================                   ] 51% Unzipping... android-16/llvm-rs-cc[====================                   ] 51% Unzipping... android-16/mipsel-lin[====================                   ] 51% Unzipping... android-16/runtime.pr[====================                   ] 51% Unzipping... android-16/source.pro[====================                   ] 51% Unzipping... android-16/split-sele[====================                   ] 51% Unzipping... android-16/x86_64-lin[====================                   ] 51% Unzipping... android-16/zipalign  [====================                   ] 51% Unzipping... android-16/lib/apksig[====================                   ] 51% Unzipping... android-16/lib/d8.jar[====================                   ] 52% Unzipping... android-16/lib/d8.jar[====================                   ] 52% Unzipping... android-16/lib64/libL[=====================                  ] 53% Unzipping... android-16/lib64/libL[=====================                  ] 53% Unzipping... android-16/lib64/libb[=====================                  ] 53% Unzipping... android-16/lib64/libc[=====================                  ] 54% Unzipping... android-16/lib64/libc[=====================                  ] 54% Unzipping... android-16/lld-bin/ll[=====================                  ] 54% Unzipping... android-16/renderscri[=====================                  ] 55% Unzipping... android-16/renderscri[=========================              ] 64% Unzipping... android-16/renderscri[=========================              ] 64% Installing Android SDK Platform 36[=========================              ] 64% Downloading platform-36_r02.zip...[=========================              ] 65% Downloading platform-36_r02.zip...[==========================             ] 65% Downloading platform-36_r02.zip...[==========================             ] 66% Downloading platform-36_r02.zip...[==========================             ] 67% Downloading platform-36_r02.zip...[===========================            ] 68% Downloading platform-36_r02.zip...[===========================            ] 69% Downloading platform-36_r02.zip...[===========================            ] 69% Unzipping... android-16/renderscri[===========================            ] 69% Unzipping... android-36/android-st[===========================            ] 69% Unzipping... android-36/android.ja[===========================            ] 70% Unzipping... android-36/android.ja[============================           ] 70% Unzipping... android-36/android.ja[============================           ] 71% Unzipping... android-36/android.ja[============================           ] 71% Unzipping... android-36/build.prop[============================           ] 71% Unzipping... android-36/core-for-s[============================           ] 71% Unzipping... android-36/data/NOTIC[============================           ] 71% Unzipping... android-36/data/activ[============================           ] 71% Unzipping... android-36/data/annot[============================           ] 71% Unzipping... android-36/data/api-v[============================           ] 71% Unzipping... android-36/data/broad[============================           ] 71% Unzipping... android-36/data/categ[============================           ] 71% Unzipping... android-36/data/featu[============================           ] 71% Unzipping... android-36/data/res/a[============================           ] 71% Unzipping... android-36/data/res/c[============================           ] 71% Unzipping... android-36/data/res/d[============================           ] 72% Unzipping... android-36/data/res/d[============================           ] 72% Unzipping... android-36/data/res/i[============================           ] 72% Unzipping... android-36/data/res/l[============================           ] 72% Unzipping... android-36/data/res/m[============================           ] 72% Unzipping... android-36/data/res/r[============================           ] 72% Unzipping... android-36/data/res/t[============================           ] 72% Unzipping... android-36/data/res/v[=============================          ] 73% Unzipping... android-36/data/res/v[=============================          ] 73% Unzipping... android-36/data/res/x[=============================          ] 73% Unzipping... android-36/data/servi[=============================          ] 73% Unzipping... android-36/data/widge[=============================          ] 73% Unzipping... android-36/framework.[=============================          ] 73% Unzipping... android-36/optional/a[=============================          ] 73% Unzipping... android-36/optional/l[=============================          ] 73% Unzipping... android-36/optional/o[=============================          ] 73% Unzipping... android-36/optional/w[=============================          ] 73% Unzipping... android-36/sdk.proper[=============================          ] 73% Unzipping... android-36/skins/HVGA[=============================          ] 73% Unzipping... android-36/skins/NOTI[=============================          ] 73% Unzipping... android-36/skins/QVGA[=============================          ] 73% Unzipping... android-36/skins/WQVG[=============================          ] 73% Unzipping... android-36/skins/WSVG[=============================          ] 73% Unzipping... android-36/skins/WVGA[=============================          ] 73% Unzipping... android-36/skins/WXGA[=============================          ] 73% Unzipping... android-36/source.pro[=============================          ] 73% Unzipping... android-36/templates/[=============================          ] 73% Unzipping... android-36/uiautomato[================================       ] 82% Unzipping... android-36/uiautomato[================================       ] 82% Installing Android SDK Platform-To[================================       ] 82% Downloading platform-tools_r37.0.1[=================================      ] 83% Downloading platform-tools_r37.0.1[=================================      ] 84% Downloading platform-tools_r37.0.1[=================================      ] 85% Downloading platform-tools_r37.0.1[==================================     ] 85% Downloading platform-tools_r37.0.1[==================================     ] 86% Downloading platform-tools_r37.0.1[==================================     ] 87% Downloading platform-tools_r37.0.1[==================================     ] 87% Unzipping... android-36/uiautomato[==================================     ] 87% Unzipping... platform-tools/NOTICE[==================================     ] 87% Unzipping... platform-tools/adb   [===================================    ] 88% Unzipping... platform-tools/adb   [===================================    ] 89% Unzipping... platform-tools/adb   [===================================    ] 89% Unzipping... platform-tools/etc1to[===================================    ] 89% Unzipping... platform-tools/fastbo[===================================    ] 90% Unzipping... platform-tools/fastbo[===================================    ] 90% Unzipping... platform-tools/hprof-[===================================    ] 90% Unzipping... platform-tools/lib64/[===================================    ] 90% Unzipping... platform-tools/make_f[===================================    ] 90% Unzipping... platform-tools/mke2fs[====================================   ] 90% Unzipping... platform-tools/mke2fs[====================================   ] 90% Unzipping... platform-tools/source[====================================   ] 90% Unzipping... platform-tools/sqlite[====================================   ] 91% Unzipping... platform-tools/sqlite[=======================================] 100% Unzipping... platform-tools/sqlit
+
+Cloning into '/home/codespace/flutter'...
