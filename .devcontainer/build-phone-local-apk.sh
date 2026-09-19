@@ -54,6 +54,9 @@ finish() {
   if ! pgrep -f "python3 -m http.server 9114" >/dev/null 2>&1; then
     nohup python3 -m http.server 9114 --directory "$ARTIFACT_DIR" >"$ARTIFACT_DIR/http.log" 2>&1 &
   fi
+  if command -v gh >/dev/null 2>&1 && [[ -n "${CODESPACE_NAME:-}" ]]; then
+    gh codespace ports visibility 9114:public -c "$CODESPACE_NAME" || true
+  fi
   exit 0
 }
 trap finish EXIT
