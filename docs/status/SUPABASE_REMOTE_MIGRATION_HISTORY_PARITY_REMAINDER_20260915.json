@@ -82,10 +82,10 @@
       "originalStatementCount": 1
     },
     {
-      "name": "pandora_chat_projectos_build_theatre_handoff_v1",
+      "name": "pandora_chat_pandora_build_theatre_handoff_v1",
       "version": "20260911061352",
       "replayMode": "history_receipt_noop",
-      "canonicalPath": "supabase/migrations/20260911060500_pandora_chat_projectos_build_theatre_handoff_v1.sql",
+      "canonicalPath": "supabase/migrations/20260911060500_pandora_chat_pandora_build_theatre_handoff_v1.sql",
       "reconciliation": "same_name_canonical_authority_preserved_without_replay",
       "providerSqlBytes": 2713,
       "originalSqlSha256": "f841373e79c301be83b57a7c2ac16585d9c7e9cb6c35f3e4b7da13d7378d9c1a",
@@ -182,10 +182,10 @@
       "originalStatementCount": 1
     },
     {
-      "name": "projectos_generic_owner_plan_decisions_v1",
+      "name": "pandora_generic_owner_plan_decisions_v1",
       "version": "20260911165640",
       "replayMode": "history_receipt_noop",
-      "canonicalPath": "supabase/migrations/20260911164500_projectos_generic_owner_plan_decisions_v1.sql",
+      "canonicalPath": "supabase/migrations/20260911164500_pandora_generic_owner_plan_decisions_v1.sql",
       "reconciliation": "same_name_canonical_authority_preserved_without_replay",
       "providerSqlBytes": 5475,
       "originalSqlSha256": "71f55fd8d37d335bb073b69f86e5b0aac14464f77d593a37afd123973b6dae49",
@@ -363,9 +363,9 @@
     },
     {
       "version": "20260915041615",
-      "name": "pandora_projectos_retirement_v1",
+      "name": "pandora_pandora_retirement_v1",
       "replayMode": "history_receipt_noop",
-      "canonicalPath": "supabase/migrations/20260914050000_pandora_projectos_retirement_v1.sql",
+      "canonicalPath": "supabase/migrations/20260914050000_pandora_pandora_retirement_v1.sql",
       "reconciliation": "same_name_canonical_authority_exact_provider_body_preserved_without_replay",
       "providerSqlBytes": 6261,
       "originalSqlSha256": "7ba42f0bdd523332b94ed17d8cda7702b05d65b4e47b1d7c53e3977ce01a2fb3",

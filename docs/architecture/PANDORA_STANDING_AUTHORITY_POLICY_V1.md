@@ -135,7 +135,7 @@ They cannot create, broaden, or renew a standing policy. Pandora may propose aut
 - **M7-003** keeps secrets off-device and issues scoped authority without treating credentials as permission.
 - **M7-004** implements financial action risk tiers and protected execution.
 
-Current ProjectOS implementation details such as `read` / `write` / `destructive` execution-plan risk labels are implementation evidence, not the universal semantic policy. Downstream enforcement may map those labels to this contract but must not collapse **all writes** into "ask again" or silently let risk labels expand authority.
+Current Pandora implementation details such as `read` / `write` / `destructive` execution-plan risk labels are implementation evidence, not the universal semantic policy. Downstream enforcement may map those labels to this contract but must not collapse **all writes** into "ask again" or silently let risk labels expand authority.
 
 ## Acceptance boundary
 
