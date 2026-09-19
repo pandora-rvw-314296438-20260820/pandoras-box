@@ -46,6 +46,22 @@ with open(path, "w", encoding="utf-8") as f:
 PY
 }
 
+publish_evidence() {
+  local evidence_branch="build/phone-local-ai-evidence-${SOURCE_SHA:0:12}-20260920"
+  set +e
+  git -C "$ROOT" config user.name "Pandora Build Evidence"
+  git -C "$ROOT" config user.email "pandora-build-evidence@users.noreply.github.com"
+  git -C "$ROOT" checkout -B "$evidence_branch" "$SOURCE_SHA"
+  git -C "$ROOT" add -f .pandora-codespace-artifact
+  if git -C "$ROOT" diff --cached --quiet; then
+    echo "No build evidence files were staged."
+  else
+    git -C "$ROOT" commit -m "build(android): exact-source phone-local APK evidence ${SOURCE_SHA:0:12}"
+    git -C "$ROOT" push --force origin "HEAD:refs/heads/$evidence_branch"
+  fi
+  set -e
+}
+
 finish() {
   rc=$?
   if [[ "$BUILD_DONE" != "1" ]]; then
@@ -54,9 +70,7 @@ finish() {
   if ! pgrep -f "python3 -m http.server 9114" >/dev/null 2>&1; then
     nohup python3 -m http.server 9114 --directory "$ARTIFACT_DIR" >"$ARTIFACT_DIR/http.log" 2>&1 &
   fi
-  if command -v gh >/dev/null 2>&1 && [[ -n "${CODESPACE_NAME:-}" ]]; then
-    gh codespace ports visibility 9114:public -c "$CODESPACE_NAME" || true
-  fi
+  publish_evidence
   exit 0
 }
 trap finish EXIT
