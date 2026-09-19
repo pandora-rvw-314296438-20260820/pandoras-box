@@ -18,6 +18,40 @@ APK_SIZE=""
 RELEASE_URL=""
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 export GH_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+BUILD_ID="picker-a5d5-20260919"
+CALLBACK_NONCE="b7f4c1d9a26e4f30a5d5b60551e5c4f0"
+SUPABASE_URL="https://jcyqixttuebxqqfkjonq.supabase.co"
+SUPABASE_PUBLISHABLE_KEY="sb_publishable_LGu6ncwUVEYI5THBjSV-3g_71AInQZt"
+TUNNEL_URL=""
+
+report_status() {
+  r_status="$1"
+  r_step="$2"
+  r_code="$3"
+  r_tunnel="${4:-}"
+  python3 - "$BUILD_ID" "$CALLBACK_NONCE" "$r_status" "$r_step" "$SOURCE_SHA" "$APK_SHA" "$APK_SIZE" "$r_tunnel" "$r_code" <<'PY' >/tmp/pandora-build-report.json
+import json,sys
+build_id,nonce,status,step,source,sha,size,tunnel,code=sys.argv[1:]
+print(json.dumps({
+  "build_id": build_id,
+  "callback_nonce": nonce,
+  "status": status,
+  "step": step,
+  "source_sha": source,
+  "apk_sha256": sha or None,
+  "apk_size_bytes": int(size) if size else None,
+  "tunnel_url": tunnel or None,
+  "detail": "exitCode=" + code,
+}))
+PY
+  curl -fsS -X POST \
+    "$SUPABASE_URL/rest/v1/pandora_local_ai_build_receipts?on_conflict=build_id" \
+    -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+    -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY" \
+    -H "Content-Type: application/json" \
+    -H "Prefer: resolution=merge-duplicates,return=minimal" \
+    --data-binary @/tmp/pandora-build-report.json >/dev/null || true
+}
 
 exec > >(tee "$LOG") 2>&1
 
@@ -60,6 +94,7 @@ payload={
 }
 open(path,"w",encoding="utf-8").write(json.dumps(payload,indent=2)+"\n")
 PY
+  report_status "$status" "$STEP" "$code" "$TUNNEL_URL" || true
   if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
     put_receipt ".devcontainer/build-status.json" "$STATUS" "chore: record exact local AI APK build status" || true
     put_receipt ".devcontainer/build-tail.log" "$TAIL" "chore: record exact local AI APK build diagnostics" || true
@@ -67,9 +102,6 @@ PY
   exit "$code"
 }
 trap record_status EXIT
-
-STEP="github-auth"
-gh auth status
 
 STEP="install-host-tools"
 sudo rm -f /etc/apt/sources.list.d/yarn.list /etc/apt/sources.list.d/yarn.sources
@@ -162,12 +194,24 @@ grep -Fq "Verification successful" /tmp/zipalign.txt
 APK_SHA="$(sha256sum "$APK" | cut -d' ' -f1)"
 APK_SIZE="$(stat -c '%s' "$APK")"
 
-STEP="publish-github-validation-release"
-if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-  gh release delete "$TAG" --repo "$REPO" --yes --cleanup-tag
-fi
-gh release create "$TAG" --repo "$REPO" --target "$SOURCE_SHA" --prerelease --title "Pandora Local AI Picker Validation a5d5b605" --notes "Validation-only Android ARM64 APK built in GitHub Codespaces from exact source $SOURCE_SHA. Includes the document-picker fix. Not a production release."
-gh release upload "$TAG" "$APK#$ASSET" --repo "$REPO" --clobber
-RELEASE_URL="$(gh release view "$TAG" --repo "$REPO" --json url --jq .url)"
-echo "PANDORA_APK_READY source=$SOURCE_SHA sha256=$APK_SHA size=$APK_SIZE release=$RELEASE_URL"
+STEP="publish-download-tunnel"
+APK_DIR="$(dirname "$APK")"
+nohup python3 -m http.server 9114 --bind 127.0.0.1 --directory "$APK_DIR" >/tmp/pandora-apk-http.log 2>&1 &
+curl -fL --retry 4 -o /tmp/cloudflared \
+  https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+chmod +x /tmp/cloudflared
+nohup /tmp/cloudflared tunnel --url http://127.0.0.1:9114 --no-autoupdate >/tmp/cloudflared.log 2>&1 &
+
+for _ in $(seq 1 45); do
+  base="$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cloudflared.log | head -n1 || true)"
+  if [ -n "$base" ]; then
+    TUNNEL_URL="$base/app-debug.apk"
+    break
+  fi
+  sleep 1
+done
+test -n "$TUNNEL_URL"
+report_status "success" "download-ready" 0 "$TUNNEL_URL"
+
 STEP="complete"
+echo "PANDORA_APK_READY source=$SOURCE_SHA sha256=$APK_SHA size=$APK_SIZE download=$TUNNEL_URL"
