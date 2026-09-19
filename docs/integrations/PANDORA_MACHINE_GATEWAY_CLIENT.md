@@ -1,10 +1,10 @@
-# ProjectOS → Pandora Machine Gateway
+# Pandora → Pandora Machine Gateway
 
 **Status:** recovery overlay implemented in canonical source; not yet integrated into the recovered MCPMaster runtime
 
 ## Purpose
 
-Replace the old dependency on Vercel Deployment Protection bypass credentials with short-lived Vercel workload identity when ProjectOS/MCPMaster calls Pandora Memory.
+Replace the old dependency on Vercel Deployment Protection bypass credentials with short-lived Vercel workload identity when Pandora/MCPMaster calls Pandora Memory.
 
 Human/operator MCPMaster surfaces may remain protected by Vercel SSO. Server-to-server Pandora traffic goes directly to the Supabase-hosted machine gateway.
 
@@ -16,7 +16,7 @@ The endpoint is a protected MCP resource. It exposes only capabilities independe
 
 ## Authentication
 
-ProjectOS running inside the production `mcpmaster` Vercel project obtains a short-lived signed workload token with `@vercel/oidc` and sends it only in:
+Pandora running inside the production `mcpmaster` Vercel project obtains a short-lived signed workload token with `@vercel/oidc` and sends it only in:
 
 `x-pandora-workload-oidc: <signed short-lived token>`
 
@@ -33,7 +33,7 @@ The gateway cryptographically verifies the Vercel issuer/audience/subject and th
 
 ## Production identity currently registered
 
-Principal key: `projectos-mcpmaster-production`
+Principal key: `pandora-mcpmaster-production`
 
 The gateway principal is derived from the already verified Pandora service principal for the Vercel project that owns `mcpmaster.vercel.app`. The gateway does not grant this identity universal access.
 
@@ -58,7 +58,7 @@ It intentionally contains no credential value.
 
 ## Integration gate
 
-Do not claim MCPMaster/ProjectOS is migrated merely because this overlay exists. The recovered running MCPMaster source must import/wire this client, deploy from canonical source, and prove the signed-token path against the live gateway.
+Do not claim MCPMaster/Pandora is migrated merely because this overlay exists. The recovered running MCPMaster source must import/wire this client, deploy from canonical source, and prove the signed-token path against the live gateway.
 
 ## Required verification
 

@@ -12,8 +12,8 @@ CREATE OR REPLACE FUNCTION public.approve_execution_plan(p_organization_id uuid,
 AS $function$
 declare
   plan private.execution_plans%rowtype;
-  intake public.projectos_intake_requests%rowtype;
-  project public.projectos_projects%rowtype;
+  intake public.pandora_intake_requests%rowtype;
+  project public.pandora_projects%rowtype;
 begin
   perform private.assert_control_service_role();
 
@@ -26,23 +26,23 @@ begin
     raise exception 'execution plan not found' using errcode = 'P0002';
   end if;
   if plan.intake_id is null then
-    raise exception 'mandatory projectos intake missing' using errcode = '55000';
+    raise exception 'mandatory pandora intake missing' using errcode = '55000';
   end if;
 
   select * into intake
-  from public.projectos_intake_requests
+  from public.pandora_intake_requests
   where id = plan.intake_id and organization_id = p_organization_id
   for update;
 
   if intake.id is null then
-    raise exception 'projectos intake not found' using errcode = 'P0002';
+    raise exception 'pandora intake not found' using errcode = 'P0002';
   end if;
   if intake.status not in ('accepted', 'analyzing', 'planned', 'executing') then
-    raise exception 'projectos intake is not approvable from status %', intake.status using errcode = '55000';
+    raise exception 'pandora intake is not approvable from status %', intake.status using errcode = '55000';
   end if;
 
   select * into project
-  from public.projectos_projects
+  from public.pandora_projects
   where id = intake.project_id and organization_id = p_organization_id;
 
   if plan.expires_at <= now() and plan.status in ('pending_approval', 'approved') then
@@ -126,8 +126,8 @@ CREATE OR REPLACE FUNCTION public.claim_execution_plan(p_organization_id uuid, p
 AS $function$
 declare
   plan private.execution_plans%rowtype;
-  intake public.projectos_intake_requests%rowtype;
-  project public.projectos_projects%rowtype;
+  intake public.pandora_intake_requests%rowtype;
+  project public.pandora_projects%rowtype;
 begin
   perform private.assert_control_service_role();
 
@@ -140,23 +140,23 @@ begin
     raise exception 'execution plan not found' using errcode = 'P0002';
   end if;
   if plan.intake_id is null then
-    raise exception 'mandatory projectos intake missing' using errcode = '55000';
+    raise exception 'mandatory pandora intake missing' using errcode = '55000';
   end if;
 
   select * into intake
-  from public.projectos_intake_requests
+  from public.pandora_intake_requests
   where id = plan.intake_id and organization_id = p_organization_id
   for update;
 
   if intake.id is null then
-    raise exception 'projectos intake not found' using errcode = 'P0002';
+    raise exception 'pandora intake not found' using errcode = 'P0002';
   end if;
   if intake.status not in ('accepted', 'analyzing', 'planned', 'executing') then
-    raise exception 'projectos intake is not claimable from status %', intake.status using errcode = '55000';
+    raise exception 'pandora intake is not claimable from status %', intake.status using errcode = '55000';
   end if;
 
   select * into project
-  from public.projectos_projects
+  from public.pandora_projects
   where id = intake.project_id and organization_id = p_organization_id;
 
   if plan.expires_at <= now() and plan.status in ('pending_approval', 'approved') then
@@ -171,7 +171,7 @@ begin
   where id = plan.id
   returning * into plan;
 
-  update public.projectos_intake_requests
+  update public.pandora_intake_requests
   set status = 'executing',
       analysis = coalesce(analysis, '{}'::jsonb) || jsonb_build_object(
         'activeExecutionPlanId', plan.id,
@@ -219,8 +219,8 @@ CREATE OR REPLACE FUNCTION public.create_execution_plan(p_organization_id uuid, 
 AS $function$
 declare
   created private.execution_plans%rowtype;
-  intake public.projectos_intake_requests%rowtype;
-  project public.projectos_projects%rowtype;
+  intake public.pandora_intake_requests%rowtype;
+  project public.pandora_projects%rowtype;
   initial_status text;
 begin
   perform private.assert_control_service_role();
@@ -239,25 +239,25 @@ begin
   end if;
 
   select * into intake
-  from public.projectos_intake_requests
+  from public.pandora_intake_requests
   where id = p_intake_id
     and organization_id = p_organization_id
   for update;
 
   if intake.id is null then
-    raise exception 'projectos intake not found' using errcode = 'P0002';
+    raise exception 'pandora intake not found' using errcode = 'P0002';
   end if;
   if intake.status not in ('accepted', 'analyzing', 'planned', 'executing') then
-    raise exception 'projectos intake is not executable from status %', intake.status using errcode = '55000';
+    raise exception 'pandora intake is not executable from status %', intake.status using errcode = '55000';
   end if;
 
   select * into project
-  from public.projectos_projects
+  from public.pandora_projects
   where id = intake.project_id
     and organization_id = p_organization_id;
 
   if project.id is null then
-    raise exception 'projectos project not found' using errcode = 'P0002';
+    raise exception 'pandora project not found' using errcode = 'P0002';
   end if;
 
   initial_status := case when p_risk = 'read' then 'approved' else 'pending_approval' end;
@@ -290,7 +290,7 @@ begin
   )
   returning * into created;
 
-  update public.projectos_intake_requests
+  update public.pandora_intake_requests
   set status = case when status in ('accepted', 'analyzing') then 'planned' else status end,
       analysis = coalesce(analysis, '{}'::jsonb) || jsonb_build_object(
         'latestExecutionPlanId', created.id,
@@ -345,8 +345,8 @@ CREATE OR REPLACE FUNCTION public.finish_execution_plan(p_organization_id uuid, 
 AS $function$
 declare
   plan private.execution_plans%rowtype;
-  intake public.projectos_intake_requests%rowtype;
-  project public.projectos_projects%rowtype;
+  intake public.pandora_intake_requests%rowtype;
+  project public.pandora_projects%rowtype;
   final_status text;
   next_intake_status text;
 begin
@@ -365,23 +365,23 @@ begin
     raise exception 'execution plan not found' using errcode = 'P0002';
   end if;
   if plan.intake_id is null then
-    raise exception 'mandatory projectos intake missing' using errcode = '55000';
+    raise exception 'mandatory pandora intake missing' using errcode = '55000';
   end if;
   if plan.status <> 'executing' then
     raise exception 'execution plan cannot finish from status %', plan.status using errcode = '55000';
   end if;
 
   select * into intake
-  from public.projectos_intake_requests
+  from public.pandora_intake_requests
   where id = plan.intake_id and organization_id = p_organization_id
   for update;
 
   if intake.id is null then
-    raise exception 'projectos intake not found' using errcode = 'P0002';
+    raise exception 'pandora intake not found' using errcode = 'P0002';
   end if;
 
   select * into project
-  from public.projectos_projects
+  from public.pandora_projects
   where id = intake.project_id and organization_id = p_organization_id;
 
   final_status := p_status;
@@ -415,7 +415,7 @@ begin
     next_intake_status := 'completed';
   end if;
 
-  update public.projectos_intake_requests
+  update public.pandora_intake_requests
   set status = case
         when status in ('blocked', 'rejected') then status
         else next_intake_status
@@ -535,9 +535,9 @@ begin
         'memoryContextRecorded', case when context.plan_id is null then null else true end
       )) as plan_row
       from private.execution_plans plan
-      left join public.projectos_intake_requests intake
+      left join public.pandora_intake_requests intake
         on intake.id = plan.intake_id and intake.organization_id = plan.organization_id
-      left join public.projectos_projects project
+      left join public.pandora_projects project
         on project.id = intake.project_id and project.organization_id = plan.organization_id
       left join private.execution_plan_contexts context on context.plan_id = plan.id
       where plan.organization_id = p_organization_id

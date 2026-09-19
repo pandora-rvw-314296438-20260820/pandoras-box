@@ -47,7 +47,7 @@ The pre-existing private-key literal gate remains independent defense in depth.
 
 ## Runtime authority
 
-Mobile code must not call provider master APIs with platform credentials. Provider actions route through Pandora/ProjectOS governed adapters and server-side Vault-backed brokers. User/session authority sent from the APK must remain scoped, revocable, and attributable.
+Mobile code must not call provider master APIs with platform credentials. Provider actions route through Pandora/Pandora governed adapters and server-side Vault-backed brokers. User/session authority sent from the APK must remain scoped, revocable, and attributable.
 
 No credential value belongs in Activity Theatre events, logs, Memory evidence, screenshots, crash reports, tool/model inputs, source, CI artifacts, or release manifests.
 

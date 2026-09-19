@@ -46,7 +46,7 @@ Settings, account and mode switching live in the header/profile surface.
 
 Evolve the existing Advanced Control Tower:
 
-- ProjectOS / authoritative status
+- Pandora / authoritative status
 - Action Builder
 - Durable Plans
 - Approval Center
@@ -211,8 +211,8 @@ Undo binds to a real reversible prior state.
 | Portfolio/project status | `/api/operator/status` / owner projection |
 | Owner session | `/api/operator/session` |
 | Connections | protected operator connections |
-| Plans/approvals | durable ProjectOS plan API |
-| Audit | durable ProjectOS audit chain |
+| Plans/approvals | durable Pandora plan API |
+| Audit | durable Pandora audit chain |
 | Ask Pandora | `pandora-intelligence-chat` |
 | Build Theatre | owner/project runtime projection |
 | Preview/current/live/history | project runtime/version/deployment truth |

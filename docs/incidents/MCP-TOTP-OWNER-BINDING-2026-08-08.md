@@ -2,7 +2,7 @@
 
 Date: 2026-08-08 (Asia/Manila)
 
-> Superseded for ordinary ProjectOS approvals on 2026-08-12. This document records the historical incident and its then-current response. The current owner decision is documented in `docs/PROJECTOS_APPROVAL_SECURITY_MODEL.md`: authenticated owners and admins may approve without AAL2/TOTP. Supabase MFA may remain available, and separately classified destructive or connection operations may retain independent controls.
+> Superseded for ordinary Pandora approvals on 2026-08-12. This document records the historical incident and its then-current response. The current owner decision is documented in `docs/PANDORA_APPROVAL_SECURITY_MODEL.md`: authenticated owners and admins may approve without AAL2/TOTP. Supabase MFA may remain available, and separately classified destructive or connection operations may retain independent controls.
 
 ## Verified root cause
 
@@ -33,7 +33,7 @@ The patch adds `ownerEmail` to the public same-origin auth configuration, displa
 - Owner-binding static assertions: PASS.
 - New regression subtest `owner identity is bound before MFA challenge`: PASS.
 - Six other source/package tests in the same test file: PASS.
-- The final container smoke in that isolated recovery tree could not run because `dist/projectos-container-server.js` is absent; this is a missing-build-artifact condition, not an owner-binding assertion failure.
+- The final container smoke in that isolated recovery tree could not run because `dist/pandora-container-server.js` is absent; this is a missing-build-artifact condition, not an owner-binding assertion failure.
 
 ## Production gate
 

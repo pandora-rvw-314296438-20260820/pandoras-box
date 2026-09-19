@@ -10,7 +10,7 @@ Baseline: `main@3ec9f18bc7d283a9f06aac2f23f5959f780fb9a8` (2026-08-28).
 - Project runtime: `supabase/functions/pandora-project-runtime` and its ledger are Worker F territory. Primitives declare requirements only.
 - User administration: Pandora user-admin API/Edge Function is Control Plane administration and must never become generic generated-app admin.
 - Analytics: Pandora owner analytics/PostHog integration exists, but generated-app business events need isolated project/version credentials and attribution.
-- Audit/governance: ProjectOS lineage exists and must stay isolated from customer-application audit.
+- Audit/governance: Pandora lineage exists and must stay isolated from customer-application audit.
 - Supabase migrations/RLS: hardened patterns exist; generated-app primitive migrations need separate namespaces and runtime-target guards.
 - Test infrastructure: Node tests, PGlite replay and worker isolation are reusable proof patterns.
 

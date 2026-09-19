@@ -69,12 +69,12 @@ ARGUS      proves cross-system integration and release readiness
 2. Historical `Worker A` through `Worker J` references remain valid and must not be rewritten in immutable evidence.
 3. Greek names are display identities and architecture codenames.
 4. No secret, provider credential, database enum, migration history, durable event, or routing contract is renamed as part of this change.
-5. New code needing a display name should use `src/projectos/pandora-agent-registry.js` rather than maintaining another mapping.
+5. New code needing a display name should use `src/pandora/pandora-agent-registry.js` rather than maintaining another mapping.
 
 ## Naming authority
 
 The programmatic source of truth is:
 
-`src/projectos/pandora-agent-registry.js`
+`src/pandora/pandora-agent-registry.js`
 
 Any future rename must preserve stable machine IDs unless a separately reviewed protocol migration explicitly changes them.

@@ -9,7 +9,7 @@ Pandora Control Plane V1 is the durable system of record for customer intent, Pr
 
 The Control Plane persists truth. It does not directly implement model-provider SDK calls, build sandboxes, provider deployment execution, verifier execution, or customer presentation.
 
-Canonical project identity remains `projectos_projects`. Worker A does not introduce a competing project root.
+Canonical project identity remains `pandora_projects`. Worker A does not introduce a competing project root.
 
 ## 2. Source migrations
 
@@ -37,7 +37,7 @@ Queryable ProjectSpec children are:
 - `pandora_project_constraints`
 - `pandora_project_acceptance_criteria`
 
-`projectos_decisions` may bind back to ProjectSpec and source intent for provenance without replacing the canonical ProjectOS decision history.
+`pandora_decisions` may bind back to ProjectSpec and source intent for provenance without replacing the canonical Pandora decision history.
 
 ## 4. Durable build orchestration
 
@@ -124,7 +124,7 @@ Nodes are bound to one immutable ProjectSpec and may represent features, workflo
 
 Isolation is explicit: `dedicated`, `shared_isolated`, or `logical`.
 
-Where a runtime resource also exists in `projectos_project_resources`, provider and external identity must match.
+Where a runtime resource also exists in `pandora_project_resources`, provider and external identity must match.
 
 This table records runtime truth. It does not provision infrastructure itself. Worker F owns provider execution.
 

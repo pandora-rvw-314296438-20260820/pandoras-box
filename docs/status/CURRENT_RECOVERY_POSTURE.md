@@ -9,7 +9,7 @@ Historical snapshot: `RECOVERY_STATUS.md` (integrity-bound, observed through 202
 - Replacement operating Git repository exists and is protected: `pandora-rvw-314296438-20260820/pandoras-box`.
 - Source authority policy fail-closes `mbanatao/*`.
 - Exact-head CI on `main@cc0421f4461219bd6a9e864295d70743e8cd32dc` is green for:
-  - ProjectOS security regression (`node24`)
+  - Pandora security regression (`node24`)
   - Canonical release source contract
   - Windows worker contract
   - Pandora mobile exact-source gate

@@ -15,7 +15,7 @@ without rewriting or deleting production history.
   `20260810104737_reject_anonymous_org_membership_helpers`
 - Production branch status: `MIGRATIONS_FAILED`
 - Pending migration:
-  `20260812034825_remove_projectos_approval_aal2.sql`
+  `20260812034825_remove_pandora_approval_aal2.sql`
 - Pending migration SHA-256:
   `8e9acf74b5ee5ea552697989768afc5aac938b92947e3495c2deecde30dadd31`
 - Production schema and Edge Function still require AAL2 for ordinary owner
@@ -24,10 +24,10 @@ without rewriting or deleting production history.
 ## 2026-08-23 immutable-identity reconciliation
 
 The provider ledger now contains 59 immutable identities through
-`20260821024500_projectos_owner_read_completion`. Source preserves all 59:
+`20260821024500_pandora_owner_read_completion`. Source preserves all 59:
 
 - the AAL1 migration uses its exact provider version,
-  `20260813014555_remove_projectos_approval_aal2.sql`; the earlier
+  `20260813014555_remove_pandora_approval_aal2.sql`; the earlier
   `20260812034825` source identity remains recorded only as provenance;
 - three temporary Vercel hotfix migrations are represented by comment-only,
   content-addressed alignment records because their live bodies exercised
