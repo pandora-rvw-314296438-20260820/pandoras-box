@@ -37,10 +37,11 @@ void main() {
     expect(
       webEmbed,
       contains(
-        'https://www.youtube-nocookie.com/embed/z-jYdOIKcTQ?autoplay=1&mute=1&playsinline=1&rel=0',
+        'https://www.youtube.com/embed/z-jYdOIKcTQ?autoplay=1&mute=1&playsinline=1&rel=0',
       ),
     );
     expect(webEmbed, contains('allowfullscreen'));
+    expect(webEmbed, contains('strict-origin-when-cross-origin'));
     expect(screen, contains('EarthCam'));
     expect(screen, contains('LIVE TIMES SQUARE'));
   });
