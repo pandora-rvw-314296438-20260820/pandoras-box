@@ -23,6 +23,10 @@ const auth = fs.readFileSync(
   "apps/pandora-mobile/lib/core/security/pandora_auth.dart",
   "utf8",
 );
+const pubspec = fs.readFileSync(
+  "apps/pandora-mobile/pubspec.yaml",
+  "utf8",
+);
 
 test("Batalla top-level information architecture is exact and Home-first", () => {
   const start = home.indexOf("key: 'batalla-associates'");
@@ -146,4 +150,18 @@ test("workspace_profile personalizes presentation without becoming authorization
   assert.ok(auth.includes("'secretary'"));
   assert.ok(shell.includes("auth.currentSession?.workspaceProfile"));
   assert.ok(shell.includes("selected['workspaceProfile'] = _sessionWorkspaceProfileKey();"));
+});
+
+
+test("owner workspace cards use the supplied real logo assets", () => {
+  assert.ok(pubspec.includes("assets/workspaces/"));
+  for (const name of ["plp", "eurofish", "batalla", "bok"]) {
+    const path = "apps/pandora-mobile/assets/workspaces/" + name + ".webp";
+    assert.ok(fs.existsSync(path), "missing " + path);
+    const bytes = fs.readFileSync(path);
+    assert.equal(bytes.subarray(0, 4).toString("ascii"), "RIFF");
+    assert.equal(bytes.subarray(8, 12).toString("ascii"), "WEBP");
+    assert.ok(home.includes("assets/workspaces/" + name + ".webp"));
+  }
+  assert.ok(home.includes("Image.asset("));
 });
