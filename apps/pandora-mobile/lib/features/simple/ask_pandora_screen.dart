@@ -78,16 +78,50 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   bool _outcomeUnknown = false;
   String? _submissionKey;
   String? _error;
+  final GlobalKey _headerKey = GlobalKey();
+  final GlobalKey _composerKey = GlobalKey();
+  double _headerHeight = 0;
+  double _composerHeight = 0;
+  bool _overlayMeasureScheduled = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _activityController.addListener(_handleActivityTimelineChanged);
     final initial = widget.initialPrompt?.trim();
     if (initial != null && initial.isNotEmpty) {
       _objective.text = initial;
       _objective.selection = TextSelection.collapsed(offset: initial.length);
     }
+  }
+
+  @override
+  void didChangeMetrics() {
+    _scheduleOverlayMeasure();
+  }
+
+  void _scheduleOverlayMeasure() {
+    if (_overlayMeasureScheduled) return;
+    _overlayMeasureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayMeasureScheduled = false;
+      if (!mounted) return;
+      final headerBox =
+          _headerKey.currentContext?.findRenderObject() as RenderBox?;
+      final composerBox =
+          _composerKey.currentContext?.findRenderObject() as RenderBox?;
+      final nextHeaderHeight = headerBox?.size.height ?? _headerHeight;
+      final nextComposerHeight = composerBox?.size.height ?? _composerHeight;
+      if ((nextHeaderHeight - _headerHeight).abs() < 0.5 &&
+          (nextComposerHeight - _composerHeight).abs() < 0.5) {
+        return;
+      }
+      setState(() {
+        _headerHeight = nextHeaderHeight;
+        _composerHeight = nextComposerHeight;
+      });
+    });
   }
 
   void _handleActivityTimelineChanged() {
@@ -103,6 +137,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _activityController.removeListener(_handleActivityTimelineChanged);
     _activityController.dispose();
     _objective.dispose();
