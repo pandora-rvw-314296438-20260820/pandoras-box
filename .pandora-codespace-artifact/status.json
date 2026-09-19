@@ -1,0 +1,10 @@
+{
+  "detail": "Preparing pinned Android/Flutter toolchain.",
+  "generated_at_utc": "2026-09-19T19:06:13.228394+00:00",
+  "local_inference_verified": false,
+  "outcome": "running",
+  "phase": "bootstrap",
+  "physical_device_verified": false,
+  "source_sha": "5b2d5aa97c49b67ecb3d7ee935fc3b56b733e8af",
+  "source_tree_sha": "82c233b1f471d3e1d382683936641f6256a76a6c"
+}
