@@ -1,0 +1,142 @@
+name: Pandora Vulkan Benchmark APK
+
+on:
+  push:
+    branches:
+      - chatgpt/vulkan-benchmark-20260919
+    paths:
+      - "tools/pandora-vulkan-benchmark/**"
+      - ".github/workflows/pandora-vulkan-benchmark-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        working-directory: tools/pandora-vulkan-benchmark
+
+    steps:
+      - name: Checkout exact branch source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Install Android native toolchain
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sdkmanager \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.2.12479018" \
+            "cmake;3.22.1"
+
+      - name: Install Vulkan shader build dependencies
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            ninja-build \
+            libvulkan-dev \
+            glslc \
+            spirv-headers \
+            spirv-tools
+
+          GLSLC="$(command -v glslc)"
+          SPIRV_CONFIG="$(find /usr -name SPIRV-HeadersConfig.cmake -print -quit)"
+          test -n "$GLSLC"
+          test -n "$SPIRV_CONFIG"
+
+          echo "GLSLC_PATH=$GLSLC" >> "$GITHUB_ENV"
+          echo "SPIRV_HEADERS_DIR=$(dirname "$SPIRV_CONFIG")" >> "$GITHUB_ENV"
+
+      - name: Fetch exact llama.cpp upstream
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf app/src/main/cpp/llama.cpp
+          git clone --filter=blob:none https://github.com/ggml-org/llama.cpp.git app/src/main/cpp/llama.cpp
+          git -C app/src/main/cpp/llama.cpp checkout 44be98f057e9f9902a8ee12630e181c7f8ec2953
+          test "$(git -C app/src/main/cpp/llama.cpp rev-parse HEAD)" = "44be98f057e9f9902a8ee12630e181c7f8ec2953"
+
+      - name: Build installable debug APK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          gradle --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Stage and hash APK
+        id: artifact
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/Pandora-Vulkan-Benchmark.apk
+          sha256sum dist/Pandora-Vulkan-Benchmark.apk | tee dist/Pandora-Vulkan-Benchmark.apk.sha256
+          {
+            echo "repository=$GITHUB_REPOSITORY"
+            echo "source_sha=$GITHUB_SHA"
+            echo "llama_cpp_sha=44be98f057e9f9902a8ee12630e181c7f8ec2953"
+            echo "abi=arm64-v8a"
+            echo "ggml_vulkan=ON"
+          } > dist/build-metadata.txt
+
+      - name: Upload GitHub Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pandora-Vulkan-Benchmark
+          path: |
+            tools/pandora-vulkan-benchmark/dist/Pandora-Vulkan-Benchmark.apk
+            tools/pandora-vulkan-benchmark/dist/Pandora-Vulkan-Benchmark.apk.sha256
+            tools/pandora-vulkan-benchmark/dist/build-metadata.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publish GitHub prerelease
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euxo pipefail
+          SHORT_SHA="$(echo "$GITHUB_SHA" | cut -c1-8)"
+          TAG="pandora-vulkan-benchmark-$SHORT_SHA"
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              dist/Pandora-Vulkan-Benchmark.apk \
+              dist/Pandora-Vulkan-Benchmark.apk.sha256 \
+              dist/build-metadata.txt \
+              --clobber \
+              --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" \
+              dist/Pandora-Vulkan-Benchmark.apk \
+              dist/Pandora-Vulkan-Benchmark.apk.sha256 \
+              dist/build-metadata.txt \
+              --target "$GITHUB_SHA" \
+              --prerelease \
+              --title "Pandora Vulkan Benchmark $SHORT_SHA" \
+              --notes "Standalone Android Vulkan/GPU-offload benchmark. Uses llama.cpp 44be98f057e9f9902a8ee12630e181c7f8ec2953. Select your existing Qwen3-4B-Instruct-2507 Q4_K_M GGUF after installing." \
+              --repo "$GITHUB_REPOSITORY"
+          fi
