@@ -1,0 +1,11 @@
+
+{
+  "schema": "pandora.codespace-apk-build.v4",
+  "status": "pending",
+  "exitCode": null,
+  "step": "waiting-for-codespace",
+  "sourceSha": "1707e31b5c24fb72156e68260efc2de93157b6a7",
+  "apkSha256": null,
+  "apkSizeBytes": null,
+  "downloadUrl": null
+}
