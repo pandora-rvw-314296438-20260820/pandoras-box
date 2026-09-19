@@ -67,6 +67,7 @@ echo "SOURCE_SHA=$SOURCE_SHA"
 echo "SOURCE_TREE=$SOURCE_TREE"
 echo "Codespace compilation only. No local model inference is executed here."
 
+sudo rm -f /etc/apt/sources.list.d/yarn.list /etc/apt/sources.list.d/yarn.list.save
 sudo apt-get update -y
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   ca-certificates curl git unzip xz-utils zip libglu1-mesa \
