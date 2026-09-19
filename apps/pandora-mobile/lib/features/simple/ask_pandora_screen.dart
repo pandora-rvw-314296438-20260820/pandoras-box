@@ -18,6 +18,7 @@ import '../../core/device/pandora_communication_command.dart';
 import '../../core/local/pandora_device_activity_local_sync.dart';
 import '../../core/local/pandora_local_state_cache.dart';
 import '../../core/local/pandora_local_sync_coordinator.dart';
+import '../../core/local_ai/pandora_local_ai.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
@@ -103,6 +104,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   void dispose() {
     _activityController.removeListener(_handleActivityTimelineChanged);
     _activityController.dispose();
+    unawaited(PandoraLocalAi.instance.cancel());
     _objective.dispose();
     _objectiveFocus.dispose();
     super.dispose();
@@ -358,6 +360,72 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     });
   }
 
+  Future<bool> _trySubmitLocalAi(String objective) async {
+    // Historical cloud threads are not routed locally until their context can
+    // be reconstructed on-device without guessing.
+    if (_threadId != null) return false;
+
+    if (!PandoraLocalAiRouter.shouldUseLocal(
+      message: objective,
+      hasAttachment: _attachment != null || _imageAttachment != null,
+      hasProjectContext: _projectContext != null,
+      hasSelectedCapability: _serviceContext != null,
+      hasCharacterContext: _characterContext != null,
+    )) {
+      return false;
+    }
+
+    final status = await PandoraLocalAi.instance.status();
+    if (!status.supported || !status.configured) return false;
+    if (!await PandoraLocalAi.instance.warm()) return false;
+
+    var response = '';
+    var started = false;
+    try {
+      await for (final chunk in PandoraLocalAi.instance.generate(objective)) {
+        if (!mounted) return true;
+        response += chunk;
+        setState(() {
+          if (!started) {
+            started = true;
+            _messages.add(_ChatMessage.user(objective));
+            _messages.add(_ChatMessage.pandora(response));
+            _pendingMessage = null;
+          } else {
+            _messages[_messages.length - 1] = _ChatMessage.pandora(response);
+          }
+        });
+      }
+    } on PandoraLocalAiException catch (error) {
+      if (!mounted) return true;
+      if (!started) return false;
+      setState(() => _error = error.message);
+      return true;
+    }
+
+    if (!mounted) return true;
+    final normalized = response.trim();
+    if (normalized == '[[PANDORA_CLOUD_REQUIRED]]') {
+      if (started && _messages.length >= 2) {
+        setState(() {
+          _messages.removeLast();
+          _messages.removeLast();
+          _pendingMessage = objective;
+        });
+      }
+      return false;
+    }
+    if (!started || normalized.isEmpty) return false;
+
+    setState(() {
+      _messages[_messages.length - 1] = _ChatMessage.pandora(normalized);
+      _submissionKey = null;
+      _outcomeUnknown = false;
+      _pendingMessage = null;
+    });
+    return true;
+  }
+
   Future<void> _submit() async {
     final objective = _objective.text.trim();
     if (_submitting && _activeActivityJobId != null) {
@@ -438,6 +506,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
             dependencies, objective, deviceCommunication);
         return;
       }
+      if (await _trySubmitLocalAi(objective)) return;
+
       final intelligence = dependencies.intelligence;
       if (intelligence == null) {
         // A Project is optional persistent context, never a prerequisite for
@@ -627,7 +697,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
 
       // `intelligence.chat` owns exactly one dispatch for this turn. Explicit
       // selected-project changes execute through the real project runtime in
-      // this chat. They never navigate away, never reopen ProjectOS intake,
+      // this chat. They never navigate away or reopen a legacy intake flow,
       // and never resubmit the owner instruction as a second intelligence turn.
       // Progress and verified terminal evidence remain authoritative.
     } on PandoraCharacterException catch (error) {
@@ -838,6 +908,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
     _activityTheatreRequested = false;
     _activityTheatreSuppressed = false;
     unawaited(_activityController.clear());
+    unawaited(PandoraLocalAi.instance.resetConversation());
     setState(() {
       _messages.clear();
       _objective.clear();
