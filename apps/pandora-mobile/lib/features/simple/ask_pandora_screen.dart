@@ -57,6 +57,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   final FocusNode _objectiveFocus = FocusNode();
   final IdempotencyKeyFactory _keys = IdempotencyKeyFactory();
   final List<_ChatMessage> _messages = <_ChatMessage>[];
+  final GlobalKey _headerKey = GlobalKey();
+  final GlobalKey _composerKey = GlobalKey();
+  double _headerHeight = 0;
+  double _composerHeight = 0;
+  bool _overlayMeasureScheduled = false;
   PandoraTextAttachment? _attachment;
   PandoraImageAttachment? _imageAttachment;
   PandoraProjectContext? _projectContext;
@@ -82,12 +87,40 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _activityController.addListener(_handleActivityTimelineChanged);
     final initial = widget.initialPrompt?.trim();
     if (initial != null && initial.isNotEmpty) {
       _objective.text = initial;
       _objective.selection = TextSelection.collapsed(offset: initial.length);
     }
+  }
+
+  @override
+  void didChangeMetrics() {
+    _scheduleOverlayMeasure();
+  }
+
+  void _scheduleOverlayMeasure() {
+    if (_overlayMeasureScheduled) return;
+    _overlayMeasureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayMeasureScheduled = false;
+      if (!mounted) return;
+
+      final headerHeight = _headerKey.currentContext?.size?.height;
+      final composerHeight = _composerKey.currentContext?.size?.height;
+      if (headerHeight == null || composerHeight == null) return;
+
+      final headerChanged = (_headerHeight - headerHeight).abs() > 0.5;
+      final composerChanged = (_composerHeight - composerHeight).abs() > 0.5;
+      if (!headerChanged && !composerChanged) return;
+
+      setState(() {
+        _headerHeight = headerHeight;
+        _composerHeight = composerHeight;
+      });
+    });
   }
 
   void _handleActivityTimelineChanged() {
@@ -103,6 +136,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _activityController.removeListener(_handleActivityTimelineChanged);
     _activityController.dispose();
     _objective.dispose();

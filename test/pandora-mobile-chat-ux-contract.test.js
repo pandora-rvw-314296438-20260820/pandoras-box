@@ -46,6 +46,12 @@ test('mobile chat uses the full adaptive viewport and keeps Enterprise context i
   );
 
   assert.ok(screen.includes('with WidgetsBindingObserver'));
+  assert.ok(screen.includes('final GlobalKey _headerKey = GlobalKey();'));
+  assert.ok(screen.includes('final GlobalKey _composerKey = GlobalKey();'));
+  assert.ok(screen.includes('WidgetsBinding.instance.addObserver(this);'));
+  assert.ok(screen.includes('void didChangeMetrics()'));
+  assert.ok(screen.includes('void _scheduleOverlayMeasure()'));
+  assert.ok(screen.includes('WidgetsBinding.instance.removeObserver(this);'));
   assert.ok(screen.includes('resizeToAvoidBottomInset: false'));
   assert.ok(screen.includes('contentPadding: conversationPadding'));
   assert.ok(screen.includes('bool _followLatest = true;'));
