@@ -11,6 +11,7 @@ import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/enterprise/batalla_workspace_screen.dart';
+import '../features/enterprise/enterprise_vision_screen.dart';
 import '../features/enterprise/enterprise_workspace_home.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/plugins/plugins_screen.dart';
@@ -47,6 +48,11 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     _ChatDestination(
         'Operations Room', Icons.groups_2_outlined, Icons.groups_2_rounded),
     _ChatDestination('Home', Icons.home_outlined, Icons.home_rounded),
+    _ChatDestination(
+      'Vision Intelligence',
+      Icons.videocam_outlined,
+      Icons.videocam_rounded,
+    ),
   ];
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -121,6 +127,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       7 => 'verify_safety',
       8 => 'operations_room',
       9 => 'enterprise_home',
+      10 => 'vision_intelligence',
       _ => 'pandora_chat',
     };
     unawaited(
@@ -433,7 +440,30 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
     );
   }
 
+
+  void _openVisionChat() {
+    setState(() {
+      _activeWorkspaceSelection = null;
+      _activeEnterpriseContext = <String, Object?>{
+        'surface': 'enterprise_overview',
+        'route': '/enterprise/vision-intelligence',
+        'capabilities': const <String>[],
+        'identityScope': 'enterprise_workspace',
+        'selectedObject': <String, String>{
+          'feature': 'vision_intelligence',
+          'feed': 'kabukicho_camstreamer',
+          'source': 'CamStreamer',
+          'analysisState': 'display_only_public_demo',
+        },
+      };
+      _roots.remove(0);
+      _visited.add(0);
+    });
+    _select(0);
+  }
+
   Widget _root(int index) => _roots.putIfAbsent(
+
         index,
         () => switch (index) {
           0 => _activeWorkspaceSelection?.workspace.key ==
@@ -465,6 +495,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
               onActivity: () => _select(4),
               onMore: () => _select(3),
             ),
+          10 => EnterpriseVisionScreen(onAskPandora: _openVisionChat),
           _ => AskPandoraScreen(key: _chatKey),
         },
       );
@@ -729,7 +760,7 @@ class _PandoraSidePanel extends StatelessWidget {
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(height: 1, color: PandoraV2Colors.line),
                   ),
-                  for (final index in const <int>[9, 0, 8, 1, 2, 4, 5, 6, 7, 3])
+                  for (final index in const <int>[9, 10, 0, 8, 1, 2, 4, 5, 6, 7, 3])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: ListTile(
