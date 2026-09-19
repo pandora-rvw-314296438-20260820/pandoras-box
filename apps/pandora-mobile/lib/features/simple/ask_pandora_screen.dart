@@ -44,7 +44,7 @@ class AskPandoraScreen extends StatefulWidget {
   State<AskPandoraScreen> createState() => AskPandoraScreenState();
 }
 
-class AskPandoraScreenState extends State<AskPandoraScreen> {
+class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingObserver {
   static const _suggestions = <String>[
     'What can you do for me now?',
     'Check my GitHub for failing CI',
@@ -921,14 +921,62 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        backgroundColor: PandoraSimpleColors.canvas,
-        resizeToAvoidBottomInset: true,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              _ChatHeader(
+  Widget build(BuildContext context) {
+    _scheduleOverlayMeasure();
+    final media = MediaQuery.of(context);
+    final keyboardInset = media.viewInsets.bottom;
+    final topInset = media.padding.top;
+    final headerHeight = _headerHeight > 0 ? _headerHeight : 56.0;
+    final composerHeight = _composerHeight > 0 ? _composerHeight : 88.0;
+    final conversationPadding = EdgeInsets.only(
+      top: topInset + headerHeight,
+      bottom: keyboardInset + composerHeight,
+    );
+
+    return Scaffold(
+      backgroundColor: PandoraSimpleColors.canvas,
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: _loadingThread
+                ? Padding(
+                    padding: conversationPadding,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: PandoraSimpleColors.muted,
+                      ),
+                    ),
+                  )
+                : _messages.isEmpty && _pendingMessage == null
+                    ? Padding(
+                        padding: conversationPadding,
+                        child: _EmptyConversation(
+                          suggestions: _suggestions,
+                          onSuggestion: _useSuggestion,
+                          disabled: _outcomeUnknown || _submitting,
+                        ),
+                      )
+                    : _Conversation(
+                        threadIdentity: _threadId ?? 'local-chat',
+                        messages: _messages,
+                        pendingMessage: _pendingMessage,
+                        thinking: _submitting,
+                        activityRequested: _activityTheatreRequested,
+                        activitySuppressed: _activityTheatreSuppressed,
+                        activityEvents: _activityController.events,
+                        activityError: _activityController.publicError,
+                        contentPadding: conversationPadding,
+                      ),
+          ),
+          Positioned(
+            top: topInset,
+            left: 0,
+            right: 0,
+            child: KeyedSubtree(
+              key: _headerKey,
+              child: _ChatHeader(
                 active: _threadId != null ||
                     _messages.isNotEmpty ||
                     _pendingMessage != null,
@@ -936,32 +984,15 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 onSearchChats: widget.onSearchChats,
                 onMore: widget.onMore,
               ),
-              Expanded(
-                child: _loadingThread
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: PandoraSimpleColors.muted,
-                        ),
-                      )
-                    : _messages.isEmpty && _pendingMessage == null
-                        ? _EmptyConversation(
-                            suggestions: _suggestions,
-                            onSuggestion: _useSuggestion,
-                            disabled: _outcomeUnknown || _submitting,
-                          )
-                        : _Conversation(
-                            threadIdentity: _threadId ?? 'local-chat',
-                            messages: _messages,
-                            pendingMessage: _pendingMessage,
-                            thinking: _submitting,
-                            activityRequested: _activityTheatreRequested,
-                            activitySuppressed: _activityTheatreSuppressed,
-                            activityEvents: _activityController.events,
-                            activityError: _activityController.publicError,
-                          ),
-              ),
-              _Composer(
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: keyboardInset,
+            child: KeyedSubtree(
+              key: _composerKey,
+              child: _Composer(
                 controller: _objective,
                 focusNode: _objectiveFocus,
                 attachment: _attachment,
@@ -989,10 +1020,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> {
                 onRemoveServiceContext: _removeServiceContext,
                 onRemoveProjectContext: _removeProjectContext,
               ),
-            ],
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    );
+  }
 }
 
 enum _ChatOverflowAction { newChat, searchChats, more }
@@ -2055,11 +2088,44 @@ class _ComposerMenuItem extends StatelessWidget {
       );
 }
 
+String _sanitizeVisiblePandoraText(String input) {
+  final output = <String>[];
+  for (final line in input.split('\n')) {
+    final trimmed = line.trim();
+    final lower = trimmed.toLowerCase();
+    final machineJson = trimmed.startsWith('{') &&
+        trimmed.endsWith('}') &&
+        (trimmed.contains('"surface"') ||
+            trimmed.contains('"identityScope"') ||
+            trimmed.contains('"enterprise_'));
+    if (lower.contains('bounded enterprise page context:') ||
+        lower.contains('bounded project context:') ||
+        lower.startsWith('operations room contract:') ||
+        lower.startsWith(
+          'treat this context as navigation and scope information only.',
+        ) ||
+        lower.startsWith('the authenticated actorrole is authoritative.') ||
+        lower.startsWith(
+          'never map roles across identityscope namespaces.',
+        ) ||
+        machineJson) {
+      continue;
+    }
+    output.add(line);
+  }
+  final clean =
+      output.join('\n').replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
+  return clean.isEmpty
+      ? 'I couldn''t produce a clean reply for that turn. Please try again.'
+      : clean;
+}
+
 class _ChatMessage {
   const _ChatMessage._(this.text, this.isUser);
 
   const _ChatMessage.user(String text) : this._(text, true);
-  const _ChatMessage.pandora(String text) : this._(text, false);
+  _ChatMessage.pandora(String text)
+      : this._(_sanitizeVisiblePandoraText(text), false);
 
   final String text;
   final bool isUser;
