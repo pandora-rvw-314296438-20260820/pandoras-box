@@ -2,11 +2,11 @@
   "schema": "pandora.codespace-apk-build.v1",
   "status": "success",
   "exitCode": 0,
-  "step": "complete",
+  "step": "install-flutter",
   "sourceSha": "a5d5b60551e5c4f02c8aa14c8af4d8b3a268b082",
-  "apkSha256": "e0b64b3ed5e157d7fe8707a08df4956cf0b98c1e8f13d5b1989c6dffaf21fc87",
-  "apkSizeBytes": 119813568,
-  "releaseUrl": "https://github.com/pandora-rvw-314296438-20260820/pandoras-box/releases/tag/pandora-local-ai-picker-a5d5b605",
-  "startedAtUtc": "2026-09-19T07:11:08Z",
-  "finishedAtUtc": "2026-09-19T07:28:20.782770Z"
+  "apkSha256": null,
+  "apkSizeBytes": null,
+  "releaseUrl": null,
+  "startedAtUtc": "2026-09-19T07:27:51Z",
+  "finishedAtUtc": "2026-09-19T07:30:30.334549Z"
 }
