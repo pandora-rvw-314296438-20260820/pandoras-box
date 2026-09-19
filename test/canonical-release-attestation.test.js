@@ -112,7 +112,7 @@ test("release reviewer Edge requires a one-shot external exact-request authority
   assert.match(source, /resolve_compute_reviewer_identity/);
   assert.match(source, /verifyReviewerSignature/);
   assert.match(source, /REVIEWER_AUTHENTICATION_FAILED/);
-  assert.match(source, /claims\.role !== "projectos_reviewer_ingest"/);
+  assert.match(source, /claims\.role !== "pandora_reviewer_ingest"/);
   assert.match(source, /claims\.iss !== "pandora-independent-review-authority"/);
   assert.match(source, /claims\.pandora_request_sha256 !== expected\.requestSha256/);
   assert.match(source, /headers\.get\("authorization"\)/);
@@ -166,7 +166,7 @@ test("release attestation migration is immutable, actor-separated, ordered, and 
   assert.match(source, /canonical_release_owner_authorizations_immutable/);
   assert.match(source, /perform private\.assert_reviewer_ingest_role\(\)/);
   assert.match(source, /assert_reviewer_ingest_request/);
-  assert.match(source, /grant execute[\s\S]*capture_canonical_release_review_receipt[\s\S]*to projectos_reviewer_ingest/);
+  assert.match(source, /grant execute[\s\S]*capture_canonical_release_review_receipt[\s\S]*to pandora_reviewer_ingest/);
   assert.match(source, /auth\.uid\(\) <> p_owner_user_id/);
   assert.match(source, /auth\.jwt\(\) ->> 'aal'[\s\S]*'aal2'/);
   assert.match(source, /from auth\.sessions session/);

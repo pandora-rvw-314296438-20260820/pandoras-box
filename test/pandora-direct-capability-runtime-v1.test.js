@@ -11,11 +11,11 @@ const migration = readFileSync(
   'utf8',
 );
 
-test('active Pandora chat route has no ProjectOS intake or legacy fallback', () => {
+test('active Pandora chat route has no Pandora intake or legacy fallback', () => {
   const routerStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.pandora_chat_universal_dispatch_v9');
   assert.ok(routerStart >= 0);
   const router = migration.slice(routerStart, migration.indexOf('CREATE OR REPLACE FUNCTION public.pandora_activity_admit_event_v1'));
-  assert.doesNotMatch(router, /projectos_accept_intake/i);
+  assert.doesNotMatch(router, /pandora_accept_intake/i);
   assert.doesNotMatch(router, /v9_legacy_20260917/i);
   assert.doesNotMatch(router, /universal_dispatch_v8/i);
   assert.match(router, /pandora_native_intelligence/);
@@ -53,6 +53,6 @@ test('active runtime uses Pandora-native project registry naming', () => {
   const edge = readFileSync(join(root, 'supabase', 'functions', 'pandora-intelligence-chat', 'index.ts'), 'utf8');
   assert.match(registry, /create or replace view public\.pandora_projects/i);
   assert.match(registry, /from public\.pandora_projects p/i);
-  assert.doesNotMatch(edge, /projectos_projects/i);
-  assert.doesNotMatch(edge, /\bProjectOS\b/i);
+  assert.doesNotMatch(edge, /pandora_projects/i);
+  assert.doesNotMatch(edge, /\bPandora\b/i);
 });

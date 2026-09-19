@@ -18,7 +18,7 @@ test('project resolver only uses explicit high-confidence existing-system identi
 });
 
 test('project resolver never creates a project and fails closed on ambiguity', () => {
-  assert.doesNotMatch(migration, /projectos_register_project\s*\(/);
+  assert.doesNotMatch(migration, /pandora_register_project\s*\(/);
   assert.match(migration, /v_project_context->>'state'='ambiguous'/);
   assert.match(migration, /I will not guess or create a duplicate project/);
   assert.match(migration, /'intent','clarify_project'/);

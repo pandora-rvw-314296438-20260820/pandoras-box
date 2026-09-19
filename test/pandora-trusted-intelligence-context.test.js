@@ -20,7 +20,7 @@ test('registration cannot self-grant trust and Worker E exact digest proof is re
   assert.match(migration, /current_setting\('pandora\.worker_e_certification'/i);
   assert.match(migration, /verification_worker='E'/i);
   assert.match(migration, /verification_verdict='PASS'/i);
-  assert.match(migration, /projectos_reviewer_ingest/i);
+  assert.match(migration, /pandora_reviewer_ingest/i);
   assert.match(migration, /pandora-independent-review-authority/i);
   assert.match(migration, /pandora-intelligence-certification/i);
   assert.match(migration, /intelligence_asset_certification/i);
@@ -28,7 +28,7 @@ test('registration cannot self-grant trust and Worker E exact digest proof is re
   assert.match(migration, /Worker E certification request digest mismatch/i);
   assert.match(migration, /a\.source_digest_sha256=v_source_digest/i);
   assert.match(migration, /a\.content_digest_sha256 is not distinct from v_content_digest/i);
-  assert.match(migration, /grant execute on function public\.pandora_worker_e_certify_intelligence_asset[\s\S]*to projectos_reviewer_ingest/i);
+  assert.match(migration, /grant execute on function public\.pandora_worker_e_certify_intelligence_asset[\s\S]*to pandora_reviewer_ingest/i);
   assert.doesNotMatch(migration, /grant execute on function public\.pandora_worker_e_certify_intelligence_asset[\s\S]{0,180}to service_role/i);
   assert.match(migration, /Worker E certification identity\/digest mismatch/i);
 });

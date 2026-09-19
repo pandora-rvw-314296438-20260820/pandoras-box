@@ -11,11 +11,11 @@ const ownerApi = fs.readFileSync(
   "utf8",
 );
 const migration = fs.readFileSync(
-  path.join(root, "supabase/migrations/20260821024500_projectos_owner_read_completion.sql"),
+  path.join(root, "supabase/migrations/20260821024500_pandora_owner_read_completion.sql"),
   "utf8",
 );
 const rollback = fs.readFileSync(
-  path.join(root, "docs/supabase/recovery/jcyqixttuebxqqfkjonq/rollback/20260821024500_remove_projectos_owner_read_completion.sql"),
+  path.join(root, "docs/supabase/recovery/jcyqixttuebxqqfkjonq/rollback/20260821024500_remove_pandora_owner_read_completion.sql"),
   "utf8",
 );
 
@@ -26,7 +26,7 @@ test("Phase 0 owner read routes only the canonical connected-services intent", (
   assert.match(ownerApi, /ownerReadOperation\(message\)/);
   assert.match(ownerApi, /connections\(context\)/);
   assert.match(ownerApi, /safety\(context\)/);
-  assert.match(ownerApi, /projectos_complete_owner_read_intake/);
+  assert.match(ownerApi, /pandora_complete_owner_read_intake/);
 });
 
 test("free-form intake no longer claims planning before a planner exists", () => {
@@ -54,7 +54,7 @@ test("owner read completion is service-role-only, scoped, idempotent and hash-li
   assert.match(migration, /idempotentReplay', true/);
   assert.match(migration, /v_intake\.status <> 'accepted'/);
   assert.match(migration, /public\.record_audit_event/);
-  assert.match(migration, /projectos\.owner_read_completed/);
+  assert.match(migration, /pandora\.owner_read_completed/);
   assert.match(migration, /status = 'completed'/);
   assert.match(migration, /ownerReadResultFingerprint/);
   assert.match(migration, /revoke all on function[\s\S]*from public, anon, authenticated/);
@@ -63,7 +63,7 @@ test("owner read completion is service-role-only, scoped, idempotent and hash-li
 
 test("rollback removes capability but retains historical evidence", () => {
   assert.match(rollback, /Historical intake\/audit evidence is intentionally retained/);
-  assert.match(rollback, /drop function if exists public\.projectos_complete_owner_read_intake/);
+  assert.match(rollback, /drop function if exists public\.pandora_complete_owner_read_intake/);
   assert.doesNotMatch(rollback, /delete from|truncate/i);
 });
 

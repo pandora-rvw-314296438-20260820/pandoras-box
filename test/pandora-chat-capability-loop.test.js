@@ -10,7 +10,7 @@ const mobile = await readFile(mobilePath, 'utf8');
 
 test('capability registry comes from runtime truth instead of model claims', () => {
   assert.match(migration, /pandora_chat_capability_registry_v1/);
-  assert.match(migration, /projectos_integration_health/);
+  assert.match(migration, /pandora_integration_health/);
   assert.match(migration, /Github_supabase/);
   assert.match(migration, /mcpmaster_supabase_account_1_pat/);
   assert.match(migration, /posthog_personal_api_key/);
@@ -18,12 +18,12 @@ test('capability registry comes from runtime truth instead of model claims', () 
   assert.doesNotMatch(migration, /pandora_posthog_project_token[^\n]*analytics\.query[^\n]*available[^\n]*true/);
 });
 
-test('provider reads are bounded and mutations remain ProjectOS governed', () => {
+test('provider reads are bounded and mutations remain Pandora governed', () => {
   assert.match(migration, /v_member_role not in \('owner','admin'\)/);
   assert.match(migration, /pandora_chat_repository_not_allowlisted/);
   assert.match(migration, /https:\/\/api\.github\.com\/repos\//);
   assert.match(migration, /https:\/\/api\.supabase\.com\/v1\/projects\//);
-  assert.match(migration, /projectos_accept_intake/);
+  assert.match(migration, /pandora_accept_intake/);
   assert.match(migration, /'pandora_chat'/);
   assert.match(migration, /provider readback and verification are still required/);
   assert.match(migration, /pandora_intelligence_messages/);

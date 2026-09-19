@@ -8,7 +8,7 @@ const {
   getPandoraAgent,
   normalizeWorkerId,
   pandoraAgentDisplayName,
-} = require("../src/projectos/pandora-agent-registry");
+} = require("../src/pandora/pandora-agent-registry");
 
 const EXPECTED = Object.freeze({
   worker_a: "Atlas",
