@@ -1,4 +1,4 @@
-phase=started
-detail=Codespace builder started
+phase=toolchain
+detail=Installing Android SDK and Gradle
 source_sha=4caddfbe447865b37956c8ee7ae549ea1d850d0f
-timestamp_utc=2026-09-19T13:28:35Z
+timestamp_utc=2026-09-19T13:30:07Z
