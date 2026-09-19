@@ -81,7 +81,10 @@ if code == 1 and 'issues found.' not in text:
     raise SystemExit('flutter analyze failed for a reason other than lint/warning findings')
 PY
 
+set +e
 flutter test --reporter expanded 2>&1 | tee ../vercel-apk-output/flutter-test.log
+TEST_EXIT=$?
+set -e
 
 test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = "$EXPECTED_APP_VERSION"
 flutter build apk --debug \
@@ -135,6 +138,7 @@ rm vercel-apk-output/pandora-debug.apk
   echo "app_version=$EXPECTED_APP_VERSION"
   echo "android_package=com.banataosystems.pandora_mobile"
   echo "analyze_policy=no-error-severity"
+  echo "test_exit=$TEST_EXIT"
   echo "artifact_class=validation-candidate"
   echo "production_release=false"
   echo "physical_device_verified=false"
