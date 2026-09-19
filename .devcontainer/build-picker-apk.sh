@@ -17,15 +17,32 @@ APK_SHA=""
 APK_SIZE=""
 RELEASE_URL=""
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export GH_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
 
 exec > >(tee "$LOG") 2>&1
+
+put_receipt() {
+  remote_path="$1"
+  local_file="$2"
+  message="$3"
+  [ -s "$local_file" ] || return 0
+  encoded="$(base64 -w0 "$local_file")"
+  existing="$(gh api "repos/$REPO/contents/$remote_path?ref=$BUILD_BRANCH" --jq .sha 2>/dev/null || true)"
+  if [ -n "$existing" ]; then
+    gh api --method PUT "repos/$REPO/contents/$remote_path" \
+      -f message="$message" -f content="$encoded" -f branch="$BUILD_BRANCH" -f sha="$existing" >/dev/null
+  else
+    gh api --method PUT "repos/$REPO/contents/$remote_path" \
+      -f message="$message" -f content="$encoded" -f branch="$BUILD_BRANCH" >/dev/null
+  fi
+}
 
 record_status() {
   code=$?
   trap - EXIT
   status="failed"
   if [ "$code" -eq 0 ]; then status="success"; fi
-  tail -n 160 "$LOG" > "$TAIL" || true
+  tail -n 200 "$LOG" > "$TAIL" || true
   python3 - "$STATUS" "$status" "$code" "$STEP" "$SOURCE_SHA" "$APK_SHA" "$APK_SIZE" "$RELEASE_URL" "$STARTED_AT" <<'PY'
 import json,sys,datetime
 path,status,code,step,source,sha,size,url,started=sys.argv[1:]
@@ -43,14 +60,16 @@ payload={
 }
 open(path,"w",encoding="utf-8").write(json.dumps(payload,indent=2)+"\n")
 PY
-  git -C "$WORKSPACE" config user.name "Pandora Codespace Builder"
-  git -C "$WORKSPACE" config user.email "pandora-codespace-builder@users.noreply.github.com"
-  git -C "$WORKSPACE" add .devcontainer/build-status.json .devcontainer/build-tail.log
-  git -C "$WORKSPACE" commit -m "chore: record exact local AI APK build" || true
-  git -C "$WORKSPACE" push origin HEAD:"$BUILD_BRANCH" || true
+  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+    put_receipt ".devcontainer/build-status.json" "$STATUS" "chore: record exact local AI APK build status" || true
+    put_receipt ".devcontainer/build-tail.log" "$TAIL" "chore: record exact local AI APK build diagnostics" || true
+  fi
   exit "$code"
 }
 trap record_status EXIT
+
+STEP="github-auth"
+gh auth status
 
 STEP="install-host-tools"
 sudo apt-get update
@@ -142,9 +161,6 @@ APK_SHA="$(sha256sum "$APK" | cut -d' ' -f1)"
 APK_SIZE="$(stat -c '%s' "$APK")"
 
 STEP="publish-github-validation-release"
-export GH_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
-test -n "$GH_TOKEN"
-gh auth status
 if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
   gh release delete "$TAG" --repo "$REPO" --yes --cleanup-tag
 fi
