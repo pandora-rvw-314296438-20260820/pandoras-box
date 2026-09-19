@@ -11,10 +11,6 @@ const outboxMigration = fs.readFileSync(
   "supabase/migrations/20260919091000_plp_verified_learning_outbox_v1.sql",
   "utf8",
 );
-const outboxEdge = fs.readFileSync(
-  "supabase/functions/pandora-plp-learning-outbox/index.ts",
-  "utf8",
-);
 const vercel = JSON.parse(fs.readFileSync("vercel.json", "utf8"));
 
 test("PLP only queues learning from verified execution paths", () => {
@@ -54,14 +50,17 @@ test("outbox is service-role only and bounded", () => {
   assert.match(outboxMigration, /interval '5 minutes'/i);
 });
 
-test("outbox ingress accepts only exact Enterprise production OIDC", () => {
-  assert.match(outboxEdge, /https:\/\/oidc\.vercel\.com\/mbanatao/);
-  assert.match(outboxEdge, /https:\/\/vercel\.com\/mbanatao/);
+test("Vercel drain uses the server-only Supabase boundary for outbox delivery", () => {
+  assert.match(drain, /process\.env\.SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(drain, /process\.env\.SUPABASE_URL/);
   assert.match(
-    outboxEdge,
-    /owner:mbanatao:project:enterprise:environment:production/,
+    drain,
+    /https:\/\/jcyqixttuebxqqfkjonq\.supabase\.co/,
   );
-  assert.match(outboxEdge, /jwtVerify/);
+  assert.match(drain, /pandora_claim_verified_learning_outbox/);
+  assert.match(drain, /pandora_ack_verified_learning_outbox/);
+  assert.doesNotMatch(drain, /NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY/);
+  assert.doesNotMatch(drain, /pandora-plp-learning-outbox/);
 });
 
 test("Vercel drain uses workload OIDC and verified-learning gateway", () => {
