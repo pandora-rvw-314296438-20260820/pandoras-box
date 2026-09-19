@@ -56,7 +56,13 @@ python3 ../apps/pandora-mobile/tool/configure_validation_android.py android/app/
 
 cp pubspec.lock pubspec.lock.expected
 flutter pub get --enforce-lockfile
-cmp pubspec.lock.expected pubspec.lock
+python3 - <<'PY'
+from pathlib import Path
+expected = Path('pubspec.lock.expected').read_bytes()
+actual = Path('pubspec.lock').read_bytes()
+if expected != actual:
+    raise SystemExit('pubspec.lock changed after flutter pub get --enforce-lockfile')
+PY
 
 flutter analyze 2>&1 | tee ../vercel-apk-output/flutter-analyze.log
 flutter test --reporter expanded 2>&1 | tee ../vercel-apk-output/flutter-test.log
@@ -69,8 +75,17 @@ flutter build apk --debug \
 
 cd ..
 cp .pandora-mobile-build/build/app/outputs/flutter-apk/app-debug.apk vercel-apk-output/pandora-debug.apk
-APK_SHA="$(sha256sum vercel-apk-output/pandora-debug.apk | awk '{print $1}')"
-APK_SIZE="$(stat -c '%s' vercel-apk-output/pandora-debug.apk)"
+APK_SHA="$(python3 - <<'PY'
+from pathlib import Path
+import hashlib
+print(hashlib.sha256(Path('vercel-apk-output/pandora-debug.apk').read_bytes()).hexdigest())
+PY
+)"
+APK_SIZE="$(python3 - <<'PY'
+from pathlib import Path
+print(Path('vercel-apk-output/pandora-debug.apk').stat().st_size)
+PY
+)"
 {
   echo "canonical_source_sha=$CANONICAL_SOURCE_SHA"
   echo "source_apps_tree=$EXPECTED_APPS_TREE"
