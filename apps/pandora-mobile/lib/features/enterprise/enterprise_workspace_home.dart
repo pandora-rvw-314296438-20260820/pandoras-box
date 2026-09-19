@@ -61,6 +61,8 @@ class EnterpriseWorkspaceSelection {
           'workspaceKey': workspace.key,
           'workspaceName': workspace.name,
           'workspaceType': workspace.subtitle,
+          if (workspace.key == 'batalla-associates')
+            'workspaceProfile': 'atty_batalla',
           'section': section.label,
         },
       };
@@ -146,6 +148,7 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
           icon: Icons.code_rounded),
     ],
   ),
+
   EnterpriseWorkspaceProfile(
     key: 'batalla-associates',
     name: 'Batalla & Associates',
@@ -157,32 +160,49 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
     sections: <EnterpriseWorkspaceSection>[
       EnterpriseWorkspaceSection('Home', 'enterprise_overview', 'home',
           icon: Icons.home_rounded),
-      EnterpriseWorkspaceSection('Overview', 'enterprise_overview', 'overview',
-          icon: Icons.dashboard_rounded),
-      EnterpriseWorkspaceSection(
-          'Matters & Cases', 'enterprise_workflows', 'matters-cases',
+      EnterpriseWorkspaceSection('Today', 'enterprise_overview', 'today',
+          icon: Icons.today_rounded),
+      EnterpriseWorkspaceSection('Matters', 'enterprise_data', 'matters',
           icon: Icons.gavel_rounded),
       EnterpriseWorkspaceSection(
-          'Clients & Contacts', 'enterprise_data', 'clients-contacts',
-          icon: Icons.contacts_rounded),
+          'Clients & Intake', 'enterprise_workflows', 'clients-intake',
+          icon: Icons.person_add_alt_1_rounded),
       EnterpriseWorkspaceSection(
-          'Documents & Drafts', 'enterprise_data', 'documents-drafts',
+          'Hearings & Calendar', 'enterprise_workflows', 'hearings-calendar',
+          icon: Icons.calendar_month_rounded),
+      EnterpriseWorkspaceSection(
+          'Reviews & Decisions', 'enterprise_workflows', 'reviews-decisions',
+          icon: Icons.fact_check_rounded),
+      EnterpriseWorkspaceSection(
+          'Documents & Evidence', 'enterprise_data', 'documents-evidence',
           icon: Icons.description_rounded),
       EnterpriseWorkspaceSection(
-          'Calendar & Deadlines', 'enterprise_workflows', 'calendar-deadlines',
-          icon: Icons.calendar_month_rounded),
+          'Paper Files', 'enterprise_data', 'paper-files',
+          icon: Icons.folder_copy_rounded),
+      EnterpriseWorkspaceSection(
+          'Scan & File', 'enterprise_workflows', 'scan-file',
+          icon: Icons.document_scanner_rounded),
+      EnterpriseWorkspaceSection(
+          'Calls & Communications', 'enterprise_workflows',
+          'calls-communications',
+          icon: Icons.call_rounded),
+      EnterpriseWorkspaceSection(
+          'Print Center', 'enterprise_workflows', 'print-center',
+          icon: Icons.print_rounded),
       EnterpriseWorkspaceSection(
           'Billing & Finance', 'enterprise_analytics', 'billing-finance',
           icon: Icons.receipt_long_rounded),
       EnterpriseWorkspaceSection(
-          'Research & Knowledge', 'enterprise_data', 'research-knowledge',
-          icon: Icons.menu_book_rounded),
+          'Reports', 'enterprise_analytics', 'reports',
+          icon: Icons.assessment_rounded),
       EnterpriseWorkspaceSection(
           'Team & Access', 'enterprise_security', 'team-access',
           icon: Icons.group_rounded),
-      EnterpriseWorkspaceSection('Activity', 'enterprise_logs', 'activity',
+      EnterpriseWorkspaceSection(
+          'Activity & Audit', 'enterprise_logs', 'activity-audit',
           icon: Icons.history_rounded),
-      EnterpriseWorkspaceSection('Settings', 'enterprise_settings', 'settings',
+      EnterpriseWorkspaceSection(
+          'Settings', 'enterprise_settings', 'settings',
           icon: Icons.settings_rounded),
       EnterpriseWorkspaceSection(
           'System / Developer', 'enterprise_code', 'system-developer',

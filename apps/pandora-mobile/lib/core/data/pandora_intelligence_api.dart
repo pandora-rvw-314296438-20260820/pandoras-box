@@ -43,7 +43,71 @@ class PandoraIntelligenceApi {
     }
   }
 
+
+  Future<List<PandoraIntelligenceThread>> recentThreadsForWorkspace(
+    String workspaceKey, {
+    int limit = 8,
+  }) async {
+    _requireSession();
+    final normalized = workspaceKey.trim();
+    if (normalized.isEmpty || normalized.length > 80) {
+      throw const PandoraIntelligenceException(
+        'Pandora could not load workspace conversation history.',
+      );
+    }
+    final safeLimit = limit.clamp(1, 30).toInt();
+    try {
+      final messageRows = await _client
+          .from('pandora_intelligence_messages')
+          .select('thread_id,structured_response,created_at')
+          .eq('organization_id', _organizationId)
+          .eq('author_role', 'assistant')
+          .contains('structured_response', <String, Object?>{
+            'enterpriseContext': <String, Object?>{
+              'selectedObject': <String, Object?>{
+                'workspaceKey': normalized,
+              },
+            },
+          })
+          .order('created_at', ascending: false)
+          .limit((safeLimit * 8).clamp(8, 200).toInt());
+
+      final threadIds = <String>[];
+      for (final value in messageRows as List<dynamic>) {
+        final id = _optionalText(_map(value)['thread_id']);
+        if (id == null || threadIds.contains(id)) continue;
+        threadIds.add(id);
+        if (threadIds.length >= safeLimit) break;
+      }
+      if (threadIds.isEmpty) return const <PandoraIntelligenceThread>[];
+
+      final threadRows = await _client
+          .from('pandora_intelligence_threads')
+          .select(
+            'id,project_id,title,status,last_message_at,created_at,updated_at',
+          )
+          .eq('organization_id', _organizationId)
+          .eq('status', 'active')
+          .inFilter('id', threadIds);
+
+      final byId = <String, PandoraIntelligenceThread>{};
+      for (final value in threadRows as List<dynamic>) {
+        final thread = PandoraIntelligenceThread.fromJson(_map(value));
+        byId[thread.id] = thread;
+      }
+      return <PandoraIntelligenceThread>[
+        for (final id in threadIds)
+          if (byId[id] != null) byId[id]!,
+      ];
+    } on PostgrestException {
+      throw const PandoraIntelligenceException(
+        'Pandora could not load workspace conversation history.',
+      );
+    }
+  }
+
   Future<List<PandoraIntelligenceMessage>> messages(
+
     String threadId, {
     int limit = 200,
   }) async {

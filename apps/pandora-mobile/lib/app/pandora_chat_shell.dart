@@ -10,6 +10,7 @@ import '../core/widgets/pandora_mark.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
+import '../features/enterprise/batalla_workspace_screen.dart';
 import '../features/enterprise/enterprise_workspace_home.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/plugins/plugins_screen.dart';
@@ -53,6 +54,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
       GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
   Map<String, Object?>? _activeEnterpriseContext;
+  EnterpriseWorkspaceSelection? _activeWorkspaceSelection;
   final Set<int> _visited = <int>{9};
   List<PandoraIntelligenceThread> _threads =
       const <PandoraIntelligenceThread>[];
@@ -132,6 +134,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   void _newChat() {
     setState(() {
       _activeEnterpriseContext = null;
+      _activeWorkspaceSelection = null;
       _roots.remove(0);
       _visited.add(0);
     });
@@ -158,6 +161,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   Future<void> _openThread(PandoraIntelligenceThread thread) async {
     setState(() {
       _activeEnterpriseContext = null;
+      _activeWorkspaceSelection = null;
       _roots.remove(0);
       _visited.add(0);
     });
@@ -380,6 +384,7 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   void _openWorkspace(EnterpriseWorkspaceSelection selection) {
     setState(() {
       _activeEnterpriseContext = selection.enterpriseContext;
+      _activeWorkspaceSelection = selection;
       _roots.remove(0);
       _visited.add(0);
     });
@@ -398,13 +403,21 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   Widget _root(int index) => _roots.putIfAbsent(
         index,
         () => switch (index) {
-          0 => AskPandoraScreen(
-              key: _chatKey,
-              onSearchChats: _searchChats,
-              onMore: () => _select(3),
-              onHome: () => _select(9),
-              enterpriseContext: _activeEnterpriseContext,
-            ),
+          0 => _activeWorkspaceSelection?.workspace.key ==
+                  'batalla-associates'
+              ? BatallaWorkspaceScreen(
+                  initialRouteSlug:
+                      _activeWorkspaceSelection!.section.routeSlug,
+                  profileKey: 'atty_batalla',
+                  onBackToWorkspaces: () => _select(9),
+                )
+              : AskPandoraScreen(
+                  key: _chatKey,
+                  onSearchChats: _searchChats,
+                  onMore: () => _select(3),
+                  onHome: () => _select(9),
+                  enterpriseContext: _activeEnterpriseContext,
+                ),
           1 => const ProjectsScreen(),
           2 => const ApprovalsScreen(),
           3 => const MoreScreen(),
