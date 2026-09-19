@@ -4,6 +4,7 @@ services:
     volumes:
       - ..:/workspaces/pandoras-box
     working_dir: /workspaces/pandoras-box
+    user: codespace
     ports:
       - "9114:9114"
     command:
