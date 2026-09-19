@@ -12,6 +12,17 @@ function exact(left, right, code, message) {
   if ((left ?? null) !== (right ?? null)) throw new PandoraToolError("conflict", code, message);
 }
 function lower(value) { return String(value || "").toLowerCase(); }
+function vercelProvider(value) {
+  const provider = lower(value || "vercel");
+  if (provider !== "vercel") {
+    throw new PandoraToolError(
+      "policy_denied",
+      "EXECUTION_PROVIDER_NOT_ALLOWED",
+      "Pandora deployment execution is limited to Vercel; source and database authority remain GitHub and Supabase.",
+    );
+  }
+  return "vercel";
+}
 
 class WorkerFDeploymentExecutorAdapter {
   constructor({ runtimeManager, contextResolver }) {
@@ -46,7 +57,7 @@ class WorkerFDeploymentExecutorAdapter {
       expected_production_version_id: trusted.expected_production_version_id ?? null,
       allow_first_production: trusted.allow_first_production === true,
       runtime_type: trusted.runtime_type || "web_app",
-      provider: trusted.provider || "vercel",
+      provider: vercelProvider(trusted.provider),
     });
     return Object.freeze({ output: await this.runtimeManager.publishVersion(input, preview) });
   }
@@ -84,7 +95,7 @@ class WorkerFDomainExecutorAdapter {
       environment: args.target_environment,
       authorizationRef: request.action_hash,
       verificationRef: trusted.verification_ref,
-      provider: trusted.provider || "vercel",
+      provider: vercelProvider(trusted.provider),
       runtimeType: trusted.runtime_type || "web_app",
       expectedProductionVersionId: trusted.expected_production_version_id ?? null,
       allowFirstProduction: trusted.allow_first_production === true,
