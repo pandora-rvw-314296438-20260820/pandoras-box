@@ -5,9 +5,9 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
 
-const String _viewType = 'pandora-perdido-key-live-cam';
+const String _viewType = 'pandora-times-square-live-cam';
 const String _embedUrl =
-    'https://perdidokeyog.com/embed/cam/';
+    'https://www.youtube-nocookie.com/embed/z-jYdOIKcTQ?autoplay=1&mute=1&playsinline=1&rel=0';
 
 bool _registered = false;
 
@@ -29,7 +29,7 @@ Widget buildEnterpriseVisionEmbed() {
         iframe.setAttribute('loading', 'lazy');
         iframe.setAttribute(
           'title',
-          'Perdido Key OG live beach camera',
+          'EarthCam live Times Square camera',
         );
         return iframe;
       },
