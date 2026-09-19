@@ -99,6 +99,10 @@ class MainActivity : FlutterFragmentActivity() {
             "pandora/exact_preview",
             PandoraExactPreviewFactory(flutterEngine.dartExecutor.binaryMessenger)
         )
+        flutterEngine.platformViewsController.registry.registerViewFactory(
+            "pandora/camstreamer_kabukicho",
+            PandoraCamStreamerViewFactory()
+        )
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler(::handleCall)
     }
@@ -906,5 +910,59 @@ private fun isSafeEmbeddedPreviewPath(path: String): Boolean {
     }
     return path.split("/").none {
         it.isBlank() || it == "." || it == ".." || it.length > 255
+    }
+}
+
+
+
+private class PandoraCamStreamerViewFactory :
+    io.flutter.plugin.platform.PlatformViewFactory(
+        io.flutter.plugin.common.StandardMessageCodec.INSTANCE
+    ) {
+    override fun create(
+        context: android.content.Context,
+        viewId: Int,
+        args: Any?
+    ): io.flutter.plugin.platform.PlatformView =
+        PandoraCamStreamerView(context)
+}
+
+private class PandoraCamStreamerView(
+    context: android.content.Context
+) : io.flutter.plugin.platform.PlatformView {
+    private val webView = WebView(context).apply {
+        setBackgroundColor(Color.BLACK)
+        settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = false
+            allowContentAccess = false
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            mediaPlaybackRequiresUserGesture = false
+            setSupportMultipleWindows(false)
+        }
+        webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): Boolean {
+                val uri = request?.url ?: return true
+                val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
+                val allowedHost =
+                    host == "camstreamer.com" || host.endsWith(".camstreamer.com")
+                return uri.scheme != "https" || !allowedHost
+            }
+        }
+        loadUrl(
+            "https://camstreamer.com/embed/VSnOa4OubclxMcFKpTws6Yv7U2rt0VbMfcrHomkq?rel=0"
+        )
+    }
+
+    override fun getView(): android.view.View = webView
+
+    override fun dispose() {
+        webView.stopLoading()
+        webView.loadUrl("about:blank")
+        webView.destroy()
     }
 }
