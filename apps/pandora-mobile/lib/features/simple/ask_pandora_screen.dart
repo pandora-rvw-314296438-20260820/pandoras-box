@@ -407,18 +407,16 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     // be reconstructed on-device without guessing.
     if (_threadId != null) return false;
 
-    if (!PandoraLocalAiRouter.shouldUseLocal(
+    final status = await PandoraLocalAi.instance.status();
+    final route = PandoraLocalAiRouter.decide(
       message: objective,
       hasAttachment: _attachment != null || _imageAttachment != null,
       hasProjectContext: _projectContext != null,
       hasSelectedCapability: _serviceContext != null,
       hasCharacterContext: _characterContext != null,
-    )) {
-      return false;
-    }
-
-    final status = await PandoraLocalAi.instance.status();
-    if (!status.supported || !status.configured) return false;
+      status: status,
+    );
+    if (!route.useLocal) return false;
     if (!await PandoraLocalAi.instance.warm()) return false;
 
     var response = '';

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/pandora_app.dart';
 import 'app/pandora_runtime_bootstrap.dart';
 import 'core/local/pandora_local_store.dart';
-import 'core/local_ai/pandora_local_ai.dart';
 import 'core/security/mobile_auth_storage.dart';
 import 'pandora_config.dart';
 
@@ -51,7 +48,4 @@ Future<void> main() async {
       localStore: runtime.localStore,
     ),
   );
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(PandoraLocalAi.instance.warm());
-  });
 }

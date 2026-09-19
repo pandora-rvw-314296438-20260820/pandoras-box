@@ -94,6 +94,18 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
     return '${gib.toStringAsFixed(2)} GiB';
   }
 
+  String _bytesLabel(Object? raw) {
+    final bytes = raw is num ? raw.toDouble() : double.tryParse(raw?.toString() ?? '');
+    if (bytes == null || bytes <= 0) return 'n/a';
+    return (bytes / (1024 * 1024 * 1024)).toStringAsFixed(2) + ' GiB';
+  }
+
+  String _metric(Object? raw, {int fractionDigits = 0}) {
+    if (raw == null) return 'n/a';
+    if (raw is num) return raw.toStringAsFixed(fractionDigits);
+    return raw.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = _status;
@@ -116,7 +128,7 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                 : 'Choose your local model',
             message: loaded
                 ? 'Routine chat can start on your phone and escalate to cloud intelligence only when needed.'
-                : 'For this phone, Qwen2.5 3B Instruct Q4_K_M is the current benchmarked sweet spot.',
+                : 'Qwen2.5 3B Instruct Q4_K_M is the current primary local-model candidate; physical-phone benchmarking is still required.',
             icon: Icons.memory_rounded,
             tone: loaded
                 ? PandoraStatusTone.verified
@@ -153,6 +165,79 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
               ),
             ),
           ),
+          if (status != null) ...[
+            const SizedBox(height: PandoraSpacing.sm),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(PandoraSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Local AI diagnostics',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: PandoraSpacing.xs),
+                    Text(
+                      'Backend ' +
+                          (status.diagnostics['runtimeBackendConfigured']?.toString() ?? 'unknown') +
+                          ' · ABI ' +
+                          (status.diagnostics['runtimeNativeAbi']?.toString() ?? 'unknown') +
+                          ' · accelerator verified ' +
+                          (status.diagnostics['acceleratorVerified'] == true ? 'yes' : 'no'),
+                    ),
+                    Text(
+                      (status.diagnostics['manufacturer']?.toString() ?? '') +
+                          ' ' +
+                          (status.diagnostics['model']?.toString() ?? '') +
+                          ' · Android ' +
+                          (status.diagnostics['androidVersion']?.toString() ?? 'unknown') +
+                          ' · SoC ' +
+                          (status.diagnostics['socModel']?.toString() ?? 'not exposed'),
+                    ),
+                    Text(
+                      'RAM ' +
+                          _bytesLabel(status.diagnostics['availableRamBytes']) +
+                          ' free / ' +
+                          _bytesLabel(status.diagnostics['totalRamBytes']) +
+                          ' total · storage ' +
+                          _bytesLabel(status.diagnostics['availableStorageBytes']) +
+                          ' free',
+                    ),
+                    Text(
+                      'Thermal ' +
+                          (status.diagnostics['thermalStatus']?.toString() ?? 'not exposed') +
+                          ' · battery ' +
+                          (status.diagnostics['batteryPercent']?.toString() ?? 'n/a') +
+                          '% · charging ' +
+                          (status.diagnostics['charging']?.toString() ?? 'n/a'),
+                    ),
+                    Text(
+                      'Load ' +
+                          _metric(status.diagnostics['lastModelLoadMs']) +
+                          ' ms · TTFT ' +
+                          _metric(status.diagnostics['lastTimeToFirstTokenMs']) +
+                          ' ms · ' +
+                          _metric(
+                            status.diagnostics['tokensPerSecond'],
+                            fractionDigits: 2,
+                          ) +
+                          ' token-events/s',
+                    ),
+                    Text(
+                      'GPU used no · NPU used no · NNAPI used no · Vulkan exposed ' +
+                          (status.diagnostics['vulkanFeatureExposed']?.toString() ?? 'unknown'),
+                    ),
+                    if (PandoraLocalAiRouter.lastDecision != null)
+                      Text(
+                        'Last routing reason: ' +
+                            PandoraLocalAiRouter.lastDecision!.reason,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (_error != null) ...[
             const SizedBox(height: PandoraSpacing.sm),
             Text(

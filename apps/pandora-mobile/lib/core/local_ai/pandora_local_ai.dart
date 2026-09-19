@@ -11,6 +11,7 @@ class PandoraLocalAiStatus {
     this.modelBytes,
     this.modelSha256,
     this.engineState,
+    this.diagnostics = const <String, Object?>{},
   });
 
   final bool supported;
@@ -20,6 +21,7 @@ class PandoraLocalAiStatus {
   final int? modelBytes;
   final String? modelSha256;
   final String? engineState;
+  final Map<String, Object?> diagnostics;
 
   static const unavailable = PandoraLocalAiStatus(
     supported: false,
@@ -47,6 +49,10 @@ class PandoraLocalAiStatus {
       modelBytes: asInt(value['modelBytes']),
       modelSha256: asText(value['modelSha256']),
       engineState: asText(value['engineState']),
+      diagnostics: <String, Object?>{
+        for (final entry in value.entries)
+          if (entry.key is String) entry.key as String: entry.value,
+      },
     );
   }
 }
@@ -211,24 +217,66 @@ class PandoraLocalAi {
   }
 }
 
+class PandoraLocalAiRouteDecision {
+  const PandoraLocalAiRouteDecision({
+    required this.useLocal,
+    required this.reason,
+  });
+
+  final bool useLocal;
+  final String reason;
+}
+
 class PandoraLocalAiRouter {
   const PandoraLocalAiRouter._();
 
-  static bool shouldUseLocal({
+  static PandoraLocalAiRouteDecision? _lastDecision;
+
+  static PandoraLocalAiRouteDecision? get lastDecision => _lastDecision;
+
+  static PandoraLocalAiRouteDecision _record(bool useLocal, String reason) {
+    final decision = PandoraLocalAiRouteDecision(
+      useLocal: useLocal,
+      reason: reason,
+    );
+    _lastDecision = decision;
+    return decision;
+  }
+
+  static PandoraLocalAiRouteDecision decide({
     required String message,
     required bool hasAttachment,
     required bool hasProjectContext,
     required bool hasSelectedCapability,
     required bool hasCharacterContext,
+    PandoraLocalAiStatus? status,
   }) {
     final value = message.trim();
-    if (value.isEmpty ||
-        value.length > 4000 ||
-        hasAttachment ||
-        hasProjectContext ||
-        hasSelectedCapability ||
-        hasCharacterContext) {
-      return false;
+    if (value.isEmpty) return _record(false, 'empty_message');
+    if (value.length > 4000) {
+      return _record(false, 'context_exceeds_local_guard');
+    }
+    if (hasAttachment) return _record(false, 'multimodal_or_attachment');
+    if (hasProjectContext) return _record(false, 'project_context');
+    if (hasSelectedCapability) return _record(false, 'connected_capability');
+    if (hasCharacterContext) return _record(false, 'character_context');
+
+    if (status != null) {
+      if (!status.supported) return _record(false, 'local_runtime_unsupported');
+      if (!status.configured) return _record(false, 'local_model_missing');
+      if (status.diagnostics['memoryLow'] == true) {
+        return _record(false, 'android_memory_pressure');
+      }
+      final thermal =
+          status.diagnostics['thermalStatus']?.toString().toLowerCase();
+      if (const <String>{
+        'severe',
+        'critical',
+        'emergency',
+        'shutdown',
+      }.contains(thermal)) {
+        return _record(false, 'thermal_pressure');
+      }
     }
 
     final lower = value.toLowerCase();
@@ -256,7 +304,27 @@ class PandoraLocalAiRouter {
       'calendar',
       'email',
     ];
-    if (liveTerms.any(lower.contains)) return false;
+    if (liveTerms.any(lower.contains)) {
+      return _record(false, 'live_or_connected_data');
+    }
+
+    const heavyTerms = <String>[
+      'deep research',
+      'research this',
+      'write code',
+      'debug this code',
+      'refactor',
+      'typescript',
+      'kotlin',
+      'flutter',
+      'sql query',
+      'analyze repository',
+      'image',
+      'video',
+    ];
+    if (heavyTerms.any(lower.contains)) {
+      return _record(false, 'heavier_reasoning_or_multimodal');
+    }
 
     final externalAction = RegExp(
       r'^\s*(build|deploy|publish|merge|commit|push|send|call|text|'
@@ -264,8 +332,27 @@ class PandoraLocalAiRouter {
       r'open|run|execute|schedule|remind|book|buy)\b',
       caseSensitive: false,
     );
-    if (externalAction.hasMatch(value)) return false;
+    if (externalAction.hasMatch(value)) {
+      return _record(false, 'external_action');
+    }
 
-    return true;
+    return _record(true, 'routine_local_sufficient');
   }
+
+  static bool shouldUseLocal({
+    required String message,
+    required bool hasAttachment,
+    required bool hasProjectContext,
+    required bool hasSelectedCapability,
+    required bool hasCharacterContext,
+    PandoraLocalAiStatus? status,
+  }) =>
+      decide(
+        message: message,
+        hasAttachment: hasAttachment,
+        hasProjectContext: hasProjectContext,
+        hasSelectedCapability: hasSelectedCapability,
+        hasCharacterContext: hasCharacterContext,
+        status: status,
+      ).useLocal;
 }
