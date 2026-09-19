@@ -2,15 +2,15 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildPandoraLifecycleEvent } = require('../src/projectos/pandora-lifecycle.js');
+const { buildPandoraLifecycleEvent } = require('../src/pandora/pandora-lifecycle.js');
 const {
   normalizeHost,
   createPostHogCaptureTransport,
-} = require('../src/projectos/pandora-posthog-transport.js');
+} = require('../src/pandora/pandora-posthog-transport.js');
 const {
   runtimeEnvironment,
   createPandoraPostHogTelemetryFromEnv,
-} = require('../src/projectos/pandora-posthog-runtime.js');
+} = require('../src/pandora/pandora-posthog-runtime.js');
 
 const KEY = 'k'.repeat(48);
 const TOKEN = 'phc_' + 'a'.repeat(40);

@@ -31,8 +31,8 @@ async function makeDb(t, upgraded = true) {
     $$;
     create type public.audit_actor_type as enum ('system','user');
     create table public.memberships (organization_id uuid, user_id uuid, role text, status text);
-    create table public.projectos_projects (id uuid primary key, organization_id uuid, name text, project_key text, repository text);
-    create table public.projectos_intake_requests (id uuid primary key, organization_id uuid, project_id uuid);
+    create table public.pandora_projects (id uuid primary key, organization_id uuid, name text, project_key text, repository text);
+    create table public.pandora_intake_requests (id uuid primary key, organization_id uuid, project_id uuid);
     create table private.execution_plans (
       id uuid primary key default gen_random_uuid(), organization_id uuid,
       request_id uuid default gen_random_uuid(), intake_id uuid, tool text, risk text,
@@ -40,13 +40,13 @@ async function makeDb(t, upgraded = true) {
       payload_hash text, completed_at timestamptz, updated_at timestamptz default now(),
       created_at timestamptz default now()
     );
-    create table public.projectos_evidence (
+    create table public.pandora_evidence (
       id uuid primary key default gen_random_uuid(), organization_id uuid, project_id uuid,
       evidence_type text, provider text, external_id text, source_url text, repository text,
       head_sha text, status text check (status in ('observed','passing','failing','complete','blocked','superseded','invalidated')),
       verdict text, payload_redacted jsonb, observed_at timestamptz, invalidated_at timestamptz, invalidation_reason text
     );
-    create unique index evidence_identity on public.projectos_evidence
+    create unique index evidence_identity on public.pandora_evidence
       (organization_id,provider,evidence_type,external_id) where external_id is not null;
     create table public.audit_events (id bigserial primary key, organization_id uuid, event_type text, payload jsonb);
     create function private.append_audit_event(uuid,uuid,uuid,public.audit_actor_type,uuid,text,jsonb)
@@ -54,8 +54,8 @@ async function makeDb(t, upgraded = true) {
       insert into public.audit_events(organization_id,event_type,payload) values ($1,$6,$7) returning id
     $$;
     insert into public.memberships values ('${org}','${owner}','owner','active');
-    insert into public.projectos_projects values ('${project}','${org}','Pandora','pandora','example/pandora');
-    insert into public.projectos_intake_requests values ('${intake}','${org}','${project}');
+    insert into public.pandora_projects values ('${project}','${org}','Pandora','pandora','example/pandora');
+    insert into public.pandora_intake_requests values ('${intake}','${org}','${project}');
   `);
   await db.exec(originalMigration);
   if (upgraded) await db.exec(migration);
@@ -67,7 +67,7 @@ async function record(db, status, summary = {}, error = null, planOrg = org, too
     (organization_id,intake_id,tool,risk,status,result_summary,error,payload_hash,completed_at)
     values ($1,$2,$3,'write',$4,$5,$6,$7,now()) returning id`,
   [planOrg, intake, tool, status, JSON.stringify(summary), error, 'a'.repeat(64)]);
-  const evidence = await db.query('select * from public.projectos_evidence where external_id=$1', [rows[0].id]);
+  const evidence = await db.query('select * from public.pandora_evidence where external_id=$1', [rows[0].id]);
   return { id: rows[0].id, evidence: evidence.rows[0] };
 }
 
@@ -155,12 +155,12 @@ test('terminal evidence is scoped, idempotent, replayable and transactional with
   const replay = await db.query('select private.pandora_record_execution_plan_evidence_v1($1) as id', [first.id]);
   assert.equal(replay.rows[0].id, first.evidence.id);
   await db.exec(migration);
-  assert.equal((await db.query('select count(*)::int as n from public.projectos_evidence')).rows[0].n, 1);
+  assert.equal((await db.query('select count(*)::int as n from public.pandora_evidence')).rows[0].n, 1);
   assert.equal((await db.query('select count(*)::int as n from public.audit_events')).rows[0].n, 1);
   await db.exec('begin');
   await record(db, 'completed');
   await db.exec('rollback');
-  assert.equal((await db.query('select count(*)::int as n from public.projectos_evidence')).rows[0].n, 1);
+  assert.equal((await db.query('select count(*)::int as n from public.pandora_evidence')).rows[0].n, 1);
   assert.equal((await db.query('select count(*)::int as n from public.audit_events')).rows[0].n, 1);
   await actAs(db, owner);
   await assert.rejects(db.query('select private.pandora_record_execution_plan_evidence_v1($1)', [first.id]), /permission denied/);
@@ -171,16 +171,16 @@ test('upgrade preserves historical evidence and audit, then reclassifies in boun
   const old = [];
   for (let i = 0; i < 3; i++) old.push(await record(db, 'completed'));
   const priorAudit = (await db.query('select * from public.audit_events order by id')).rows;
-  const priorPayloads = (await db.query('select id,payload_redacted from public.projectos_evidence order by id')).rows;
+  const priorPayloads = (await db.query('select id,payload_redacted from public.pandora_evidence order by id')).rows;
   await db.exec(migration);
-  const superseded = (await db.query('select id,payload_redacted,status,invalidated_at from public.projectos_evidence order by id')).rows;
+  const superseded = (await db.query('select id,payload_redacted,status,invalidated_at from public.pandora_evidence order by id')).rows;
   assert.deepEqual(superseded.map(({ id, payload_redacted }) => ({ id, payload_redacted })), priorPayloads);
   assert.ok(superseded.every(e => e.status === 'superseded' && e.invalidated_at));
   assert.deepEqual((await db.query('select * from public.audit_events order by id limit 3')).rows, priorAudit);
   assert.equal((await db.query('select private.pandora_backfill_action_evidence_v2(2) as n')).rows[0].n, 2);
   assert.equal((await db.query('select private.pandora_backfill_action_evidence_v2(2) as n')).rows[0].n, 1);
   assert.equal((await db.query('select private.pandora_backfill_action_evidence_v2(2) as n')).rows[0].n, 0);
-  const current = (await db.query("select * from public.projectos_evidence where evidence_type='projectos_execution_outcome_v2' order by id")).rows;
+  const current = (await db.query("select * from public.pandora_evidence where evidence_type='pandora_execution_outcome_v2' order by id")).rows;
   assert.equal(current.length, 3);
   assert.ok(current.every(e => e.status === 'observed' && e.verdict === 'unverified'));
   assert.deepEqual(new Set(current.map(e => e.payload_redacted.supersedesEvidenceId)), new Set(old.map(e => e.evidence.id)));
@@ -189,7 +189,7 @@ test('upgrade preserves historical evidence and audit, then reclassifies in boun
   await actAs(db, owner);
   const projected = (await db.query('select public.pandora_action_evidence_v1($1,2) as evidence', [org])).rows[0].evidence;
   assert.equal(projected.length, 2);
-  assert.ok(projected.every(e => e.evidenceType === 'projectos_execution_outcome_v2'));
+  assert.ok(projected.every(e => e.evidenceType === 'pandora_execution_outcome_v2'));
   await assert.rejects(db.query('select private.pandora_backfill_action_evidence_v2(1)'), /permission denied/);
 });
 
@@ -198,7 +198,7 @@ test('containment rollback closes access and new evidence without restoring vuln
   await record(db, 'completed');
   await db.exec(readFileSync(join(__dirname, '../docs/supabase/rollback/pandora-action-evidence-v2-containment.sql'), 'utf8'));
   assert.equal((await record(db, 'completed')).evidence, undefined);
-  assert.equal((await db.query('select count(*)::int as n from public.projectos_evidence')).rows[0].n, 1);
+  assert.equal((await db.query('select count(*)::int as n from public.pandora_evidence')).rows[0].n, 1);
   await actAs(db, owner);
   await assert.rejects(db.query('select public.pandora_action_evidence_v1($1)', [org]), /permission denied/);
   await db.exec('reset role');

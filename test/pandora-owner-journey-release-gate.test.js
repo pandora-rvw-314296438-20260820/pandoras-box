@@ -23,14 +23,14 @@ const physical = fs.readFileSync(
   'utf8',
 );
 
-test('owner read-only audit never terminates as a ProjectOS intake receipt', () => {
+test('owner read-only audit never terminates as a Pandora intake receipt', () => {
   assert.match(migration, /pandora_chat_universal_dispatch_v9/);
   assert.match(migration, /'routing','repository_audit_direct'/);
   assert.match(intelligence, /pandora_chat_repository_snapshot_v1/);
   assert.match(intelligence, /Pandora-verified repository snapshot part/);
   assert.doesNotMatch(
     migration,
-    /accepted the (analysis )?request into ProjectOS\. Acceptance is not execution\./,
+    /accepted the (analysis )?request into Pandora\. Acceptance is not execution\./,
   );
 });
 

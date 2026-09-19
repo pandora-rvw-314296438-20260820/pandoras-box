@@ -11,7 +11,7 @@ test('reviewer enrollment is independent, fresh, canonical-repo bound, and grant
   assert.match(migration, /create table if not exists private\.intelligence_reviewer_identities/i);
   assert.match(migration, /create table if not exists private\.intelligence_reviewer_scope_grants/i);
   assert.match(migration, /session_user<>'postgres'/i);
-  assert.match(migration, /projectos\.intelligence\.verify/i);
+  assert.match(migration, /pandora\.intelligence\.verify/i);
   assert.match(migration, /pandora-rvw-314296438-20260820\/pandoras-box/i);
   assert.match(migration, /proof\.verified_by<>proof\.agent_key/i);
   assert.match(migration, /proof\.expires_at>now\(\)/i);
@@ -26,9 +26,9 @@ test('global review requires an explicit short-lived grant and cannot outlive th
 });
 
 test('legacy direct Worker-E certification is retired from reviewer role', () => {
-  assert.match(migration, /revoke execute on function public\.pandora_worker_e_certify_intelligence_asset[\s\S]*from projectos_reviewer_ingest/i);
-  assert.match(migration, /grant execute on function public\.pandora_finalize_intelligence_review_attestation[\s\S]*to projectos_reviewer_ingest/i);
-  assert.doesNotMatch(migration, /grant execute on function public\.pandora_worker_e_certify_intelligence_asset[\s\S]{0,200}to projectos_reviewer_ingest/i);
+  assert.match(migration, /revoke execute on function public\.pandora_worker_e_certify_intelligence_asset[\s\S]*from pandora_reviewer_ingest/i);
+  assert.match(migration, /grant execute on function public\.pandora_finalize_intelligence_review_attestation[\s\S]*to pandora_reviewer_ingest/i);
+  assert.doesNotMatch(migration, /grant execute on function public\.pandora_worker_e_certify_intelligence_asset[\s\S]{0,200}to pandora_reviewer_ingest/i);
 });
 
 test('signed attestation is exact-digest, nonce, reviewer-key and JWT bound before TRUSTED', () => {
@@ -43,7 +43,7 @@ test('signed attestation is exact-digest, nonce, reviewer-key and JWT bound befo
 });
 
 test('Edge gateway validates exact reviewer JWT and Ed25519 signature before recording attestation', () => {
-  assert.match(edge, /projectos_reviewer_ingest/);
+  assert.match(edge, /pandora_reviewer_ingest/);
   assert.match(edge, /pandora-independent-review-authority/);
   assert.match(edge, /pandora-intelligence-certification/);
   assert.match(edge, /intelligence_asset_certification/);

@@ -16,10 +16,10 @@ test("Memory Edge release transport is exact-main, signed-source and fixed-targe
   assert.match(sql, /pandoras-box-memory\/branches\/main/);
   assert.match(sql, /requested Memory commit is not current main/);
   assert.match(sql, /Memory main signature verification required/);
-  assert.match(sql, /pandoras-box-memory\/contents\/supabase\/functions\/pandora-projectos-bridge\/index\.ts\?ref=/);
-  assert.match(sql, /pandoras-box-memory\/contents\/supabase\/functions\/pandora-projectos-bridge\/deno\.json\?ref=/);
+  assert.match(sql, /pandoras-box-memory\/contents\/supabase\/functions\/pandora-pandora-bridge\/index\.ts\?ref=/);
+  assert.match(sql, /pandoras-box-memory\/contents\/supabase\/functions\/pandora-pandora-bridge\/deno\.json\?ref=/);
   assert.match(sql, /ivmvufhcsezyhczzondn/);
-  assert.match(sql, /functions\/deploy\?slug=pandora-projectos-bridge/);
+  assert.match(sql, /functions\/deploy\?slug=pandora-pandora-bridge/);
   assert.match(sql, /'verify_jwt',false/);
 });
 
@@ -28,8 +28,8 @@ test("Memory Edge release transport keeps provider credentials server-side", () 
   assert.match(sql, /mcpmaster_supabase_account_1_pat/);
   assert.match(sql, /mcpmaster_supabase_account_2_pat/);
   assert.match(sql, /security definer/gi);
-  assert.match(sql, /revoke all on function private\.pandora_memory_release_deploy_projectos_bridge_20260904\(text\) from public,anon,authenticated/);
-  assert.match(sql, /grant execute on function public\.pandora_memory_release_deploy_projectos_bridge_v1\(text\) to service_role/);
+  assert.match(sql, /revoke all on function private\.pandora_memory_release_deploy_pandora_bridge_20260904\(text\) from public,anon,authenticated/);
+  assert.match(sql, /grant execute on function public\.pandora_memory_release_deploy_pandora_bridge_v1\(text\) to service_role/);
   const safeReturn = sql.slice(sql.lastIndexOf("return jsonb_build_object("));
   assert.match(safeReturn, /'sourceSha256',v_source_sha/);
   assert.match(safeReturn, /'denoSha256',v_deno_sha/);
@@ -39,6 +39,6 @@ test("Memory Edge release transport keeps provider credentials server-side", () 
 
 test("Memory Edge release transport has no variable repository, project or slug input", () => {
   assert.doesNotMatch(sql, /p_repo|p_project_ref|p_slug/);
-  assert.match(sql, /pandora_memory_release_deploy_projectos_bridge_20260904\(p_commit_sha text\)/);
-  assert.match(sql, /pandora_memory_release_deploy_projectos_bridge_v1\(p_commit_sha text\)/);
+  assert.match(sql, /pandora_memory_release_deploy_pandora_bridge_20260904\(p_commit_sha text\)/);
+  assert.match(sql, /pandora_memory_release_deploy_pandora_bridge_v1\(p_commit_sha text\)/);
 });

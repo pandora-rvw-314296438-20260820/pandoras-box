@@ -31,7 +31,7 @@ test('mobile uses speech-act dispatch v9 over standing-authority v8', () => {
 });
 
 test('status follow-ups read persisted execution truth instead of generic refusal', () => {
-  assert.match(migration, /projectos_intake_requests/);
+  assert.match(migration, /pandora_intake_requests/);
   assert.match(migration, /The execution step is complete\. Pandora is verifying the requested outcome/);
   assert.match(migration, /requestedOutcomeVerified',false/);
   assert.match(migration, /Yes — the work request is accepted\. Pandora will continue automatically/);
@@ -40,7 +40,7 @@ test('status follow-ups read persisted execution truth instead of generic refusa
 test('model fallback treats standing authority as default and keeps execution plumbing internal', () => {
   assert.match(edge, /Standing authority is the default for routine authorized work/);
   assert.match(edge, /Never tell the owner to route work through a separate project manager/);
-  assert.doesNotMatch(edge, /\\bProjectOS\\b/);
+  assert.doesNotMatch(edge, /\\bPandora\\b/);
   assert.match(edge, /credentials and side effects stay inside Pandora's capability runtime and Worker C/);
   assert.match(edge, /Never claim an external action started, is running, is happening in the background, is verifying, or completed unless supplied persisted runtime evidence explicitly supports that exact state/);
   assert.match(edge, /Never invent an ETA or time estimate/);

@@ -8,9 +8,9 @@ const migration = readFileSync(join(root, 'supabase/migrations/20260912031000_pa
 const ownerApi = readFileSync(join(root, 'supabase/functions/pandora-owner-api/index.ts'), 'utf8');
 
 test('terminal execution plans promote bounded truth into the existing evidence model', () => {
-  assert.match(migration, /projectos_execution_outcome/);
+  assert.match(migration, /pandora_execution_outcome/);
   assert.match(migration, /private\.execution_plans/);
-  assert.match(migration, /public\.projectos_evidence/);
+  assert.match(migration, /public\.pandora_evidence/);
   assert.match(migration, /resultSummarySha256/);
   assert.match(migration, /providerReadback/);
   assert.match(migration, /headSha/);
@@ -21,7 +21,7 @@ test('terminal execution plans promote bounded truth into the existing evidence 
 test('evidence recording is idempotent and Activity receives a hash-chained summary event', () => {
   assert.match(migration, /on conflict \(organization_id,provider,evidence_type,external_id\) where external_id is not null do nothing/i);
   assert.match(migration, /private\.append_audit_event/);
-  assert.match(migration, /projectos_execution_evidence_recorded/);
+  assert.match(migration, /pandora_execution_evidence_recorded/);
   assert.match(migration, /execution_plan_evidence_v1/);
   assert.match(ownerApi, /from\("audit_events"\)/);
 });
@@ -33,8 +33,8 @@ test('owner action-evidence projection is authenticated-only and bounded', () =>
   assert.match(migration, /grant execute on function public\.pandora_action_evidence_v1\(uuid,integer\) to authenticated/);
 });
 
-test('existing owner Evidence surface already consumes canonical projectos_evidence', () => {
-  assert.match(ownerApi, /from\("projectos_evidence"\)/);
+test('existing owner Evidence surface already consumes canonical pandora_evidence', () => {
+  assert.match(ownerApi, /from\("pandora_evidence"\)/);
   assert.match(ownerApi, /payload_redacted/);
   assert.match(ownerApi, /observed_at/);
 });

@@ -8,7 +8,7 @@ const {
 } = require('../dist/pandora-approval-authorization.js');
 const { createPandoraMcpHandler } = require('../dist/pandora-mcp-handler.js');
 const {
-  resolveProjectOsMachineCredential,
+  resolvePandoraMachineCredential,
   SupabaseBearerAuthenticator,
 } = require('../apps/meta-business-mcp/dist/auth/supabase-bearer.js');
 
@@ -111,7 +111,7 @@ for (const role of ['owner', 'admin']) {
 }
 
 for (const role of ['operator', 'member', 'viewer']) {
-  test(`${role} cannot approve a ProjectOS plan`, async () => {
+  test(`${role} cannot approve a Pandora plan`, async () => {
     const { handler, calls } = harness(role);
     const response = await invoke(handler, requestFor('pandora_approve_plan', { planId: PLAN_ID }));
     assert.equal(response.statusCode, 403);
@@ -134,7 +134,7 @@ test('wrong-organization or inactive membership cannot approve', async () => {
   const { handler, calls } = harness(null);
   const response = await invoke(handler, requestFor('pandora_approve_plan', { planId: PLAN_ID }));
   assert.equal(response.statusCode, 403);
-  assert.match(response.body.error.message, /active ProjectOS organization membership/);
+  assert.match(response.body.error.message, /active Pandora organization membership/);
   assert.equal(calls.length, 0);
 });
 
@@ -185,7 +185,7 @@ test('existing identity-only OAuth grant can approve without connector reconsent
   assert.equal(calls.length, 1);
 });
 
-test('a declared OAuth grant missing openid cannot approve or execute a ProjectOS plan', async () => {
+test('a declared OAuth grant missing openid cannot approve or execute a Pandora plan', async () => {
   for (const name of ['pandora_approve_plan', 'pandora_execute_plan']) {
     const { ledger } = harness('owner');
     const handler = createPandoraMcpHandler({
@@ -241,7 +241,7 @@ test('project-scoped OAuth grants require the exact action scope and cannot fall
   }
 });
 
-test('projectos wildcard remains an explicit modern grant for an owner approval', async () => {
+test('pandora wildcard remains an explicit modern grant for an owner approval', async () => {
   const { ledger, calls } = harness('owner');
   const handler = createPandoraMcpHandler({
     organizationId: ORGANIZATION_ID,
@@ -377,7 +377,7 @@ test('an approved plan is claimed and executed once and replay is rejected', asy
   assert.equal(executions, 1);
 });
 
-test('ProjectOS MCP delete execution passes a ledger-backed reservation callback into provider configuration', async () => {
+test('Pandora MCP delete execution passes a ledger-backed reservation callback into provider configuration', async () => {
   const args = {
     accountId: 'battle-realmatch',
     parentProjectRef: 'qjarspsifemjubmzsdgy',
@@ -543,8 +543,8 @@ test('machine credentials are structurally operator-only and cannot become human
     repositoryFullName: 'pandora-rvw-314296438-20260820/pandoras-box',
     expiresAt: '2099-01-01T00:00:00.000Z',
   };
-  assert.equal(resolveProjectOsMachineCredential(token, USER_ID, [{ ...base, role: 'owner' }]), undefined);
-  const operator = resolveProjectOsMachineCredential(token, USER_ID, [{ ...base, role: 'operator' }]);
+  assert.equal(resolvePandoraMachineCredential(token, USER_ID, [{ ...base, role: 'owner' }]), undefined);
+  const operator = resolvePandoraMachineCredential(token, USER_ID, [{ ...base, role: 'operator' }]);
   assert.equal(operator.role, 'operator');
   assert.equal(canApprovePandoraPlan({ identity: { userId: USER_ID }, membership: operator }), false);
 });
