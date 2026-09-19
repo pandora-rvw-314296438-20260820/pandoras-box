@@ -1091,6 +1091,7 @@ class _EnterpriseMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const ownerIndexes = <int>[8, 23, 24, 9, 25, 26, 27, 21];
+    const systemIndexes = <int>[10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1112,6 +1113,50 @@ class _EnterpriseMenu extends StatelessWidget {
             selected: index == selectedIndex,
             onTap: () => onSelected(index),
           ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(12, 12, 12, 4),
+          child: Divider(color: Color(0x33D0A16F)),
+        ),
+        ExpansionTile(
+          key: const ValueKey<String>('pandora-enterprise-system-menu'),
+          initiallyExpanded: systemIndexes.contains(selectedIndex),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 10),
+          childrenPadding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          collapsedShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          leading: const Icon(
+            Icons.developer_mode_outlined,
+            size: 20,
+            color: Color(0xFF9E978E),
+          ),
+          title: const Text(
+            'System / Developer',
+            style: TextStyle(
+              color: Color(0xFFF4EFE6),
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: const Text(
+            'Privileged technical surfaces',
+            style: TextStyle(
+              color: Color(0xFF8E857C),
+              fontSize: 11.5,
+            ),
+          ),
+          children: [
+            for (final index in systemIndexes)
+              _EnterpriseNavTile(
+                destination: destinations[index],
+                selected: index == selectedIndex,
+                onTap: () => onSelected(index),
+              ),
+          ],
+        ),
       ],
     );
   }
