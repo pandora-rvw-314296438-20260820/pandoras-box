@@ -1,0 +1,36 @@
+github.com
+  ✓ Logged in to github.com account pandora-rvw-314296438-20260820 (GH_TOKEN)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: ghu_************************************
+Get:1 https://dl.yarnpkg.com/debian stable InRelease
+Get:2 https://repo.anaconda.com/pkgs/misc/debrepo/conda stable InRelease [3961 B]
+Err:1 https://dl.yarnpkg.com/debian stable InRelease
+  The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 62D54FD4003F6525
+Get:3 https://packages.microsoft.com/repos/microsoft-ubuntu-focal-prod focal InRelease [3632 B]
+Get:4 https://repo.anaconda.com/pkgs/misc/debrepo/conda stable/main amd64 Packages [4557 B]
+Get:5 https://packages.microsoft.com/repos/microsoft-ubuntu-focal-prod focal/main amd64 Packages [856 kB]
+Get:6 https://packages.microsoft.com/repos/microsoft-ubuntu-focal-prod focal/main all Packages [2948 B]
+Get:8 http://archive.ubuntu.com/ubuntu focal InRelease [265 kB]
+Get:9 http://security.ubuntu.com/ubuntu focal-security InRelease [128 kB]
+Get:7 https://packagecloud.io/github/git-lfs/ubuntu focal InRelease [29.1 kB]
+Get:11 http://security.ubuntu.com/ubuntu focal-security/restricted amd64 Packages [4710 kB]
+Get:10 https://packagecloud.io/github/git-lfs/ubuntu focal/main amd64 Packages [4064 B]
+Get:12 http://archive.ubuntu.com/ubuntu focal-updates InRelease [128 kB]
+Get:13 http://archive.ubuntu.com/ubuntu focal-backports InRelease [128 kB]
+Get:14 http://archive.ubuntu.com/ubuntu focal/universe amd64 Packages [11.3 MB]
+Get:15 http://security.ubuntu.com/ubuntu focal-security/main amd64 Packages [4368 kB]
+Get:16 http://security.ubuntu.com/ubuntu focal-security/universe amd64 Packages [1300 kB]
+Get:17 http://security.ubuntu.com/ubuntu focal-security/multiverse amd64 Packages [32.5 kB]
+Get:18 http://archive.ubuntu.com/ubuntu focal/main amd64 Packages [1275 kB]
+Get:19 http://archive.ubuntu.com/ubuntu focal/multiverse amd64 Packages [177 kB]
+Get:20 http://archive.ubuntu.com/ubuntu focal/restricted amd64 Packages [33.4 kB]
+Get:21 http://archive.ubuntu.com/ubuntu focal-updates/universe amd64 Packages [1588 kB]
+Get:22 http://archive.ubuntu.com/ubuntu focal-updates/multiverse amd64 Packages [36.2 kB]
+Get:23 http://archive.ubuntu.com/ubuntu focal-updates/restricted amd64 Packages [4904 kB]
+Get:24 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 Packages [4850 kB]
+Get:25 http://archive.ubuntu.com/ubuntu focal-backports/universe amd64 Packages [28.4 kB]
+Get:26 http://archive.ubuntu.com/ubuntu focal-backports/main amd64 Packages [54.7 kB]
+Reading package lists...
+W: GPG error: https://dl.yarnpkg.com/debian stable InRelease: The following signatures couldn't be verified because the public key is not available: NO_PUBKEY 62D54FD4003F6525
+E: The repository 'https://dl.yarnpkg.com/debian stable InRelease' is not signed.
