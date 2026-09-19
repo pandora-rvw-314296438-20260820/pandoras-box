@@ -61,8 +61,6 @@ class EnterpriseWorkspaceSelection {
           'workspaceKey': workspace.key,
           'workspaceName': workspace.name,
           'workspaceType': workspace.subtitle,
-          if (workspace.key == 'batalla-associates')
-            'workspaceProfile': 'atty_batalla',
           'section': section.label,
         },
       };

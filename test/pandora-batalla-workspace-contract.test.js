@@ -19,6 +19,10 @@ const api = fs.readFileSync(
   "apps/pandora-mobile/lib/core/data/pandora_intelligence_api.dart",
   "utf8",
 );
+const auth = fs.readFileSync(
+  "apps/pandora-mobile/lib/core/security/pandora_auth.dart",
+  "utf8",
+);
 
 test("Batalla top-level information architecture is exact and Home-first", () => {
   const start = home.indexOf("key: 'batalla-associates'");
@@ -130,4 +134,16 @@ test("shell opens Batalla as a dedicated workspace and preserves generic Pandora
   assert.ok(shell.includes("_activeWorkspaceSelection?.workspace.key =="));
   assert.ok(shell.includes("'batalla-associates'"));
   assert.match(shell, /AskPandoraScreen/);
+});
+
+
+test("workspace_profile personalizes presentation without becoming authorization", () => {
+  assert.ok(auth.includes("workspace_profile"));
+  assert.ok(auth.includes("workspaceProfile"));
+  assert.ok(auth.includes("Presentation only. This value must never be used as authorization."));
+  assert.ok(auth.includes("'atty_batalla'"));
+  assert.ok(auth.includes("'dan'"));
+  assert.ok(auth.includes("'secretary'"));
+  assert.ok(shell.includes("auth.currentSession?.workspaceProfile"));
+  assert.ok(shell.includes("selected['workspaceProfile'] = _sessionWorkspaceProfileKey();"));
 });

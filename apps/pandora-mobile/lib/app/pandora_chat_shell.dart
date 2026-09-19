@@ -382,19 +382,41 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   }
 
 
+
+  String _sessionWorkspaceProfileKey() {
+    final value =
+        PandoraDependencies.of(context).auth.currentSession?.workspaceProfile;
+    return switch (value) {
+      'dan' => 'dan',
+      'secretary' => 'secretary',
+      'atty_batalla' => 'atty_batalla',
+      _ => 'atty_batalla',
+    };
+  }
+
   String _activeWorkspaceProfileKey() {
     final selected = _activeEnterpriseContext?['selectedObject'];
     if (selected is Map) {
       final value = selected['workspaceProfile'];
-      if (value is String && value.trim().isNotEmpty) return value.trim();
+      if (value == 'dan' || value == 'secretary' || value == 'atty_batalla') {
+        return value as String;
+      }
     }
-    return 'atty_batalla';
+    return _sessionWorkspaceProfileKey();
   }
 
-  void _openWorkspace(EnterpriseWorkspaceSelection selection) {
 
+  void _openWorkspace(EnterpriseWorkspaceSelection selection) {
+    final nextContext = selection.enterpriseContext;
+    if (selection.workspace.key == 'batalla-associates') {
+      final selected = Map<String, Object?>.from(
+        nextContext['selectedObject']! as Map,
+      );
+      selected['workspaceProfile'] = _sessionWorkspaceProfileKey();
+      nextContext['selectedObject'] = selected;
+    }
     setState(() {
-      _activeEnterpriseContext = selection.enterpriseContext;
+      _activeEnterpriseContext = nextContext;
       _activeWorkspaceSelection = selection;
       _roots.remove(0);
       _visited.add(0);
