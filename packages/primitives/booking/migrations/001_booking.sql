@@ -1,7 +1,7 @@
 -- pandora-primitive: pandora-booking@1.0.0
 -- target: customer-app-runtime-only
 DO $$ BEGIN
-  IF to_regclass('public.project_specs') IS NOT NULL OR to_regclass('public.projectos_execution_plans') IS NOT NULL OR to_regclass('public.pandora_projects') IS NOT NULL THEN RAISE EXCEPTION 'pandora-booking customer primitive refused on Pandora Control Plane-like schema'; END IF;
+  IF to_regclass('public.project_specs') IS NOT NULL OR to_regclass('public.pandora_execution_plans') IS NOT NULL OR to_regclass('public.pandora_projects') IS NOT NULL THEN RAISE EXCEPTION 'pandora-booking customer primitive refused on Pandora Control Plane-like schema'; END IF;
 END $$;
 CREATE TABLE IF NOT EXISTS public.primitive_booking_scope_access (
  scope_id uuid NOT NULL, user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(scope_id,user_id)

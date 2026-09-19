@@ -59,7 +59,7 @@ export type OwnerConnectionAction =
 
 /**
  * Normalizes only the fields used to fingerprint an owner intake request.
- * The original owner text is still persisted unchanged by ProjectOS.
+ * The original owner text is still persisted unchanged by Pandora.
  */
 export function normalizeIntakeFingerprintPart(value: string): string {
   return value.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();

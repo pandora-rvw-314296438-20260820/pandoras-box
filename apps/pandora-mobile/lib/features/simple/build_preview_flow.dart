@@ -997,7 +997,7 @@ class _InteractivePreviewScreenState extends State<InteractivePreviewScreen> {
       '- Date: $date',
       '- Time: $time',
       if (feedback.isNotEmpty) '- Owner feedback: $feedback',
-      'Do not bypass ProjectOS approval, exact-source verification, deployment evidence, rollback, or production-readback gates.',
+      'Do not bypass Pandora approval, exact-source verification, deployment evidence, rollback, or production-readback gates.',
     ].join('\n');
   }
 
