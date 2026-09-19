@@ -1,4 +1,4 @@
-phase=source
-detail=Fetching exact llama.cpp 44be98f057e9f9902a8ee12630e181c7f8ec2953
+phase=building
+detail=Gradle assembleDebug with GGML_VULKAN=ON
 source_sha=53064df13f3d458893bf940221e9dfcc6e2b5d56
-timestamp_utc=2026-09-19T13:39:35Z
+timestamp_utc=2026-09-19T13:40:03Z
