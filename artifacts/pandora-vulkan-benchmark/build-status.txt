@@ -1,4 +1,4 @@
-phase=building
-detail=Gradle assembleDebug with GGML_VULKAN=ON
+phase=failed
+detail=exit=1 line=108
 source_sha=4caddfbe447865b37956c8ee7ae549ea1d850d0f
-timestamp_utc=2026-09-19T13:31:30Z
+timestamp_utc=2026-09-19T13:34:18Z

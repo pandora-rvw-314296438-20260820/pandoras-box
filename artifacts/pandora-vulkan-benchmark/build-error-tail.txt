@@ -1,19 +1,155 @@
-  Caused by: org.gradle.process.internal.ExecException: Process 'command '/home/vscode/android-sdk/cmake/3.22.1/bin/cmake'' finished with non-zero exit value 1
-  	at org.gradle.process.internal.DefaultExecHandle$ExecResultImpl.assertNormalExitValue(DefaultExecHandle.java:442)
-  	at com.android.build.gradle.internal.process.GradleProcessResult.assertNormalExitValue(GradleProcessResult.java:46)
-  	... 173 more
+[175/448] Generate vulkan shaders for sum_rows.comp
+[176/448] Generate vulkan shaders for swiglu.comp
+[177/448] Building CXX object llama-build/vendor/cpp-httplib/CMakeFiles/cpp-httplib.dir/httplib.cpp.o
+[178/448] Generate vulkan shaders for timestep_embedding.comp
+[179/448] Generate vulkan shaders for swiglu_clamp.comp
+[180/448] Generate vulkan shaders for swiglu_oai.comp
+[181/448] Generate vulkan shaders for sub.comp
+[182/448] Generate vulkan shaders for topk_argsort.comp
+[183/448] Generate vulkan shaders for tri.comp
+[184/448] Generate vulkan shaders for topk_moe.comp
+[185/448] Generate vulkan shaders for upscale.comp
+[186/448] Linking CXX static library llama-build/vendor/cpp-httplib/libcpp-httplib.a
+[187/448] Generate vulkan shaders for wkv6.comp
+[188/448] Generate vulkan shaders for wkv7.comp
+[189/448] Generate vulkan shaders for mul_mat_vec.comp
+[190/448] Generate vulkan shaders for unary.comp
+[191/448] Generate vulkan shaders for mul_mm.comp
+[192/448] Building CXX object llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/dequant_iq2_xs.comp.cpp.o
+[193/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml.dir/ggml-backend-dl.cpp.o
+[194/448] Building CXX object llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/dequant_q5_0.comp.cpp.o
+[195/448] Building CXX object llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan.cpp.o
+FAILED: llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan.cpp.o 
+/home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android26 --sysroot=/home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DGGML_SCHED_MAX_COPIES=4 -DGGML_VULKAN_COOPMAT_GLSLC_SUPPORT -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/.. -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a/llama-build/ggml/src/ggml-vulkan -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/../include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -O3 -std=c++17 -fno-limit-debug-info  -fPIC -Xclang -fno-pch-timestamp -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wunreachable-code-break -Wunreachable-code-return -Wmissing-prototypes -Wextra-semi -std=gnu++17 -MD -MT llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan.cpp.o -MF llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan.cpp.o.d -o llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan.cpp.o -c /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp:1:
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-common.h:2:
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-push-constants.h:2:
+/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-types.h:26:10: fatal error: 'vulkan/vulkan.hpp' file not found
+   26 | #include <vulkan/vulkan.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~
+1 error generated.
+[196/448] Building CXX object llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-buffers.cpp.o
+FAILED: llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-buffers.cpp.o 
+/home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android26 --sysroot=/home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DGGML_SCHED_MAX_COPIES=4 -DGGML_VULKAN_COOPMAT_GLSLC_SUPPORT -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/.. -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a/llama-build/ggml/src/ggml-vulkan -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/../include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -O3 -std=c++17 -fno-limit-debug-info  -fPIC -Xclang -fno-pch-timestamp -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wunreachable-code-break -Wunreachable-code-return -Wmissing-prototypes -Wextra-semi -std=gnu++17 -MD -MT llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-buffers.cpp.o -MF llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-buffers.cpp.o.d -o llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-buffers.cpp.o -c /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-buffers.cpp
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-buffers.cpp:1:
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-common.h:2:
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-push-constants.h:2:
+/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-types.h:26:10: fatal error: 'vulkan/vulkan.hpp' file not found
+   26 | #include <vulkan/vulkan.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~
+1 error generated.
+[197/448] Building CXX object CMakeFiles/pandora_bench.dir/bench_jni.cpp.o
+[198/448] Building CXX object llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-debug.cpp.o
+FAILED: llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-debug.cpp.o 
+/home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android26 --sysroot=/home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DGGML_SCHED_MAX_COPIES=4 -DGGML_VULKAN_COOPMAT_GLSLC_SUPPORT -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/.. -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a/llama-build/ggml/src/ggml-vulkan -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/../include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -O3 -std=c++17 -fno-limit-debug-info  -fPIC -Xclang -fno-pch-timestamp -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wunreachable-code-break -Wunreachable-code-return -Wmissing-prototypes -Wextra-semi -std=gnu++17 -MD -MT llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-debug.cpp.o -MF llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-debug.cpp.o.d -o llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-debug.cpp.o -c /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-debug.cpp
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-debug.cpp:1:
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-common.h:2:
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-push-constants.h:2:
+/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-types.h:26:10: fatal error: 'vulkan/vulkan.hpp' file not found
+   26 | #include <vulkan/vulkan.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~
+1 error generated.
+[199/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml.dir/ggml-backend-reg.cpp.o
+[200/448] Building CXX object CMakeFiles/pandora_llama_bench_impl.dir/llama.cpp/tools/llama-bench/llama-bench.cpp.o
+ninja: build stopped: subcommand failed.
 
-
-* Try:
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
-
-* Exception is:
-org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:configureCMakeDebug[arm64-v8a]'.
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.lambda$executeIfValid$1(ExecuteActionsTaskExecuter.java:130)
-	at org.gradle.internal.Try$Failure.ifSuccessfulOrElse(Try.java:293)
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:128)
+C++ build system [build] failed while executing:
+    /home/vscode/android-sdk/cmake/3.22.1/bin/ninja \
+      -C \
+      /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a \
+      pandora_bench
+  from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app
+	at org.gradle.internal.UncheckedException.throwAsUncheckedException(UncheckedException.java:69)
+	at org.gradle.internal.UncheckedException.throwAsUncheckedException(UncheckedException.java:42)
+	at org.gradle.internal.reflect.JavaMethod.invoke(JavaMethod.java:128)
+	at org.gradle.api.internal.project.taskfactory.StandardTaskAction.doExecute(StandardTaskAction.java:58)
+	at org.gradle.api.internal.project.taskfactory.StandardTaskAction.execute(StandardTaskAction.java:51)
+	at org.gradle.api.internal.project.taskfactory.StandardTaskAction.execute(StandardTaskAction.java:29)
+	at org.gradle.api.internal.tasks.execution.TaskExecution$3.run(TaskExecution.java:244)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:29)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:26)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.run(DefaultBuildOperationRunner.java:47)
+	at org.gradle.api.internal.tasks.execution.TaskExecution.executeAction(TaskExecution.java:229)
+	at org.gradle.api.internal.tasks.execution.TaskExecution.executeActions(TaskExecution.java:212)
+	at org.gradle.api.internal.tasks.execution.TaskExecution.executeWithPreviousOutputFiles(TaskExecution.java:195)
+	at org.gradle.api.internal.tasks.execution.TaskExecution.execute(TaskExecution.java:162)
+	at org.gradle.internal.execution.steps.ExecuteStep.executeInternal(ExecuteStep.java:105)
+	at org.gradle.internal.execution.steps.ExecuteStep.access$000(ExecuteStep.java:44)
+	at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:59)
+	at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:56)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:56)
+	at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:44)
+	at org.gradle.internal.execution.steps.CancelExecutionStep.execute(CancelExecutionStep.java:42)
+	at org.gradle.internal.execution.steps.TimeoutStep.executeWithoutTimeout(TimeoutStep.java:75)
+	at org.gradle.internal.execution.steps.TimeoutStep.execute(TimeoutStep.java:55)
+	at org.gradle.internal.execution.steps.PreCreateOutputParentsStep.execute(PreCreateOutputParentsStep.java:50)
+	at org.gradle.internal.execution.steps.PreCreateOutputParentsStep.execute(PreCreateOutputParentsStep.java:28)
+	at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.execute(RemovePreviousOutputsStep.java:67)
+	at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.execute(RemovePreviousOutputsStep.java:37)
+	at org.gradle.internal.execution.steps.BroadcastChangingOutputsStep.execute(BroadcastChangingOutputsStep.java:61)
+	at org.gradle.internal.execution.steps.BroadcastChangingOutputsStep.execute(BroadcastChangingOutputsStep.java:26)
+	at org.gradle.internal.execution.steps.CaptureOutputsAfterExecutionStep.execute(CaptureOutputsAfterExecutionStep.java:69)
+	at org.gradle.internal.execution.steps.CaptureOutputsAfterExecutionStep.execute(CaptureOutputsAfterExecutionStep.java:46)
+	at org.gradle.internal.execution.steps.ResolveInputChangesStep.execute(ResolveInputChangesStep.java:40)
+	at org.gradle.internal.execution.steps.ResolveInputChangesStep.execute(ResolveInputChangesStep.java:29)
+	at org.gradle.internal.execution.steps.BuildCacheStep.executeWithoutCache(BuildCacheStep.java:189)
+	at org.gradle.internal.execution.steps.BuildCacheStep.lambda$execute$1(BuildCacheStep.java:75)
+	at org.gradle.internal.Either$Right.fold(Either.java:175)
+	at org.gradle.internal.execution.caching.CachingState.fold(CachingState.java:62)
+	at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:73)
+	at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:48)
+	at org.gradle.internal.execution.steps.StoreExecutionStateStep.execute(StoreExecutionStateStep.java:46)
+	at org.gradle.internal.execution.steps.StoreExecutionStateStep.execute(StoreExecutionStateStep.java:35)
+	at org.gradle.internal.execution.steps.SkipUpToDateStep.executeBecause(SkipUpToDateStep.java:75)
+	at org.gradle.internal.execution.steps.SkipUpToDateStep.lambda$execute$2(SkipUpToDateStep.java:53)
+	at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:53)
+	at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:35)
+	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:37)
+	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:27)
+	at org.gradle.internal.execution.steps.ResolveIncrementalCachingStateStep.executeDelegate(ResolveIncrementalCachingStateStep.java:49)
+	at org.gradle.internal.execution.steps.ResolveIncrementalCachingStateStep.executeDelegate(ResolveIncrementalCachingStateStep.java:27)
+	at org.gradle.internal.execution.steps.AbstractResolveCachingStateStep.execute(AbstractResolveCachingStateStep.java:71)
+	at org.gradle.internal.execution.steps.AbstractResolveCachingStateStep.execute(AbstractResolveCachingStateStep.java:39)
+	at org.gradle.internal.execution.steps.ResolveChangesStep.execute(ResolveChangesStep.java:65)
+	at org.gradle.internal.execution.steps.ResolveChangesStep.execute(ResolveChangesStep.java:36)
+	at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:107)
+	at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:56)
+	at org.gradle.internal.execution.steps.AbstractCaptureStateBeforeExecutionStep.execute(AbstractCaptureStateBeforeExecutionStep.java:64)
+	at org.gradle.internal.execution.steps.AbstractCaptureStateBeforeExecutionStep.execute(AbstractCaptureStateBeforeExecutionStep.java:43)
+	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.executeWithNonEmptySources(AbstractSkipEmptyWorkStep.java:125)
+	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.execute(AbstractSkipEmptyWorkStep.java:56)
+	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.execute(AbstractSkipEmptyWorkStep.java:36)
+	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsStartedStep.execute(MarkSnapshottingInputsStartedStep.java:38)
+	at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.execute(LoadPreviousExecutionStateStep.java:36)
+	at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.execute(LoadPreviousExecutionStateStep.java:23)
+	at org.gradle.internal.execution.steps.HandleStaleOutputsStep.execute(HandleStaleOutputsStep.java:75)
+	at org.gradle.internal.execution.steps.HandleStaleOutputsStep.execute(HandleStaleOutputsStep.java:41)
+	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.lambda$execute$0(AssignMutableWorkspaceStep.java:35)
+	at org.gradle.api.internal.tasks.execution.TaskExecution$4.withWorkspace(TaskExecution.java:289)
+	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.execute(AssignMutableWorkspaceStep.java:31)
+	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.execute(AssignMutableWorkspaceStep.java:22)
+	at org.gradle.internal.execution.steps.ChoosePipelineStep.execute(ChoosePipelineStep.java:40)
+	at org.gradle.internal.execution.steps.ChoosePipelineStep.execute(ChoosePipelineStep.java:23)
+	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.lambda$execute$2(ExecuteWorkBuildOperationFiringStep.java:67)
+	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.execute(ExecuteWorkBuildOperationFiringStep.java:67)
+	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.execute(ExecuteWorkBuildOperationFiringStep.java:39)
+	at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:46)
+	at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:34)
+	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:48)
+	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:35)
+	at org.gradle.internal.execution.impl.DefaultExecutionEngine$1.execute(DefaultExecutionEngine.java:61)
+	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:127)
 	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.execute(ExecuteActionsTaskExecuter.java:116)
 	at org.gradle.api.internal.tasks.execution.FinalizePropertiesTaskExecuter.execute(FinalizePropertiesTaskExecuter.java:46)
 	at org.gradle.api.internal.tasks.execution.ResolveTaskExecutionModeExecuter.execute(ResolveTaskExecutionModeExecuter.java:51)
@@ -71,430 +207,294 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':app:con
 	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
-Caused by: com.android.builder.errors.EvalIssueException: [CXX1429] error when building with cmake using /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/CMakeLists.txt: -- The C compiler identification is Clang 18.0.3
--- The CXX compiler identification is Clang 18.0.3
+Caused by: com.android.ide.common.process.ProcessException: ninja: Entering directory `/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a'
+[0/2] Re-checking globbed directories...
+[1/448] Building C object llama-build/ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[2/448] Building C object llama-build/ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[3/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[4/448] Building C object llama-build/ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[5/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[6/448] Building C object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+[7/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[8/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[9/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/hbm.cpp.o
+[10/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/iqp.cpp.o
+[11/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+[12/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/vec.cpp.o
+[13/448] Building C object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/quants.c.o
+[14/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+[15/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+[16/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+[17/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[18/448] Building C object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/quants.c.o
+[19/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/repack.cpp.o
+[20/448] Creating directories for 'vulkan-shaders-gen'
+[21/448] No download step for 'vulkan-shaders-gen'
+[22/448] No update step for 'vulkan-shaders-gen'
+[23/448] No patch step for 'vulkan-shaders-gen'
+[24/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+[25/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[26/448] Linking CXX static library llama-build/ggml/src/libggml-base.a
+[27/448] Performing configure step for 'vulkan-shaders-gen'
+-- The C compiler identification is GNU 13.3.0
+-- The CXX compiler identification is GNU 13.3.0
 -- Detecting C compiler ABI info
 -- Detecting C compiler ABI info - done
--- Check for working C compiler: /home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang - skipped
+-- Check for working C compiler: /usr/bin/gcc - skipped
 -- Detecting C compile features
 -- Detecting C compile features - done
 -- Detecting CXX compiler ABI info
 -- Detecting CXX compiler ABI info - done
--- Check for working CXX compiler: /home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ - skipped
+-- Check for working CXX compiler: /usr/bin/g++ - skipped
 -- Detecting CXX compile features
 -- Detecting CXX compile features - done
--- Configuring incomplete, errors occurred!
-See also "/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a/CMakeFiles/CMakeOutput.log".
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Enabling coopmat glslc support
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a/llama-build/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build
+[28/448] Building CXX object llama-build/common/CMakeFiles/llama-common-base.dir/build-info.cpp.o
+[29/448] Linking CXX static library llama-build/common/libllama-common-base.a
+[30/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+[31/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+[32/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ops.cpp.o
+[33/448] Linking CXX static library llama-build/ggml/src/libggml-cpu.a
+[34/448] Performing build step for 'vulkan-shaders-gen'
+[1/2] Building CXX object CMakeFiles/vulkan-shaders-gen.dir/vulkan-shaders-gen.cpp.o
+[2/2] Linking CXX executable /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a/bin/vulkan-shaders-gen
+[35/448] Performing install step for 'vulkan-shaders-gen'
+-- Installing: /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a/Debug/./vulkan-shaders-gen
+[36/448] Completed 'vulkan-shaders-gen'
+[37/448] Generate vulkan shaders for cumsum_multipass1.comp
+[38/448] Generate vulkan shaders for topk_radix_select.comp
+[39/448] Generate vulkan shaders header
+[40/448] Generate vulkan shaders for topk_nary_search.comp
+[41/448] Generate vulkan shaders for acc.comp
+[42/448] Generate vulkan shaders for arange.comp
+[43/448] Generate vulkan shaders for add_id.comp
+[44/448] Generate vulkan shaders for argmax.comp
+[45/448] Generate vulkan shaders for add1.comp
+[46/448] Generate vulkan shaders for argsort.comp
+[47/448] Generate vulkan shaders for argsort_large.comp
+[48/448] Generate vulkan shaders for col2im_1d.comp
+[49/448] Generate vulkan shaders for concat.comp
+[50/448] Generate vulkan shaders for conv2d_dw.comp
+[51/448] Generate vulkan shaders for contig_copy.comp
+[52/448] Generate vulkan shaders for add.comp
+[53/448] Generate vulkan shaders for conv_transpose_1d.comp
+[54/448] Generate vulkan shaders for conv3d_mm.comp
+[55/448] Generate vulkan shaders for copy.comp
+[56/448] Generate vulkan shaders for copy_transpose.comp
+[57/448] Generate vulkan shaders for conv2d_mm.comp
+[58/448] Generate vulkan shaders for copy_from_quant.comp
+[59/448] Generate vulkan shaders for count_equal.comp
+[60/448] Generate vulkan shaders for copy_transpose_02.comp
+[61/448] Generate vulkan shaders for count_experts.comp
+[62/448] Generate vulkan shaders for cross_entropy_loss.comp
+[63/448] Generate vulkan shaders for cross_entropy_loss_back.comp
+[64/448] Generate vulkan shaders for cumsum.comp
+[65/448] Generate vulkan shaders for cumsum_multipass2.comp
+[66/448] Generate vulkan shaders for dequant_f32.comp
+[67/448] Generate vulkan shaders for dequant_iq1_m.comp
+[68/448] Generate vulkan shaders for dequant_iq1_s.comp
+[69/448] Generate vulkan shaders for dequant_iq2_xxs.comp
+[70/448] Generate vulkan shaders for dequant_iq2_xs.comp
+[71/448] Generate vulkan shaders for dequant_iq2_s.comp
+[72/448] Generate vulkan shaders for dequant_iq3_s.comp
+[73/448] Generate vulkan shaders for mul_mat_vec_iq1_m.comp
+[74/448] Generate vulkan shaders for dequant_iq3_xxs.comp
+[75/448] Generate vulkan shaders for dequant_iq4_nl.comp
+[76/448] Generate vulkan shaders for dequant_iq4_xs.comp
+[77/448] Generate vulkan shaders for dequant_mxfp4.comp
+[78/448] Generate vulkan shaders for dequant_nvfp4.comp
+[79/448] Generate vulkan shaders for dequant_q1_0.comp
+[80/448] Generate vulkan shaders for dequant_q2_0.comp
+[81/448] Generate vulkan shaders for dequant_q2_k.comp
+[82/448] Generate vulkan shaders for dequant_q3_k.comp
+[83/448] Generate vulkan shaders for dequant_q4_0.comp
+[84/448] Generate vulkan shaders for dequant_q4_1.comp
+[85/448] Generate vulkan shaders for dequant_q4_k.comp
+[86/448] Generate vulkan shaders for dequant_q5_0.comp
+[87/448] Generate vulkan shaders for dequant_q5_1.comp
+[88/448] Generate vulkan shaders for dequant_q6_k.comp
+[89/448] Generate vulkan shaders for dequant_q8_0.comp
+[90/448] Generate vulkan shaders for dequant_q5_k.comp
+[91/448] Generate vulkan shaders for dequant_tq1_0.comp
+[92/448] Generate vulkan shaders for dequant_tq2_0.comp
+[93/448] Generate vulkan shaders for diag.comp
+[94/448] Generate vulkan shaders for diag_mask_inf.comp
+[95/448] Generate vulkan shaders for dsv4_hc_comb.comp
+[96/448] Generate vulkan shaders for dsv4_hc_post.comp
+[97/448] Generate vulkan shaders for dsv4_hc_pre.comp
+[98/448] Generate vulkan shaders for fill.comp
+[99/448] Generate vulkan shaders for flash_attn_cm2.comp
+[100/448] Generate vulkan shaders for div.comp
+[101/448] Generate vulkan shaders for flash_attn_cm1.comp
+[102/448] Generate vulkan shaders for flash_attn_mask_opt.comp
+[103/448] Generate vulkan shaders for fwht.comp
+[104/448] Generate vulkan shaders for gated_delta_net.comp
+[105/448] Generate vulkan shaders for flash_attn_sparse_compact.comp
+[106/448] Generate vulkan shaders for flash_attn_split_k_reduce.comp
+[107/448] Generate vulkan shaders for geglu.comp
+[108/448] Generate vulkan shaders for geglu_erf.comp
+[109/448] Generate vulkan shaders for geglu_quick.comp
+[110/448] Generate vulkan shaders for flash_attn.comp
+[111/448] Generate vulkan shaders for get_rows_back.comp
+[112/448] Generate vulkan shaders for copy_to_quant.comp
+[113/448] Generate vulkan shaders for get_rows.comp
+[114/448] Generate vulkan shaders for gla.comp
+[115/448] Generate vulkan shaders for group_norm.comp
+[116/448] Generate vulkan shaders for im2col.comp
+[117/448] Generate vulkan shaders for im2col_3d.comp
+[118/448] Generate vulkan shaders for l2_norm.comp
+[119/448] Generate vulkan shaders for lightning_indexer.comp
+[120/448] Generate vulkan shaders for log.comp
+[121/448] Generate vulkan shaders for mul_mat_split_k_reduce.comp
+[122/448] Generate vulkan shaders for mul.comp
+[123/448] Generate vulkan shaders for mul_mat_vec_iq1_s.comp
+[124/448] Generate vulkan shaders for mul_mat_vec_iq2_s.comp
+[125/448] Generate vulkan shaders for mul_mat_vec_iq2_xs.comp
+[126/448] Generate vulkan shaders for mul_mat_vec_iq2_xxs.comp
+[127/448] Generate vulkan shaders for mul_mat_vec_iq3_s.comp
+[128/448] Generate vulkan shaders for get_rows_quant.comp
+[129/448] Generate vulkan shaders for mul_mat_vec_iq3_xxs.comp
+[130/448] Generate vulkan shaders for mul_mat_vec_nc.comp
+[131/448] Generate vulkan shaders for mul_mat_vec_p021.comp
+[132/448] Generate vulkan shaders for mul_mat_vec_iq4_xs.comp
+[133/448] Generate vulkan shaders for mul_mat_vec_q2_k.comp
+[134/448] Generate vulkan shaders for mul_mat_vec_q4_k.comp
+[135/448] Generate vulkan shaders for mul_mat_vec_q3_k.comp
+[136/448] Generate vulkan shaders for mul_mat_vec_q5_k.comp
+[137/448] Generate vulkan shaders for mul_mat_vecq.comp
+[138/448] Generate vulkan shaders for mul_mat_vec_q6_k.comp
+[139/448] Generate vulkan shaders for mul_mm_cm2.comp
+[140/448] Generate vulkan shaders for mul_mmq.comp
+[141/448] Generate vulkan shaders for mul_mat_vec_tq1_0.comp
+[142/448] Generate vulkan shaders for mul_mat_vec_tq2_0.comp
+[143/448] Generate vulkan shaders for norm.comp
+[144/448] Generate vulkan shaders for multi_add.comp
+[145/448] Generate vulkan shaders for opt_step_adamw.comp
+[146/448] Generate vulkan shaders for opt_step_sgd.comp
+[147/448] Generate vulkan shaders for out_prod.comp
+[148/448] Generate vulkan shaders for pad.comp
+[149/448] Generate vulkan shaders for pad_reflect_1d.comp
+[150/448] Generate vulkan shaders for pool1d.comp
+[151/448] Generate vulkan shaders for pool2d.comp
+[152/448] Generate vulkan shaders for quantize_q8_1.comp
+[153/448] Generate vulkan shaders for reglu.comp
+[154/448] Generate vulkan shaders for repeat.comp
+[155/448] Generate vulkan shaders for repeat_back.comp
+[156/448] Generate vulkan shaders for rms_norm_back.comp
+[157/448] Generate vulkan shaders for rms_norm_partials.comp
+[158/448] Generate vulkan shaders for roll.comp
+[159/448] Generate vulkan shaders for rope_multi.comp
+[160/448] Generate vulkan shaders for rms_norm.comp
+[161/448] Generate vulkan shaders for rope_neox.comp
+[162/448] Generate vulkan shaders for rope_norm.comp
+[163/448] Generate vulkan shaders for rope_vision.comp
+[164/448] Generate vulkan shaders for scale.comp
+[165/448] Generate vulkan shaders for silu_back.comp
+[166/448] Generate vulkan shaders for snake.comp
+[167/448] Generate vulkan shaders for soft_max_back.comp
+[168/448] Generate vulkan shaders for soft_max_large1.comp
+[169/448] Generate vulkan shaders for soft_max.comp
+[170/448] Generate vulkan shaders for soft_max_large2.comp
+[171/448] Generate vulkan shaders for soft_max_large3.comp
+[172/448] Generate vulkan shaders for solve_tri.comp
+[173/448] Generate vulkan shaders for ssm_conv.comp
+[174/448] Generate vulkan shaders for ssm_scan.comp
+[175/448] Generate vulkan shaders for sum_rows.comp
+[176/448] Generate vulkan shaders for swiglu.comp
+[177/448] Building CXX object llama-build/vendor/cpp-httplib/CMakeFiles/cpp-httplib.dir/httplib.cpp.o
+[178/448] Generate vulkan shaders for timestep_embedding.comp
+[179/448] Generate vulkan shaders for swiglu_clamp.comp
+[180/448] Generate vulkan shaders for swiglu_oai.comp
+[181/448] Generate vulkan shaders for sub.comp
+[182/448] Generate vulkan shaders for topk_argsort.comp
+[183/448] Generate vulkan shaders for tri.comp
+[184/448] Generate vulkan shaders for topk_moe.comp
+[185/448] Generate vulkan shaders for upscale.comp
+[186/448] Linking CXX static library llama-build/vendor/cpp-httplib/libcpp-httplib.a
+[187/448] Generate vulkan shaders for wkv6.comp
+[188/448] Generate vulkan shaders for wkv7.comp
+[189/448] Generate vulkan shaders for mul_mat_vec.comp
+[190/448] Generate vulkan shaders for unary.comp
+[191/448] Generate vulkan shaders for mul_mm.comp
+[192/448] Building CXX object llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/dequant_iq2_xs.comp.cpp.o
+[193/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml.dir/ggml-backend-dl.cpp.o
+[194/448] Building CXX object llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/dequant_q5_0.comp.cpp.o
+[195/448] Building CXX object llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan.cpp.o
+FAILED: llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan.cpp.o 
+/home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android26 --sysroot=/home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DGGML_SCHED_MAX_COPIES=4 -DGGML_VULKAN_COOPMAT_GLSLC_SUPPORT -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/.. -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a/llama-build/ggml/src/ggml-vulkan -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/../include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -O3 -std=c++17 -fno-limit-debug-info  -fPIC -Xclang -fno-pch-timestamp -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wunreachable-code-break -Wunreachable-code-return -Wmissing-prototypes -Wextra-semi -std=gnu++17 -MD -MT llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan.cpp.o -MF llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan.cpp.o.d -o llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan.cpp.o -c /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp:1:
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-common.h:2:
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-push-constants.h:2:
+/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-types.h:26:10: fatal error: 'vulkan/vulkan.hpp' file not found
+   26 | #include <vulkan/vulkan.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~
+1 error generated.
+[196/448] Building CXX object llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-buffers.cpp.o
+FAILED: llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-buffers.cpp.o 
+/home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android26 --sysroot=/home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DGGML_SCHED_MAX_COPIES=4 -DGGML_VULKAN_COOPMAT_GLSLC_SUPPORT -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/.. -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a/llama-build/ggml/src/ggml-vulkan -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/../include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -O3 -std=c++17 -fno-limit-debug-info  -fPIC -Xclang -fno-pch-timestamp -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wunreachable-code-break -Wunreachable-code-return -Wmissing-prototypes -Wextra-semi -std=gnu++17 -MD -MT llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-buffers.cpp.o -MF llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-buffers.cpp.o.d -o llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-buffers.cpp.o -c /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-buffers.cpp
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-buffers.cpp:1:
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-common.h:2:
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-push-constants.h:2:
+/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-types.h:26:10: fatal error: 'vulkan/vulkan.hpp' file not found
+   26 | #include <vulkan/vulkan.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~
+1 error generated.
+[197/448] Building CXX object CMakeFiles/pandora_bench.dir/bench_jni.cpp.o
+[198/448] Building CXX object llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-debug.cpp.o
+FAILED: llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-debug.cpp.o 
+/home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android26 --sysroot=/home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DGGML_SCHED_MAX_COPIES=4 -DGGML_VULKAN_COOPMAT_GLSLC_SUPPORT -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/.. -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a/llama-build/ggml/src/ggml-vulkan -I/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/../include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -O3 -std=c++17 -fno-limit-debug-info  -fPIC -Xclang -fno-pch-timestamp -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wunreachable-code-break -Wunreachable-code-return -Wmissing-prototypes -Wextra-semi -std=gnu++17 -MD -MT llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-debug.cpp.o -MF llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-debug.cpp.o.d -o llama-build/ggml/src/ggml-vulkan/CMakeFiles/ggml-vulkan.dir/ggml-vulkan-debug.cpp.o -c /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-debug.cpp
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-debug.cpp:1:
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-common.h:2:
+In file included from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-push-constants.h:2:
+/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan-types.h:26:10: fatal error: 'vulkan/vulkan.hpp' file not found
+   26 | #include <vulkan/vulkan.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~
+1 error generated.
+[199/448] Building CXX object llama-build/ggml/src/CMakeFiles/ggml.dir/ggml-backend-reg.cpp.o
+[200/448] Building CXX object CMakeFiles/pandora_llama_bench_impl.dir/llama.cpp/tools/llama-bench/llama-bench.cpp.o
+ninja: build stopped: subcommand failed.
 
-C++ build system [configure] failed while executing:
-    /home/vscode/android-sdk/cmake/3.22.1/bin/cmake \
-      -H/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp \
-      -DCMAKE_SYSTEM_NAME=Android \
-      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-      -DCMAKE_SYSTEM_VERSION=26 \
-      -DANDROID_PLATFORM=android-26 \
-      -DANDROID_ABI=arm64-v8a \
-      -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a \
-      -DANDROID_NDK=/home/vscode/android-sdk/ndk/27.2.12479018 \
-      -DCMAKE_ANDROID_NDK=/home/vscode/android-sdk/ndk/27.2.12479018 \
-      -DCMAKE_TOOLCHAIN_FILE=/home/vscode/android-sdk/ndk/27.2.12479018/build/cmake/android.toolchain.cmake \
-      -DCMAKE_MAKE_PROGRAM=/home/vscode/android-sdk/cmake/3.22.1/bin/ninja \
-      "-DCMAKE_CXX_FLAGS=-O3 -std=c++17" \
-      -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/build/intermediates/cxx/Debug/1w2j6r52/obj/arm64-v8a \
-      -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/build/intermediates/cxx/Debug/1w2j6r52/obj/arm64-v8a \
-      -DCMAKE_BUILD_TYPE=Debug \
-      -B/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a \
-      -GNinja \
-      -DANDROID_STL=c++_shared \
-      -DSPIRV-Headers_DIR=/usr/share/cmake/SPIRV-Headers \
-      -DVulkan_GLSLC_EXECUTABLE=/usr/bin/glslc
+C++ build system [build] failed while executing:
+    /home/vscode/android-sdk/cmake/3.22.1/bin/ninja \
+      -C \
+      /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a \
+      pandora_bench
   from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app
-CMake Error at CMakeLists.txt:27 (message):
-  llama.cpp source missing.  GitHub Actions must clone the exact upstream SHA
-  before Gradle build. : com.android.ide.common.process.ProcessException: -- The C compiler identification is Clang 18.0.3
--- The CXX compiler identification is Clang 18.0.3
--- Detecting C compiler ABI info
--- Detecting C compiler ABI info - done
--- Check for working C compiler: /home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang - skipped
--- Detecting C compile features
--- Detecting C compile features - done
--- Detecting CXX compiler ABI info
--- Detecting CXX compiler ABI info - done
--- Check for working CXX compiler: /home/vscode/android-sdk/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ - skipped
--- Detecting CXX compile features
--- Detecting CXX compile features - done
--- Configuring incomplete, errors occurred!
-See also "/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a/CMakeFiles/CMakeOutput.log".
-
-C++ build system [configure] failed while executing:
-    /home/vscode/android-sdk/cmake/3.22.1/bin/cmake \
-      -H/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp \
-      -DCMAKE_SYSTEM_NAME=Android \
-      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-      -DCMAKE_SYSTEM_VERSION=26 \
-      -DANDROID_PLATFORM=android-26 \
-      -DANDROID_ABI=arm64-v8a \
-      -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a \
-      -DANDROID_NDK=/home/vscode/android-sdk/ndk/27.2.12479018 \
-      -DCMAKE_ANDROID_NDK=/home/vscode/android-sdk/ndk/27.2.12479018 \
-      -DCMAKE_TOOLCHAIN_FILE=/home/vscode/android-sdk/ndk/27.2.12479018/build/cmake/android.toolchain.cmake \
-      -DCMAKE_MAKE_PROGRAM=/home/vscode/android-sdk/cmake/3.22.1/bin/ninja \
-      "-DCMAKE_CXX_FLAGS=-O3 -std=c++17" \
-      -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/build/intermediates/cxx/Debug/1w2j6r52/obj/arm64-v8a \
-      -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/build/intermediates/cxx/Debug/1w2j6r52/obj/arm64-v8a \
-      -DCMAKE_BUILD_TYPE=Debug \
-      -B/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a \
-      -GNinja \
-      -DANDROID_STL=c++_shared \
-      -DSPIRV-Headers_DIR=/usr/share/cmake/SPIRV-Headers \
-      -DVulkan_GLSLC_EXECUTABLE=/usr/bin/glslc
-  from /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app
-CMake Error at CMakeLists.txt:27 (message):
-  llama.cpp source missing.  GitHub Actions must clone the exact upstream SHA
-  before Gradle build.
 	at com.android.build.gradle.internal.cxx.process.ExecuteProcessKt.execute(ExecuteProcess.kt:288)
 	at com.android.build.gradle.internal.cxx.process.ExecuteProcessKt$executeProcess$1.invoke(ExecuteProcess.kt:108)
 	at com.android.build.gradle.internal.cxx.process.ExecuteProcessKt$executeProcess$1.invoke(ExecuteProcess.kt:106)
 	at com.android.build.gradle.internal.cxx.timing.TimingEnvironmentKt.time(TimingEnvironment.kt:32)
 	at com.android.build.gradle.internal.cxx.process.ExecuteProcessKt.executeProcess(ExecuteProcess.kt:106)
 	at com.android.build.gradle.internal.cxx.process.ExecuteProcessKt.executeProcess$default(ExecuteProcess.kt:85)
-	at com.android.build.gradle.tasks.CmakeQueryMetadataGenerator.executeProcess(CmakeFileApiMetadataGenerator.kt:59)
-	at com.android.build.gradle.tasks.ExternalNativeJsonGenerator$configureOneAbi$1$1$3.invoke(ExternalNativeJsonGenerator.kt:247)
-	at com.android.build.gradle.tasks.ExternalNativeJsonGenerator$configureOneAbi$1$1$3.invoke(ExternalNativeJsonGenerator.kt:247)
-	at com.android.build.gradle.internal.cxx.timing.TimingEnvironmentKt.time(TimingEnvironment.kt:32)
-	at com.android.build.gradle.tasks.ExternalNativeJsonGenerator.configureOneAbi(ExternalNativeJsonGenerator.kt:247)
-	at com.android.build.gradle.tasks.ExternalNativeJsonGenerator.configure(ExternalNativeJsonGenerator.kt:113)
-	at com.android.build.gradle.tasks.ExternalNativeBuildJsonTask.doTaskAction(ExternalNativeBuildJsonTask.kt:89)
+	at com.android.build.gradle.internal.cxx.build.CxxRegularBuilder.executeProcessBatch(CxxRegularBuilder.kt:332)
+	at com.android.build.gradle.internal.cxx.build.CxxRegularBuilder.build(CxxRegularBuilder.kt:129)
+	at com.android.build.gradle.tasks.ExternalNativeBuildTask.doTaskAction(ExternalNativeBuildTask.kt:72)
 	at com.android.build.gradle.internal.tasks.UnsafeOutputsTask$taskAction$$inlined$recordTaskAction$1.invoke(BaseTask.kt:59)
 	at com.android.build.gradle.internal.tasks.Blocks.recordSpan(Blocks.java:51)
 	at com.android.build.gradle.internal.tasks.UnsafeOutputsTask.taskAction(UnsafeOutputsTask.kt:81)
 	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
 	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
 	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
 	at org.gradle.internal.reflect.JavaMethod.invoke(JavaMethod.java:125)
-	at org.gradle.api.internal.project.taskfactory.StandardTaskAction.doExecute(StandardTaskAction.java:58)
-	at org.gradle.api.internal.project.taskfactory.StandardTaskAction.execute(StandardTaskAction.java:51)
-	at org.gradle.api.internal.project.taskfactory.StandardTaskAction.execute(StandardTaskAction.java:29)
-	at org.gradle.api.internal.tasks.execution.TaskExecution$3.run(TaskExecution.java:244)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:29)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:26)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.run(DefaultBuildOperationRunner.java:47)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.executeAction(TaskExecution.java:229)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.executeActions(TaskExecution.java:212)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.executeWithPreviousOutputFiles(TaskExecution.java:195)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.execute(TaskExecution.java:162)
-	at org.gradle.internal.execution.steps.ExecuteStep.executeInternal(ExecuteStep.java:105)
-	at org.gradle.internal.execution.steps.ExecuteStep.access$000(ExecuteStep.java:44)
-	at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:59)
-	at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:56)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
-	at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:56)
-	at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:44)
-	at org.gradle.internal.execution.steps.CancelExecutionStep.execute(CancelExecutionStep.java:42)
-	at org.gradle.internal.execution.steps.TimeoutStep.executeWithoutTimeout(TimeoutStep.java:75)
-	at org.gradle.internal.execution.steps.TimeoutStep.execute(TimeoutStep.java:55)
-	at org.gradle.internal.execution.steps.PreCreateOutputParentsStep.execute(PreCreateOutputParentsStep.java:50)
-	at org.gradle.internal.execution.steps.PreCreateOutputParentsStep.execute(PreCreateOutputParentsStep.java:28)
-	at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.execute(RemovePreviousOutputsStep.java:67)
-	at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.execute(RemovePreviousOutputsStep.java:37)
-	at org.gradle.internal.execution.steps.BroadcastChangingOutputsStep.execute(BroadcastChangingOutputsStep.java:61)
-	at org.gradle.internal.execution.steps.BroadcastChangingOutputsStep.execute(BroadcastChangingOutputsStep.java:26)
-	at org.gradle.internal.execution.steps.CaptureOutputsAfterExecutionStep.execute(CaptureOutputsAfterExecutionStep.java:69)
-	at org.gradle.internal.execution.steps.CaptureOutputsAfterExecutionStep.execute(CaptureOutputsAfterExecutionStep.java:46)
-	at org.gradle.internal.execution.steps.ResolveInputChangesStep.execute(ResolveInputChangesStep.java:40)
-	at org.gradle.internal.execution.steps.ResolveInputChangesStep.execute(ResolveInputChangesStep.java:29)
-	at org.gradle.internal.execution.steps.BuildCacheStep.executeWithoutCache(BuildCacheStep.java:189)
-	at org.gradle.internal.execution.steps.BuildCacheStep.lambda$execute$1(BuildCacheStep.java:75)
-	at org.gradle.internal.Either$Right.fold(Either.java:175)
-	at org.gradle.internal.execution.caching.CachingState.fold(CachingState.java:62)
-	at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:73)
-	at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:48)
-	at org.gradle.internal.execution.steps.StoreExecutionStateStep.execute(StoreExecutionStateStep.java:46)
-	at org.gradle.internal.execution.steps.StoreExecutionStateStep.execute(StoreExecutionStateStep.java:35)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.executeBecause(SkipUpToDateStep.java:75)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.lambda$execute$2(SkipUpToDateStep.java:53)
-	at java.base/java.util.Optional.orElseGet(Optional.java:364)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:53)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:35)
-	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:37)
-	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:27)
-	at org.gradle.internal.execution.steps.ResolveIncrementalCachingStateStep.executeDelegate(ResolveIncrementalCachingStateStep.java:49)
-	at org.gradle.internal.execution.steps.ResolveIncrementalCachingStateStep.executeDelegate(ResolveIncrementalCachingStateStep.java:27)
-	at org.gradle.internal.execution.steps.AbstractResolveCachingStateStep.execute(AbstractResolveCachingStateStep.java:71)
-	at org.gradle.internal.execution.steps.AbstractResolveCachingStateStep.execute(AbstractResolveCachingStateStep.java:39)
-	at org.gradle.internal.execution.steps.ResolveChangesStep.execute(ResolveChangesStep.java:65)
-	at org.gradle.internal.execution.steps.ResolveChangesStep.execute(ResolveChangesStep.java:36)
-	at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:107)
-	at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:56)
-	at org.gradle.internal.execution.steps.AbstractCaptureStateBeforeExecutionStep.execute(AbstractCaptureStateBeforeExecutionStep.java:64)
-	at org.gradle.internal.execution.steps.AbstractCaptureStateBeforeExecutionStep.execute(AbstractCaptureStateBeforeExecutionStep.java:43)
-	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.executeWithNonEmptySources(AbstractSkipEmptyWorkStep.java:125)
-	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.execute(AbstractSkipEmptyWorkStep.java:56)
-	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.execute(AbstractSkipEmptyWorkStep.java:36)
-	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsStartedStep.execute(MarkSnapshottingInputsStartedStep.java:38)
-	at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.execute(LoadPreviousExecutionStateStep.java:36)
-	at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.execute(LoadPreviousExecutionStateStep.java:23)
-	at org.gradle.internal.execution.steps.HandleStaleOutputsStep.execute(HandleStaleOutputsStep.java:75)
-	at org.gradle.internal.execution.steps.HandleStaleOutputsStep.execute(HandleStaleOutputsStep.java:41)
-	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.lambda$execute$0(AssignMutableWorkspaceStep.java:35)
-	at org.gradle.api.internal.tasks.execution.TaskExecution$4.withWorkspace(TaskExecution.java:289)
-	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.execute(AssignMutableWorkspaceStep.java:31)
-	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.execute(AssignMutableWorkspaceStep.java:22)
-	at org.gradle.internal.execution.steps.ChoosePipelineStep.execute(ChoosePipelineStep.java:40)
-	at org.gradle.internal.execution.steps.ChoosePipelineStep.execute(ChoosePipelineStep.java:23)
-	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.lambda$execute$2(ExecuteWorkBuildOperationFiringStep.java:67)
-	at java.base/java.util.Optional.orElseGet(Optional.java:364)
-	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.execute(ExecuteWorkBuildOperationFiringStep.java:67)
-	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.execute(ExecuteWorkBuildOperationFiringStep.java:39)
-	at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:46)
-	at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:34)
-	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:48)
-	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:35)
-	at org.gradle.internal.execution.impl.DefaultExecutionEngine$1.execute(DefaultExecutionEngine.java:61)
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:127)
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.execute(ExecuteActionsTaskExecuter.java:116)
-	at org.gradle.api.internal.tasks.execution.FinalizePropertiesTaskExecuter.execute(FinalizePropertiesTaskExecuter.java:46)
-	at org.gradle.api.internal.tasks.execution.ResolveTaskExecutionModeExecuter.execute(ResolveTaskExecutionModeExecuter.java:51)
-	at org.gradle.api.internal.tasks.execution.SkipTaskWithNoActionsExecuter.execute(SkipTaskWithNoActionsExecuter.java:57)
-	at org.gradle.api.internal.tasks.execution.SkipOnlyIfTaskExecuter.execute(SkipOnlyIfTaskExecuter.java:74)
-	at org.gradle.api.internal.tasks.execution.CatchExceptionTaskExecuter.execute(CatchExceptionTaskExecuter.java:36)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.executeTask(EventFiringTaskExecuter.java:77)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:55)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:52)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter.execute(EventFiringTaskExecuter.java:52)
-	at org.gradle.execution.plan.LocalTaskNodeExecutor.execute(LocalTaskNodeExecutor.java:42)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:331)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:318)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.lambda$execute$0(DefaultTaskExecutionGraph.java:314)
-	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:314)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
-	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
-	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
-	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
-	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
-	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
-	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
-	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
-	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:46)
-	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
-	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
-	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
-	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
-	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
-	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
-	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
-	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
-	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
-	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
-	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
-	at java.base/java.lang.Thread.run(Thread.java:840)
-Caused by: com.android.ide.common.process.ProcessException: Error while executing process /home/vscode/android-sdk/cmake/3.22.1/bin/cmake with arguments {-H/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/src/main/cpp -DCMAKE_SYSTEM_NAME=Android -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_SYSTEM_VERSION=26 -DANDROID_PLATFORM=android-26 -DANDROID_ABI=arm64-v8a -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a -DANDROID_NDK=/home/vscode/android-sdk/ndk/27.2.12479018 -DCMAKE_ANDROID_NDK=/home/vscode/android-sdk/ndk/27.2.12479018 -DCMAKE_TOOLCHAIN_FILE=/home/vscode/android-sdk/ndk/27.2.12479018/build/cmake/android.toolchain.cmake -DCMAKE_MAKE_PROGRAM=/home/vscode/android-sdk/cmake/3.22.1/bin/ninja -DCMAKE_CXX_FLAGS=-O3 -std=c++17 -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/build/intermediates/cxx/Debug/1w2j6r52/obj/arm64-v8a -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/build/intermediates/cxx/Debug/1w2j6r52/obj/arm64-v8a -DCMAKE_BUILD_TYPE=Debug -B/workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a -GNinja -DANDROID_STL=c++_shared -DSPIRV-Headers_DIR=/usr/share/cmake/SPIRV-Headers -DVulkan_GLSLC_EXECUTABLE=/usr/bin/glslc}
+	... 145 more
+Caused by: com.android.ide.common.process.ProcessException: Error while executing process /home/vscode/android-sdk/cmake/3.22.1/bin/ninja with arguments {-C /workspaces/pandoras-box/tools/pandora-vulkan-benchmark/app/.cxx/Debug/1w2j6r52/arm64-v8a pandora_bench}
 	at com.android.build.gradle.internal.process.GradleProcessResult.buildProcessException(GradleProcessResult.java:73)
 	at com.android.build.gradle.internal.process.GradleProcessResult.assertNormalExitValue(GradleProcessResult.java:48)
 	at com.android.build.gradle.internal.cxx.process.ExecuteProcessKt.execute(ExecuteProcess.kt:277)
-	... 172 more
-Caused by: org.gradle.process.internal.ExecException: Process 'command '/home/vscode/android-sdk/cmake/3.22.1/bin/cmake'' finished with non-zero exit value 1
+	... 160 more
+Caused by: org.gradle.process.internal.ExecException: Process 'command '/home/vscode/android-sdk/cmake/3.22.1/bin/ninja'' finished with non-zero exit value 1
 	at org.gradle.process.internal.DefaultExecHandle$ExecResultImpl.assertNormalExitValue(DefaultExecHandle.java:442)
 	at com.android.build.gradle.internal.process.GradleProcessResult.assertNormalExitValue(GradleProcessResult.java:46)
-	... 173 more
-
-	at com.android.builder.errors.IssueReporter.reportError(IssueReporter.kt:118)
-	at com.android.builder.errors.IssueReporter.reportError$default(IssueReporter.kt:113)
-	at com.android.build.gradle.internal.cxx.logging.IssueReporterLoggingEnvironment.log(IssueReporterLoggingEnvironment.kt:113)
-	at com.android.build.gradle.internal.cxx.logging.ThreadLoggingEnvironment$Companion.reportFormattedErrorToCurrentLogger(LoggingEnvironment.kt:230)
-	at com.android.build.gradle.internal.cxx.logging.LoggingEnvironmentKt.errorln(LoggingEnvironment.kt:62)
-	at com.android.build.gradle.tasks.ExternalNativeJsonGenerator.configure(ExternalNativeJsonGenerator.kt:121)
-	at com.android.build.gradle.tasks.ExternalNativeBuildJsonTask.doTaskAction(ExternalNativeBuildJsonTask.kt:89)
-	at com.android.build.gradle.internal.tasks.UnsafeOutputsTask$taskAction$$inlined$recordTaskAction$1.invoke(BaseTask.kt:59)
-	at com.android.build.gradle.internal.tasks.Blocks.recordSpan(Blocks.java:51)
-	at com.android.build.gradle.internal.tasks.UnsafeOutputsTask.taskAction(UnsafeOutputsTask.kt:81)
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
-	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
-	at org.gradle.internal.reflect.JavaMethod.invoke(JavaMethod.java:125)
-	at org.gradle.api.internal.project.taskfactory.StandardTaskAction.doExecute(StandardTaskAction.java:58)
-	at org.gradle.api.internal.project.taskfactory.StandardTaskAction.execute(StandardTaskAction.java:51)
-	at org.gradle.api.internal.project.taskfactory.StandardTaskAction.execute(StandardTaskAction.java:29)
-	at org.gradle.api.internal.tasks.execution.TaskExecution$3.run(TaskExecution.java:244)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:29)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRunner.java:26)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.run(DefaultBuildOperationRunner.java:47)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.executeAction(TaskExecution.java:229)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.executeActions(TaskExecution.java:212)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.executeWithPreviousOutputFiles(TaskExecution.java:195)
-	at org.gradle.api.internal.tasks.execution.TaskExecution.execute(TaskExecution.java:162)
-	at org.gradle.internal.execution.steps.ExecuteStep.executeInternal(ExecuteStep.java:105)
-	at org.gradle.internal.execution.steps.ExecuteStep.access$000(ExecuteStep.java:44)
-	at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:59)
-	at org.gradle.internal.execution.steps.ExecuteStep$1.call(ExecuteStep.java:56)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
-	at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:56)
-	at org.gradle.internal.execution.steps.ExecuteStep.execute(ExecuteStep.java:44)
-	at org.gradle.internal.execution.steps.CancelExecutionStep.execute(CancelExecutionStep.java:42)
-	at org.gradle.internal.execution.steps.TimeoutStep.executeWithoutTimeout(TimeoutStep.java:75)
-	at org.gradle.internal.execution.steps.TimeoutStep.execute(TimeoutStep.java:55)
-	at org.gradle.internal.execution.steps.PreCreateOutputParentsStep.execute(PreCreateOutputParentsStep.java:50)
-	at org.gradle.internal.execution.steps.PreCreateOutputParentsStep.execute(PreCreateOutputParentsStep.java:28)
-	at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.execute(RemovePreviousOutputsStep.java:67)
-	at org.gradle.internal.execution.steps.RemovePreviousOutputsStep.execute(RemovePreviousOutputsStep.java:37)
-	at org.gradle.internal.execution.steps.BroadcastChangingOutputsStep.execute(BroadcastChangingOutputsStep.java:61)
-	at org.gradle.internal.execution.steps.BroadcastChangingOutputsStep.execute(BroadcastChangingOutputsStep.java:26)
-	at org.gradle.internal.execution.steps.CaptureOutputsAfterExecutionStep.execute(CaptureOutputsAfterExecutionStep.java:69)
-	at org.gradle.internal.execution.steps.CaptureOutputsAfterExecutionStep.execute(CaptureOutputsAfterExecutionStep.java:46)
-	at org.gradle.internal.execution.steps.ResolveInputChangesStep.execute(ResolveInputChangesStep.java:40)
-	at org.gradle.internal.execution.steps.ResolveInputChangesStep.execute(ResolveInputChangesStep.java:29)
-	at org.gradle.internal.execution.steps.BuildCacheStep.executeWithoutCache(BuildCacheStep.java:189)
-	at org.gradle.internal.execution.steps.BuildCacheStep.lambda$execute$1(BuildCacheStep.java:75)
-	at org.gradle.internal.Either$Right.fold(Either.java:175)
-	at org.gradle.internal.execution.caching.CachingState.fold(CachingState.java:62)
-	at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:73)
-	at org.gradle.internal.execution.steps.BuildCacheStep.execute(BuildCacheStep.java:48)
-	at org.gradle.internal.execution.steps.StoreExecutionStateStep.execute(StoreExecutionStateStep.java:46)
-	at org.gradle.internal.execution.steps.StoreExecutionStateStep.execute(StoreExecutionStateStep.java:35)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.executeBecause(SkipUpToDateStep.java:75)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.lambda$execute$2(SkipUpToDateStep.java:53)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:53)
-	at org.gradle.internal.execution.steps.SkipUpToDateStep.execute(SkipUpToDateStep.java:35)
-	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:37)
-	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsFinishedStep.execute(MarkSnapshottingInputsFinishedStep.java:27)
-	at org.gradle.internal.execution.steps.ResolveIncrementalCachingStateStep.executeDelegate(ResolveIncrementalCachingStateStep.java:49)
-	at org.gradle.internal.execution.steps.ResolveIncrementalCachingStateStep.executeDelegate(ResolveIncrementalCachingStateStep.java:27)
-	at org.gradle.internal.execution.steps.AbstractResolveCachingStateStep.execute(AbstractResolveCachingStateStep.java:71)
-	at org.gradle.internal.execution.steps.AbstractResolveCachingStateStep.execute(AbstractResolveCachingStateStep.java:39)
-	at org.gradle.internal.execution.steps.ResolveChangesStep.execute(ResolveChangesStep.java:65)
-	at org.gradle.internal.execution.steps.ResolveChangesStep.execute(ResolveChangesStep.java:36)
-	at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:107)
-	at org.gradle.internal.execution.steps.ValidateStep.execute(ValidateStep.java:56)
-	at org.gradle.internal.execution.steps.AbstractCaptureStateBeforeExecutionStep.execute(AbstractCaptureStateBeforeExecutionStep.java:64)
-	at org.gradle.internal.execution.steps.AbstractCaptureStateBeforeExecutionStep.execute(AbstractCaptureStateBeforeExecutionStep.java:43)
-	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.executeWithNonEmptySources(AbstractSkipEmptyWorkStep.java:125)
-	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.execute(AbstractSkipEmptyWorkStep.java:56)
-	at org.gradle.internal.execution.steps.AbstractSkipEmptyWorkStep.execute(AbstractSkipEmptyWorkStep.java:36)
-	at org.gradle.internal.execution.steps.legacy.MarkSnapshottingInputsStartedStep.execute(MarkSnapshottingInputsStartedStep.java:38)
-	at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.execute(LoadPreviousExecutionStateStep.java:36)
-	at org.gradle.internal.execution.steps.LoadPreviousExecutionStateStep.execute(LoadPreviousExecutionStateStep.java:23)
-	at org.gradle.internal.execution.steps.HandleStaleOutputsStep.execute(HandleStaleOutputsStep.java:75)
-	at org.gradle.internal.execution.steps.HandleStaleOutputsStep.execute(HandleStaleOutputsStep.java:41)
-	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.lambda$execute$0(AssignMutableWorkspaceStep.java:35)
-	at org.gradle.api.internal.tasks.execution.TaskExecution$4.withWorkspace(TaskExecution.java:289)
-	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.execute(AssignMutableWorkspaceStep.java:31)
-	at org.gradle.internal.execution.steps.AssignMutableWorkspaceStep.execute(AssignMutableWorkspaceStep.java:22)
-	at org.gradle.internal.execution.steps.ChoosePipelineStep.execute(ChoosePipelineStep.java:40)
-	at org.gradle.internal.execution.steps.ChoosePipelineStep.execute(ChoosePipelineStep.java:23)
-	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.lambda$execute$2(ExecuteWorkBuildOperationFiringStep.java:67)
-	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.execute(ExecuteWorkBuildOperationFiringStep.java:67)
-	at org.gradle.internal.execution.steps.ExecuteWorkBuildOperationFiringStep.execute(ExecuteWorkBuildOperationFiringStep.java:39)
-	at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:46)
-	at org.gradle.internal.execution.steps.IdentityCacheStep.execute(IdentityCacheStep.java:34)
-	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:48)
-	at org.gradle.internal.execution.steps.IdentifyStep.execute(IdentifyStep.java:35)
-	at org.gradle.internal.execution.impl.DefaultExecutionEngine$1.execute(DefaultExecutionEngine.java:61)
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:127)
-	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.execute(ExecuteActionsTaskExecuter.java:116)
-	at org.gradle.api.internal.tasks.execution.FinalizePropertiesTaskExecuter.execute(FinalizePropertiesTaskExecuter.java:46)
-	at org.gradle.api.internal.tasks.execution.ResolveTaskExecutionModeExecuter.execute(ResolveTaskExecutionModeExecuter.java:51)
-	at org.gradle.api.internal.tasks.execution.SkipTaskWithNoActionsExecuter.execute(SkipTaskWithNoActionsExecuter.java:57)
-	at org.gradle.api.internal.tasks.execution.SkipOnlyIfTaskExecuter.execute(SkipOnlyIfTaskExecuter.java:74)
-	at org.gradle.api.internal.tasks.execution.CatchExceptionTaskExecuter.execute(CatchExceptionTaskExecuter.java:36)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.executeTask(EventFiringTaskExecuter.java:77)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:55)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter$1.call(EventFiringTaskExecuter.java:52)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
-	at org.gradle.api.internal.tasks.execution.EventFiringTaskExecuter.execute(EventFiringTaskExecuter.java:52)
-	at org.gradle.execution.plan.LocalTaskNodeExecutor.execute(LocalTaskNodeExecutor.java:42)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:331)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$InvokeNodeExecutorsAction.execute(DefaultTaskExecutionGraph.java:318)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.lambda$execute$0(DefaultTaskExecutionGraph.java:314)
-	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:314)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
-	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
-	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
-	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
-	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
-	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
-	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
-	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
-	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
-	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
-	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
-	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:46)
-	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
-	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
-	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
-	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
-	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
-	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
-	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
-	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
-	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
-	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
+	... 161 more
 
 
-BUILD FAILED in 55s
-23 actionable tasks: 23 executed
+BUILD FAILED in 2m 46s
+27 actionable tasks: 27 executed
