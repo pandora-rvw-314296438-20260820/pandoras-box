@@ -1,0 +1,52 @@
+
+name: Pandora APK export
+
+on:
+  push:
+    branches:
+      - verify/mobile-main-100430e9-apk-20260919
+    paths:
+      - .github/workflows/pandora-apk-export.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download verified APK chunks
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://jcyqixttuebxqqfkjonq.supabase.co/functions/v1/pandora-m3-004-vault-file-writer-20260914"
+          for i in 0 1 2 3 4 5 6 7; do
+            printf -v n "%03d" "$i"
+            curl --fail --location --retry 3 --retry-all-errors "$base?idx=$i" -o "part-$n"
+          done
+
+      - name: Verify chunks and reconstruct APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "e3cc18d29dfa486a76de7de9c768a37757158d7d5a04e969b7a361b783b0a211  part-000" | sha256sum -c -
+          echo "5334923984e86cb453aa8f76dc98de288ec1c625b5c5eaf672025a38ec1ed3e8  part-001" | sha256sum -c -
+          echo "fe66c7a1be92d1db8fe691c91c551183184dc135194d2d82c24aa6f4b1c53e6a  part-002" | sha256sum -c -
+          echo "f7c262297a12eeac999b3394bf8f6b96a1c32cc6e1856f77f315e1299ce03af3  part-003" | sha256sum -c -
+          echo "5c27c789d6b4a2bf9962d5bdd895296caf0803183dc29fa0507f39c9fc0a1dbb  part-004" | sha256sum -c -
+          echo "4a1af749bf7a8bc5e272082606c70cd9918f3f25b4d83cd2c9a3354992320966  part-005" | sha256sum -c -
+          echo "3ea96cc73764fcfa54cab28d37be226451c668c3995d2a2bc9bad62e104ddbc0  part-006" | sha256sum -c -
+          echo "9728c16be79d668e65f7e6fa13ff1f568621f28ca3e03fe2d9e88bbd7ad840de  part-007" | sha256sum -c -
+          cat part-* > pandora-mobile-0.4.0-rc.4+11-100430e9.apk
+          test "$(stat -c%s pandora-mobile-0.4.0-rc.4+11-100430e9.apk)" = "180466940"
+          echo "35821b65f94f494764091bd74eb3b98e09786bae1573c7883354a0157cc0ee36  pandora-mobile-0.4.0-rc.4+11-100430e9.apk" | sha256sum -c -
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pandora-mobile-0.4.0-rc.4+11-100430e9
+          path: pandora-mobile-0.4.0-rc.4+11-100430e9.apk
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
