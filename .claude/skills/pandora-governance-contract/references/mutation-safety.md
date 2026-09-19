@@ -42,7 +42,7 @@ A 502 from a gateway is exactly this case: the gateway failed, but the origin ma
 
 ## Idempotency
 
-Every mutation carries an idempotency key derived from the *intent*, not from the attempt. Pandora's ProjectOS does this structurally: a durable plan has a `payloadHash` and a one-time `claimedAt`, so an approved plan executes at most once even if execution is invoked twice.
+Every mutation carries an idempotency key derived from the *intent*, not from the attempt. Pandora's Pandora does this structurally: a durable plan has a `payloadHash` and a one-time `claimedAt`, so an approved plan executes at most once even if execution is invoked twice.
 
 When designing a new adapter:
 - key on stable intent identity (project + operation + target + logical version)

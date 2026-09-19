@@ -81,7 +81,7 @@ test("operator Connect status uses exact Supabase user and canonical platform OI
 
   await withServer(appFor(broker, {
     scopeClaimsPresent: true,
-    scopes: ["openid", "projectos:read"],
+    scopes: ["openid", "pandora:read"],
   }), async (origin) => {
     const response = await fetch(origin + "/connect/pandoras-box/status", {
       headers: {
@@ -115,7 +115,7 @@ test("operator Connect authorization derives exact subject and fixed allowed ret
 
   await withServer(appFor(broker, {
     scopeClaimsPresent: true,
-    scopes: ["openid", "projectos:read"],
+    scopes: ["openid", "pandora:read"],
   }), async (origin) => {
     const response = await fetch(origin + "/connect/pandoras-box/authorize", {
       method: "POST",
@@ -173,7 +173,7 @@ test("operator Connect authorization rejects caller-supplied identity or redirec
   assert.equal(called, false);
 });
 
-test("operator Connect routes require ProjectOS read scope when OAuth scopes are present", async () => {
+test("operator Connect routes require Pandora read scope when OAuth scopes are present", async () => {
   let called = false;
   const broker = {
     connector: "mcpmaster.vercel.app/pandoras-box",
@@ -185,13 +185,13 @@ test("operator Connect routes require ProjectOS read scope when OAuth scopes are
 
   await withServer(appFor(broker, {
     scopeClaimsPresent: true,
-    scopes: ["openid", "projectos:plan"],
+    scopes: ["openid", "pandora:plan"],
   }), async (origin) => {
     const response = await fetch(origin + "/connect/pandoras-box/status", {
       headers: { authorization: "Bearer " + ACCESS_TOKEN },
     });
     assert.equal(response.status, 403);
-    assert.match(response.headers.get("www-authenticate"), /projectos:read/);
+    assert.match(response.headers.get("www-authenticate"), /pandora:read/);
   });
   assert.equal(called, false);
 });

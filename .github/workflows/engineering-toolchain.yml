@@ -6,8 +6,8 @@ on:
     paths:
       - "package.json"
       - "tooling/**"
-      - "src/projectos/pandora-lifecycle.js"
-      - "src/projectos/pandora-posthog-*.js"
+      - "src/pandora/pandora-lifecycle.js"
+      - "src/pandora/pandora-posthog-*.js"
       - "test/pandora-lifecycle.test.js"
       - "test/pandora-posthog-transport.test.js"
       - "supabase/**"
