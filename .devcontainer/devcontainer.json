@@ -1,0 +1,11 @@
+{
+  "name": "Pandora Exact Local AI APK Builder",
+  "image": "mcr.microsoft.com/devcontainers/universal:2-linux",
+  "remoteUser": "codespace",
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb",
+    "storage": "32gb"
+  },
+  "postCreateCommand": "bash .devcontainer/build-picker-apk.sh"
+}
