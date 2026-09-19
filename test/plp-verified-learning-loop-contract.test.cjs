@@ -68,8 +68,9 @@ test("outbox ingress accepts only exact Enterprise production OIDC", () => {
   assert.match(outboxEdge, /jwtVerify/);
 });
 
-test("Vercel drain uses workload OIDC and verified-learning gateway", () => {
-  assert.match(drain, /process\.env\.VERCEL_OIDC_TOKEN/);
+test("Vercel drain uses runtime workload OIDC and verified-learning gateway", () => {
+  assert.match(drain, /getVercelOidcToken/);
+  assert.doesNotMatch(drain, /process\.env\.VERCEL_OIDC_TOKEN/);
   assert.match(drain, /process\.env\.CRON_SECRET/);
   assert.match(drain, /memory_verified_learning_propose/);
   assert.match(drain, /x-pandora-workload-oidc/);

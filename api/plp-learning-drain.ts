@@ -1,3 +1,5 @@
+import { getVercelOidcToken } from "@vercel/oidc";
+
 // Reuses a retired one-shot Edge Function slot because this Supabase project
 // is at its function-count cap. The deployed code is the PLP learning outbox.
 const OUTBOX_URL =
@@ -56,7 +58,7 @@ export default async function handler(request: any, response: any) {
   if (!cronSecret || authorization !== `Bearer ${cronSecret}`) {
     return json(response, 401, { ok: false, error: "unauthorized" });
   }
-  const oidcToken = process.env.VERCEL_OIDC_TOKEN?.trim();
+  const oidcToken = (await getVercelOidcToken())?.trim();
   if (!oidcToken) {
     return json(response, 503, { ok: false, error: "workload_identity_unavailable" });
   }
