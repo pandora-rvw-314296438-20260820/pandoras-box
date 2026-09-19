@@ -48,16 +48,27 @@ PY
 
 publish_evidence() {
   local evidence_branch="build/phone-local-ai-evidence-${SOURCE_SHA:0:12}-20260920"
+  local release_tag="phone-local-ai-${SOURCE_SHA:0:12}-20260920"
+  local release_title="Pandora phone-local APK ${SOURCE_SHA:0:12}"
+  local apk="$ARTIFACT_DIR/pandora-phone-local-${SOURCE_SHA}.apk"
+
   set +e
   git -C "$ROOT" config user.name "Pandora Build Evidence"
   git -C "$ROOT" config user.email "pandora-build-evidence@users.noreply.github.com"
   git -C "$ROOT" checkout -B "$evidence_branch" "$SOURCE_SHA"
-  git -C "$ROOT" add -f .pandora-codespace-artifact
-  if git -C "$ROOT" diff --cached --quiet; then
-    echo "No build evidence files were staged."
-  else
-    git -C "$ROOT" commit -m "build(android): exact-source phone-local APK evidence ${SOURCE_SHA:0:12}"
+
+  find "$ARTIFACT_DIR" -maxdepth 1 -type f ! -name '*.apk' -print0 |
+    xargs -0 -r git -C "$ROOT" add -f
+  if ! git -C "$ROOT" diff --cached --quiet; then
+    git -C "$ROOT" commit -m "build(android): exact-source phone-local evidence ${SOURCE_SHA:0:12}"
     git -C "$ROOT" push --force origin "HEAD:refs/heads/$evidence_branch"
+  fi
+
+  if [[ -s "$apk" ]] && command -v gh >/dev/null 2>&1; then
+    gh release delete "$release_tag" --repo pandora-rvw-314296438-20260820/pandoras-box --yes >/dev/null 2>&1 || true
+    git -C "$ROOT" tag -d "$release_tag" >/dev/null 2>&1 || true
+    git -C "$ROOT" push origin ":refs/tags/$release_tag" >/dev/null 2>&1 || true
+    gh release create "$release_tag" "$apk"       --repo pandora-rvw-314296438-20260820/pandoras-box       --target "$SOURCE_SHA"       --title "$release_title"       --notes-file "$ARTIFACT_DIR/manifest.txt"       --draft
   fi
   set -e
 }
@@ -183,6 +194,11 @@ set -e
 
 printf '%s\n' "$ANALYZE_RC" >"$ARTIFACT_DIR/flutter-analyze.exit"
 printf '%s\n' "$ROUTER_TEST_RC" >"$ARTIFACT_DIR/local-ai-router-test.exit"
+
+if [[ "$ANALYZE_RC" -ne 0 || "$ROUTER_TEST_RC" -ne 0 ]]; then
+  echo "Pre-build verification failed: analyze=$ANALYZE_RC router_test=$ROUTER_TEST_RC" >&2
+  exit 1
+fi
 
 write_status "compile" "running" "Building arm64 debug APK from exact source."
 
