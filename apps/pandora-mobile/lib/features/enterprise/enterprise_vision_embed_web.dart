@@ -5,9 +5,9 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
 
-const String _viewType = 'pandora-shibuya-ai-vision-live-cam';
+const String _viewType = 'pandora-camstreamer-kabukicho-live-cam';
 const String _embedUrl =
-    'https://www.youtube.com/embed/live_stream?channel=UCfvMaqBPqsHXSbmmKzpDvow&autoplay=1&mute=1&playsinline=1&rel=0';
+    'https://camstreamer.com/embed/VSnOa4OubclxMcFKpTws6Yv7U2rt0VbMfcrHomkq?rel=0';
 
 bool _registered = false;
 
@@ -33,7 +33,7 @@ Widget buildEnterpriseVisionEmbed() {
         iframe.setAttribute('loading', 'lazy');
         iframe.setAttribute(
           'title',
-          'Shibuya Ai Vision Miyamasuzaka live camera',
+          'CamStreamer Shinjuku Kabukicho live camera',
         );
         return iframe;
       },
