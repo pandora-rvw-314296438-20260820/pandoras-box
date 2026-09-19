@@ -277,6 +277,14 @@ class PandoraLocalAiRouter {
       }.contains(thermal)) {
         return _record(false, 'thermal_pressure');
       }
+      final batteryRaw = status.diagnostics['batteryPercent'];
+      final batteryPercent = batteryRaw is num
+          ? batteryRaw.toInt()
+          : int.tryParse(batteryRaw?.toString() ?? '');
+      final charging = status.diagnostics['charging'] == true;
+      if (batteryPercent != null && batteryPercent <= 15 && !charging) {
+        return _record(false, 'low_battery');
+      }
     }
 
     final lower = value.toLowerCase();

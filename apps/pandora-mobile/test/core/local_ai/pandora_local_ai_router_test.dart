@@ -42,6 +42,84 @@ void main() {
       );
     });
 
+    test('routes low-memory runtime away from local AI', () {
+      final decision = PandoraLocalAiRouter.decide(
+        message: 'Summarize this note.',
+        hasAttachment: false,
+        hasProjectContext: false,
+        hasSelectedCapability: false,
+        hasCharacterContext: false,
+        status: const PandoraLocalAiStatus(
+          supported: true,
+          configured: true,
+          loaded: true,
+          diagnostics: <String, Object?>{'memoryLow': true},
+        ),
+      );
+      expect(decision.useLocal, isFalse);
+      expect(decision.reason, 'android_memory_pressure');
+    });
+
+    test('routes severe thermal runtime away from local AI', () {
+      final decision = PandoraLocalAiRouter.decide(
+        message: 'Summarize this note.',
+        hasAttachment: false,
+        hasProjectContext: false,
+        hasSelectedCapability: false,
+        hasCharacterContext: false,
+        status: const PandoraLocalAiStatus(
+          supported: true,
+          configured: true,
+          loaded: true,
+          diagnostics: <String, Object?>{'thermalStatus': 'severe'},
+        ),
+      );
+      expect(decision.useLocal, isFalse);
+      expect(decision.reason, 'thermal_pressure');
+    });
+
+    test('routes low unplugged battery away from local AI', () {
+      final decision = PandoraLocalAiRouter.decide(
+        message: 'Summarize this note.',
+        hasAttachment: false,
+        hasProjectContext: false,
+        hasSelectedCapability: false,
+        hasCharacterContext: false,
+        status: const PandoraLocalAiStatus(
+          supported: true,
+          configured: true,
+          loaded: true,
+          diagnostics: <String, Object?>{
+            'batteryPercent': 10,
+            'charging': false,
+          },
+        ),
+      );
+      expect(decision.useLocal, isFalse);
+      expect(decision.reason, 'low_battery');
+    });
+
+    test('keeps low battery local while charging', () {
+      final decision = PandoraLocalAiRouter.decide(
+        message: 'Summarize this note.',
+        hasAttachment: false,
+        hasProjectContext: false,
+        hasSelectedCapability: false,
+        hasCharacterContext: false,
+        status: const PandoraLocalAiStatus(
+          supported: true,
+          configured: true,
+          loaded: true,
+          diagnostics: <String, Object?>{
+            'batteryPercent': 10,
+            'charging': true,
+          },
+        ),
+      );
+      expect(decision.useLocal, isTrue);
+      expect(decision.reason, 'routine_local_sufficient');
+    });
+
     test('routes contextual turns away from local AI', () {
       expect(
         PandoraLocalAiRouter.shouldUseLocal(
