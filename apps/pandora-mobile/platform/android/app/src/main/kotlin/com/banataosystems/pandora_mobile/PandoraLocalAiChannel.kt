@@ -48,6 +48,9 @@ class PandoraLocalAiChannel(
         private const val MODEL_NAME = "model_name"
         private const val MODEL_BYTES = "model_bytes"
         private const val MODEL_SHA256 = "model_sha256"
+        private const val RECOMMENDED_MODEL_NAME = "qwen2.5-3b-instruct-q4_k_m.gguf"
+        private const val RECOMMENDED_MODEL_SHA256 = "626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d"
+        private const val SAFE_MODEL_MAX_BYTES = 2300L * 1024L * 1024L
         private const val ACCEPTANCE_MODEL_NAME = "Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
         private const val ACCEPTANCE_MODEL_SHA256 = "1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6"
         private const val ACCEPTANCE_PROMPT =
@@ -899,6 +902,9 @@ If required information is missing locally, needs an authoritative provider muta
                     null
                 },
             "modelSha256" to preferences.getString(MODEL_SHA256, null),
+            "recommendedModelName" to RECOMMENDED_MODEL_NAME,
+            "recommendedModelSha256" to RECOMMENDED_MODEL_SHA256,
+            "safeModelMaxBytes" to SAFE_MODEL_MAX_BYTES,
             "requiresModelImport" to !configured,
             "modelImportMethod" to "android_document_picker",
             "modelDownloadSupported" to false,
@@ -910,7 +916,7 @@ If required information is missing locally, needs an authoritative provider muta
             "cpuOptimizationConfigured" to "static-arm64-cpu-fallback",
             "runtimeNativeAbi" to "arm64-v8a",
             "runtimeContextTokens" to contextTokens,
-            "runtimeBatchTokens" to 128,
+            "runtimeBatchTokens" to 64,
             "runtimeModelLoadMode" to "mmap_with_non_mmap_fallback",
             "runtimeGpuLayers" to activeGpuLayers,
             "runtimeGpuLayersRequested" to
@@ -923,7 +929,7 @@ If required information is missing locally, needs an authoritative provider muta
                 (nativeRuntime["cpuFallbackUsed"] == true),
             "runtimeExtraBufferRepack" to false,
             "runtimeLazyMode" to "off",
-            "runtimeContextFallback" to "4096->3072->2048",
+            "runtimeContextFallback" to "2048->1536->1024",
             "runtimeSystemPolicyMode" to "native_system_prompt",
             "acceptanceModelName" to ACCEPTANCE_MODEL_NAME,
             "acceptanceModelSha256" to ACCEPTANCE_MODEL_SHA256,
