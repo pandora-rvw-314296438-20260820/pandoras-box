@@ -20,6 +20,7 @@ import '../../core/local/pandora_device_activity_local_sync.dart';
 import '../../core/local/pandora_local_state_cache.dart';
 import '../../core/local/pandora_local_sync_coordinator.dart';
 import '../../core/local_ai/pandora_local_ai.dart';
+import '../../core/local_ai/plp_chat_fallback.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
@@ -535,7 +536,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     if (bridgeFromOtherRoute) {
       await PandoraLocalAi.instance.unload();
     }
-    if (!await PandoraLocalAi.instance.warm()) return false;
+    try {
+      if (!await PandoraLocalAi.instance.warm()) return false;
+    } on PandoraLocalAiException {
+      return false;
+    }
     final routedPrompt =
         bridgeFromOtherRoute ? _boundedRouteBridge(objective) : objective;
     final enterpriseBridge = _boundedLocalEnterpriseContext();
@@ -561,11 +566,17 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           }
         });
       }
-    } on PandoraLocalAiException catch (error) {
+    } on PandoraLocalAiException {
       if (!mounted) return true;
-      if (!started) return false;
-      setState(() => _error = error.message);
-      return true;
+      if (started && _messages.length >= 2) {
+        setState(() {
+          _messages.removeLast();
+          _messages.removeLast();
+          _pendingMessage = objective;
+          _error = null;
+        });
+      }
+      return false;
     } finally {
       _localAiGenerating = false;
     }
@@ -590,6 +601,33 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _outcomeUnknown = false;
       _pendingMessage = null;
       _lastTurnUsedLocalAi = true;
+    });
+    return true;
+  }
+
+  bool _applyPlpContinuityFallback(String objective) {
+    if (!_isPlpEnterpriseContext || !mounted) return false;
+    final actionLike = !PlpChatFallback.isReadOnlyTurn(objective);
+    final deterministic = actionLike
+        ? null
+        : PlpChatFallback.deterministicReply(
+            message: objective,
+            enterpriseContext: widget.enterpriseContext,
+          );
+    final reply = deterministic ??
+        PlpChatFallback.continuityNotice(
+          actionLike: actionLike,
+        );
+    setState(() {
+      _messages.add(_ChatMessage.user(objective));
+      _messages.add(_ChatMessage.pandora(reply));
+      _pendingMessage = null;
+      _attachment = null;
+      _imageAttachment = null;
+      _submissionKey = null;
+      _outcomeUnknown = false;
+      _lastTurnUsedLocalAi = false;
+      _error = null;
     });
     return true;
   }
@@ -892,12 +930,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       });
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
+      if (_applyPlpContinuityFallback(objective)) return;
       setState(() {
         _error = error.message;
         _submissionKey = null;
       });
     } on PandoraRepositoryException catch (error) {
       if (!mounted) return;
+      if (_applyPlpContinuityFallback(objective)) return;
       setState(() {
         _outcomeUnknown = error.outcomeMayBeUnknown;
         _error = error.outcomeMayBeUnknown
@@ -907,6 +947,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       });
     } catch (_) {
       if (!mounted) return;
+      if (_applyPlpContinuityFallback(objective)) return;
       setState(() {
         _error = 'Pandora intelligence is temporarily unavailable.';
         _submissionKey = null;
