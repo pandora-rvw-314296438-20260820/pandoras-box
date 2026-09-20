@@ -132,13 +132,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   Map<String, Object?> _offlineBootstrap(Object? value) {
     final cached = _normalizeBootstrap(value);
-    final rawSource = cached['source'];
+    final rawSource = cached['sourceHealth'];
     final source = rawSource is Map
         ? rawSource.map((key, item) => MapEntry(key.toString(), item))
         : <String, Object?>{};
     return <String, Object?>{
       ...cached,
-      'source': <String, Object?>{
+      'sourceHealth': <String, Object?>{
         ...source,
         'state': 'cached_offline',
         'message':
@@ -489,7 +489,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                                 unawaited(_submitCommand(prompt));
                               },
                             )
-                          : _PlpCommandDock(
+                          : PlpCommandDock(
                               selectedIndex: _index,
                               controller: _commandController,
                               focusNode: _commandFocus,
@@ -1049,8 +1049,8 @@ class _ActivitySuggestionChip extends StatelessWidget {
       );
 }
 
-class _PlpCommandDock extends StatelessWidget {
-  const _PlpCommandDock({
+class PlpCommandDock extends StatelessWidget {
+  const PlpCommandDock({
     required this.selectedIndex,
     required this.controller,
     required this.focusNode,
@@ -1148,7 +1148,12 @@ class _PlpCommandDock extends StatelessWidget {
                   final item = _items[index];
                   final selected = selectedIndex == index;
                   return Expanded(
-                    child: InkWell(
+                    child: Semantics(
+                      button: true,
+                      selected: selected,
+                      excludeSemantics: true,
+                      label: item.label,
+                      child: InkWell(
                       borderRadius: BorderRadius.circular(14),
                       onTap: () => onDestinationSelected(index),
                       child: Padding(
@@ -1191,6 +1196,7 @@ class _PlpCommandDock extends StatelessWidget {
                             ),
                           ],
                         ),
+                      ),
                       ),
                     ),
                   );
