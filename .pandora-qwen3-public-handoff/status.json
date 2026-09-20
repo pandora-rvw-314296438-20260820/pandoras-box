@@ -1,0 +1,10 @@
+{
+  "outcome": "passed",
+  "sourceSha": "ef373c82d436ae06fd459b5356272bcab84bcc66",
+  "apkSha256": "497ce08beb987e1704d096d9b4d942df03da495fdd8a76794f84c5cbd5a55ba8",
+  "apkSizeBytes": 119958129,
+  "qwen3Sha256": "1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6",
+  "publicUrl": "https://pandora-apk-qwen3-public-qvpqwwvwwwjvc6674-9114.app.github.dev/pandora-phone-local-ef373c82d436ae06fd459b5356272bcab84bcc66.apk",
+  "httpVerified": true,
+  "generatedAtUtc": "2026-09-20T03:14:49.753339+00:00"
+}
