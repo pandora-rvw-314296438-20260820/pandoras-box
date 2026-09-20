@@ -1289,7 +1289,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
     return Scaffold(
       backgroundColor: PandoraSimpleColors.canvas,
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned.fill(
