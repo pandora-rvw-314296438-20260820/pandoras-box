@@ -123,9 +123,9 @@ flutter test --reporter expanded   test/core/local_ai/plp_local_router_test.dart
 
 test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = "$EXPECTED_APP_VERSION"
 
-flutter build apk --debug   --target=lib/main_plp.dart   --target-platform=android-arm64   --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"   --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"   | tee "$OUT/flutter-build.log"
+flutter build apk --release   --target=lib/main_plp.dart   --target-platform=android-arm64   --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"   --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"   | tee "$OUT/flutter-build.log"
 
-APK="$BUILD/build/app/outputs/flutter-apk/app-debug.apk"
+APK="$BUILD/build/app/outputs/flutter-apk/app-release.apk"
 test -f "$APK"
 AAPT="$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt"
 APKSIGNER="$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner"
@@ -172,6 +172,7 @@ android_build_tools=36.0.0
 android_ndk=29.0.13113456
 cmake_version=3.31.6
 target_abi=arm64-v8a
+build_mode=release
 apk_filename=$APK_FILENAME
 apk_sha256=$APK_SHA
 apk_size_bytes=$APK_SIZE
