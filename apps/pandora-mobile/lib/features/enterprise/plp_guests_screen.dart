@@ -373,7 +373,7 @@ class _GuestExperienceHero extends StatelessWidget {
   Widget build(BuildContext context) => ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: SizedBox(
-          height: 148,
+          height: 152,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -500,56 +500,69 @@ class _GuestFilters extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (final item in _items) ...[
-              _FilterPill(
-                selected: selected == item.key,
-                icon: item.icon,
-                label: item.label,
-                onTap: () => onSelect(item.key),
-              ),
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 350;
+          return Row(
+            children: [
+              for (var index = 0; index < _items.length; index++) ...[
+                Expanded(
+                  child: _FilterPill(
+                    key: ValueKey<String>(
+                      'plp-guests-filter-${_items[index].key}',
+                    ),
+                    selected: selected == _items[index].key,
+                    icon: _items[index].icon,
+                    label: _items[index].label,
+                    compact: compact,
+                    onTap: () => onSelect(_items[index].key),
+                  ),
+                ),
+                if (index != _items.length - 1)
+                  const SizedBox(width: 2),
+              ],
               const SizedBox(width: 3),
-            ],
-            InkWell(
-              key: const ValueKey<String>('plp-guests-filter-search'),
-              borderRadius: BorderRadius.circular(999),
-              onTap: () => onSelect('search'),
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: selected == 'search'
-                      ? _PlpGuestsScreenState._goldSoft
-                      : _PlpGuestsScreenState._paper,
-                  border: Border.all(color: _PlpGuestsScreenState._line),
-                ),
-                child: const Icon(
-                  Icons.search_rounded,
-                  size: 21,
-                  color: _PlpGuestsScreenState._ink,
+              InkWell(
+                key: const ValueKey<String>('plp-guests-filter-search'),
+                borderRadius: BorderRadius.circular(999),
+                onTap: () => onSelect('search'),
+                child: Container(
+                  width: compact ? 36 : 40,
+                  height: compact ? 38 : 42,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: selected == 'search'
+                        ? _PlpGuestsScreenState._goldSoft
+                        : _PlpGuestsScreenState._paper,
+                    border: Border.all(color: _PlpGuestsScreenState._line),
+                  ),
+                  child: Icon(
+                    Icons.search_rounded,
+                    size: compact ? 18 : 20,
+                    color: _PlpGuestsScreenState._ink,
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          );
+        },
       );
 }
 
 class _FilterPill extends StatelessWidget {
   const _FilterPill({
+    super.key,
     required this.selected,
     required this.icon,
     required this.label,
+    required this.compact,
     required this.onTap,
   });
 
   final bool selected;
   final IconData icon;
   final String label;
+  final bool compact;
   final VoidCallback onTap;
 
   @override
@@ -557,8 +570,8 @@ class _FilterPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         onTap: onTap,
         child: Container(
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          height: compact ? 38 : 42,
+          padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 7),
           decoration: BoxDecoration(
             color: selected
                 ? _PlpGuestsScreenState._goldSoft
@@ -566,23 +579,31 @@ class _FilterPill extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
           ),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
-                size: 18,
+                size: compact ? 14 : 17,
                 color: selected
                     ? _PlpGuestsScreenState._gold
                     : _PlpGuestsScreenState._ink,
               ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected
-                      ? const Color(0xFF70471E)
-                      : _PlpGuestsScreenState._ink,
-                  fontSize: 12.5,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              SizedBox(width: compact ? 3 : 5),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: selected
+                          ? const Color(0xFF70471E)
+                          : _PlpGuestsScreenState._ink,
+                      fontSize: compact ? 10 : 11.5,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
                 ),
               ),
             ],
