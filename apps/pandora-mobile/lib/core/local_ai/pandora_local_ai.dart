@@ -331,6 +331,14 @@ class PandoraLocalAiRouter {
     if (status != null) {
       if (!status.supported) return _record(false, 'local_runtime_unsupported');
       if (!status.configured) return _record(false, 'local_model_missing');
+      final recommendedSha =
+          status.diagnostics['recommendedModelSha256']?.toString().toLowerCase();
+      final selectedSha = status.modelSha256?.toLowerCase();
+      if (recommendedSha != null &&
+          recommendedSha.isNotEmpty &&
+          selectedSha != recommendedSha) {
+        return _record(false, 'local_model_not_validated');
+      }
       final safeModelMaxRaw = status.diagnostics['safeModelMaxBytes'];
       final safeModelMax = safeModelMaxRaw is num
           ? safeModelMaxRaw.toInt()
