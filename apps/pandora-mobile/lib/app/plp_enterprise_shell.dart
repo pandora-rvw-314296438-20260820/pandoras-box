@@ -121,6 +121,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onHome: () => _open(0),
               onMore: () => _open(4),
               enterpriseContext: alfredContext,
+              allowCharacterContext: false,
+              allowProjectContext: false,
             ),
             PandoraOperationsRoomScreen(
               key: const ValueKey('plp-operations-room'),
