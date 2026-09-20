@@ -11,7 +11,7 @@ class PlpChatFallback {
 
     final context = enterpriseContext!;
     final today = _map(context['today']);
-    final source = _map(context['source']);
+    final source = _map(context['sourceHealth'] ?? context['source']);
 
     final occupancy = _text(today['occupancy_percent']);
     final occupied = _integer(today['occupied_rooms']);
@@ -68,6 +68,9 @@ class PlpChatFallback {
       return 'PLP source state is ${state}. ${detail}.${suffix}';
     }
     if (normalized == 'today' ||
+        normalized.contains('summarize') ||
+        normalized.contains('summary') ||
+        normalized.contains('brief me') ||
         normalized.contains("today's briefing") ||
         normalized.contains('today briefing') ||
         normalized.contains('resort summary') ||
