@@ -122,7 +122,7 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
     final attention = _maps(guestExperience['attention']);
     final guests = _visibleGuests(guestExperience);
 
-    return ColoredBox(
+    return Material(
       color: _canvas,
       child: SafeArea(
         bottom: false,
