@@ -486,6 +486,21 @@ If required information is missing locally, needs an authoritative provider muta
         }
     }
 
+    private fun engineStateName(state: InferenceEngine.State): String =
+        when (state) {
+            is InferenceEngine.State.Uninitialized -> "uninitialized"
+            is InferenceEngine.State.Initializing -> "initializing"
+            is InferenceEngine.State.Initialized -> "initialized"
+            is InferenceEngine.State.LoadingModel -> "loading_model"
+            is InferenceEngine.State.UnloadingModel -> "unloading_model"
+            is InferenceEngine.State.ModelReady -> "model_ready"
+            is InferenceEngine.State.Benchmarking -> "benchmarking"
+            is InferenceEngine.State.ProcessingSystemPrompt -> "processing_system_prompt"
+            is InferenceEngine.State.ProcessingUserPrompt -> "processing_user_prompt"
+            is InferenceEngine.State.Generating -> "generating"
+            is InferenceEngine.State.Error -> "error"
+        }
+
     private fun nativeRuntimeDiagnostics(): Map<String, Any?> {
         return try {
             val payload = JSONObject(engine.runtimeDiagnostics())
@@ -661,7 +676,7 @@ If required information is missing locally, needs an authoritative provider muta
         val loadedState = engine.state.value
         require(loadedState is InferenceEngine.State.ModelReady) {
             "llama.cpp did not reach ModelReady after loading the GGUF; state=" +
-                loadedState.javaClass.simpleName
+                engineStateName(loadedState)
         }
         engine.setSystemPrompt(SYSTEM_PROMPT.trim())
         lastModelLoadMs = SystemClock.elapsedRealtime() - loadStarted
@@ -875,7 +890,7 @@ If required information is missing locally, needs an authoritative provider muta
             "modelImportMethod" to "android_document_picker",
             "modelDownloadSupported" to false,
             "modelDownloadResumeSupported" to false,
-            "engineState" to engine.state.value.javaClass.simpleName,
+            "engineState" to engineStateName(engine.state.value),
             "nativeRuntime" to "llama.cpp",
             "runtimeBackendConfigured" to configuredBackend,
             "runtimeBackendActive" to activeBackend,
