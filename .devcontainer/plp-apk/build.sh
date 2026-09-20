@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(git rev-parse --show-toplevel)"
+if [ -n "${PANDORA_SOURCE_ROOT:-}" ]; then
+  ROOT="$PANDORA_SOURCE_ROOT"
+else
+  ROOT="$(git rev-parse --show-toplevel)"
+fi
 cd "$ROOT"
 
 mkdir -p dist
@@ -9,8 +13,9 @@ LOG="$ROOT/dist/plp-apk-build.log"
 exec > >(tee "$LOG") 2>&1
 
 echo "PANDORA_PLP_APK_BUILD stage=starting"
-SOURCE_SHA="$(git rev-parse HEAD)"
-SOURCE_TREE="$(git rev-parse HEAD^{tree})"
+SOURCE_SHA="${PANDORA_SOURCE_SHA:-$(git rev-parse HEAD 2>/dev/null || true)}"
+SOURCE_TREE="${PANDORA_SOURCE_TREE:-$(git rev-parse HEAD^{tree} 2>/dev/null || echo archive)}"
+test -n "$SOURCE_SHA"
 APP_VERSION="$(awk '/^version:/{print $2; exit}' apps/pandora-mobile/pubspec.yaml)"
 FLUTTER_VERSION="3.47.0"
 BUILD_ROOT="$ROOT/.plp-apk-build"
@@ -28,11 +33,19 @@ if ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1 || ! 
   sudo apt-get install -y curl unzip xz-utils
 fi
 
-if ! command -v javac >/dev/null 2>&1; then
-  sudo apt-get update
-  sudo apt-get install -y openjdk-17-jdk
+if command -v javac >/dev/null 2>&1; then
+  export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")"
+else
+  JAVA_HOME="$TOOLS_ROOT/jdk17"
+  if [ ! -x "$JAVA_HOME/bin/javac" ]; then
+    rm -rf "$JAVA_HOME"
+    mkdir -p "$JAVA_HOME"
+    curl -fL --retry 3 --retry-delay 2 "https://api.adoptium.net/v3/binary/latest/17/ga/linux/x64/jdk/hotspot/normal/eclipse" -o "$TOOLS_ROOT/jdk17.tar.gz"
+    tar -xzf "$TOOLS_ROOT/jdk17.tar.gz" -C "$JAVA_HOME" --strip-components=1
+    rm -f "$TOOLS_ROOT/jdk17.tar.gz"
+  fi
+  export JAVA_HOME
 fi
-export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")"
 export PATH="$JAVA_HOME/bin:$PATH"
 java -version
 
