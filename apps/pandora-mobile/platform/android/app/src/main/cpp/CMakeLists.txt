@@ -36,6 +36,14 @@ endif()
 
 add_subdirectory("${LLAMA_SRC}" build-llama)
 
+# Android's NDK exposes the Vulkan C API but not the full Vulkan-Hpp header
+# set required by the pinned ggml-vulkan backend. CI/build lanes materialize
+# only the architecture-neutral Vulkan headers into an isolated directory;
+# never add the host /usr/include tree to an Android cross-compile.
+if(TARGET ggml-vulkan AND DEFINED ENV{PANDORA_VULKAN_HEADERS_DIR})
+    target_include_directories(ggml-vulkan PRIVATE "$ENV{PANDORA_VULKAN_HEADERS_DIR}")
+endif()
+
 add_library(ai-chat SHARED
     "${CMAKE_CURRENT_LIST_DIR}/ai_chat.cpp"
 )
