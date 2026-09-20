@@ -97,7 +97,6 @@ void main() {
     addTearDown(controller.dispose);
     addTearDown(focusNode.dispose);
     final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -134,6 +133,7 @@ void main() {
         ),
       );
     }
+    semantics.dispose();
   });
 
 }
