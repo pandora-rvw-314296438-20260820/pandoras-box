@@ -31,6 +31,8 @@ class PatchInferenceEngineAndroidTest(unittest.TestCase):
     @FastNative
     private external fun unload()
 
+            check(_readyForSystemPrompt) { "System prompt must be set ** RIGHT AFTER ** model loaded!" }
+
             processUserPrompt(message, predictLength).let { result ->
                 if (result != 0) {
                     Log.e(TAG, "Failed to process user prompt: $result")
@@ -89,6 +91,8 @@ class PatchInferenceEngineAndroidTest(unittest.TestCase):
         self.assertIn("nativeRuntimeDiagnostics()", patched)
         self.assertIn("override fun runtimeDiagnostics(): String", patched)
         self.assertIn("Unloading native resources after error...", patched)
+        self.assertIn("Pandora reuses processSystemPrompt() as a warm conversation reset.", patched)
+        self.assertNotIn("System prompt must be set ** RIGHT AFTER ** model loaded!", patched)
         self.assertNotIn("Failed to process user prompt: $result", patched)
         self.assertNotIn("return@flow", patched)
         self.assertEqual(
