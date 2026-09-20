@@ -455,11 +455,7 @@ class _Hero extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.asset(
-                'assets/workspaces/plp-hero.webp',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const _HeroFallback(),
-              ),
+              const _PlpHeroImage(),
               const DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -584,6 +580,23 @@ class _Hero extends StatelessWidget {
             ],
           ),
         ),
+      );
+}
+
+class _PlpHeroImage extends StatelessWidget {
+  const _PlpHeroImage();
+
+  static const _verifiedPlpHero =
+      'https://plp-boracay-dusky.vercel.app/images/plp-hero-sunset.webp';
+
+  @override
+  Widget build(BuildContext context) => Image.network(
+        _verifiedPlpHero,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (_, __, ___) => const _HeroFallback(),
+        loadingBuilder: (context, child, progress) =>
+            progress == null ? child : const _HeroFallback(),
       );
 }
 
@@ -1089,11 +1102,7 @@ class _ResortCard extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.asset(
-                  'assets/workspaces/plp-hero.webp',
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const _HeroFallback(),
-                ),
+                const _PlpHeroImage(),
                 const DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
