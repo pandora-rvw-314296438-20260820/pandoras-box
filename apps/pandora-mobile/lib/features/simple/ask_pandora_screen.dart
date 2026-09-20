@@ -145,18 +145,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     }
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _activityController.removeListener(_handleActivityTimelineChanged);
-    _activityController.dispose();
-    _localAiIdleUnloadTimer?.cancel();
-    unawaited(_unloadLocalAiQuietly());
-    _objective.dispose();
-    _objectiveFocus.dispose();
-    super.dispose();
-  }
-
   Future<void> _restoreLocalConversation() async {
     final localStore = PandoraDependencies.of(context).localStore;
     if (localStore == null) return;
@@ -216,7 +204,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     WidgetsBinding.instance.removeObserver(this);
     _activityController.removeListener(_handleActivityTimelineChanged);
     _activityController.dispose();
+    _localAiIdleUnloadTimer?.cancel();
     unawaited(PandoraLocalAi.instance.cancel());
+    unawaited(_unloadLocalAiQuietly());
     _objective.dispose();
     _objectiveFocus.dispose();
     super.dispose();
