@@ -62,7 +62,7 @@ const ROSTER = [
 
 test('Operations Room is a first-class persistent Pandora navigation surface', () => {
   assert.match(shell, /Operations Room/);
-  assert.match(shell, /PandoraOperationsRoomScreen\(onHome: \(\) => _select\(0\)\)/);
+  assert.match(shell, /PandoraOperationsRoomScreen\(onHome: \(\) => _select\(9\)\)/);
   assert.match(room, /operations-room-chat/);
   assert.match(room, /operations-room-composer/);
   assert.match(room, /recentThreads\(limit: 100\)/);
