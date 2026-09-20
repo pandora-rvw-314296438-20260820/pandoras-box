@@ -11,6 +11,7 @@ import '../features/approvals/approvals_screen.dart';
 import '../features/diagnostics/developer_diagnostics_screen.dart';
 import '../features/enterprise/enterprise_vision_screen.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
+import '../features/enterprise/plp_enterprise_overview.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/settings/local_ai_settings_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -161,6 +162,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _alfredKey.currentState?.submitExternalPrompt(command);
     });
+  }
+
+  Future<void> _startPersistentVoice() async {
+    _commandFocus.unfocus();
+    if (_index != 1) setState(() => _index = 1);
+    await WidgetsBinding.instance.endOfFrame;
+    await _alfredKey.currentState?.startVoiceInput();
   }
 
   Map<String, Object?> _alfredContext(Map<String, Object?> bootstrap) => {
@@ -330,13 +338,21 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             const LocalAiSettingsScreen(
               key: ValueKey('plp-local-ai-settings'),
             ),
-            _PlpBusinessSurface(
+            PlpEnterpriseOverview(
               key: const ValueKey('plp-overview'),
-              destination: 'overview',
-              title: 'Overview',
-              icon: Icons.dashboard_outlined,
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
+              onSearch: () => _open(1),
+              onOpenOccupancy: () => _open(6),
+              onOpenRooms: () => _open(6),
+              onOpenTasks: () => _open(9),
+              onOpenRevenue: () => _open(8),
+              onOpenBookings: () => _open(6),
+              onOpenNeedsAttention: () => _open(9),
+              onOperations: () => _open(2),
+              onGuestRequests: () => _open(6),
+              onTeamTasks: () => _open(7),
+              onReports: () => _open(8),
             ),
             _PlpBusinessSurface(
               key: const ValueKey('plp-guests'),
@@ -404,7 +420,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 controller: _commandController,
                 focusNode: _commandFocus,
                 showPersistentComposer: _index != 1,
+                showNavigation: _index != 5,
+                overviewMode: _index == 5,
                 onSubmit: _submitPersistentCommand,
+                onVoice: _startPersistentVoice,
                 onDestinationSelected: _open,
               ),
             ),
@@ -419,7 +438,10 @@ class _PlpCommandDock extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.showPersistentComposer,
+    required this.showNavigation,
+    required this.overviewMode,
     required this.onSubmit,
+    required this.onVoice,
     required this.onDestinationSelected,
   });
 
@@ -427,7 +449,10 @@ class _PlpCommandDock extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool showPersistentComposer;
+  final bool showNavigation;
+  final bool overviewMode;
   final Future<void> Function() onSubmit;
+  final Future<void> Function() onVoice;
   final ValueChanged<int> onDestinationSelected;
 
   static const _items = <({IconData icon, String label})>[
@@ -438,75 +463,160 @@ class _PlpCommandDock extends StatelessWidget {
     (icon: Icons.memory_rounded, label: 'Local AI'),
   ];
 
+  static const _overviewSuggestions = <String>[
+    'Show today’s arrivals',
+    'What needs attention?',
+    'Summarize revenue',
+  ];
+
   @override
-  Widget build(BuildContext context) => SafeArea(
-        top: false,
-        child: Container(
-          decoration: const BoxDecoration(
-            color: _PlpEnterpriseShellState._panel,
-            border: Border(
-              top: BorderSide(color: _PlpEnterpriseShellState._line),
-            ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            10,
-            showPersistentComposer ? 10 : 7,
-            10,
-            7,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (showPersistentComposer) ...[
-                Container(
-                  key: const ValueKey('plp-persistent-command-bar'),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF151B25),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: _PlpEnterpriseShellState._line),
+  Widget build(BuildContext context) {
+    final background =
+        overviewMode ? const Color(0xFFFFFDF9) : _PlpEnterpriseShellState._panel;
+    final border =
+        overviewMode ? const Color(0xFFE7DED3) : _PlpEnterpriseShellState._line;
+    final text =
+        overviewMode ? const Color(0xFF251E18) : _PlpEnterpriseShellState._text;
+    final muted =
+        overviewMode ? const Color(0xFF81776D) : _PlpEnterpriseShellState._muted;
+    final accent =
+        overviewMode ? const Color(0xFFA46D32) : _PlpEnterpriseShellState._accent;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: background,
+          border: Border(top: BorderSide(color: border)),
+          boxShadow: overviewMode
+              ? const [
+                  BoxShadow(
+                    color: Color(0x14000000),
+                    blurRadius: 24,
+                    offset: Offset(0, -7),
                   ),
-                  padding: const EdgeInsets.fromLTRB(13, 3, 5, 3),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.auto_awesome_rounded,
-                        color: _PlpEnterpriseShellState._accent,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: TextField(
-                          controller: controller,
-                          focusNode: focusNode,
-                          style: const TextStyle(
-                            color: _PlpEnterpriseShellState._text,
-                            fontSize: 14,
-                          ),
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) => onSubmit(),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            hintText: 'Ask Alfred or tell Pandora what to do…',
-                            hintStyle: TextStyle(
-                              color: _PlpEnterpriseShellState._muted,
+                ]
+              : null,
+        ),
+        padding: EdgeInsets.fromLTRB(
+          overviewMode ? 14 : 10,
+          showPersistentComposer ? 10 : 7,
+          overviewMode ? 14 : 10,
+          overviewMode ? 9 : 7,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (showPersistentComposer) ...[
+              if (overviewMode)
+                AnimatedBuilder(
+                  animation: controller,
+                  builder: (context, _) {
+                    if (controller.text.trim().isNotEmpty) {
+                      return const SizedBox.shrink();
+                    }
+                    return SizedBox(
+                      height: 34,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _overviewSuggestions.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final suggestion = _overviewSuggestions[index];
+                          return ActionChip(
+                            label: Text(suggestion),
+                            backgroundColor: const Color(0xFFF6F0E8),
+                            side: const BorderSide(color: Color(0xFFE7DED3)),
+                            labelStyle: const TextStyle(
+                              color: Color(0xFF6D5E51),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
                             ),
-                            isDense: true,
-                          ),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () {
+                              controller.text = suggestion;
+                              controller.selection = TextSelection.collapsed(
+                                offset: suggestion.length,
+                              );
+                              onSubmit();
+                            },
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              if (overviewMode) const SizedBox(height: 8),
+              Container(
+                key: const ValueKey('plp-persistent-command-bar'),
+                decoration: BoxDecoration(
+                  color: overviewMode
+                      ? const Color(0xFFF8F3EC)
+                      : const Color(0xFF151B25),
+                  borderRadius: BorderRadius.circular(overviewMode ? 24 : 18),
+                  border: Border.all(color: border),
+                ),
+                padding: EdgeInsets.fromLTRB(
+                  overviewMode ? 15 : 13,
+                  overviewMode ? 5 : 3,
+                  overviewMode ? 6 : 5,
+                  overviewMode ? 5 : 3,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      color: accent,
+                      size: overviewMode ? 20 : 18,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        style: TextStyle(color: text, fontSize: 14),
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => onSubmit(),
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          hintText: overviewMode
+                              ? 'Ask Pandora anything…'
+                              : 'Ask Alfred or tell Pandora what to do…',
+                          hintStyle: TextStyle(color: muted),
+                          isDense: true,
                         ),
                       ),
+                    ),
+                    if (overviewMode)
+                      IconButton(
+                        tooltip: 'Voice command',
+                        onPressed: onVoice,
+                        icon: const Icon(Icons.mic_none_rounded),
+                        color: muted,
+                      ),
+                    if (overviewMode)
+                      IconButton.filled(
+                        tooltip: 'Send to Pandora',
+                        onPressed: onSubmit,
+                        style: IconButton.styleFrom(
+                          backgroundColor: accent,
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.arrow_upward_rounded, size: 21),
+                      )
+                    else
                       IconButton(
                         tooltip: 'Send to Alfred',
                         onPressed: onSubmit,
-                        icon: const Icon(
-                          Icons.arrow_upward_rounded,
-                          color: _PlpEnterpriseShellState._text,
-                        ),
+                        icon: Icon(Icons.arrow_upward_rounded, color: text),
                       ),
-                    ],
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-              ],
+              ),
+              if (showNavigation) const SizedBox(height: 6),
+            ],
+            if (showNavigation)
               Row(
                 children: List<Widget>.generate(_items.length, (index) {
                   final item = _items[index];
@@ -560,10 +670,11 @@ class _PlpCommandDock extends StatelessWidget {
                   );
                 }),
               ),
-            ],
-          ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 

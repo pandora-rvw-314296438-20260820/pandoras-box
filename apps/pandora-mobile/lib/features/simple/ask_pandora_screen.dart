@@ -154,6 +154,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     await _submit();
   }
 
+  Future<void> startVoiceInput() async {
+    await _dictate();
+  }
+
   void _handleActivityTimelineChanged() {
     if (!mounted) return;
     setState(() {
