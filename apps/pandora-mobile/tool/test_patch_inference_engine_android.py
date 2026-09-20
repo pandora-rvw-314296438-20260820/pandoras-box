@@ -50,6 +50,13 @@ class PatchInferenceEngineAndroidTest(unittest.TestCase):
                 _state.value = InferenceEngine.State.ModelReady
             }
         }
+
+                is InferenceEngine.State.Error -> {
+                    Log.i(TAG, "Resetting error states...")
+                    _state.value = InferenceEngine.State.Initialized
+                    Log.i(TAG, "States reset!")
+                    Unit
+                }
 """
         interface = """interface InferenceEngine {
     suspend fun bench(pp: Int, tg: Int, pl: Int, nr: Int = 1): String
@@ -81,6 +88,7 @@ class PatchInferenceEngineAndroidTest(unittest.TestCase):
         self.assertIn("Native llama.cpp user prompt failed with code ", patched)
         self.assertIn("nativeRuntimeDiagnostics()", patched)
         self.assertIn("override fun runtimeDiagnostics(): String", patched)
+        self.assertIn("Unloading native resources after error...", patched)
         self.assertNotIn("Failed to process user prompt: $result", patched)
         self.assertNotIn("return@flow", patched)
         self.assertEqual(
