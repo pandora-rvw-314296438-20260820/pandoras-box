@@ -442,7 +442,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     final jobId = _activeActivityJobId;
     if (intelligence == null || jobId == null) return;
     final normalized = objective.trim();
-    final type = normalized.isEmpty || _looksLikeActiveCancel(normalized)
+    if (normalized.isEmpty) return;
+    final type = _looksLikeActiveCancel(normalized)
         ? PandoraActivityControlType.cancel
         : _looksLikeActiveConstraint(normalized)
             ? PandoraActivityControlType.constraint
@@ -750,12 +751,22 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
   Future<void> _submit() async {
     final objective = _objective.text.trim();
-    if (_submitting && _localAiGenerating && objective.isEmpty) {
-      await PandoraLocalAi.instance.cancel();
+    if (_submitting && objective.isEmpty) {
+      // Repeated taps on the send control while Pandora is working must never
+      // be interpreted as cancellation. Cancellation requires an explicit
+      // user instruction such as "stop" or "cancel".
       return;
     }
     if (_submitting && _activeActivityJobId != null) {
       await _submitActiveControl(objective);
+      return;
+    }
+    if (_submitting && _localAiGenerating) {
+      if (_looksLikeActiveCancel(objective)) {
+        await PandoraLocalAi.instance.cancel();
+        return;
+      }
+      // Local inference cannot accept a second turn until the first completes.
       return;
     }
     if (objective.isEmpty) {
