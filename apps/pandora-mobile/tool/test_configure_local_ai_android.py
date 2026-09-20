@@ -52,6 +52,8 @@ flutter {
             configured = path.read_text(encoding="utf-8")
 
         self.assertIn('ndkVersion = "29.0.13113456"', configured)
+        self.assertIn("minSdk = 29", configured)
+        self.assertNotIn("minSdk = flutter.minSdkVersion", configured)
         self.assertIn("abiFilters.clear()", configured)
         self.assertIn('abiFilters += "arm64-v8a"', configured)
         self.assertIn('src/main/cpp/CMakeLists.txt', configured)
