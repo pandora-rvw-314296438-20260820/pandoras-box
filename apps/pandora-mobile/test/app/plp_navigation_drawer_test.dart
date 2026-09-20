@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pandora_mobile/app/plp_enterprise_shell.dart';
 import 'package:pandora_mobile/app/plp_navigation_drawer.dart';
 
 void main() {
@@ -90,4 +91,49 @@ void main() {
       }
     },
   );
+  testWidgets('PLP command dock exposes destination button semantics', (tester) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    addTearDown(controller.dispose);
+    addTearDown(focusNode.dispose);
+    final semantics = tester.ensureSemantics();
+    addTearDown(semantics.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          bottomNavigationBar: PlpCommandDock(
+            selectedIndex: 0,
+            controller: controller,
+            focusNode: focusNode,
+            showPersistentComposer: false,
+            onSubmit: () async {},
+            onDestinationSelected: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final label in <String>[
+      'Home',
+      'Alfred',
+      'Operations',
+      'Vision',
+      'Local AI',
+    ]) {
+      final finder = find.bySemanticsLabel(label);
+      expect(finder, findsOneWidget);
+      expect(tester.getSemantics(finder).hasFlag(SemanticsFlag.isButton), isTrue);
+    }
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Home')).hasFlag(SemanticsFlag.isSelected),
+      isTrue,
+    );
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Operations')).hasFlag(SemanticsFlag.isSelected),
+      isFalse,
+    );
+  });
+
 }
