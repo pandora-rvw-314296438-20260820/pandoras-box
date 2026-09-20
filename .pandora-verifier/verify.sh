@@ -122,9 +122,9 @@ flutter test --reporter expanded   test/core/local_ai/plp_local_router_test.dart
 
 test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = "$EXPECTED_APP_VERSION"
 
-flutter build apk --debug   --target=lib/main_plp.dart   --target-platform=android-arm64   --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"   --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"   | tee "$OUT/flutter-build.log"
+flutter build apk --release   --target=lib/main_plp.dart   --target-platform=android-arm64   --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"   --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"   | tee "$OUT/flutter-build.log"
 
-APK="$BUILD/build/app/outputs/flutter-apk/app-debug.apk"
+APK="$BUILD/build/app/outputs/flutter-apk/app-release.apk"
 test -f "$APK"
 AAPT="$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt"
 APKSIGNER="$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner"
@@ -171,6 +171,7 @@ android_build_tools=36.0.0
 android_ndk=29.0.13113456
 cmake_version=3.31.6
 target_abi=arm64-v8a
+build_mode=release
 apk_filename=$APK_FILENAME
 apk_sha256=$APK_SHA
 apk_size_bytes=$APK_SIZE
@@ -184,8 +185,8 @@ test "$(sha256sum "$OUT/$APK_FILENAME" | cut -d ' ' -f1)" = "$APK_SHA"
 
 cat > "$OUT/index.html" <<EOF
 <!doctype html><meta charset="utf-8">
-<title>PLP Pandora Enterprise Android Verification</title>
-<h1>PLP Pandora Enterprise Android Verification</h1>
+<title>PLP Pandora Enterprise Android Release Verification</title>
+<h1>PLP Pandora Enterprise Android Release Verification</h1>
 <p>Exact source: <code>$SOURCE_SHA</code></p>
 <p>Package: <code>$EXPECTED_PACKAGE</code></p>
 <p>APK SHA-256: <code>$APK_SHA</code></p>
