@@ -372,6 +372,15 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260920062415_plp_enterprise_mobile_bootstrap_v1.sql',
     '20260920070224_plp_staff_task_governed_action_v1.sql',
     '20260920070932_plp_staff_task_activity_state_fix_v1.sql',
+    '20260920180000_plp_guest_experience_bootstrap_v2.sql',
+    '20260920185423_plp_activity_page_and_logs_v1.sql',
+    '20260920185511_plp_activity_logs_enum_fix_v2.sql',
+    '20260920190202_plp_pandora_activity_logs_runtime_v2.sql',
+    '20260920190232_plp_pandora_activity_logs_cursor_fix_v3.sql',
+    '20260920190612_plp_pandora_activity_logs_owner_scope_v4.sql',
+    '20260920190705_plp_retire_legacy_activity_log_rpc_v5.sql',
+    '20260921102000_plp_team_access_bootstrap_v3.sql',
+    '20260921103500_plp_team_access_visible_count_v4.sql',
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -677,6 +686,15 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260920062415_plp_enterprise_mobile_bootstrap_v1.sql',
     '20260920070224_plp_staff_task_governed_action_v1.sql',
     '20260920070932_plp_staff_task_activity_state_fix_v1.sql',
+    '20260920180000_plp_guest_experience_bootstrap_v2.sql',
+    '20260920185423_plp_activity_page_and_logs_v1.sql',
+    '20260920185511_plp_activity_logs_enum_fix_v2.sql',
+    '20260920190202_plp_pandora_activity_logs_runtime_v2.sql',
+    '20260920190232_plp_pandora_activity_logs_cursor_fix_v3.sql',
+    '20260920190612_plp_pandora_activity_logs_owner_scope_v4.sql',
+    '20260920190705_plp_retire_legacy_activity_log_rpc_v5.sql',
+    '20260921102000_plp_team_access_bootstrap_v3.sql',
+    '20260921103500_plp_team_access_visible_count_v4.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -934,6 +952,15 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260920062415_plp_enterprise_mobile_bootstrap_v1.sql',
     '20260920070224_plp_staff_task_governed_action_v1.sql',
     '20260920070932_plp_staff_task_activity_state_fix_v1.sql',
+    '20260920180000_plp_guest_experience_bootstrap_v2.sql',
+    '20260920185423_plp_activity_page_and_logs_v1.sql',
+    '20260920185511_plp_activity_logs_enum_fix_v2.sql',
+    '20260920190202_plp_pandora_activity_logs_runtime_v2.sql',
+    '20260920190232_plp_pandora_activity_logs_cursor_fix_v3.sql',
+    '20260920190612_plp_pandora_activity_logs_owner_scope_v4.sql',
+    '20260920190705_plp_retire_legacy_activity_log_rpc_v5.sql',
+    '20260921102000_plp_team_access_bootstrap_v3.sql',
+    '20260921103500_plp_team_access_visible_count_v4.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
