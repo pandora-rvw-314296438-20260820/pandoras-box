@@ -35,6 +35,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
@@ -83,6 +84,7 @@ If required information is missing locally, needs an authoritative provider muta
     private var pendingModelResult: MethodChannel.Result? = null
     private var activeGeneration: Job? = null
     private var activeAcceptance: Job? = null
+    private var activeWarm: Job? = null
     private var loadedModelPath: String? = null
     private var lastModelLoadMs: Long? = null
     private var lastTimeToFirstTokenMs: Long? = null
@@ -158,11 +160,13 @@ If required information is missing locally, needs an authoritative provider muta
             "generate" -> generate(call, result)
             "runAcceptance" -> runAcceptance(call, result)
             "cancel" -> {
-                activeGeneration?.cancel()
-                activeAcceptance?.cancel()
-                activeGeneration = null
-                activeAcceptance = null
-                result.success(null)
+                scope.launch {
+                    activeGeneration?.cancelAndJoin()
+                    activeAcceptance?.cancelAndJoin()
+                    activeGeneration = null
+                    activeAcceptance = null
+                    result.success(null)
+                }
             }
             "resetConversation" -> resetConversation(result)
             "unload" -> unload(result)
@@ -443,9 +447,20 @@ If required information is missing locally, needs an authoritative provider muta
     }
 
     private fun warm(result: MethodChannel.Result) {
-        scope.launch {
+        if (activeGeneration?.isActive == true ||
+            activeAcceptance?.isActive == true ||
+            activeWarm?.isActive == true
+        ) {
+            result.error(
+                "LOCAL_AI_BUSY",
+                "Pandora local AI is already preparing or generating.",
+                statusMap(),
+            )
+            return
+        }
+        activeWarm = scope.launch {
             try {
-                result.success(warmInternal())
+                result.success(warmWithRecovery())
             } catch (error: Throwable) {
                 recordWarmFailure(
                     lastWarmFailurePhase ?: "warm",
@@ -456,6 +471,8 @@ If required information is missing locally, needs an authoritative provider muta
                     localFailureMessage(error),
                     statusMap(),
                 )
+            } finally {
+                activeWarm = null
             }
         }
     }
@@ -559,7 +576,7 @@ If required information is missing locally, needs an authoritative provider muta
             lastGenerationOutcome = "running"
             lastGenerationPhase = "warming"
             try {
-                if (!warmInternal()) {
+                if (!warmWithRecovery()) {
                     throw IllegalStateException("No local GGUF model is configured.")
                 }
                 val generationRuntime = nativeRuntimeDiagnostics()
@@ -636,7 +653,7 @@ If required information is missing locally, needs an authoritative provider muta
             try {
                 activeGeneration?.cancelAndJoin()
                 activeGeneration = null
-                if (!warmInternal()) {
+                if (!warmWithRecovery()) {
                     throw IllegalStateException("No local GGUF model is configured.")
                 }
                 // Reset only the conversational KV state. Keep the 2.3 GiB
@@ -657,23 +674,44 @@ If required information is missing locally, needs an authoritative provider muta
     private fun unload(result: MethodChannel.Result) {
         scope.launch {
             try {
-                activeGeneration?.cancel()
+                activeGeneration?.cancelAndJoin()
                 activeGeneration = null
+                activeWarm?.cancelAndJoin()
+                activeWarm = null
                 unloadInternal()
                 result.success(null)
             } catch (error: Exception) {
                 result.error(
                     "LOCAL_AI_UNLOAD_FAILED",
                     error.message ?: "Pandora could not unload the local model.",
-                    null,
+                    statusMap(),
                 )
             }
         }
     }
 
+    private suspend fun warmWithRecovery(): Boolean {
+        var firstFailure: Throwable? = null
+        repeat(2) { attempt ->
+            try {
+                return warmInternal()
+            } catch (error: Throwable) {
+                if (firstFailure == null) firstFailure = error
+                if (attempt == 1) throw error
+                try {
+                    unloadInternal()
+                } catch (_: Throwable) {
+                    // Recovery continues into a fresh state validation below.
+                }
+                delay(150)
+            }
+        }
+        throw firstFailure ?: IllegalStateException("Local AI warm failed.")
+    }
+
     private suspend fun warmInternal(): Boolean {
         require(modelFile.isFile && modelFile.length() > 0L) {
-            "Private GGUF missing or empty: \${modelFile.absolutePath}"
+            "Private GGUF missing or empty: ${modelFile.absolutePath}"
         }
         val canonicalPath = modelFile.canonicalPath
         if (loadedModelPath == canonicalPath &&
@@ -682,21 +720,45 @@ If required information is missing locally, needs an authoritative provider muta
             return true
         }
 
-        if (engine.state.value is InferenceEngine.State.Error && loadedModelPath != null) {
+        // A load or system-prompt failure can put the wrapper in Error before
+        // loadedModelPath is assigned. Clear that stale state so later local
+        // turns are not permanently forced to cloud.
+        if (engine.state.value is InferenceEngine.State.Error) {
             unloadInternal()
         }
         awaitEngineInitialized()
         if (loadedModelPath != null) unloadInternal()
+
         val loadStarted = SystemClock.elapsedRealtime()
-        engine.loadModel(canonicalPath)
+        try {
+            engine.loadModel(canonicalPath)
+        } catch (error: Throwable) {
+            recordWarmFailure("model_load", error)
+            throw error
+        }
+
         val loadedState = engine.state.value
         require(loadedState is InferenceEngine.State.ModelReady) {
             "llama.cpp did not reach ModelReady after loading the GGUF; state=" +
                 engineStateName(loadedState)
         }
-        engine.setSystemPrompt(SYSTEM_PROMPT.trim())
-        lastModelLoadMs = SystemClock.elapsedRealtime() - loadStarted
+
+        // Mark the native model resident before processing the system prompt.
+        // If prompt processing fails, unloadInternal can now actually release
+        // the native model and reset the wrapper instead of leaving Error
+        // state poisoned for every later turn.
         loadedModelPath = canonicalPath
+        try {
+            engine.setSystemPrompt(SYSTEM_PROMPT.trim())
+        } catch (error: Throwable) {
+            recordWarmFailure("system_prompt", error)
+            throw error
+        }
+
+        lastModelLoadMs = SystemClock.elapsedRealtime() - loadStarted
+        lastWarmFailurePhase = null
+        lastWarmFailureClass = null
+        lastWarmFailureMessage = null
         return true
     }
 
@@ -743,10 +805,11 @@ If required information is missing locally, needs an authoritative provider muta
 
     private suspend fun unloadInternal() {
         val state = engine.state.value
-        if (loadedModelPath != null &&
-            (state is InferenceEngine.State.ModelReady ||
-                state is InferenceEngine.State.Error)
+        if (state is InferenceEngine.State.ModelReady ||
+            state is InferenceEngine.State.Error
         ) {
+            // Error cleanup is required even when failure occurred before
+            // loadedModelPath was assigned.
             engine.cleanUp()
         }
         loadedModelPath = null
