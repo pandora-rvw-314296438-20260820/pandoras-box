@@ -21,9 +21,9 @@ class PlpEnterpriseApp extends StatefulWidget {
 class _PlpEnterpriseAppState extends State<PlpEnterpriseApp> {
   @override
   void dispose() {
-    widget.runtime.projectRuntime?.close();
+    widget.runtime.projectRuntime.close();
     widget.runtime.repository.dispose();
-    widget.runtime.localStore?.close();
+    widget.runtime.localStore.close();
     super.dispose();
   }
 
