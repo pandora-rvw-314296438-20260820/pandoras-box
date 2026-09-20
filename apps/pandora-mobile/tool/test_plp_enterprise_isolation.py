@@ -11,17 +11,22 @@ _FILES = [
     _APP / "lib" / "main_plp.dart",
     _APP / "lib" / "app" / "plp_enterprise_app.dart",
     _APP / "lib" / "app" / "plp_enterprise_shell.dart",
+    _APP / "lib" / "features" / "auth" / "plp_auth_gate.dart",
 ]
 
 
 class PlpEnterpriseIsolationTest(unittest.TestCase):
-    def test_dedicated_target_has_no_generic_workspace_selector(self) -> None:
+    def test_dedicated_target_has_no_generic_workspace_or_auth_fallback(self) -> None:
         combined = "\n".join(path.read_text(encoding="utf-8") for path in _FILES)
 
         for forbidden in (
             "PANDORA_ENTERPRISE_WORKSPACE",
             "enterprise_workspace_home.dart",
             "EnterpriseWorkspaceHome",
+            "import 'pandora_app.dart';",
+            "features/auth/auth_gate.dart",
+            "PandoraShell",
+            "PandoraChatShell",
             "Owners workspace",
             "Euro-Fish",
             "Batalla",
@@ -31,6 +36,7 @@ class PlpEnterpriseIsolationTest(unittest.TestCase):
             self.assertNotIn(forbidden, combined)
 
         self.assertIn("PlpEnterpriseApp", combined)
+        self.assertIn("PlpAuthGate", combined)
         self.assertIn("PlpEnterpriseShell", combined)
         self.assertIn("plp_enterprise_mobile_bootstrap_v1", combined)
         self.assertIn("allowCharacterContext: false", combined)
