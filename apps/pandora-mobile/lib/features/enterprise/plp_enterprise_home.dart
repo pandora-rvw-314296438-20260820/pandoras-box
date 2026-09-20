@@ -100,7 +100,7 @@ class PlpEnterpriseHome extends StatelessWidget {
           children: [
             const _AtmosphericBackdrop(),
             RefreshIndicator(
-              color: _gold,
+              color: PlpEnterpriseHome._gold,
               onRefresh: () async => onRefresh(),
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -129,7 +129,7 @@ class PlpEnterpriseHome extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: const Color(0x7A2A1308),
-                        border: Border.all(color: _gold, width: 1.5),
+                        border: Border.all(color: PlpEnterpriseHome._gold, width: 1.5),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x52000000),
@@ -147,7 +147,7 @@ class PlpEnterpriseHome extends StatelessWidget {
                             child: Text(
                               'PLP',
                               style: TextStyle(
-                                color: _text,
+                                color: PlpEnterpriseHome._text,
                                 fontSize: 34,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -162,7 +162,7 @@ class PlpEnterpriseHome extends StatelessWidget {
                     propertyName,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      color: _text,
+                      color: PlpEnterpriseHome._text,
                       fontSize: 34,
                       height: 1,
                       fontWeight: FontWeight.w800,
@@ -185,7 +185,7 @@ class PlpEnterpriseHome extends StatelessWidget {
                     child: Container(
                       width: 178,
                       height: 1,
-                      color: _goldSoft,
+                      color: PlpEnterpriseHome._goldSoft,
                     ),
                   ),
                   const SizedBox(height: 26),
@@ -204,7 +204,7 @@ class PlpEnterpriseHome extends StatelessWidget {
                     'What can I help with?',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: _text,
+                      color: PlpEnterpriseHome._text,
                       fontSize: 31,
                       height: 1.08,
                       fontWeight: FontWeight.w800,
@@ -216,7 +216,7 @@ class PlpEnterpriseHome extends StatelessWidget {
                     'Ask about PLP, make a change, or let Pandora handle it.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: _muted,
+                      color: PlpEnterpriseHome._muted,
                       fontSize: 14,
                       height: 1.4,
                     ),
@@ -385,7 +385,7 @@ class _RoundGlassButton extends StatelessWidget {
         child: IconButton(
           tooltip: tooltip,
           onPressed: onPressed,
-          icon: Icon(icon, color: _text, size: 28),
+          icon: Icon(icon, color: PlpEnterpriseHome._text, size: 28),
         ),
       );
 }
@@ -416,7 +416,7 @@ class _StatusPill extends StatelessWidget {
               onPressed: onRefresh,
               icon: const Icon(
                 Icons.sync_rounded,
-                color: _text,
+                color: PlpEnterpriseHome._text,
                 size: 22,
               ),
             ),
@@ -464,9 +464,9 @@ class _HomeActionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           onTap: onTap,
           child: Container(
-            minHeight: compact ? 92 : 148,
+            constraints: BoxConstraints(minHeight: compact ? 92 : 148),
             decoration: BoxDecoration(
-              color: _glass,
+              color: PlpEnterpriseHome._glass,
               borderRadius: BorderRadius.circular(22),
               border: Border.all(color: const Color(0x8B8E5E3B)),
             ),
@@ -479,12 +479,12 @@ class _HomeActionCard extends StatelessWidget {
             child: compact
                 ? Row(
                     children: [
-                      Icon(icon, color: _gold, size: 26),
+                      Icon(icon, color: PlpEnterpriseHome._gold, size: 26),
                       const SizedBox(width: 15),
                       Expanded(child: _CardCopy(title: title, subtitle: subtitle)),
                       const Icon(
                         Icons.chevron_right_rounded,
-                        color: _gold,
+                        color: PlpEnterpriseHome._gold,
                         size: 25,
                       ),
                     ],
@@ -492,7 +492,7 @@ class _HomeActionCard extends StatelessWidget {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(icon, color: _gold, size: 27),
+                      Icon(icon, color: PlpEnterpriseHome._gold, size: 27),
                       const Spacer(),
                       _CardCopy(title: title, subtitle: subtitle),
                       const SizedBox(height: 5),
@@ -500,7 +500,7 @@ class _HomeActionCard extends StatelessWidget {
                         alignment: Alignment.centerRight,
                         child: Icon(
                           Icons.chevron_right_rounded,
-                          color: _gold,
+                          color: PlpEnterpriseHome._gold,
                           size: 23,
                         ),
                       ),
@@ -527,7 +527,7 @@ class _CardCopy extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: _text,
+              color: PlpEnterpriseHome._text,
               fontSize: 15,
               fontWeight: FontWeight.w800,
             ),
@@ -538,7 +538,7 @@ class _CardCopy extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: _muted,
+              color: PlpEnterpriseHome._muted,
               fontSize: 11.5,
               height: 1.25,
             ),
