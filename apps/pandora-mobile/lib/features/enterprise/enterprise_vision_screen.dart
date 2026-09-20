@@ -187,15 +187,21 @@ class EnterpriseVisionScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _VisionStatusRow(
-              icon: Icons.public_rounded,
-              label: 'Live source',
-              value: 'CamStreamer · Kabukicho',
+              icon: Icons.visibility_outlined,
+              label: 'DISPLAY ONLY',
+              value: 'Active · public CamStreamer source is shown only',
             ),
             SizedBox(height: 12),
             _VisionStatusRow(
               icon: Icons.psychology_alt_outlined,
-              label: 'AI analysis',
-              value: 'Not connected to public source',
+              label: 'ANALYSIS ACTIVE',
+              value: 'No · frames are not being processed by Pandora',
+            ),
+            SizedBox(height: 12),
+            _VisionStatusRow(
+              icon: Icons.verified_outlined,
+              label: 'VERIFIED EVENT',
+              value: 'None · no verified incident exists for this display source',
             ),
             SizedBox(height: 12),
             _VisionStatusRow(
