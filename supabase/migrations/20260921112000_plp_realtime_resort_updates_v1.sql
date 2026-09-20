@@ -211,7 +211,7 @@ begin
 end;
 $$;
 
-do $
+do $publication$
 begin
   if exists (
     select 1
@@ -228,4 +228,4 @@ begin
       add table public.enterprise_realtime_signals;
   end if;
 end;
-$;
+$publication$;
