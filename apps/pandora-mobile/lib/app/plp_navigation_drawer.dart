@@ -63,7 +63,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
   ];
 
   final TextEditingController _searchController = TextEditingController();
-  bool _workspaceExpanded = false;
+  bool _workspaceExpanded = true;
   bool _recentExpanded = true;
   bool _systemExpanded = false;
   bool _searchOpen = false;
@@ -237,26 +237,37 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                                   : CrossFadeState.showFirst,
                               firstChild: const SizedBox.shrink(),
                               secondChild: Padding(
-                                padding: const EdgeInsets.fromLTRB(50, 2, 8, 8),
-                                child: Row(
+                                padding: const EdgeInsets.fromLTRB(12, 2, 0, 10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
-                                    const Icon(
-                                      Icons.check_circle_rounded,
-                                      size: 18,
-                                      color: Color(0xFF76E6B2),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        'Current workspace · PLP Boracay',
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(
-                                            alpha: .62,
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(38, 2, 8, 6),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.check_circle_rounded,
+                                            size: 17,
+                                            color: Color(0xFF76E6B2),
                                           ),
-                                          fontSize: 12,
-                                        ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'PLP Boracay owner workspace',
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(
+                                                  alpha: .62,
+                                                ),
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
+                                    for (final item in visibleBusiness)
+                                      _navigationRow(item, nested: true),
                                   ],
                                 ),
                               ),
@@ -336,21 +347,6 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                           else if (_recentExpanded || _query.isNotEmpty)
                             for (final chat in visibleChats)
                               _chatRow(chat),
-                          _divider(),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-                            child: Text(
-                              _query.isEmpty ? 'BUSINESS' : 'MATCHING BUSINESS',
-                              style: const TextStyle(
-                                color: Color(0xFF747E8A),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.5,
-                              ),
-                            ),
-                          ),
-                          for (final item in visibleBusiness)
-                            _navigationRow(item),
                           _divider(),
                           if (_query.isEmpty || _matches('System / Developer') ||
                               visibleSystem.isNotEmpty) ...[
