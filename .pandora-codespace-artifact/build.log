@@ -1,0 +1,558 @@
+SOURCE_SHA=ef373c82d436ae06fd459b5356272bcab84bcc66
+SOURCE_TREE=75fd6a2ac3a90c878824f760df9aaf2770e55ff0
+Codespace compilation only. No local model inference is executed here.
+Get:1 https://packages.microsoft.com/repos/microsoft-ubuntu-focal-prod focal InRelease [3632 B]
+Get:2 https://packages.microsoft.com/repos/microsoft-ubuntu-focal-prod focal/main amd64 Packages [856 kB]
+Get:3 https://packages.microsoft.com/repos/microsoft-ubuntu-focal-prod focal/main all Packages [2948 B]
+Get:4 https://repo.anaconda.com/pkgs/misc/debrepo/conda stable InRelease [3961 B]
+Get:5 https://repo.anaconda.com/pkgs/misc/debrepo/conda stable/main amd64 Packages [4557 B]
+Get:6 http://archive.ubuntu.com/ubuntu focal InRelease [265 kB]
+Get:7 http://security.ubuntu.com/ubuntu focal-security InRelease [128 kB]
+Get:8 https://packagecloud.io/github/git-lfs/ubuntu focal InRelease [29.1 kB]
+Get:9 http://archive.ubuntu.com/ubuntu focal-updates InRelease [128 kB]
+Get:10 http://archive.ubuntu.com/ubuntu focal-backports InRelease [128 kB]
+Get:11 http://security.ubuntu.com/ubuntu focal-security/universe amd64 Packages [1300 kB]
+Get:13 http://archive.ubuntu.com/ubuntu focal/main amd64 Packages [1275 kB]
+Get:12 https://packagecloud.io/github/git-lfs/ubuntu focal/main amd64 Packages [4064 B]
+Get:14 http://archive.ubuntu.com/ubuntu focal/universe amd64 Packages [11.3 MB]
+Get:15 http://security.ubuntu.com/ubuntu focal-security/multiverse amd64 Packages [32.5 kB]
+Get:16 http://security.ubuntu.com/ubuntu focal-security/main amd64 Packages [4368 kB]
+Get:17 http://archive.ubuntu.com/ubuntu focal/multiverse amd64 Packages [177 kB]
+Get:18 http://archive.ubuntu.com/ubuntu focal/restricted amd64 Packages [33.4 kB]
+Get:19 http://archive.ubuntu.com/ubuntu focal-updates/restricted amd64 Packages [4904 kB]
+Get:20 http://archive.ubuntu.com/ubuntu focal-updates/universe amd64 Packages [1588 kB]
+Get:21 http://archive.ubuntu.com/ubuntu focal-updates/multiverse amd64 Packages [36.2 kB]
+Get:22 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 Packages [4850 kB]
+Get:23 http://security.ubuntu.com/ubuntu focal-security/restricted amd64 Packages [4710 kB]
+Get:24 http://archive.ubuntu.com/ubuntu focal-backports/main amd64 Packages [54.7 kB]
+Get:25 http://archive.ubuntu.com/ubuntu focal-backports/universe amd64 Packages [28.4 kB]
+Fetched 36.3 MB in 5s (6862 kB/s)
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+python3 is already the newest version (3.8.2-0ubuntu2).
+python3 set to manually installed.
+zip is already the newest version (3.0-11build1).
+ca-certificates is already the newest version (20240203~20.04.1).
+curl is already the newest version (7.68.0-1ubuntu2.25).
+git is already the newest version (1:2.25.1-1ubuntu3.14).
+unzip is already the newest version (6.0-25ubuntu1.2).
+xz-utils is already the newest version (5.2.4-1ubuntu1.1).
+The following additional packages will be installed:
+  ca-certificates-java java-common libdrm-amdgpu1 libdrm-intel1
+  libdrm-nouveau2 libdrm-radeon1 libgl1 libgl1-mesa-dri libglapi-mesa
+  libglvnd0 libglx-mesa0 libglx0 libllvm12 libpciaccess0 libpcsclite1
+  libsensors-config libsensors5 libvulkan1 libxcb-dri2-0 libxcb-dri3-0
+  libxcb-glx0 libxcb-present0 libxcb-randr0 libxcb-sync1 libxcb-xfixes0
+  libxshmfence1 libxxf86vm1 mesa-vulkan-drivers openjdk-17-jre-headless
+Suggested packages:
+  default-jre pciutils pcscd lm-sensors openjdk-17-demo openjdk-17-source
+  libnss-mdns fonts-dejavu-extra fonts-ipafont-gothic fonts-ipafont-mincho
+  fonts-wqy-microhei | fonts-wqy-zenhei fonts-indic
+The following NEW packages will be installed:
+  ca-certificates-java java-common libdrm-amdgpu1 libdrm-intel1
+  libdrm-nouveau2 libdrm-radeon1 libgl1 libgl1-mesa-dri libglapi-mesa
+  libglu1-mesa libglvnd0 libglx-mesa0 libglx0 libllvm12 libpciaccess0
+  libpcsclite1 libsensors-config libsensors5 libvulkan1 libxcb-dri2-0
+  libxcb-dri3-0 libxcb-glx0 libxcb-present0 libxcb-randr0 libxcb-sync1
+  libxcb-xfixes0 libxshmfence1 libxxf86vm1 mesa-vulkan-drivers ninja-build
+  openjdk-17-jdk-headless openjdk-17-jre-headless
+0 upgraded, 32 newly installed, 0 to remove and 56 not upgraded.
+Need to get 152 MB of archives.
+After this operation, 796 MB of additional disk space will be used.
+Get:1 http://archive.ubuntu.com/ubuntu focal/main amd64 java-common all 0.72 [6816 B]
+Get:2 http://archive.ubuntu.com/ubuntu focal/main amd64 libpcsclite1 amd64 1.8.26-3 [22.0 kB]
+Get:3 http://archive.ubuntu.com/ubuntu focal-updates/universe amd64 openjdk-17-jre-headless amd64 17.0.15+6~us1-0ubuntu1~20.04 [43.8 MB]
+Get:4 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 ca-certificates-java all 20190405ubuntu1.1 [12.4 kB]
+Get:5 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libdrm-amdgpu1 amd64 2.4.107-8ubuntu1~20.04.2 [18.6 kB]
+Get:6 http://archive.ubuntu.com/ubuntu focal/main amd64 libpciaccess0 amd64 0.16-0ubuntu1 [17.9 kB]
+Get:7 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libdrm-intel1 amd64 2.4.107-8ubuntu1~20.04.2 [60.3 kB]
+Get:8 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libdrm-nouveau2 amd64 2.4.107-8ubuntu1~20.04.2 [16.6 kB]
+Get:9 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libdrm-radeon1 amd64 2.4.107-8ubuntu1~20.04.2 [19.7 kB]
+Get:10 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libglapi-mesa amd64 21.2.6-0ubuntu0.1~20.04.2 [27.4 kB]
+Get:11 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libllvm12 amd64 1:12.0.0-3ubuntu1~20.04.5 [18.8 MB]
+Get:12 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libsensors-config all 1:3.6.0-2ubuntu1.1 [6052 B]
+Get:13 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libsensors5 amd64 1:3.6.0-2ubuntu1.1 [27.2 kB]
+Get:14 http://archive.ubuntu.com/ubuntu focal/main amd64 libvulkan1 amd64 1.2.131.2-1 [93.3 kB]
+Get:15 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libgl1-mesa-dri amd64 21.2.6-0ubuntu0.1~20.04.2 [11.0 MB]
+Get:16 http://archive.ubuntu.com/ubuntu focal/main amd64 libxcb-dri2-0 amd64 1.14-2 [6920 B]
+Get:17 http://archive.ubuntu.com/ubuntu focal/main amd64 libxcb-dri3-0 amd64 1.14-2 [6552 B]
+Get:18 http://archive.ubuntu.com/ubuntu focal/main amd64 libxcb-glx0 amd64 1.14-2 [22.1 kB]
+Get:19 http://archive.ubuntu.com/ubuntu focal/main amd64 libxcb-present0 amd64 1.14-2 [5560 B]
+Get:20 http://archive.ubuntu.com/ubuntu focal/main amd64 libxcb-sync1 amd64 1.14-2 [8884 B]
+Get:21 http://archive.ubuntu.com/ubuntu focal/main amd64 libxcb-xfixes0 amd64 1.14-2 [9296 B]
+Get:22 http://archive.ubuntu.com/ubuntu focal/main amd64 libxshmfence1 amd64 1.3-1 [5028 B]
+Get:23 http://archive.ubuntu.com/ubuntu focal/main amd64 libxxf86vm1 amd64 1:1.1.4-1build1 [10.2 kB]
+Get:24 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libglx-mesa0 amd64 21.2.6-0ubuntu0.1~20.04.2 [137 kB]
+Get:25 http://archive.ubuntu.com/ubuntu focal/main amd64 libxcb-randr0 amd64 1.14-2 [16.3 kB]
+Get:26 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 mesa-vulkan-drivers amd64 21.2.6-0ubuntu0.1~20.04.2 [5788 kB]
+Get:27 http://archive.ubuntu.com/ubuntu focal/universe amd64 ninja-build amd64 1.10.0-1build1 [107 kB]
+Get:28 http://archive.ubuntu.com/ubuntu focal-updates/universe amd64 openjdk-17-jdk-headless amd64 17.0.15+6~us1-0ubuntu1~20.04 [71.5 MB]
+Get:29 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libglvnd0 amd64 1.3.2-1~ubuntu0.20.04.2 [48.1 kB]
+Get:30 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libglx0 amd64 1.3.2-1~ubuntu0.20.04.2 [32.5 kB]
+Get:31 http://archive.ubuntu.com/ubuntu focal-updates/main amd64 libgl1 amd64 1.3.2-1~ubuntu0.20.04.2 [85.8 kB]
+Get:32 http://archive.ubuntu.com/ubuntu focal/main amd64 libglu1-mesa amd64 9.0.1-1build1 [168 kB]
+Fetched 152 MB in 10s (15.8 MB/s)
+Selecting previously unselected package java-common.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 70100 files and directories currently installed.)
+Preparing to unpack .../00-java-common_0.72_all.deb ...
+Unpacking java-common (0.72) ...
+Selecting previously unselected package libpcsclite1:amd64.
+Preparing to unpack .../01-libpcsclite1_1.8.26-3_amd64.deb ...
+Unpacking libpcsclite1:amd64 (1.8.26-3) ...
+Selecting previously unselected package openjdk-17-jre-headless:amd64.
+Preparing to unpack .../02-openjdk-17-jre-headless_17.0.15+6~us1-0ubuntu1~20.04_amd64.deb ...
+Unpacking openjdk-17-jre-headless:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
+Selecting previously unselected package ca-certificates-java.
+Preparing to unpack .../03-ca-certificates-java_20190405ubuntu1.1_all.deb ...
+Unpacking ca-certificates-java (20190405ubuntu1.1) ...
+Selecting previously unselected package libdrm-amdgpu1:amd64.
+Preparing to unpack .../04-libdrm-amdgpu1_2.4.107-8ubuntu1~20.04.2_amd64.deb ...
+Unpacking libdrm-amdgpu1:amd64 (2.4.107-8ubuntu1~20.04.2) ...
+Selecting previously unselected package libpciaccess0:amd64.
+Preparing to unpack .../05-libpciaccess0_0.16-0ubuntu1_amd64.deb ...
+Unpacking libpciaccess0:amd64 (0.16-0ubuntu1) ...
+Selecting previously unselected package libdrm-intel1:amd64.
+Preparing to unpack .../06-libdrm-intel1_2.4.107-8ubuntu1~20.04.2_amd64.deb ...
+Unpacking libdrm-intel1:amd64 (2.4.107-8ubuntu1~20.04.2) ...
+Selecting previously unselected package libdrm-nouveau2:amd64.
+Preparing to unpack .../07-libdrm-nouveau2_2.4.107-8ubuntu1~20.04.2_amd64.deb ...
+Unpacking libdrm-nouveau2:amd64 (2.4.107-8ubuntu1~20.04.2) ...
+Selecting previously unselected package libdrm-radeon1:amd64.
+Preparing to unpack .../08-libdrm-radeon1_2.4.107-8ubuntu1~20.04.2_amd64.deb ...
+Unpacking libdrm-radeon1:amd64 (2.4.107-8ubuntu1~20.04.2) ...
+Selecting previously unselected package libglapi-mesa:amd64.
+Preparing to unpack .../09-libglapi-mesa_21.2.6-0ubuntu0.1~20.04.2_amd64.deb ...
+Unpacking libglapi-mesa:amd64 (21.2.6-0ubuntu0.1~20.04.2) ...
+Selecting previously unselected package libllvm12:amd64.
+Preparing to unpack .../10-libllvm12_1%3a12.0.0-3ubuntu1~20.04.5_amd64.deb ...
+Unpacking libllvm12:amd64 (1:12.0.0-3ubuntu1~20.04.5) ...
+Selecting previously unselected package libsensors-config.
+Preparing to unpack .../11-libsensors-config_1%3a3.6.0-2ubuntu1.1_all.deb ...
+Unpacking libsensors-config (1:3.6.0-2ubuntu1.1) ...
+Selecting previously unselected package libsensors5:amd64.
+Preparing to unpack .../12-libsensors5_1%3a3.6.0-2ubuntu1.1_amd64.deb ...
+Unpacking libsensors5:amd64 (1:3.6.0-2ubuntu1.1) ...
+Selecting previously unselected package libvulkan1:amd64.
+Preparing to unpack .../13-libvulkan1_1.2.131.2-1_amd64.deb ...
+Unpacking libvulkan1:amd64 (1.2.131.2-1) ...
+Selecting previously unselected package libgl1-mesa-dri:amd64.
+Preparing to unpack .../14-libgl1-mesa-dri_21.2.6-0ubuntu0.1~20.04.2_amd64.deb ...
+Unpacking libgl1-mesa-dri:amd64 (21.2.6-0ubuntu0.1~20.04.2) ...
+Selecting previously unselected package libxcb-dri2-0:amd64.
+Preparing to unpack .../15-libxcb-dri2-0_1.14-2_amd64.deb ...
+Unpacking libxcb-dri2-0:amd64 (1.14-2) ...
+Selecting previously unselected package libxcb-dri3-0:amd64.
+Preparing to unpack .../16-libxcb-dri3-0_1.14-2_amd64.deb ...
+Unpacking libxcb-dri3-0:amd64 (1.14-2) ...
+Selecting previously unselected package libxcb-glx0:amd64.
+Preparing to unpack .../17-libxcb-glx0_1.14-2_amd64.deb ...
+Unpacking libxcb-glx0:amd64 (1.14-2) ...
+Selecting previously unselected package libxcb-present0:amd64.
+Preparing to unpack .../18-libxcb-present0_1.14-2_amd64.deb ...
+Unpacking libxcb-present0:amd64 (1.14-2) ...
+Selecting previously unselected package libxcb-sync1:amd64.
+Preparing to unpack .../19-libxcb-sync1_1.14-2_amd64.deb ...
+Unpacking libxcb-sync1:amd64 (1.14-2) ...
+Selecting previously unselected package libxcb-xfixes0:amd64.
+Preparing to unpack .../20-libxcb-xfixes0_1.14-2_amd64.deb ...
+Unpacking libxcb-xfixes0:amd64 (1.14-2) ...
+Selecting previously unselected package libxshmfence1:amd64.
+Preparing to unpack .../21-libxshmfence1_1.3-1_amd64.deb ...
+Unpacking libxshmfence1:amd64 (1.3-1) ...
+Selecting previously unselected package libxxf86vm1:amd64.
+Preparing to unpack .../22-libxxf86vm1_1%3a1.1.4-1build1_amd64.deb ...
+Unpacking libxxf86vm1:amd64 (1:1.1.4-1build1) ...
+Selecting previously unselected package libglx-mesa0:amd64.
+Preparing to unpack .../23-libglx-mesa0_21.2.6-0ubuntu0.1~20.04.2_amd64.deb ...
+Unpacking libglx-mesa0:amd64 (21.2.6-0ubuntu0.1~20.04.2) ...
+Selecting previously unselected package libxcb-randr0:amd64.
+Preparing to unpack .../24-libxcb-randr0_1.14-2_amd64.deb ...
+Unpacking libxcb-randr0:amd64 (1.14-2) ...
+Selecting previously unselected package mesa-vulkan-drivers:amd64.
+Preparing to unpack .../25-mesa-vulkan-drivers_21.2.6-0ubuntu0.1~20.04.2_amd64.deb ...
+Unpacking mesa-vulkan-drivers:amd64 (21.2.6-0ubuntu0.1~20.04.2) ...
+Selecting previously unselected package ninja-build.
+Preparing to unpack .../26-ninja-build_1.10.0-1build1_amd64.deb ...
+Unpacking ninja-build (1.10.0-1build1) ...
+Selecting previously unselected package openjdk-17-jdk-headless:amd64.
+Preparing to unpack .../27-openjdk-17-jdk-headless_17.0.15+6~us1-0ubuntu1~20.04_amd64.deb ...
+Unpacking openjdk-17-jdk-headless:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
+Selecting previously unselected package libglvnd0:amd64.
+Preparing to unpack .../28-libglvnd0_1.3.2-1~ubuntu0.20.04.2_amd64.deb ...
+Unpacking libglvnd0:amd64 (1.3.2-1~ubuntu0.20.04.2) ...
+Selecting previously unselected package libglx0:amd64.
+Preparing to unpack .../29-libglx0_1.3.2-1~ubuntu0.20.04.2_amd64.deb ...
+Unpacking libglx0:amd64 (1.3.2-1~ubuntu0.20.04.2) ...
+Selecting previously unselected package libgl1:amd64.
+Preparing to unpack .../30-libgl1_1.3.2-1~ubuntu0.20.04.2_amd64.deb ...
+Unpacking libgl1:amd64 (1.3.2-1~ubuntu0.20.04.2) ...
+Selecting previously unselected package libglu1-mesa:amd64.
+Preparing to unpack .../31-libglu1-mesa_9.0.1-1build1_amd64.deb ...
+Unpacking libglu1-mesa:amd64 (9.0.1-1build1) ...
+Setting up libxcb-dri3-0:amd64 (1.14-2) ...
+Setting up libpciaccess0:amd64 (0.16-0ubuntu1) ...
+Setting up libdrm-nouveau2:amd64 (2.4.107-8ubuntu1~20.04.2) ...
+Setting up libxcb-xfixes0:amd64 (1.14-2) ...
+Setting up java-common (0.72) ...
+Setting up libdrm-radeon1:amd64 (2.4.107-8ubuntu1~20.04.2) ...
+Setting up libglvnd0:amd64 (1.3.2-1~ubuntu0.20.04.2) ...
+Setting up libxcb-glx0:amd64 (1.14-2) ...
+Setting up libdrm-intel1:amd64 (2.4.107-8ubuntu1~20.04.2) ...
+Setting up libsensors-config (1:3.6.0-2ubuntu1.1) ...
+Setting up ninja-build (1.10.0-1build1) ...
+Setting up libxxf86vm1:amd64 (1:1.1.4-1build1) ...
+Setting up libxcb-present0:amd64 (1.14-2) ...
+Setting up libxcb-sync1:amd64 (1.14-2) ...
+Setting up libllvm12:amd64 (1:12.0.0-3ubuntu1~20.04.5) ...
+Setting up libpcsclite1:amd64 (1.8.26-3) ...
+Setting up libsensors5:amd64 (1:3.6.0-2ubuntu1.1) ...
+Setting up libglapi-mesa:amd64 (21.2.6-0ubuntu0.1~20.04.2) ...
+Setting up libvulkan1:amd64 (1.2.131.2-1) ...
+Setting up libxcb-dri2-0:amd64 (1.14-2) ...
+Setting up libxshmfence1:amd64 (1.3-1) ...
+Setting up libxcb-randr0:amd64 (1.14-2) ...
+Setting up libdrm-amdgpu1:amd64 (2.4.107-8ubuntu1~20.04.2) ...
+Setting up mesa-vulkan-drivers:amd64 (21.2.6-0ubuntu0.1~20.04.2) ...
+Setting up libgl1-mesa-dri:amd64 (21.2.6-0ubuntu0.1~20.04.2) ...
+Setting up libglx-mesa0:amd64 (21.2.6-0ubuntu0.1~20.04.2) ...
+Setting up libglx0:amd64 (1.3.2-1~ubuntu0.20.04.2) ...
+Setting up libgl1:amd64 (1.3.2-1~ubuntu0.20.04.2) ...
+Setting up libglu1-mesa:amd64 (9.0.1-1build1) ...
+Setting up openjdk-17-jre-headless:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/java to provide /usr/bin/java (java) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jpackage to provide /usr/bin/jpackage (jpackage) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/keytool to provide /usr/bin/keytool (keytool) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/rmiregistry to provide /usr/bin/rmiregistry (rmiregistry) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/lib/jexec to provide /usr/bin/jexec (jexec) in auto mode
+Setting up ca-certificates-java (20190405ubuntu1.1) ...
+head: cannot open '/etc/ssl/certs/java/cacerts' for reading: No such file or directory
+Adding debian:emSign_Root_CA_-_G1.pem
+Adding debian:Secure_Global_CA.pem
+Adding debian:SSL.com_Root_Certification_Authority_RSA.pem
+Adding debian:GDCA_TrustAUTH_R5_ROOT.pem
+Adding debian:BJCA_Global_Root_CA2.pem
+Adding debian:NAVER_Global_Root_Certification_Authority.pem
+Adding debian:DigiCert_Global_Root_G3.pem
+Adding debian:Go_Daddy_Class_2_CA.pem
+Adding debian:QuoVadis_Root_CA_1_G3.pem
+Adding debian:Certigna_Root_CA.pem
+Adding debian:DigiCert_TLS_RSA4096_Root_G5.pem
+Adding debian:QuoVadis_Root_CA_3.pem
+Adding debian:DigiCert_Global_Root_CA.pem
+Adding debian:e-Szigno_Root_CA_2017.pem
+Adding debian:Starfield_Class_2_CA.pem
+Adding debian:vTrus_Root_CA.pem
+Adding debian:OISTE_WISeKey_Global_Root_GC_CA.pem
+Adding debian:ANF_Secure_Server_Root_CA.pem
+Adding debian:TrustAsia_Global_Root_CA_G4.pem
+Adding debian:HARICA_TLS_RSA_Root_CA_2021.pem
+Adding debian:emSign_Root_CA_-_C1.pem
+Adding debian:Security_Communication_RootCA2.pem
+Adding debian:IdenTrust_Commercial_Root_CA_1.pem
+Adding debian:Microsoft_ECC_Root_Certificate_Authority_2017.pem
+Adding debian:SSL.com_EV_Root_Certification_Authority_RSA_R2.pem
+Adding debian:Actalis_Authentication_Root_CA.pem
+Adding debian:IdenTrust_Public_Sector_Root_CA_1.pem
+Adding debian:Entrust_Root_Certification_Authority_-_G2.pem
+Adding debian:Security_Communication_ECC_RootCA1.pem
+Adding debian:AC_RAIZ_FNMT-RCM.pem
+Adding debian:GlobalSign_Root_CA_-_R6.pem
+Adding debian:Buypass_Class_2_Root_CA.pem
+Adding debian:GlobalSign_Root_R46.pem
+Adding debian:certSIGN_Root_CA_G2.pem
+Adding debian:USERTrust_ECC_Certification_Authority.pem
+Adding debian:SwissSign_Silver_CA_-_G2.pem
+Adding debian:ISRG_Root_X1.pem
+Adding debian:D-TRUST_Root_Class_3_CA_2_EV_2009.pem
+Adding debian:SZAFIR_ROOT_CA2.pem
+Adding debian:USERTrust_RSA_Certification_Authority.pem
+Adding debian:Security_Communication_RootCA3.pem
+Adding debian:Baltimore_CyberTrust_Root.pem
+Adding debian:T-TeleSec_GlobalRoot_Class_2.pem
+Adding debian:GlobalSign_Root_E46.pem
+Adding debian:HiPKI_Root_CA_-_G1.pem
+Adding debian:COMODO_ECC_Certification_Authority.pem
+Adding debian:TWCA_Global_Root_CA.pem
+Adding debian:DigiCert_Global_Root_G2.pem
+Adding debian:TWCA_Root_Certification_Authority.pem
+Adding debian:CA_Disig_Root_R2.pem
+Adding debian:DigiCert_Assured_ID_Root_G3.pem
+Adding debian:Starfield_Root_Certificate_Authority_-_G2.pem
+Adding debian:GlobalSign_Root_CA_-_R3.pem
+Adding debian:Hellenic_Academic_and_Research_Institutions_RootCA_2015.pem
+Adding debian:TrustAsia_Global_Root_CA_G3.pem
+Adding debian:D-TRUST_EV_Root_CA_1_2020.pem
+Adding debian:D-TRUST_BR_Root_CA_1_2020.pem
+Adding debian:Sectigo_Public_Server_Authentication_Root_R46.pem
+Adding debian:DigiCert_Assured_ID_Root_G2.pem
+Adding debian:certSIGN_ROOT_CA.pem
+Adding debian:Go_Daddy_Root_Certificate_Authority_-_G2.pem
+Adding debian:Hongkong_Post_Root_CA_3.pem
+Adding debian:SSL.com_TLS_RSA_Root_CA_2022.pem
+Adding debian:Amazon_Root_CA_3.pem
+Adding debian:Microsec_e-Szigno_Root_CA_2009.pem
+Adding debian:CommScope_Public_Trust_RSA_Root-02.pem
+Adding debian:AffirmTrust_Commercial.pem
+Adding debian:Atos_TrustedRoot_Root_CA_RSA_TLS_2021.pem
+Adding debian:QuoVadis_Root_CA_2.pem
+Adding debian:Certum_EC-384_CA.pem
+Adding debian:Atos_TrustedRoot_Root_CA_ECC_TLS_2021.pem
+Adding debian:COMODO_Certification_Authority.pem
+Adding debian:HARICA_TLS_ECC_Root_CA_2021.pem
+Adding debian:SecureTrust_CA.pem
+Adding debian:SwissSign_Gold_CA_-_G2.pem
+Adding debian:XRamp_Global_CA_Root.pem
+Adding debian:DigiCert_Trusted_Root_G4.pem
+Adding debian:Certum_Trusted_Network_CA.pem
+Adding debian:QuoVadis_Root_CA_2_G3.pem
+Adding debian:DigiCert_High_Assurance_EV_Root_CA.pem
+Adding debian:Entrust_Root_Certification_Authority_-_G4.pem
+Adding debian:SecureSign_RootCA11.pem
+Adding debian:NetLock_Arany_=Class_Gold=_Főtanúsítvány.pem
+Adding debian:Sectigo_Public_Server_Authentication_Root_E46.pem
+Adding debian:COMODO_RSA_Certification_Authority.pem
+Adding debian:GTS_Root_R1.pem
+Adding debian:Hellenic_Academic_and_Research_Institutions_ECC_RootCA_2015.pem
+Adding debian:GTS_Root_R3.pem
+Adding debian:AffirmTrust_Premium.pem
+Adding debian:emSign_ECC_Root_CA_-_C3.pem
+Adding debian:Starfield_Services_Root_Certificate_Authority_-_G2.pem
+Adding debian:Certainly_Root_E1.pem
+Adding debian:AffirmTrust_Networking.pem
+Adding debian:ACCVRAIZ1.pem
+Adding debian:Atos_TrustedRoot_2011.pem
+Adding debian:TUBITAK_Kamu_SM_SSL_Kok_Sertifikasi_-_Surum_1.pem
+Adding debian:Entrust.net_Premium_2048_Secure_Server_CA.pem
+Adding debian:GTS_Root_R2.pem
+Adding debian:Amazon_Root_CA_4.pem
+Adding debian:Certigna.pem
+Adding debian:ePKI_Root_Certification_Authority.pem
+Adding debian:UCA_Extended_Validation_Root.pem
+Adding debian:CommScope_Public_Trust_RSA_Root-01.pem
+Adding debian:OISTE_WISeKey_Global_Root_GB_CA.pem
+Adding debian:AffirmTrust_Premium_ECC.pem
+Adding debian:Certum_Trusted_Root_CA.pem
+Adding debian:vTrus_ECC_Root_CA.pem
+Adding debian:SSL.com_Root_Certification_Authority_ECC.pem
+Adding debian:Entrust_Root_Certification_Authority_-_EC1.pem
+Adding debian:BJCA_Global_Root_CA1.pem
+Adding debian:Entrust_Root_Certification_Authority.pem
+Adding debian:Certum_Trusted_Network_CA_2.pem
+Adding debian:Microsoft_RSA_Root_Certificate_Authority_2017.pem
+Adding debian:DigiCert_TLS_ECC_P384_Root_G5.pem
+Adding debian:Amazon_Root_CA_2.pem
+Adding debian:Certainly_Root_R1.pem
+Adding debian:TunTrust_Root_CA.pem
+Adding debian:CFCA_EV_ROOT.pem
+Adding debian:UCA_Global_G2_Root.pem
+Adding debian:Trustwave_Global_Certification_Authority.pem
+Adding debian:emSign_ECC_Root_CA_-_G3.pem
+Adding debian:Amazon_Root_CA_1.pem
+Adding debian:Autoridad_de_Certificacion_Firmaprofesional_CIF_A62634068.pem
+Adding debian:GlobalSign_ECC_Root_CA_-_R4.pem
+Adding debian:ISRG_Root_X2.pem
+Adding debian:SSL.com_TLS_ECC_Root_CA_2022.pem
+Adding debian:D-TRUST_Root_Class_3_CA_2_2009.pem
+Adding debian:TeliaSonera_Root_CA_v1.pem
+Adding debian:GTS_Root_R4.pem
+Adding debian:Trustwave_Global_ECC_P256_Certification_Authority.pem
+Adding debian:GLOBALTRUST_2020.pem
+Adding debian:QuoVadis_Root_CA_3_G3.pem
+Adding debian:Comodo_AAA_Services_root.pem
+Adding debian:SSL.com_EV_Root_Certification_Authority_ECC.pem
+Adding debian:AC_RAIZ_FNMT-RCM_SERVIDORES_SEGUROS.pem
+Adding debian:CommScope_Public_Trust_ECC_Root-02.pem
+Adding debian:DigiCert_Assured_ID_Root_CA.pem
+Adding debian:Izenpe.com.pem
+Adding debian:Security_Communication_Root_CA.pem
+Adding debian:Buypass_Class_3_Root_CA.pem
+Adding debian:Telia_Root_CA_v2.pem
+Adding debian:GlobalSign_ECC_Root_CA_-_R5.pem
+Adding debian:GlobalSign_Root_CA.pem
+Adding debian:CommScope_Public_Trust_ECC_Root-01.pem
+Adding debian:T-TeleSec_GlobalRoot_Class_3.pem
+Adding debian:Trustwave_Global_ECC_P384_Certification_Authority.pem
+done.
+Setting up openjdk-17-jdk-headless:amd64 (17.0.15+6~us1-0ubuntu1~20.04) ...
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jar to provide /usr/bin/jar (jar) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jarsigner to provide /usr/bin/jarsigner (jarsigner) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/javac to provide /usr/bin/javac (javac) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/javadoc to provide /usr/bin/javadoc (javadoc) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/javap to provide /usr/bin/javap (javap) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jcmd to provide /usr/bin/jcmd (jcmd) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jdb to provide /usr/bin/jdb (jdb) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jdeprscan to provide /usr/bin/jdeprscan (jdeprscan) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jdeps to provide /usr/bin/jdeps (jdeps) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jfr to provide /usr/bin/jfr (jfr) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jimage to provide /usr/bin/jimage (jimage) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jinfo to provide /usr/bin/jinfo (jinfo) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jlink to provide /usr/bin/jlink (jlink) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jmap to provide /usr/bin/jmap (jmap) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jmod to provide /usr/bin/jmod (jmod) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jps to provide /usr/bin/jps (jps) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jrunscript to provide /usr/bin/jrunscript (jrunscript) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jshell to provide /usr/bin/jshell (jshell) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jstack to provide /usr/bin/jstack (jstack) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jstat to provide /usr/bin/jstat (jstat) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jstatd to provide /usr/bin/jstatd (jstatd) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/serialver to provide /usr/bin/serialver (serialver) in auto mode
+update-alternatives: using /usr/lib/jvm/java-17-openjdk-amd64/bin/jhsdb to provide /usr/bin/jhsdb (jhsdb) in auto mode
+Processing triggers for libc-bin (2.31-0ubuntu9.17) ...
+Processing triggers for man-db (2.9.1-1) ...
+Processing triggers for ca-certificates (20240203~20.04.1) ...
+Updating certificates in /etc/ssl/certs...
+0 added, 0 removed; done.
+Running hooks in /etc/ca-certificates/update.d...
+
+done.
+done.
+Cloning into '/home/codespace/flutter-3.47.0'...
+Note: switching to '4cf24164269a5ebf0c16a028a00727d0e77bbb05'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+Updating files:  61% (9955/16071)Updating files:  62% (9965/16071)Updating files:  63% (10125/16071)Updating files:  64% (10286/16071)Updating files:  65% (10447/16071)Updating files:  66% (10607/16071)Updating files:  67% (10768/16071)Updating files:  68% (10929/16071)Updating files:  69% (11089/16071)Updating files:  70% (11250/16071)Updating files:  71% (11411/16071)Updating files:  72% (11572/16071)Updating files:  73% (11732/16071)Updating files:  74% (11893/16071)Updating files:  75% (12054/16071)Updating files:  76% (12214/16071)Updating files:  77% (12375/16071)Updating files:  78% (12536/16071)Updating files:  79% (12697/16071)Updating files:  80% (12857/16071)Updating files:  81% (13018/16071)Updating files:  82% (13179/16071)Updating files:  83% (13339/16071)Updating files:  84% (13500/16071)Updating files:  85% (13661/16071)Updating files:  86% (13822/16071)Updating files:  87% (13982/16071)Updating files:  88% (14143/16071)Updating files:  89% (14304/16071)Updating files:  90% (14464/16071)Updating files:  91% (14625/16071)Updating files:  92% (14786/16071)Updating files:  93% (14947/16071)Updating files:  94% (15107/16071)Updating files:  95% (15268/16071)Updating files:  96% (15429/16071)Updating files:  97% (15589/16071)Updating files:  98% (15750/16071)Updating files:  99% (15911/16071)Updating files: 100% (16071/16071)Updating files: 100% (16071/16071), done.
+Downloading Linux x64 Dart SDK from Flutter engine 5f77625673248ee5846fbcaf5d3e1a3878386fd7...
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0  227M    0  190k    0     0   199k      0  0:19:26 --:--:--  0:19:26  199k  5  227M    5 12.1M    0     0  6358k      0  0:00:36  0:00:01  0:00:35 6355k 17  227M   17 38.7M    0     0  13.0M      0  0:00:17  0:00:02  0:00:15 13.0M 28  227M   28 65.2M    0     0  16.5M      0  0:00:13  0:00:03  0:00:10 16.5M 40  227M   40 91.6M    0     0  18.5M      0  0:00:12  0:00:04  0:00:08 18.5M 51  227M   51  116M    0     0  19.5M      0  0:00:11  0:00:05  0:00:06 23.2M 60  227M   60  138M    0     0  19.9M      0  0:00:11  0:00:06  0:00:05 25.2M 72  227M   72  164M    0     0  20.6M      0  0:00:11  0:00:07  0:00:04 25.2M 84  227M   84  191M    0     0  21.3M      0  0:00:10  0:00:08  0:00:02 25.2M 96  227M   96  218M    0     0  21.9M      0  0:00:10  0:00:09  0:00:01 25.3M100  227M  100  227M    0     0  22.0M      0  0:00:10  0:00:10 --:--:-- 25.4M
+Building flutter tool...
+Resolving dependencies...
+Downloading packages...
+Got dependencies.
+Analytics reporting disabled.
+
+You may need to restart any open editors for them to read new settings.
+Flutter 3.47.0 • channel [user-branch] • https://github.com/flutter/flutter.git
+Framework • revision 4cf2416426 (6 weeks ago) • 2026-08-11 11:53:49 -0700
+Engine • hash 59d54a2b2896a6bbf356c94b7fac7b9e235bdacd (revision 5f77625673) (1 months ago) • 2026-08-11 16:38:36.000Z
+Tools • Dart 3.13.0 • DevTools 2.60.0
+Loading package information...                                                  Loading local repository...                                                     [                                       ] 3% Loading local repository...        [                                       ] 3% Fetch remote repository...         [=                                      ] 3% Fetch remote repository...         [=                                      ] 4% Fetch remote repository...         [=                                      ] 5% Fetch remote repository...         [==                                     ] 5% Fetch remote repository...         [==                                     ] 6% Fetch remote repository...         [==                                     ] 7% Fetch remote repository...         [==                                     ] 7% Computing updates...               [===                                    ] 8% Computing updates...               [===                                    ] 10% Computing updates...              [===                                    ] 10% Installing CMake 3.31.6           [===                                    ] 10% Downloading cmake-3.31.6-linux.zip[====                                   ] 10% Downloading cmake-3.31.6-linux.zip[====                                   ] 11% Downloading cmake-3.31.6-linux.zip[====                                   ] 12% Downloading cmake-3.31.6-linux.zip[=====                                  ] 13% Downloading cmake-3.31.6-linux.zip[=====                                  ] 14% Downloading cmake-3.31.6-linux.zip[=====                                  ] 15% Downloading cmake-3.31.6-linux.zip[=====                                  ] 15% Unzipping...                      [=====                                  ] 15% Unzipping... bin/cmake            [======                                 ] 15% Unzipping... bin/cmake            [======                                 ] 16% Unzipping... bin/cmake            [======                                 ] 16% Unzipping... bin/cpack            [======                                 ] 17% Unzipping... bin/cpack            [======                                 ] 17% Unzipping... bin/ctest            [=======                                ] 18% Unzipping... bin/ctest            [=======                                ] 18% Unzipping... doc/openssl-openssl-3[=======                                ] 18% Unzipping... doc/cmake-3.31/Copyri[=======                                ] 18% Unzipping... doc/cmake-3.31/cmlibl[=======                                ] 18% Unzipping... doc/cmake-3.31/cmlibr[=======                                ] 18% Unzipping... doc/cmake-3.31/cmzstd[=======                                ] 18% Unzipping... doc/cmake-3.31/cmcurl[=======                                ] 18% Unzipping... doc/cmake-3.31/cmzlib[=======                                ] 18% Unzipping... doc/cmake-3.31/cmnght[=======                                ] 18% Unzipping... doc/cmake-3.31/cmcppd[=======                                ] 18% Unzipping... doc/cmake-3.31/cmliba[=======                                ] 18% Unzipping... doc/cmake-3.31/cmsys/[=======                                ] 18% Unzipping... doc/cmake-3.31/cmlibu[=======                                ] 18% Unzipping... share/emacs/site-lisp[=======                                ] 18% Unzipping... share/vim/vimfiles/sy[=======                                ] 18% Unzipping... share/vim/vimfiles/in[=======                                ] 18% Unzipping... share/aclocal/cmake.m[=======                                ] 18% Unzipping... share/bash-completion[=======                                ] 18% Unzipping... share/cmake-3.31/Modu[=======                                ] 19% Unzipping... share/cmake-3.31/Modu[=======                                ] 19% Unzipping... share/cmake-3.31/Temp[=======                                ] 19% Unzipping... share/cmake-3.31/Help[=======                                ] 19% Unzipping... share/cmake-3.31/incl[=======                                ] 19% Unzipping... source.properties    [=======                                ] 19% Unzipping... bin/ninja            [=======                                ] 19% Unzipping... doc/ninja/LICENSE    [=======                                ] 19% Unzipping... share/cmake-3.31/Modu[===========                            ] 28% Unzipping... share/cmake-3.31/Modu[===========                            ] 28% Installing NDK (Side by side) 29.0[===========                            ] 28% Downloading android-ndk-r29-beta1-[===========                            ] 29% Downloading android-ndk-r29-beta1-[===========                            ] 30% Downloading android-ndk-r29-beta1-[============                           ] 30% Downloading android-ndk-r29-beta1-[============                           ] 31% Downloading android-ndk-r29-beta1-[============                           ] 32% Downloading android-ndk-r29-beta1-[============                           ] 33% Downloading android-ndk-r29-beta1-[============                           ] 33% Unzipping... share/cmake-3.31/Modu[============                           ] 33% Unzipping... android-ndk-r29-beta1[=============                          ] 33% Unzipping... android-ndk-r29-beta1[=============                          ] 34% Unzipping... android-ndk-r29-beta1[=============                          ] 35% Unzipping... android-ndk-r29-beta1[==============                         ] 35% Unzipping... android-ndk-r29-beta1[==============                         ] 36% Unzipping... android-ndk-r29-beta1[==============                         ] 37% Unzipping... android-ndk-r29-beta1[==================                     ] 46% Unzipping... android-ndk-r29-beta1[==================                     ] 46% Installing Android SDK Build-Tools[==================                     ] 46% Downloading build-tools_r36_linux.[==================                     ] 47% Downloading build-tools_r36_linux.[===================                    ] 48% Downloading build-tools_r36_linux.[===================                    ] 49% Downloading build-tools_r36_linux.[===================                    ] 50% Downloading build-tools_r36_linux.[====================                   ] 50% Downloading build-tools_r36_linux.[====================                   ] 51% Downloading build-tools_r36_linux.[====================                   ] 51% Unzipping... android-ndk-r29-beta1[====================                   ] 51% Unzipping... android-16/NOTICE.txt[====================                   ] 51% Unzipping... android-16/aapt      [====================                   ] 51% Unzipping... android-16/aapt2     [====================                   ] 51% Unzipping... android-16/aarch64-li[====================                   ] 51% Unzipping... android-16/aidl      [====================                   ] 51% Unzipping... android-16/apksigner [====================                   ] 51% Unzipping... android-16/arm-linux-[====================                   ] 51% Unzipping... android-16/bcc_compat[====================                   ] 51% Unzipping... android-16/core-lambd[====================                   ] 51% Unzipping... android-16/d8        [====================                   ] 51% Unzipping... android-16/dexdump   [====================                   ] 51% Unzipping... android-16/i686-linux[====================                   ] 51% Unzipping... android-16/lld       [====================                   ] 51% Unzipping... android-16/llvm-rs-cc[====================                   ] 51% Unzipping... android-16/mipsel-lin[====================                   ] 51% Unzipping... android-16/runtime.pr[====================                   ] 51% Unzipping... android-16/source.pro[====================                   ] 51% Unzipping... android-16/split-sele[====================                   ] 51% Unzipping... android-16/x86_64-lin[====================                   ] 51% Unzipping... android-16/zipalign  [====================                   ] 51% Unzipping... android-16/lib/apksig[====================                   ] 51% Unzipping... android-16/lib/d8.jar[====================                   ] 52% Unzipping... android-16/lib/d8.jar[====================                   ] 52% Unzipping... android-16/lib64/libL[=====================                  ] 53% Unzipping... android-16/lib64/libL[=====================                  ] 53% Unzipping... android-16/lib64/libb[=====================                  ] 53% Unzipping... android-16/lib64/libc[=====================                  ] 54% Unzipping... android-16/lib64/libc[=====================                  ] 54% Unzipping... android-16/lld-bin/ll[=====================                  ] 54% Unzipping... android-16/renderscri[=====================                  ] 55% Unzipping... android-16/renderscri[=========================              ] 64% Unzipping... android-16/renderscri[=========================              ] 64% Installing Android SDK Platform 36[=========================              ] 64% Downloading platform-36_r02.zip...[=========================              ] 65% Downloading platform-36_r02.zip...[==========================             ] 65% Downloading platform-36_r02.zip...[==========================             ] 66% Downloading platform-36_r02.zip...[==========================             ] 67% Downloading platform-36_r02.zip...[===========================            ] 68% Downloading platform-36_r02.zip...[===========================            ] 69% Downloading platform-36_r02.zip...[===========================            ] 69% Unzipping... android-16/renderscri[===========================            ] 69% Unzipping... android-36/android-st[===========================            ] 69% Unzipping... android-36/android.ja[===========================            ] 70% Unzipping... android-36/android.ja[============================           ] 70% Unzipping... android-36/android.ja[============================           ] 71% Unzipping... android-36/android.ja[============================           ] 71% Unzipping... android-36/build.prop[============================           ] 71% Unzipping... android-36/core-for-s[============================           ] 71% Unzipping... android-36/data/NOTIC[============================           ] 71% Unzipping... android-36/data/activ[============================           ] 71% Unzipping... android-36/data/annot[============================           ] 71% Unzipping... android-36/data/api-v[============================           ] 71% Unzipping... android-36/data/broad[============================           ] 71% Unzipping... android-36/data/categ[============================           ] 71% Unzipping... android-36/data/featu[============================           ] 71% Unzipping... android-36/data/res/a[============================           ] 71% Unzipping... android-36/data/res/c[============================           ] 71% Unzipping... android-36/data/res/d[============================           ] 72% Unzipping... android-36/data/res/d[============================           ] 72% Unzipping... android-36/data/res/i[============================           ] 72% Unzipping... android-36/data/res/l[============================           ] 72% Unzipping... android-36/data/res/m[============================           ] 72% Unzipping... android-36/data/res/r[============================           ] 72% Unzipping... android-36/data/res/t[============================           ] 72% Unzipping... android-36/data/res/v[=============================          ] 73% Unzipping... android-36/data/res/v[=============================          ] 73% Unzipping... android-36/data/res/x[=============================          ] 73% Unzipping... android-36/data/servi[=============================          ] 73% Unzipping... android-36/data/widge[=============================          ] 73% Unzipping... android-36/framework.[=============================          ] 73% Unzipping... android-36/optional/a[=============================          ] 73% Unzipping... android-36/optional/l[=============================          ] 73% Unzipping... android-36/optional/o[=============================          ] 73% Unzipping... android-36/optional/w[=============================          ] 73% Unzipping... android-36/sdk.proper[=============================          ] 73% Unzipping... android-36/skins/HVGA[=============================          ] 73% Unzipping... android-36/skins/NOTI[=============================          ] 73% Unzipping... android-36/skins/QVGA[=============================          ] 73% Unzipping... android-36/skins/WQVG[=============================          ] 73% Unzipping... android-36/skins/WSVG[=============================          ] 73% Unzipping... android-36/skins/WVGA[=============================          ] 73% Unzipping... android-36/skins/WXGA[=============================          ] 73% Unzipping... android-36/source.pro[=============================          ] 73% Unzipping... android-36/templates/[=============================          ] 73% Unzipping... android-36/uiautomato[================================       ] 82% Unzipping... android-36/uiautomato[================================       ] 82% Installing Android SDK Platform-To[================================       ] 82% Downloading platform-tools_r37.0.1[=================================      ] 83% Downloading platform-tools_r37.0.1[=================================      ] 84% Downloading platform-tools_r37.0.1[=================================      ] 85% Downloading platform-tools_r37.0.1[==================================     ] 85% Downloading platform-tools_r37.0.1[==================================     ] 86% Downloading platform-tools_r37.0.1[==================================     ] 87% Downloading platform-tools_r37.0.1[==================================     ] 87% Unzipping... android-36/uiautomato[==================================     ] 87% Unzipping... platform-tools/NOTICE[==================================     ] 87% Unzipping... platform-tools/adb   [===================================    ] 88% Unzipping... platform-tools/adb   [===================================    ] 89% Unzipping... platform-tools/adb   [===================================    ] 89% Unzipping... platform-tools/etc1to[===================================    ] 89% Unzipping... platform-tools/fastbo[===================================    ] 90% Unzipping... platform-tools/fastbo[===================================    ] 90% Unzipping... platform-tools/hprof-[===================================    ] 90% Unzipping... platform-tools/lib64/[===================================    ] 90% Unzipping... platform-tools/make_f[===================================    ] 90% Unzipping... platform-tools/mke2fs[====================================   ] 90% Unzipping... platform-tools/mke2fs[====================================   ] 90% Unzipping... platform-tools/source[====================================   ] 90% Unzipping... platform-tools/sqlite[====================================   ] 91% Unzipping... platform-tools/sqlite[=======================================] 100% Unzipping... platform-tools/sqlit
+
+[1/10] Material Fonts                                              694ms
+[2/10] Gradle Wrapper                                              337ms
+[3/10] Flutter SDK
+  ├─ [1/5] sky_engine                                              275ms
+  ├─ [2/5] flutter_gpu                                             192ms
+  ├─ [3/5] flutter_patched_sdk                                     413ms
+  ├─ [4/5] flutter_patched_sdk_product                             368ms
+  └─ [5/5] linux-x64                                             2,412ms
+[10/10] linux-x64/font-subset                                      335ms
+Creating project ....
+Resolving dependencies...
+Downloading packages...
+Got dependencies.
+Wrote 35 files.
+
+All done!
+You can find general documentation for Flutter at: https://docs.flutter.dev/
+Detailed API documentation is available at: https://api.flutter.dev/
+If you prefer video documentation, consider: https://www.youtube.com/c/flutterdev
+
+In order to run your application, type:
+
+  $ flutter run
+
+Your application code is in ./lib/main.dart.
+
+From https://github.com/ggml-org/llama.cpp
+ * branch            44be98f057e9f9902a8ee12630e181c7f8ec2953 -> FETCH_HEAD
+Configured Android application label: Pandora
+Configured Android backup policy: disabled for encrypted local state
+Configured Android launcher icon: canonical Pandora spiral apple
+Configured Android permission: android.permission.INTERNET
+Configured Android permission: android.permission.ACCESS_NETWORK_STATE
+Configured Android permission: android.permission.CALL_PHONE
+Configured Android permission: android.permission.SEND_SMS
+Configured Android permission: android.permission.READ_CONTACTS
+Configured Android HOME root task: singleTask with normal app affinity
+Configured Android SMS callback receiver: non-exported
+Configured Android permission: android.permission.READ_CALENDAR
+Configured Android permission: android.permission.WRITE_CALENDAR
+Configured Android permission: android.permission.POST_NOTIFICATIONS
+Configured Android special access declaration: android.permission.SCHEDULE_EXACT_ALARM
+Configured Android local reminder receiver: non-exported
+Configured Android HOME eligibility without forcing default HOME
+Configured pinned Pandora local-AI Android native build.
+Preserved Pandora arm64-only ABI filter from Flutter defaults.
+Resolving dependencies...
+Downloading packages...
+  clock 1.1.2 (1.1.3 available)
+  code_assets 2.0.0 (2.1.0 available)
+  flutter_lints 5.0.0 (6.0.0 available)
+  flutter_secure_storage 11.1.1 (11.2.0 available)
+  functions_client 2.6.4 (2.7.1 available)
+  gotrue 2.25.0 (2.27.2 available)
+  lints 5.1.1 (6.1.0 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  mime 2.0.0 (2.1.0 available)
+  passkeys_platform_interface 2.9.0 (2.10.0 available)
+  platform 3.1.6 (3.2.0 available)
+  postgrest 2.8.0 (2.9.1 available)
+  realtime_client 2.10.0 (2.13.0 available)
+  shared_preferences_android 2.4.27 (2.4.28 available)
+  shared_preferences_foundation 2.5.6 (2.5.7 available)
+  stack_trace 1.12.1 (1.12.2 available)
+  storage_client 2.6.0 (2.8.0 available)
+  supabase 2.13.4 (2.16.1 available)
+  supabase_flutter 2.15.4 (2.17.2 available)
+  test_api 0.7.12 (0.7.14 available)
+  url_launcher_android 6.3.32 (6.3.33 available)
+  url_launcher_ios 6.4.1 (6.4.2 available)
+  url_launcher_linux 3.2.2 (3.2.3 available)
+  url_launcher_macos 3.2.5 (3.2.6 available)
+  url_launcher_windows 3.1.5 (3.1.6 available)
+  vector_math 2.4.2 (2.4.3 available)
+  vm_service 15.2.0 (15.3.0 available)
+Got dependencies!
+27 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+[1/1] Android SDK
+  ├─ [1/6] android-arm-profile/linux-x64                           481ms
+  ├─ [2/6] android-arm-release/linux-x64                           248ms
+  ├─ [3/6] android-arm64-profile/linux-x64                         291ms
+  ├─ [4/6] android-arm64-release/linux-x64                         269ms
+  ├─ [5/6] android-x64-profile/linux-x64                           249ms
+  └─ [6/6] android-x64-release/linux-x64                           255ms
+Running Gradle task 'assembleDebug'...                          
+Checking the license for package NDK (Side by side) 28.2.13676358 in /home/codespace/android-sdk/licenses
+License for package NDK (Side by side) 28.2.13676358 accepted.
+Preparing "Install NDK (Side by side) 28.2.13676358 v.28.2.13676358".
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" ready.
+Installing NDK (Side by side) 28.2.13676358 in /home/codespace/android-sdk/ndk/28.2.13676358
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" complete.
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" finished.
+Checking the license for package Android SDK Platform 35 in /home/codespace/android-sdk/licenses
+License for package Android SDK Platform 35 accepted.
+Preparing "Install Android SDK Platform 35 (revision 2)".
+"Install Android SDK Platform 35 (revision 2)" ready.
+Installing Android SDK Platform 35 in /home/codespace/android-sdk/platforms/android-35
+"Install Android SDK Platform 35 (revision 2)" complete.
+"Install Android SDK Platform 35 (revision 2)" finished.
+[=========                              ] 25%                                   
+Checking the license for package CMake 3.22.1 in /home/codespace/android-sdk/licenses
+License for package CMake 3.22.1 accepted.
+Preparing "Install CMake 3.22.1 v.3.22.1".
+"Install CMake 3.22.1 v.3.22.1" ready.
+Installing CMake 3.22.1 in /home/codespace/android-sdk/cmake/3.22.1
+"Install CMake 3.22.1 v.3.22.1" complete.
+"Install CMake 3.22.1 v.3.22.1" finished.
+Running Gradle task 'assembleDebug'...                            738.5s
+✓ Built build/app/outputs/flutter-apk/app-debug.apk
+Exact-source APK compiled: 497ce08beb987e1704d096d9b4d942df03da495fdd8a76794f84c5cbd5a55ba8 (119958129 bytes)
+Switched to a new branch 'build/phone-local-ai-evidence-ef373c82d436-20260920'

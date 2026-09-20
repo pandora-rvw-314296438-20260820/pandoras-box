@@ -1,0 +1,10 @@
+00:00 +0: loading /workspaces/pandoras-box/.pandora-mobile-codespace-build/test/core/local_ai/pandora_local_ai_router_test.dart
+00:00 +0: PandoraLocalAiRouter keeps routine conversation local
+00:00 +1: PandoraLocalAiRouter routes provider work to cloud intelligence
+00:00 +2: PandoraLocalAiRouter routes external mutations away from local AI
+00:00 +3: PandoraLocalAiRouter routes low-memory runtime away from local AI
+00:00 +4: PandoraLocalAiRouter routes severe thermal runtime away from local AI
+00:00 +5: PandoraLocalAiRouter routes low unplugged battery away from local AI
+00:00 +6: PandoraLocalAiRouter keeps low battery local while charging
+00:00 +7: PandoraLocalAiRouter routes contextual turns away from local AI
+00:00 +8: All tests passed!
