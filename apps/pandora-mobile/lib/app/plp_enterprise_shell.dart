@@ -12,6 +12,7 @@ import '../features/diagnostics/developer_diagnostics_screen.dart';
 import '../features/enterprise/enterprise_vision_screen.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_guests_screen.dart';
+import '../features/enterprise/plp_team_access_screen.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/settings/local_ai_settings_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -346,13 +347,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
             ),
-            _PlpBusinessSurface(
+            PlpTeamAccessScreen(
               key: const ValueKey('plp-team-access'),
-              destination: 'team-access',
-              title: 'Team & Access',
-              icon: Icons.group_outlined,
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
+              onAddPeople: () {
+                unawaited(_submitCommand('Add a person to the PLP team'));
+              },
             ),
             _PlpBusinessSurface(
               key: const ValueKey('plp-revenue'),
@@ -408,7 +409,16 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                         unawaited(_submitCommand(prompt));
                       },
                     )
-                  : _PlpCommandDock(
+                  : _index == 7
+                      ? _PlpTeamCommandDock(
+                          controller: _commandController,
+                          focusNode: _commandFocus,
+                          onSubmit: _submitPersistentCommand,
+                          onSuggestion: (prompt) {
+                            unawaited(_submitCommand(prompt));
+                          },
+                        )
+                      : _PlpCommandDock(
                       selectedIndex: _index,
                       controller: _commandController,
                       focusNode: _commandFocus,
@@ -595,6 +605,175 @@ class _GuestSuggestionChip extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(icon, size: 16, color: const Color(0xFF9A692F)),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF3F3A34),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+class _PlpTeamCommandDock extends StatelessWidget {
+  const _PlpTeamCommandDock({
+    required this.controller,
+    required this.focusNode,
+    required this.onSubmit,
+    required this.onSuggestion,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final Future<void> Function() onSubmit;
+  final ValueChanged<String> onSuggestion;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        top: false,
+        child: Container(
+          key: const ValueKey<String>('plp-team-command-dock'),
+          decoration: const BoxDecoration(
+            color: Color(0xFFFBF8F2),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Color(0x12000000),
+                blurRadius: 20,
+                offset: Offset(0, -6),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFDFC),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: const Color(0xFFD9C6AD)),
+                ),
+                padding: const EdgeInsets.fromLTRB(8, 4, 5, 4),
+                child: Row(
+                  children: [
+                    ClipOval(
+                      child: Image.asset(
+                        'assets/brand/pandora-product-mark-ui-1024.png',
+                        width: 34,
+                        height: 34,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox(
+                          width: 34,
+                          height: 34,
+                          child: Icon(
+                            Icons.auto_awesome_rounded,
+                            color: Color(0xFF101B33),
+                            size: 21,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        key: const ValueKey<String>('plp-team-command-field'),
+                        controller: controller,
+                        focusNode: focusNode,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => onSubmit(),
+                        style: const TextStyle(
+                          color: Color(0xFF101B33),
+                          fontSize: 13.5,
+                        ),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          isDense: true,
+                          hintText: 'Ask Pandora about team & access…',
+                          hintStyle: TextStyle(
+                            color: Color(0xFF77736C),
+                            fontSize: 13.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      key: const ValueKey<String>('plp-team-command-submit'),
+                      tooltip: 'Ask Pandora',
+                      onPressed: onSubmit,
+                      style: IconButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: const Color(0xFF9D6928),
+                      ),
+                      icon: const Icon(Icons.arrow_upward_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 7),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _TeamSuggestionChip(
+                      icon: Icons.shield_outlined,
+                      label: 'Who has access?',
+                      onTap: () => onSuggestion('Who has access to PLP?'),
+                    ),
+                    const SizedBox(width: 7),
+                    _TeamSuggestionChip(
+                      icon: Icons.person_add_alt_1_rounded,
+                      label: 'Add team member',
+                      onTap: () => onSuggestion('Add a person to the PLP team'),
+                    ),
+                    const SizedBox(width: 7),
+                    _TeamSuggestionChip(
+                      icon: Icons.history_rounded,
+                      label: 'Recent activity',
+                      onTap: () => onSuggestion('Show recent PLP team activity'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _TeamSuggestionChip extends StatelessWidget {
+  const _TeamSuggestionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: const Color(0xFFFFFDFC),
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: const Color(0xFFE7DDD0)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: const Color(0xFF9D6928)),
                 const SizedBox(width: 6),
                 Text(
                   label,
