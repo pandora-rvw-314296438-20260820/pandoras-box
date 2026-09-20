@@ -628,10 +628,16 @@ If required information is missing locally, needs an authoritative provider muta
     private fun resetConversation(result: MethodChannel.Result) {
         scope.launch {
             try {
-                activeGeneration?.cancel()
+                activeGeneration?.cancelAndJoin()
                 activeGeneration = null
-                unloadInternal()
-                result.success(warmInternal())
+                if (!warmInternal()) {
+                    throw IllegalStateException("No local GGUF model is configured.")
+                }
+                // Reset only the conversational KV state. Keep the 2.3 GiB
+                // model resident so a route transition does not pay another
+                // cold model load.
+                engine.setSystemPrompt(SYSTEM_PROMPT.trim())
+                result.success(true)
             } catch (error: Exception) {
                 result.error(
                     "LOCAL_AI_RESET_FAILED",
@@ -914,7 +920,7 @@ If required information is missing locally, needs an authoritative provider muta
                 (nativeRuntime["cpuFallbackUsed"] == true),
             "runtimeExtraBufferRepack" to false,
             "runtimeLazyMode" to "off",
-            "runtimeContextFallback" to "2048->1536->1024",
+            "runtimeContextFallback" to "4096->3072->2048",
             "runtimeSystemPolicyMode" to "native_system_prompt",
             "acceptanceModelName" to ACCEPTANCE_MODEL_NAME,
             "acceptanceModelSha256" to ACCEPTANCE_MODEL_SHA256,
