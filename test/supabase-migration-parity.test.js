@@ -696,6 +696,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260920190705_plp_retire_legacy_activity_log_rpc_v5.sql',
     '20260921102000_plp_team_access_bootstrap_v3.sql',
     '20260921103500_plp_team_access_visible_count_v4.sql',
+    '20260921112000_plp_realtime_resort_updates_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
