@@ -94,6 +94,26 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   bool _outcomeUnknown = false;
   String? _submissionKey;
   String? _error;
+  Timer? _localAiIdleUnloadTimer;
+
+  static const Duration _localAiIdleUnloadDelay = Duration(minutes: 2);
+
+  Future<void> _unloadLocalAiQuietly() async {
+    _localAiIdleUnloadTimer?.cancel();
+    _localAiIdleUnloadTimer = null;
+    try {
+      await PandoraLocalAi.instance.unload();
+    } catch (_) {
+      // Local cleanup must never surface as a chat failure.
+    }
+  }
+
+  void _scheduleLocalAiIdleUnload() {
+    _localAiIdleUnloadTimer?.cancel();
+    _localAiIdleUnloadTimer = Timer(_localAiIdleUnloadDelay, () {
+      unawaited(_unloadLocalAiQuietly());
+    });
+  }
 
   @override
   void initState() {
@@ -113,6 +133,16 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     if (_localConversationRestoreStarted) return;
     _localConversationRestoreStarted = true;
     unawaited(_restoreLocalConversation());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      unawaited(PandoraLocalAi.instance.cancel());
+      unawaited(_unloadLocalAiQuietly());
+    }
   }
 
   Future<void> _restoreLocalConversation() async {
@@ -174,7 +204,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     WidgetsBinding.instance.removeObserver(this);
     _activityController.removeListener(_handleActivityTimelineChanged);
     _activityController.dispose();
+    _localAiIdleUnloadTimer?.cancel();
     unawaited(PandoraLocalAi.instance.cancel());
+    unawaited(_unloadLocalAiQuietly());
     _objective.dispose();
     _objectiveFocus.dispose();
     super.dispose();
@@ -410,7 +442,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     final jobId = _activeActivityJobId;
     if (intelligence == null || jobId == null) return;
     final normalized = objective.trim();
-    final type = normalized.isEmpty || _looksLikeActiveCancel(normalized)
+    if (normalized.isEmpty) return;
+    final type = _looksLikeActiveCancel(normalized)
         ? PandoraActivityControlType.cancel
         : _looksLikeActiveConstraint(normalized)
             ? PandoraActivityControlType.constraint
@@ -500,6 +533,20 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     return false;
   }
 
+  Map<String, Object?>? _cloudEnterpriseContext() {
+    if (!_isPlpEnterpriseContext) return widget.enterpriseContext;
+    return <String, Object?>{
+      'surface': 'enterprise_overview',
+      'route': '/enterprise/plp-boracay/alfred',
+      'selectedObject': const <String, Object?>{
+        'workspaceSlug': 'plp-boracay',
+        'assistant': 'alfred',
+      },
+      'capabilities': const <String>['intelligence.chat'],
+      'identityScope': 'enterprise_workspace',
+    };
+  }
+
   String? _plpActionPendingRequestId;
   String? _plpActionPendingObjective;
 
@@ -563,10 +610,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   }
 
   Future<bool> _trySubmitLocalAi(String objective) async {
+    if (_isPlpEnterpriseContext) {
+      await _unloadLocalAiQuietly();
+      return false;
+    }
     final status = await (() async {
       try {
         return await PandoraLocalAi.instance.status();
-      } on PandoraLocalAiException {
+      } catch (_) {
         return null;
       }
     })();
@@ -580,19 +631,29 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       hasCharacterContext: _characterContext != null,
       status: status,
     );
-    if (!route.useLocal) return false;
+    if (!route.useLocal) {
+      if (status.loaded) await _unloadLocalAiQuietly();
+      return false;
+    }
 
+    _localAiIdleUnloadTimer?.cancel();
+    _localAiIdleUnloadTimer = null;
     final bridgeFromOtherRoute = !_lastTurnUsedLocalAi && _messages.isNotEmpty;
     if (bridgeFromOtherRoute) {
       try {
         await PandoraLocalAi.instance.resetConversation();
-      } on PandoraLocalAiException {
+      } catch (_) {
+        await _unloadLocalAiQuietly();
         return false;
       }
     }
     try {
-      if (!await PandoraLocalAi.instance.warm()) return false;
-    } on PandoraLocalAiException {
+      if (!await PandoraLocalAi.instance.warm()) {
+        await _unloadLocalAiQuietly();
+        return false;
+      }
+    } catch (_) {
+      await _unloadLocalAiQuietly();
       return false;
     }
     final routedPrompt =
@@ -620,7 +681,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           }
         });
       }
-    } on PandoraLocalAiException {
+    } catch (_) {
+      await _unloadLocalAiQuietly();
       if (!mounted) return true;
       if (started && _messages.length >= 2) {
         setState(() {
@@ -645,9 +707,13 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           _pendingMessage = objective;
         });
       }
+      await _unloadLocalAiQuietly();
       return false;
     }
-    if (!started || normalized.isEmpty) return false;
+    if (!started || normalized.isEmpty) {
+      await _unloadLocalAiQuietly();
+      return false;
+    }
 
     setState(() {
       _messages[_messages.length - 1] = _ChatMessage.pandora(normalized);
@@ -656,6 +722,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _pendingMessage = null;
       _lastTurnUsedLocalAi = true;
     });
+    _scheduleLocalAiIdleUnload();
     return true;
   }
 
@@ -688,12 +755,22 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
   Future<void> _submit() async {
     final objective = _objective.text.trim();
-    if (_submitting && _localAiGenerating && objective.isEmpty) {
-      await PandoraLocalAi.instance.cancel();
+    if (_submitting && objective.isEmpty) {
+      // Repeated taps on the send control while Pandora is working must never
+      // be interpreted as cancellation. Cancellation requires an explicit
+      // user instruction such as "stop" or "cancel".
       return;
     }
     if (_submitting && _activeActivityJobId != null) {
       await _submitActiveControl(objective);
+      return;
+    }
+    if (_submitting && _localAiGenerating) {
+      if (_looksLikeActiveCancel(objective)) {
+        await PandoraLocalAi.instance.cancel();
+        return;
+      }
+      // Local inference cannot accept a second turn until the first completes.
       return;
     }
     if (objective.isEmpty) {
@@ -815,10 +892,23 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         projectId: _projectContext?.id,
         textAttachment: _attachment,
         imageAttachment: _imageAttachment,
-        enterpriseContext: widget.enterpriseContext,
+        enterpriseContext: _cloudEnterpriseContext(),
       );
       await _watchActivity(execution);
-      final turn = await execution.turn;
+      PandoraIntelligenceTurn turn;
+      try {
+        turn = await execution.turn;
+      } on PandoraIntelligenceException {
+        final recovered =
+            await intelligence.recoverCompletedChatTurn(execution.jobId);
+        if (recovered == null) rethrow;
+        turn = recovered;
+      } catch (_) {
+        final recovered =
+            await intelligence.recoverCompletedChatTurn(execution.jobId);
+        if (recovered == null) rethrow;
+        turn = recovered;
+      }
       if (!mounted) return;
       setState(() {
         _threadId = turn.threadId;

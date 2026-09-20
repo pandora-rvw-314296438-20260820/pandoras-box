@@ -295,6 +295,9 @@ class PandoraLocalAiRouteDecision {
 class PandoraLocalAiRouter {
   const PandoraLocalAiRouter._();
 
+  static const int maxSafePhoneModelBytes = 2300 * 1024 * 1024;
+  static const int coldLoadRamReserveBytes = 1024 * 1024 * 1024;
+
   static PandoraLocalAiRouteDecision? _lastDecision;
 
   static PandoraLocalAiRouteDecision? get lastDecision => _lastDecision;
@@ -328,6 +331,33 @@ class PandoraLocalAiRouter {
     if (status != null) {
       if (!status.supported) return _record(false, 'local_runtime_unsupported');
       if (!status.configured) return _record(false, 'local_model_missing');
+      final recommendedSha =
+          status.diagnostics['recommendedModelSha256']?.toString().toLowerCase();
+      final selectedSha = status.modelSha256?.toLowerCase();
+      if (recommendedSha != null &&
+          recommendedSha.isNotEmpty &&
+          selectedSha != recommendedSha) {
+        return _record(false, 'local_model_not_validated');
+      }
+      final safeModelMaxRaw = status.diagnostics['safeModelMaxBytes'];
+      final safeModelMax = safeModelMaxRaw is num
+          ? safeModelMaxRaw.toInt()
+          : int.tryParse(safeModelMaxRaw?.toString() ?? '') ??
+              maxSafePhoneModelBytes;
+      final modelBytes = status.modelBytes;
+      if (modelBytes != null && modelBytes > safeModelMax) {
+        return _record(false, 'model_exceeds_phone_safe_profile');
+      }
+      final availableRamRaw = status.diagnostics['availableRamBytes'];
+      final availableRam = availableRamRaw is num
+          ? availableRamRaw.toInt()
+          : int.tryParse(availableRamRaw?.toString() ?? '');
+      if (!status.loaded &&
+          modelBytes != null &&
+          availableRam != null &&
+          availableRam < modelBytes + coldLoadRamReserveBytes) {
+        return _record(false, 'insufficient_cold_load_ram');
+      }
       if (status.diagnostics['memoryLow'] == true) {
         return _record(false, 'android_memory_pressure');
       }
