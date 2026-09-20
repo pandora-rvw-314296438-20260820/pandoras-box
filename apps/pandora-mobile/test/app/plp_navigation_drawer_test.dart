@@ -1,3 +1,5 @@
+import 'dart:ui' show SemanticsFlag;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/plp_enterprise_shell.dart';
@@ -124,14 +126,14 @@ void main() {
     ]) {
       final finder = find.bySemanticsLabel(label);
       expect(finder, findsOneWidget);
-      expect(tester.getSemantics(finder).hasFlag(SemanticsFlag.isButton), isTrue);
+      expect(tester.getSemantics(finder).flagsCollection.contains(SemanticsFlag.isButton), isTrue);
     }
     expect(
-      tester.getSemantics(find.bySemanticsLabel('Home')).hasFlag(SemanticsFlag.isSelected),
+      tester.getSemantics(find.bySemanticsLabel('Home')).flagsCollection.contains(SemanticsFlag.isSelected),
       isTrue,
     );
     expect(
-      tester.getSemantics(find.bySemanticsLabel('Operations')).hasFlag(SemanticsFlag.isSelected),
+      tester.getSemantics(find.bySemanticsLabel('Operations')).flagsCollection.contains(SemanticsFlag.isSelected),
       isFalse,
     );
   });
