@@ -30,10 +30,10 @@ constexpr int   N_THREADS_MIN           = 2;
 constexpr int   N_THREADS_MAX           = 4;
 constexpr int   N_THREADS_HEADROOM      = 2;
 
-constexpr int   DEFAULT_CONTEXT_SIZE    = 2048;
+constexpr int   DEFAULT_CONTEXT_SIZE    = 4096;
 constexpr int   OVERFLOW_HEADROOM       = 4;
-constexpr int   BATCH_SIZE              = 64;
-constexpr int   PREFERRED_GPU_LAYERS    = 2; // bounded mobile Vulkan offload; CPU remains authoritative fallback
+constexpr int   BATCH_SIZE              = 128;
+constexpr int   PREFERRED_GPU_LAYERS    = 4; // conservative first offload profile for mobile Vulkan stability
 constexpr float DEFAULT_SAMPLER_TEMP    = 0.3f;
 
 static llama_model                      * g_model;
@@ -181,7 +181,7 @@ static common_sampler *new_sampler(float temp) {
 }
 
 static llama_context *prepare_context_with_fallback_sizes() {
-    const int context_candidates[] = { 2048, 1536, 1024 };
+    const int context_candidates[] = { 4096, 3072, 2048 };
     for (const int candidate : context_candidates) {
         LOGi("%s: trying context size %d", __func__, candidate);
         auto *context = init_context(g_model, candidate);
