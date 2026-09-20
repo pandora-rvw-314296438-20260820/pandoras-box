@@ -75,8 +75,10 @@ jobs:
           sudo apt-get update -y
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y glslc libvulkan-dev spirv-headers
           test -f /usr/include/vulkan/vulkan.hpp
+          test -f /usr/include/spirv/unified1/spirv.hpp
           mkdir -p "$RUNNER_TEMP/pandora-vulkan-headers"
           cp -R /usr/include/vulkan "$RUNNER_TEMP/pandora-vulkan-headers/vulkan"
+          cp -R /usr/include/spirv "$RUNNER_TEMP/pandora-vulkan-headers/spirv"
           echo "PANDORA_VULKAN_HEADERS_DIR=$RUNNER_TEMP/pandora-vulkan-headers" >> "$GITHUB_ENV"
           spirv_config=$(find /usr -type f -name SPIRV-HeadersConfig.cmake -print -quit)
           test -n "$spirv_config"
