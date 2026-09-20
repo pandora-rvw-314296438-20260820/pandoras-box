@@ -476,6 +476,12 @@ If required information is missing locally, needs an authoritative provider muta
         lastWarmFailureMessage = localFailureMessage(error)
     }
 
+    private fun clearWarmFailure() {
+        lastWarmFailurePhase = null
+        lastWarmFailureClass = null
+        lastWarmFailureMessage = null
+    }
+
     private fun engineErrorMessage(state: InferenceEngine.State.Error): String {
         val error = state.exception
         val detail = error.message?.trim().orEmpty()
@@ -676,6 +682,7 @@ If required information is missing locally, needs an authoritative provider muta
         if (loadedModelPath == canonicalPath &&
             engine.state.value is InferenceEngine.State.ModelReady
         ) {
+            clearWarmFailure()
             return true
         }
 
@@ -694,6 +701,7 @@ If required information is missing locally, needs an authoritative provider muta
         engine.setSystemPrompt(SYSTEM_PROMPT.trim())
         lastModelLoadMs = SystemClock.elapsedRealtime() - loadStarted
         loadedModelPath = canonicalPath
+        clearWarmFailure()
         return true
     }
 
