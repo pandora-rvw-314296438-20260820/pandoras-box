@@ -154,8 +154,8 @@ jobs:
           set -euo pipefail
           sudo apt-get update -y
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y glslc libvulkan-dev spirv-headers
-          spirv_config="$(dpkg -L spirv-headers | grep -E '/(SPIRV-HeadersConfig|spirv-headers-config)\.cmake$' | head -n 1)"
-          test -f "$spirv_config"
+          spirv_config=$(find /usr -type f -name SPIRV-HeadersConfig.cmake -print -quit)
+          test -n "$spirv_config"
           echo "PANDORA_SPIRV_HEADERS_DIR=$(dirname "$spirv_config")" >> "$GITHUB_ENV"
 
       - name: Install pinned Flutter
