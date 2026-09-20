@@ -90,6 +90,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   bool _localAiGenerating = false;
   bool _lastTurnUsedLocalAi = false;
   bool _loadingThread = false;
+  bool _localConversationRestoreStarted = false;
   bool _outcomeUnknown = false;
   String? _submissionKey;
   String? _error;
@@ -103,6 +104,44 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     if (initial != null && initial.isNotEmpty) {
       _objective.text = initial;
       _objective.selection = TextSelection.collapsed(offset: initial.length);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_localConversationRestoreStarted) return;
+    _localConversationRestoreStarted = true;
+    unawaited(_restoreLocalConversation());
+  }
+
+  Future<void> _restoreLocalConversation() async {
+    final localStore = PandoraDependencies.of(context).localStore;
+    if (localStore == null) return;
+    try {
+      final cached = await PandoraLocalStateCache(localStore)
+          .loadRecentConversation(threadIdentity: 'local-chat');
+      if (!mounted ||
+          cached.isEmpty ||
+          _messages.isNotEmpty ||
+          _threadId != null ||
+          _pendingMessage != null) {
+        return;
+      }
+      final restored = <_ChatMessage>[];
+      for (final entry in cached) {
+        final text = entry['text']?.toString().trim() ?? '';
+        if (text.isEmpty) continue;
+        if (entry['role'] == 'user') {
+          restored.add(_ChatMessage.user(text));
+        } else if (entry['role'] == 'pandora') {
+          restored.add(_ChatMessage.pandora(text));
+        }
+      }
+      if (restored.isEmpty) return;
+      setState(() => _messages.addAll(restored));
+    } catch (_) {
+      // Local conversation recovery must never prevent a fresh chat.
     }
   }
 
@@ -520,7 +559,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   }
 
   Future<bool> _trySubmitLocalAi(String objective) async {
-    final status = await PandoraLocalAi.instance.status();
+    final status = await (() async {
+      try {
+        return await PandoraLocalAi.instance.status();
+      } on PandoraLocalAiException {
+        return null;
+      }
+    })();
+    if (status == null) return false;
     final route = PandoraLocalAiRouter.decide(
       message: objective,
       hasAttachment: _attachment != null || _imageAttachment != null,
@@ -534,7 +580,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
     final bridgeFromOtherRoute = !_lastTurnUsedLocalAi && _messages.isNotEmpty;
     if (bridgeFromOtherRoute) {
-      await PandoraLocalAi.instance.unload();
+      try {
+        await PandoraLocalAi.instance.unload();
+      } on PandoraLocalAiException {
+        return false;
+      }
     }
     try {
       if (!await PandoraLocalAi.instance.warm()) return false;
@@ -937,7 +987,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       });
     } on PandoraRepositoryException catch (error) {
       if (!mounted) return;
-      if (_applyPlpContinuityFallback(objective)) return;
+      if (!error.outcomeMayBeUnknown &&
+          _applyPlpContinuityFallback(objective)) {
+        return;
+      }
       setState(() {
         _outcomeUnknown = error.outcomeMayBeUnknown;
         _error = error.outcomeMayBeUnknown
