@@ -133,6 +133,33 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     if (_localConversationRestoreStarted) return;
     _localConversationRestoreStarted = true;
     unawaited(_restoreLocalConversation());
+    if (_isPlpEnterpriseContext) {
+      unawaited(_prewarmPlpLocalAiIfSafe());
+    }
+  }
+
+  Future<void> _prewarmPlpLocalAiIfSafe() async {
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    if (!mounted || !_isPlpEnterpriseContext) return;
+    try {
+      final status = await PandoraLocalAi.instance.status();
+      if (!status.supported || !status.configured || status.loaded) return;
+      final decision = PandoraLocalAiRouter.decide(
+        message: 'Prepare PLP local resort intelligence.',
+        hasAttachment: false,
+        hasProjectContext: true,
+        hasSelectedCapability: false,
+        hasCharacterContext: false,
+        status: status,
+      );
+      if (!decision.useLocal) return;
+      if (await PandoraLocalAi.instance.warm()) {
+        _scheduleLocalAiIdleUnload();
+      }
+    } catch (_) {
+      // Prewarm is opportunistic. A real user turn still gets a fresh local
+      // attempt and then seamless cloud continuation if local is unavailable.
+    }
   }
 
   @override
@@ -514,11 +541,36 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     final context = widget.enterpriseContext;
     if (context == null || context.isEmpty) return '';
     try {
-      final encoded = jsonEncode(context);
-      final bounded = encoded.length > 6000 ? encoded.substring(0, 6000) : encoded;
-      return 'Authorized PLP business context already synchronized to this phone. '
-          'Treat it as local context; do not claim it was refreshed during this turn.\n'
-          '$bounded';
+      final localAi = context['localAiContext'];
+      final localAiMap = localAi is Map
+          ? localAi.map((key, value) => MapEntry(key.toString(), value))
+          : const <String, Object?>{};
+      final localPayload = localAiMap['payload'];
+      final today = context['today'];
+      final snapshot = localPayload is Map && localPayload.isNotEmpty
+          ? localPayload
+          : today is Map
+              ? today
+              : const <String, Object?>{};
+      final sourceHealth = context['sourceHealth'];
+      final organization = context['organization'];
+      final boundedContext = <String, Object?>{
+        'property': organization,
+        'authoritativeAsOf': localAiMap['authoritativeAsOf'],
+        'sourceHealth': sourceHealth,
+        'snapshot': snapshot,
+      };
+      final encoded = jsonEncode(boundedContext);
+      final bounded =
+          encoded.length > 3600 ? encoded.substring(0, 3600) : encoded;
+      return 'Verified PLP resort snapshot already synchronized to this phone. '
+          'Use fields present in this snapshot directly for PLP occupancy, rooms, '
+          'arrivals, departures, revenue/sales, tasks, conflicts, and booking '
+          'questions. If the requested field is present, answer from it and do '
+          'NOT request cloud merely because the user says today, current, now, '
+          'or so far. Do not claim the snapshot was refreshed during this turn. '
+          'Request cloud only when required data is absent, an external action '
+          'is required, or the task exceeds safe local reasoning.\n$bounded';
     } catch (_) {
       return '';
     }
@@ -635,14 +687,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     _localAiIdleUnloadTimer?.cancel();
     _localAiIdleUnloadTimer = null;
     final bridgeFromOtherRoute = !_lastTurnUsedLocalAi && _messages.isNotEmpty;
-    if (bridgeFromOtherRoute) {
-      try {
-        await PandoraLocalAi.instance.resetConversation();
-      } catch (_) {
-        await _unloadLocalAiQuietly();
-        return false;
-      }
-    }
+
+    // Warm first. The old order asked a cold engine to reset conversation,
+    // which performed an implicit load plus a second system-prompt reset and
+    // made cold-start failures harder to recover.
     try {
       if (!await PandoraLocalAi.instance.warm()) {
         await _unloadLocalAiQuietly();
@@ -651,6 +699,22 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     } catch (_) {
       await _unloadLocalAiQuietly();
       return false;
+    }
+
+    if (bridgeFromOtherRoute) {
+      try {
+        await PandoraLocalAi.instance.resetConversation();
+      } catch (_) {
+        // A clean reload is enough to establish an empty conversation when
+        // reset fails; do not permanently abandon local AI after one bad KV
+        // reset.
+        await _unloadLocalAiQuietly();
+        try {
+          if (!await PandoraLocalAi.instance.warm()) return false;
+        } catch (_) {
+          return false;
+        }
+      }
     }
     final routedPrompt =
         bridgeFromOtherRoute ? _boundedRouteBridge(objective) : objective;
@@ -663,7 +727,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     var started = false;
     _localAiGenerating = true;
     try {
-      await for (final chunk in PandoraLocalAi.instance.generate(localPrompt)) {
+      await for (final chunk in PandoraLocalAi.instance
+          .generate(
+            localPrompt,
+            predictLength: _isPlpEnterpriseContext ? 128 : 192,
+          )
+          .timeout(const Duration(seconds: 45))) {
         if (!mounted) return true;
         response += chunk;
         setState(() {
