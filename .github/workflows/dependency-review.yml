@@ -22,7 +22,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Detect pull-request dependency manifest changes
         if: ${{ github.event_name == 'pull_request' }}
