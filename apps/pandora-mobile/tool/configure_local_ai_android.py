@@ -29,6 +29,7 @@ _NATIVE_DEFAULT = '''        versionCode = flutter.versionCode
                     "-DGGML_NATIVE=OFF",
                     "-DGGML_BACKEND_DL=OFF",
                     "-DGGML_CPU_ALL_VARIANTS=OFF",
+                    "-DGGML_VULKAN=ON",
                     "-DGGML_LLAMAFILE=OFF",
                 )
             }
@@ -105,13 +106,15 @@ def configure(path: Path) -> int:
         'path = file("src/main/cpp/CMakeLists.txt")',
         'version = "3.31.6"',
         'kotlinx-coroutines-android:1.10.2',
+        '-DGGML_BACKEND_DL=OFF',
         '-DGGML_CPU_ALL_VARIANTS=OFF',
+        '-DGGML_VULKAN=ON',
     )
     if any(item not in verified for item in required):
         print("Pandora local-AI Gradle verification failed.", file=sys.stderr)
         return 1
 
-    print("Configured pinned Pandora local-AI Android native build.")
+    print("Configured pinned Pandora local-AI Android native build with Vulkan + CPU fallback.")
     return 0
 
 
