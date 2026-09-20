@@ -86,6 +86,9 @@ If required information is missing locally, needs an authoritative provider muta
     private var lastGeneratedTokenEvents: Int? = null
     private var lastTokenEventsPerSecond: Double? = null
     private var lastGenerationOutcome: String? = null
+    private var lastWarmFailurePhase: String? = null
+    private var lastWarmFailureClass: String? = null
+    private var lastWarmFailureMessage: String? = null
 
     init {
         eventChannel.setStreamHandler(
@@ -422,15 +425,51 @@ If required information is missing locally, needs an authoritative provider muta
         scope.launch {
             try {
                 result.success(warmInternal())
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
+                recordWarmFailure(
+                    lastWarmFailurePhase ?: "warm",
+                    error,
+                )
                 result.error(
                     "LOCAL_AI_WARM_FAILED",
-                    error.message ?: "Pandora could not warm the local model.",
-                    null,
+                    localFailureMessage(error),
+                    statusMap(),
                 )
             }
         }
     }
+
+    private fun localFailureMessage(error: Throwable): String {
+        val detail = error.message?.trim().orEmpty()
+        return if (detail.isNotEmpty()) {
+            detail
+        } else {
+            "Local AI failed in " +
+                (lastWarmFailurePhase ?: "unknown phase") +
+                " (" +
+                error.javaClass.simpleName +
+                ")."
+        }
+    }
+
+    private fun recordWarmFailure(phase: String, error: Throwable) {
+        lastWarmFailurePhase = phase
+        lastWarmFailureClass = error.javaClass.simpleName
+        lastWarmFailureMessage = localFailureMessage(error)
+    }
+
+    private fun engineErrorMessage(state: InferenceEngine.State.Error): String {
+        val error = state.exception
+        val detail = error.message?.trim().orEmpty()
+        return if (detail.isNotEmpty()) {
+            detail
+        } else {
+            error.javaClass.simpleName
+        }
+    }
+
+    private fun localPromptWithPolicy(prompt: String): String =
+        SYSTEM_PROMPT.trim() + "\n\nCurrent user request:\n" + prompt
 
     private fun generate(call: MethodCall, result: MethodChannel.Result) {
         if (activeGeneration?.isActive == true || activeAcceptance?.isActive == true) {
@@ -463,7 +502,7 @@ If required information is missing locally, needs an authoritative provider muta
                 if (!warmInternal()) {
                     throw IllegalStateException("No local GGUF model is configured.")
                 }
-                engine.sendUserPrompt(prompt, predictLength).collect { token ->
+                engine.sendUserPrompt(localPromptWithPolicy(prompt), predictLength).collect { token ->
                     if (token.isNotEmpty()) {
                         val now = SystemClock.elapsedRealtime()
                         if (firstTokenAt == null) {
@@ -573,32 +612,43 @@ If required information is missing locally, needs an authoritative provider muta
     }
 
     private suspend fun awaitEngineInitialized() {
-        withTimeout(15_000L) {
-            when (val current = engine.state.value) {
-                is InferenceEngine.State.Initialized -> return@withTimeout
-                is InferenceEngine.State.ModelReady -> return@withTimeout
-                is InferenceEngine.State.Error -> {
-                    engine.cleanUp()
-                    val recovered = engine.state.first {
-                        it is InferenceEngine.State.Initialized ||
-                            it is InferenceEngine.State.Error
+        try {
+            withTimeout(30_000L) {
+                when (val current = engine.state.value) {
+                    is InferenceEngine.State.Initialized -> return@withTimeout
+                    is InferenceEngine.State.ModelReady -> return@withTimeout
+                    is InferenceEngine.State.Error -> {
+                        throw IllegalStateException(
+                            "Local inference engine initialization failed: " +
+                                engineErrorMessage(current),
+                            current.exception,
+                        )
                     }
-                    require(recovered is InferenceEngine.State.Initialized) {
-                        "Local inference engine could not recover from Error state."
-                    }
-                    return@withTimeout
-                }
-                else -> {
-                    val ready = engine.state.first {
-                        it is InferenceEngine.State.Initialized ||
-                            it is InferenceEngine.State.ModelReady ||
-                            it is InferenceEngine.State.Error
-                    }
-                    if (ready is InferenceEngine.State.Error) {
-                        engine.cleanUp()
+                    else -> {
+                        when (
+                            val ready = engine.state.first {
+                                it is InferenceEngine.State.Initialized ||
+                                    it is InferenceEngine.State.ModelReady ||
+                                    it is InferenceEngine.State.Error
+                            }
+                        ) {
+                            is InferenceEngine.State.Initialized -> Unit
+                            is InferenceEngine.State.ModelReady -> Unit
+                            is InferenceEngine.State.Error -> {
+                                throw IllegalStateException(
+                                    "Local inference engine initialization failed: " +
+                                        engineErrorMessage(ready),
+                                    ready.exception,
+                                )
+                            }
+                            else -> Unit
+                        }
                     }
                 }
             }
+        } catch (error: Throwable) {
+            recordWarmFailure("engine_initialization", error)
+            throw error
         }
     }
 
@@ -762,14 +812,14 @@ If required information is missing locally, needs an authoritative provider muta
             "engineState" to engine.state.value.javaClass.simpleName,
             "nativeRuntime" to "llama.cpp",
             "runtimeBackendConfigured" to "cpu",
-            "cpuOptimizationConfigured" to "KleidiAI+OpenMP",
+            "cpuOptimizationConfigured" to "static-arm64-cpu",
             "runtimeNativeAbi" to "arm64-v8a",
             "runtimeContextTokens" to 2048,
-            "runtimeBatchTokens" to 256,
-            "runtimeModelLoadMode" to "mmap",
+            "runtimeBatchTokens" to 128,
+            "runtimeModelLoadMode" to "mmap_with_non_mmap_fallback",
             "runtimeGpuLayers" to 0,
             "runtimeExtraBufferRepack" to false,
-            "runtimeLazyMode" to "off",
+            "runtimeLazyMode" to "off",\n            "runtimeContextFallback" to "2048->1536->1024",\n            "runtimeSystemPolicyMode" to "inline_user_prompt",
             "acceptanceModelName" to ACCEPTANCE_MODEL_NAME,
             "acceptanceModelSha256" to ACCEPTANCE_MODEL_SHA256,
             "gpuAccelerationUsed" to false,
@@ -783,6 +833,9 @@ If required information is missing locally, needs an authoritative provider muta
             "tokensPerSecond" to lastTokenEventsPerSecond,
             "tokensPerSecondBasis" to "non_empty_inference_flow_emissions",
             "lastGenerationOutcome" to lastGenerationOutcome,
+            "lastWarmFailurePhase" to lastWarmFailurePhase,
+            "lastWarmFailureClass" to lastWarmFailureClass,
+            "lastWarmFailureMessage" to lastWarmFailureMessage,
             "androidVersion" to Build.VERSION.RELEASE,
             "androidSdk" to Build.VERSION.SDK_INT,
             "manufacturer" to Build.MANUFACTURER,
