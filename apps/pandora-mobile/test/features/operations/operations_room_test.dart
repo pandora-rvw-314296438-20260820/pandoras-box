@@ -97,7 +97,7 @@ void main() {
   });
 
   test('operations room exposes the active phone-local architecture constraint', () {
-    expect(operationsRoomActiveArchitecture, contains('Qwen3-4B-Instruct-2507-Q4_K_M.gguf'));
+    expect(operationsRoomActiveArchitecture, contains('qwen2.5-3b-instruct-q4_k_m.gguf'));
     expect(operationsRoomActiveArchitecture, contains('approved cloud capability'));
         expect(operationsRoomActiveArchitecture, contains('RDP-hosted LLMs'));
     expect(operationsRoomActiveArchitecture, contains('AWS'));
