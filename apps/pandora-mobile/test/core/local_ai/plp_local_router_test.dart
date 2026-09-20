@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/core/local_ai/pandora_local_ai.dart';
 
@@ -145,4 +147,35 @@ void main() {
     expect(decision.useLocal, isFalse);
     expect(decision.reason, 'connected_capability');
   });
+  test('PLP Alfred source does not bypass local AI and recovers verified cloud result', () {
+    final screenSource =
+        File('lib/features/simple/ask_pandora_screen.dart').readAsStringSync();
+    final localStart = screenSource.indexOf(
+      'Future<bool> _trySubmitLocalAi(String objective) async {',
+    );
+    final localStatus = screenSource.indexOf(
+      'final status = await (() async {',
+      localStart,
+    );
+    expect(localStart, greaterThanOrEqualTo(0));
+    expect(localStatus, greaterThan(localStart));
+
+    final admissionPrelude = screenSource.substring(localStart, localStatus);
+    expect(admissionPrelude, isNot(contains('_isPlpEnterpriseContext')));
+    expect(
+      screenSource,
+      contains('recoverCompletedChatTurn(execution.jobId)'),
+    );
+
+    final apiSource =
+        File('lib/core/data/pandora_intelligence_api.dart').readAsStringSync();
+    expect(apiSource, contains('recoverCompletedChatTurn('));
+    expect(
+      apiSource,
+      contains("'terminal_state', 'execution_state', 'execution_result'"),
+    );
+    expect(apiSource, contains("terminal_state']) != 'result'"));
+    expect(apiSource, contains("execution_state']) != 'complete'"));
+  });
+
 }
