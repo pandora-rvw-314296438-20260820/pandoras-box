@@ -46,7 +46,7 @@ void main() {
     expect(find.byKey(const ValueKey('plp-enterprise-home')), findsOneWidget);
     expect(find.text('Welcome, Doctora'), findsOneWidget);
     expect(find.text('66.67%'), findsOneWidget);
-    expect(find.text('3'), findsOneWidget);
+    expect(find.text('2 of 3 rooms occupied'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('plp-metric-sales')),
