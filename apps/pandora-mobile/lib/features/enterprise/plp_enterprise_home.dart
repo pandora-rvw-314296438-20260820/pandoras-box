@@ -464,7 +464,8 @@ class _HomeActionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           onTap: onTap,
           child: Container(
-            constraints: BoxConstraints(minHeight: compact ? 92 : 148),
+            height: compact ? null : 148,
+            constraints: compact ? const BoxConstraints(minHeight: 92) : null,
             decoration: BoxDecoration(
               color: PlpEnterpriseHome._glass,
               borderRadius: BorderRadius.circular(22),
