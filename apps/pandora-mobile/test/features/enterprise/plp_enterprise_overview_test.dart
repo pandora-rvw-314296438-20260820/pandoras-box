@@ -59,6 +59,12 @@ void main() {
     expect(find.textContaining(', Doctora'), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-overview-occupancy')), findsOneWidget);
     expect(find.text('66.67%'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('plp-overview-revenue')),
+      320,
+      scrollable: find.byType(Scrollable),
+    );
     expect(find.byKey(const ValueKey('plp-overview-revenue')), findsOneWidget);
     expect(find.text('₱482,650'), findsOneWidget);
 
