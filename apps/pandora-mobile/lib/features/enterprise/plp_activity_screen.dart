@@ -1040,7 +1040,7 @@ class _PandoraLogRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '\$actor · \${_resourceLabel(capability)}',
+                  '$actor · ${_resourceLabel(capability)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
