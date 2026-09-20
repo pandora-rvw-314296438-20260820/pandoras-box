@@ -96,6 +96,39 @@ class PandoraLocalStateCache {
     );
   }
 
+  Future<List<Map<String, Object?>>> loadRecentConversation({
+    required String threadIdentity,
+  }) async {
+    final key = 'thread_${_digest(threadIdentity)}';
+    final record = await _store.getCache(
+      PandoraLocalNamespace.recentConversation,
+      key,
+    );
+    if (record == null) return const <Map<String, Object?>>[];
+    final now = _clock().toUtc();
+    if (!record.expiresAt.toUtc().isAfter(now)) {
+      await _store.deleteCache(PandoraLocalNamespace.recentConversation, key);
+      return const <Map<String, Object?>>[];
+    }
+    try {
+      final decoded = jsonDecode(record.payloadJson);
+      if (decoded is! Map || decoded['messages'] is! List) {
+        return const <Map<String, Object?>>[];
+      }
+      final output = <Map<String, Object?>>[];
+      for (final value in decoded['messages'] as List) {
+        if (value is! Map) continue;
+        output.add(
+          value.map((key, item) => MapEntry(key.toString(), item)),
+        );
+      }
+      return output;
+    } on FormatException {
+      await _store.deleteCache(PandoraLocalNamespace.recentConversation, key);
+      return const <Map<String, Object?>>[];
+    }
+  }
+
   Future<void> cacheMemoryContext({
     required String contextId,
     required Object? boundedContext,
