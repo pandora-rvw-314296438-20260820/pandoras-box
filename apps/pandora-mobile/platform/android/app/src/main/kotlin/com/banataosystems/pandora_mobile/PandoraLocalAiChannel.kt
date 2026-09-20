@@ -47,6 +47,8 @@ class PandoraLocalAiChannel(
         private const val MODEL_NAME = "model_name"
         private const val MODEL_BYTES = "model_bytes"
         private const val MODEL_SHA256 = "model_sha256"
+        private const val ACCEPTANCE_MODEL_NAME = "Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+        private const val ACCEPTANCE_MODEL_SHA256 = "1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6"
         private const val MIN_MODEL_BYTES = 64L * 1024L * 1024L
         private const val MAX_MODEL_BYTES = 8L * 1024L * 1024L * 1024L
         private const val STORAGE_RESERVE_BYTES = 256L * 1024L * 1024L
@@ -197,6 +199,9 @@ If the request clearly requires live data, connected services, account data, ext
                 }
                 require(modelSha256.matches(Regex("^[0-9a-f]{64}$"))) {
                     "Pandora could not verify the imported local model hash."
+                }
+                require(modelSha256 == ACCEPTANCE_MODEL_SHA256) {
+                    "Physical acceptance requires $ACCEPTANCE_MODEL_NAME with SHA-256 $ACCEPTANCE_MODEL_SHA256."
                 }
 
                 val apkSha256 = withContext(Dispatchers.IO) {
@@ -769,6 +774,8 @@ If the request clearly requires live data, connected services, account data, ext
             "runtimeGpuLayers" to 0,
             "runtimeExtraBufferRepack" to false,
             "runtimeLazyMode" to "off",
+            "acceptanceModelName" to ACCEPTANCE_MODEL_NAME,
+            "acceptanceModelSha256" to ACCEPTANCE_MODEL_SHA256,
             "gpuAccelerationUsed" to false,
             "npuAccelerationUsed" to false,
             "nnapiAccelerationUsed" to false,

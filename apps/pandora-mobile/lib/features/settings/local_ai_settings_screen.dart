@@ -246,7 +246,7 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                 : 'Choose your local model',
             message: loaded
                 ? 'Routine chat can start on your phone and escalate to cloud intelligence only when needed.'
-                : 'Qwen2.5 3B Instruct Q4_K_M is the current primary local-model candidate; physical-phone benchmarking is still required.',
+                : 'Qwen3 4B Instruct 2507 Q4_K_M is the physical-phone acceptance target; its exact SHA-256 is verified before acceptance.',
             icon: Icons.memory_rounded,
             tone: loaded
                 ? PandoraStatusTone.verified
@@ -305,6 +305,12 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                               : PandoraConfig.sourceRevision),
                     ),
                     Text(
+                      'Acceptance model ' +
+                          (status.diagnostics['acceptanceModelName']?.toString() ?? 'unknown') +
+                          ' · SHA ' +
+                          (status.diagnostics['acceptanceModelSha256']?.toString() ?? 'unknown'),
+                    ),
+                    Text(
                       'Load ' +
                           (status.diagnostics['runtimeModelLoadMode']?.toString() ?? 'unknown') +
                           ' · GPU layers ' +
@@ -349,6 +355,12 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                           (status.diagnostics['batteryPercent']?.toString() ?? 'n/a') +
                           '% · charging ' +
                           (status.diagnostics['charging']?.toString() ?? 'n/a'),
+                    ),
+                    Text(
+                      'Acceptance model ' +
+                          (status.diagnostics['acceptanceModelName']?.toString() ?? 'unknown') +
+                          ' · SHA ' +
+                          (status.diagnostics['acceptanceModelSha256']?.toString() ?? 'unknown'),
                     ),
                     Text(
                       'Load ' +
