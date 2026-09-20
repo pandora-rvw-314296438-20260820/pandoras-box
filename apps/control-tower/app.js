@@ -64,12 +64,12 @@ const state = {
   auditQuery: "",
   sheet: null,
   toast: null,
-  live: { projectos: null, health: null, metrics: null, tools: null, connections: null, plans: null, logs: null, chain: null, error: null },
+  live: { pandora: null, health: null, metrics: null, tools: null, connections: null, plans: null, logs: null, chain: null, error: null },
   builder: { step: 0, tool: null, connectionKey: "", target: "", owner: "", repo: "", projectRef: "", organizationSlug: "", branchIdOrRef: "", method: "PATCH", pathSegments: "", title: "", body: "", pullNumber: "", expectedHeadSha: "", mergeMethod: "squash", hash: "", result: null },
 };
 
 const ROUTES = {
-  home: ["ProjectOS", "Portfolio roadmap and autonomous continuation"],
+  home: ["Pandora", "Portfolio roadmap and autonomous continuation"],
   actions: ["Manual Actions", "Emergency and operator-initiated provider operations"],
   builder: ["Action Builder", "Plan → approve → execute once"],
   plans: ["Plans", "Durable execution lifecycle"],
@@ -376,11 +376,11 @@ function liveReadiness(candidate = state.live) {
   return Boolean(
     candidate
     && candidate.error === null
-    && candidate.projectos
-    && candidate.projectos.authoritative === true
-    && candidate.projectos.status === "current"
-    && Number.isFinite(Date.parse(candidate.projectos.expiresAt || ""))
-    && Date.parse(candidate.projectos.expiresAt) > Date.now()
+    && candidate.pandora
+    && candidate.pandora.authoritative === true
+    && candidate.pandora.status === "current"
+    && Number.isFinite(Date.parse(candidate.pandora.expiresAt || ""))
+    && Date.parse(candidate.pandora.expiresAt) > Date.now()
     && candidate.health?.status === "healthy"
     && candidate.health.protectedRoutesConfigured === true
     && candidate.health.durableLedgerConfigured === true
@@ -394,9 +394,9 @@ function liveReadiness(candidate = state.live) {
   );
 }
 
-function clearLiveReadiness(projectos = state.live.projectos, error = state.live.error) {
+function clearLiveReadiness(pandora = state.live.pandora, error = state.live.error) {
   state.live = {
-    projectos,
+    pandora,
     health: null,
     metrics: null,
     tools: null,
@@ -415,7 +415,7 @@ function updateModeFromReadiness() {
   state.mode = liveReadiness() ? "live" : state.live.error ? "degraded" : "status";
 }
 
-async function loadProjectOSProjection() {
+async function loadPandoraProjection() {
   try {
     const response = await fetch("/api/operator/status", {
       method: "GET",
@@ -437,35 +437,35 @@ async function loadProjectOSProjection() {
     return projection;
   } catch (error) {
     state.live.error = {
-      code: "PROJECTOS_STATUS_UNAVAILABLE",
-      message: error.message || "The canonical ProjectOS projection is unavailable",
+      code: "PANDORA_STATUS_UNAVAILABLE",
+      message: error.message || "The canonical Pandora projection is unavailable",
     };
     return null;
   }
 }
 
-async function refreshProjectOS() {
-  if (state.live.error?.code === "PROJECTOS_STATUS_UNAVAILABLE") {
+async function refreshPandora() {
+  if (state.live.error?.code === "PANDORA_STATUS_UNAVAILABLE") {
     state.live.error = null;
   }
-  const projectos = await loadProjectOSProjection();
-  if (!projectos) {
+  const pandora = await loadPandoraProjection();
+  if (!pandora) {
     clearLiveReadiness(null, state.live.error);
     state.mode = "degraded";
     render();
     return;
   }
-  state.live.projectos = projectos;
+  state.live.pandora = pandora;
   updateModeFromReadiness();
   render();
 }
 
 async function refreshLive() {
   state.mode = "connecting";
-  clearLiveReadiness(state.live.projectos, null);
+  clearLiveReadiness(state.live.pandora, null);
   render();
-  const [projectos, health] = await Promise.all([
-    loadProjectOSProjection(),
+  const [pandora, health] = await Promise.all([
+    loadPandoraProjection(),
     callApi("GET", "/health"),
   ]);
   const [tools, connections, metrics, plans, logs, chain] = await Promise.all([
@@ -478,7 +478,7 @@ async function refreshLive() {
   ]);
   const verification = chain?.verification || chain;
   const candidate = {
-    projectos,
+    pandora,
     health,
     tools,
     connections,
@@ -492,7 +492,7 @@ async function refreshLive() {
     const readinessError = state.live.error || (verification?.valid !== true
       ? { code: "AUDIT_CHAIN_INVALID", message: "The durable audit chain did not verify" }
       : { code: "CONTROL_PLANE_INCOMPLETE", message: "One or more required production controls are unavailable or invalid" });
-    clearLiveReadiness(projectos, readinessError);
+    clearLiveReadiness(pandora, readinessError);
     state.mode = "degraded";
     render();
     return;
@@ -524,7 +524,7 @@ function shell(content) {
           <div class="brand-copy"><div class="brand-title">MCPMaster</div><div class="brand-subtitle">BANATAO SYSTEMS</div></div>
         </div>
         <nav class="nav">
-          ${navButton("home", "ProjectOS", "⌂")}
+          ${navButton("home", "Pandora", "⌂")}
           ${navButton("actions", "Manual Actions", "⌘")}
           ${navButton("plans", "Plans", "◇")}
           ${navButton("approvals", "Approvals", "✓")}
@@ -544,7 +544,7 @@ function shell(content) {
       </aside>
       <section class="main-shell">
         <header class="topbar">
-          <div class="topbar-copy"><div class="eyebrow">MCPMASTER · PROJECTOS</div><h1 class="page-title">${esc(title)}</h1><div class="page-subtitle">${esc(subtitle)}</div></div>
+          <div class="topbar-copy"><div class="eyebrow">MCPMASTER · PANDORA</div><h1 class="page-title">${esc(title)}</h1><div class="page-subtitle">${esc(subtitle)}</div></div>
           <div class="topbar-actions">
             <button class="icon-button" data-action="command" aria-label="Open command menu">⌘</button>
             <button class="button ghost desktop-action" data-route="approvals">${PLANS.filter((plan) => plan.status === "pending_approval").length} approvals</button>
@@ -558,7 +558,7 @@ function shell(content) {
         </main>
       </section>
       <nav class="bottom-nav" aria-label="Mobile navigation">
-        ${bottomButton("home", "ProjectOS", "⌂")}${bottomButton("actions", "Manual", "⌘")}${bottomButton("approvals", "Approvals", "✓")}${bottomButton("audit", "Activity", "≡")}${bottomButton("more", "More", "•••")}
+        ${bottomButton("home", "Pandora", "⌂")}${bottomButton("actions", "Manual", "⌘")}${bottomButton("approvals", "Approvals", "✓")}${bottomButton("audit", "Activity", "≡")}${bottomButton("more", "More", "•••")}
       </nav>
       ${renderSheet()}
       ${state.toast ? `<div class="toast ${state.toast.kind === "danger" ? "danger" : ""}" role="status"><strong>${esc(state.toast.title)}</strong><p>${esc(state.toast.detail)}</p></div>` : ""}
@@ -566,34 +566,34 @@ function shell(content) {
 }
 
 function renderHome() {
-  const projectos = state.live.projectos;
-  const phase = projectos?.currentPhase;
-  const next = projectos?.nextTask;
-  const externalBlockers = (projectos?.blocked || []).filter((task) => task.blockerIds?.length || ["blocked", "partial"].includes(task.status));
+  const pandora = state.live.pandora;
+  const phase = pandora?.currentPhase;
+  const next = pandora?.nextTask;
+  const externalBlockers = (pandora?.blocked || []).filter((task) => task.blockerIds?.length || ["blocked", "partial"].includes(task.status));
   const health = state.live.health || { status: state.mode === "connecting" ? "checking" : "unavailable", protectedRoutesConfigured: false, durableLedgerConfigured: false, distributedRateLimitConfigured: false };
   const pending = PLANS.filter((plan) => plan.status === "pending_approval");
-  return `<section class="screen" data-screen="projectos">
+  return `<section class="screen" data-screen="pandora">
     <div class="card pad">
-      <div class="control-state"><div><div class="eyebrow">AUTONOMOUS CONTINUATION</div><h2>${next ? `Continuing ${next.repository}` : projectos?.status === "complete" ? "Roadmap complete" : "Waiting on evidence"}</h2><p>ChatGPT is the front door. ProjectOS reads the canonical repository plan, reconciles it against durable evidence, and continues the next dependency-ready item through build, independent review, exact-head CI, repair, and release gates.</p></div><button class="button" data-action="refresh-status">Reconcile</button></div>
+      <div class="control-state"><div><div class="eyebrow">AUTONOMOUS CONTINUATION</div><h2>${next ? `Continuing ${next.repository}` : pandora?.status === "complete" ? "Roadmap complete" : "Waiting on evidence"}</h2><p>ChatGPT is the front door. Pandora reads the canonical repository plan, reconciles it against durable evidence, and continues the next dependency-ready item through build, independent review, exact-head CI, repair, and release gates.</p></div><button class="button" data-action="refresh-status">Reconcile</button></div>
       <div class="gate-grid">
-        ${gate("Plan evidence", Boolean(projectos && projectos.drift?.length === 0), projectos ? `${projectos.progress.completed}/${projectos.progress.total} verified complete` : "Awaiting projection")}
+        ${gate("Plan evidence", Boolean(pandora && pandora.drift?.length === 0), pandora ? `${pandora.progress.completed}/${pandora.progress.total} verified complete` : "Awaiting projection")}
         ${gate("Current phase", Boolean(phase), phase ? `${phase.id} · ${phase.name}` : "No active phase")}
         ${gate("Next task", Boolean(next), next ? `${next.id} · ${next.status}` : "No eligible task")}
         ${gate("External blockers", externalBlockers.length === 0, externalBlockers.length ? `${externalBlockers.length} evidence-gated` : "None")}
       </div>
     </div>
     <div class="grid metrics">
-      ${metric("Roadmap", projectos ? `${projectos.progress.percent}%` : "—", projectos ? `${projectos.progress.completed} of ${projectos.progress.total} tasks complete` : "Awaiting canonical status")}
+      ${metric("Roadmap", pandora ? `${pandora.progress.percent}%` : "—", pandora ? `${pandora.progress.completed} of ${pandora.progress.total} tasks complete` : "Awaiting canonical status")}
       ${metric("Phase progress", phase ? `${phase.completedTasks}/${phase.gatingTasks}` : "—", phase?.name || "No active phase")}
       ${metric("Next work item", next?.id || "—", next?.title || "No dependency-ready work")}
-      ${metric("Parallel-ready", projectos?.readyParallel?.length ?? "—", "Eligible included-capacity work")}
+      ${metric("Parallel-ready", pandora?.readyParallel?.length ?? "—", "Eligible included-capacity work")}
     </div>
     <div class="grid two">
-      <div class="card"><div class="card-header"><div><div class="card-title">Next governed action</div><div class="card-subtitle">Selected from the canonical roadmap</div></div>${next ? badge(next.status.toUpperCase(), "warning") : badge("WAITING", "neutral")}</div><div class="list">${next ? `${detailRow("Task", `${next.id} · ${next.title}`)}${detailRow("Repository", next.repository)}${detailRow("Builder", next.builderAgent || "route at dispatch")}${detailRow("Independent reviewer", next.reviewerAgent || "route at review")}${detailRow("Dependencies", next.missingDependencies.length ? next.missingDependencies.join(", ") : "satisfied")}` : empty("No task selected", "ProjectOS will continue when durable evidence makes a task eligible.")}</div></div>
-      <div class="card"><div class="card-header"><div><div class="card-title">Phase sequence</div><div class="card-subtitle">Evidence-backed, dependency ordered</div></div></div><div class="list">${(projectos?.phases || []).map((item) => `<div class="list-row"><span class="status-dot ${item.status === "complete" ? "healthy" : item.status === "active" ? "warning" : ""}"></span><span class="list-main"><span class="list-title">${esc(item.id)} · ${esc(item.name)}</span><span class="list-detail">${item.completedTasks}/${item.gatingTasks} gating tasks</span></span>${badge(item.status.toUpperCase(), item.status === "complete" ? "healthy" : item.status === "active" ? "warning" : "neutral")}</div>`).join("") || empty("Roadmap unavailable", "Reconcile the canonical status projection.")}</div></div>
+      <div class="card"><div class="card-header"><div><div class="card-title">Next governed action</div><div class="card-subtitle">Selected from the canonical roadmap</div></div>${next ? badge(next.status.toUpperCase(), "warning") : badge("WAITING", "neutral")}</div><div class="list">${next ? `${detailRow("Task", `${next.id} · ${next.title}`)}${detailRow("Repository", next.repository)}${detailRow("Builder", next.builderAgent || "route at dispatch")}${detailRow("Independent reviewer", next.reviewerAgent || "route at review")}${detailRow("Dependencies", next.missingDependencies.length ? next.missingDependencies.join(", ") : "satisfied")}` : empty("No task selected", "Pandora will continue when durable evidence makes a task eligible.")}</div></div>
+      <div class="card"><div class="card-header"><div><div class="card-title">Phase sequence</div><div class="card-subtitle">Evidence-backed, dependency ordered</div></div></div><div class="list">${(pandora?.phases || []).map((item) => `<div class="list-row"><span class="status-dot ${item.status === "complete" ? "healthy" : item.status === "active" ? "warning" : ""}"></span><span class="list-main"><span class="list-title">${esc(item.id)} · ${esc(item.name)}</span><span class="list-detail">${item.completedTasks}/${item.gatingTasks} gating tasks</span></span>${badge(item.status.toUpperCase(), item.status === "complete" ? "healthy" : item.status === "active" ? "warning" : "neutral")}</div>`).join("") || empty("Roadmap unavailable", "Reconcile the canonical status projection.")}</div></div>
     </div>
     <div class="card pad">
-      <div class="control-state"><div><div class="eyebrow">SECURE EXECUTION SUBSTRATE</div><h2>${health.status === "healthy" ? "Operational" : "Degraded"}</h2><p>The website is the audit, approval, status, and emergency-override surface. Routine roadmap work is initiated from ChatGPT and governed by ProjectOS.</p></div><button class="button ghost" data-route="operations">Inspect</button></div>
+      <div class="control-state"><div><div class="eyebrow">SECURE EXECUTION SUBSTRATE</div><h2>${health.status === "healthy" ? "Operational" : "Degraded"}</h2><p>The website is the audit, approval, status, and emergency-override surface. Routine roadmap work is initiated from ChatGPT and governed by Pandora.</p></div><button class="button ghost" data-route="operations">Inspect</button></div>
       <div class="gate-grid">
         ${gate("Protected routes", health.protectedRoutesConfigured, "Administrator authentication")}
         ${gate("Durable ledger", health.durableLedgerConfigured, "Plans and audit chain")}
@@ -911,7 +911,7 @@ app.addEventListener("click", async (event) => {
   if (action === "command") { state.sheet = { kind: "command" }; render(); }
   if (action === "close-sheet" && !event.target.closest("[data-sheet]") || action === "close-sheet" && target === event.target.closest("[data-action='close-sheet']")) { state.sheet = null; render(); }
   if (action === "refresh") await refreshLive();
-  if (action === "refresh-status") await refreshProjectOS();
+  if (action === "refresh-status") await refreshPandora();
   if (action === "choose-tool") {
     if (state.mode !== "live") {
       toast("Control plane unavailable", "Action configuration is locked until production is connected.", "danger");
@@ -1001,4 +1001,4 @@ setInterval(() => {
 
 track("command_center_viewed", { route: "home" });
 render();
-refreshProjectOS();
+refreshPandora();

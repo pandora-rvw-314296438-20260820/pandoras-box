@@ -21,7 +21,7 @@ test('archived Memory binding moves only from the obsolete owner to canonical Pa
   assert.match(migration, /previousRepository/);
   assert.match(migration, /sourceTask', 'CHAT-FINISH-002'/);
   assert.doesNotMatch(migration, /status\s*=\s*'active'/);
-  assert.doesNotMatch(migration, /delete\s+from\s+public\.projectos_projects/i);
+  assert.doesNotMatch(migration, /delete\s+from\s+public\.pandora_projects/i);
 });
 
 test('clean replay absence is a no-op while unexpected existing authority fails closed', () => {

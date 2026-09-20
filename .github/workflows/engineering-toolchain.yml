@@ -6,8 +6,8 @@ on:
     paths:
       - "package.json"
       - "tooling/**"
-      - "src/projectos/pandora-lifecycle.js"
-      - "src/projectos/pandora-posthog-*.js"
+      - "src/pandora/pandora-lifecycle.js"
+      - "src/pandora/pandora-posthog-*.js"
       - "test/pandora-lifecycle.test.js"
       - "test/pandora-posthog-transport.test.js"
       - "supabase/**"
@@ -47,6 +47,9 @@ jobs:
 
       - name: Audit isolated engineering dependencies
         run: npm run tooling:audit
+
+      - name: Verify retired identity is absent
+        run: node --test test/retired-control-plane-zero-trace.test.js
 
       - name: Verify PostHog privacy and transport contract
         run: npm run posthog:contract

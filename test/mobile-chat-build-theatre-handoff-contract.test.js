@@ -7,7 +7,7 @@ const { test } = require("node:test");
 
 const root = join(__dirname, "..");
 const migration = readFileSync(
-  join(root, "supabase", "migrations", "20260911060500_pandora_chat_projectos_build_theatre_handoff_v1.sql"),
+  join(root, "supabase", "migrations", "20260911060500_pandora_chat_pandora_build_theatre_handoff_v1.sql"),
   "utf8",
 );
 const ask = readFileSync(
@@ -19,9 +19,9 @@ const theatre = readFileSync(
   "utf8",
 );
 
-test("Pandora Chat stateful capability requests hand off only after ProjectOS intake", () => {
+test("Pandora Chat stateful capability requests hand off only after Pandora intake", () => {
   assert.match(migration, /pandora_chat_capability_dispatch_core_v1/);
-  assert.match(migration, /capabilityResult,authority.*projectos/s);
+  assert.match(migration, /capabilityResult,authority.*pandora/s);
   assert.match(migration, /intakeId/);
   assert.match(migration, /'required', true/);
   assert.match(migration, /'projectId', v_project_id/);

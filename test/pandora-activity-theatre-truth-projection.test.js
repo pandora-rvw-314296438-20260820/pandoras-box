@@ -52,11 +52,11 @@ test('detects named or numeric stages without requiring an N-of-M form', () => {
 
 test('model text alone cannot substantiate measurable progress', () => {
   const event = base({message:'75% complete', provenance:{...base().provenance, sourceType:'model'}});
-  assert.throws(() => assertActivityMessageTruth(event), /requires runtime\/device\/provider\/ProjectOS\/tool source evidence/);
+  assert.throws(() => assertActivityMessageTruth(event), /requires runtime\/device\/provider\/Pandora\/tool source evidence/);
 });
 
 test('runtime/provider/device/tool source events may substantiate measurable progress', () => {
-  for (const sourceType of ['runtime','provider','device','projectos','tool']) {
+  for (const sourceType of ['runtime','provider','device','pandora','tool']) {
     const event = base({message:'Stage 2 of 4', provenance:{...base().provenance, sourceType}});
     assert.equal(assertActivityMessageTruth(event), event);
   }
@@ -77,7 +77,7 @@ test('policy and user-control evidence do not substantiate measurement', () => {
     {type:'user_control', relation:'accepted_control', ref:'control://1'},
   ]) {
     const event = base({message:'50 percent complete', provenance:{...base().provenance, sourceType:'model', sourceEventId:null}, evidence:[evidence]});
-    assert.throws(() => assertActivityMessageTruth(event), /requires runtime\/device\/provider\/ProjectOS\/tool source evidence/);
+    assert.throws(() => assertActivityMessageTruth(event), /requires runtime\/device\/provider\/Pandora\/tool source evidence/);
   }
 });
 

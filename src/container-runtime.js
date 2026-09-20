@@ -11,9 +11,9 @@ function resolveContainerRuntimeMode(environment = process.env) {
         return explicit;
     }
     if (explicit) {
-        throw new Error('MCPMASTER_CONTAINER_MODE must be either projectos or meta-remote');
+        throw new Error('MCPMASTER_CONTAINER_MODE must be either pandora or meta-remote');
     }
-    // ProjectOS is the safe public-container default. The legacy Meta enable
+    // Pandora is the safe public-container default. The legacy Meta enable
     // variable may still be present in transferred Vercel projects, so it must
     // never select the Meta runtime implicitly. Meta remote mode now requires
     // the explicit MCPMASTER_CONTAINER_MODE=meta-remote selector in addition to

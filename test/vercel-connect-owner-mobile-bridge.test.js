@@ -75,7 +75,7 @@ test("connection capability is account-scoped, not poisoned by project health", 
   assert.match(summary, /connectorFresh/);
   assert.doesNotMatch(
     summary,
-    /projectos_integration_health|healthRows|healthProblem|healthFresh/,
+    /pandora_integration_health|healthRows|healthProblem|healthFresh/,
   );
 
   const read = between(
@@ -83,7 +83,7 @@ test("connection capability is account-scoped, not poisoned by project health", 
     "async function connections(",
     "function base64UrlBytes(",
   );
-  assert.doesNotMatch(read, /projectos_integration_health/);
+  assert.doesNotMatch(read, /pandora_integration_health/);
 });
 
 test("Vercel connection test uses the Vault-backed broker and no provider token", () => {

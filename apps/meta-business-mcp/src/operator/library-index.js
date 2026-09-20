@@ -29,7 +29,7 @@ function createLibraryIndexExecutor(options){
     let projects, artifacts, artifactVersions, releases;
     try{
       [projects,artifacts,artifactVersions,releases]=await Promise.all([
-        client.requestJson(`/rest/v1/projectos_projects?select=id,name,repository&organization_id=eq.${org}&order=updated_at.desc&limit=200`),
+        client.requestJson(`/rest/v1/pandora_projects?select=id,name,repository&organization_id=eq.${org}&order=updated_at.desc&limit=200`),
         client.requestJson(`/rest/v1/pandora_artifacts?select=id,project_id,logical_key,artifact_kind,created_at&organization_id=eq.${org}&order=created_at.desc&limit=200`),
         client.requestJson(`/rest/v1/pandora_artifact_versions?select=id,project_id,artifact_id,version,content_sha256,byte_size,media_type,created_at&organization_id=eq.${org}&order=created_at.desc&limit=${limit}`),
         client.requestJson(`/rest/v1/pandora_project_versions?select=id,project_id,sequence_no,kind,source_sha256,source_commit,artifact_digest_sha256,lifecycle_status,created_at&organization_id=eq.${org}&order=created_at.desc&limit=${limit}`),

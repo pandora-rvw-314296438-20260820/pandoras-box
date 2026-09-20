@@ -161,7 +161,7 @@ test('operator auth config no longer claims MFA is required', async () => {
 
 test('operator approval rejects OAuth scope undergrant and malformed empty scope claims', async () => {
   for (const scopes of [
-    ['openid', 'projectos:read'],
+    ['openid', 'pandora:read'],
     ['openid', 'email', 'profile'],
     [],
   ]) {
@@ -175,7 +175,7 @@ test('operator approval rejects OAuth scope undergrant and malformed empty scope
       const body = await response.json();
       assert.equal(response.status, 403);
       assert.equal(body.error.code, 'OPERATOR_SCOPE_REQUIRED');
-      assert.match(response.headers.get('www-authenticate'), /projectos:approve/);
+      assert.match(response.headers.get('www-authenticate'), /pandora:approve/);
     });
     assert.equal(seen.length, 0);
   }
@@ -185,7 +185,7 @@ test('operator approval accepts the exact OAuth action scope without AAL2', asyn
   const seen = [];
   await withServer(bridge('admin', seen, {}, {
     scopeClaimsPresent: true,
-    scopes: ['openid', 'projectos:approve'],
+    scopes: ['openid', 'pandora:approve'],
   }), async (origin) => {
     const response = await fetch(`${origin}/tools/approve`, {
       method: 'POST',
@@ -233,7 +233,7 @@ test('operator bridge preserves only the platform-captured OIDC token for the re
           userId: USER_ID,
           accessToken: ACCESS_TOKEN,
           scopeClaimsPresent: true,
-          scopes: ['openid', 'projectos:plan'],
+          scopes: ['openid', 'pandora:plan'],
         };
       },
     },
@@ -278,9 +278,9 @@ test('operator bridge preserves only the platform-captured OIDC token for the re
 
 test('operator OAuth scopes remain separated across read, plan, and execute actions', async () => {
   const cases = [
-    { method: 'GET', path: '/plans', granted: 'projectos:plan', required: 'projectos:read' },
-    { method: 'POST', path: '/tools/plan', granted: 'projectos:read', required: 'projectos:plan' },
-    { method: 'POST', path: '/tools/execute', granted: 'projectos:approve', required: 'projectos:execute' },
+    { method: 'GET', path: '/plans', granted: 'pandora:plan', required: 'pandora:read' },
+    { method: 'POST', path: '/tools/plan', granted: 'pandora:read', required: 'pandora:plan' },
+    { method: 'POST', path: '/tools/execute', granted: 'pandora:approve', required: 'pandora:execute' },
   ];
   for (const entry of cases) {
     const seen = [];

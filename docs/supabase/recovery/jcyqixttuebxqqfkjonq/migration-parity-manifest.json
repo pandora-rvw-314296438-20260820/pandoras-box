@@ -236,9 +236,9 @@
                 "bytes": 22820,
                 "sha256": "c3baca57e1813f3b3989ef8723e4581a7731d596d38a071d7ad5d39d815ea8f7"
             },
-            "name": "projectos_operating_kernel",
+            "name": "pandora_operating_kernel",
             "active": {
-                "path": "supabase/migrations/20260731092908_projectos_operating_kernel.sql",
+                "path": "supabase/migrations/20260731092908_pandora_operating_kernel.sql",
                 "bytes": 23123,
                 "sha256": "fb5c22d92fdd7a08edd89d005f1e41172a3941135743e5eda77b7ce3954bb155"
             },
@@ -250,9 +250,9 @@
                 "bytes": 43011,
                 "sha256": "557f30641ef442c6c0947ebc5c794b4d290d56401ab90abd41d0787b5c865d3a"
             },
-            "name": "projectos_operating_functions",
+            "name": "pandora_operating_functions",
             "active": {
-                "path": "supabase/migrations/20260731093257_projectos_operating_functions.sql",
+                "path": "supabase/migrations/20260731093257_pandora_operating_functions.sql",
                 "bytes": 43314,
                 "sha256": "d3a7a0e7d8397c69a1b180899514adbf958011bcdd49575b3114c33ec0422a24"
             },
@@ -264,9 +264,9 @@
                 "bytes": 2422,
                 "sha256": "7474f5ec011eb02f61c3ee818b802e29c1ab8c8c2ea6d0656fb53e4f7ed87469"
             },
-            "name": "projectos_reconciliation_registry",
+            "name": "pandora_reconciliation_registry",
             "active": {
-                "path": "supabase/migrations/20260731094541_projectos_reconciliation_registry.sql",
+                "path": "supabase/migrations/20260731094541_pandora_reconciliation_registry.sql",
                 "bytes": 2725,
                 "sha256": "836ecba52555c8ae64e207875d9441783cf1cffd6f9f72d0acb8e9601a933f70"
             },
@@ -278,9 +278,9 @@
                 "bytes": 1796,
                 "sha256": "ad72c7d60d86cbbb89874dbe04baf118a68a158b5081e4eaebb3d8467f15706f"
             },
-            "name": "projectos_integration_health_rpc",
+            "name": "pandora_integration_health_rpc",
             "active": {
-                "path": "supabase/migrations/20260731095029_projectos_integration_health_rpc.sql",
+                "path": "supabase/migrations/20260731095029_pandora_integration_health_rpc.sql",
                 "bytes": 2099,
                 "sha256": "62273bd60db53e934df305208df2bc3d366bca3761e355915289516097ba39bb"
             },
@@ -292,9 +292,9 @@
                 "bytes": 18006,
                 "sha256": "fba23ecd127d10770860fcafc0ba94cf71c9e2497ad86e70bf99881a737ba064"
             },
-            "name": "projectos_bootstrap_and_intelligence",
+            "name": "pandora_bootstrap_and_intelligence",
             "active": {
-                "path": "supabase/migrations/20260731100319_projectos_bootstrap_and_intelligence.sql",
+                "path": "supabase/migrations/20260731100319_pandora_bootstrap_and_intelligence.sql",
                 "bytes": 18309,
                 "sha256": "01a4baa9cedf465d266670ce6fb9323d53fc72c562101edb7dee179c441c5854"
             },
@@ -306,9 +306,9 @@
                 "bytes": 350,
                 "sha256": "a3a1738e1225b4ea5044ec175be5ed0fdbc729375a91da6bd5558f2e8c9eafe9"
             },
-            "name": "projectos_pgcrypto_search_path",
+            "name": "pandora_pgcrypto_search_path",
             "active": {
-                "path": "supabase/migrations/20260731101521_projectos_pgcrypto_search_path.sql",
+                "path": "supabase/migrations/20260731101521_pandora_pgcrypto_search_path.sql",
                 "bytes": 653,
                 "sha256": "c4768b006ee8dc494d710b55f5812d257bac3b763c29e92d8460e656ce7a990d"
             },
@@ -320,9 +320,9 @@
                 "bytes": 844,
                 "sha256": "72bdbc6f8e2b66b0c83edba455e1766ae72f618b7d3a956261ef546206af9415"
             },
-            "name": "projectos_revoke_legacy_server_reads",
+            "name": "pandora_revoke_legacy_server_reads",
             "active": {
-                "path": "supabase/migrations/20260731102654_projectos_revoke_legacy_server_reads.sql",
+                "path": "supabase/migrations/20260731102654_pandora_revoke_legacy_server_reads.sql",
                 "bytes": 1147,
                 "sha256": "88b6386b3f4e579e6c8dc7d803cd340f59a240a03dd587b8ad8a3b90daf261e9"
             },
@@ -334,9 +334,9 @@
                 "bytes": 1995,
                 "sha256": "62b2805f48f05371c0ff30acfd64ea3cdde6d12c8612858946f4c50c3c11b28a"
             },
-            "name": "projectos_reconciliation_run_rpc",
+            "name": "pandora_reconciliation_run_rpc",
             "active": {
-                "path": "supabase/migrations/20260731103336_projectos_reconciliation_run_rpc.sql",
+                "path": "supabase/migrations/20260731103336_pandora_reconciliation_run_rpc.sql",
                 "bytes": 2298,
                 "sha256": "17d0de10bb59f058ef4a6a0b7693a1516f5d2bf42fbfec6594b4abf1a01f125e"
             },
@@ -348,9 +348,9 @@
                 "bytes": 1194,
                 "sha256": "93e4d9ce5bb1f43c3942310b39c2c975ae3fa243e6da8e2114b683a20cb74ab8"
             },
-            "name": "projectos_harden_legacy_private_tables",
+            "name": "pandora_harden_legacy_private_tables",
             "active": {
-                "path": "supabase/migrations/20260731105433_projectos_harden_legacy_private_tables.sql",
+                "path": "supabase/migrations/20260731105433_pandora_harden_legacy_private_tables.sql",
                 "bytes": 1497,
                 "sha256": "486a4d950d1a3032445604d2b43101211c593cfb4e12d1764e055f473b278f0d"
             },
@@ -362,9 +362,9 @@
                 "bytes": 9908,
                 "sha256": "86d458b22bb7c40d43258a4e73ae19172ee058c780a6412ddc0e731e1ea62658"
             },
-            "name": "projectos_product_intelligence_schema",
+            "name": "pandora_product_intelligence_schema",
             "active": {
-                "path": "supabase/migrations/20260731122011_projectos_product_intelligence_schema.sql",
+                "path": "supabase/migrations/20260731122011_pandora_product_intelligence_schema.sql",
                 "bytes": 10211,
                 "sha256": "9313ec9e2912e5ba2079ed8f5aab6b47c6d6d03fde53814afdba5133d8813b75"
             },
@@ -376,9 +376,9 @@
                 "bytes": 10278,
                 "sha256": "6a46b4cb78f4d6c6b0bda83493d65912b71c0bf88734b7ec00d5bf988d35e902"
             },
-            "name": "projectos_product_intelligence_functions",
+            "name": "pandora_product_intelligence_functions",
             "active": {
-                "path": "supabase/migrations/20260731122055_projectos_product_intelligence_functions.sql",
+                "path": "supabase/migrations/20260731122055_pandora_product_intelligence_functions.sql",
                 "bytes": 10581,
                 "sha256": "a6f7d7be7b880d4fbcc19604d1800d97d3e64c0c63e53728bb913573e0d919eb"
             },
@@ -390,9 +390,9 @@
                 "bytes": 2001,
                 "sha256": "2d34674f872c20fd51031f995cbaf988cbbeff6794ec60dc4fd5ba55646bd717"
             },
-            "name": "projectos_product_intelligence_context",
+            "name": "pandora_product_intelligence_context",
             "active": {
-                "path": "supabase/migrations/20260731122358_projectos_product_intelligence_context.sql",
+                "path": "supabase/migrations/20260731122358_pandora_product_intelligence_context.sql",
                 "bytes": 2304,
                 "sha256": "594272a1dc9b5858ec8b598c0ac7beaea041348a8539692eb004d74a0d295cf5"
             },
@@ -404,9 +404,9 @@
                 "bytes": 2163,
                 "sha256": "a5559509f8f3e2e56c9e1f2ca05b11976ce1453d8c9589071cccc812679c5656"
             },
-            "name": "projectos_product_intelligence_access_hardening",
+            "name": "pandora_product_intelligence_access_hardening",
             "active": {
-                "path": "supabase/migrations/20260731123437_projectos_product_intelligence_access_hardening.sql",
+                "path": "supabase/migrations/20260731123437_pandora_product_intelligence_access_hardening.sql",
                 "bytes": 2466,
                 "sha256": "1219aa7b1a66701a84ee3504dd4ea3a197286fa9dda1df246005870810dce95b"
             },
@@ -418,9 +418,9 @@
                 "bytes": 246,
                 "sha256": "a90814f7fd7b5f5d65c456ff64a1d887043473957684dcee31033be0fe6f6ecb"
             },
-            "name": "projectos_integration_secrets_deny_clients",
+            "name": "pandora_integration_secrets_deny_clients",
             "active": {
-                "path": "supabase/migrations/20260731124653_projectos_integration_secrets_deny_clients.sql",
+                "path": "supabase/migrations/20260731124653_pandora_integration_secrets_deny_clients.sql",
                 "bytes": 549,
                 "sha256": "f7aae9b44c0566f98988c195bfd9866c9676147274ad7e3dceffe97bb862d163"
             },
@@ -516,9 +516,9 @@
                 "bytes": 4546,
                 "sha256": "4321e0fc64659a9bfc7e2900590f64adbdbe4d982e30007c9d41fb65e6132da9"
             },
-            "name": "harden_projectos_rpc_execution_grants",
+            "name": "harden_pandora_rpc_execution_grants",
             "active": {
-                "path": "supabase/migrations/20260804201049_harden_projectos_rpc_execution_grants.sql",
+                "path": "supabase/migrations/20260804201049_harden_pandora_rpc_execution_grants.sql",
                 "bytes": 4848,
                 "sha256": "3ce95ec887e65707af5438a75f8b11a74a4d1022443e4d19f204a0c2a7d7d2d4"
             },
@@ -530,9 +530,9 @@
                 "bytes": 1945,
                 "sha256": "be8f8f7c2055d1c8c5b8d321890cb4d46342a8194c4641c02ec8335faf2e1692"
             },
-            "name": "optimize_projectos_nano_hot_paths",
+            "name": "optimize_pandora_nano_hot_paths",
             "active": {
-                "path": "supabase/migrations/20260806114515_optimize_projectos_nano_hot_paths.sql",
+                "path": "supabase/migrations/20260806114515_optimize_pandora_nano_hot_paths.sql",
                 "bytes": 2248,
                 "sha256": "c91eacda774bf6f837d5e8261ae7418d5bfe8effa0d121e3e5685dac15df4e9c"
             },
@@ -544,9 +544,9 @@
                 "bytes": 15138,
                 "sha256": "4e82bfc6283fe6d816fceb9ef36f28c2d81c032db8206a062225ddf4cca7c0cd"
             },
-            "name": "projectos_memory_lifecycle_enforcement",
+            "name": "pandora_memory_lifecycle_enforcement",
             "active": {
-                "path": "supabase/migrations/20260807083337_projectos_memory_lifecycle_enforcement.sql",
+                "path": "supabase/migrations/20260807083337_pandora_memory_lifecycle_enforcement.sql",
                 "bytes": 15549,
                 "sha256": "0276ff2f5fb80d03c76dbc8f7ff5c3346ed67151ed6532915bed8bbe7cdda126"
             },
@@ -558,9 +558,9 @@
                 "bytes": 744,
                 "sha256": "9c95ae7832e286631584f8a5825cc88cda07368e216f8219dee51103366e0239"
             },
-            "name": "projectos_pg_net_client_privilege_revoke",
+            "name": "pandora_pg_net_client_privilege_revoke",
             "active": {
-                "path": "supabase/migrations/20260807090425_projectos_pg_net_client_privilege_revoke.sql",
+                "path": "supabase/migrations/20260807090425_pandora_pg_net_client_privilege_revoke.sql",
                 "bytes": 1047,
                 "sha256": "61b59e9212299a1ca0d214932552ddd7ce5dbacbe1c24731394e06412042e669"
             },
@@ -572,9 +572,9 @@
                 "bytes": 635,
                 "sha256": "0a74209d47db24656ea85b4d4660a647a425f3152b8d482594a856e2511148d4"
             },
-            "name": "projectos_memory_private_function_execution_boundary",
+            "name": "pandora_memory_private_function_execution_boundary",
             "active": {
-                "path": "supabase/migrations/20260807090628_projectos_memory_private_function_execution_boundary.sql",
+                "path": "supabase/migrations/20260807090628_pandora_memory_private_function_execution_boundary.sql",
                 "bytes": 938,
                 "sha256": "d6c80b77121bfc8d02e4b63e2087277bc181a6e5f519ad856102bfe308f15a0b"
             },
@@ -670,9 +670,9 @@
                 "bytes": 3659,
                 "sha256": "a36dd947d0fcc376af4f90449a07d3ff1270a12c3012cdef821898d1b4b44d35"
             },
-            "name": "reject_anonymous_projectos_intake",
+            "name": "reject_anonymous_pandora_intake",
             "active": {
-                "path": "supabase/migrations/20260810083717_reject_anonymous_projectos_intake.sql",
+                "path": "supabase/migrations/20260810083717_reject_anonymous_pandora_intake.sql",
                 "bytes": 3961,
                 "sha256": "700bba863a3944ef9a061bddb1b1cda8eb64b7a5875f7bf328f8d9e76bf4b40e"
             },
@@ -783,8 +783,8 @@
         "callable_provider_rollbacks"
     ],
     "pending_change": {
-        "name": "remove_projectos_approval_aal2",
-        "path": "supabase/migrations/20260813014555_remove_projectos_approval_aal2.sql",
+        "name": "remove_pandora_approval_aal2",
+        "path": "supabase/migrations/20260813014555_remove_pandora_approval_aal2.sql",
         "bytes": 3472,
         "sha256": "8e9acf74b5ee5ea552697989768afc5aac938b92947e3495c2deecde30dadd31",
         "status": "applied_and_verified",
@@ -794,7 +794,7 @@
         "provider_sha256": "8e9acf74b5ee5ea552697989768afc5aac938b92947e3495c2deecde30dadd31",
         "provider_version": "20260813014555",
         "legacy_source_version": "20260812034825",
-        "legacy_source_path_at_capture": "supabase/migrations/20260812034825_remove_projectos_approval_aal2.sql",
+        "legacy_source_path_at_capture": "supabase/migrations/20260812034825_remove_pandora_approval_aal2.sql",
         "legacy_source_path_expected_absent": true
     },
     "schema_version": "2.2.0",
@@ -811,7 +811,7 @@
             "supabase/migrations/20260817145550_add_vercel_control_adapter.sql",
             "supabase/migrations/20260817145659_add_vercel_git_binding_clear.sql",
             "supabase/migrations/20260817145929_add_vercel_async_git_link_queue.sql",
-            "supabase/migrations/20260821024500_projectos_owner_read_completion.sql"
+            "supabase/migrations/20260821024500_pandora_owner_read_completion.sql"
         ],
         "legacy_aal1_source_version": "20260812034825",
         "legacy_recovery_chain_sha256": "77e2dbe177cac4eddd8b6de03bc98cd98c4c4d2bfd5a0dfd7bde6cff174a56fb",

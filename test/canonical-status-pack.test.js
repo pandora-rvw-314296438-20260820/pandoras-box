@@ -9,7 +9,7 @@ const {
   canonicalStatusHash,
   canonicalStatusSemanticsValid,
   refreshCanonicalStatusPack,
-} = require('../dist/projectos/canonical-status-pack.js');
+} = require('../dist/pandora/canonical-status-pack.js');
 const {
   GITHUB_ACTIONS_APP_ID,
   REQUIRED_CHECK_BINDINGS,
@@ -23,7 +23,7 @@ const {
   readSourceArtifactProviderReadback,
   TRUSTED_EXTERNAL_REVIEW_APP_ID,
   TRUSTED_EXTERNAL_REVIEW_PROVIDER_CONTEXT,
-} = require('../dist/projectos/canonical-status-provider.js');
+} = require('../dist/pandora/canonical-status-provider.js');
 const registry = require('../docs/status/OPEN_PR_TRIAGE.json');
 
 const MAIN_SHA = '5a630893f2102064dcb2c7c72a3374042e6b4542';
@@ -55,7 +55,7 @@ function evidence() {
   return {
     memory: {
       ok: true,
-      healthStatus: 'projectos-connected',
+      healthStatus: 'pandora-connected',
       contextState: 'healthy',
       fresh: true,
       approvedRecordIds: ['record-1'],

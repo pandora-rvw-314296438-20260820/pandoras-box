@@ -74,7 +74,7 @@ Simple Mode should require the customer to understand only:
 4. **Needs You** — decisions, approvals or blockers requiring the owner.
 5. **Business** — business results, intelligence and economics.
 
-Activity, verification, evidence, connections, memory, provider details, ProjectOS concepts and diagnostics remain available through contextual drill-down or Professional Mode, not as competing primary destinations.
+Activity, verification, evidence, connections, memory, provider details, Pandora concepts and diagnostics remain available through contextual drill-down or Professional Mode, not as competing primary destinations.
 
 ## Release closure rule
 

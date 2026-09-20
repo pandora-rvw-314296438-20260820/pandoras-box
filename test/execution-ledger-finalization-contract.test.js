@@ -35,7 +35,7 @@ function plan(status, outcome) {
     requestId: REQUEST_ID,
     tool: "memory.submitEvidenceCandidate",
     risk: "write",
-    args: { idempotencyKey: "projectos-contract:0000000000000000" },
+    args: { idempotencyKey: "pandora-contract:0000000000000000" },
     payloadHash: "a".repeat(64),
     status,
     ...(outcome ? { terminalOutcome: outcome } : {}),

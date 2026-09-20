@@ -55,7 +55,7 @@ Ask neutrally:
 
 Capture only records conforming to `evidence.schema.json`. Never commit names, contact details, raw transcripts, message bodies, credentials, customer records, financial documents, or confidential workflow content.
 
-Before accepting a record, run `node src/projectos/business-validation-evidence.js <evidence.json>` so cross-field commercial bindings and the PII linter fail closed as well as the JSON schema. That CLI deliberately cannot self-verify an offer-ready or paid technical gate: gated intake must additionally supply a trusted verifier that independently resolves the provider-backed `AUTHENTICATED_CANONICAL_STATUS` receipt. Receipt-shaped IDs or hashes in a local file are insufficient.
+Before accepting a record, run `node src/pandora/business-validation-evidence.js <evidence.json>` so cross-field commercial bindings and the PII linter fail closed as well as the JSON schema. That CLI deliberately cannot self-verify an offer-ready or paid technical gate: gated intake must additionally supply a trusted verifier that independently resolves the provider-backed `AUTHENTICATED_CANONICAL_STATUS` receipt. Receipt-shaped IDs or hashes in a local file are insufficient.
 
 Interview gate:
 

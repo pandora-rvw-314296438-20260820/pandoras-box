@@ -37,7 +37,7 @@ test("provider reconciliation is polling-safe when account webhooks are unavaila
 
 test("customer database uses the existing isolated resource registries without storing credentials", () => {
   assert.match(migration, /pandora_worker_f_provision_isolated_database_20260829/);
-  assert.match(migration, /projectos_project_resources/);
+  assert.match(migration, /pandora_project_resources/);
   assert.match(migration, /pandora_runtime_resources/);
   assert.match(migration, /'database','supabase',v_env,'shared_isolated'/);
   assert.match(migration, /create role %I nologin noinherit/);

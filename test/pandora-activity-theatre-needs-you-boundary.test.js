@@ -21,7 +21,7 @@ const base = (overrides={}) => ({
   message: 'Your approval is required before publication.',
   occurredAt: '2026-09-14T00:40:00+08:00',
   admittedAt: '2026-09-14T00:40:01+08:00',
-  provenance: {sourceType:'projectos', sourceId:'projectos-1', sourceEventId:'authority-1', observedAt:'2026-09-14T00:40:00.500+08:00'},
+  provenance: {sourceType:'pandora', sourceId:'pandora-1', sourceEventId:'authority-1', observedAt:'2026-09-14T00:40:00.500+08:00'},
   evidence: [evidence('policy_decision','policy','policy://standing-authority/decision-1')],
   domain: 'release',
   capability: 'publish.release',

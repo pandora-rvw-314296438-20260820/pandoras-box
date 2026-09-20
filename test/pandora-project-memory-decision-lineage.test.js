@@ -28,8 +28,8 @@ test('project-scoped Memory lineage survives the response boundary', () => {
 
 test('Primary signs planning requests and persists refs/hash only', () => {
   assert.match(hmacPlanning, /pandora_sign_project_memory_planning_request_v2/);
-  assert.match(hmacPlanning, /projectos-planning-context-v1/);
-  assert.match(hmacPlanning, /projectos_memory_learning_hmac/);
+  assert.match(hmacPlanning, /pandora-planning-context-v1/);
+  assert.match(hmacPlanning, /pandora_memory_learning_hmac/);
   assert.match(hmacPlanning, /extensions\.hmac/);
   assert.match(hmacPlanning, /pandora_record_project_memory_context_v2/);
   assert.match(hmacPlanning, /'metadataOnly',true/);
@@ -39,12 +39,12 @@ test('Primary signs planning requests and persists refs/hash only', () => {
 
 test('compiler and source generator use direct HMAC Memory planning without forwarding customer bearer', () => {
   for (const source of [compiler, generator]) {
-    assert.match(source, /pandora-projectos-planning-context/);
+    assert.match(source, /pandora-pandora-planning-context/);
     assert.match(source, /pandora_sign_project_memory_planning_request_v2/);
     assert.match(source, /pandora_record_project_memory_context_v2/);
     assert.match(source, /x-pandora-timestamp/);
     assert.match(source, /x-pandora-signature/);
-    assert.match(source, /projectos-planning-context-response-v1/);
+    assert.match(source, /pandora-planning-context-response-v1/);
     assert.match(source, /canonical_memory_written !== false/);
     assert.match(source, /unavailableMemoryContext/);
     assert.doesNotMatch(source, /mcpmaster\.vercel\.app\/api\/operator\/project-memory-context/);
@@ -77,8 +77,8 @@ test('decision influence and verified outcomes remain project-bound and non-cano
   assert.match(lineage, /when 'PASS' then 1/);
   assert.match(lineage, /when 'FAIL' then -1/);
   assert.match(lineage, /pandora_verification_memory_outcome_v1/);
-  assert.match(transport, /pandora-projectos-decision-lineage/);
-  assert.match(transport, /projectos_memory_learning_hmac/);
+  assert.match(transport, /pandora-pandora-decision-lineage/);
+  assert.match(transport, /pandora_memory_learning_hmac/);
   assert.match(transport, /execution_learning_signature_basis/);
   assert.match(transport, /decision_context_bound/);
   assert.match(transport, /decision_outcome_recorded/);

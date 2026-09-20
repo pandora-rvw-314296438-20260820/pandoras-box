@@ -1,11 +1,11 @@
 -- TEST-ONLY, INACTIVE REPLAY FIXTURE.
--- Apply only after 20260731122011_projectos_product_intelligence_schema.
+-- Apply only after 20260731122011_pandora_product_intelligence_schema.
 -- This supplies inert rows and provider-extension shapes assumed by later
 -- historical migrations. It is not a production seed and must never be placed
 -- under supabase/migrations.
 
 -- The later FXPass growth-contract migration assumes this registry row exists.
-insert into private.projectos_product_registry (
+insert into private.pandora_product_registry (
   organization_id,
   product_key,
   title,

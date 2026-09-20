@@ -86,7 +86,7 @@ test("only protected-resource discovery is public and matches the live metadata 
   });
   const expected = {
     resource: `${RESOURCE_ORIGIN}/mcp`,
-    resource_name: "Banatao Systems ProjectOS",
+    resource_name: "Banatao Systems Pandora",
     authorization_servers: ["https://jcyqixttuebxqqfkjonq.supabase.co/auth/v1"],
     scopes_supported: MCP_SCOPES,
     bearer_methods_supported: ["header"],

@@ -8,11 +8,11 @@ begin;
 
 revoke all on function public.capture_canonical_release_owner_authorization(
   uuid,text,uuid,text,text,uuid,text,text,text,timestamptz
-) from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+) from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 
 revoke all on function public.capture_canonical_release_review_receipt(
   uuid,uuid,text,text,text,text,text,text,text,uuid,text,text,text,text,text,text,text,timestamptz
-) from public, anon, authenticated, service_role, projectos_reviewer_ingest;
+) from public, anon, authenticated, service_role, pandora_reviewer_ingest;
 
 -- Revoke both the fully gated reader and its internal pre-attestation wrapper
 -- plus any later physical wrapper so this capability rollback cannot expose a

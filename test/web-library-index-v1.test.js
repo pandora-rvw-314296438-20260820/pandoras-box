@@ -13,7 +13,7 @@ const professional=read('apps','control-tower','owner-professional.js');
 test('Library route is same-origin operator read authority',()=>{
   assert.match(api,/router\.get\('\/library'/);
   assert.match(api,/libraryIndexExecutor/);
-  assert.match(api,/if \(request\.method === 'GET'\)\s*return 'projectos:read'/);
+  assert.match(api,/if \(request\.method === 'GET'\)\s*return 'pandora:read'/);
   assert.match(app,/request\('\/library\?limit=100'\)/);
   assert.doesNotMatch(app,/supabase\.co|\/rest\/v1\/pandora_artifact/);
 });
@@ -23,7 +23,7 @@ test('Library index uses human bearer and member-RLS tables with hard limits',()
   assert.match(index,/SupabaseRestClient/);
   assert.match(index,/pandora_artifact_versions\?select=/);
   assert.match(index,/pandora_project_versions\?select=/);
-  assert.match(index,/projectos_projects\?select=id,name,repository/);
+  assert.match(index,/pandora_projects\?select=id,name,repository/);
   assert.match(index,/n>=1&&n<=100/);
   assert.match(index,/limit=200/);
 });

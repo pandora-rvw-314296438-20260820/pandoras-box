@@ -23,11 +23,11 @@ const intelligence = await readFile(
   'utf8',
 );
 
-test('recording 4998: full audit/analyze is ProjectOS research, never terminal repo metadata', () => {
+test('recording 4998: full audit/analyze is Pandora research, never terminal repo metadata', () => {
   assert.match(analysis, /v_deep_analysis/);
   assert.match(analysis, /pandora_governed_repository_analysis_request_v1/);
   assert.match(analysis, /'github','repository\.read'/);
-  assert.match(analysis, /projectos_accept_intake/);
+  assert.match(analysis, /pandora_accept_intake/);
   assert.match(analysis, /'research'/);
   assert.match(analysis, /'action','repository\.analyze'/);
   assert.match(analysis, /'verifiedComplete',false/);
@@ -66,14 +66,14 @@ test('recording 4998: owner shell is deterministically Graphite', () => {
   assert.match(shell, /extensions: const <ThemeExtension<dynamic>>\[PandoraPalette\.graphite\]/);
 });
 
-test('recording 4998: internal ProjectOS rows are excluded from owner project summaries', () => {
+test('recording 4998: internal Pandora rows are excluded from owner project summaries', () => {
   assert.match(ownerApi, /function ownerVisibleProject/);
   assert.match(ownerApi, /config\.ownerVisible === false/);
   assert.match(ownerApi, /pandora_control_plane/);
   assert.match(ownerApi, /\.filter\(ownerVisibleProject\)/);
   assert.match(ownerApi, /updated_at, config/);
   assert.match(visibility, /'ownerVisible',false/);
-  assert.match(visibility, /projectos-inbox/);
+  assert.match(visibility, /pandora-inbox/);
   assert.match(visibility, /worker-\[a-z0-9-\]\*proof/);
 });
 

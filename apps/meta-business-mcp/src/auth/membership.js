@@ -17,7 +17,7 @@ class SupabaseOrganizationMembershipResolver {
         this.machineCredentials = options.machineCredentials;
     }
     async resolve(organizationId, userId, accessToken) {
-        const machine = (0, supabase_bearer_1.resolveProjectOsMachineCredential)(accessToken, userId, this.machineCredentials);
+        const machine = (0, supabase_bearer_1.resolvePandoraMachineCredential)(accessToken, userId, this.machineCredentials);
         if (machine) {
             if (machine.organizationId !== organizationId)
                 return null;

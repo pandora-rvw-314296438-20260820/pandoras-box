@@ -42,7 +42,7 @@ This proves the missing layer is ChatGPT app installation/registration, not OAut
 ## Provider runtime evidence
 
 - `https://mcpmaster.vercel.app/api/mcp` is reachable and unauthenticated requests fail closed with the expected OAuth 401 challenge.
-- `https://pandorasbox-memory.vercel.app` remains on production deployment `dpl_7CbTiMxMXQZjrLQDKchf455iBxi4`; ProjectOS health/search were previously production-verified.
+- `https://pandorasbox-memory.vercel.app` remains on production deployment `dpl_7CbTiMxMXQZjrLQDKchf455iBxi4`; Pandora health/search were previously production-verified.
 - Canonical Memory migration identities are recovered through live version `20260810115547` in `banataosystems/pandoras-box-memory`.
 
 ## Correct recovery

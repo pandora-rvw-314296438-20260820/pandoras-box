@@ -10,17 +10,17 @@ begin;
 
 revoke all on function public.register_physical_android_observer_identity(
   uuid,text,text,text[]
-) from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+) from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 revoke all on function public.resolve_physical_android_observer_identity(uuid,text)
-  from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+  from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 revoke all on function public.consume_physical_android_authority_rate_limit(uuid)
-  from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+  from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 revoke all on function public.capture_canonical_physical_android_receipt(
   uuid,uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text[],uuid,uuid,text,uuid,uuid,text,text,text,text
-) from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+) from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 
 revoke all on function public.get_canonical_physical_android_release_status(uuid,text,text)
-  from public, anon, authenticated, service_role, projectos_physical_android_ingest;
+  from public, anon, authenticated, service_role, pandora_physical_android_ingest;
 
 -- Revoke all possible canonical reader layers. Conditional lookup keeps this
 -- rollback independently safe at its original migration point and at head.
@@ -38,9 +38,9 @@ begin
 end
 $readers$;
 
-revoke usage on schema public from projectos_physical_android_ingest;
-revoke projectos_physical_android_ingest from authenticator;
-alter role projectos_physical_android_ingest nologin noinherit;
+revoke usage on schema public from pandora_physical_android_ingest;
+revoke pandora_physical_android_ingest from authenticator;
+alter role pandora_physical_android_ingest nologin noinherit;
 
 -- Identity state is operational capability, not historical receipt evidence.
 -- Drain it in place so every existing foreign-key and audit binding survives.

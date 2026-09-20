@@ -11,8 +11,8 @@ The most damaging error in this system is not a failed tool call — it is a con
 
 ## Discovery
 
-1. **Inventory.** `projectos_tool_catalog` returns every ProjectOS provider tool with its enforced `risk`, `provider`, `scope`, `mutation` flag, allowlist, and `requiredProviderScopes`. This is the authoritative answer to "what can Pandora actually do".
-2. **Search the wider surface.** Beyond ProjectOS, other MCP servers may be connected. Search for tools by keyword before concluding a capability is absent — a server that was still connecting at session start may be available now.
+1. **Inventory.** `pandora_tool_catalog` returns every Pandora provider tool with its enforced `risk`, `provider`, `scope`, `mutation` flag, allowlist, and `requiredProviderScopes`. This is the authoritative answer to "what can Pandora actually do".
+2. **Search the wider surface.** Beyond Pandora, other MCP servers may be connected. Search for tools by keyword before concluding a capability is absent — a server that was still connecting at session start may be available now.
 3. **Check authentication state.** A server can be *listed* but *unauthenticated*. Its tools are unavailable until someone completes an OAuth flow, and that cannot be done from a non-interactive session. An unauthenticated connector is a hard capability gap for this session.
 4. **Inspect the schema** before first use. Required fields, enums, and allowlists tell you what the tool will actually accept.
 5. **Verify with a read.** A health or list call proves the credential works. Do this before planning a mutation against it, not after.

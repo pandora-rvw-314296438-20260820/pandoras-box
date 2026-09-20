@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "evals": [
     {"id": 1, "category": "routing", "prompt": "Fix booking.", "expected_first": "pandora-control-tower", "must_not_load_first": ["pandora-implementation"], "rationale": "Vague Band C request. Must diagnose and recover state before assuming code is broken."},
-    {"id": 2, "category": "routing", "prompt": "Is the ProjectOS audit chain still valid?", "expected_first": null, "must_not_load_first": ["pandora-control-tower"], "rationale": "Band A. A single read answers it; loading state recovery is waste."},
+    {"id": 2, "category": "routing", "prompt": "Is the Pandora audit chain still valid?", "expected_first": null, "must_not_load_first": ["pandora-control-tower"], "rationale": "Band A. A single read answers it; loading state recovery is waste."},
     {"id": 3, "category": "routing", "prompt": "Ship it.", "expected_first": "pandora-control-tower", "must_not_load_first": ["pandora-deployment-release"], "rationale": "Implies production release. Must establish state and authorization before touching the release path."},
     {"id": 4, "category": "routing", "prompt": "Review PR #19 for security issues.", "expected_first": "pandora-security-review", "must_not_load_first": ["pandora-control-tower"], "rationale": "Band B, scoped. Full state recovery is unnecessary."},
     {"id": 5, "category": "routing", "prompt": "I lost the chat. We were working on the Boracay booking thing.", "expected_first": "pandora-project-recovery", "must_not_load_first": [], "rationale": "Explicit context loss."},

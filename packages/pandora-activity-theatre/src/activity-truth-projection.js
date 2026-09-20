@@ -3,7 +3,7 @@
 const { normalizeActivityEvent } = require("./activity-theatre-event.js");
 
 const ACTIVITY_PUBLIC_PROJECTION_VERSION = 1;
-const MEASUREMENT_SOURCE_TYPES = new Set(["runtime", "device", "provider", "projectos", "tool"]);
+const MEASUREMENT_SOURCE_TYPES = new Set(["runtime", "device", "provider", "pandora", "tool"]);
 const MEASUREMENT_EVIDENCE_TYPES = new Set([
   "runtime_event",
   "provider_receipt",
@@ -52,7 +52,7 @@ function hasMeasurementSource(event) {
 
 function assertPublicClaimTruth(text, event, field) {
   if (messageClaimsMeasurement(text) && !hasMeasurementSource(event)) {
-    throw new Error(`${field} measurable progress or stage claim requires runtime/device/provider/ProjectOS/tool source evidence`);
+    throw new Error(`${field} measurable progress or stage claim requires runtime/device/provider/Pandora/tool source evidence`);
   }
   if (messageClaimsOverallResult(text) && event.state !== "result") {
     throw new Error(`${field} overall completion claim requires verified result state`);

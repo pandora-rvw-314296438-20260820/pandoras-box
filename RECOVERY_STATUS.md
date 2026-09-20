@@ -4,9 +4,9 @@ Last updated: 2026-08-12 (Asia/Manila)
 
 ## 2026-08-12 verified runtime reconciliation candidate
 
-Branch `fix/remove-projectos-aal2-requirement` reconstructs a buildable Node 24 MCPMaster runtime from the exact authenticated Vercel OCI layers associated with historical revision `6faf1dd25cb12f6ff20aa4f9500658c285d3025f`, plus the exact deployed Supabase `pandora-owner-api` v3 bundle. The provenance and immutable hashes are recorded in `docs/recovery/VCR_RUNTIME_RECONCILIATION_2026-08-12.md`.
+Branch `fix/remove-pandora-aal2-requirement` reconstructs a buildable Node 24 MCPMaster runtime from the exact authenticated Vercel OCI layers associated with historical revision `6faf1dd25cb12f6ff20aa4f9500658c285d3025f`, plus the exact deployed Supabase `pandora-owner-api` v3 bundle. The provenance and immutable hashes are recorded in `docs/recovery/VCR_RUNTIME_RECONCILIATION_2026-08-12.md`.
 
-This is a pull-request candidate, not a production release. It restores the provider runtime, operator bridge, Control Tower, OAuth consent, shared-security package, serverless entrypoints, durable-plan client, and tests needed for the owner-directed ProjectOS approval change. It does not claim recovery of every historical source, test, or auxiliary asset from the earlier 1,379-file tree. The original TypeScript sources were not present in the runtime image, so verified CommonJS runtime artifacts were promoted to reviewable JavaScript source and rebuilt with TypeScript `allowJs` under the repository's Node 24 engine.
+This is a pull-request candidate, not a production release. It restores the provider runtime, operator bridge, Control Tower, OAuth consent, shared-security package, serverless entrypoints, durable-plan client, and tests needed for the owner-directed Pandora approval change. It does not claim recovery of every historical source, test, or auxiliary asset from the earlier 1,379-file tree. The original TypeScript sources were not present in the runtime image, so verified CommonJS runtime artifacts were promoted to reviewable JavaScript source and rebuilt with TypeScript `allowJs` under the repository's Node 24 engine.
 
 No production alias, Edge Function, or database migration has been changed by this candidate. Canonical designation and release remain subject to review, exact-head CI, and the separate production authorization gates below.
 
@@ -20,8 +20,8 @@ No production alias, Edge Function, or database migration has been changed by th
 - Verified READY production deployment: `dpl_9iftz4UgXPUJFMzFas3DeEoxTgon`
 - Pandora Memory Vercel project: `prj_brg3BJDcHfSftHH84NhnFtDJAnDO`
 - Pandora Memory Supabase project: `ivmvufhcsezyhczzondn` (`Memory`) — `ACTIVE_HEALTHY`
-- Direct Memory Edge Function: `pandora-projectos-bridge` version 13 — `ACTIVE`
-- Active ProjectOS workload principal: `projectos-mcpmaster-production`
+- Direct Memory Edge Function: `pandora-pandora-bridge` version 13 — `ACTIVE`
+- Active Pandora workload principal: `pandora-mcpmaster-production`
 - Allowed namespace: `real_life`
 - Principal scopes: `memory:health`, `memory:read`
 
@@ -46,7 +46,7 @@ The READY preview still redirects to Vercel SSO before its container response is
 
 ## Current incident
 
-The Pandora Memory data service and direct ProjectOS bridge are healthy. The ChatGPT/Pandora MCP connector remains unavailable because Vercel Deployment Protection intercepts MCPMaster requests before application workload authentication executes.
+The Pandora Memory data service and direct Pandora bridge are healthy. The ChatGPT/Pandora MCP connector remains unavailable because Vercel Deployment Protection intercepts MCPMaster requests before application workload authentication executes.
 
 A Vercel temporary share-link bypass was tested against both the production alias and exact deployments and did not provide a durable machine-to-machine route.
 
@@ -57,7 +57,7 @@ The required control-plane repair is to configure a Vercel Protection Bypass for
 Recovery incident event recorded directly in Pandora Memory:
 
 - event id: `96eff269-e4ad-4eb7-b0e7-eefccb283d5a`
-- source: `projectos_recovery`
+- source: `pandora_recovery`
 - source_ref: `pandora-mcp-incident-2026-08-08`
 - sensitivity: `private`
 
@@ -75,7 +75,7 @@ Independently preserved source snapshots have been recovered and content-address
 4. Compare recovered source against latest independently recoverable production evidence.
 5. Relink Vercel Git source to `banataosystems/Pandoras-box` while preserving the existing Vercel project identity.
 6. Configure Vercel Protection Bypass for Automation without making MCPMaster public.
-7. Re-run Pandora Memory health through the real ProjectOS workload identity.
+7. Re-run Pandora Memory health through the real Pandora workload identity.
 8. Verify search retrieval through ChatGPT/Pandora MCP.
 9. Record exact production deployment and rollback evidence.
 

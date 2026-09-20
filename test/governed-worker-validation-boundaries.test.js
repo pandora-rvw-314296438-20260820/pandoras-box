@@ -67,12 +67,12 @@ function sqlFunction(source, qualifiedName) {
 
 const workerValidatorSql = sqlSection(
   workerMigration,
-  "create or replace function private.projectos_worker_plan_payload_hash",
-  "create or replace function public.projectos_accept_governed_worker_intake",
+  "create or replace function private.pandora_worker_plan_payload_hash",
+  "create or replace function public.pandora_accept_governed_worker_intake",
 );
 const canonicalContextSql = sqlFunction(
   contextMigration,
-  "private.projectos_canonical_context_json",
+  "private.pandora_canonical_context_json",
 );
 const contextHashContractSql = sqlSection(
   contextMigration,
@@ -159,13 +159,13 @@ async function booleanQuery(db, sql, parameters) {
 async function planIsValid(db, plan) {
   const encoded = JSON.stringify(plan);
   const hash = await db.query(
-    "select private.projectos_worker_plan_payload_hash($1::jsonb) as hash",
+    "select private.pandora_worker_plan_payload_hash($1::jsonb) as hash",
     [encoded],
   );
   return booleanQuery(
     db,
-    `select private.projectos_worker_plan_is_valid(
-      'projectos.worker.verify', 'write', $1::jsonb, $2::text
+    `select private.pandora_worker_plan_is_valid(
+      'pandora.worker.verify', 'write', $1::jsonb, $2::text
     ) as valid`,
     [encoded, hash.rows[0].hash],
   );
@@ -174,7 +174,7 @@ async function planIsValid(db, plan) {
 function jobIsValid(db, payload) {
   return booleanQuery(
     db,
-    "select private.projectos_worker_job_payload_is_valid($1::jsonb) as valid",
+    "select private.pandora_worker_job_payload_is_valid($1::jsonb) as valid",
     [JSON.stringify(payload)],
   );
 }
@@ -182,7 +182,7 @@ function jobIsValid(db, payload) {
 function resultIsValid(db, result) {
   return booleanQuery(
     db,
-    "select private.projectos_worker_result_summary_is_valid($1::jsonb) as valid",
+    "select private.pandora_worker_result_summary_is_valid($1::jsonb) as valid",
     [JSON.stringify(result)],
   );
 }
@@ -203,7 +203,7 @@ test("real SQL replay keeps plan, job, and result validation total and fail-clos
       create role anon nologin;
       create role authenticated nologin;
       create role service_role nologin;
-      create role projectos_reviewer_ingest nologin noinherit;
+      create role pandora_reviewer_ingest nologin noinherit;
       create schema private;
       create schema auth;
       create schema extensions;
@@ -233,7 +233,7 @@ test("real SQL replay keeps plan, job, and result validation total and fail-clos
         context_envelope jsonb not null
       );
 
-      create function private.projectos_upsert_agent_runtime_proof(
+      create function private.pandora_upsert_agent_runtime_proof(
         uuid, text, jsonb
       ) returns jsonb
       language sql
@@ -336,11 +336,11 @@ test("real SQL replay keeps plan, job, and result validation total and fail-clos
 test("context hash validation is provenance-sensitive and always derives canonical bytes", () => {
   assert.match(
     hardeningMigration,
-    /canonical_context_hash = private\.projectos_context_json_sha256\([\s\S]*private\.projectos_canonical_context_json\(context_envelope\)[\s\S]*and private\.projectos_context_hash_matches_contract\([\s\S]*context_hash, context_envelope, hash_contract/,
+    /canonical_context_hash = private\.pandora_context_json_sha256\([\s\S]*private\.pandora_canonical_context_json\(context_envelope\)[\s\S]*and private\.pandora_context_hash_matches_contract\([\s\S]*context_hash, context_envelope, hash_contract/,
   );
   assert.doesNotMatch(
     hardeningMigration,
-    /context_hash\s*=\s*encode\([\s\S]*projectos_canonical_context_json\(context_envelope\)/,
+    /context_hash\s*=\s*encode\([\s\S]*pandora_canonical_context_json\(context_envelope\)/,
   );
 });
 
@@ -359,7 +359,7 @@ test("privileged helper and immutable receipt boundaries are explicit", () => {
 
   assert.match(
     hardeningMigration,
-    /alter function private\.projectos_upsert_agent_runtime_proof\(uuid, text, jsonb\)\s+set search_path = '';/,
+    /alter function private\.pandora_upsert_agent_runtime_proof\(uuid, text, jsonb\)\s+set search_path = '';/,
   );
   assert.match(
     hardeningMigration,
@@ -439,11 +439,11 @@ test("service-role assertion uses the original authenticator session and signed 
 
 test("emergency rollback fails closed without restoring permissive validation", () => {
   for (const signature of [
-    /revoke execute on function public\.projectos_create_or_get_worker_plan\([\s\S]*?\) from service_role;/,
+    /revoke execute on function public\.pandora_create_or_get_worker_plan\([\s\S]*?\) from service_role;/,
     /revoke execute on function public\.record_governed_worker_job_envelope\([\s\S]*?\) from service_role;/,
     /revoke execute on function public\.finish_governed_worker_dispatch\([\s\S]*?\) from service_role;/,
     /revoke execute on function public\.attach_execution_plan_context\([\s\S]*?\) from service_role;/,
-    /revoke execute on function public\.record_governed_worker_review_attestation\([\s\S]*?\) from projectos_reviewer_ingest;/,
+    /revoke execute on function public\.record_governed_worker_review_attestation\([\s\S]*?\) from pandora_reviewer_ingest;/,
   ]) {
     assert.match(rollback, signature);
   }

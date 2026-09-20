@@ -20,8 +20,8 @@ test('every stale status surface is integrity-bound and classified historical', 
     assert.equal(sha256(surface.path), surface.contentSha256, surface.path);
   }
   for (const legacyPath of [
-    'apps/control-tower/projectos-status.json',
-    'public/control-tower/projectos-status.json',
+    'apps/control-tower/pandora-status.json',
+    'public/control-tower/pandora-status.json',
     'apps/control-tower/release.json',
     'public/control-tower/release.json',
   ]) {
@@ -88,29 +88,29 @@ test('active master instruction cannot masquerade as current operational truth',
   );
 });
 
-test('Control Tower consumes the authenticated canonical pack, not the dead projectos route', () => {
-  const loader = readFileSync(path.join(root, 'apps/control-tower/projectos-live-fetch.js'), 'utf8');
+test('Control Tower consumes the authenticated canonical pack, not the dead pandora route', () => {
+  const loader = readFileSync(path.join(root, 'apps/control-tower/pandora-live-fetch.js'), 'utf8');
   assert.match(loader, /legacyStatusRequest \? '\/api\/operator\/status'/);
-  assert.doesNotMatch(loader, /legacyStatusRequest \? '\/api\/projectos'/);
+  assert.doesNotMatch(loader, /legacyStatusRequest \? '\/api\/pandora'/);
   const app = readFileSync(path.join(root, 'apps/control-tower/app.js'), 'utf8');
   const ownerData = readFileSync(path.join(root, 'apps/control-tower/owner-data.js'), 'utf8');
-  assert.match(app, /projectos\.authoritative === true/);
-  assert.match(app, /projectos\.status === "current"/);
+  assert.match(app, /pandora\.authoritative === true/);
+  assert.match(app, /pandora\.status === "current"/);
   assert.match(ownerData, /projection\.authoritative === true/);
   assert.match(ownerData, /projection\.status === 'current'/);
 });
 
 test('legacy status URLs are quarantined before static serving', () => {
-  const container = readFileSync(path.join(root, 'src/projectos-container-server.js'), 'utf8');
+  const container = readFileSync(path.join(root, 'src/pandora-container-server.js'), 'utf8');
   const vercel = readFileSync(path.join(root, 'vercel.json'), 'utf8');
   assert.match(container, /HISTORICAL_STATUS_SURFACE_GONE/);
   assert.match(container, /response\.status\(410\)/);
-  assert.match(vercel, /"source": "\/control-tower\/projectos-status\.json", "destination": "\/api\/operator\/status"/);
+  assert.match(vercel, /"source": "\/control-tower\/pandora-status\.json", "destination": "\/api\/operator\/status"/);
   assert.match(vercel, /"source": "\/control-tower\/release\.json", "destination": "\/api\/operator\/status"/);
 });
 
 test('the shared container wires the canonical status and worker-context providers', () => {
-  const container = readFileSync(path.join(root, 'src/projectos-container-server.js'), 'utf8');
+  const container = readFileSync(path.join(root, 'src/pandora-container-server.js'), 'utf8');
   assert.match(container, /createCanonicalStatusProviderFromEnvironment/);
   assert.match(container, /new worker_plan_context_provider_js_1\.WorkerPlanContextProvider/);
   assert.match(container, /statusProvider,/);

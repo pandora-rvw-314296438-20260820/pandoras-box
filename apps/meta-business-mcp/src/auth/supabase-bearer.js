@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SupabaseBearerAuthenticator = exports.BearerAuthenticationError = void 0;
-exports.resolveProjectOsMachineCredential = resolveProjectOsMachineCredential;
+exports.resolvePandoraMachineCredential = resolvePandoraMachineCredential;
 const node_crypto_1 = require("node:crypto");
 class BearerAuthenticationError extends Error {
     constructor(message, status = 401) {
@@ -66,7 +66,7 @@ function machineCredentialMatches(token, credential, now) {
     const actual = (0, node_crypto_1.createHash)('sha256').update(token, 'utf8').digest();
     return expected.length === actual.length && (0, node_crypto_1.timingSafeEqual)(expected, actual);
 }
-function resolveProjectOsMachineCredential(accessToken, userId, credentials = DEFAULT_MACHINE_CREDENTIALS, now = Date.now()) {
+function resolvePandoraMachineCredential(accessToken, userId, credentials = DEFAULT_MACHINE_CREDENTIALS, now = Date.now()) {
     for (const credential of credentials) {
         if (userId && credential.userId !== userId)
             continue;
@@ -114,16 +114,16 @@ class SupabaseBearerAuthenticator {
     }
     async authenticate(authorizationHeader) {
         const accessToken = bearerToken(authorizationHeader);
-        const machine = resolveProjectOsMachineCredential(accessToken, undefined, this.machineCredentials);
+        const machine = resolvePandoraMachineCredential(accessToken, undefined, this.machineCredentials);
         if (machine) {
             return {
                 userId: machine.userId,
                 accessToken,
-                email: `${machine.subject}@projectos.machine`,
+                email: `${machine.subject}@pandora.machine`,
             };
         }
         if (accessToken.startsWith('pmt_v1_')) {
-            throw new BearerAuthenticationError('The ProjectOS machine credential is invalid, expired, or revoked');
+            throw new BearerAuthenticationError('The Pandora machine credential is invalid, expired, or revoked');
         }
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), this.timeoutMs);

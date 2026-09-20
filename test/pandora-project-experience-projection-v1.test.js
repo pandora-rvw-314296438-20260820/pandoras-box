@@ -75,7 +75,7 @@ test('visible transitions are monotonic and do not emit no-op updates', () => {
 
 test('all canonical lifecycle inputs refresh the projection', () => {
   for (const table of [
-    'projectos_projects',
+    'pandora_projects',
     'pandora_project_intents',
     'pandora_project_specs',
     'pandora_project_versions',

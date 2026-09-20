@@ -84,7 +84,7 @@ function safeIdentifiers(args) {
     return Object.fromEntries(Object.entries(identifiers).sort(([left], [right]) => left.localeCompare(right)));
 }
 function contextQuery(tool, identifiers) {
-    const parts = [`ProjectOS durable plan context for ${tool}`];
+    const parts = [`Pandora durable plan context for ${tool}`];
     for (const [key, value] of Object.entries(identifiers)) {
         parts.push(`${key} ${value}`);
     }
@@ -190,7 +190,7 @@ class PandoraPlanMemoryContextProvider {
                 namespace: 'real_life',
                 projectKey,
                 query,
-                currentTask: `Prepare a durable ProjectOS plan for ${input.tool}`,
+                currentTask: `Prepare a durable Pandora plan for ${input.tool}`,
                 maxItems: 6,
                 includeSemantic: true,
                 includeProfiles: true,

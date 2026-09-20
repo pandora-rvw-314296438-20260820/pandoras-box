@@ -17,9 +17,9 @@ const mobile = readFileSync(
   'utf8',
 );
 
-test('Pandora chat is an explicit ProjectOS intake source', () => {
+test('Pandora chat is an explicit Pandora intake source', () => {
   assert.match(sourceMigration, /'pandora_chat'/);
-  assert.match(repairMigration, /projectos_intake_requests_source_check/);
+  assert.match(repairMigration, /pandora_intake_requests_source_check/);
   assert.match(repairMigration, /'pandora_chat'::text/);
   for (const source of ['operator', 'chatgpt', 'github', 'slack', 'email', 'api', 'system']) {
     assert.match(repairMigration, new RegExp(`'${source}'::text`));

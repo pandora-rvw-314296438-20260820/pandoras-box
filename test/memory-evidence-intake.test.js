@@ -115,7 +115,7 @@ test("submission is bounded, OIDC-authenticated, and remains pending review", as
     });
   });
 
-  assert.equal(observed.url, "https://pandorasbox-memory.vercel.app/api/projectos/memory/evidence-candidates");
+  assert.equal(observed.url, "https://pandorasbox-memory.vercel.app/api/pandora/memory/evidence-candidates");
   assert.equal(observed.init.method, "POST");
   assert.equal(observed.init.headers["x-pandora-vercel-oidc"], config.oidcToken);
   assert.equal(observed.body.proof_stage, "tested");

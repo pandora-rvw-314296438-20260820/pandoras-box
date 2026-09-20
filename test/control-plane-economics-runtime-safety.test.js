@@ -15,7 +15,7 @@ test('Worker A economics and budget contracts are durable and bounded', () => {
 });
 
 test('Worker A project knowledge and runtime isolation stay ProjectSpec scoped', () => {
-  for (const required of ['pandora_project_nodes','pandora_project_relationships','pandora_runtime_resources',"isolation_mode in ('dedicated','shared_isolated','logical')",'ProjectOS binding identity mismatch']) assert.ok(source.includes(required), required);
+  for (const required of ['pandora_project_nodes','pandora_project_relationships','pandora_runtime_resources',"isolation_mode in ('dedicated','shared_isolated','logical')",'Pandora binding identity mismatch']) assert.ok(source.includes(required), required);
   assert.match(source, /project_spec_id uuid not null references public\.pandora_project_specs/);
 });
 

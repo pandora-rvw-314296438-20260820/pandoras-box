@@ -297,7 +297,7 @@ function validReservationIntent(input = validDeleteArgs(), overrides = {}) {
 function validReservationReceipt(input = validDeleteArgs(), overrides = {}) {
   const intent = validReservationIntent(input, overrides);
   return {
-    schemaVersion: "projectos-destructive-capability-reservation-receipt-v2",
+    schemaVersion: "pandora-destructive-capability-reservation-receipt-v2",
     controlProjectRef: CONTROL_PROJECT,
     eventId: 901,
     provider: intent.provider,
@@ -311,7 +311,7 @@ function validReservationReceipt(input = validDeleteArgs(), overrides = {}) {
 
 function reservationRowFromRequest(init, patch = {}) {
   const body = JSON.parse(init.body);
-  assert.equal(body.query, "insert into public.projectos_external_events (organization_id,project_id,provider,delivery_id,event_type,repository,external_created_at,payload_hash,payload_redacted,process_status,processed_at) values ($1::uuid,null,$2::text,$3::text,$4::text,null,null,$5::text,$6::jsonb,'processed',clock_timestamp()) on conflict (organization_id,provider,delivery_id) do nothing returning jsonb_build_object('id',id,'organization_id',organization_id,'project_id',project_id,'provider',provider,'delivery_id',delivery_id,'event_type',event_type,'repository',repository,'external_created_at',external_created_at,'payload_hash',payload_hash,'payload_redacted',payload_redacted,'process_status',process_status,'process_error',process_error,'received_at',received_at,'processed_at',processed_at) as reservation");
+  assert.equal(body.query, "insert into public.pandora_external_events (organization_id,project_id,provider,delivery_id,event_type,repository,external_created_at,payload_hash,payload_redacted,process_status,processed_at) values ($1::uuid,null,$2::text,$3::text,$4::text,null,null,$5::text,$6::jsonb,'processed',clock_timestamp()) on conflict (organization_id,provider,delivery_id) do nothing returning jsonb_build_object('id',id,'organization_id',organization_id,'project_id',project_id,'provider',provider,'delivery_id',delivery_id,'event_type',event_type,'repository',repository,'external_created_at',external_created_at,'payload_hash',payload_hash,'payload_redacted',payload_redacted,'process_status',process_status,'process_error',process_error,'received_at',received_at,'processed_at',processed_at) as reservation");
   assert.equal(body.read_only, false);
   assert.equal(body.parameters.length, 6);
   const [organizationId, provider, deliveryId, eventType, payloadHash, payloadRedacted] = body.parameters;
@@ -565,7 +565,7 @@ test("manifests, schemas, confirmations, body bytes, and plan payloads bind both
   );
   const reservationIntent = validReservationIntent(deleteInput);
   assert.equal(reservationIntent.payloadRedacted.reservationDomain,
-    "projectos-supabase-child-branch-delete-v1");
+    "pandora-supabase-child-branch-delete-v1");
   assert.equal(reservationIntent.payloadBinding.capabilitySchemaVersion,
     deleteInput.deletionCapability.schemaVersion);
   assert.equal(Object.prototype.hasOwnProperty.call(
@@ -581,7 +581,7 @@ test("manifests, schemas, confirmations, body bytes, and plan payloads bind both
   );
 });
 
-test("ProjectOS rejects either missing logical scope before provider I/O", async () => {
+test("Pandora rejects either missing logical scope before provider I/O", async () => {
   const originalFetch = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = async () => {
@@ -612,7 +612,7 @@ test("ProjectOS rejects either missing logical scope before provider I/O", async
   }
 });
 
-test("ProjectOS dispatch accepts the live coarse logical scopes while provider permission stays downstream", async () => {
+test("Pandora dispatch accepts the live coarse logical scopes while provider permission stays downstream", async () => {
   const originalFetch = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = async (_url, init) => {
@@ -1222,7 +1222,7 @@ test("query responses are capped at one million bytes and truncation never retri
   }
 });
 
-test("coarse ProjectOS scopes do not prove provider DB permission: query 403 fails without retry", async () => {
+test("coarse Pandora scopes do not prove provider DB permission: query 403 fails without retry", async () => {
   let calls = 0;
   let posts = 0;
   await assert.rejects(
@@ -1247,7 +1247,7 @@ test("coarse ProjectOS scopes do not prove provider DB permission: query 403 fai
   assert.equal(posts, 1);
 });
 
-test("coarse ProjectOS scopes do not prove provider environment permission: delete 403 fails without retry", async () => {
+test("coarse Pandora scopes do not prove provider environment permission: delete 403 fails without retry", async () => {
   let calls = 0;
   let deletes = 0;
   const deleteInput = validDeleteArgs({
@@ -1678,7 +1678,7 @@ test("reservation intent, private binding, public receipt, and returned row reje
 
   const rowKeys = Object.keys(reservationRowFromRequest({
     body: JSON.stringify({
-      query: "insert into public.projectos_external_events (organization_id,project_id,provider,delivery_id,event_type,repository,external_created_at,payload_hash,payload_redacted,process_status,processed_at) values ($1::uuid,null,$2::text,$3::text,$4::text,null,null,$5::text,$6::jsonb,'processed',clock_timestamp()) on conflict (organization_id,provider,delivery_id) do nothing returning jsonb_build_object('id',id,'organization_id',organization_id,'project_id',project_id,'provider',provider,'delivery_id',delivery_id,'event_type',event_type,'repository',repository,'external_created_at',external_created_at,'payload_hash',payload_hash,'payload_redacted',payload_redacted,'process_status',process_status,'process_error',process_error,'received_at',received_at,'processed_at',processed_at) as reservation",
+      query: "insert into public.pandora_external_events (organization_id,project_id,provider,delivery_id,event_type,repository,external_created_at,payload_hash,payload_redacted,process_status,processed_at) values ($1::uuid,null,$2::text,$3::text,$4::text,null,null,$5::text,$6::jsonb,'processed',clock_timestamp()) on conflict (organization_id,provider,delivery_id) do nothing returning jsonb_build_object('id',id,'organization_id',organization_id,'project_id',project_id,'provider',provider,'delivery_id',delivery_id,'event_type',event_type,'repository',repository,'external_created_at',external_created_at,'payload_hash',payload_hash,'payload_redacted',payload_redacted,'process_status',process_status,'process_error',process_error,'received_at',received_at,'processed_at',processed_at) as reservation",
       parameters: [
         CONTROL_ORGANIZATION_ID, baseIntent.provider, baseIntent.deliveryId,
         baseIntent.eventType, baseIntent.payloadHash, baseIntent.payloadRedacted,

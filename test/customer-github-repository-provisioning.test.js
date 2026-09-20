@@ -16,7 +16,7 @@ test("new Simple Mode projects provision a bounded private GitHub repository", (
   assert.match(migration, /'private',true/);
   assert.match(migration, /\^pandora-\[a-z0-9\]/);
   assert.match(migration, /createdFrom.*simple_mode/s);
-  assert.match(migration, /before insert on public\.projectos_projects/);
+  assert.match(migration, /before insert on public\.pandora_projects/);
   assert.match(migration, /new\.repository := v_full_name/);
 });
 

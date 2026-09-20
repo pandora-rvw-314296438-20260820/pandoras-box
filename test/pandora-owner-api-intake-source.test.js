@@ -18,7 +18,7 @@ const ALLOWED_INTAKE_SOURCES = new Set([
   'system',
 ]);
 
-test('Pandora owner API uses a canonical ProjectOS intake source', () => {
+test('Pandora owner API uses a canonical Pandora intake source', () => {
   const sources = [...ownerApiSource.matchAll(/p_source:\s*"([^"]+)"/g)].map(
     (match) => match[1],
   );

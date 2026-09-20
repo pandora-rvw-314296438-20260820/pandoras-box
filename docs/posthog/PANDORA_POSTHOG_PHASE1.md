@@ -20,13 +20,13 @@ It does not assert deployment or production verification.
 4. A migration that corrects the stale product-registry repository and installs the ten lifecycle contracts as `active=false`.
 5. Focused security and privacy tests.
 
-The existing eleven aggregate-only ProjectOS event contracts are not replaced or deactivated.
+The existing eleven aggregate-only Pandora event contracts are not replaced or deactivated.
 
 ## Contract reconciliation
 
 The original source-neutral bundle used `local` and `test`. The current database constraint accepts `development`, `preview`, `staging`, `production`, and `unknown`. The implementation maps `local` and `test` to `development`; it does not change the database constraint.
 
-The original bundle specifies `schema_version=1.0.0`. The candidate emits that property and also emits numeric `event_schema_version=1` for compatibility with the current `projectos_product_signals` schema.
+The original bundle specifies `schema_version=1.0.0`. The candidate emits that property and also emits numeric `event_schema_version=1` for compatibility with the current `pandora_product_signals` schema.
 
 ## Always forbidden
 
@@ -53,7 +53,7 @@ Feature flags, experiments, session replay, autocapture, network-body capture, a
 Before activation, rollback is source-only: remove the additive module, test, migration, and this document. If the inactive migration has been applied, preserve history and run:
 
 ```sql
-UPDATE private.projectos_event_contracts
+UPDATE private.pandora_event_contracts
 SET active = false,
     updated_at = now()
 WHERE organization_id = '2270b266-59da-4c39-bfd9-9f8d08352af0'

@@ -159,7 +159,7 @@ class PandoraActivityProjection {
     'runtime',
     'device',
     'provider',
-    'projectos',
+    'pandora',
     'model',
     'tool',
   };

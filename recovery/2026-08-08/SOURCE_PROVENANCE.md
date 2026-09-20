@@ -40,7 +40,7 @@ The suspended `mbanatao` GitHub account is not being used as an operational depe
 4. Verify dependency install/build/tests.
 5. Compare recovered source against the latest independently recoverable deployment/source evidence.
 6. Repair Vercel automation access for `/mcp` without making the whole application public.
-7. Verify Pandora Memory health through the real ProjectOS workload identity.
+7. Verify Pandora Memory health through the real Pandora workload identity.
 8. Record exact production deployment and rollback evidence.
 
 Until all applicable gates pass, state is **recovery in progress**, not production-complete.

@@ -10,7 +10,7 @@ or reusable ingest credential is stored in this repository.
 
 The authority JWT must be accepted by Supabase JWT verification and contain:
 
-- `role` and `aud`: `projectos_physical_android_ingest`
+- `role` and `aud`: `pandora_physical_android_ingest`
 - `iss`: `pandora-physical-android-authority-v1`
 - `purpose`: `canonical_physical_android_capture`
 - exact `organization_id`, `observer_id`, `observer_key_fingerprint`,

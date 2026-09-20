@@ -4,7 +4,7 @@
  * This module is intentionally read-only. It resolves which governed skills apply
  * to an intent; it never calls a provider and never mutates state. Selecting a
  * skill grants no authority to mutate anything: every provider mutation still
- * goes through the ProjectOS plan -> approval -> execute path.
+ * goes through the Pandora plan -> approval -> execute path.
  *
  * Vendor neutrality: the JSON registry under .agents/skills/registry is the single
  * authority. Vendor-specific loaders adapt this module's output; they must not

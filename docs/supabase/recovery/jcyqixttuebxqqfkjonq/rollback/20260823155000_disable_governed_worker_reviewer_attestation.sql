@@ -1,5 +1,5 @@
 -- Emergency capability rollback for 20260823155000.
--- Run only after later migrations that depend on projectos_reviewer_ingest
+-- Run only after later migrations that depend on pandora_reviewer_ingest
 -- have been rolled back. Historical signatures, evidence, audit rows, and
 -- completed dispatches are intentionally preserved.
 
@@ -14,9 +14,9 @@ revoke execute on function public.resolve_compute_reviewer_identity(uuid, text)
 revoke execute on function public.record_governed_worker_review_attestation(
   uuid, uuid, text, text, uuid, uuid, uuid, text, text, text, text, text, text,
   text, text, text
-) from projectos_reviewer_ingest;
+) from pandora_reviewer_ingest;
 
 -- Keep guard_governed_worker_review_attestation installed. New finalization
--- must fail closed instead of falling back to unsigned projectos_evidence.
+-- must fail closed instead of falling back to unsigned pandora_evidence.
 
 commit;

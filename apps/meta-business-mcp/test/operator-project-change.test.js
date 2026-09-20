@@ -23,7 +23,7 @@ async function withServer(app, action) {
   }
 }
 
-function appFor({ role = 'owner', scopes = ['openid', 'projectos:execute'], executor }) {
+function appFor({ role = 'owner', scopes = ['openid', 'pandora:execute'], executor }) {
   const app = express();
   app.use(express.json());
   app.use(createOperatorApiApp({
@@ -82,15 +82,15 @@ test('operator role cannot execute project changes', async () => {
   });
 });
 
-test('project change rejects a session without projectos execute scope', async () => {
-  await withServer(appFor({ scopes: ['openid', 'projectos:read'], executor: async () => ({ ok: true }) }), async (origin) => {
+test('project change rejects a session without pandora execute scope', async () => {
+  await withServer(appFor({ scopes: ['openid', 'pandora:read'], executor: async () => ({ ok: true }) }), async (origin) => {
     const response = await fetch(`${origin}/projects/${PROJECT_ID}/change`, {
       method: 'POST',
       headers: { authorization: `Bearer ${ACCESS_TOKEN}`, 'content-type': 'application/json' },
       body: JSON.stringify({ change: 'Change this.', idempotencyKey: 'web-change-12345678' }),
     });
     assert.equal(response.status, 403);
-    assert.match(response.headers.get('www-authenticate'), /projectos:execute/);
+    assert.match(response.headers.get('www-authenticate'), /pandora:execute/);
   });
 });
 

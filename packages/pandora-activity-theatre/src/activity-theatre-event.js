@@ -19,7 +19,7 @@ const ACTIVITY_EVENT_SOURCE_TYPES = Object.freeze([
 "runtime",
 "device",
 "provider",
-"projectos",
+"pandora",
 "model",
 "tool",
 ]);

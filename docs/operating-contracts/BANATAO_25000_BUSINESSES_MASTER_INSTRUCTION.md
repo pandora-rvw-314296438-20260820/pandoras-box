@@ -3,7 +3,7 @@
 **Canonical version:** 1.0.0  
 **Effective date:** 2026-08-08  
 **Owner:** Banatao Systems  
-**Primary control plane:** MCPMaster / Pandora's-Box / ProjectOS  
+**Primary control plane:** MCPMaster / Pandora's-Box / Pandora  
 **Authoritative operating memory:** Pandora's-Box Memory  
 **Durable source mirror:** GitHub under `banataosystems`  
 **Initial geographic objective:** Bacolod and the surrounding market, expanded only through evidence-backed cohorts  
@@ -94,7 +94,7 @@ Sector repositories add bounded capabilities to the shared platform. A sector mo
 
 ### 3.4 Control-plane separation
 
-- **Pandora's-Box / ProjectOS** governs work, approvals, provider actions, releases, evidence, and recovery.
+- **Pandora's-Box / Pandora** governs work, approvals, provider actions, releases, evidence, and recovery.
 - **Pandora Memory** stores durable project operating state, decisions, requirements, source evidence, hashes, and proof. It is not the customer application database.
 - **LaunchOS and sector applications** store customer and operational data in their own protected application databases.
 - **GitHub** is the durable source and collaboration mirror, not the sole source of project truth.

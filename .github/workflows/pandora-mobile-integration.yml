@@ -41,7 +41,7 @@ jobs:
             if git rev-parse "${GITHUB_SHA}^1" >/dev/null 2>&1; then
               while IFS= read -r path; do
                 case "$path" in
-                  apps/pandora-mobile/*|packages/pandora-integration/*|packages/pandora-intelligence/*|packages/pandora-tools/*|packages/pandora-project-runtime/*|src/projectos/*|supabase/functions/pandora-owner-api/*|supabase/functions/pandora-coordinator-gate/*|supabase/functions/pandora-worker-dispatch/*|package.json|package-lock.json|.github/workflows/pandora-mobile-integration.yml)
+                  apps/pandora-mobile/*|packages/pandora-integration/*|packages/pandora-intelligence/*|packages/pandora-tools/*|packages/pandora-project-runtime/*|src/pandora/*|supabase/functions/pandora-owner-api/*|supabase/functions/pandora-coordinator-gate/*|supabase/functions/pandora-worker-dispatch/*|package.json|package-lock.json|.github/workflows/pandora-mobile-integration.yml)
                     mobile=true
                     break
                     ;;

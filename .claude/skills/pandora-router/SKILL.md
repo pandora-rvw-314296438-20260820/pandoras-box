@@ -1,6 +1,6 @@
 ---
 name: pandora-router
-description: "Entry point for any Pandora's Box or Banatao Systems portfolio work. Load first when a request concerns a Pandora-managed project, MCPMaster, ProjectOS, Pandora Memory, or any connected provider (GitHub, Supabase, Vercel, FlutterFlow) — and whenever a request is vague about scope, such as 'fix booking', 'is it deployed?', 'ship this', or 'what should I work on?'. Selects the smallest sufficient set of Pandora skills and refuses to over-invoke."
+description: "Entry point for any Pandora's Box or Banatao Systems portfolio work. Load first when a request concerns a Pandora-managed project, MCPMaster, Pandora, Pandora Memory, or any connected provider (GitHub, Supabase, Vercel, FlutterFlow) — and whenever a request is vague about scope, such as 'fix booking', 'is it deployed?', 'ship this', or 'what should I work on?'. Selects the smallest sufficient set of Pandora skills and refuses to over-invoke."
 ---
 
 # Pandora Skill Router

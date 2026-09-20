@@ -14,11 +14,11 @@
             "observedThrough": "2026-08-08T15:40:17Z"
         },
         {
-            "path": "docs/status/historical/control-tower-projectos-status-20260730.json",
+            "path": "docs/status/historical/control-tower-pandora-status-20260730.json",
             "legacyPaths": [
-                "apps/control-tower/projectos-status.json",
-                "public/control-tower/projectos-status.json",
-                "/control-tower/projectos-status.json"
+                "apps/control-tower/pandora-status.json",
+                "public/control-tower/pandora-status.json",
+                "/control-tower/pandora-status.json"
             ],
             "contentSha256": "04eaa589f521fab12d06ac9b9780d4b04272c82c80b3f82aaeed78ee2ac76dd7",
             "classification": "historical_static_projection_quarantined",

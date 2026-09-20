@@ -19,9 +19,9 @@ const CHILD_DELETE_RECONCILIATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const CHILD_DELETE_MINIMUM_RESERVATION_WINDOW_MS = 120 * 1000;
 const CHILD_DELETE_CAPABILITY_SCHEMA_VERSION = 'supabase-child-deletion-capability-v3';
 const CHILD_DELETE_CAPABILITY_ACTION = 'delete-and-reconcile-child-branch';
-const CHILD_DELETE_RESERVATION_INTENT_SCHEMA_VERSION = 'projectos-destructive-capability-reservation-intent-v1';
-const CHILD_DELETE_RESERVATION_RECEIPT_SCHEMA_VERSION = 'projectos-destructive-capability-reservation-receipt-v2';
-const CHILD_DELETE_RESERVATION_PROVIDER = 'projectos_capability_reservation';
+const CHILD_DELETE_RESERVATION_INTENT_SCHEMA_VERSION = 'pandora-destructive-capability-reservation-intent-v1';
+const CHILD_DELETE_RESERVATION_RECEIPT_SCHEMA_VERSION = 'pandora-destructive-capability-reservation-receipt-v2';
+const CHILD_DELETE_RESERVATION_PROVIDER = 'pandora_capability_reservation';
 const CHILD_DELETE_RESERVATION_EVENT_TYPE = 'supabase_child_branch_delete_reserved';
 const CONTROL_PROJECT_REF = 'jcyqixttuebxqqfkjonq';
 const CONTROL_ORGANIZATION_ID = '2270b266-59da-4c39-bfd9-9f8d08352af0';
@@ -782,7 +782,7 @@ function stableReservationValue(value) {
 function childDeletionReservationDeliveryId(input) {
     return (0, crypto_1.createHash)('sha256')
         .update(JSON.stringify({
-        reservationDomain: 'projectos-supabase-child-branch-delete-v1',
+        reservationDomain: 'pandora-supabase-child-branch-delete-v1',
         parentProjectRef: input.parentProjectRef,
         branchId: input.branchId,
         childProjectRef: input.childProjectRef,
@@ -822,7 +822,7 @@ function assertChildDeletionReservationIntent(intent, input) {
         || typeof binding !== 'object'
         || Array.isArray(binding)
         || JSON.stringify(Object.keys(binding).sort()) !== JSON.stringify(exactBindingKeys)
-        || binding.schemaVersion !== 'projectos-destructive-capability-reservation-v1'
+        || binding.schemaVersion !== 'pandora-destructive-capability-reservation-v1'
         || binding.action !== input.deletionCapability.action
         || binding.capabilitySchemaVersion !== input.deletionCapability.schemaVersion
         || binding.signingKeyId !== input.deletionCapability.signingKeyId
@@ -848,8 +848,8 @@ function assertChildDeletionReservationIntent(intent, input) {
         || typeof redacted !== 'object'
         || Array.isArray(redacted)
         || JSON.stringify(Object.keys(redacted).sort()) !== JSON.stringify(exactRedactedKeys)
-        || redacted.schemaVersion !== 'projectos-destructive-capability-reservation-redacted-v1'
-        || redacted.reservationDomain !== 'projectos-supabase-child-branch-delete-v1'
+        || redacted.schemaVersion !== 'pandora-destructive-capability-reservation-redacted-v1'
+        || redacted.reservationDomain !== 'pandora-supabase-child-branch-delete-v1'
         || redacted.targetDigest !== intent.deliveryId
         || redacted.sourcePlanId !== binding.sourcePlanId
         || redacted.sourceRequestId !== binding.sourceRequestId
@@ -871,7 +871,7 @@ function exactExternalReservationRow(row, intent) {
         && typeof row === 'object'
         && !Array.isArray(row)
         && JSON.stringify(Object.keys(row).sort()) === JSON.stringify(exactKeys)
-        && ((Number.isSafeInteger(row.id) && row.id > 0) || (typeof row.id === 'string' && /^[1-9][0-9]*$/.test(row.id)))
+        && (typeof row.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(row.id))
         && row.organization_id === CONTROL_ORGANIZATION_ID
         && row.project_id === null
         && row.provider === intent.provider
@@ -898,10 +898,10 @@ async function reserveChildDeletionCapability(account, configuration, intent, in
         || controlProject.ref !== CONTROL_PROJECT_REF
         || controlProject.organization_slug !== input.deletionCapability.organizationSlug
         || controlProject.status !== 'ACTIVE_HEALTHY') {
-        throw new Error('ProjectOS control project identity or health drifted before durable reservation');
+        throw new Error('Pandora control project identity or health drifted before durable reservation');
     }
     const body = {
-        query: "insert into public.projectos_external_events (organization_id,project_id,provider,delivery_id,event_type,repository,external_created_at,payload_hash,payload_redacted,process_status,processed_at) values ($1::uuid,null,$2::text,$3::text,$4::text,null,null,$5::text,$6::jsonb,'processed',clock_timestamp()) on conflict (organization_id,provider,delivery_id) do nothing returning jsonb_build_object('id',id,'organization_id',organization_id,'project_id',project_id,'provider',provider,'delivery_id',delivery_id,'event_type',event_type,'repository',repository,'external_created_at',external_created_at,'payload_hash',payload_hash,'payload_redacted',payload_redacted,'process_status',process_status,'process_error',process_error,'received_at',received_at,'processed_at',processed_at) as reservation",
+        query: "insert into public.pandora_runtime_provider_events (provider,provider_event_id,event_type,organization_id,project_id,payload_sha256,safe_summary,status,processed_at) values ($2::text,$3::text,$4::text,$1::uuid,null,$5::text,$6::jsonb,'processed',clock_timestamp()) on conflict (provider,provider_event_id) do update set processed_at=excluded.processed_at returning jsonb_build_object('id',id::text,'organization_id',organization_id,'project_id',project_id,'provider',provider,'delivery_id',provider_event_id,'event_type',event_type,'repository',null,'external_created_at',provider_occurred_at,'payload_hash',payload_sha256,'payload_redacted',safe_summary,'process_status',status,'process_error',null,'received_at',received_at,'processed_at',processed_at) as reservation",
         parameters: [
             CONTROL_ORGANIZATION_ID,
             intent.provider,
@@ -1423,7 +1423,7 @@ exports.supabaseProviderApiTools = {
         },
     },
     'supabase.read-child-database-query': {
-        description: 'Run one approved, mechanically read-only SQL reconciliation with read_only=true against an exact healthy data-less disposable child project only after proving its UUID branch and project binding to an allowlisted parent before and after dispatch; the ProjectOS plan and body hash bind the exact reconciliation query while the downstream provider still enforces its own database permission',
+        description: 'Run one approved, mechanically read-only SQL reconciliation with read_only=true against an exact healthy data-less disposable child project only after proving its UUID branch and project binding to an allowlisted parent before and after dispatch; the Pandora plan and body hash bind the exact reconciliation query while the downstream provider still enforces its own database permission',
         parameters: {
             type: 'object',
             additionalProperties: false,

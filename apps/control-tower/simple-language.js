@@ -4,35 +4,35 @@ const SIMPLE_TASKS = {
   "PO-012": "Check whether Gemini can work without a computer",
   "PO-013": "Confirm what Jules already completed for CallGate",
   "PO-014": "Complete the first automatic CallGate task",
-  "PO-015": "Prove ProjectOS can fix CallGate failures",
-  "PO-016": "Prove ProjectOS can watch and safely restore a CallGate release",
-  "PO-017": "Save live ProjectOS memory in Supabase",
+  "PO-015": "Prove Pandora can fix CallGate failures",
+  "PO-016": "Prove Pandora can watch and safely restore a CallGate release",
+  "PO-017": "Save live Pandora memory in Supabase",
   "PO-018": "Recover the same status after a session ends",
   "PO-019": "Finish smart routing, permissions, and monitoring",
-  "PO-020": "Use ProjectOS across all Banatao Systems products",
+  "PO-020": "Use Pandora across all Banatao Systems products",
 };
 
 const SIMPLE_PHASES = {
   "Safe native agent mesh": "Safety foundation",
   "Thin GitHub dispatcher": "Automatic work routing",
   "CallGate production proof": "Prove it on CallGate",
-  "Durable ProjectOS state": "Save ProjectOS memory",
+  "Durable Pandora state": "Save Pandora memory",
   "Deterministic scale and operations": "Smarter routing and monitoring",
   "Portfolio substrate": "Use it across all products",
 };
 
 const ROUTE_SUBTITLES = {
-  ProjectOS: "Your projects, current work, and next step",
-  "Manual Actions": "Use only when ProjectOS needs a manual action",
+  Pandora: "Your projects, current work, and next step",
+  "Manual Actions": "Use only when Pandora needs a manual action",
   "Action Builder": "Set up one exact manual action",
   Plans: "Saved work and its current status",
   "Approval Center": "Important actions waiting for your decision",
-  Connections: "Connected services ProjectOS can use",
+  Connections: "Connected services Pandora can use",
   "Audit Trail": "Complete history and saved proof",
   "Security Center": "Safety rules and protection status",
   Operations: "System status, releases, and recovery",
   Settings: "Display and connection settings",
-  More: "More ProjectOS controls",
+  More: "More Pandora controls",
 };
 
 const SIMPLE_PAGE_TITLES = {
@@ -229,7 +229,7 @@ function rewriteSafetyCard(card) {
   }
 }
 
-function transformProjectOS(section) {
+function transformPandora(section) {
   if (!section || section.dataset.simpleOwnerView === "true") return;
   section.dataset.simpleOwnerView = "true";
   const children = Array.from(section.children);
@@ -243,7 +243,7 @@ function transformProjectOS(section) {
   const heroHeading = hero?.querySelector("h2");
   const heroText = heroHeading?.textContent || "";
   if (hero) {
-    setText(hero.querySelector(".eyebrow"), "PROJECTOS STATUS");
+    setText(hero.querySelector(".eyebrow"), "PANDORA STATUS");
     if (heroText.startsWith("Continuing ")) {
       setText(heroHeading, `Working on ${productName(heroText.replace("Continuing ", ""))}`);
     } else if (heroText === "Roadmap complete") {
@@ -316,7 +316,7 @@ function applySimpleLanguage() {
     const root = document.querySelector("#app");
     if (!root) return;
     rewriteTopLevelCopy(root);
-    transformProjectOS(root.querySelector('section[data-screen="projectos"]'));
+    transformPandora(root.querySelector('section[data-screen="pandora"]'));
   } finally {
     updating = false;
   }

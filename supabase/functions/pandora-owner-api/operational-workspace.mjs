@@ -223,10 +223,10 @@ export async function previewExternalImport({ projectId, sourceProvider, objects
 
 export async function loadOperationalWorkspace(admin, organizationId, projectId) {
   const [resources, runtimes, domains, evidence] = await Promise.all([
-    admin.from("projectos_project_resources").select("id, provider, resource_type, external_id, external_name, environment, canonical_url, binding_state, verified_at, updated_at").eq("organization_id", organizationId).eq("project_id", projectId).order("provider").order("resource_type"),
+    admin.from("pandora_project_resources").select("id, provider, resource_type, external_id, external_name, environment, canonical_url, binding_state, verified_at, updated_at").eq("organization_id", organizationId).eq("project_id", projectId).order("provider").order("resource_type"),
     admin.from("pandora_runtime_environments").select("id, environment, provider, provider_project_id, status, verification_state, last_reconciled_at, updated_at").eq("organization_id", organizationId).eq("project_id", projectId).order("environment"),
     admin.from("pandora_project_domains").select("id, domain, status, verified, primary_domain, updated_at").eq("organization_id", organizationId).eq("project_id", projectId).order("primary_domain", { ascending: false }).limit(50),
-    admin.from("projectos_evidence").select("id, evidence_type, provider, external_id, status, verdict, payload_redacted, observed_at, invalidated_at").eq("organization_id", organizationId).eq("project_id", projectId).in("evidence_type", [IMPORT_EVIDENCE_TYPE, CONFLICT_EVIDENCE_TYPE]).is("invalidated_at", null).order("observed_at", { ascending: false }).limit(100),
+    admin.from("pandora_evidence").select("id, evidence_type, provider, external_id, status, verdict, payload_redacted, observed_at, invalidated_at").eq("organization_id", organizationId).eq("project_id", projectId).in("evidence_type", [IMPORT_EVIDENCE_TYPE, CONFLICT_EVIDENCE_TYPE]).is("invalidated_at", null).order("observed_at", { ascending: false }).limit(100),
   ]);
   if (resources.error || runtimes.error || domains.error || evidence.error) throw new Error("BACKEND_READ_FAILED");
   const mappings = (resources.data || []).map(normalizeMapping);
@@ -272,7 +272,7 @@ export async function loadOperationalWorkspace(admin, organizationId, projectId)
 }
 
 async function findEvidenceByExternalId(admin, organizationId, projectId, provider, evidenceType, externalId) {
-  const result = await admin.from("projectos_evidence").select("id, external_id, payload_redacted, observed_at").eq("organization_id", organizationId).eq("project_id", projectId).eq("provider", provider).eq("evidence_type", evidenceType).eq("external_id", externalId).is("invalidated_at", null).maybeSingle();
+  const result = await admin.from("pandora_evidence").select("id, external_id, payload_redacted, observed_at").eq("organization_id", organizationId).eq("project_id", projectId).eq("provider", provider).eq("evidence_type", evidenceType).eq("external_id", externalId).is("invalidated_at", null).maybeSingle();
   if (result.error) throw new Error("OPERATIONAL_WRITE_FAILED");
   return result.data || null;
 }
@@ -283,7 +283,7 @@ export async function stageOperationalImport(admin, organizationId, projectId, a
   const preview = await previewExternalImport({ projectId, sourceProvider: input.sourceProvider ?? input.provider, objects: input.objects, mappings: workspace.mappings });
   let previewEvidence = await findEvidenceByExternalId(admin, organizationId, projectId, preview.sourceProvider, IMPORT_EVIDENCE_TYPE, preview.fingerprint);
   if (!previewEvidence) {
-    const inserted = await admin.from("projectos_evidence").insert({
+    const inserted = await admin.from("pandora_evidence").insert({
       organization_id: organizationId,
       project_id: projectId,
       evidence_type: IMPORT_EVIDENCE_TYPE,
@@ -315,7 +315,7 @@ export async function stageOperationalImport(admin, organizationId, projectId, a
     const conflictExternalId = `${preview.fingerprint}.${index}`;
     const existing = await findEvidenceByExternalId(admin, organizationId, projectId, preview.sourceProvider, CONFLICT_EVIDENCE_TYPE, conflictExternalId);
     if (existing) continue;
-    const inserted = await admin.from("projectos_evidence").insert({
+    const inserted = await admin.from("pandora_evidence").insert({
       organization_id: organizationId,
       project_id: projectId,
       evidence_type: CONFLICT_EVIDENCE_TYPE,
@@ -335,11 +335,11 @@ export async function resolveOperationalConflict(admin, organizationId, projectI
   const resolution = text(input.resolution).toLowerCase();
   const rationale = text(input.rationale);
   if (!RESOLUTIONS.has(resolution) || rationale.length < 3 || rationale.length > 2000) throw new Error("INVALID_OPERATIONAL_RESOLUTION");
-  const current = await admin.from("projectos_evidence").select("id, provider, external_id, payload_redacted, invalidated_at").eq("organization_id", organizationId).eq("project_id", projectId).eq("id", conflictId).eq("evidence_type", CONFLICT_EVIDENCE_TYPE).is("invalidated_at", null).maybeSingle();
+  const current = await admin.from("pandora_evidence").select("id, provider, external_id, payload_redacted, invalidated_at").eq("organization_id", organizationId).eq("project_id", projectId).eq("id", conflictId).eq("evidence_type", CONFLICT_EVIDENCE_TYPE).is("invalidated_at", null).maybeSingle();
   if (current.error) throw new Error("OPERATIONAL_WRITE_FAILED");
   if (!current.data) throw new Error("OPERATIONAL_CONFLICT_NOT_FOUND");
   const payload = asRecord(current.data.payload_redacted);
-  const decision = await admin.from("projectos_decisions").insert({
+  const decision = await admin.from("pandora_decisions").insert({
     organization_id: organizationId,
     project_id: projectId,
     decision_type: "operational_conflict_resolution",
@@ -350,15 +350,15 @@ export async function resolveOperationalConflict(admin, organizationId, projectI
     created_by: actorId,
   }).select("id, decision_type, statement, rationale, created_at").single();
   if (decision.error) throw new Error("OPERATIONAL_WRITE_FAILED");
-  const invalidated = await admin.from("projectos_evidence").update({ invalidated_at: new Date().toISOString(), invalidation_reason: `resolved:${resolution}` }).eq("organization_id", organizationId).eq("project_id", projectId).eq("id", conflictId).is("invalidated_at", null);
+  const invalidated = await admin.from("pandora_evidence").update({ invalidated_at: new Date().toISOString(), invalidation_reason: `resolved:${resolution}` }).eq("organization_id", organizationId).eq("project_id", projectId).eq("id", conflictId).is("invalidated_at", null);
   if (invalidated.error) throw new Error("OPERATIONAL_WRITE_FAILED");
   return { conflictId, resolution, decision: decision.data, externalMutationExecuted: false, executionMode: resolution === "ignore" ? "none" : "plan_first" };
 }
 
 export async function operationalAttentionCount(admin, organizationId) {
   const [conflicts, degraded] = await Promise.all([
-    admin.from("projectos_evidence").select("id").eq("organization_id", organizationId).eq("evidence_type", CONFLICT_EVIDENCE_TYPE).eq("status", "blocked").is("invalidated_at", null).limit(500),
-    admin.from("projectos_project_resources").select("id").eq("organization_id", organizationId).in("binding_state", ["degraded", "missing", "quarantined"]).limit(500),
+    admin.from("pandora_evidence").select("id").eq("organization_id", organizationId).eq("evidence_type", CONFLICT_EVIDENCE_TYPE).eq("status", "blocked").is("invalidated_at", null).limit(500),
+    admin.from("pandora_project_resources").select("id").eq("organization_id", organizationId).in("binding_state", ["degraded", "missing", "quarantined"]).limit(500),
   ]);
   if (conflicts.error || degraded.error) throw new Error("BACKEND_READ_FAILED");
   return (conflicts.data || []).length + (degraded.data || []).length;

@@ -58,7 +58,7 @@ async function makeDb() {
       status public.membership_status not null,
       primary key (organization_id,user_id)
     );
-    create table public.projectos_projects (
+    create table public.pandora_projects (
       id uuid primary key default gen_random_uuid(),
       organization_id uuid not null references public.organizations(id),
       project_key text not null,
@@ -111,7 +111,7 @@ test('same create idempotency key replays exactly one project', async () => {
   assert.equal(second.rows[0].result.replayed, true);
 
   const count = await db.query(
-    'select count(*)::integer as count from public.projectos_projects where organization_id=$1',
+    'select count(*)::integer as count from public.pandora_projects where organization_id=$1',
     [org],
   );
   assert.equal(count.rows[0].count, 1);
@@ -150,7 +150,7 @@ test('same create key with different request hash fails closed', async () => {
   );
 
   const count = await db.query(
-    'select count(*)::integer as count from public.projectos_projects where organization_id=$1',
+    'select count(*)::integer as count from public.pandora_projects where organization_id=$1',
     [org],
   );
   assert.equal(count.rows[0].count, 1);

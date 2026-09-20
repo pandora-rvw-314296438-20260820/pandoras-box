@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { normalizeProductSignal, sanitizeProductProperties } = require('../dist/projectos/product-intelligence.js');
+const { normalizeProductSignal, sanitizeProductProperties } = require('../dist/pandora/product-intelligence.js');
 
 const HASH_SALT = 'phase-one-repository-test-hash-salt';
 

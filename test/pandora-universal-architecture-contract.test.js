@@ -66,7 +66,7 @@ test('routes capabilities before provider selection without self-authorization',
 
 test('requires governed execution, ambiguity readback and duplicate-side-effect protection', () => {
   assert.equal(contract.executionFabric.governedDefault, true);
-  assert.equal(contract.executionFabric.projectOSForGovernedProviderWork, true);
+  assert.equal(contract.executionFabric.pandoraForGovernedProviderWork, true);
   assert.equal(contract.executionFabric.deviceAgentForPhoneWork, true);
   assert.equal(contract.executionFabric.edgeRuntimeForLocalWork, true);
   assert.equal(contract.executionFabric.directProviderWritesAreFallbackOnly, true);

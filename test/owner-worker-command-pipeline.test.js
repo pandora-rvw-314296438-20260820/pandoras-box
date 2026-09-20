@@ -38,7 +38,7 @@ async function exactPlan(overrides = {}) {
   return {
     planId: PLAN_ID,
     intakeId: INTAKE_ID,
-    tool: "projectos.worker.verify",
+    tool: "pandora.worker.verify",
     risk: "write",
     args,
     payloadHash: await workerPlanPayloadHash(args),

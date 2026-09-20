@@ -78,9 +78,9 @@ function externallyAuthorizedBearer(request: Request, body: JsonRecord) {
       new TextDecoder().decode(decodeBase64Url(segments[1])),
     ));
     if (
-      claims.role !== "projectos_physical_android_ingest" ||
+      claims.role !== "pandora_physical_android_ingest" ||
       claims.iss !== EXTERNAL_AUTHORITY_ISSUER ||
-      claims.aud !== "projectos_physical_android_ingest" ||
+      claims.aud !== "pandora_physical_android_ingest" ||
       claims.purpose !== "canonical_physical_android_capture" ||
       claims.organization_id !== body.organizationId ||
       claims.observer_id !== body.observerId ||

@@ -1,7 +1,7 @@
 -- pandora-primitive: pandora-audit@1.0.0
 -- target: customer-app-runtime-only
 DO $$ BEGIN
-  IF to_regclass('public.project_specs') IS NOT NULL OR to_regclass('public.projectos_execution_plans') IS NOT NULL OR to_regclass('public.pandora_projects') IS NOT NULL THEN
+  IF to_regclass('public.project_specs') IS NOT NULL OR to_regclass('public.pandora_execution_plans') IS NOT NULL OR to_regclass('public.pandora_projects') IS NOT NULL THEN
     RAISE EXCEPTION 'pandora-audit customer primitive refused on Pandora Control Plane-like schema';
   END IF;
 END $$;

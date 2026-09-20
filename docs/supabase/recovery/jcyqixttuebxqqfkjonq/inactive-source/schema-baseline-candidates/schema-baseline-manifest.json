@@ -117,16 +117,16 @@
     "later_payload_verification": "unattached_remote_metadata_not_reproduced_by_this_candidate",
     "exact_later_events": [
       {
-        "version": "20260731092908_projectos_operating_kernel",
-        "provider_payload_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/recorded-payloads/20260731092908_projectos_operating_kernel.sql.b64",
+        "version": "20260731092908_pandora_operating_kernel",
+        "provider_payload_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/recorded-payloads/20260731092908_pandora_operating_kernel.sql.b64",
         "provider_payload_blob": "65053618527aaf3fe21140cfd4bb9cb14e4f48d6",
         "decoded_sha256": "c3baca57e1813f3b3989ef8723e4581a7731d596d38a071d7ad5d39d815ea8f7",
         "decoded_bytes": 22820,
         "relevant_statement": "grant select on all tables in schema public to authenticated;"
       },
       {
-        "version": "20260731102654_projectos_revoke_legacy_server_reads",
-        "provider_payload_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/recorded-payloads/20260731102654_projectos_revoke_legacy_server_reads.sql.b64",
+        "version": "20260731102654_pandora_revoke_legacy_server_reads",
+        "provider_payload_path": "docs/supabase/recovery/jcyqixttuebxqqfkjonq/recorded-payloads/20260731102654_pandora_revoke_legacy_server_reads.sql.b64",
         "provider_payload_blob": "dce3f40480070f3e3e826c937b858fa2565cc690",
         "decoded_sha256": "72bdbc6f8e2b66b0c83edba455e1766ae72f618b7d3a956261ef546206af9415",
         "decoded_bytes": 844,
@@ -195,7 +195,7 @@
       "claimed_result": "passed",
       "later_migration_count": 48,
       "later_evidence_head": "f73c477d6eb2e287c59c895bc1c5017ab4b17980",
-      "aal1_candidate_identity": "20260812034825_remove_projectos_approval_aal2",
+      "aal1_candidate_identity": "20260812034825_remove_pandora_approval_aal2",
       "aal1_candidate_sha256": "8e9acf74b5ee5ea552697989768afc5aac938b92947e3495c2deecde30dadd31",
       "supabase_services_stubbed": ["auth", "http", "vault", "pg_net", "pg_cron"],
       "production_network_used": false,

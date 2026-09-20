@@ -56,7 +56,7 @@ test('machine policy blacklists the entire mbanatao owner namespace', () => {
   assert.equal(repositorySourceStatus('not a repository'), 'invalid');
 });
 
-test('new ProjectOS intake rejects mbanatao repositories before network traffic', () => {
+test('new Pandora intake rejects mbanatao repositories before network traffic', () => {
   assert.throws(
     () => buildExecutionIntakeRequest({
       requestId: '00000000-0000-4000-8000-000000000001',

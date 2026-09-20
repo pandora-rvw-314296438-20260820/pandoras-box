@@ -80,7 +80,7 @@ test("claim and completion authority are exact, short-lived, one-shot, and unava
       new RegExp(`revoke all on function public\\.${legacy}\\([\\s\\S]*?service_role`),
     );
   }
-  assert.match(migration, /to projectos_worker_ingest/g);
+  assert.match(migration, /to pandora_worker_ingest/g);
   assert.doesNotMatch(migration, /grant execute[\s\S]{0,200}to service_role/);
 });
 
@@ -148,13 +148,13 @@ test("worker rollback disables capability without deleting or restoring insecure
   ]) {
     assert.match(rollback, new RegExp(`revoke all on function public\\.${mutation}\\(`));
   }
-  assert.match(rollback, /revoke projectos_worker_ingest from authenticator/);
+  assert.match(rollback, /revoke pandora_worker_ingest from authenticator/);
   assert.match(rollback, /set status = 'draining'/);
   assert.match(
     rollback,
     /preserves the authority JTI[\s\S]*signed claim\/completion[\s\S]*reviewer\/physical/i,
   );
-  assert.doesNotMatch(rollback, /\bgrant\s+(?:execute|usage|projectos_worker_ingest)\b/i);
+  assert.doesNotMatch(rollback, /\bgrant\s+(?:execute|usage|pandora_worker_ingest)\b/i);
   assert.doesNotMatch(rollback, /\bdrop\s+(?:table|column|trigger|function|role)\b/i);
   assert.doesNotMatch(rollback, /\b(?:delete\s+from|truncate)\b/i);
 });

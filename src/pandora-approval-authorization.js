@@ -13,7 +13,7 @@ function canApprovePandoraPlan(actor) {
 
 function pandoraApproverAttribution(actor) {
     if (!canApprovePandoraPlan(actor) || !actor.identity?.userId) {
-        throw new Error("Plan approval requires a ProjectOS owner or admin session");
+        throw new Error("Plan approval requires a Pandora owner or admin session");
     }
     return `supabase:${actor.identity.userId}`;
 }

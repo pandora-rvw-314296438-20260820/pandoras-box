@@ -29,7 +29,7 @@ const expectedExtensionStatements = new Map([
   ['20260728150403_enable_http_for_supabase_account_discovery.sql', [
     'create extension if not exists http with schema extensions;',
   ]],
-  ['20260807083337_projectos_memory_lifecycle_enforcement.sql', [
+  ['20260807083337_pandora_memory_lifecycle_enforcement.sql', [
     'create extension if not exists pg_net;',
     'create extension if not exists pg_cron;',
   ]],
@@ -376,9 +376,9 @@ async function governedWorkerSmoke(db) {
     workerAuthorityCounter += 1;
     const issuedAt = Math.floor(Date.now() / 1000);
     const authorityClaims = {
-      role: 'projectos_worker_ingest',
+      role: 'pandora_worker_ingest',
       iss: 'pandora-independent-worker-authority',
-      aud: 'projectos_worker_ingest',
+      aud: 'pandora_worker_ingest',
       purpose,
       sub: requestId,
       organization_id: organizationId,
@@ -501,17 +501,17 @@ async function governedWorkerSmoke(db) {
         'EXECUTE'
       ) as service_authorized_claim,
       has_function_privilege(
-        'projectos_worker_ingest',
+        'pandora_worker_ingest',
         'public.claim_governed_worker_dispatch_authorized(uuid,text,text,uuid,text,text,text)',
         'EXECUTE'
       ) as worker_authorized_claim,
       has_function_privilege(
-        'projectos_worker_ingest',
+        'pandora_worker_ingest',
         'public.record_governed_worker_job_envelope_authorized(uuid,uuid,uuid,text,text,text,jsonb,text)',
         'EXECUTE'
       ) as worker_authorized_job,
       has_function_privilege(
-        'projectos_worker_ingest',
+        'pandora_worker_ingest',
         'public.finish_governed_worker_dispatch_authorized(uuid,uuid,uuid,text,text,text,integer,text,text,jsonb,uuid,text,text,text)',
         'EXECUTE'
       ) as worker_authorized_finish
@@ -531,7 +531,7 @@ async function governedWorkerSmoke(db) {
   }], 'candidate service role retained a governed worker mutation');
 
   const registrationIntake = await scalar(
-    `select public.projectos_accept_intake($1, $2, $3, $4, $5, $6, $7, $8, $9) as result`,
+    `select public.pandora_accept_intake($1, $2, $3, $4, $5, $6, $7, $8, $9) as result`,
     [
       organizationId,
       requesterId,
@@ -555,7 +555,7 @@ async function governedWorkerSmoke(db) {
     allowedJobClasses: ['node_regression'],
   };
   const registrationHash = await scalar(
-    `select private.projectos_worker_identity_plan_payload_hash($1::jsonb) as hash`,
+    `select private.pandora_worker_identity_plan_payload_hash($1::jsonb) as hash`,
     [JSON.stringify(registrationArgs)],
   );
   const registrationPlan = await scalar(
@@ -564,7 +564,7 @@ async function governedWorkerSmoke(db) {
       organizationId,
       registrationIntakeId,
       registrationIntakeId,
-      'projectos.worker.identity.register',
+      'pandora.worker.identity.register',
       'write',
       JSON.stringify(registrationArgs),
       registrationHash,
@@ -573,7 +573,7 @@ async function governedWorkerSmoke(db) {
   const registrationContext = await attachContext(
     registrationPlan.planId,
     registrationIntakeId,
-    'projectos.worker.identity.register',
+    'pandora.worker.identity.register',
   );
   await scalar(
     `select public.approve_execution_plan($1, $2, 'replay-owner') as result`,
@@ -653,7 +653,7 @@ async function governedWorkerSmoke(db) {
       organizationId,
       approvedWithoutContextRequestId,
       registrationIntakeId,
-      'projectos.context.closed.approved',
+      'pandora.context.closed.approved',
       sha256('approved-without-context'),
     ],
   );
@@ -661,7 +661,7 @@ async function governedWorkerSmoke(db) {
     attachContext(
       approvedWithoutContext.planId,
       approvedWithoutContextRequestId,
-      'projectos.context.closed.approved',
+      'pandora.context.closed.approved',
     ),
     (error) => error?.code === '55000',
     'first context attachment after approval was not rejected',
@@ -674,7 +674,7 @@ async function governedWorkerSmoke(db) {
       organizationId,
       expiredPendingRequestId,
       registrationIntakeId,
-      'projectos.context.closed.expired',
+      'pandora.context.closed.expired',
       sha256('expired-pending-without-context'),
     ],
   );
@@ -686,7 +686,7 @@ async function governedWorkerSmoke(db) {
     attachContext(
       expiredPending.planId,
       expiredPendingRequestId,
-      'projectos.context.closed.expired',
+      'pandora.context.closed.expired',
     ),
     (error) => error?.code === '55000',
     'first context attachment on an expired pending plan was not rejected',
@@ -723,7 +723,7 @@ async function governedWorkerSmoke(db) {
   );
 
   const runtimeProofIds = await db.query(`
-    insert into public.projectos_agent_runtime_proofs (
+    insert into public.pandora_agent_runtime_proofs (
       organization_id, project_id, agent_key, vendor, role,
       repository_scopes, proven_capabilities, phone_only_compatible,
       credential_state, quota_state, health_state, active_leases,
@@ -732,13 +732,13 @@ async function governedWorkerSmoke(db) {
     ) values
       (
         $1, $2, $3, 'openai', 'builder', array[$4]::text[],
-        array['projectos.worker.verify:node_regression']::text[], true,
+        array['pandora.worker.verify:node_regression']::text[], true,
         'ready', 'available', 'healthy', 0, 1, 'subscription-included',
         'replay', '[]'::jsonb, now(), now(), now() + interval '30 minutes', true
       ),
       (
         $1, $2, $5, 'google', 'reviewer', array[$4]::text[],
-        array['projectos.worker.verify.review:node_regression']::text[], true,
+        array['pandora.worker.verify.review:node_regression']::text[], true,
         'ready', 'available', 'healthy', 0, 1, 'subscription-included',
         'replay', '[]'::jsonb, now(), now(), now() + interval '30 minutes', true
       )
@@ -759,12 +759,12 @@ async function governedWorkerSmoke(db) {
         'EXECUTE'
       ) as service_can_attest,
       has_function_privilege(
-        'projectos_reviewer_ingest',
+        'pandora_reviewer_ingest',
         'public.record_governed_worker_review_attestation(uuid,uuid,text,text,uuid,uuid,uuid,text,text,text,text,text,text,text,text,text)',
         'EXECUTE'
       ) as reviewer_can_attest,
       pg_has_role(
-        'authenticator', 'projectos_reviewer_ingest', 'MEMBER'
+        'authenticator', 'pandora_reviewer_ingest', 'MEMBER'
       ) as authenticator_can_assume_reviewer
   `);
   assert.deepEqual(reviewerRpcAccess.rows, [{
@@ -788,7 +788,7 @@ async function governedWorkerSmoke(db) {
   assert.equal(reviewerIdentity.idempotentReplay, false);
 
   const accepted = await scalar(
-    `select public.projectos_accept_governed_worker_intake($1, $2, $3, $4, $5, $6) as result`,
+    `select public.pandora_accept_governed_worker_intake($1, $2, $3, $4, $5, $6) as result`,
     [
       organizationId,
       requesterId,
@@ -800,7 +800,7 @@ async function governedWorkerSmoke(db) {
   );
   assert.equal(accepted.idempotentReplay, false);
   const acceptedReplay = await scalar(
-    `select public.projectos_accept_governed_worker_intake($1, $2, $3, $4, $5, $6) as result`,
+    `select public.pandora_accept_governed_worker_intake($1, $2, $3, $4, $5, $6) as result`,
     [
       organizationId,
       requesterId,
@@ -813,7 +813,7 @@ async function governedWorkerSmoke(db) {
   assert.equal(acceptedReplay.idempotentReplay, true);
   await assert.rejects(
     scalar(
-      `select public.projectos_accept_governed_worker_intake($1, $2, $3, $4, $5, $6) as result`,
+      `select public.pandora_accept_governed_worker_intake($1, $2, $3, $4, $5, $6) as result`,
       [
         organizationId,
         requesterId,
@@ -835,14 +835,14 @@ async function governedWorkerSmoke(db) {
     repository,
     schemaVersion: 1,
   };
-  const planPayload = `{"tool":"projectos.worker.verify","args":{"exactSha":"${exactSha}","jobClass":"node_regression","maxRuntimeSeconds":60,"productionMutationAllowed":false,"repository":"${repository}","schemaVersion":1}}`;
+  const planPayload = `{"tool":"pandora.worker.verify","args":{"exactSha":"${exactSha}","jobClass":"node_regression","maxRuntimeSeconds":60,"productionMutationAllowed":false,"repository":"${repository}","schemaVersion":1}}`;
   const planHash = sha256(planPayload);
   const plan = await scalar(
-    `select public.projectos_create_or_get_worker_plan($1, $2, $3::jsonb, $4, now() + interval '20 minutes') as result`,
+    `select public.pandora_create_or_get_worker_plan($1, $2, $3::jsonb, $4, now() + interval '20 minutes') as result`,
     [organizationId, intakeId, JSON.stringify(planArgs), planHash],
   );
   assert.equal(plan.status, 'pending_approval');
-  await attachContext(plan.planId, intakeId, 'projectos.worker.verify');
+  await attachContext(plan.planId, intakeId, 'pandora.worker.verify');
   const ownerPlanSessionId = '4c652e30-6229-4f99-b9e7-97e7538e4d75';
   await db.query(`
     insert into auth.sessions (id, user_id, aal, not_after)
@@ -968,7 +968,7 @@ async function governedWorkerSmoke(db) {
   assert.equal(claimed.exactSha, exactSha);
   assert.equal(claimed.jobClass, 'node_regression');
   const activeLease = await scalar(
-    `select active_leases as count from public.projectos_agent_runtime_proofs where id = $1`,
+    `select active_leases as count from public.pandora_agent_runtime_proofs where id = $1`,
     [builderProofId],
   );
   await db.query(`select set_config('request.jwt.claims', $1, false)`, [
@@ -977,13 +977,13 @@ async function governedWorkerSmoke(db) {
   assert.equal(activeLease, 1);
   const runtimeRefreshObservedAt = new Date();
   const refreshedRuntimeProof = await scalar(
-    `select public.projectos_upsert_agent_runtime_proof($1, 'pandoras-box', $2::jsonb) as result`,
+    `select public.pandora_upsert_agent_runtime_proof($1, 'pandoras-box', $2::jsonb) as result`,
     [organizationId, JSON.stringify({
       agent_key: workerId,
       vendor: 'openai',
       role: 'builder',
       repository_scopes: [repository],
-      proven_capabilities: ['projectos.worker.verify:node_regression'],
+      proven_capabilities: ['pandora.worker.verify:node_regression'],
       phone_only_compatible: true,
       credential_state: 'ready',
       quota_state: 'available',
@@ -1003,7 +1003,7 @@ async function governedWorkerSmoke(db) {
   assert.equal(refreshedRuntimeProof.activeLeases, 1);
   assert.equal(
     await scalar(
-      `select active_leases from public.projectos_agent_runtime_proofs where id = $1`,
+      `select active_leases from public.pandora_agent_runtime_proofs where id = $1`,
       [builderProofId],
     ),
     1,
@@ -1035,7 +1035,7 @@ async function governedWorkerSmoke(db) {
     productionMutationAllowed: false,
   };
   const jobDigest = await scalar(
-    `select private.projectos_worker_job_digest($1::jsonb) as digest`,
+    `select private.pandora_worker_job_digest($1::jsonb) as digest`,
     [JSON.stringify(jobPayload)],
   );
   const envelope = await scalar(
@@ -1081,7 +1081,7 @@ async function governedWorkerSmoke(db) {
     stderrSha256: '0'.repeat(64),
   };
   const workerEvidenceHash = await scalar(
-    `select private.projectos_worker_evidence_hash($1::jsonb) as hash`,
+    `select private.pandora_worker_evidence_hash($1::jsonb) as hash`,
     [JSON.stringify(resultSummary)],
   );
   const completionRequestId = '7f752610-9668-4111-8cc7-f65a0865f4b0';
@@ -1189,7 +1189,7 @@ async function governedWorkerSmoke(db) {
   );
 
   const unsignedVerificationEvidenceId = await scalar(`
-    insert into public.projectos_evidence (
+    insert into public.pandora_evidence (
       organization_id, project_id, evidence_type, provider, external_id,
       repository, head_sha, status, verdict, payload_redacted, observed_at
     ) values (
@@ -1296,9 +1296,9 @@ async function governedWorkerSmoke(db) {
     const jti = reuseJti || `worker-review-authority-${++workerAuthoritySequence}-20260823`;
     await db.query(`select set_config('request.jwt.claims', $1, false)`, [
       JSON.stringify({
-        role: 'projectos_reviewer_ingest',
+        role: 'pandora_reviewer_ingest',
         iss: 'pandora-independent-review-authority',
-        pandora_audience: 'projectos-reviewer-ingest',
+        pandora_audience: 'pandora-reviewer-ingest',
         pandora_purpose: 'worker_review',
         pandora_organization_id: args[0],
         pandora_reviewer_id: args[2],
@@ -1369,10 +1369,10 @@ async function governedWorkerSmoke(db) {
       evidence.observed_at >= dispatch.worker_reported_at - interval '2 minutes' as time_matches,
       evidence.payload_redacted ->> 'dispatchId' = dispatch.id::text as dispatch_matches,
       evidence.payload_redacted ->> 'workerEvidenceSha256' = dispatch.evidence_sha256 as worker_evidence_matches
-    from public.projectos_evidence evidence
+    from public.pandora_evidence evidence
     join private.execution_dispatch_outbox dispatch on dispatch.id = $2
     join private.execution_plans plan on plan.id = dispatch.plan_id
-    join public.projectos_intake_requests intake on intake.id = plan.intake_id
+    join public.pandora_intake_requests intake on intake.id = plan.intake_id
     where evidence.id = $1
   `, [verificationEvidenceId, claimed.dispatchId]);
   assert.deepEqual(reviewBinding.rows, [{
@@ -1456,7 +1456,7 @@ async function governedWorkerSmoke(db) {
   );
   assert.equal(
     await scalar(
-      `select active_leases from public.projectos_agent_runtime_proofs where id = $1`,
+      `select active_leases from public.pandora_agent_runtime_proofs where id = $1`,
       [builderProofId],
     ),
     0,
@@ -1535,7 +1535,7 @@ async function canonicalReleaseAttestationSmoke(db) {
            identity.key_fingerprint,
            proof.project_id
     from private.compute_reviewer_identities identity
-    join public.projectos_agent_runtime_proofs proof
+    join public.pandora_agent_runtime_proofs proof
       on proof.id = identity.runtime_proof_id
     where identity.organization_id = $1
       and identity.status = 'active'
@@ -1544,10 +1544,10 @@ async function canonicalReleaseAttestationSmoke(db) {
   `, [organizationId])).rows[0];
   assert.ok(reviewer, 'release reviewer fixture unavailable');
   await db.query(`
-    update public.projectos_agent_runtime_proofs
+    update public.pandora_agent_runtime_proofs
     set proven_capabilities = (
           select array_agg(distinct capability order by capability)
-          from unnest(proven_capabilities || array['projectos.release.review']) capability
+          from unnest(proven_capabilities || array['pandora.release.review']) capability
         ),
         verified_at = now(),
         context_updated_at = now(),
@@ -1566,7 +1566,7 @@ async function canonicalReleaseAttestationSmoke(db) {
   `, [organizationId]);
 
   await db.query(`
-    insert into public.projectos_evidence (
+    insert into public.pandora_evidence (
       organization_id, project_id, evidence_type, provider, external_id,
       source_url, repository, head_sha, status, verdict, payload_redacted,
       observed_at
@@ -1669,7 +1669,7 @@ async function canonicalReleaseAttestationSmoke(db) {
     ['mobile_data', 'canonical_physical_android_mobile_data', 4],
   ]) {
     await db.query(`
-      insert into public.projectos_evidence (
+      insert into public.pandora_evidence (
         organization_id, project_id, evidence_type, provider, external_id,
         repository, head_sha, status, verdict, payload_redacted, observed_at
       ) values (
@@ -1711,7 +1711,7 @@ async function canonicalReleaseAttestationSmoke(db) {
     from private.execution_plans plan
     join private.execution_dispatch_outbox dispatch on dispatch.plan_id = plan.id
     where plan.organization_id = $1
-      and plan.tool = 'projectos.worker.verify'
+      and plan.tool = 'pandora.worker.verify'
       and plan.status = 'completed'
       and plan.args ->> 'repository' = $2
       and plan.args ->> 'exactSha' = $3
@@ -1811,9 +1811,9 @@ async function canonicalReleaseAttestationSmoke(db) {
       `physical-android-authority-${++physicalAuthoritySequence}-20260823`;
     await db.query(`select set_config('request.jwt.claims', $1, false)`, [
       JSON.stringify({
-        role: 'projectos_physical_android_ingest',
+        role: 'pandora_physical_android_ingest',
         iss: 'pandora-physical-android-authority-v1',
-        aud: 'projectos_physical_android_ingest',
+        aud: 'pandora_physical_android_ingest',
         purpose: 'canonical_physical_android_capture',
         sub: observerId,
         jti,
@@ -1949,9 +1949,9 @@ async function canonicalReleaseAttestationSmoke(db) {
     const jti = `release-review-authority-${++releaseAuthoritySequence}-20260823`;
     await db.query(`select set_config('request.jwt.claims', $1, false)`, [
       JSON.stringify({
-        role: 'projectos_reviewer_ingest',
+        role: 'pandora_reviewer_ingest',
         iss: 'pandora-independent-review-authority',
-        pandora_audience: 'projectos-reviewer-ingest',
+        pandora_audience: 'pandora-reviewer-ingest',
         pandora_purpose: 'release_review',
         pandora_organization_id: organizationId,
         pandora_reviewer_id: reviewer.reviewer_id,
@@ -2078,7 +2078,7 @@ async function canonicalReleaseAttestationSmoke(db) {
         'EXECUTE'
       ) as service_can_review,
       has_function_privilege(
-        'projectos_reviewer_ingest',
+        'pandora_reviewer_ingest',
         'public.capture_canonical_release_review_receipt(uuid,uuid,text,text,text,text,text,text,text,uuid,text,text,text,text,text,text,text,timestamptz)',
         'EXECUTE'
       ) as reviewer_can_review,
@@ -2157,11 +2157,11 @@ async function canonicalReleaseAttestationSmoke(db) {
 
 async function rollbackSmoke(db) {
   const rollback = await readFile(
-    join(recoveryRoot, 'rollback', '20260812034825_restore_projectos_approval_aal2.sql'),
+    join(recoveryRoot, 'rollback', '20260812034825_restore_pandora_approval_aal2.sql'),
     'utf8',
   );
   const aal1 = await readFile(
-    join(migrationRoot, '20260813014555_remove_projectos_approval_aal2.sql'),
+    join(migrationRoot, '20260813014555_remove_pandora_approval_aal2.sql'),
     'utf8',
   );
   const definition = async () => (await db.query(`
@@ -2287,12 +2287,12 @@ async function physicalAndroidRollbackSmoke(db) {
         'EXECUTE'
       ) as service_can_resolve_observer,
       has_function_privilege(
-        'projectos_physical_android_ingest',
+        'pandora_physical_android_ingest',
         'public.capture_canonical_physical_android_receipt(uuid,uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text[],uuid,uuid,text,uuid,uuid,text,text,text,text)',
         'EXECUTE'
       ) as ingest_can_capture,
       has_function_privilege(
-        'projectos_physical_android_ingest',
+        'pandora_physical_android_ingest',
         'public.consume_physical_android_authority_rate_limit(uuid)',
         'EXECUTE'
       ) as ingest_can_consume_rate_limit,
@@ -2318,7 +2318,7 @@ async function physicalAndroidRollbackSmoke(db) {
       ) as service_can_read_release_status,
       pg_has_role(
         'authenticator',
-        'projectos_physical_android_ingest',
+        'pandora_physical_android_ingest',
         'MEMBER'
       ) as authenticator_can_assume_ingest
   `)).rows[0];
@@ -2459,7 +2459,7 @@ async function canonicalReleaseRollbackSmoke(db) {
   await db.exec(`
     grant execute on function public.capture_canonical_release_review_receipt(
       uuid,uuid,text,text,text,text,text,text,text,uuid,text,text,text,text,text,text,text,timestamptz
-    ) to projectos_reviewer_ingest;
+    ) to pandora_reviewer_ingest;
     grant execute on function public.capture_canonical_release_owner_authorization(
       uuid,text,uuid,text,text,uuid,text,text,text,timestamptz
     ) to authenticated;
@@ -2475,7 +2475,7 @@ async function canonicalReleaseRollbackSmoke(db) {
   const finalAttestationAccess = (await db.query(`
     select
       has_function_privilege(
-        'projectos_reviewer_ingest',
+        'pandora_reviewer_ingest',
         'public.capture_canonical_release_review_receipt(uuid,uuid,text,text,text,text,text,text,text,uuid,text,text,text,text,text,text,text,timestamptz)',
         'EXECUTE'
       ) as reviewer_can_capture,
@@ -2574,7 +2574,7 @@ async function canonicalReleaseRollbackSmoke(db) {
         'EXECUTE'
       ) as service_can_capture_vercel,
       has_function_privilege(
-        'projectos_reviewer_ingest',
+        'pandora_reviewer_ingest',
         'public.capture_canonical_release_review_receipt(uuid,uuid,text,text,text,text,text,text,text,uuid,text,text,text,text,text,text,text,timestamptz)',
         'EXECUTE'
       ) as reviewer_can_capture,
@@ -2678,23 +2678,23 @@ async function workerAuthorityRollbackSmoke(db) {
         'EXECUTE'
       ) as service_can_finish_legacy,
       has_function_privilege(
-        'projectos_worker_ingest',
+        'pandora_worker_ingest',
         'public.claim_governed_worker_dispatch_authorized(uuid,text,text,uuid,text,text,text)',
         'EXECUTE'
       ) as ingest_can_claim_authorized,
       has_function_privilege(
-        'projectos_worker_ingest',
+        'pandora_worker_ingest',
         'public.record_governed_worker_job_envelope_authorized(uuid,uuid,uuid,text,text,text,jsonb,text)',
         'EXECUTE'
       ) as ingest_can_record_job_authorized,
       has_function_privilege(
-        'projectos_worker_ingest',
+        'pandora_worker_ingest',
         'public.finish_governed_worker_dispatch_authorized(uuid,uuid,uuid,text,text,text,integer,text,text,jsonb,uuid,text,text,text)',
         'EXECUTE'
       ) as ingest_can_finish_authorized,
       pg_has_role(
         'authenticator',
-        'projectos_worker_ingest',
+        'pandora_worker_ingest',
         'MEMBER'
       ) as authenticator_can_assume_ingest
   `)).rows[0];
@@ -2964,7 +2964,7 @@ async function catalogAssertions(db, migrationFiles) {
     join pg_class relation on relation.oid = trigger.tgrelid
     join pg_namespace namespace on namespace.oid = relation.relnamespace
     where namespace.nspname = 'public'
-      and relation.relname = 'projectos_projects'
+      and relation.relname = 'pandora_projects'
       and trigger.tgname = 'enforce_repository_source_authority'
       and not trigger.tgisinternal
   `);
@@ -2980,7 +2980,7 @@ async function catalogAssertions(db, migrationFiles) {
 
   const fxpassIntake = await db.query(`
     select pg_get_functiondef(
-      'public.projectos_accept_fxpass_product_intake(uuid,jsonb)'::regprocedure
+      'public.pandora_accept_fxpass_product_intake(uuid,jsonb)'::regprocedure
     ) as definition
   `);
   assert.match(fxpassIntake.rows[0].definition, /banataosystems\/fxpass/i, 'FXPass intake lacks canonical repository');
@@ -2989,14 +2989,14 @@ async function catalogAssertions(db, migrationFiles) {
   let mixedCaseSourceDenied = false;
   try {
     await db.exec(`
-      insert into public.projectos_projects (
+      insert into public.pandora_projects (
         organization_id, project_key, name, repository, workspace_path
       ) values (
         '2270b266-59da-4c39-bfd9-9f8d08352af0',
         'blocked-source-replay',
         'Blocked source replay',
         'MBANATAO/blocked-source-replay',
-        'projectos/projects/blocked-source-replay'
+        'pandora/projects/blocked-source-replay'
       )
     `);
   } catch (error) {
@@ -3012,8 +3012,8 @@ async function catalogAssertions(db, migrationFiles) {
   assert.deepEqual(
     secrets.rows,
     [
-      { secret_name: 'projectos_fxpass_intake_hmac', value_length: 64 },
-      { secret_name: 'projectos_memory_learning_hmac', value_length: 64 },
+      { secret_name: 'pandora_fxpass_intake_hmac', value_length: 64 },
+      { secret_name: 'pandora_memory_learning_hmac', value_length: 64 },
     ],
     'database-generated integration secrets are missing',
   );
@@ -3094,7 +3094,7 @@ async function main() {
   })));
   const fixtures = new Map([
     ['20260724030000_meta_remote_mcp_persistence.sql', await readFile(join(fixtureRoot, 'after-foundations.sql'), 'utf8')],
-    ['20260731122011_projectos_product_intelligence_schema.sql', await readFile(join(fixtureRoot, 'after-20260731122011.sql'), 'utf8')],
+    ['20260731122011_pandora_product_intelligence_schema.sql', await readFile(join(fixtureRoot, 'after-20260731122011.sql'), 'utf8')],
     ['20260825085155_pandora_canonical_control_plane_foundation_v1.sql', await readFile(join(fixtureRoot, 'after-20260825085155.sql'), 'utf8')],
   ]);
 

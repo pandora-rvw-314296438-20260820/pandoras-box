@@ -40,7 +40,7 @@ module.exports = async function handler(request, response) {
   const token = await resolveVercelWorkloadToken();
   if (!token) return response.status(503).json({ ok: false, error: 'workload_identity_unavailable' });
 
-  const search = (namespace, project) => call(token, '/api/projectos/memory/search', {
+  const search = (namespace, project) => call(token, '/api/pandora/memory/search', {
     namespace,
     project_key: project.key,
     project_id: project.id,
@@ -89,7 +89,7 @@ module.exports = async function handler(request, response) {
     idempotency_key: IDEMPOTENCY,
   };
 
-  const evidencePath = '/api/projectos/memory/evidence-candidates';
+  const evidencePath = '/api/pandora/memory/evidence-candidates';
   const first = await call(token, evidencePath, candidate);
   const duplicate = await call(token, evidencePath, candidate);
   const conflict = await call(token, evidencePath, {

@@ -55,7 +55,7 @@ test('database migration action binding follows the canonical Tool Gateway envel
     "'target_resource',v_target",
     "'project_version',p_project_version_id::text",
     "'policy_version','pandora-tool-policy/1.1.0'",
-    'private.projectos_canonical_context_json(v_envelope)',
+    'private.pandora_canonical_context_json(v_envelope)',
   ]) has(value);
 });
 
@@ -94,7 +94,7 @@ test('canonical argument digest is bound to the exact request_migration argument
     "'destructive',false",
     "'request_id',p_idempotency_key",
     "'idempotency_key',p_idempotency_key",
-    'private.projectos_canonical_context_json(v_args)',
+    'private.pandora_canonical_context_json(v_args)',
     "'argumentsSha256',v_args_sha",
   ]) has(value);
 });

@@ -43,9 +43,9 @@ begin
         'memoryContextRecorded', case when context.plan_id is null then null else true end
       )) as plan_row
       from private.execution_plans plan
-      left join public.projectos_intake_requests intake
+      left join public.pandora_intake_requests intake
         on intake.id = plan.intake_id and intake.organization_id = plan.organization_id
-      left join public.projectos_projects project
+      left join public.pandora_projects project
         on project.id = intake.project_id and project.organization_id = plan.organization_id
       left join private.execution_plan_contexts context on context.plan_id = plan.id
       where plan.organization_id = p_organization_id

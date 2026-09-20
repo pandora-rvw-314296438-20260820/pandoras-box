@@ -31,7 +31,7 @@ async function withServer(app, action) {
 
 function appFor({
   role = 'owner',
-  scopes = ['openid', 'projectos:read'],
+  scopes = ['openid', 'pandora:read'],
   focusPreviewExecutor = async () => ({
     ok: true,
     kind: 'pandora.web-focus-preview.v1',
@@ -73,7 +73,7 @@ function appFor({
   return app;
 }
 
-test('owner focus preview uses projectos read scope and exact project/version route', async () => {
+test('owner focus preview uses pandora read scope and exact project/version route', async () => {
   let observed;
   await withServer(appFor({
     focusPreviewExecutor: async (input) => {
@@ -106,15 +106,15 @@ test('operator role cannot materialize focus preview', async () => {
   });
 });
 
-test('focus preview rejects a session without projectos read scope', async () => {
-  await withServer(appFor({ scopes: ['openid', 'projectos:execute'] }), async (origin) => {
+test('focus preview rejects a session without pandora read scope', async () => {
+  await withServer(appFor({ scopes: ['openid', 'pandora:execute'] }), async (origin) => {
     const response = await fetch(`${origin}/projects/${PROJECT_ID}/focus-preview`, {
       method: 'POST',
       headers: { authorization: `Bearer ${ACCESS_TOKEN}`, 'content-type': 'application/json' },
       body: JSON.stringify({ versionId: VERSION_ID }),
     });
     assert.equal(response.status, 403);
-    assert.match(response.headers.get('www-authenticate') || '', /projectos:read/);
+    assert.match(response.headers.get('www-authenticate') || '', /pandora:read/);
   });
 });
 

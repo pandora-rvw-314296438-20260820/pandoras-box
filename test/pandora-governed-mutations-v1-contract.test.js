@@ -7,9 +7,9 @@ const root = join(__dirname, '..');
 const migration = readFileSync(join(root, 'supabase', 'migrations', '20260911143500_pandora_governed_mutations_v1.sql'), 'utf8');
 const mobile = readFileSync(join(root, 'apps', 'pandora-mobile', 'lib', 'core', 'data', 'pandora_intelligence_api.dart'), 'utf8');
 
-test('mutations enter one governed ProjectOS intake boundary', () => {
+test('mutations enter one governed Pandora intake boundary', () => {
   assert.match(migration, /pandora_governed_mutation_request_v1/);
-  assert.match(migration, /projectos_accept_intake/);
+  assert.match(migration, /pandora_accept_intake/);
   assert.match(migration, /idempotencyKey/);
   assert.match(migration, /one_time_execution_claim/);
   assert.match(migration, /provider_readback/);

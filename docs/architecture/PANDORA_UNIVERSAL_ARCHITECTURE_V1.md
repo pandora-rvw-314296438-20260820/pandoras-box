@@ -34,7 +34,7 @@ Selection may consider capability fit, quality, latency, reliability, cost, priv
 
 ## 4. Execution fabric
 
-Governed execution is the default for provider-side effects. ProjectOS is the governed path for provider work, the Device Agent mediates phone capabilities, and the edge runtime owns eligible local work.
+Governed execution is the default for provider-side effects. Pandora is the governed path for provider work, the Device Agent mediates phone capabilities, and the edge runtime owns eligible local work.
 
 Direct provider writes are fallback-only. An ambiguous write outcome must be reconciled by provider readback before any retry. Consequential side effects require idempotency or an equivalent duplicate-side-effect guard.
 

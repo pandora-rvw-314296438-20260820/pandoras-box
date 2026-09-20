@@ -13,7 +13,7 @@ test('normal conversation is the default and owner/repo mentions do not authoriz
   assert.match(migration,/repository mention by itself is conversation, not authorization to act/);
   assert.match(migration,/Route only when the owner explicitly asks for an action/);
   assert.doesNotMatch(migration,/or v_repository in \(/);
-  assert.doesNotMatch(migration,/or exists \([\s\S]*projectos_projects/);
+  assert.doesNotMatch(migration,/or exists \([\s\S]*pandora_projects/);
 });
 
 test('explicit owner/repo actions route before model fallback without creating a project prerequisite', () => {
@@ -25,12 +25,12 @@ test('explicit owner/repo actions route before model fallback without creating a
   assert.match(migration,/check/);
   assert.match(migration,/pandora_chat_universal_dispatch_v5/);
   assert.match(migration,/jsonb_set\(v_result,'\{projectRequired\}','false'::jsonb,true\)/);
-  assert.doesNotMatch(migration,/projectos_register_project|project\.create/);
+  assert.doesNotMatch(migration,/pandora_register_project|project\.create/);
 });
 
-test('mobile uses v6 and hides the internal ProjectOS inbox from user project context', () => {
+test('mobile uses v6 and hides the internal Pandora inbox from user project context', () => {
   assert.match(api,/pandora_chat_universal_dispatch_v9/);
-  assert.match(api,/neq\('project_key', 'projectos-inbox'\)/);
+  assert.match(api,/neq\('project_key', 'pandora-inbox'\)/);
 });
 
 test('mobile handoffs stay in Universal Chat, never create a Project implicitly, and never submit the admission twice', () => {

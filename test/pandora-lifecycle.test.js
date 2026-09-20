@@ -12,7 +12,7 @@ const {
   normalizePandoraEnvironment,
   pandoraLifecycleTelemetryEnabled,
   pandoraProductionTelemetryApproved,
-} = require('../dist/projectos/pandora-lifecycle.js');
+} = require('../dist/pandora/pandora-lifecycle.js');
 
 const KEY = 'phase-one-test-only-pseudonymization-key-00000000';
 

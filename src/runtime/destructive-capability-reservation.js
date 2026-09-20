@@ -38,7 +38,7 @@ function destructiveCapabilityReservationDeliveryId(tool, args) {
     }
 
     const canonical = JSON.stringify({
-        reservationDomain: "projectos-supabase-child-branch-delete-v1",
+        reservationDomain: "pandora-supabase-child-branch-delete-v1",
         parentProjectRef: capability.parentProjectRef,
         branchId: capability.branchId,
         childProjectRef: capability.childProjectRef,
@@ -76,7 +76,7 @@ function createDestructiveCapabilityReservationIntent(claimedPlan) {
 
     const deliveryId = destructiveCapabilityReservationDeliveryId(claimedPlan.tool, claimedPlan.args);
     const payloadBinding = {
-        schemaVersion: "projectos-destructive-capability-reservation-v1",
+        schemaVersion: "pandora-destructive-capability-reservation-v1",
         action: capability.action,
         capabilitySchemaVersion: capability.schemaVersion,
         signingKeyId: capability.signingKeyId,
@@ -98,8 +98,8 @@ function createDestructiveCapabilityReservationIntent(claimedPlan) {
         sourcePayloadHash: claimedPlan.payloadHash,
     };
     const payloadRedacted = {
-        schemaVersion: "projectos-destructive-capability-reservation-redacted-v1",
-        reservationDomain: "projectos-supabase-child-branch-delete-v1",
+        schemaVersion: "pandora-destructive-capability-reservation-redacted-v1",
+        reservationDomain: "pandora-supabase-child-branch-delete-v1",
         targetDigest: deliveryId,
         sourcePlanId: claimedPlan.planId,
         sourceRequestId: claimedPlan.requestId,
@@ -107,8 +107,8 @@ function createDestructiveCapabilityReservationIntent(claimedPlan) {
     };
 
     return {
-        schemaVersion: "projectos-destructive-capability-reservation-intent-v1",
-        provider: "projectos_capability_reservation",
+        schemaVersion: "pandora-destructive-capability-reservation-intent-v1",
+        provider: "pandora_capability_reservation",
         deliveryId,
         eventType: "supabase_child_branch_delete_reserved",
         payloadHash: createHash("sha256")

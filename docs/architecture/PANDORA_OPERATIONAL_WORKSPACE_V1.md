@@ -19,7 +19,7 @@ The workspace gives one project a single operational view across:
 
 Pandora Verification remains the release authority. The Operational Workspace never creates verification PASS state.
 
-Existing ProjectOS governance remains the mutation authority. Import preview and conflict resolution do not directly mutate GitHub, Vercel, Supabase, or another external provider.
+Existing Pandora governance remains the mutation authority. Import preview and conflict resolution do not directly mutate GitHub, Vercel, Supabase, or another external provider.
 
 The staged import pipeline is:
 
@@ -31,9 +31,9 @@ Only the first seven stages are represented by Operational Workspace evidence. P
 
 No competing operational schema is introduced.
 
-- Canonical mappings remain in `projectos_project_resources`.
-- Import previews and conflicts are stored as redacted `projectos_evidence`.
-- Owner conflict resolutions are stored as `projectos_decisions`.
+- Canonical mappings remain in `pandora_project_resources`.
+- Import previews and conflicts are stored as redacted `pandora_evidence`.
+- Owner conflict resolutions are stored as `pandora_decisions`.
 - Resolved conflict evidence is invalidated, not deleted.
 
 This preserves the existing audit/provenance model.
@@ -73,7 +73,7 @@ Stored staged-import conflicts can be resolved only by an owner/admin session at
 - remap
 - ignore
 
-The decision is recorded first. Any choice requiring an external or protected control-plane mutation remains plan-first and must be executed through ProjectOS.
+The decision is recorded first. Any choice requiring an external or protected control-plane mutation remains plan-first and must be executed through Pandora.
 
 ## PLP relationship
 

@@ -143,7 +143,7 @@ function protectedResourceMetadata() {
     const origin = resourceOrigin();
     return {
         resource: `${origin}/mcp`,
-        resource_name: "Banatao Systems ProjectOS",
+        resource_name: "Banatao Systems Pandora",
         authorization_servers: [AUTHORIZATION_SERVER],
         scopes_supported: [...MCP_OAUTH_SCOPES],
         bearer_methods_supported: ["header"],
@@ -203,12 +203,12 @@ function publicTools() {
     const controls = [
         {
             name: "pandora_tool_catalog",
-            description: "List ProjectOS provider tools and their enforced risk, scope, allowlist, and approval policy.",
+            description: "List Pandora provider tools and their enforced risk, scope, allowlist, and approval policy.",
             inputSchema: { type: "object", additionalProperties: false },
         },
         {
             name: "pandora_list_plans",
-            description: "List durable ProjectOS plans and current one-time execution states.",
+            description: "List durable Pandora plans and current one-time execution states.",
             inputSchema: {
                 type: "object",
                 properties: { limit: { type: "integer", minimum: 1, maximum: 500 } },
@@ -217,7 +217,7 @@ function publicTools() {
         },
         {
             name: "pandora_list_audit",
-            description: "List recent hash-linked ProjectOS execution audit events.",
+            description: "List recent hash-linked Pandora execution audit events.",
             inputSchema: {
                 type: "object",
                 properties: { limit: { type: "integer", minimum: 1, maximum: 500 } },
@@ -226,12 +226,12 @@ function publicTools() {
         },
         {
             name: "pandora_verify_audit",
-            description: "Verify the ProjectOS execution audit hash chain.",
+            description: "Verify the Pandora execution audit hash chain.",
             inputSchema: { type: "object", additionalProperties: false },
         },
         {
             name: "pandora_create_plan",
-            description: "Create an exact durable ProjectOS plan. This does not approve or execute it.",
+            description: "Create an exact durable Pandora plan. This does not approve or execute it.",
             inputSchema: {
                 type: "object",
                 required: ["tool", "args"],
@@ -244,7 +244,7 @@ function publicTools() {
         },
         {
             name: "pandora_approve_plan",
-            description: "Approve one exact pending durable plan as an authenticated ProjectOS owner or admin. Approval does not execute it.",
+            description: "Approve one exact pending durable plan as an authenticated Pandora owner or admin. Approval does not execute it.",
             inputSchema: {
                 type: "object",
                 required: ["planId"],
@@ -268,13 +268,13 @@ function publicTools() {
         if (classifyToolRisk(name) === "read") {
             return [{
                 name,
-                description: `${definition.description} [ProjectOS risk: read]`,
+                description: `${definition.description} [Pandora risk: read]`,
                 inputSchema: definition.inputSchema,
             }];
         }
         return [{
             name: legacyPlanToolName(name),
-            description: `Create a durable ProjectOS plan for ${name}. This does not execute the operation until an authorized approval and execution call occur.`,
+            description: `Create a durable Pandora plan for ${name}. This does not execute the operation until an authorized approval and execution call occur.`,
             inputSchema: definition.inputSchema,
         }];
     });
@@ -350,17 +350,17 @@ async function actorFor(request, dependencies) {
         identity.accessToken,
     );
     if (!membership || !ACTIVE_ROLES.has(membership.role)) {
-        throw Object.assign(new Error("An active ProjectOS organization membership is required"), { status: 403 });
+        throw Object.assign(new Error("An active Pandora organization membership is required"), { status: 403 });
     }
     if (membership.organizationId !== dependencies.organizationId || membership.userId !== identity.userId) {
-        throw Object.assign(new Error("ProjectOS membership does not match the authenticated user and organization"), { status: 403 });
+        throw Object.assign(new Error("Pandora membership does not match the authenticated user and organization"), { status: 403 });
     }
     return { identity, membership };
 }
 
 async function workloadToken(dependencies) {
     const token = (await dependencies.workloadToken())?.trim();
-    if (!token) throw Object.assign(new Error("The server-side ProjectOS workload identity is unavailable"), { status: 503 });
+    if (!token) throw Object.assign(new Error("The server-side Pandora workload identity is unavailable"), { status: 503 });
     return token;
 }
 
@@ -393,10 +393,10 @@ function assertToolScope(name, actor) {
     }
     const projectScopes = [...granted].filter((scope) => scope.startsWith("pandora:"));
     if (projectScopes.length === 0) {
-        // Existing ChatGPT installations were consented before ProjectOS action
+        // Existing ChatGPT installations were consented before Pandora action
         // scopes existed. Keep only that exact identity grant compatible until
         // staged connector re-consent is complete; any broader or malformed
-        // non-ProjectOS grant remains fail closed.
+        // non-Pandora grant remains fail closed.
         const isBoundedLegacyGrant = IDENTITY_SCOPES.every((scope) => granted.has(scope))
             && [...granted].every((scope) => LEGACY_IDENTITY_SCOPES.has(scope));
         if (isBoundedLegacyGrant) return;
@@ -461,8 +461,8 @@ function safeMcpErrorMessage(error, status) {
         if (message && Buffer.byteLength(message, "utf8") <= 1000) return message;
     }
     return status >= 500
-        ? "ProjectOS provider execution failed; consult the governed audit record."
-        : "ProjectOS request failed.";
+        ? "Pandora provider execution failed; consult the governed audit record."
+        : "Pandora request failed.";
 }
 
 async function callTool(name, args, actor, dependencies) {
@@ -473,7 +473,7 @@ async function callTool(name, args, actor, dependencies) {
     }
     if (toolRegistry[name]) {
         if (classifyToolRisk(name) !== "read") {
-            throw Object.assign(new Error("A durable ProjectOS plan is required before any provider mutation"), {
+            throw Object.assign(new Error("A durable Pandora plan is required before any provider mutation"), {
                 status: 409,
             });
         }
@@ -518,7 +518,7 @@ async function callTool(name, args, actor, dependencies) {
         }
         case "pandora_approve_plan": {
             if (!canApprovePandoraPlan(actor)) {
-                throw Object.assign(new Error("Plan approval requires a ProjectOS owner or admin session"), { status: 403 });
+                throw Object.assign(new Error("Plan approval requires a Pandora owner or admin session"), { status: 403 });
             }
             const planId = requiredUuid(args.planId, "planId");
             const plan = assertPlanIdentity(await dependencies.ledger.approvePlan(
@@ -530,7 +530,7 @@ async function callTool(name, args, actor, dependencies) {
         }
         case "pandora_execute_plan": {
             if (!EXECUTOR_ROLES.has(actor.membership.role)) {
-                throw Object.assign(new Error("Plan execution requires a ProjectOS owner or admin session"), { status: 403 });
+                throw Object.assign(new Error("Plan execution requires a Pandora owner or admin session"), { status: 403 });
             }
             const planId = requiredUuid(args.planId, "planId");
             const token = await workloadToken(dependencies);
@@ -583,7 +583,7 @@ async function callTool(name, args, actor, dependencies) {
             }
         }
         default:
-            throw Object.assign(new Error(`Unknown ProjectOS MCP tool: ${name}`), { status: 400 });
+            throw Object.assign(new Error(`Unknown Pandora MCP tool: ${name}`), { status: 400 });
     }
 }
 
@@ -631,7 +631,7 @@ function createPandoraMcpHandler(overrides = {}) {
                 rpcResult(response, id, {
                     protocolVersion: "2025-06-18",
                     capabilities: { tools: { listChanged: false } },
-                    serverInfo: { name: "MCPMaster ProjectOS", version: "1.3.0-recovered" },
+                    serverInfo: { name: "MCPMaster Pandora", version: "1.3.0-recovered" },
                 });
                 return;
             }

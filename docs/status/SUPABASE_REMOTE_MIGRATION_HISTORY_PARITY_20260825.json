@@ -627,7 +627,7 @@
             "originalStatementCount": 1
         },
         {
-            "name": "pandora_projectos_fk_indexes_and_policy_efficiency_v1",
+            "name": "pandora_pandora_fk_indexes_and_policy_efficiency_v1",
             "version": "20260825094454",
             "replayMode": "history_receipt_noop",
             "originalSqlSha256": "17634dfb7d9d79805f1535dadd4c4e76811721f5f540e7bc7da1d1788d3b98c3",

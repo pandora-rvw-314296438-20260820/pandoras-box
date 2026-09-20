@@ -28,7 +28,7 @@ test('legacy selected pandoras-box context resolves the verified canonical repos
   assert.match(migration, /explicit_project_canonical_fallback/);
   assert.match(migration, /pandora-rvw-314296438-20260820\/pandoras-box/);
   assert.match(migration, /provider_verified/);
-  assert.doesNotMatch(migration, /update\s+public\.projectos_projects/i);
+  assert.doesNotMatch(migration, /update\s+public\.pandora_projects/i);
 });
 
 test('model fallback cannot turn a handoff into execution theatre', () => {

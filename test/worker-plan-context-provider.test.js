@@ -6,7 +6,7 @@ const {
   WorkerPlanContextProvider,
   exactWorkerArgs,
   payloadHash,
-} = require("../src/projectos/worker-plan-context-provider.js");
+} = require("../src/pandora/worker-plan-context-provider.js");
 
 const PLAN_ID = "8ec3acda-4fb7-48b2-81f4-6885c005f561";
 const args = {
@@ -24,10 +24,10 @@ function plan(overrides = {}) {
     requestId: "a4c6e81c-89d0-4a63-9b8f-18e41bd2619a",
     intakeId: "a4c6e81c-89d0-4a63-9b8f-18e41bd2619a",
     projectKey: "mcpmaster",
-    tool: "projectos.worker.verify",
+    tool: "pandora.worker.verify",
     risk: "write",
     args,
-    payloadHash: payloadHash("projectos.worker.verify", args),
+    payloadHash: payloadHash("pandora.worker.verify", args),
     status: "pending_approval",
     ...overrides,
   };

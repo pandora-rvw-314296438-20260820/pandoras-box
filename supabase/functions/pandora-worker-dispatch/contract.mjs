@@ -167,7 +167,7 @@ async function workerAuthorityRequestHash(purpose, request, workerKeyFingerprint
 function resultEvidenceBasis(value) {
   validateResultSummary(value);
   return [
-    "projectos-worker-evidence-v1",
+    "pandora-worker-evidence-v1",
     String(value.schemaVersion),
     value.organizationId,
     value.dispatchId,
@@ -300,7 +300,7 @@ function validateJobPayload(value) {
 function jobDigestBasis(value) {
   validateJobPayload(value);
   return [
-    "projectos-worker-job-v1",
+    "pandora-worker-job-v1",
     String(value.schemaVersion),
     value.audience,
     value.organizationId,

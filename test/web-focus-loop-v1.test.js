@@ -50,7 +50,7 @@ test('Tell Pandora now enters the durable change to build path without browser c
   assert.match(change, /pandora-project-spec-compiler/);
   assert.match(change, /pandora-project-source-generator/);
   assert.match(change, /source_intent_id/);
-  assert.match(operator, /projectos:execute/);
+  assert.match(operator, /pandora:execute/);
   assert.match(operator, /EXECUTOR_ROLE_REQUIRED/);
   assert.doesNotMatch(app, /Github_supabase|service[_-]?role|SUPABASE_SERVICE_ROLE/i);
   assert.doesNotMatch(change, /Github_supabase|SUPABASE_SERVICE_ROLE|github_pat_/i);

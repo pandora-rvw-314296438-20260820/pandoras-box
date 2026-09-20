@@ -31,7 +31,7 @@ test('provider semantics require fresh usable runtime authority', () => {
   assert.match(migration, /health,canUseNow/);
   assert.match(migration, /vault_credential_plus_fresh_provider_health/);
   assert.match(migration, /management_credential_plus_fresh_provider_health/);
-  assert.match(migration, /fresh_projectos_provider_health/);
+  assert.match(migration, /fresh_pandora_provider_health/);
   assert.match(migration, /query_credential_plus_fresh_provider_health/);
   assert.match(migration, /ingest tokens never count as query authority/);
   assert.match(migration, /verified_google_workspace_authorization/);

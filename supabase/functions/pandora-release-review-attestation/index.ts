@@ -113,9 +113,9 @@ function validateReviewerIngestJwt(
       new TextDecoder().decode(decodeBase64Url(segments[1])),
     ));
     if (
-      claims.role !== "projectos_reviewer_ingest" ||
+      claims.role !== "pandora_reviewer_ingest" ||
       claims.iss !== "pandora-independent-review-authority" ||
-      claims.pandora_audience !== "projectos-reviewer-ingest" ||
+      claims.pandora_audience !== "pandora-reviewer-ingest" ||
       claims.pandora_purpose !== expected.purpose ||
       claims.pandora_organization_id !== expected.organizationId ||
       claims.pandora_reviewer_id !== expected.reviewerId ||

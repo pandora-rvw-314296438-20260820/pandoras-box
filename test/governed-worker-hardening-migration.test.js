@@ -27,22 +27,22 @@ function sqlFunctionBody(name, parameterCountMarker) {
 }
 
 test("runtime-proof active leases are derived from durable unexpired dispatch rows", () => {
-  assert.match(migration, /private\.projectos_worker_active_lease_count/);
+  assert.match(migration, /private\.pandora_worker_active_lease_count/);
   assert.match(
     migration,
     /dispatch\.status in \('claimed', 'envelope_ready'\)[\s\S]*dispatch\.lease_expires_at > now\(\)/,
   );
   assert.match(
     migration,
-    /before insert or update on public\.projectos_agent_runtime_proofs[\s\S]*guard_projectos_runtime_proof_active_leases/,
+    /before insert or update on public\.pandora_agent_runtime_proofs[\s\S]*guard_pandora_runtime_proof_active_leases/,
   );
   assert.match(
     migration,
-    /after insert or update or delete on private\.execution_dispatch_outbox[\s\S]*sync_projectos_worker_active_leases/,
+    /after insert or update or delete on private\.execution_dispatch_outbox[\s\S]*sync_pandora_worker_active_leases/,
   );
   assert.match(
     migration,
-    /new\.active_leases := private\.projectos_worker_active_lease_count\(new\.id\)/,
+    /new\.active_leases := private\.pandora_worker_active_lease_count\(new\.id\)/,
   );
   assert.match(
     migration,
@@ -50,7 +50,7 @@ test("runtime-proof active leases are derived from durable unexpired dispatch ro
   );
   assert.match(
     migration,
-    /alter function public\.projectos_upsert_agent_runtime_proof\(uuid, text, jsonb\)[\s\S]*set schema private/,
+    /alter function public\.pandora_upsert_agent_runtime_proof\(uuid, text, jsonb\)[\s\S]*set schema private/,
   );
   assert.match(
     migration,

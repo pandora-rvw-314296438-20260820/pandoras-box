@@ -254,7 +254,7 @@ async function ensureVercelProject(context: UserContext, project: JsonRecord) {
         runtimeUpdatedAt: new Date().toISOString(),
       },
     };
-    const { error: refreshError } = await serviceClient().from("projectos_projects")
+    const { error: refreshError } = await serviceClient().from("pandora_projects")
       .update({ config: nextConfig, updated_at: new Date().toISOString() })
       .eq("organization_id", context.organizationId).eq("id", textValue(project.id));
     if (refreshError) throw new Error("BACKEND_WRITE_FAILED");
@@ -290,7 +290,7 @@ async function ensureVercelProject(context: UserContext, project: JsonRecord) {
       runtimeUpdatedAt: new Date().toISOString(),
     },
   };
-  const { error: updateError } = await serviceClient().from("projectos_projects")
+  const { error: updateError } = await serviceClient().from("pandora_projects")
     .update({ config: nextConfig, updated_at: new Date().toISOString() })
     .eq("organization_id", context.organizationId).eq("id", projectId);
   if (updateError) throw new Error("BACKEND_WRITE_FAILED");
@@ -301,7 +301,7 @@ async function projectByIdentifier(context: UserContext, identifier: string) {
   const value = identifier.trim();
   if (!value) throw new Error("PROJECT_NOT_FOUND");
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-  let query = context.client.from("projectos_projects")
+  let query = context.client.from("pandora_projects")
     .select("id, project_key, name, objective, status, config, created_at, updated_at")
     .eq("organization_id", context.organizationId);
   query = isUuid ? query.eq("id", value) : query.eq("project_key", value);
@@ -675,7 +675,7 @@ async function attachProjectDomain(context: UserContext, identifier: string, bod
     await admin.from("pandora_runtime_operations").update({ status: "succeeded", ambiguous: false, result_facts: { hostname, deploymentId, providerDeploymentId, ...facts }, finished_at: now, last_reconciled_at: now, updated_at: now }).eq("id", operationId);
     const config = asRecord(project.config); const journey = asRecord(config.customerJourney);
     const nextConfig = { ...config, customerJourney: { ...journey, requestedDomain: hostname, domainStatus: domainRow.status, runtimeUpdatedAt: now } };
-    await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
+    await admin.from("pandora_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
     return { domain: domainRow, facts };
   } catch (error) {
     if (error instanceof Error && error.message === "DOMAIN_RECONCILIATION_REQUIRED") throw error;
@@ -831,7 +831,7 @@ async function rollbackProject(context: UserContext, identifier: string, body: J
     await admin.from("pandora_project_versions").update({ lifecycle_status: "production_candidate", promoted_at: now, rollback_eligible: true }).eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", targetVersionId);
     await admin.from("pandora_project_versions").update({ rollback_eligible: true }).eq("organization_id", context.organizationId).eq("project_id", projectId).eq("id", expectedProductionVersionId);
     const config = asRecord(project.config); const journey = asRecord(config.customerJourney); const nextConfig = { ...config, customerJourney: { ...journey, stage: "publishing", runtimeStatus: "verifying", productionCandidateUrl: rollbackRow.url, publishedVersionId: targetVersionId, productionVerificationState: "ready_for_verification", runtimeUpdatedAt: now } };
-    await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
+    await admin.from("pandora_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
     await admin.from("pandora_runtime_operations").update({ status: "succeeded", ambiguous: false, result_facts: { targetVersionId, providerDeploymentId, sourceKind: targetSource.sourceKind, sourceRef: targetSource.sourceRef, authorizationRef, verificationState: "ready_for_verification" }, finished_at: now, last_reconciled_at: now, updated_at: now }).eq("id", operationId);
     return { project: projectResponse({ ...project, config: nextConfig }), production: rollbackRow, authorizationRef, verificationState: "ready_for_verification" };
   } catch (error) {
@@ -1176,7 +1176,7 @@ async function createPreview(context: UserContext, identifier: string, body: Jso
   const config = asRecord(project.config);
   const journey = asRecord(config.customerJourney);
   const nextConfig = { ...config, customerJourney: { ...journey, stage: ready ? "preview_ready" : terminalFailure ? "needs_attention" : "building", runtimeStatus: ready ? "verifying" : terminalFailure ? "failed" : "working", previewUrl, previewVersionId: versionId, previewDeploymentId: providerDeploymentId, previewVerificationState: verificationState, runtimeUpdatedAt: now } };
-  const { error: projectError } = await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
+  const { error: projectError } = await admin.from("pandora_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
   if (projectError) throw new Error("BACKEND_WRITE_FAILED");
   await admin.from("pandora_runtime_operations").update({ status: terminalFailure ? "failed" : "succeeded", ambiguous: false, provider_resource_id: providerDeploymentId, result_facts: { projectVersionId: versionId, providerDeploymentId, artifactDigest: bundle.artifactDigest, sourceCommit: bundle.sourceCommit, verificationState }, finished_at: now, last_reconciled_at: now, updated_at: now }).eq("id", operationId);
   return { project: projectResponse({ ...project, config: nextConfig }), version: bundle.version, deployment: deploymentRow, previewUrl, verificationState };
@@ -1504,7 +1504,7 @@ async function publishProject(context: UserContext, identifier: string, body: Js
     const productionCandidateUrl = domain && domainVerified ? `https://${domain}` : deploymentUrl;
     const previousLiveUrl = textValue(journey.liveUrl) || null;
     const nextConfig = { ...config, customerJourney: { ...journey, stage: "publishing", runtimeStatus: "verifying", liveUrl: previousLiveUrl, productionCandidateUrl, productionDeploymentId: providerDeploymentId, publishedVersionId: requestedVersion, requestedDomain: domain, domainStatus, productionVerificationState: "ready_for_verification", runtimeUpdatedAt: new Date().toISOString() } };
-    const { error: projectError } = await admin.from("projectos_projects").update({ config: nextConfig, updated_at: new Date().toISOString() }).eq("organization_id", context.organizationId).eq("id", projectId);
+    const { error: projectError } = await admin.from("pandora_projects").update({ config: nextConfig, updated_at: new Date().toISOString() }).eq("organization_id", context.organizationId).eq("id", projectId);
     if (projectError) throw new Error("BACKEND_WRITE_FAILED");
     await admin.from("pandora_runtime_operations").update({ status: "succeeded", ambiguous: false, provider_resource_id: providerDeploymentId, result_facts: { projectVersionId: requestedVersion, providerDeploymentId, previewDeploymentId, previewVerificationRunId: textValue(verification.id), sourceKind, sourceRef, verificationState: "ready_for_verification" }, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", operationId);
     return { project: projectResponse({ ...project, config: nextConfig }), production: productionRow, domain: domainRow, liveUrl: previousLiveUrl, productionCandidateUrl, domainVerified, verificationState: "ready_for_verification" };
@@ -1619,7 +1619,7 @@ async function finalizeProductionVerification(context: UserContext, identifier: 
     }
   }
   const nextConfig = { ...config, customerJourney: { ...journey, vercelDefaultDomain: defaultDomain || null, vercelDefaultDomainStatus: defaultDomainStatus || null, stage: "live", runtimeStatus: "ready", liveUrl, productionCandidateUrl: null, productionVerificationState: "live_verified", productionVerificationRunId: verificationRunId, runtimeUpdatedAt: now } };
-  const { error: projectError } = await admin.from("projectos_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
+  const { error: projectError } = await admin.from("pandora_projects").update({ config: nextConfig, updated_at: now }).eq("organization_id", context.organizationId).eq("id", projectId);
   if (projectError) throw new Error("BACKEND_WRITE_FAILED");
   return { project: projectResponse({ ...project, config: nextConfig }), production: { ...deploymentData, verification_state: "live_verified" }, liveUrl, verificationRunId };
 }

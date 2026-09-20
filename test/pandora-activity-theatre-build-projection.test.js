@@ -97,8 +97,8 @@ test('Needs You remains universal and cannot be invented by Build Theatre', () =
     state: 'needs_you',
     message: 'Approval is required before production publish.',
     provenance: {
-      sourceType: 'projectos',
-      sourceId: 'projectos-1',
+      sourceType: 'pandora',
+      sourceId: 'pandora-1',
       sourceEventId: 'authority-decision-1',
       observedAt: '2026-09-14T01:00:00.500+08:00',
     },

@@ -10,7 +10,7 @@ const {
   canonicalReceiptPayloadSha256,
   findEvidencePrivacyLeaks,
   validateBusinessValidationEvidence,
-} = require('../src/projectos/business-validation-evidence.js');
+} = require('../src/pandora/business-validation-evidence.js');
 
 const ROOT = path.join(__dirname, '..');
 const KIT = path.join(ROOT, 'docs', 'business-validation');

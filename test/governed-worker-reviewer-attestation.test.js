@@ -115,20 +115,20 @@ test("reviewer request has a closed schema and one signature basis for every exa
 });
 
 test("database authority keeps enrollment and attestation outside the owner service role", () => {
-  assert.match(migration, /create role projectos_reviewer_ingest nologin noinherit/);
-  assert.match(migration, /grant projectos_reviewer_ingest to authenticator/);
-  assert.match(migration, /grant usage on schema public to projectos_reviewer_ingest/);
+  assert.match(migration, /create role pandora_reviewer_ingest nologin noinherit/);
+  assert.match(migration, /grant pandora_reviewer_ingest to authenticator/);
+  assert.match(migration, /grant usage on schema public to pandora_reviewer_ingest/);
   assert.match(
     migration,
     /register_compute_reviewer_identity[\s\S]*database administrator required for reviewer enrollment/,
   );
   assert.match(
     migration,
-    /revoke all on function public\.register_compute_reviewer_identity\([\s\S]*service_role, projectos_reviewer_ingest/,
+    /revoke all on function public\.register_compute_reviewer_identity\([\s\S]*service_role, pandora_reviewer_ingest/,
   );
   assert.match(
     migration,
-    /revoke all on function public\.record_governed_worker_review_attestation\([\s\S]*service_role;[\s\S]*grant execute on function public\.record_governed_worker_review_attestation\([\s\S]*to projectos_reviewer_ingest/,
+    /revoke all on function public\.record_governed_worker_review_attestation\([\s\S]*service_role;[\s\S]*grant execute on function public\.record_governed_worker_review_attestation\([\s\S]*to pandora_reviewer_ingest/,
   );
   assert.match(migration, /create table private\.reviewer_ingest_token_nonces/);
   assert.match(migration, /assert_reviewer_ingest_request/);
@@ -162,7 +162,7 @@ test("attestation is atomically nonce-protected, durable, exact, and required to
   );
   assert.match(
     migration,
-    /insert into private\.compute_reviewer_nonces[\s\S]*on conflict do nothing[\s\S]*insert into public\.projectos_evidence[\s\S]*insert into private\.governed_worker_review_attestations/,
+    /insert into private\.compute_reviewer_nonces[\s\S]*on conflict do nothing[\s\S]*insert into public\.pandora_evidence[\s\S]*insert into private\.governed_worker_review_attestations/,
   );
   assert.match(
     migration,
@@ -185,7 +185,7 @@ test("Edge route verifies the enrolled key and uses only the reviewer-ingest rol
   assert.match(edge, /pandora-independent-review-authority/);
   assert.match(edge, /purpose: "worker_review"/);
   assert.doesNotMatch(edge, /PANDORA_REVIEWER_INGEST_JWT|issue_reviewer_gateway_capability/);
-  assert.match(edge, /claims\.role !== "projectos_reviewer_ingest"/);
+  assert.match(edge, /claims\.role !== "pandora_reviewer_ingest"/);
   assert.match(edge, /SUPABASE_ANON_KEY[\s\S]*authorization: `Bearer \$\{validatedToken\}`/);
   assert.match(
     edge,

@@ -10,7 +10,7 @@ update private.compute_worker_identities
 set status = 'draining', updated_at = now()
 where status = 'active';
 
-update public.projectos_agent_runtime_proofs proof
+update public.pandora_agent_runtime_proofs proof
 set active_leases = greatest(
       proof.active_leases - active_dispatch.active_count,
       0
@@ -101,10 +101,10 @@ where status = 'envelope_ready';
 revoke all on function public.register_compute_worker_identity(
   uuid, uuid, text, text, text[], text[]
 ) from service_role;
-revoke all on function public.projectos_accept_governed_worker_intake(
+revoke all on function public.pandora_accept_governed_worker_intake(
   uuid, uuid, text, text, text, text
 ) from service_role;
-revoke all on function public.projectos_create_or_get_worker_plan(
+revoke all on function public.pandora_create_or_get_worker_plan(
   uuid, uuid, jsonb, text, timestamptz
 ) from service_role;
 revoke all on function public.decide_governed_worker_execution_plan(
@@ -125,10 +125,10 @@ drop function if exists public.decide_governed_worker_execution_plan(
 drop function if exists public.register_compute_worker_identity(
   uuid, uuid, text, text, text[], text[]
 );
-drop function if exists public.projectos_create_or_get_worker_plan(
+drop function if exists public.pandora_create_or_get_worker_plan(
   uuid, uuid, jsonb, text, timestamptz
 );
-drop function if exists public.projectos_accept_governed_worker_intake(
+drop function if exists public.pandora_accept_governed_worker_intake(
   uuid, uuid, text, text, text, text
 );
 

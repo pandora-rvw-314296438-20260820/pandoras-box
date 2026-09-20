@@ -31,7 +31,7 @@ No amount of confidence downgrades these:
 1. Name the exact action and its exact target. "Update the database" is unclassifiable; "apply migration X to Supabase project kywmbyekwgtghkhhurof" is classifiable.
 2. Ask: if this is wrong, what does it take to undo? If the answer involves data loss, money, or a third party's knowledge, it is at least SENSITIVE.
 3. Check the always-escalate list.
-4. Check the tool's declared risk in `projectos_tool_catalog`. **The declared risk is a floor, not a ceiling** — `github.write-repository-api` is declared `write`, but using it to force-push over unmerged work is destructive in effect.
+4. Check the tool's declared risk in `pandora_tool_catalog`. **The declared risk is a floor, not a ceiling** — `github.write-repository-api` is declared `write`, but using it to force-push over unmerged work is destructive in effect.
 5. Classify by effect, not by tool name.
 
 ## The unknown-tool rule

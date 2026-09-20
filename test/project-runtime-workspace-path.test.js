@@ -11,10 +11,10 @@ const source = readFileSync(
   'utf8',
 );
 
-test('customer project creation writes the canonical ProjectOS workspace path', () => {
+test('customer project creation writes the canonical Pandora workspace path', () => {
   assert.match(
     source,
-    /'projectos\/projects\/' \|\| v_project_key/,
+    /'pandora\/projects\/' \|\| v_project_key/,
   );
   assert.doesNotMatch(
     source,

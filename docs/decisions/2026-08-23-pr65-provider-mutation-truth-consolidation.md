@@ -65,7 +65,7 @@ The following branch behavior or artifacts were not imported:
 - trusting an arbitrary thrown `.providerOutcome` property;
 - recording reconciliation-required provider success or ambiguity as `completed`;
 - retrying finalization three times before checking durable state;
-- the `http-app-core.js` and `projectos-mcp-handler-core.js` branch split, which would regress current request-accessor protections;
+- the `http-app-core.js` and `pandora-mcp-handler-core.js` branch split, which would regress current request-accessor protections;
 - old-head fixtures, regression harness snapshots, one-shot workflows, branch-specific audit prose, and branch deletions.
 
 ## Verification

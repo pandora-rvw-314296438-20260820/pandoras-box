@@ -15,7 +15,7 @@ test('Ask Pandora fallback stays universal when intelligence is unavailable', ()
   assert.equal(source.includes('initialIntent: objective'), false);
 });
 
-test('ProjectOS handoffs are admission receipts and are never submitted twice', () => {
+test('Pandora handoffs are admission receipts and are never submitted twice', () => {
   assert.equal(source.includes('message: handoff.request'), false);
   assert.equal(source.includes("_keys.create('intelligence-handoff')"), false);
   assert.equal(source.includes('owns exactly one dispatch'), true);
@@ -40,7 +40,7 @@ test('explicit selected-project changes execute through the real builder without
   assert.equal(source.includes('experience.requestBuild('), true);
   assert.equal(source.includes('ProjectWorkspaceV2Screen('), false);
   assert.equal(source.includes('initialChange: handoff!.request'), false);
-  assert.equal(source.includes("handoff?.source == 'projectos_intake'"), false);
+  assert.equal(source.includes("handoff?.source == 'pandora_intake'"), false);
   assert.equal(source.includes('keep this chat open while Pandora works'), true);
 });
 

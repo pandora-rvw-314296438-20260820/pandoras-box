@@ -92,7 +92,7 @@ function createConsentHarness({
             authorization_id: id,
             client: { name: 'Claude' },
             redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
-            scope: 'projectos:read projectos:approve',
+            scope: 'pandora:read pandora:approve',
           },
           error: null,
         };
@@ -243,7 +243,7 @@ test('authenticated AAL1 password session reaches consent without touching an MF
             authorization_id: id,
             client: { name: 'Claude' },
             redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
-            scope: 'projectos:read projectos:approve',
+            scope: 'pandora:read pandora:approve',
           },
           error: null,
         };

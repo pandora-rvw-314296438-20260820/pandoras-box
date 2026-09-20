@@ -14,11 +14,11 @@
       "statement": "create extension if not exists http with schema extensions;"
     },
     {
-      "filename": "20260807083337_projectos_memory_lifecycle_enforcement.sql",
+      "filename": "20260807083337_pandora_memory_lifecycle_enforcement.sql",
       "statement": "create extension if not exists pg_net;"
     },
     {
-      "filename": "20260807083337_projectos_memory_lifecycle_enforcement.sql",
+      "filename": "20260807083337_pandora_memory_lifecycle_enforcement.sql",
       "statement": "create extension if not exists pg_cron;"
     }
   ],

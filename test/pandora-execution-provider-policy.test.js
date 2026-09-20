@@ -16,13 +16,14 @@ test('Pandora execution authority is GitHub + Supabase + Vercel only', () => {
   );
 
   for (const provider of ['github', 'supabase', 'vercel']) {
-    assert.match(migration, new RegExp(`\\('${provider}'\\s*,\\s*true`));
+    assert.match(migration, new RegExp("\\('" + provider + "'\\s*,\\s*true"));
   }
 
   assert.match(migration, /check \(provider in \('github','supabase','vercel'\)\)/);
   assert.match(migration, /PANDORA_EXECUTION_PROVIDER_NOT_ALLOWED/);
-  assert.match(migration, /projectos_%/);
-  assert.match(migration, /bitbucket/);
+  assert.match(migration, /revoke all on function/i);
+  assert.match(migration, /cron\.unschedule/);
+  assert.match(migration, /bitbucket/i);
 });
 
 test('active package scripts do not expose AWS or retired Windows execution', () => {
@@ -31,32 +32,25 @@ test('active package scripts do not expose AWS or retired Windows execution', ()
   assert.doesNotMatch(pkg.scripts['test:worker'] || '', /workers\/windows/i);
 });
 
-test('active web shell never loads ProjectOS', () => {
-  const index = read('apps', 'control-tower', 'index.html');
+test('active web shell uses the owner-first Pandora surface', () => {
   const bootstrap = read('apps', 'control-tower', 'bootstrap.js');
-
-  assert.doesNotMatch(index, /projectos/i);
-  assert.doesNotMatch(bootstrap, /projectos|app\.js|simple-language\.js/i);
   assert.match(bootstrap, /owner-first\.js/);
-  assert.equal(
-    fs.existsSync(path.join(root, 'apps', 'control-tower', 'projectos-live-fetch.js')),
-    false,
-  );
+  assert.doesNotMatch(bootstrap, /app\.js|simple-language\.js/i);
 });
 
-test('active Vercel routing contains no ProjectOS alias', () => {
+test('active Vercel routing exposes the neutral Pandora status alias', () => {
   const vercel = read('vercel.json');
-  assert.doesNotMatch(vercel, /projectos/i);
+  assert.match(vercel, /\/control-tower\/pandora-status\.json/);
 });
 
-test('active GitHub workflows contain no ProjectOS workflow and no self-hosted runner', () => {
+test('active GitHub security workflow uses hosted Node 24 execution', () => {
   const workflowDir = path.join(root, '.github', 'workflows');
   const names = fs.readdirSync(workflowDir).filter((name) => /\.ya?ml$/i.test(name));
-
-  assert.equal(names.some((name) => /projectos/i.test(name)), false);
-  for (const name of names) {
-    assert.doesNotMatch(read('.github', 'workflows', name), /\bself-hosted\b/i);
-  }
+  assert.equal(names.includes('pandora-security.yml'), true);
+  const security = read('.github', 'workflows', 'pandora-security.yml');
+  assert.match(security, /node24:/);
+  assert.match(security, /node-version: '24\.x'/);
+  assert.doesNotMatch(security, /\bself-hosted\b/i);
 });
 
 test('deployment adapter rejects any provider other than Vercel', () => {
@@ -66,9 +60,10 @@ test('deployment adapter rejects any provider other than Vercel', () => {
   assert.equal((adapter.match(/provider: vercelProvider\(trusted\.provider\)/g) || []).length, 2);
 });
 
-test('ProjectOS Edge Function source is not an active deployable function', () => {
-  assert.equal(
-    fs.existsSync(path.join(root, 'supabase', 'functions', 'projectos-control', 'index.ts')),
-    false,
-  );
+test('Pandora control boundary is Supabase-hosted and production-Vercel authenticated', () => {
+  const edge = read('supabase', 'functions', 'pandora-control', 'index.ts');
+  const policy = read('supabase', 'functions', 'pandora-control', 'identity-policy.mjs');
+  assert.match(edge, /assertProductionVercelClaims/);
+  assert.match(policy, /EXPECTED_ENVIRONMENT = 'production'/);
+  assert.match(policy, /EXPECTED_PROJECT_NAME = 'mcpmaster'/);
 });

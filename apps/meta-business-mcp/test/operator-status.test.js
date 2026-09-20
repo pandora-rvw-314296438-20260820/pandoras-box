@@ -52,14 +52,14 @@ function appFor(pack, identity = {}, workerContextProvider = undefined, statusPr
   return app;
 }
 
-test('operator status requires the authenticated ProjectOS read scope', async () => {
+test('operator status requires the authenticated Pandora read scope', async () => {
   await withServer(appFor({}, {
     scopeClaimsPresent: true,
-    scopes: ['openid', 'projectos:plan'],
+    scopes: ['openid', 'pandora:plan'],
   }), async (origin) => {
     const response = await fetch(`${origin}/status`, { headers: { authorization: `Bearer ${ACCESS_TOKEN}` } });
     assert.equal(response.status, 403);
-    assert.match(response.headers.get('www-authenticate'), /projectos:read/);
+    assert.match(response.headers.get('www-authenticate'), /pandora:read/);
   });
 });
 
@@ -95,7 +95,7 @@ test('operator status returns the complete non-authoritative pack with 503 and n
   };
   await withServer(appFor(pack, {
     scopeClaimsPresent: true,
-    scopes: ['openid', 'projectos:read'],
+    scopes: ['openid', 'pandora:read'],
   }), async (origin) => {
     const response = await fetch(`${origin}/status`, { headers: { authorization: `Bearer ${ACCESS_TOKEN}` } });
     assert.equal(response.status, 503);
@@ -117,7 +117,7 @@ test('owner can attach fresh Memory context using only a durable plan id', async
   let observedPlanId;
   await withServer(appFor({}, {
     scopeClaimsPresent: true,
-    scopes: ['openid', 'projectos:plan'],
+    scopes: ['openid', 'pandora:plan'],
   }, {
     async attachExactPlan(value) {
       observedPlanId = value;
@@ -145,7 +145,7 @@ test('worker context route rejects caller-supplied plan fields and wrong scopes'
   const provider = { async attachExactPlan(value) { return { planId: value }; } };
   await withServer(appFor({}, {
     scopeClaimsPresent: true,
-    scopes: ['openid', 'projectos:read'],
+    scopes: ['openid', 'pandora:read'],
   }, provider), async (origin) => {
     const response = await fetch(`${origin}/worker-plans/${planId}/context`, {
       method: 'POST',
@@ -153,7 +153,7 @@ test('worker context route rejects caller-supplied plan fields and wrong scopes'
       body: '{}',
     });
     assert.equal(response.status, 403);
-    assert.match(response.headers.get('www-authenticate'), /projectos:plan/);
+    assert.match(response.headers.get('www-authenticate'), /pandora:plan/);
   });
   await withServer(appFor({}, {}, provider), async (origin) => {
     const response = await fetch(`${origin}/worker-plans/${planId}/context`, {
