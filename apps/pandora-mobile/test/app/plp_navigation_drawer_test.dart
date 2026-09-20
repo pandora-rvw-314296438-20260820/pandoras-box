@@ -55,7 +55,7 @@ void main() {
           'Home',
           'Overview',
           'Operations',
-          'Guests',
+          'Guest Experience',
           'Team & Access',
           'Revenue',
           'Needs You',
