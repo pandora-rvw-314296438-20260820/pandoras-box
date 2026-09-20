@@ -110,7 +110,11 @@ test('legacy status URLs are quarantined before static serving', () => {
   assert.match(container, /HISTORICAL_STATUS_SURFACE_GONE/);
   assert.match(container, /response\.status\(410\)/);
   assert.doesNotMatch(vercel, /\/control-tower\/projectos-status\.json/);
-  assert.match(vercel, /"source": "\/control-tower\/release\.json", "destination": "\/api\/operator\/status"/);
+  const vercelConfig = JSON.parse(vercel);
+  const rewrites = new Map(
+    (vercelConfig.rewrites || []).map(({ source, destination }) => [source, destination]),
+  );
+  assert.equal(rewrites.get('/control-tower/release.json'), '/api/operator/status');
 });
 
 test('the shared container wires the canonical status and worker-context providers', () => {

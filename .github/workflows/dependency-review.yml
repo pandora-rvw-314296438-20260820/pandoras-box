@@ -31,11 +31,12 @@ jobs:
         id: scope
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          INTEGRATION_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/dependency-review-files.txt"
+          git rev-parse "$INTEGRATION_SHA^1" >/dev/null
+          git rev-parse "$INTEGRATION_SHA^2" >/dev/null
+          git diff --name-only "$INTEGRATION_SHA^1" "$INTEGRATION_SHA^2" > "$RUNNER_TEMP/dependency-review-files.txt"
           if grep -Eq '(^|/)(package(-lock)?\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock|pubspec\.ya?ml|pubspec\.lock|requirements[^/]*\.txt|pyproject\.toml|poetry\.lock|Pipfile(\.lock)?|go\.(mod|sum)|Cargo\.(toml|lock)|Gemfile(\.lock)?|composer\.(json|lock))$' "$RUNNER_TEMP/dependency-review-files.txt"; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
