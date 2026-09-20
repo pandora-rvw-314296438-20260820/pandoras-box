@@ -129,6 +129,7 @@ void main() {
         matchesSemantics(
           label: entry.$1,
           isButton: true,
+          hasSelectedState: true,
           isSelected: entry.$2,
         ),
       );
