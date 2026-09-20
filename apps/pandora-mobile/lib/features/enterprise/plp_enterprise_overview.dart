@@ -185,13 +185,26 @@ class _PlpEnterpriseOverviewState extends State<PlpEnterpriseOverview> {
     final displayName = _text(user['displayName'], fallback: 'Owner');
     final firstName = _firstName(displayName);
 
-    final occupancy = _numberOrNull(today['occupancy_percent']);
-    final occupied = _numberOrNull(today['occupied_rooms'])?.round();
-    final totalRooms = _numberOrNull(today['rooms_total'])?.round();
-    final available = _numberOrNull(today['rooms_available'])?.round();
-    final arrivals = _numberOrNull(today['arrivals_today'])?.round();
-    final departures = _numberOrNull(today['departures_today'])?.round();
-    final revenue = _numberOrNull(today['sales_today_php']);
+    final occupancy = _numberOrNull(today['occupancy_percent']) ??
+        _numberOrNull(hospitality['occupancy_percent']);
+    final totalRooms = (_numberOrNull(today['rooms_total']) ??
+            _numberOrNull(hospitality['rooms_total']))
+        ?.round();
+    final available = (_numberOrNull(today['rooms_available']) ??
+            _numberOrNull(hospitality['rooms_available']))
+        ?.round();
+    final occupied = _numberOrNull(today['occupied_rooms'])?.round() ??
+        (totalRooms != null && available != null
+            ? (totalRooms - available).clamp(0, totalRooms)
+            : null);
+    final arrivals = (_numberOrNull(today['arrivals_today']) ??
+            _numberOrNull(hospitality['arrivals_today']))
+        ?.round();
+    final departures = (_numberOrNull(today['departures_today']) ??
+            _numberOrNull(hospitality['departures_today']))
+        ?.round();
+    final revenue = _numberOrNull(today['sales_today_php']) ??
+        _numberOrNull(hospitality['revenue_today']);
     final tasks = _numberOrNull(today['open_staff_tasks'])?.round();
     final conflicts = _numberOrNull(today['open_ota_conflicts'])?.round();
     final unpaid = _numberOrNull(today['unpaid_active_bookings'])?.round();
