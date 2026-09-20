@@ -272,7 +272,8 @@ jobs:
             "$EXPECTED_APP_VERSION"
           flutter build apk --debug \
             --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
-            --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
+            --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION" \
+            --dart-define=PANDORA_ENTERPRISE_WORKSPACE=plp-boracay
 
       - name: Inspect Android identity and permissions
         shell: bash
@@ -314,6 +315,7 @@ jobs:
             echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "android_artifact_name=${ANDROID_ARTIFACT_NAME}"
             echo "app_version=${EXPECTED_APP_VERSION}"
+            echo "enterprise_workspace=plp-boracay"
             echo 'android_package=com.banataosystems.pandora_mobile'
             echo "flutter_version=${FLUTTER_VERSION}"
             echo 'runner_image=ubuntu-24.04'
@@ -530,5 +532,6 @@ jobs:
           xcodebuild -version
           flutter build ios --simulator --debug \
             --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA" \
-            --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
+            --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION" \
+            --dart-define=PANDORA_ENTERPRISE_WORKSPACE=plp-boracay
           test -d build/ios/iphonesimulator/Runner.app
