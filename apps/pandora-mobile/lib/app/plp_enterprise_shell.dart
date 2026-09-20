@@ -316,8 +316,9 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenNavigation: _openDrawer,
               onRefresh: _refresh,
               onAskAlfred: () => _open(1),
-              onOperations: () => _open(2),
-              onVision: () => _open(3),
+              onBookings: () => _open(6),
+              onBusinessPerformance: () => _open(8),
+              onGuestExperience: () => _open(6),
             ),
             AskPandoraScreen(
               key: _alfredKey,
@@ -357,8 +358,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             _PlpBusinessSurface(
               key: const ValueKey('plp-guests'),
               destination: 'guests',
-              title: 'Guests',
-              icon: Icons.people_alt_outlined,
+              title: 'Guest Experience',
+              icon: Icons.room_service_outlined,
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
             ),
@@ -388,6 +389,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             key: const ValueKey('plp-enterprise-shell'),
             child: Scaffold(
               key: _scaffoldKey,
+              extendBody: _index == 0,
               backgroundColor: _canvas,
               drawerEnableOpenDragGesture: true,
               drawerEdgeDragWidth: 28,
@@ -416,15 +418,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 ),
               ),
               bottomNavigationBar: _PlpCommandDock(
-                selectedIndex: _index,
                 controller: _commandController,
                 focusNode: _commandFocus,
                 showPersistentComposer: _index != 1,
-                showNavigation: _index != 5,
                 overviewMode: _index == 5,
+                homeMode: _index == 0,
                 onSubmit: _submitPersistentCommand,
                 onVoice: _startPersistentVoice,
-                onDestinationSelected: _open,
               ),
             ),
           );
@@ -434,34 +434,22 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
 class _PlpCommandDock extends StatelessWidget {
   const _PlpCommandDock({
-    required this.selectedIndex,
     required this.controller,
     required this.focusNode,
     required this.showPersistentComposer,
-    required this.showNavigation,
     required this.overviewMode,
+    required this.homeMode,
     required this.onSubmit,
     required this.onVoice,
-    required this.onDestinationSelected,
   });
 
-  final int selectedIndex;
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool showPersistentComposer;
-  final bool showNavigation;
   final bool overviewMode;
+  final bool homeMode;
   final Future<void> Function() onSubmit;
   final Future<void> Function() onVoice;
-  final ValueChanged<int> onDestinationSelected;
-
-  static const _items = <({IconData icon, String label})>[
-    (icon: Icons.home_rounded, label: 'Home'),
-    (icon: Icons.auto_awesome_rounded, label: 'Alfred'),
-    (icon: Icons.hub_rounded, label: 'Operations'),
-    (icon: Icons.visibility_rounded, label: 'Vision'),
-    (icon: Icons.memory_rounded, label: 'Local AI'),
-  ];
 
   static const _overviewSuggestions = <String>[
     'Show today’s arrivals',
@@ -471,23 +459,38 @@ class _PlpCommandDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background =
-        overviewMode ? const Color(0xFFFFFDF9) : _PlpEnterpriseShellState._panel;
-    final border =
-        overviewMode ? const Color(0xFFE7DED3) : _PlpEnterpriseShellState._line;
-    final text =
-        overviewMode ? const Color(0xFF251E18) : _PlpEnterpriseShellState._text;
-    final muted =
-        overviewMode ? const Color(0xFF81776D) : _PlpEnterpriseShellState._muted;
-    final accent =
-        overviewMode ? const Color(0xFFA46D32) : _PlpEnterpriseShellState._accent;
+    if (!showPersistentComposer) return const SizedBox.shrink();
+
+    final background = homeMode
+        ? Colors.transparent
+        : overviewMode
+            ? const Color(0xFFFFFDF9)
+            : _PlpEnterpriseShellState._panel;
+    final border = homeMode
+        ? const Color(0xA88E5E3B)
+        : overviewMode
+            ? const Color(0xFFE7DED3)
+            : _PlpEnterpriseShellState._line;
+    final text = overviewMode
+        ? const Color(0xFF251E18)
+        : _PlpEnterpriseShellState._text;
+    final muted = overviewMode
+        ? const Color(0xFF81776D)
+        : homeMode
+            ? const Color(0xFFC7C0BA)
+            : _PlpEnterpriseShellState._muted;
+    final accent = overviewMode
+        ? const Color(0xFFA46D32)
+        : homeMode
+            ? const Color(0xFFD69A6B)
+            : _PlpEnterpriseShellState._accent;
 
     return SafeArea(
       top: false,
       child: Container(
         decoration: BoxDecoration(
           color: background,
-          border: Border(top: BorderSide(color: border)),
+          border: homeMode ? null : Border(top: BorderSide(color: border)),
           boxShadow: overviewMode
               ? const [
                   BoxShadow(
@@ -499,184 +502,146 @@ class _PlpCommandDock extends StatelessWidget {
               : null,
         ),
         padding: EdgeInsets.fromLTRB(
-          overviewMode ? 14 : 10,
-          showPersistentComposer ? 10 : 7,
-          overviewMode ? 14 : 10,
-          overviewMode ? 9 : 7,
+          homeMode ? 20 : overviewMode ? 14 : 10,
+          homeMode ? 8 : 10,
+          homeMode ? 20 : overviewMode ? 14 : 10,
+          homeMode ? 10 : overviewMode ? 9 : 7,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (showPersistentComposer) ...[
-              if (overviewMode)
-                AnimatedBuilder(
-                  animation: controller,
-                  builder: (context, _) {
-                    if (controller.text.trim().isNotEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    return SizedBox(
-                      height: 34,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _overviewSuggestions.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final suggestion = _overviewSuggestions[index];
-                          return ActionChip(
-                            label: Text(suggestion),
-                            backgroundColor: const Color(0xFFF6F0E8),
-                            side: const BorderSide(color: Color(0xFFE7DED3)),
-                            labelStyle: const TextStyle(
-                              color: Color(0xFF6D5E51),
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            visualDensity: VisualDensity.compact,
-                            onPressed: () {
-                              controller.text = suggestion;
-                              controller.selection = TextSelection.collapsed(
-                                offset: suggestion.length,
-                              );
-                              onSubmit();
-                            },
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
-              if (overviewMode) const SizedBox(height: 8),
-              Container(
-                key: const ValueKey('plp-persistent-command-bar'),
-                decoration: BoxDecoration(
-                  color: overviewMode
-                      ? const Color(0xFFF8F3EC)
-                      : const Color(0xFF151B25),
-                  borderRadius: BorderRadius.circular(overviewMode ? 24 : 18),
-                  border: Border.all(color: border),
-                ),
-                padding: EdgeInsets.fromLTRB(
-                  overviewMode ? 15 : 13,
-                  overviewMode ? 5 : 3,
-                  overviewMode ? 6 : 5,
-                  overviewMode ? 5 : 3,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.auto_awesome_rounded,
-                      color: accent,
-                      size: overviewMode ? 20 : 18,
+            if (overviewMode)
+              AnimatedBuilder(
+                animation: controller,
+                builder: (context, _) {
+                  if (controller.text.trim().isNotEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return SizedBox(
+                    height: 34,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _overviewSuggestions.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final suggestion = _overviewSuggestions[index];
+                        return ActionChip(
+                          label: Text(suggestion),
+                          backgroundColor: const Color(0xFFF6F0E8),
+                          side: const BorderSide(color: Color(0xFFE7DED3)),
+                          labelStyle: const TextStyle(
+                            color: Color(0xFF6D5E51),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () {
+                            controller.text = suggestion;
+                            controller.selection = TextSelection.collapsed(
+                              offset: suggestion.length,
+                            );
+                            onSubmit();
+                          },
+                        );
+                      },
                     ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        style: TextStyle(color: text, fontSize: 14),
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => onSubmit(),
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          hintText: overviewMode
-                              ? 'Ask Pandora anything…'
-                              : 'Ask Alfred or tell Pandora what to do…',
-                          hintStyle: TextStyle(color: muted),
-                          isDense: true,
+                  );
+                },
+              ),
+            if (overviewMode) const SizedBox(height: 8),
+            Container(
+              key: const ValueKey('plp-persistent-command-bar'),
+              decoration: BoxDecoration(
+                color: homeMode
+                    ? const Color(0xE60A0A0A)
+                    : overviewMode
+                        ? const Color(0xFFF8F3EC)
+                        : const Color(0xFF151B25),
+                borderRadius: BorderRadius.circular(homeMode ? 34 : 24),
+                border: Border.all(color: border),
+                boxShadow: homeMode
+                    ? const [
+                        BoxShadow(
+                          color: Color(0x66000000),
+                          blurRadius: 24,
+                          offset: Offset(0, 10),
                         ),
+                      ]
+                    : null,
+              ),
+              padding: EdgeInsets.fromLTRB(
+                homeMode ? 18 : 15,
+                homeMode ? 6 : 5,
+                homeMode ? 6 : 6,
+                homeMode ? 6 : 5,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    homeMode
+                        ? Icons.view_in_ar_rounded
+                        : Icons.auto_awesome_rounded,
+                    color: homeMode ? Colors.white : accent,
+                    size: homeMode ? 23 : 20,
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      style: TextStyle(
+                        color: text,
+                        fontSize: homeMode ? 16 : 14,
+                        fontWeight: homeMode ? FontWeight.w500 : FontWeight.w400,
+                      ),
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => onSubmit(),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: homeMode
+                            ? 'Message Pandora'
+                            : overviewMode
+                                ? 'Ask Pandora anything…'
+                                : 'Ask Alfred or tell Pandora what to do…',
+                        hintStyle: TextStyle(color: muted),
+                        isDense: true,
                       ),
                     ),
-                    if (overviewMode)
-                      IconButton(
-                        tooltip: 'Voice command',
-                        onPressed: onVoice,
-                        icon: const Icon(Icons.mic_none_rounded),
-                        color: muted,
-                      ),
-                    if (overviewMode)
-                      IconButton.filled(
+                  ),
+                  IconButton(
+                    tooltip: 'Voice command',
+                    onPressed: onVoice,
+                    icon: const Icon(Icons.mic_none_rounded),
+                    color: muted,
+                  ),
+                  if (homeMode)
+                    SizedBox.square(
+                      dimension: 52,
+                      child: IconButton.filled(
                         tooltip: 'Send to Pandora',
                         onPressed: onSubmit,
                         style: IconButton.styleFrom(
-                          backgroundColor: accent,
-                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
                         ),
-                        icon: const Icon(Icons.arrow_upward_rounded, size: 21),
-                      )
-                    else
-                      IconButton(
-                        tooltip: 'Send to Alfred',
-                        onPressed: onSubmit,
-                        icon: Icon(Icons.arrow_upward_rounded, color: text),
+                        icon: const Icon(Icons.arrow_upward_rounded, size: 27),
                       ),
-                  ],
-                ),
-              ),
-              if (showNavigation) const SizedBox(height: 6),
-            ],
-            if (showNavigation)
-              Row(
-                children: List<Widget>.generate(_items.length, (index) {
-                  final item = _items[index];
-                  final selected = selectedIndex == index;
-                  return Expanded(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => onDestinationSelected(index),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 7),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 160),
-                              width: 38,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? _PlpEnterpriseShellState._accent
-                                        .withValues(alpha: 0.15)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                item.icon,
-                                size: 20,
-                                color: selected
-                                    ? _PlpEnterpriseShellState._accent
-                                    : _PlpEnterpriseShellState._muted,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              item.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.fade,
-                              style: TextStyle(
-                                color: selected
-                                    ? _PlpEnterpriseShellState._text
-                                    : _PlpEnterpriseShellState._muted,
-                                fontSize: 9.5,
-                                fontWeight:
-                                    selected ? FontWeight.w800 : FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    )
+                  else
+                    IconButton(
+                      tooltip: 'Send to Pandora',
+                      onPressed: onSubmit,
+                      icon: Icon(Icons.arrow_upward_rounded, color: text),
                     ),
-                  );
-                }),
+                ],
               ),
+            ),
           ],
         ),
       ),
     );
   }
 }
-
 
 class _PlpBusinessSurface extends StatelessWidget {
   const _PlpBusinessSurface({
