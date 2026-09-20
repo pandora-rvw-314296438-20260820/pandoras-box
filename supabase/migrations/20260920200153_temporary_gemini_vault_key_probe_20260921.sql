@@ -1,0 +1,1 @@
+-- Historical temporary verification migration. The temporary probe was removed by the immediately following migration.
