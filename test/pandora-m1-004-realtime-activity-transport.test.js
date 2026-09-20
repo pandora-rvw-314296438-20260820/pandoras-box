@@ -67,11 +67,12 @@ test('event admission is ordered, terminal-safe, and stores canonical public eve
   assert.match(migration, /primary key \(job_id, sequence\)/);
 });
 
-test('intelligence runtime emits real admitted, model, checking, and verified result events', () => {
+test('intelligence runtime emits real business-action, checking, and verified result events', () => {
   assert.match(edge, /requireActivityJob/);
   assert.match(edge, /pandora_chat_universal_dispatch_v9/);
   assert.match(edge, /Execution handoff persisted; downstream action is not complete\./);
   assert.match(edge, /bindActivityThread/);
+  assert.match(edge, /pandora-business-theatre/);
   assert.match(edge, /state:"planning"/);
   assert.match(edge, /state:"acting"/);
   assert.match(edge, /state:"checking"/);
