@@ -1,0 +1,13 @@
+Artifact handoff only; no model inference.
+{
+  "outcome": "passed",
+  "sourceSha": "9b682e3593afc2c0f53630d6ec95454d886afbe9",
+  "apkSha256": "db895ee8f3d9f0954e520a5bf03c76dab00bc36d9b2bfbe7b716df159d03ba6f",
+  "apkSizeBytes": 119940817,
+  "port": 9114,
+  "visibilityCommandRc": 0,
+  "portsCommandRc": 0,
+  "publicUrl": "https://pandora-apk-phone-local-vpqvxxpxxxvvc55x-9114.app.github.dev/pandora-phone-local-9b682e3593afc2c0f53630d6ec95454d886afbe9.apk",
+  "publicHttpStatus": 200,
+  "generatedAtUtc": "2026-09-20T01:06:33.289153+00:00"
+}
