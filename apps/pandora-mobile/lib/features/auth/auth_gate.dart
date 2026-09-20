@@ -13,12 +13,7 @@ import '../../core/widgets/pandora_surface.dart';
 import 'sign_in_screen.dart';
 
 class AuthGate extends StatefulWidget {
-  const AuthGate({
-    super.key,
-    this.authenticatedHomeBuilder,
-  });
-
-  final WidgetBuilder? authenticatedHomeBuilder;
+  const AuthGate({super.key});
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -176,10 +171,9 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
     final dependencies = PandoraDependencies.of(context);
-    final authenticatedHome = widget.authenticatedHomeBuilder?.call(context) ??
-        (dependencies.intelligence == null
-            ? const PandoraShell()
-            : const PandoraChatShell());
+    final authenticatedHome = dependencies.intelligence == null
+        ? const PandoraShell()
+        : const PandoraChatShell();
     return NavigatorPopHandler(
       onPopWithResult: (_) {
         unawaited(
