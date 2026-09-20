@@ -119,7 +119,7 @@ if [[ "$ANALYZE_EXIT" -ne 0 ]] && ! grep -Fq 'issues found.' "$OUT/flutter-analy
   exit "$ANALYZE_EXIT"
 fi
 
-flutter test --reporter expanded   test/core/local_ai/plp_local_router_test.dart   test/features/enterprise/plp_staff_task_action_test.dart   test/features/enterprise/plp_enterprise_home_test.dart   test/features/enterprise/enterprise_vision_demo_contract_test.dart   test/features/operations/operations_room_test.dart   | tee "$OUT/flutter-test.log"
+flutter test --reporter expanded   test/core/local_ai/plp_local_router_test.dart   test/core/local_ai/plp_chat_fallback_test.dart   test/features/enterprise/plp_staff_task_action_test.dart   test/features/enterprise/plp_enterprise_home_test.dart   test/features/enterprise/enterprise_vision_demo_contract_test.dart   test/features/operations/operations_room_test.dart   | tee "$OUT/flutter-test.log"
 
 test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = "$EXPECTED_APP_VERSION"
 
