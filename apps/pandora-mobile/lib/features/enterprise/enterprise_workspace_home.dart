@@ -340,17 +340,20 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
                           onTap: openDrawer,
                           borderRadius: BorderRadius.circular(18),
                           child: const Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
                               PandoraMark(size: 48),
                               SizedBox(width: 14),
-                              Text(
-                                'Pandora',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -.7,
+                              Expanded(
+                                child: Text(
+                                  'Pandora',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -.7,
+                                  ),
                                 ),
                               ),
                             ],
