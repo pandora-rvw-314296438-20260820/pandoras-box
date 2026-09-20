@@ -252,6 +252,31 @@ const enterpriseWorkspaces = <EnterpriseWorkspaceProfile>[
   ),
 ];
 
+const enterpriseWorkspaceTarget =
+    String.fromEnvironment('PANDORA_ENTERPRISE_WORKSPACE');
+
+List<EnterpriseWorkspaceProfile> resolveEnterpriseWorkspaces([
+  String target = enterpriseWorkspaceTarget,
+]) {
+  if (target.isEmpty) return enterpriseWorkspaces;
+  return enterpriseWorkspaces
+      .where((workspace) => workspace.key == target)
+      .toList(growable: false);
+}
+
+EnterpriseWorkspaceSelection? resolveEnterpriseWorkspaceHome([
+  String target = enterpriseWorkspaceTarget,
+]) {
+  final workspaces = resolveEnterpriseWorkspaces(target);
+  if (workspaces.length != 1) return null;
+  final workspace = workspaces.single;
+  final home = workspace.sections.firstWhere(
+    (section) => section.routeSlug == 'home',
+    orElse: () => workspace.sections.first,
+  );
+  return EnterpriseWorkspaceSelection(workspace: workspace, section: home);
+}
+
 enum _WorkspaceAction { openHome, showSections }
 
 class EnterpriseWorkspaceHome extends StatefulWidget {
@@ -294,6 +319,7 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
   @override
   Widget build(BuildContext context) {
     final openDrawer = PandoraNavigationScope.maybeOf(context)?.openDrawer;
+    final workspaces = resolveEnterpriseWorkspaces();
     return Material(
       color: const Color(0xFF07111B),
       child: Stack(
@@ -386,10 +412,10 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
                   child: ListView.separated(
                     key: const ValueKey<String>('enterprise-workspace-list'),
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-                    itemCount: enterpriseWorkspaces.length,
+                    itemCount: workspaces.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
-                      final workspace = enterpriseWorkspaces[index];
+                      final workspace = workspaces[index];
                       return _WorkspaceCard(
                         workspace: workspace,
                         expanded: _expandedKey == workspace.key,
