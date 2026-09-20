@@ -48,14 +48,18 @@ void main() {
 
   Map<String, Object?> logsFixture({
     required bool hasMore,
-    required int? nextBeforeId,
+    required String? nextBeforeAt,
+    required String? nextBeforeJobId,
+    required int? nextBeforeSequence,
     required List<Map<String, Object?>> items,
   }) =>
       <String, Object?>{
-        'schemaVersion': 'plp.pandora-activity-logs.v1',
+        'schemaVersion': 'plp.pandora-activity-logs.v2',
         'items': items,
         'hasMore': hasMore,
-        'nextBeforeId': nextBeforeId,
+        'nextBeforeAt': nextBeforeAt,
+        'nextBeforeJobId': nextBeforeJobId,
+        'nextBeforeSequence': nextBeforeSequence,
       };
 
   testWidgets('renders PLP recent activity at narrow phone width',
@@ -72,9 +76,17 @@ void main() {
         home: PlpActivityScreen(
           onOpenNavigation: () {},
           businessLoader: () async => businessFixture(),
-          logLoader: ({beforeId, query}) async => logsFixture(
+          logLoader: ({
+            beforeAt,
+            beforeJobId,
+            beforeSequence,
+            query,
+          }) async =>
+              logsFixture(
             hasMore: false,
-            nextBeforeId: null,
+            nextBeforeAt: null,
+            nextBeforeJobId: null,
+            nextBeforeSequence: null,
             items: const <Map<String, Object?>>[],
           ),
         ),
@@ -124,23 +136,35 @@ void main() {
         home: PlpActivityScreen(
           onOpenNavigation: () {},
           businessLoader: () async => businessFixture(),
-          logLoader: ({beforeId, query}) async {
+          logLoader: ({
+            beforeAt,
+            beforeJobId,
+            beforeSequence,
+            query,
+          }) async {
             calls += 1;
-            if (beforeId == null) {
+            if (beforeAt == null) {
               return logsFixture(
                 hasMore: true,
-                nextBeforeId: 40,
+                nextBeforeAt: DateTime.now()
+                    .subtract(const Duration(minutes: 8))
+                    .toUtc()
+                    .toIso8601String(),
+                nextBeforeJobId: '11111111-1111-4111-8111-111111111111',
+                nextBeforeSequence: 8,
                 items: <Map<String, Object?>>[
                   <String, Object?>{
-                    'id': 50,
-                    'eventType':
-                        'pandora_control_plane.pandora_build_jobs.update',
-                    'actorType': 'system',
+                    'id': 'event-50',
+                    'jobId': '11111111-1111-4111-8111-111111111111',
+                    'sequence': 12,
+                    'state': 'result',
+                    'status': 'result',
+                    'message': 'Response persisted and verified for this turn.',
+                    'domain': 'chat',
+                    'capability': 'intelligence.chat',
+                    'sourceType': 'runtime',
                     'actorLabel': 'Pandora',
-                    'resourceType': 'pandora_build_jobs',
-                    'resourceId': 'build-1',
                     'requestId': 'request-1',
-                    'status': 'completed',
                     'occurredAt': DateTime.now()
                         .subtract(const Duration(minutes: 8))
                         .toUtc()
@@ -151,18 +175,22 @@ void main() {
             }
             return logsFixture(
               hasMore: false,
-              nextBeforeId: null,
+              nextBeforeAt: null,
+              nextBeforeJobId: null,
+              nextBeforeSequence: null,
               items: <Map<String, Object?>>[
                 <String, Object?>{
-                  'id': 39,
-                  'eventType':
-                      'pandora_control_plane.pandora_project_versions.insert',
-                  'actorType': 'system',
+                  'id': 'event-39',
+                  'jobId': '22222222-2222-4222-8222-222222222222',
+                  'sequence': 3,
+                  'state': 'acting',
+                  'status': 'acting',
+                  'message': 'Publishing the verified release candidate.',
+                  'domain': 'plp-enterprise-release',
+                  'capability': 'engineering',
+                  'sourceType': 'provider',
                   'actorLabel': 'Pandora',
-                  'resourceType': 'pandora_project_versions',
-                  'resourceId': 'version-1',
                   'requestId': 'request-2',
-                  'status': 'completed',
                   'occurredAt': DateTime.now()
                       .subtract(const Duration(hours: 2))
                       .toUtc()
@@ -181,8 +209,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Build jobs updated'), findsOneWidget);
-    expect(find.textContaining('Pandora · Build jobs'), findsOneWidget);
+    expect(
+      find.text('Response persisted and verified for this turn.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Pandora · Intelligence · chat'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('plp-activity-load-more-logs')),
       findsOneWidget,
@@ -194,7 +225,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Project versions created'), findsOneWidget);
+    expect(find.text('Publishing the verified release candidate.'), findsOneWidget);
     expect(calls, 2);
     expect(tester.takeException(), isNull);
   });
