@@ -33,6 +33,9 @@ const expectedExtensionStatements = new Map([
     'create extension if not exists pg_net;',
     'create extension if not exists pg_cron;',
   ]],
+  ['20260921110000_plp_graphql_dashboard_reads_v1.sql', [
+    'create extension if not exists pg_graphql;',
+  ]],
 ]);
 
 function sha256(value) {
@@ -129,6 +132,15 @@ async function bootstrap(db) {
     $bootstrap$;
 
     create schema if not exists auth;
+    create schema if not exists graphql;
+    create or replace function graphql.resolve(
+      query text,
+      variables jsonb default '{}'::jsonb,
+      "operationName" text default null,
+      extensions jsonb default null
+    ) returns jsonb
+    language sql stable
+    as $$ select '{"data":{}}'::jsonb $$;
 
     -- PGlite replay compatibility for Supabase Storage. Production migrations
     -- remain byte-for-byte unchanged; this stub models only the bucket metadata

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/data/plp_graphql_api.dart';
+
 typedef PlpBusinessActivityLoader = Future<Map<String, Object?>> Function();
 typedef PlpPandoraActivityLogLoader = Future<Map<String, Object?>> Function({
   String? beforeAt,
@@ -168,13 +170,8 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
     return DateTime.tryParse(raw)?.toLocal();
   }
 
-  Future<Map<String, Object?>> _providerBusinessLoader() async {
-    final value = await Supabase.instance.client.rpc(
-      'plp_recent_business_activity_v1',
-      params: const <String, Object?>{'p_limit': 80},
-    );
-    return _map(value);
-  }
+  Future<Map<String, Object?>> _providerBusinessLoader() =>
+      PlpGraphqlApi().loadBusinessActivity();
 
   Future<Map<String, Object?>> _providerLogLoader({
     String? beforeAt,

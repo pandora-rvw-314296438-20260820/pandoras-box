@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/data/pandora_intelligence_api.dart';
+import '../core/data/plp_graphql_api.dart';
 import '../core/local/pandora_local_state_cache.dart';
 import '../core/widgets/pandora_navigation.dart';
 import '../features/enterprise/plp_activity_screen.dart';
@@ -94,8 +95,20 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       final value = await Supabase.instance.client.rpc(
         'plp_enterprise_mobile_bootstrap_v1',
       );
-      final normalized = _normalizeBootstrap(value);
+      var normalized = _normalizeBootstrap(value);
       _ensureRealtime(normalized);
+      try {
+        final graphql = await PlpGraphqlApi().loadDashboardBundle();
+        normalized = mergePlpGraphqlDashboardIntoBootstrap(
+          normalized,
+          graphql,
+        );
+      } on PlpGraphqlException {
+        normalized = <String, Object?>{
+          ...normalized,
+          'graphqlReadState': 'unavailable',
+        };
+      }
       if (cache != null) {
         try {
           await cache.cacheMemoryContext(
@@ -128,6 +141,14 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       return value.map((key, item) => MapEntry(key.toString(), item));
     }
     throw StateError('PLP bootstrap returned an invalid payload.');
+  }
+
+  Map<String, Object?> _mapOrEmpty(Object? value) {
+    if (value is Map<String, Object?>) return value;
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    return const <String, Object?>{};
   }
 
   Map<String, Object?> _offlineBootstrap(Object? value) {
@@ -384,6 +405,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             PandoraOperationsRoomScreen(
               key: const ValueKey('plp-operations-room'),
               onHome: () => _open(0),
+              enterpriseBusinessContext:
+                  _mapOrEmpty(bootstrap['graphqlOperationsContext']),
             ),
             EnterpriseVisionScreen(
               key: const ValueKey('plp-vision-intelligence'),
