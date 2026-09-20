@@ -43,6 +43,7 @@ if [ ! -x "$FLUTTER_ROOT/bin/flutter" ]; then
   rm -f "$TOOLS_ROOT/flutter.tar.xz"
 fi
 export PATH="$FLUTTER_ROOT/bin:$PATH"
+git config --global --add safe.directory "$FLUTTER_ROOT"
 flutter --disable-analytics >/dev/null 2>&1 || true
 flutter --version
 
