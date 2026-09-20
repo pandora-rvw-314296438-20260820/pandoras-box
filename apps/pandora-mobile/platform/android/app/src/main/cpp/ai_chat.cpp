@@ -1,5 +1,6 @@
 #include <android/log.h>
 #include <jni.h>
+#include <atomic>
 #include <iomanip>
 #include <cmath>
 #include <sstream>
@@ -48,6 +49,7 @@ static bool                               g_cpu_fallback_used = false;
 static int                                g_gpu_layers_requested = 0;
 static int                                g_gpu_layers_active = 0;
 static std::string                        g_model_path;
+static std::atomic_bool                    g_cancel_requested{false};
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -64,6 +66,20 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_init(JNIEnv *env, jobject /*unu
 
     llama_backend_init();
     LOGi("Static CPU fallback + Vulkan-capable backend set initiated.");
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_requestCancelNative(
+        JNIEnv *, jobject /*unused*/) {
+    g_cancel_requested.store(true, std::memory_order_relaxed);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_clearCancelNative(
+        JNIEnv *, jobject /*unused*/) {
+    g_cancel_requested.store(false, std::memory_order_relaxed);
 }
 
 static bool has_gpu_device() {
@@ -453,6 +469,10 @@ static int decode_tokens_in_batches(
     // Process tokens in batches using the global batch
     LOGd("%s: Decode %d tokens starting at position %d", __func__, (int) tokens.size(), start_pos);
     for (int i = 0; i < (int) tokens.size(); i += BATCH_SIZE) {
+        if (g_cancel_requested.load(std::memory_order_relaxed)) {
+            LOGw("%s: cooperative cancellation requested", __func__);
+            return 9;
+        }
         const int cur_batch_size = std::min((int) tokens.size() - i, BATCH_SIZE);
         common_batch_clear(batch);
         LOGv("%s: Preparing a batch size of %d starting at: %d", __func__, cur_batch_size, i);
@@ -476,6 +496,10 @@ static int decode_tokens_in_batches(
         if (decode_result) {
             LOGe("%s: llama_decode failed w/ %d", __func__, decode_result);
             return 1;
+        }
+        if (g_cancel_requested.load(std::memory_order_relaxed)) {
+            LOGw("%s: cooperative cancellation observed after decode", __func__);
+            return 9;
         }
     }
     return 0;
@@ -650,6 +674,11 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
         JNIEnv *env,
         jobject /*unused*/
 ) {
+    if (g_cancel_requested.load(std::memory_order_relaxed)) {
+        LOGw("%s: cooperative cancellation requested", __func__);
+        return nullptr;
+    }
+
     // Infinite text generation via context shifting
     if (current_position >= g_context_size - OVERFLOW_HEADROOM) {
         LOGw("%s: Context full! Shifting...", __func__);
