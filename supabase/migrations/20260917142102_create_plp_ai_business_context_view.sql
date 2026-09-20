@@ -16,7 +16,8 @@ active_bookings as (
 metrics as (
   select
     count(distinct b.accommodation_id)
-      filter (where b.accommodation_id is not null
+      filter (where a.is_active is true
+              and b.accommodation_id is not null
               and b.check_in <= c.business_date
               and b.check_out > c.business_date)::integer as occupied_rooms,
     count(*) filter (where b.check_in=c.business_date)::integer as arrivals_today,
@@ -25,7 +26,9 @@ metrics as (
       where upper(coalesce(b.payment_status,'')) not in ('PAID','COMPLETED','SUCCEEDED','CAPTURED')
         and b.check_out >= c.business_date
     )::integer as unpaid_active_bookings
-  from active_bookings b cross join cfg c
+  from active_bookings b
+  left join plp_runtime.plp_accommodations a on a.id=b.accommodation_id
+  cross join cfg c
 ),
 payments as (
   select coalesce(sum(p.amount_php) filter (
