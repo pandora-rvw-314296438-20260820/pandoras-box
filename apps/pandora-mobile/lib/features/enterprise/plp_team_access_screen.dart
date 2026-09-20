@@ -370,33 +370,45 @@ class _PeopleHero extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'T E A M   &   A C C E S S',
-                        style: TextStyle(
-                          color: Color(0xFF8D642E),
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 2,
+                      const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'T E A M   &   A C C E S S',
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: Color(0xFF8D642E),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 21),
-                      Text(
-                        'Our People',
-                        style: TextStyle(
-                          color: _PlpTeamAccessScreenState._ink,
-                          fontSize: compact ? 43 : 50,
-                          height: .95,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -1.9,
+                      SizedBox(height: compact ? 13 : 18),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Our People',
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: _PlpTeamAccessScreenState._ink,
+                            fontSize: compact ? 39 : 48,
+                            height: .95,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -1.7,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 17),
+                      SizedBox(height: compact ? 11 : 15),
                       Text(
-                        'Exceptional stays are made by\nextraordinary people.',
+                        'Exceptional stays are made by extraordinary people.',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: const Color(0xFF4E5053),
-                          fontSize: compact ? 15 : 17,
-                          height: 1.35,
+                          fontSize: compact ? 13.5 : 15.5,
+                          height: 1.3,
                         ),
                       ),
                     ],
@@ -463,21 +475,28 @@ class _Tabs extends StatelessWidget {
                       children: [
                         Icon(
                           item.icon,
-                          size: 23,
+                          size: 20,
                           color: active
                               ? _PlpTeamAccessScreenState._gold
                               : const Color(0xFF5F6570),
                         ),
-                        const SizedBox(width: 9),
-                        Text(
-                          item.label,
-                          style: TextStyle(
-                            color: active
-                                ? _PlpTeamAccessScreenState._ink
-                                : const Color(0xFF656B73),
-                            fontSize: 15,
-                            fontWeight:
-                                active ? FontWeight.w700 : FontWeight.w500,
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              item.label,
+                              maxLines: 1,
+                              style: TextStyle(
+                                color: active
+                                    ? _PlpTeamAccessScreenState._ink
+                                    : const Color(0xFF656B73),
+                                fontSize: 14,
+                                fontWeight: active
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -586,21 +605,25 @@ class _TeamTab extends StatelessWidget {
             const SizedBox(height: 16),
             Row(
               children: [
-                Text(
-                  'View all team members',
-                  style: const TextStyle(
-                    color: Color(0xFF735126),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                const Expanded(
+                  child: Text(
+                    'View all team members',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Color(0xFF735126),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 5),
                 const Icon(
                   Icons.chevron_right_rounded,
                   color: _PlpTeamAccessScreenState._gold,
-                  size: 22,
+                  size: 20,
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(
                   '$allMemberCount',
                   style: const TextStyle(
