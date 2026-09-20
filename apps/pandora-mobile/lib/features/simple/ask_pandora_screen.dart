@@ -532,6 +532,20 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     return false;
   }
 
+  Map<String, Object?>? _cloudEnterpriseContext() {
+    if (!_isPlpEnterpriseContext) return widget.enterpriseContext;
+    return <String, Object?>{
+      'surface': 'enterprise_overview',
+      'route': '/enterprise/plp-boracay/alfred',
+      'selectedObject': const <String, Object?>{
+        'workspaceSlug': 'plp-boracay',
+        'assistant': 'alfred',
+      },
+      'capabilities': const <String>['intelligence.chat'],
+      'identityScope': 'enterprise_workspace',
+    };
+  }
+
   String? _plpActionPendingRequestId;
   String? _plpActionPendingObjective;
 
@@ -863,7 +877,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         projectId: _projectContext?.id,
         textAttachment: _attachment,
         imageAttachment: _imageAttachment,
-        enterpriseContext: widget.enterpriseContext,
+        enterpriseContext: _cloudEnterpriseContext(),
       );
       await _watchActivity(execution);
       final turn = await execution.turn;
