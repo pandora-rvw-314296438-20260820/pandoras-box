@@ -112,7 +112,7 @@ flutter analyze > "$OUT/flutter-analyze.log" 2>&1
 ANALYZE_EXIT=$?
 set -e
 cat "$OUT/flutter-analyze.log"
-if grep -Eq '^error .*[•]' "$OUT/flutter-analyze.log"; then
+if grep -Eq '^[[:space:]]*error[[:space:]]+•' "$OUT/flutter-analyze.log"; then
   exit 31
 fi
 if [[ "$ANALYZE_EXIT" -ne 0 ]] && ! grep -Fq 'issues found.' "$OUT/flutter-analyze.log"; then
