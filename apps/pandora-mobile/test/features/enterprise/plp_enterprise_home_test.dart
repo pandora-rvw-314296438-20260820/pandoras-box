@@ -49,11 +49,6 @@ void main() {
     expect(find.text('What can I help with?'), findsOneWidget);
     expect(find.textContaining('Doctora'), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('plp-home-todays-briefing')),
-      300,
-      scrollable: find.byType(Scrollable),
-    );
     expect(find.byKey(const ValueKey('plp-release-background')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-release-logo')), findsOneWidget);
 
@@ -62,21 +57,11 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('plp-home-business-performance')),
-      180,
-      scrollable: find.byType(Scrollable),
-    );
     expect(
       find.byKey(const ValueKey('plp-home-business-performance')),
       findsOneWidget,
     );
 
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('plp-open-alfred')),
-      180,
-      scrollable: find.byType(Scrollable),
-    );
     expect(find.text('Ask Pandora'), findsOneWidget);
     expect(find.text('Sales, occupancy & priorities'), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-open-alfred')), findsOneWidget);
