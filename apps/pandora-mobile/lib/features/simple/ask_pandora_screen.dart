@@ -142,8 +142,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   Future<void> _prewarmPlpLocalAiIfSafe() async {
     await Future<void>.delayed(const Duration(milliseconds: 800));
     if (!mounted || !_isPlpEnterpriseContext) return;
+    PandoraLocalAiStatus? probeStatus;
     try {
       final status = await PandoraLocalAi.instance.status();
+      probeStatus = status;
       if (!status.supported || !status.configured) return;
       final decision = PandoraLocalAiRouter.decide(
         message: 'Prepare PLP local resort intelligence.',
@@ -178,8 +180,24 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         );
       }
       await PandoraLocalAi.instance.resetConversation();
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'self_test',
+          outcome: 'success',
+          reason: 'token_generation_verified',
+          status: status,
+        ),
+      );
       _scheduleLocalAiIdleUnload();
-    } catch (_) {
+    } catch (error) {
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'self_test',
+          outcome: 'failed',
+          reason: error.toString(),
+          status: probeStatus,
+        ),
+      );
       try {
         await PandoraLocalAi.instance.cancel();
       } catch (_) {}
