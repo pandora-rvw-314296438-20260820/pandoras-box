@@ -44,7 +44,8 @@ class PlpEnterpriseIsolationTest(unittest.TestCase):
         self.assertIn("homeMode: _index == 0", combined)
         self.assertIn("showPersistentComposer: _index != 1", combined)
         self.assertIn("plp-persistent-command-bar", combined)
-        self.assertIn("Guest Experience", combined)
+        self.assertIn("plp_guests_screen.dart", combined)
+        self.assertIn("PlpGuestsScreen", combined)
         self.assertNotIn("showNavigation", combined)
         self.assertNotIn("onDestinationSelected", combined)
 
