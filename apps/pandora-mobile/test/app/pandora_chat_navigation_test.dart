@@ -28,6 +28,22 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+
+    if (find.byType(AskPandoraScreen).evaluate().isEmpty) {
+      if (size.width >= 900) {
+        await tester.tap(find.widgetWithText(ListTile, 'Pandora').first);
+      } else {
+        await tester.tap(find.byTooltip('Open navigation'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(Drawer),
+            matching: find.widgetWithText(ListTile, 'Pandora'),
+          ),
+        );
+      }
+      await tester.pumpAndSettle();
+    }
   }
 
   final menu = find.byTooltip('Open navigation');
