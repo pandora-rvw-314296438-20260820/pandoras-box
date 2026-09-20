@@ -10,7 +10,7 @@ HOME_DIR="$PWD/.vercel-home"
 BUILD="$PWD/.plp-android-build"
 
 FLUTTER_VERSION="3.47.0"
-EXPECTED_APP_VERSION="0.4.0-rc.5+12"
+EXPECTED_APP_VERSION="0.4.0-rc.6+13"
 EXPECTED_PACKAGE="com.banataosystems.pandora.plp"
 EXPECTED_LABEL="PLP Pandora Enterprise"
 LLAMA_CPP_SHA="44be98f057e9f9902a8ee12630e181c7f8ec2953"
@@ -77,6 +77,7 @@ mkdir -p android/app/src/main/kotlin/com/arm/aichat/internal
 cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/AiChat.kt   android/app/src/main/kotlin/com/arm/aichat/AiChat.kt
 cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/InferenceEngine.kt   android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
 cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/internal/InferenceEngineImpl.kt   android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt
+python3 "$ROOT/apps/pandora-mobile/tool/patch_inference_engine_android.py"   android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt   android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
 
 rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
 cp -R "$ROOT/apps/pandora-mobile/lib" ./lib
@@ -111,20 +112,20 @@ flutter analyze > "$OUT/flutter-analyze.log" 2>&1
 ANALYZE_EXIT=$?
 set -e
 cat "$OUT/flutter-analyze.log"
-if grep -Eq '^error .*[•]' "$OUT/flutter-analyze.log"; then
+if grep -Eq '^[[:space:]]*error[[:space:]]+•' "$OUT/flutter-analyze.log"; then
   exit 31
 fi
 if [[ "$ANALYZE_EXIT" -ne 0 ]] && ! grep -Fq 'issues found.' "$OUT/flutter-analyze.log"; then
   exit "$ANALYZE_EXIT"
 fi
 
-flutter test --reporter expanded   test/core/local_ai/plp_local_router_test.dart   test/features/enterprise/plp_staff_task_action_test.dart   test/features/enterprise/plp_enterprise_home_test.dart   test/features/enterprise/enterprise_vision_demo_contract_test.dart   test/features/operations/operations_room_test.dart   | tee "$OUT/flutter-test.log"
+flutter test --reporter expanded   test/core/local_ai/plp_local_router_test.dart   test/core/local_ai/plp_chat_fallback_test.dart   test/features/enterprise/plp_staff_task_action_test.dart   test/features/enterprise/plp_enterprise_home_test.dart   test/features/enterprise/enterprise_vision_demo_contract_test.dart   test/features/operations/operations_room_test.dart   | tee "$OUT/flutter-test.log"
 
 test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = "$EXPECTED_APP_VERSION"
 
-flutter build apk --debug   --target=lib/main_plp.dart   --target-platform=android-arm64   --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"   --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"   | tee "$OUT/flutter-build.log"
+flutter build apk --release   --target=lib/main_plp.dart   --target-platform=android-arm64   --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"   --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"   | tee "$OUT/flutter-build.log"
 
-APK="$BUILD/build/app/outputs/flutter-apk/app-debug.apk"
+APK="$BUILD/build/app/outputs/flutter-apk/app-release.apk"
 test -f "$APK"
 AAPT="$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt"
 APKSIGNER="$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner"
@@ -137,8 +138,8 @@ unzip -l "$APK" > "$OUT/apk-files.txt"
 grep -Fq "package: name='$EXPECTED_PACKAGE'" "$OUT/badging.txt"
 grep -Fq "application-label:'$EXPECTED_LABEL'" "$OUT/badging.txt"
 grep -Fq "launchable-activity: name='$EXPECTED_PACKAGE.MainActivity'" "$OUT/badging.txt"
-grep -Fq "versionCode='12'" "$OUT/badging.txt"
-grep -Fq "versionName='0.4.0-rc.5'" "$OUT/badging.txt"
+grep -Fq "versionCode='13'" "$OUT/badging.txt"
+grep -Fq "versionName='0.4.0-rc.6'" "$OUT/badging.txt"
 grep -Fq 'lib/arm64-v8a/' "$OUT/apk-files.txt"
 ! grep -Eq 'lib/(x86|x86_64|armeabi-v7a)/' "$OUT/apk-files.txt"
 ! grep -Eiq '\.gguf($|[[:space:]])' "$OUT/apk-files.txt"
@@ -171,6 +172,7 @@ android_build_tools=36.0.0
 android_ndk=29.0.13113456
 cmake_version=3.31.6
 target_abi=arm64-v8a
+build_mode=release
 apk_filename=$APK_FILENAME
 apk_sha256=$APK_SHA
 apk_size_bytes=$APK_SIZE

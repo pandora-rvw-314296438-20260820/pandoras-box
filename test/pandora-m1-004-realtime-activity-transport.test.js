@@ -67,11 +67,12 @@ test('event admission is ordered, terminal-safe, and stores canonical public eve
   assert.match(migration, /primary key \(job_id, sequence\)/);
 });
 
-test('intelligence runtime emits real admitted, model, checking, and verified result events', () => {
+test('intelligence runtime emits real business-action, checking, and verified result events', () => {
   assert.match(edge, /requireActivityJob/);
   assert.match(edge, /pandora_chat_universal_dispatch_v9/);
-  assert.match(edge, /Execution handoff persisted; downstream action is not complete\./);
+  assert.match(edge, /Requested action was prepared, but execution is not yet verified\./);
   assert.match(edge, /bindActivityThread/);
+  assert.match(edge, /pandora-business-theatre/);
   assert.match(edge, /state:"planning"/);
   assert.match(edge, /state:"acting"/);
   assert.match(edge, /state:"checking"/);
@@ -128,8 +129,8 @@ test('public projection boundary strips internal writer fields', () => {
 test('runtime terminalizes failures, handoffs, and clarification turns', () => {
   assert.match(edge, /emitActivityFailure/);
   assert.match(edge, /state:"result"/);
-  assert.match(edge, /Execution handoff persisted; downstream action is not complete\./);
-  assert.match(edge, /Clarifying response persisted; no external action was executed\./);
+  assert.match(edge, /Requested action was prepared, but execution is not yet verified\./);
+  assert.match(edge, /Pandora needs one more detail before acting\./);
   assert.match(edgeActivity, /state: 'failed'/);
   assert.match(edgeActivity, /relation: 'failure'/);
 });

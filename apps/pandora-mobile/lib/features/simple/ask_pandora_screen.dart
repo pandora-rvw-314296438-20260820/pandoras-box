@@ -20,6 +20,7 @@ import '../../core/local/pandora_device_activity_local_sync.dart';
 import '../../core/local/pandora_local_state_cache.dart';
 import '../../core/local/pandora_local_sync_coordinator.dart';
 import '../../core/local_ai/pandora_local_ai.dart';
+import '../../core/local_ai/plp_chat_fallback.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
@@ -89,6 +90,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   bool _localAiGenerating = false;
   bool _lastTurnUsedLocalAi = false;
   bool _loadingThread = false;
+  bool _localConversationRestoreStarted = false;
   bool _outcomeUnknown = false;
   String? _submissionKey;
   String? _error;
@@ -103,6 +105,53 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _objective.text = initial;
       _objective.selection = TextSelection.collapsed(offset: initial.length);
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_localConversationRestoreStarted) return;
+    _localConversationRestoreStarted = true;
+    unawaited(_restoreLocalConversation());
+  }
+
+  Future<void> _restoreLocalConversation() async {
+    final localStore = PandoraDependencies.of(context).localStore;
+    if (localStore == null) return;
+    try {
+      final cached = await PandoraLocalStateCache(localStore)
+          .loadRecentConversation(threadIdentity: 'local-chat');
+      if (!mounted ||
+          cached.isEmpty ||
+          _messages.isNotEmpty ||
+          _threadId != null ||
+          _pendingMessage != null) {
+        return;
+      }
+      final restored = <_ChatMessage>[];
+      for (final entry in cached) {
+        final text = entry['text']?.toString().trim() ?? '';
+        if (text.isEmpty) continue;
+        if (entry['role'] == 'user') {
+          restored.add(_ChatMessage.user(text));
+        } else if (entry['role'] == 'pandora') {
+          restored.add(_ChatMessage.pandora(text));
+        }
+      }
+      if (restored.isEmpty) return;
+      setState(() => _messages.addAll(restored));
+    } catch (_) {
+      // Local conversation recovery must never prevent a fresh chat.
+    }
+  }
+
+  Future<void> submitExternalPrompt(String prompt) async {
+    final normalized = prompt.trim();
+    if (normalized.isEmpty) return;
+    _objective.text = normalized;
+    _objective.selection = TextSelection.collapsed(offset: normalized.length);
+    _objectiveFocus.requestFocus();
+    await _submit();
   }
 
   void _handleActivityTimelineChanged() {
@@ -417,8 +466,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         .sublist(start)
         .map((message) => '${message.isUser ? 'User' : 'Pandora'}: ${message.text}')
         .join('\n');
-    final bounded = context.length > 2800
-        ? context.substring(context.length - 2800)
+    final bounded = context.length > 1600
+        ? context.substring(context.length - 1600)
         : context;
     return 'Recent conversation context from the other inference route:\n'
         '$bounded\n\nCurrent user request:\n$objective';
@@ -429,7 +478,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     if (context == null || context.isEmpty) return '';
     try {
       final encoded = jsonEncode(context);
-      final bounded = encoded.length > 9000 ? encoded.substring(0, 9000) : encoded;
+      final bounded = encoded.length > 6000 ? encoded.substring(0, 6000) : encoded;
       return 'Authorized PLP business context already synchronized to this phone. '
           'Treat it as local context; do not claim it was refreshed during this turn.\n'
           '$bounded';
@@ -510,7 +559,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   }
 
   Future<bool> _trySubmitLocalAi(String objective) async {
-    final status = await PandoraLocalAi.instance.status();
+    final status = await (() async {
+      try {
+        return await PandoraLocalAi.instance.status();
+      } on PandoraLocalAiException {
+        return null;
+      }
+    })();
+    if (status == null) return false;
     final route = PandoraLocalAiRouter.decide(
       message: objective,
       hasAttachment: _attachment != null || _imageAttachment != null,
@@ -524,9 +580,17 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
     final bridgeFromOtherRoute = !_lastTurnUsedLocalAi && _messages.isNotEmpty;
     if (bridgeFromOtherRoute) {
-      await PandoraLocalAi.instance.unload();
+      try {
+        await PandoraLocalAi.instance.resetConversation();
+      } on PandoraLocalAiException {
+        return false;
+      }
     }
-    if (!await PandoraLocalAi.instance.warm()) return false;
+    try {
+      if (!await PandoraLocalAi.instance.warm()) return false;
+    } on PandoraLocalAiException {
+      return false;
+    }
     final routedPrompt =
         bridgeFromOtherRoute ? _boundedRouteBridge(objective) : objective;
     final enterpriseBridge = _boundedLocalEnterpriseContext();
@@ -552,11 +616,17 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           }
         });
       }
-    } on PandoraLocalAiException catch (error) {
+    } on PandoraLocalAiException {
       if (!mounted) return true;
-      if (!started) return false;
-      setState(() => _error = error.message);
-      return true;
+      if (started && _messages.length >= 2) {
+        setState(() {
+          _messages.removeLast();
+          _messages.removeLast();
+          _pendingMessage = objective;
+          _error = null;
+        });
+      }
+      return false;
     } finally {
       _localAiGenerating = false;
     }
@@ -581,6 +651,33 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _outcomeUnknown = false;
       _pendingMessage = null;
       _lastTurnUsedLocalAi = true;
+    });
+    return true;
+  }
+
+  bool _applyPlpContinuityFallback(String objective) {
+    if (!_isPlpEnterpriseContext || !mounted) return false;
+    final actionLike = !PlpChatFallback.isReadOnlyTurn(objective);
+    final deterministic = actionLike
+        ? null
+        : PlpChatFallback.deterministicReply(
+            message: objective,
+            enterpriseContext: widget.enterpriseContext,
+          );
+    final reply = deterministic ??
+        PlpChatFallback.continuityNotice(
+          actionLike: actionLike,
+        );
+    setState(() {
+      _messages.add(_ChatMessage.user(objective));
+      _messages.add(_ChatMessage.pandora(reply));
+      _pendingMessage = null;
+      _attachment = null;
+      _imageAttachment = null;
+      _submissionKey = null;
+      _outcomeUnknown = false;
+      _lastTurnUsedLocalAi = false;
+      _error = null;
     });
     return true;
   }
@@ -883,12 +980,17 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       });
     } on PandoraIntelligenceException catch (error) {
       if (!mounted) return;
+      if (_applyPlpContinuityFallback(objective)) return;
       setState(() {
         _error = error.message;
         _submissionKey = null;
       });
     } on PandoraRepositoryException catch (error) {
       if (!mounted) return;
+      if (!error.outcomeMayBeUnknown &&
+          _applyPlpContinuityFallback(objective)) {
+        return;
+      }
       setState(() {
         _outcomeUnknown = error.outcomeMayBeUnknown;
         _error = error.outcomeMayBeUnknown
@@ -898,6 +1000,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       });
     } catch (_) {
       if (!mounted) return;
+      if (_applyPlpContinuityFallback(objective)) return;
       setState(() {
         _error = 'Pandora intelligence is temporarily unavailable.';
         _submissionKey = null;
@@ -1186,7 +1289,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
 
     return Scaffold(
       backgroundColor: PandoraSimpleColors.canvas,
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned.fill(

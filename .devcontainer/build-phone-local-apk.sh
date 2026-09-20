@@ -96,7 +96,11 @@ sudo rm -f /etc/apt/sources.list.d/yarn.list /etc/apt/sources.list.d/yarn.list.s
 sudo apt-get update -y
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   ca-certificates curl git unzip xz-utils zip libglu1-mesa \
-  openjdk-17-jdk-headless python3 ninja-build
+  openjdk-17-jdk-headless python3 ninja-build glslc libvulkan-dev spirv-headers
+
+SPIRV_CONFIG="$(find /usr -type f -name SPIRV-HeadersConfig.cmake -print -quit)"
+test -n "$SPIRV_CONFIG"
+export PANDORA_SPIRV_HEADERS_DIR="$(dirname "$SPIRV_CONFIG")"
 
 export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")"
 export PATH="$JAVA_HOME/bin:$PATH"
@@ -162,19 +166,9 @@ cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/Inf
   android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
 cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/internal/InferenceEngineImpl.kt \
   android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt
-python3 - android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt <<'PY'
-from pathlib import Path
-import sys
-path = Path(sys.argv[1])
-text = path.read_text(encoding="utf-8")
-old = "if (it != 0) throw UnsupportedArchitectureException()"
-new = 'if (it != 0) throw IOException("llama.cpp model load failed with code $it")'
-if text.count(old) != 1:
-    raise SystemExit("Pinned InferenceEngineImpl load-error anchor changed")
-text = text.replace(old, new, 1)
-text = text.replace("import com.arm.aichat.UnsupportedArchitectureException\\n", "", 1)
-path.write_text(text, encoding="utf-8")
-PY
+python3 "$ROOT/apps/pandora-mobile/tool/patch_inference_engine_android.py" \
+  android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt \
+  android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
 
 rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
 cp -R "$ROOT/apps/pandora-mobile/lib" ./lib

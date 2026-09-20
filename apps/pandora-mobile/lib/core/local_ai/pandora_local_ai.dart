@@ -112,14 +112,41 @@ class PandoraLocalAi {
 
   Future<bool> warm() async {
     try {
-      return await _methods.invokeMethod<bool>('warm') ?? false;
+      final warmed = await _methods.invokeMethod<bool>('warm');
+      if (warmed == true) return true;
+
+      final current = await status();
+      final phase =
+          current.diagnostics['lastWarmFailurePhase']?.toString().trim();
+      final failure =
+          current.diagnostics['lastWarmFailureMessage']?.toString().trim();
+      final state = current.engineState?.trim();
+      final detail = <String>[
+        if (phase != null && phase.isNotEmpty) 'phase=$phase',
+        if (state != null && state.isNotEmpty) 'state=$state',
+        if (failure != null && failure.isNotEmpty) failure,
+      ].join(' · ');
+      throw PandoraLocalAiException(
+        detail.isNotEmpty
+            ? 'Local model warm failed: $detail'
+            : 'Pandora could not warm the selected local model.',
+      );
     } on MissingPluginException {
       throw const PandoraLocalAiException(
         'Pandora Android local-AI warm method is unavailable in this APK.',
       );
     } on PlatformException catch (error) {
+      final details = error.details;
+      String? nativeDetail;
+      if (details is Map) {
+        nativeDetail =
+            details['lastWarmFailureMessage']?.toString().trim();
+      }
       throw PandoraLocalAiException(
-        error.message ?? 'Pandora could not warm the selected local model.',
+        (nativeDetail != null && nativeDetail.isNotEmpty)
+            ? nativeDetail
+            : (error.message ??
+                'Pandora could not warm the selected local model.'),
       );
     }
   }

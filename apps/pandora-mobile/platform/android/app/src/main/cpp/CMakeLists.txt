@@ -11,9 +11,23 @@ if(NOT DEFINED ANDROID_ABI OR NOT ANDROID_ABI STREQUAL "arm64-v8a")
     message(FATAL_ERROR "Pandora local AI currently supports arm64-v8a only")
 endif()
 
+# Keep the proven portable arm64 CPU backend as the mandatory fallback.
+# Build Vulkan into the same native runtime so eligible phones can offload a
+# bounded number of layers without making local chat depend on GPU success.
 set(GGML_SYSTEM_ARCH "ARM")
-set(GGML_CPU_KLEIDIAI ON)
-set(GGML_OPENMP ON)
+set(GGML_CPU_KLEIDIAI OFF CACHE BOOL "" FORCE)
+set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
+set(GGML_BACKEND_DL OFF CACHE BOOL "" FORCE)
+set(GGML_CPU_ALL_VARIANTS OFF CACHE BOOL "" FORCE)
+set(GGML_VULKAN ON CACHE BOOL "" FORCE)
+
+# Android cross-compilation finds target Vulkan from the NDK, while
+# SPIRV-Headers is a host-side CMake package used to generate shaders.
+# The workflow exports the discovered host package directory explicitly so
+# CMake does not incorrectly restrict package lookup to the Android sysroot.
+if(DEFINED ENV{PANDORA_SPIRV_HEADERS_DIR})
+    set(SPIRV-Headers_DIR "$ENV{PANDORA_SPIRV_HEADERS_DIR}" CACHE PATH "" FORCE)
+endif()
 
 set(LLAMA_SRC "${CMAKE_CURRENT_LIST_DIR}/../../../../llama.cpp")
 if(NOT EXISTS "${LLAMA_SRC}/CMakeLists.txt")
@@ -22,14 +36,20 @@ endif()
 
 add_subdirectory("${LLAMA_SRC}" build-llama)
 
+# Android's NDK exposes the Vulkan C API but not the full Vulkan-Hpp header
+# set required by the pinned ggml-vulkan backend. CI/build lanes materialize
+# only the architecture-neutral Vulkan headers into an isolated directory;
+# never add the host /usr/include tree to an Android cross-compile.
+if(TARGET ggml-vulkan AND DEFINED ENV{PANDORA_VULKAN_HEADERS_DIR})
+    target_include_directories(ggml-vulkan PRIVATE "$ENV{PANDORA_VULKAN_HEADERS_DIR}")
+endif()
+
 add_library(ai-chat SHARED
     "${CMAKE_CURRENT_LIST_DIR}/ai_chat.cpp"
 )
 
 target_compile_definitions(ai-chat PRIVATE
     GGML_SYSTEM_ARCH=${GGML_SYSTEM_ARCH}
-    GGML_CPU_KLEIDIAI=$<BOOL:${GGML_CPU_KLEIDIAI}>
-    GGML_OPENMP=$<BOOL:${GGML_OPENMP}>
 )
 
 target_include_directories(ai-chat PRIVATE

@@ -8,6 +8,8 @@ from pathlib import Path
 
 _GENERATED_NDK = '    ndkVersion = flutter.ndkVersion'
 _PINNED_NDK = '    ndkVersion = "29.0.13113456"'
+_GENERATED_MIN_SDK = '        minSdk = flutter.minSdkVersion'
+_VULKAN_MIN_SDK = '        minSdk = 29'
 _VERSION_ANCHOR = '''        versionCode = flutter.versionCode
         versionName = flutter.versionName
 '''
@@ -27,8 +29,9 @@ _NATIVE_DEFAULT = '''        versionCode = flutter.versionCode
                     "-DLLAMA_BUILD_COMMON=ON",
                     "-DLLAMA_OPENSSL=OFF",
                     "-DGGML_NATIVE=OFF",
-                    "-DGGML_BACKEND_DL=ON",
-                    "-DGGML_CPU_ALL_VARIANTS=ON",
+                    "-DGGML_BACKEND_DL=OFF",
+                    "-DGGML_CPU_ALL_VARIANTS=OFF",
+                    "-DGGML_VULKAN=ON",
                     "-DGGML_LLAMAFILE=OFF",
                 )
             }
@@ -82,6 +85,7 @@ def configure(path: Path) -> int:
     text = path.read_text(encoding="utf-8")
     requirements = (
         (_GENERATED_NDK, 1, "generated Flutter NDK declaration"),
+        (_GENERATED_MIN_SDK, 1, "generated Flutter minimum SDK declaration"),
         (_VERSION_ANCHOR, 1, "Flutter version anchor"),
         (_BUILD_TYPES_CLOSE, 1, "generated build-types block"),
         (_FLUTTER_ANCHOR, 1, "Flutter source block"),
@@ -92,6 +96,11 @@ def configure(path: Path) -> int:
             return 1
 
     updated = text.replace(_GENERATED_NDK, _PINNED_NDK, 1)
+    # The pinned ggml Vulkan backend uses Vulkan 1.1 core entry points. Android
+    # exposes Vulkan 1.1 as a platform baseline from API 29, so the Vulkan APK
+    # must not advertise installation on older API levels where those symbols
+    # are absent from libvulkan.so. CPU remains the runtime fallback on API 29+.
+    updated = updated.replace(_GENERATED_MIN_SDK, _VULKAN_MIN_SDK, 1)
     updated = updated.replace(_VERSION_ANCHOR, _NATIVE_DEFAULT, 1)
     updated = updated.replace(_BUILD_TYPES_CLOSE, _NATIVE_BUILD_CLOSE, 1)
     updated = updated.replace(_FLUTTER_ANCHOR, _DEPENDENCIES, 1)
@@ -100,18 +109,21 @@ def configure(path: Path) -> int:
     verified = path.read_text(encoding="utf-8")
     required = (
         'ndkVersion = "29.0.13113456"',
+        'minSdk = 29',
         'abiFilters.clear()',
         'abiFilters += "arm64-v8a"',
         'path = file("src/main/cpp/CMakeLists.txt")',
         'version = "3.31.6"',
         'kotlinx-coroutines-android:1.10.2',
-        '-DGGML_CPU_ALL_VARIANTS=ON',
+        '-DGGML_BACKEND_DL=OFF',
+        '-DGGML_CPU_ALL_VARIANTS=OFF',
+        '-DGGML_VULKAN=ON',
     )
     if any(item not in verified for item in required):
         print("Pandora local-AI Gradle verification failed.", file=sys.stderr)
         return 1
 
-    print("Configured pinned Pandora local-AI Android native build.")
+    print("Configured pinned Pandora local-AI Android native build with Vulkan + CPU fallback.")
     return 0
 
 

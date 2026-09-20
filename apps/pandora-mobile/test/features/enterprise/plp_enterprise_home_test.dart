@@ -46,16 +46,28 @@ void main() {
     expect(find.byKey(const ValueKey('plp-enterprise-home')), findsOneWidget);
     expect(find.text('Welcome, Doctora'), findsOneWidget);
     expect(find.text('66.67%'), findsOneWidget);
-    expect(find.text('3'), findsOneWidget);
+    expect(find.text('2 of 3 rooms occupied'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('plp-metric-sales')),
       320,
       scrollable: find.byType(Scrollable),
     );
-    expect(find.text('₱300000'), findsOneWidget);
-    expect(find.text('2'), findsWidgets);
-    expect(find.text('1'), findsWidgets);
+    expect(find.text('₱300,000'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('1 OTA conflict'),
+      260,
+      scrollable: find.byType(Scrollable),
+    );
+    expect(find.text('1 OTA conflict'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('2 open staff tasks'),
+      220,
+      scrollable: find.byType(Scrollable),
+    );
+    expect(find.text('2 open staff tasks'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('plp-open-alfred')),

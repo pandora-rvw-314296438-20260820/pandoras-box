@@ -23,6 +23,7 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.security.MessageDigest
 import java.util.UUID
+import org.json.JSONObject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -86,6 +87,15 @@ If required information is missing locally, needs an authoritative provider muta
     private var lastGeneratedTokenEvents: Int? = null
     private var lastTokenEventsPerSecond: Double? = null
     private var lastGenerationOutcome: String? = null
+    private var lastGenerationPhase: String? = null
+    private var lastGenerationErrorClass: String? = null
+    private var lastGenerationErrorMessage: String? = null
+    private var lastGenerationBackend: String? = null
+    private var lastGenerationGpuLayers: Int? = null
+    private var acceleratorVerifiedByGeneration = false
+    private var lastWarmFailurePhase: String? = null
+    private var lastWarmFailureClass: String? = null
+    private var lastWarmFailureMessage: String? = null
 
     init {
         eventChannel.setStreamHandler(
@@ -287,6 +297,14 @@ If required information is missing locally, needs an authoritative provider muta
                 lastTimeToFirstTokenMs = ttftMs
                 lastGeneratedTokenEvents = tokenEvents
                 lastTokenEventsPerSecond = tokenRate
+                val acceptanceRuntime = nativeRuntimeDiagnostics()
+                lastGenerationBackend = acceptanceRuntime["activeBackend"]?.toString()
+                lastGenerationGpuLayers =
+                    (acceptanceRuntime["gpuLayersActive"] as? Number)?.toInt()
+                acceleratorVerifiedByGeneration =
+                    lastGenerationBackend == "vulkan" &&
+                        (lastGenerationGpuLayers ?: 0) > 0
+                lastGenerationPhase = "acceptance_completed"
                 lastGenerationOutcome = "acceptance_completed"
 
                 val runNonce = UUID.randomUUID().toString()
@@ -300,7 +318,10 @@ If required information is missing locally, needs an authoritative provider muta
                         "modelName" to modelName,
                         "modelSha256" to modelSha256,
                         "runNonce" to runNonce,
-                        "runtimeBackend" to "cpu",
+                        "runtimeBackend" to
+                            (nativeRuntimeDiagnostics()["activeBackend"]?.toString() ?: "unknown"),
+                        "runtimeGpuLayers" to
+                            ((nativeRuntimeDiagnostics()["gpuLayersActive"] as? Number)?.toInt() ?: 0),
                         "networkState" to networkState,
                         "localOnlyPathVerified" to true,
                         "cloudUsed" to false,
@@ -422,13 +443,85 @@ If required information is missing locally, needs an authoritative provider muta
         scope.launch {
             try {
                 result.success(warmInternal())
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
+                recordWarmFailure(
+                    lastWarmFailurePhase ?: "warm",
+                    error,
+                )
                 result.error(
                     "LOCAL_AI_WARM_FAILED",
-                    error.message ?: "Pandora could not warm the local model.",
-                    null,
+                    localFailureMessage(error),
+                    statusMap(),
                 )
             }
+        }
+    }
+
+    private fun localFailureMessage(error: Throwable): String {
+        val detail = error.message?.trim().orEmpty()
+        return if (detail.isNotEmpty()) {
+            detail
+        } else {
+            "Local AI failed in " +
+                (lastWarmFailurePhase ?: "unknown phase") +
+                " (" +
+                error.javaClass.simpleName +
+                ")."
+        }
+    }
+
+    private fun recordWarmFailure(phase: String, error: Throwable) {
+        lastWarmFailurePhase = phase
+        lastWarmFailureClass = error.javaClass.simpleName
+        lastWarmFailureMessage = localFailureMessage(error)
+    }
+
+    private fun clearWarmFailure() {
+        lastWarmFailurePhase = null
+        lastWarmFailureClass = null
+        lastWarmFailureMessage = null
+    }
+
+    private fun engineErrorMessage(state: InferenceEngine.State.Error): String {
+        val error = state.exception
+        val detail = error.message?.trim().orEmpty()
+        return if (detail.isNotEmpty()) {
+            detail
+        } else {
+            error.javaClass.simpleName
+        }
+    }
+
+    private fun engineStateName(state: InferenceEngine.State): String =
+        when (state) {
+            is InferenceEngine.State.Uninitialized -> "uninitialized"
+            is InferenceEngine.State.Initializing -> "initializing"
+            is InferenceEngine.State.Initialized -> "initialized"
+            is InferenceEngine.State.LoadingModel -> "loading_model"
+            is InferenceEngine.State.UnloadingModel -> "unloading_model"
+            is InferenceEngine.State.ModelReady -> "model_ready"
+            is InferenceEngine.State.Benchmarking -> "benchmarking"
+            is InferenceEngine.State.ProcessingSystemPrompt -> "processing_system_prompt"
+            is InferenceEngine.State.ProcessingUserPrompt -> "processing_user_prompt"
+            is InferenceEngine.State.Generating -> "generating"
+            is InferenceEngine.State.Error -> "error"
+        }
+
+    private fun nativeRuntimeDiagnostics(): Map<String, Any?> {
+        return try {
+            val payload = JSONObject(engine.runtimeDiagnostics())
+            mapOf(
+                "configuredBackend" to payload.optString("configuredBackend", "unknown"),
+                "activeBackend" to payload.optString("activeBackend", "unknown"),
+                "vulkanDeviceAvailable" to payload.optBoolean("vulkanDeviceAvailable", false),
+                "accelerationAttempted" to payload.optBoolean("accelerationAttempted", false),
+                "cpuFallbackUsed" to payload.optBoolean("cpuFallbackUsed", false),
+                "gpuLayersRequested" to payload.optInt("gpuLayersRequested", 0),
+                "gpuLayersActive" to payload.optInt("gpuLayersActive", 0),
+                "contextTokens" to payload.optInt("contextTokens", 2048),
+            )
+        } catch (_: Throwable) {
+            emptyMap()
         }
     }
 
@@ -458,11 +551,25 @@ If required information is missing locally, needs an authoritative provider muta
             val generationStarted = SystemClock.elapsedRealtime()
             var firstTokenAt: Long? = null
             var emittedTokenEvents = 0
+            lastTimeToFirstTokenMs = null
+            lastGeneratedTokenEvents = null
+            lastTokenEventsPerSecond = null
+            lastGenerationErrorClass = null
+            lastGenerationErrorMessage = null
+            lastGenerationBackend = null
+            lastGenerationGpuLayers = null
+            acceleratorVerifiedByGeneration = false
             lastGenerationOutcome = "running"
+            lastGenerationPhase = "warming"
             try {
                 if (!warmInternal()) {
                     throw IllegalStateException("No local GGUF model is configured.")
                 }
+                val generationRuntime = nativeRuntimeDiagnostics()
+                lastGenerationBackend = generationRuntime["activeBackend"]?.toString()
+                lastGenerationGpuLayers =
+                    (generationRuntime["gpuLayersActive"] as? Number)?.toInt()
+                lastGenerationPhase = "processing_user_prompt"
                 engine.sendUserPrompt(prompt, predictLength).collect { token ->
                     if (token.isNotEmpty()) {
                         val now = SystemClock.elapsedRealtime()
@@ -470,6 +577,7 @@ If required information is missing locally, needs an authoritative provider muta
                             firstTokenAt = now
                             lastTimeToFirstTokenMs = now - generationStarted
                         }
+                        lastGenerationPhase = "generating"
                         emittedTokenEvents += 1
                         eventSink?.success(
                             mapOf(
@@ -480,23 +588,37 @@ If required information is missing locally, needs an authoritative provider muta
                         )
                     }
                 }
+                check(emittedTokenEvents > 0) {
+                    "Local llama.cpp generation completed without emitting a token."
+                }
+                val runtime = nativeRuntimeDiagnostics()
+                lastGenerationBackend = runtime["activeBackend"]?.toString()
+                lastGenerationGpuLayers = (runtime["gpuLayersActive"] as? Number)?.toInt()
+                acceleratorVerifiedByGeneration =
+                    lastGenerationBackend == "vulkan" &&
+                        (lastGenerationGpuLayers ?: 0) > 0
+                lastGenerationPhase = "completed"
                 lastGenerationOutcome = "completed"
                 eventSink?.success(
                     mapOf("requestId" to requestId, "type" to "done"),
                 )
             } catch (_: CancellationException) {
+                lastGenerationPhase = "cancelled"
                 lastGenerationOutcome = "cancelled"
                 eventSink?.success(
                     mapOf("requestId" to requestId, "type" to "done"),
                 )
             } catch (error: Exception) {
+                lastGenerationPhase = "failed"
                 lastGenerationOutcome = "failed"
+                lastGenerationErrorClass = error.javaClass.simpleName
+                lastGenerationErrorMessage =
+                    error.message ?: "Pandora local inference failed."
                 eventSink?.success(
                     mapOf(
                         "requestId" to requestId,
                         "type" to "error",
-                        "message" to
-                            (error.message ?: "Pandora local inference failed."),
+                        "message" to lastGenerationErrorMessage,
                     ),
                 )
             } finally {
@@ -515,10 +637,16 @@ If required information is missing locally, needs an authoritative provider muta
     private fun resetConversation(result: MethodChannel.Result) {
         scope.launch {
             try {
-                activeGeneration?.cancel()
+                activeGeneration?.cancelAndJoin()
                 activeGeneration = null
-                unloadInternal()
-                result.success(warmInternal())
+                if (!warmInternal()) {
+                    throw IllegalStateException("No local GGUF model is configured.")
+                }
+                // Reset only the conversational KV state. Keep the 2.3 GiB
+                // model resident so a route transition does not pay another
+                // cold model load.
+                engine.setSystemPrompt(SYSTEM_PROMPT.trim())
+                result.success(true)
             } catch (error: Exception) {
                 result.error(
                     "LOCAL_AI_RESET_FAILED",
@@ -554,9 +682,13 @@ If required information is missing locally, needs an authoritative provider muta
         if (loadedModelPath == canonicalPath &&
             engine.state.value is InferenceEngine.State.ModelReady
         ) {
+            clearWarmFailure()
             return true
         }
 
+        if (engine.state.value is InferenceEngine.State.Error && loadedModelPath != null) {
+            unloadInternal()
+        }
         awaitEngineInitialized()
         if (loadedModelPath != null) unloadInternal()
         val loadStarted = SystemClock.elapsedRealtime()
@@ -564,41 +696,53 @@ If required information is missing locally, needs an authoritative provider muta
         val loadedState = engine.state.value
         require(loadedState is InferenceEngine.State.ModelReady) {
             "llama.cpp did not reach ModelReady after loading the GGUF; state=" +
-                loadedState.javaClass.simpleName
+                engineStateName(loadedState)
         }
         engine.setSystemPrompt(SYSTEM_PROMPT.trim())
         lastModelLoadMs = SystemClock.elapsedRealtime() - loadStarted
         loadedModelPath = canonicalPath
+        clearWarmFailure()
         return true
     }
 
     private suspend fun awaitEngineInitialized() {
-        withTimeout(15_000L) {
-            when (val current = engine.state.value) {
-                is InferenceEngine.State.Initialized -> return@withTimeout
-                is InferenceEngine.State.ModelReady -> return@withTimeout
-                is InferenceEngine.State.Error -> {
-                    engine.cleanUp()
-                    val recovered = engine.state.first {
-                        it is InferenceEngine.State.Initialized ||
-                            it is InferenceEngine.State.Error
+        try {
+            withTimeout(30_000L) {
+                when (val current = engine.state.value) {
+                    is InferenceEngine.State.Initialized -> return@withTimeout
+                    is InferenceEngine.State.ModelReady -> return@withTimeout
+                    is InferenceEngine.State.Error -> {
+                        throw IllegalStateException(
+                            "Local inference engine initialization failed: " +
+                                engineErrorMessage(current),
+                            current.exception,
+                        )
                     }
-                    require(recovered is InferenceEngine.State.Initialized) {
-                        "Local inference engine could not recover from Error state."
-                    }
-                    return@withTimeout
-                }
-                else -> {
-                    val ready = engine.state.first {
-                        it is InferenceEngine.State.Initialized ||
-                            it is InferenceEngine.State.ModelReady ||
-                            it is InferenceEngine.State.Error
-                    }
-                    if (ready is InferenceEngine.State.Error) {
-                        engine.cleanUp()
+                    else -> {
+                        when (
+                            val ready = engine.state.first {
+                                it is InferenceEngine.State.Initialized ||
+                                    it is InferenceEngine.State.ModelReady ||
+                                    it is InferenceEngine.State.Error
+                            }
+                        ) {
+                            is InferenceEngine.State.Initialized -> Unit
+                            is InferenceEngine.State.ModelReady -> Unit
+                            is InferenceEngine.State.Error -> {
+                                throw IllegalStateException(
+                                    "Local inference engine initialization failed: " +
+                                        engineErrorMessage(ready),
+                                    ready.exception,
+                                )
+                            }
+                            else -> Unit
+                        }
                     }
                 }
             }
+        } catch (error: Throwable) {
+            recordWarmFailure("engine_initialization", error)
+            throw error
         }
     }
 
@@ -739,6 +883,14 @@ If required information is missing locally, needs an authoritative provider muta
             batteryManager
                 .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
                 .takeIf { it in 0..100 }
+        val nativeRuntime = nativeRuntimeDiagnostics()
+        val activeBackend = nativeRuntime["activeBackend"]?.toString() ?: "unknown"
+        val activeGpuLayers =
+            (nativeRuntime["gpuLayersActive"] as? Number)?.toInt() ?: 0
+        val configuredBackend =
+            nativeRuntime["configuredBackend"]?.toString() ?: "auto_vulkan_cpu_fallback"
+        val contextTokens =
+            (nativeRuntime["contextTokens"] as? Number)?.toInt() ?: 2048
 
         return mapOf(
             "supported" to true,
@@ -759,23 +911,34 @@ If required information is missing locally, needs an authoritative provider muta
             "modelImportMethod" to "android_document_picker",
             "modelDownloadSupported" to false,
             "modelDownloadResumeSupported" to false,
-            "engineState" to engine.state.value.javaClass.simpleName,
+            "engineState" to engineStateName(engine.state.value),
             "nativeRuntime" to "llama.cpp",
-            "runtimeBackendConfigured" to "cpu",
-            "cpuOptimizationConfigured" to "KleidiAI+OpenMP",
+            "runtimeBackendConfigured" to configuredBackend,
+            "runtimeBackendActive" to activeBackend,
+            "cpuOptimizationConfigured" to "static-arm64-cpu-fallback",
             "runtimeNativeAbi" to "arm64-v8a",
-            "runtimeContextTokens" to 2048,
-            "runtimeBatchTokens" to 256,
-            "runtimeModelLoadMode" to "mmap",
-            "runtimeGpuLayers" to 0,
+            "runtimeContextTokens" to contextTokens,
+            "runtimeBatchTokens" to 128,
+            "runtimeModelLoadMode" to "mmap_with_non_mmap_fallback",
+            "runtimeGpuLayers" to activeGpuLayers,
+            "runtimeGpuLayersRequested" to
+                ((nativeRuntime["gpuLayersRequested"] as? Number)?.toInt() ?: 0),
+            "runtimeVulkanDeviceAvailable" to
+                (nativeRuntime["vulkanDeviceAvailable"] == true),
+            "runtimeAccelerationAttempted" to
+                (nativeRuntime["accelerationAttempted"] == true),
+            "runtimeCpuFallbackUsed" to
+                (nativeRuntime["cpuFallbackUsed"] == true),
             "runtimeExtraBufferRepack" to false,
             "runtimeLazyMode" to "off",
+            "runtimeContextFallback" to "4096->3072->2048",
+            "runtimeSystemPolicyMode" to "native_system_prompt",
             "acceptanceModelName" to ACCEPTANCE_MODEL_NAME,
             "acceptanceModelSha256" to ACCEPTANCE_MODEL_SHA256,
-            "gpuAccelerationUsed" to false,
+            "gpuAccelerationUsed" to (activeBackend == "vulkan" && activeGpuLayers > 0),
             "npuAccelerationUsed" to false,
             "nnapiAccelerationUsed" to false,
-            "acceleratorVerified" to false,
+            "acceleratorVerified" to acceleratorVerifiedByGeneration,
             "lastModelLoadMs" to lastModelLoadMs,
             "lastTimeToFirstTokenMs" to lastTimeToFirstTokenMs,
             "lastGenerationMs" to lastGenerationMs,
@@ -783,6 +946,14 @@ If required information is missing locally, needs an authoritative provider muta
             "tokensPerSecond" to lastTokenEventsPerSecond,
             "tokensPerSecondBasis" to "non_empty_inference_flow_emissions",
             "lastGenerationOutcome" to lastGenerationOutcome,
+            "lastGenerationPhase" to lastGenerationPhase,
+            "lastGenerationErrorClass" to lastGenerationErrorClass,
+            "lastGenerationErrorMessage" to lastGenerationErrorMessage,
+            "lastGenerationBackend" to lastGenerationBackend,
+            "lastGenerationGpuLayers" to lastGenerationGpuLayers,
+            "lastWarmFailurePhase" to lastWarmFailurePhase,
+            "lastWarmFailureClass" to lastWarmFailureClass,
+            "lastWarmFailureMessage" to lastWarmFailureMessage,
             "androidVersion" to Build.VERSION.RELEASE,
             "androidSdk" to Build.VERSION.SDK_INT,
             "manufacturer" to Build.MANUFACTURER,

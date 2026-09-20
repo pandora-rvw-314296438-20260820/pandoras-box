@@ -73,7 +73,7 @@ test('the APK calls Pandora intelligence and carries no provider secret contract
 
 
 test('mobile chat uses a full-height floating overlay with keyboard-aware bottom anchoring', () => {
-  assert.match(askPandoraScreen, /resizeToAvoidBottomInset:\s*true/);
+  assert.match(askPandoraScreen, /resizeToAvoidBottomInset:\s*false/);
   assert.match(askPandoraScreen, /bottom:\s*composerHeight/);
   assert.doesNotMatch(askPandoraScreen, /bottom:\s*keyboardInset\s*\+\s*composerHeight/);
   assert.match(askPandoraScreen, /viewportSize:\s*viewportSize/);

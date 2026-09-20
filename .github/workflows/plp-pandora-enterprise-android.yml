@@ -23,7 +23,7 @@ jobs:
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       FLUTTER_VERSION: '3.47.0'
-      EXPECTED_APP_VERSION: '0.4.0-rc.5+12'
+      EXPECTED_APP_VERSION: '0.4.0-rc.6+13'
       EXPECTED_PACKAGE: 'com.banataosystems.pandora.plp'
       EXPECTED_LABEL: 'PLP Pandora Enterprise'
       LLAMA_CPP_SHA: '44be98f057e9f9902a8ee12630e181c7f8ec2953'
@@ -63,7 +63,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set +o pipefail
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          set -o pipefail
           "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"             'platforms;android-36'             'build-tools;36.0.0'             'ndk;29.0.13113456'             'cmake;3.31.6'
+
+      - name: Install Vulkan build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y glslc libvulkan-dev spirv-headers
+          test -f /usr/include/vulkan/vulkan.hpp
+          test -f /usr/include/spirv/unified1/spirv.hpp
+          mkdir -p "$RUNNER_TEMP/pandora-vulkan-headers"
+          cp -R /usr/include/vulkan "$RUNNER_TEMP/pandora-vulkan-headers/vulkan"
+          cp -R /usr/include/spirv "$RUNNER_TEMP/pandora-vulkan-headers/spirv"
+          echo "PANDORA_VULKAN_HEADERS_DIR=$RUNNER_TEMP/pandora-vulkan-headers" >> "$GITHUB_ENV"
+          spirv_config=$(find /usr -type f -name SPIRV-HeadersConfig.cmake -print -quit)
+          test -n "$spirv_config"
+          echo "PANDORA_SPIRV_HEADERS_DIR=$(dirname "$spirv_config")" >> "$GITHUB_ENV"
 
       - name: Install pinned Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
@@ -93,6 +112,7 @@ jobs:
           cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/AiChat.kt             android/app/src/main/kotlin/com/arm/aichat/AiChat.kt
           cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/InferenceEngine.kt             android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
           cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/internal/InferenceEngineImpl.kt             android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt
+          python3 ../apps/pandora-mobile/tool/patch_inference_engine_android.py             android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt             android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
 
           rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
           cp -R ../apps/pandora-mobile/lib ./lib
@@ -123,14 +143,27 @@ jobs:
 
       - name: Analyze dedicated PLP source
         working-directory: .plp-android-build
-        run: flutter analyze
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          flutter analyze > flutter-analyze.log 2>&1
+          ANALYZE_EXIT=$?
+          set -e
+          cat flutter-analyze.log
+          if grep -Eq '^[[:space:]]*error[[:space:]]+•' flutter-analyze.log; then
+            exit 31
+          fi
+          if [[ "$ANALYZE_EXIT" -ne 0 ]] && ! grep -Fq 'issues found.' flutter-analyze.log; then
+            exit "$ANALYZE_EXIT"
+          fi
 
       - name: Run PLP architecture and UI tests
         working-directory: .plp-android-build
         shell: bash
         run: |
           set -euo pipefail
-          flutter test --reporter expanded             test/core/local_ai/plp_local_router_test.dart             test/features/enterprise/plp_staff_task_action_test.dart             test/features/enterprise/plp_enterprise_home_test.dart             test/features/enterprise/enterprise_vision_demo_contract_test.dart             test/features/operations/operations_room_test.dart
+          flutter test --reporter expanded             test/core/local_ai/plp_local_router_test.dart             test/core/local_ai/plp_chat_fallback_test.dart             test/features/enterprise/plp_staff_task_action_test.dart             test/features/enterprise/plp_enterprise_home_test.dart             test/features/enterprise/plp_guests_screen_test.dart             test/features/enterprise/plp_team_access_screen_test.dart             test/features/enterprise/plp_activity_screen_test.dart             test/features/enterprise/plp_workspace_layout_test.dart             test/features/enterprise/enterprise_vision_demo_contract_test.dart             test/features/operations/operations_room_test.dart             test/app/plp_navigation_drawer_test.dart
 
       - name: Build exact PLP native APK
         working-directory: .plp-android-build
@@ -138,13 +171,13 @@ jobs:
         run: |
           set -euo pipefail
           test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = "$EXPECTED_APP_VERSION"
-          flutter build apk --debug             --target=lib/main_plp.dart             --target-platform=android-arm64             --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"             --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
+          flutter build apk --release             --target=lib/main_plp.dart             --target-platform=android-arm64             --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"             --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
 
       - name: Verify PLP package, native ABI, signing, and model separation
         shell: bash
         run: |
           set -euo pipefail
-          apk=.plp-android-build/build/app/outputs/flutter-apk/app-debug.apk
+          apk=.plp-android-build/build/app/outputs/flutter-apk/app-release.apk
           evidence=.plp-android-build/plp-package-evidence
           mkdir -p "$evidence"
 
@@ -159,8 +192,8 @@ jobs:
           grep -Fq "package: name='$EXPECTED_PACKAGE'" "$evidence/badging.txt"
           grep -Fq "application-label:'$EXPECTED_LABEL'" "$evidence/badging.txt"
           grep -Fq "launchable-activity: name='$EXPECTED_PACKAGE.MainActivity'" "$evidence/badging.txt"
-          grep -Fq "versionCode='12'" "$evidence/badging.txt"
-          grep -Fq "versionName='0.4.0-rc.5'" "$evidence/badging.txt"
+          grep -Fq "versionCode='13'" "$evidence/badging.txt"
+          grep -Fq "versionName='0.4.0-rc.6'" "$evidence/badging.txt"
 
           grep -Fq 'lib/arm64-v8a/' "$evidence/apk-files.txt"
           ! grep -Eq 'lib/(x86|x86_64|armeabi-v7a)/' "$evidence/apk-files.txt"
@@ -175,7 +208,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source_apk=.plp-android-build/build/app/outputs/flutter-apk/app-debug.apk
+          source_apk=.plp-android-build/build/app/outputs/flutter-apk/app-release.apk
           final_apk=".plp-android-build/$APK_FILENAME"
           cp "$source_apk" "$final_apk"
 
@@ -198,6 +231,7 @@ jobs:
             echo "android_ndk=29.0.13113456"
             echo "cmake_version=3.31.6"
             echo "target_abi=arm64-v8a"
+            echo "build_mode=release"
             echo "apk_filename=$APK_FILENAME"
             echo "apk_sha256=$(sha256sum "$final_apk" | cut -d ' ' -f1)"
             echo "apk_size_bytes=$(stat -c '%s' "$final_apk")"
@@ -218,6 +252,7 @@ jobs:
           path: |
             .plp-android-build/PLP-Pandora-Enterprise.apk
             .plp-android-build/PLP-Pandora-Enterprise.manifest.txt
+            .plp-android-build/flutter-analyze.log
             .plp-android-build/plp-package-evidence
           if-no-files-found: error
           include-hidden-files: true

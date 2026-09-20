@@ -243,6 +243,30 @@ async function bootstrap(db) {
       return resolved_id;
     end;
     $$;
+
+    create or replace function cron.unschedule(job_id bigint)
+    returns boolean
+    language plpgsql
+    as $$
+    declare deleted_count integer;
+    begin
+      delete from cron.job where jobid = job_id;
+      get diagnostics deleted_count = row_count;
+      return deleted_count > 0;
+    end;
+    $$;
+
+    create or replace function cron.unschedule(job_name text)
+    returns boolean
+    language plpgsql
+    as $$
+    declare deleted_count integer;
+    begin
+      delete from cron.job where jobname = job_name;
+      get diagnostics deleted_count = row_count;
+      return deleted_count > 0;
+    end;
+    $$;
   `);
 }
 

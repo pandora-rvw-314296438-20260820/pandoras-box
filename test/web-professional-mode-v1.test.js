@@ -106,10 +106,11 @@ test('Verify preserves READY versus LIVE semantics', () => {
   assert.match(professional, /state\.health\?\.durableLedgerConfigured === true/);
 });
 
-test('Admin remains the protected existing advanced control tower', () => {
+test('Admin advanced link resolves through the Pandora-native owner shell', () => {
   assert.ok(professional.includes('href="?advanced=1"'));
-  assert.match(bootstrap, /advanced/);
-  assert.match(bootstrap, /\/control-tower\/app\.js/);
+  assert.match(bootstrap, /owner-first\.js/);
+  assert.doesNotMatch(bootstrap, /\/control-tower\/app\.js/);
+  assert.doesNotMatch(bootstrap, /projectos/i);
 });
 
 test('Professional Mode assets are composed under one distinct revision', () => {

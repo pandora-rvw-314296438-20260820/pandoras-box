@@ -71,6 +71,6 @@ test('desktop stays fail-closed instead of substituting an unrelated URL', () =>
 test('iOS CI keeps platform-sensitive goldens on the Linux visual lane', () => {
   assert.match(workflow, /Test non-golden suite/);
   assert.match(workflow, /! -path 'test\/goldens\/\*'/);
-  assert.match(workflow, /flutter test --reporter expanded "\$\{tests\[@\]\}"/);
+  assert.match(workflow, /flutter test --reporter expanded --concurrency=1 "\$\{tests\[@\]\}"/);
   assert.match(workflow, /flutter build ios --simulator --debug/);
 });
