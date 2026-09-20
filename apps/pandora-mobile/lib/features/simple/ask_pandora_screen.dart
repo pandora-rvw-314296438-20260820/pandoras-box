@@ -89,6 +89,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   bool _activityTheatreSuppressed = false;
   bool _submitting = false;
   bool _localAiGenerating = false;
+  bool _localAiPrewarmInFlight = false;
   bool _lastTurnUsedLocalAi = false;
   bool _loadingThread = false;
   bool _localConversationRestoreStarted = false;
@@ -140,10 +141,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   }
 
   Future<void> _prewarmPlpLocalAiIfSafe() async {
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    if (!mounted || !_isPlpEnterpriseContext) return;
+    if (_localAiPrewarmInFlight) return;
+    _localAiPrewarmInFlight = true;
     PandoraLocalAiStatus? probeStatus;
     try {
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      if (!mounted || !_isPlpEnterpriseContext) return;
       final status = await PandoraLocalAi.instance.status();
       probeStatus = status;
       if (!status.supported || !status.configured) return;
@@ -170,7 +173,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
             'Local readiness check. Reply with exactly LOCAL_READY.',
             predictLength: 32,
           )
-          .timeout(const Duration(seconds: 45))) {
+          .timeout(const Duration(seconds: 15))) {
         smoke += chunk;
       }
       if (smoke.trim().isEmpty ||
@@ -204,6 +207,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       await _unloadLocalAiQuietly();
       // A real user turn still continues through cloud if the local self-test
       // cannot prove the phone-local path.
+    } finally {
+      _localAiPrewarmInFlight = false;
     }
   }
 
@@ -774,6 +779,23 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       ),
     );
 
+    if (!status.loaded) {
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'fallback',
+          outcome: 'cloud',
+          reason: 'local_cold_background_prewarm',
+          status: status,
+        ),
+      );
+      if (_isPlpEnterpriseContext) {
+        unawaited(_prewarmPlpLocalAiIfSafe());
+      }
+      // Never put a cold llama.cpp warm on the user's response path. The
+      // current turn continues through cloud while Qwen prepares separately.
+      return false;
+    }
+
     _localAiIdleUnloadTimer?.cancel();
     _localAiIdleUnloadTimer = null;
     final bridgeFromOtherRoute = !_lastTurnUsedLocalAi && _messages.isNotEmpty;
@@ -836,15 +858,13 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       try {
         await PandoraLocalAi.instance.resetConversation();
       } catch (_) {
-        // A clean reload is enough to establish an empty conversation when
-        // reset fails; do not permanently abandon local AI after one bad KV
-        // reset.
+        // Do not cold-warm on the user's response path. A failed warm reset
+        // falls through to cloud and background prewarm repairs local state.
         await _unloadLocalAiQuietly();
-        try {
-          if (!await PandoraLocalAi.instance.warm()) return false;
-        } catch (_) {
-          return false;
+        if (_isPlpEnterpriseContext) {
+          unawaited(_prewarmPlpLocalAiIfSafe());
         }
+        return false;
       }
     }
     final routedPrompt =
@@ -863,7 +883,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
             localPrompt,
             predictLength: _isPlpEnterpriseContext ? 128 : 192,
           )
-          .timeout(const Duration(seconds: 45))) {
+          .timeout(const Duration(seconds: 15))) {
         if (!mounted) return true;
         response += chunk;
         setState(() {
