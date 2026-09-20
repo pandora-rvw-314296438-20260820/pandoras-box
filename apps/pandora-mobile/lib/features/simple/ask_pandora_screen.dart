@@ -94,6 +94,26 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   bool _outcomeUnknown = false;
   String? _submissionKey;
   String? _error;
+  Timer? _localAiIdleUnloadTimer;
+
+  static const Duration _localAiIdleUnloadDelay = Duration(minutes: 2);
+
+  Future<void> _unloadLocalAiQuietly() async {
+    _localAiIdleUnloadTimer?.cancel();
+    _localAiIdleUnloadTimer = null;
+    try {
+      await PandoraLocalAi.instance.unload();
+    } catch (_) {
+      // Local cleanup must never surface as a chat failure.
+    }
+  }
+
+  void _scheduleLocalAiIdleUnload() {
+    _localAiIdleUnloadTimer?.cancel();
+    _localAiIdleUnloadTimer = Timer(_localAiIdleUnloadDelay, () {
+      unawaited(_unloadLocalAiQuietly());
+    });
+  }
 
   @override
   void initState() {
@@ -113,6 +133,28 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     if (_localConversationRestoreStarted) return;
     _localConversationRestoreStarted = true;
     unawaited(_restoreLocalConversation());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      unawaited(PandoraLocalAi.instance.cancel());
+      unawaited(_unloadLocalAiQuietly());
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _activityController.removeListener(_handleActivityTimelineChanged);
+    _activityController.dispose();
+    _localAiIdleUnloadTimer?.cancel();
+    unawaited(_unloadLocalAiQuietly());
+    _objective.dispose();
+    _objectiveFocus.dispose();
+    super.dispose();
   }
 
   Future<void> _restoreLocalConversation() async {
@@ -566,7 +608,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     final status = await (() async {
       try {
         return await PandoraLocalAi.instance.status();
-      } on PandoraLocalAiException {
+      } catch (_) {
         return null;
       }
     })();
@@ -580,19 +622,29 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       hasCharacterContext: _characterContext != null,
       status: status,
     );
-    if (!route.useLocal) return false;
+    if (!route.useLocal) {
+      if (status.loaded) await _unloadLocalAiQuietly();
+      return false;
+    }
 
+    _localAiIdleUnloadTimer?.cancel();
+    _localAiIdleUnloadTimer = null;
     final bridgeFromOtherRoute = !_lastTurnUsedLocalAi && _messages.isNotEmpty;
     if (bridgeFromOtherRoute) {
       try {
         await PandoraLocalAi.instance.resetConversation();
-      } on PandoraLocalAiException {
+      } catch (_) {
+        await _unloadLocalAiQuietly();
         return false;
       }
     }
     try {
-      if (!await PandoraLocalAi.instance.warm()) return false;
-    } on PandoraLocalAiException {
+      if (!await PandoraLocalAi.instance.warm()) {
+        await _unloadLocalAiQuietly();
+        return false;
+      }
+    } catch (_) {
+      await _unloadLocalAiQuietly();
       return false;
     }
     final routedPrompt =
@@ -620,7 +672,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           }
         });
       }
-    } on PandoraLocalAiException {
+    } catch (_) {
+      await _unloadLocalAiQuietly();
       if (!mounted) return true;
       if (started && _messages.length >= 2) {
         setState(() {
@@ -645,9 +698,13 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           _pendingMessage = objective;
         });
       }
+      await _unloadLocalAiQuietly();
       return false;
     }
-    if (!started || normalized.isEmpty) return false;
+    if (!started || normalized.isEmpty) {
+      await _unloadLocalAiQuietly();
+      return false;
+    }
 
     setState(() {
       _messages[_messages.length - 1] = _ChatMessage.pandora(normalized);
@@ -656,6 +713,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _pendingMessage = null;
       _lastTurnUsedLocalAi = true;
     });
+    _scheduleLocalAiIdleUnload();
     return true;
   }
 
