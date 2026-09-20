@@ -46,17 +46,14 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
       final selected = await PandoraLocalAi.instance.chooseModel();
       if (!mounted) return;
       if (selected != null) {
-        setState(() => _status = selected);
-        final warmed = await PandoraLocalAi.instance.warm();
-        if (!mounted) return;
-        if (!warmed) {
-          setState(() {
-            _error =
-                'The model was imported, but Pandora could not warm it yet.';
-          });
-        } else {
-          await _refresh();
-        }
+        setState(() {
+          _status = selected;
+          _acceptanceChallenge = null;
+          _pendingAcceptanceEvidence = null;
+          _acceptanceReceipt = null;
+          _acceptanceStatus = null;
+        });
+        await _refresh();
       }
     } on PandoraLocalAiException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -246,7 +243,7 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                 : 'Choose your local model',
             message: loaded
                 ? 'Routine chat can start on your phone and escalate to cloud intelligence only when needed.'
-                : 'Qwen3 4B Instruct 2507 Q4_K_M is the physical-phone acceptance target; its exact SHA-256 is verified before acceptance.',
+                : 'For this phone, use Qwen2.5 3B Instruct Q4_K_M. Pandora loads it only for safe local turns and routes heavier or unsafe work to cloud intelligence.',
             icon: Icons.memory_rounded,
             tone: loaded
                 ? PandoraStatusTone.verified
@@ -305,7 +302,13 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                               : PandoraConfig.sourceRevision),
                     ),
                     Text(
-                      'Acceptance model ' +
+                      'Recommended model ' +
+                          (status.diagnostics['recommendedModelName']?.toString() ?? 'unknown') +
+                          ' · SHA ' +
+                          (status.diagnostics['recommendedModelSha256']?.toString() ?? 'unknown'),
+                    ),
+                    Text(
+                      'Legacy acceptance model ' +
                           (status.diagnostics['acceptanceModelName']?.toString() ?? 'unknown') +
                           ' · SHA ' +
                           (status.diagnostics['acceptanceModelSha256']?.toString() ?? 'unknown'),
@@ -466,18 +469,10 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
               ),
               label: Text(loaded ? 'Unload local model' : 'Warm local model'),
             ),
-            const SizedBox(height: PandoraSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _runPhysicalAcceptance,
-              icon: const Icon(Icons.verified_user_outlined),
-              label: Text(
-                _pendingAcceptanceEvidence != null
-                    ? 'Submit physical acceptance'
-                    : _acceptanceChallenge != null
-                    ? 'Run offline acceptance'
-                    : 'Prepare physical acceptance',
-              ),
-            ),
+            // Legacy Qwen3 physical acceptance remains available in the
+            // verification backend but is intentionally not exposed in this
+            // production phone profile. Chat admission validates Qwen2.5 and
+            // falls through to cloud intelligence when local use is unsafe.
           ],
           const SizedBox(height: PandoraSpacing.lg),
           const Text(
