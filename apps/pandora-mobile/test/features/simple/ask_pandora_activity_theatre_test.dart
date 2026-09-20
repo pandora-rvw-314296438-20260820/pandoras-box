@@ -92,6 +92,19 @@ Map<String, dynamic> _activityEvent({
   };
 }
 
+Future<void> _waitForRequestCount(
+  WidgetTester tester,
+  _FakeIntelligence intelligence,
+  int count,
+) async {
+  for (var attempt = 0;
+      attempt < 100 && intelligence.requestIds.length < count;
+      attempt += 1) {
+    await tester.pump(const Duration(milliseconds: 10));
+  }
+  expect(intelligence.requestIds.length, greaterThanOrEqualTo(count));
+}
+
 void main() {
   testWidgets(
     'Ask Pandora renders one live Activity stage and clears it for the reply',
@@ -122,6 +135,7 @@ void main() {
         find.byKey(const ValueKey<String>('ask' '-pandora-submit')),
       );
       await tester.pump();
+      await _waitForRequestCount(tester, intelligence, 1);
       expect(find.text('Thinking through the request…'), findsOneWidget);
       expect(
         find.byKey(const ValueKey<String>('ask' '-pandora-activity-theatre')),
@@ -234,6 +248,7 @@ void main() {
     await tester.enterText(input, 'Hi');
     await tester.tap(submit);
     await tester.pump();
+    await _waitForRequestCount(tester, intelligence, 1);
     expect(intelligence.requestIds, hasLength(1));
     final firstRequestId = intelligence.requestIds.single;
 
@@ -270,6 +285,7 @@ void main() {
 
     await tester.enterText(input, 'Hello again');
     await tester.tap(submit);
+    await _waitForRequestCount(tester, intelligence, 2);
     await tester.pumpAndSettle();
 
     expect(intelligence.requestIds, hasLength(2));
@@ -307,6 +323,7 @@ void main() {
     await tester
         .tap(find.byKey(const ValueKey<String>('ask' '-pandora-submit')));
     await tester.pump();
+    await _waitForRequestCount(tester, intelligence, 1);
 
     expect(find.text('Thinking through the request…'), findsNothing);
     expect(
