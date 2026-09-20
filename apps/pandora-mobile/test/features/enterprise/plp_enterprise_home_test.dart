@@ -53,7 +53,7 @@ void main() {
       320,
       scrollable: find.byType(Scrollable),
     );
-    expect(find.text('₱300000'), findsOneWidget);
+    expect(find.text('₱300,000'), findsOneWidget);
     expect(find.text('2'), findsWidgets);
     expect(find.text('1'), findsWidgets);
 
