@@ -61,9 +61,21 @@ void main() {
       find.byKey(const ValueKey('plp-home-bookings')),
       findsOneWidget,
     );
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('plp-home-business-performance')),
+      180,
+      scrollable: find.byType(Scrollable),
+    );
     expect(
       find.byKey(const ValueKey('plp-home-business-performance')),
       findsOneWidget,
+    );
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('plp-home-guest-experience')),
+      120,
+      scrollable: find.byType(Scrollable),
     );
     expect(
       find.byKey(const ValueKey('plp-home-guest-experience')),
@@ -72,7 +84,7 @@ void main() {
 
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('plp-open-alfred')),
-      260,
+      180,
       scrollable: find.byType(Scrollable),
     );
     expect(find.byKey(const ValueKey('plp-open-alfred')), findsOneWidget);
