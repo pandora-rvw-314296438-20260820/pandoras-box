@@ -193,6 +193,10 @@ void main() {
       kotlinSource,
       contains('activeGeneration?.cancelAndJoin()'),
     );
+    expect(kotlinSource, contains('private const val WARM_DEADLINE_MS = 15_000L'));
+    expect(kotlinSource, contains('engine.requestCancel()'));
+    expect(kotlinSource, contains('engine.clearCancelRequest()'));
+    expect(kotlinSource, contains('private suspend fun warmWithDeadline()'));
     expect(
       kotlinSource,
       isNot(contains(
@@ -229,18 +233,26 @@ void main() {
     );
     expect(
       screenSource,
-      contains('.timeout(const Duration(seconds: 45))'),
+      contains('.timeout(const Duration(seconds: 15))'),
     );
 
+    final localStart = screenSource.indexOf(
+      'Future<bool> _trySubmitLocalAi(String objective) async {',
+    );
+    final coldGuard = screenSource.indexOf('if (!status.loaded)', localStart);
+    final coldFallback =
+        screenSource.indexOf('local_cold_background_prewarm', coldGuard);
     final warm = screenSource.indexOf(
       'if (!await PandoraLocalAi.instance.warm())',
-      screenSource.indexOf('Future<bool> _trySubmitLocalAi'),
+      coldFallback,
     );
     final reset = screenSource.indexOf(
       'await PandoraLocalAi.instance.resetConversation()',
       warm,
     );
-    expect(warm, greaterThanOrEqualTo(0));
+    expect(coldGuard, greaterThan(localStart));
+    expect(coldFallback, greaterThan(coldGuard));
+    expect(warm, greaterThan(coldFallback));
     expect(reset, greaterThan(warm));
   });
 
