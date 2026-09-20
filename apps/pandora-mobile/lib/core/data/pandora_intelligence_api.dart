@@ -387,6 +387,36 @@ class PandoraIntelligenceApi {
     }
   }
 
+  Future<PandoraIntelligenceTurn?> recoverCompletedChatTurn(
+    String activityJobId,
+  ) async {
+    _requireSession();
+    final safeJobId = activityJobId.trim();
+    if (safeJobId.isEmpty) return null;
+    try {
+      final row = await _client
+          .from('pandora_activity_jobs')
+          .select('terminal_state,execution_state,execution_result')
+          .eq('id', safeJobId)
+          .eq('organization_id', _organizationId)
+          .maybeSingle();
+      final json = _map(row);
+      if (_text(json['terminal_state']) != 'result' ||
+          _text(json['execution_state']) != 'complete') {
+        return null;
+      }
+      final result = _map(json['execution_result']);
+      if (_text(result['reply']).isEmpty || _text(result['threadId']).isEmpty) {
+        return null;
+      }
+      return PandoraIntelligenceTurn.fromJson(result);
+    } on PostgrestException {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<PandoraCapabilityRegistry> capabilityRegistry() async {
     _requireSession();
     try {
