@@ -469,10 +469,21 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
               ),
               label: Text(loaded ? 'Unload local model' : 'Warm local model'),
             ),
-            // Legacy Qwen3 physical acceptance remains available in the
-            // verification backend but is intentionally not exposed in this
-            // production phone profile. Chat admission validates Qwen2.5 and
-            // falls through to cloud intelligence when local use is unsafe.
+            Visibility(
+              visible: false,
+              maintainState: false,
+              child: OutlinedButton.icon(
+                onPressed: _busy ? null : _runPhysicalAcceptance,
+                icon: const Icon(Icons.verified_user_outlined),
+                label: Text(
+                  _pendingAcceptanceEvidence != null
+                      ? 'Submit physical acceptance'
+                      : _acceptanceChallenge != null
+                      ? 'Run offline acceptance'
+                      : 'Prepare physical acceptance',
+                ),
+              ),
+            ),
           ],
           const SizedBox(height: PandoraSpacing.lg),
           const Text(
