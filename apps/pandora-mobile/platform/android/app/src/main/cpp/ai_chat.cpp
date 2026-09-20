@@ -30,7 +30,7 @@ constexpr int   N_THREADS_HEADROOM      = 2;
 
 constexpr int   DEFAULT_CONTEXT_SIZE    = 2048;
 constexpr int   OVERFLOW_HEADROOM       = 4;
-constexpr int   BATCH_SIZE              = 256;
+constexpr int   BATCH_SIZE              = 128;
 constexpr float DEFAULT_SAMPLER_TEMP    = 0.3f;
 
 static llama_model                      * g_model;
@@ -45,15 +45,15 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_init(JNIEnv *env, jobject /*unu
     // Set llama log handler to Android
     llama_log_set(aichat_android_log_callback, nullptr);
 
-    // Loading all CPU backend variants
-    const auto *path_to_backend = env->GetStringUTFChars(nativeLibDir, 0);
-    LOGi("Loading backends from %s", path_to_backend);
-    ggml_backend_load_all_from_path(path_to_backend);
-    env->ReleaseStringUTFChars(nativeLibDir, path_to_backend);
+    // Reliability baseline: use the statically linked arm64 CPU backend.
+    // Dynamic variant discovery added linker/runtime failure surface on Android
+    // without being required for the CPU acceptance path.
+    const auto *native_lib_dir = env->GetStringUTFChars(nativeLibDir, 0);
+    LOGi("Native library directory: %s", native_lib_dir);
+    env->ReleaseStringUTFChars(nativeLibDir, native_lib_dir);
 
-    // Initialize backends
     llama_backend_init();
-    LOGi("Backend initiated; Log handler set.");
+    LOGi("Static CPU backend initiated; log handler set.");
 }
 
 extern "C"
@@ -71,9 +71,15 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_load(JNIEnv *env, jobject, jstr
     LOGd("%s: Loading model from: \n%s\n", __func__, model_path);
 
     auto *model = llama_model_load_from_file(model_path, model_params);
+    if (!model) {
+        LOGw("%s: mmap model load failed; retrying with non-mmap load mode", __func__);
+        model_params.load_mode = LLAMA_LOAD_MODE_NONE;
+        model = llama_model_load_from_file(model_path, model_params);
+    }
     env->ReleaseStringUTFChars(jmodel_path, model_path);
     if (!model) {
-        return 1;
+        LOGe("%s: both mmap and non-mmap model loads failed", __func__);
+        return 2;
     }
     g_model = model;
     return 0;
@@ -119,12 +125,31 @@ static common_sampler *new_sampler(float temp) {
 extern "C"
 JNIEXPORT jint JNICALL
 Java_com_arm_aichat_internal_InferenceEngineImpl_prepare(JNIEnv * /*env*/, jobject /*unused*/) {
-    auto *context = init_context(g_model);
-    if (!context) { return 1; }
+    // Prefer the normal 2048-token context, but fail down gracefully under
+    // device memory pressure instead of making the whole local runtime unusable.
+    const int context_candidates[] = { 2048, 1536, 1024 };
+    llama_context *context = nullptr;
+    for (const int candidate : context_candidates) {
+        LOGi("%s: trying context size %d", __func__, candidate);
+        context = init_context(g_model, candidate);
+        if (context != nullptr) {
+            LOGi("%s: context size %d ready", __func__, candidate);
+            break;
+        }
+        LOGw("%s: context size %d failed", __func__, candidate);
+    }
+    if (!context) {
+        LOGe("%s: all context allocation profiles failed", __func__);
+        return 2;
+    }
     g_context = context;
     g_batch = llama_batch_init(BATCH_SIZE, 0, 1);
     g_chat_templates = common_chat_templates_init(g_model, "");
     g_sampler = new_sampler(DEFAULT_SAMPLER_TEMP);
+    if (!g_sampler) {
+        LOGe("%s: sampler initialization failed", __func__);
+        return 3;
+    }
     return 0;
 }
 
