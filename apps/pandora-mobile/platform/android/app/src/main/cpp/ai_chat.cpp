@@ -60,8 +60,14 @@ extern "C"
 JNIEXPORT jint JNICALL
 Java_com_arm_aichat_internal_InferenceEngineImpl_load(JNIEnv *env, jobject, jstring jmodel_path) {
     llama_model_params model_params = llama_model_default_params();
+    // Physical-phone acceptance baseline: reliable CPU mmap fit before acceleration.
+    model_params.n_gpu_layers = 0;
+    model_params.load_mode = LLAMA_LOAD_MODE_MMAP;
+    model_params.lazy_mode = LLAMA_LAZY_MODE_OFF;
+    model_params.use_extra_bufts = false;
 
     const auto *model_path = env->GetStringUTFChars(jmodel_path, 0);
+    LOGi("%s: CPU baseline load profile: mmap, gpu_layers=0, extra_bufts=false, lazy=off", __func__);
     LOGd("%s: Loading model from: \n%s\n", __func__, model_path);
 
     auto *model = llama_model_load_from_file(model_path, model_params);

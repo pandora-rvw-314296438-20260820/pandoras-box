@@ -114,7 +114,9 @@ class PandoraLocalAi {
     try {
       return await _methods.invokeMethod<bool>('warm') ?? false;
     } on MissingPluginException {
-      return false;
+      throw const PandoraLocalAiException(
+        'Pandora Android local-AI warm method is unavailable in this APK.',
+      );
     } on PlatformException catch (error) {
       throw PandoraLocalAiException(
         error.message ?? 'Pandora could not warm the selected local model.',

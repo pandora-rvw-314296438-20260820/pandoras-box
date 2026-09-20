@@ -546,7 +546,9 @@ If the request clearly requires live data, connected services, account data, ext
     }
 
     private suspend fun warmInternal(): Boolean {
-        if (!modelFile.isFile || modelFile.length() <= 0L) return false
+        require(modelFile.isFile && modelFile.length() > 0L) {
+            "Private GGUF missing or empty: \${modelFile.absolutePath}"
+        }
         val canonicalPath = modelFile.canonicalPath
         if (loadedModelPath == canonicalPath &&
             engine.state.value is InferenceEngine.State.ModelReady
@@ -763,6 +765,10 @@ If the request clearly requires live data, connected services, account data, ext
             "runtimeNativeAbi" to "arm64-v8a",
             "runtimeContextTokens" to 2048,
             "runtimeBatchTokens" to 256,
+            "runtimeModelLoadMode" to "mmap",
+            "runtimeGpuLayers" to 0,
+            "runtimeExtraBufferRepack" to false,
+            "runtimeLazyMode" to "off",
             "gpuAccelerationUsed" to false,
             "npuAccelerationUsed" to false,
             "nnapiAccelerationUsed" to false,
