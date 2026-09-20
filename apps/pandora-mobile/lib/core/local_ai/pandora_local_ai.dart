@@ -23,6 +23,9 @@ class PandoraLocalAiStatus {
   final String? engineState;
   final Map<String, Object?> diagnostics;
 
+  bool get localReady => loaded && diagnostics['localReady'] == true &&
+      (diagnostics['healthTokenEvents'] as num? ?? 0) > 0;
+
   static const unavailable = PandoraLocalAiStatus(
     supported: false,
     configured: false,
@@ -81,7 +84,8 @@ class PandoraLocalAi {
 
   Future<PandoraLocalAiStatus> status() async {
     try {
-      final raw = await _methods.invokeMethod<Object?>('status');
+      final raw = await _methods.invokeMethod<Object?>('status')
+          .timeout(const Duration(milliseconds: 150));
       if (raw is Map<Object?, Object?>) {
         return PandoraLocalAiStatus.fromMap(raw);
       }
@@ -90,7 +94,23 @@ class PandoraLocalAi {
       return PandoraLocalAiStatus.unavailable;
     } on PlatformException {
       return PandoraLocalAiStatus.unavailable;
+    } on TimeoutException {
+      return PandoraLocalAiStatus.unavailable;
     }
+  }
+
+  Future<void> prepare() async {
+    try {
+      await _methods.invokeMethod<void>('prepare')
+          .timeout(const Duration(milliseconds: 150));
+    } catch (_) {
+      // Preparation is background work and never blocks a chat turn.
+    }
+  }
+
+  Future<void> configure(Map<String, Object?> manifest) async {
+    await _methods.invokeMethod<void>('configure', manifest)
+        .timeout(const Duration(seconds: 1));
   }
 
   Future<PandoraLocalAiStatus?> chooseModel() async {
@@ -266,7 +286,7 @@ class PandoraLocalAi {
           'Pandora local inference is unavailable.',
         );
       }
-      yield* controller.stream;
+      yield* controller.stream.timeout(const Duration(seconds: 6));
     } on MissingPluginException {
       throw const PandoraLocalAiException(
         'Pandora local inference is unavailable on this device.',
@@ -319,6 +339,7 @@ class PandoraLocalAiRouter {
     required bool hasCharacterContext,
     PandoraLocalAiStatus? status,
   }) {
+    if (status == null) return _record(false, 'local_readiness_unknown');
     final value = message.trim();
     if (value.isEmpty) return _record(false, 'empty_message');
     if (value.length > 4000) {
@@ -380,6 +401,8 @@ class PandoraLocalAiRouter {
         return _record(false, 'low_battery');
       }
     }
+
+    if (!status.localReady) return _record(false, 'local_not_ready');
 
     final lower = value.toLowerCase();
     const externalOrConnectedTerms = <String>[

@@ -291,7 +291,9 @@ def configure_manifest(manifest: Path) -> int:
         return 1
     updated = updated.replace(
         _APPLICATION_CLOSE,
-        f'{_REMINDER_RECEIVER}\n{_SMS_STATUS_RECEIVER}\n{_APPLICATION_CLOSE}',
+        f'{_REMINDER_RECEIVER}\n{_SMS_STATUS_RECEIVER}\n' +
+        '        <service android:name=".PandoraInferenceService" android:exported="false" android:process=":pandora_inference" android:stopWithTask="true" />\n' +
+        _APPLICATION_CLOSE,
         1,
     )
 

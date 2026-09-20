@@ -16,6 +16,22 @@ permissions:
   contents: read
 
 jobs:
+  provision-phone-model:
+    name: Private model distribution admission and byte proof
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/fix/phone-private-model-lifecycle-20260920'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify private Storage admission, upload, hash, and Range readback
+        run: python3 scripts/publish-phone-model.py
+
   verify-plp-android:
     name: Exact source / PLP native Android
     runs-on: ubuntu-24.04
@@ -159,12 +175,18 @@ jobs:
             exit "$ANALYZE_EXIT"
           fi
 
+      - name: Check authenticated model endpoints and publisher identity validation
+        shell: bash
+        run: |
+          npx --yes deno@2.4.5 check supabase/functions/pandora-model-manifest/index.ts supabase/functions/pandora-model-publisher/index.ts
+          npx --yes deno@2.4.5 test supabase/functions/pandora-model-publisher/oidc_test.ts
+
       - name: Run PLP architecture and UI tests
         working-directory: .plp-android-build
         shell: bash
         run: |
           set -euo pipefail
-          flutter test --reporter expanded             test/core/local_ai/plp_local_router_test.dart             test/core/local_ai/plp_chat_fallback_test.dart             test/features/enterprise/plp_staff_task_action_test.dart             test/features/enterprise/plp_enterprise_home_test.dart             test/features/enterprise/plp_workspace_layout_test.dart             test/features/enterprise/enterprise_vision_demo_contract_test.dart             test/features/operations/operations_room_test.dart             test/app/plp_navigation_drawer_test.dart
+          flutter test --reporter expanded             test/core/local_ai/plp_local_router_test.dart             test/core/local_ai/pandora_local_ai_router_test.dart             test/core/local_ai/local_readiness_test.dart             test/core/local_ai/plp_chat_fallback_test.dart             test/features/enterprise/plp_staff_task_action_test.dart             test/features/enterprise/plp_enterprise_home_test.dart             test/features/enterprise/plp_workspace_layout_test.dart             test/features/enterprise/enterprise_vision_demo_contract_test.dart             test/features/operations/operations_room_test.dart             test/app/plp_navigation_drawer_test.dart
 
       - name: Build exact PLP native APK
         working-directory: .plp-android-build
@@ -173,6 +195,10 @@ jobs:
           set -euo pipefail
           test "$(awk '/^version:/{print $2; exit}' pubspec.yaml)" = "$EXPECTED_APP_VERSION"
           flutter build apk --release             --target=lib/main_plp.dart             --target-platform=android-arm64             --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"             --dart-define=PANDORA_APP_VERSION="$EXPECTED_APP_VERSION"
+
+      - name: Verify persistent model lifecycle on the JVM
+        working-directory: .plp-android-build/android
+        run: ./gradlew testReleaseUnitTest --no-daemon
 
       - name: Verify PLP package, native ABI, signing, and model separation
         shell: bash
@@ -239,6 +265,7 @@ jobs:
             echo "apk_size_bytes=$(stat -c '%s' "$final_apk")"
             echo "signing_evidence_sha256=$(sha256sum .plp-android-build/plp-package-evidence/signing.txt | cut -d ' ' -f1)"
             echo "badging_evidence_sha256=$(sha256sum .plp-android-build/plp-package-evidence/badging.txt | cut -d ' ' -f1)"
+            echo "automatic_model_provisioning=implemented_not_phone_verified"
             echo "physical_device_verified=false"
             echo "offline_qwen_acceptance_verified=false"
           } > "$manifest"

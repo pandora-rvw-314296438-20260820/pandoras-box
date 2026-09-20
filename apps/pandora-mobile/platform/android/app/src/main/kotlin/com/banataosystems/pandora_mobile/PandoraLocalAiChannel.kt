@@ -1,1015 +1,230 @@
 package com.banataosystems.pandora_mobile
 
 import android.app.Activity
-import android.app.ActivityManager
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.net.Uri
-import android.os.BatteryManager
-import android.os.Build
-import android.os.Debug
-import android.os.PowerManager
-import android.os.SystemClock
-import android.provider.OpenableColumns
-import com.arm.aichat.AiChat
-import com.arm.aichat.InferenceEngine
-import io.flutter.plugin.common.BinaryMessenger
-import io.flutter.plugin.common.EventChannel
-import io.flutter.plugin.common.MethodCall
-import io.flutter.plugin.common.MethodChannel
-import java.io.File
-import java.security.MessageDigest
-import java.util.UUID
+import android.content.*
+import android.os.*
+import android.os.Process
+import io.flutter.plugin.common.*
+import org.json.JSONArray
 import org.json.JSONObject
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 
+/** Flutter only owns IPC and deadlines; it never loads a native inference library. */
 class PandoraLocalAiChannel(
     private val activity: Activity,
     messenger: BinaryMessenger,
 ) {
-    companion object {
-        const val MODEL_PICK_REQUEST = 6107
-        private const val PREFS = "pandora_local_ai"
-        private const val MODEL_NAME = "model_name"
-        private const val MODEL_BYTES = "model_bytes"
-        private const val MODEL_SHA256 = "model_sha256"
-        private const val RECOMMENDED_MODEL_NAME = "qwen2.5-3b-instruct-q4_k_m.gguf"
-        private const val RECOMMENDED_MODEL_SHA256 = "626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d"
-        private const val SAFE_MODEL_MAX_BYTES = 2300L * 1024L * 1024L
-        private const val ACCEPTANCE_MODEL_NAME = "Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
-        private const val ACCEPTANCE_MODEL_SHA256 = "1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6"
-        private const val ACCEPTANCE_PROMPT =
-            "Reply with exactly one short sentence confirming Pandora local AI inference is running."
-        private const val ACCEPTANCE_OUTPUT = "Pandora local AI inference is running."
-        private const val MIN_MODEL_BYTES = 64L * 1024L * 1024L
-        private const val MAX_MODEL_BYTES = 8L * 1024L * 1024L * 1024L
-        private const val STORAGE_RESERVE_BYTES = 256L * 1024L * 1024L
-        private const val SYSTEM_PROMPT = """
-You are Pandora's fast on-device conversational layer.
-Answer naturally, directly, and concisely.
-Never claim you checked the internet, an account, a provider, or a device action unless verified results are included in the prompt.
-Authorized local business context already supplied in the prompt is valid local context and may be reasoned over on-device.
-If required information is missing locally, needs an authoritative provider mutation/refresh, needs current external information, exceeds safe local context/resources, or needs advanced cloud capability, reply exactly [[PANDORA_CLOUD_REQUIRED]].
-"""
-    }
+    companion object { const val MODEL_PICK_REQUEST = 6107 }
+    private val methods = MethodChannel(messenger, "pandora/local_ai")
+    private val events = EventChannel(messenger, "pandora/local_ai_tokens")
+    private val handler = Handler(Looper.getMainLooper())
+    private var sink: EventChannel.EventSink? = null
+    private var remote: Messenger? = null
+    private var bound = false
+    private var closed = false
+    private var suspended = false
+    private var workerPid: Int? = null
+    private var requestId: String? = null
+    private var requestStarted = 0L
+    private var lastTokenAt = 0L
+    private var firstToken = false
+    private var retries = 0
+    private var status = unavailable()
+    private var manifest: JSONObject? = null
 
-    private val methodChannel = MethodChannel(messenger, "pandora/local_ai")
-    private val eventChannel = EventChannel(messenger, "pandora/local_ai_tokens")
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val preferences =
-        activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE)
-    private val modelDirectory = File(activity.filesDir, "pandora-local-ai")
-    private val modelFile = File(modelDirectory, "model.gguf")
-    private val engine by lazy {
-        AiChat.getInferenceEngine(activity.applicationContext)
+    private val inbox = Messenger(Handler(Looper.getMainLooper()) { message ->
+        if (message.what != PandoraInferenceService.EVENT ||
+            message.sendingUid != Process.myUid()) return@Handler true
+        try { receive(JSONObject(message.data.getString("json") ?: "{}")) }
+        catch (_: Exception) { failRequest() }
+        true
+    })
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+            remote = Messenger(binder)
+            send(JSONObject().put("command", "hello"))
+            manifest?.let { send(JSONObject().put("command", "manifest").put("manifest", it)) }
+        }
+        override fun onServiceDisconnected(name: ComponentName) { lost() }
+        override fun onBindingDied(name: ComponentName) { lost() }
+        override fun onNullBinding(name: ComponentName) { lost() }
     }
-
-    private var eventSink: EventChannel.EventSink? = null
-    private var pendingModelResult: MethodChannel.Result? = null
-    private var activeGeneration: Job? = null
-    private var activeAcceptance: Job? = null
-    private var loadedModelPath: String? = null
-    private var lastModelLoadMs: Long? = null
-    private var lastTimeToFirstTokenMs: Long? = null
-    private var lastGenerationMs: Long? = null
-    private var lastGeneratedTokenEvents: Int? = null
-    private var lastTokenEventsPerSecond: Double? = null
-    private var lastGenerationOutcome: String? = null
-    private var lastGenerationPhase: String? = null
-    private var lastGenerationErrorClass: String? = null
-    private var lastGenerationErrorMessage: String? = null
-    private var lastGenerationBackend: String? = null
-    private var lastGenerationGpuLayers: Int? = null
-    private var acceleratorVerifiedByGeneration = false
-    private var lastWarmFailurePhase: String? = null
-    private var lastWarmFailureClass: String? = null
-    private var lastWarmFailureMessage: String? = null
+    private val watchdog = object : Runnable {
+        override fun run() {
+            if (closed) return
+            val now = SystemClock.elapsedRealtime()
+            if (requestId != null && (
+                    (!firstToken && now - requestStarted > 2500) ||
+                    (firstToken && now - lastTokenAt > 5000) ||
+                    now - requestStarted > 25_000)) {
+                failRequest()
+                retire(recover = true)
+            }
+            handler.postDelayed(this, 200)
+        }
+    }
 
     init {
-        eventChannel.setStreamHandler(
-            object : EventChannel.StreamHandler {
-                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    eventSink = events
+        events.setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, eventSink: EventChannel.EventSink?) { sink = eventSink }
+            override fun onCancel(arguments: Any?) { sink = null }
+        })
+        methods.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "status" -> result.success(status)
+                "prepare", "warm" -> {
+                    suspended = false
+                    bind()
+                    send(JSONObject().put("command", "prepare"))
+                    result.success(status["localReady"] == true)
                 }
-
-                override fun onCancel(arguments: Any?) {
-                    eventSink = null
-                }
-            },
-        )
-        methodChannel.setMethodCallHandler(::handleCall)
-    }
-
-    fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
-        if (requestCode != MODEL_PICK_REQUEST) return false
-        val result = pendingModelResult ?: return true
-        pendingModelResult = null
-
-        val uri = data?.data
-        if (resultCode != Activity.RESULT_OK || uri == null) {
-            result.success(null)
-            return true
-        }
-
-        scope.launch {
-            try {
-                unloadInternal()
-                val imported = withContext(Dispatchers.IO) { importModel(uri) }
-                result.success(imported)
-            } catch (error: Exception) {
-                result.error(
-                    "LOCAL_MODEL_IMPORT_FAILED",
-                    error.message ?: "Pandora could not import that GGUF model.",
-                    null,
-                )
-            }
-        }
-        return true
-    }
-
-    fun close() {
-        activeGeneration?.cancel()
-        activeAcceptance?.cancel()
-        methodChannel.setMethodCallHandler(null)
-        eventChannel.setStreamHandler(null)
-        scope.cancel()
-    }
-
-    private fun handleCall(call: MethodCall, result: MethodChannel.Result) {
-        when (call.method) {
-            "status" -> result.success(statusMap())
-            "pickModel" -> startModelPicker(result)
-            "warm" -> warm(result)
-            "generate" -> generate(call, result)
-            "runAcceptance" -> runAcceptance(call, result)
-            "cancel" -> {
-                activeGeneration?.cancel()
-                activeAcceptance?.cancel()
-                activeGeneration = null
-                activeAcceptance = null
-                result.success(null)
-            }
-            "resetConversation" -> resetConversation(result)
-            "unload" -> unload(result)
-            else -> result.notImplemented()
-        }
-    }
-
-    private fun runAcceptance(call: MethodCall, result: MethodChannel.Result) {
-        if (activeGeneration?.isActive == true || activeAcceptance?.isActive == true) {
-            result.error("LOCAL_AI_BUSY", "Pandora local AI is already running.", null)
-            return
-        }
-        val sourceSha = call.argument<String>("sourceSha")?.trim()?.lowercase().orEmpty()
-        val challengeNonce = call.argument<String>("challengeNonce")?.trim().orEmpty()
-        val expectedApkSha256 =
-            call.argument<String>("expectedApkSha256")?.trim()?.lowercase().orEmpty()
-        if (!sourceSha.matches(Regex("^[0-9a-f]{40}$")) ||
-            challengeNonce.isEmpty() ||
-            !expectedApkSha256.matches(Regex("^[0-9a-f]{64}$"))
-        ) {
-            result.error(
-                "LOCAL_AI_ACCEPTANCE_INVALID_CHALLENGE",
-                "Pandora received an invalid physical acceptance challenge.",
-                null,
-            )
-            return
-        }
-
-        activeAcceptance = scope.launch {
-            try {
-                val networkState = acceptanceNetworkState()
-                if (networkState != "offline") {
-                    throw IllegalStateException(
-                        "Physical acceptance requires Wi-Fi and mobile data to be off.",
-                    )
-                }
-                val emulatorDetected = isLikelyEmulator()
-                if (emulatorDetected) {
-                    throw IllegalStateException(
-                        "Physical acceptance cannot run on an emulator.",
-                    )
-                }
-                val modelName = preferences.getString(MODEL_NAME, null)?.trim().orEmpty()
-                val modelSha256 =
-                    preferences.getString(MODEL_SHA256, null)?.trim()?.lowercase().orEmpty()
-                require(modelFile.isFile && modelFile.length() > 0L) {
-                    "Import the local GGUF model before physical acceptance."
-                }
-                require(modelName.isNotEmpty()) {
-                    "Pandora could not identify the imported local model."
-                }
-                require(modelSha256.matches(Regex("^[0-9a-f]{64}$"))) {
-                    "Pandora could not verify the imported local model hash."
-                }
-                require(modelSha256 == ACCEPTANCE_MODEL_SHA256) {
-                    "Physical acceptance requires $ACCEPTANCE_MODEL_NAME with SHA-256 $ACCEPTANCE_MODEL_SHA256."
-                }
-
-                val apkSha256 = withContext(Dispatchers.IO) {
-                    sha256File(File(activity.applicationInfo.sourceDir))
-                }
-                require(apkSha256 == expectedApkSha256) {
-                    "Installed APK does not match the exact verified build."
-                }
-
-                unloadInternal()
-                require(warmInternal()) {
-                    "Pandora could not load the local model for acceptance."
-                }
-                val measuredLoadMs = lastModelLoadMs
-
-                val generationStarted = SystemClock.elapsedRealtime()
-                var firstTokenAt: Long? = null
-                var tokenEvents = 0
-                val generated = StringBuilder()
-                val prompt = ACCEPTANCE_PROMPT
-                engine.sendUserPrompt(prompt, 96).collect { token ->
-                    if (token.isNotEmpty()) {
-                        val now = SystemClock.elapsedRealtime()
-                        if (firstTokenAt == null) firstTokenAt = now
-                        tokenEvents += 1
-                        generated.append(token)
-                    }
-                }
-                val generationMs =
-                    (SystemClock.elapsedRealtime() - generationStarted).coerceAtLeast(1L)
-                val ttftMs =
-                    (firstTokenAt ?: throw IllegalStateException(
-                        "Local acceptance generated no token.",
-                    )) - generationStarted
-                require(tokenEvents > 0 && generated.isNotEmpty()) {
-                    "Local acceptance generated no output."
-                }
-                val normalizedAcceptanceOutput = generated.toString().trim()
-                require(normalizedAcceptanceOutput == ACCEPTANCE_OUTPUT) {
-                    "Local acceptance output did not match the required confirmation sentence."
-                }
-                val tokenRate = tokenEvents.toDouble() * 1000.0 / generationMs.toDouble()
-
-                var cancellationVerified = false
-                val firstCancellationToken = CompletableDeferred<Unit>()
-                val cancellationJob = launch {
+                "configure" -> {
                     try {
-                        engine.sendUserPrompt(
-                            "Count upward one number at a time until stopped.",
-                            512,
-                        ).collect { token ->
-                            if (token.isNotEmpty() && !firstCancellationToken.isCompleted) {
-                                firstCancellationToken.complete(Unit)
-                            }
-                        }
-                    } catch (error: CancellationException) {
-                        cancellationVerified = true
-                        throw error
+                        val value = JSONObject(call.arguments as Map<*, *>)
+                        PandoraModelManifest.parse(value) // Reject malformed metadata before IPC.
+                        manifest = value
+                        if (!suspended) bind()
+                        send(JSONObject().put("command", "manifest").put("manifest", value))
+                        result.success(null)
+                    } catch (_: Exception) { result.error("CONFIG_INVALID", "route_retry", null) }
+                }
+                "generate" -> {
+                    val id = call.argument<String>("requestId").orEmpty()
+                    if (status["localReady"] != true || requestId != null || remote == null) {
+                        result.success(false)
+                    } else {
+                        requestId = id
+                        firstToken = false
+                        requestStarted = SystemClock.elapsedRealtime()
+                        lastTokenAt = requestStarted
+                        status = status + mapOf("localReady" to false, "loaded" to false)
+                        val sent = send(JSONObject().put("command", "generate").put("requestId", id)
+                            .put("prompt", call.argument<String>("prompt"))
+                            .put("predictLength", call.argument<Number>("predictLength")?.toInt() ?: 192))
+                        result.success(sent)
+                        if (!sent) failRequest()
                     }
                 }
-                try {
-                    withTimeout(15_000L) { firstCancellationToken.await() }
-                } finally {
-                    cancellationJob.cancelAndJoin()
+                "resetConversation" -> result.success(null)
+                "cancel" -> {
+                    if (requestId != null) { failRequest(); retire(recover = true) }
+                    result.success(null)
                 }
-                require(cancellationVerified) {
-                    "Local generation cancellation did not verify."
+                "unload" -> {
+                    suspended = true
+                    failRequest()
+                    retire(recover = false)
+                    result.success(null)
                 }
-
-                unloadInternal()
-                val unloaded = loadedModelPath == null
-                val reloaded = warmInternal()
-                val unloadReloadVerified = unloaded && reloaded
-                require(unloadReloadVerified) {
-                    "Local model unload/reload did not verify."
-                }
-
-                lastGenerationMs = generationMs
-                lastTimeToFirstTokenMs = ttftMs
-                lastGeneratedTokenEvents = tokenEvents
-                lastTokenEventsPerSecond = tokenRate
-                val acceptanceRuntime = nativeRuntimeDiagnostics()
-                lastGenerationBackend = acceptanceRuntime["activeBackend"]?.toString()
-                lastGenerationGpuLayers =
-                    (acceptanceRuntime["gpuLayersActive"] as? Number)?.toInt()
-                acceleratorVerifiedByGeneration =
-                    lastGenerationBackend == "vulkan" &&
-                        (lastGenerationGpuLayers ?: 0) > 0
-                lastGenerationPhase = "acceptance_completed"
-                lastGenerationOutcome = "acceptance_completed"
-
-                val runNonce = UUID.randomUUID().toString()
-
-                result.success(
-                    statusMap() + mapOf(
-                        "sourceSha" to sourceSha,
-                        "challengeNonce" to challengeNonce,
-                        "apkSha256" to apkSha256,
-                        "packageName" to activity.packageName,
-                        "modelName" to modelName,
-                        "modelSha256" to modelSha256,
-                        "runNonce" to runNonce,
-                        "runtimeBackend" to
-                            (nativeRuntimeDiagnostics()["activeBackend"]?.toString() ?: "unknown"),
-                        "runtimeGpuLayers" to
-                            ((nativeRuntimeDiagnostics()["gpuLayersActive"] as? Number)?.toInt() ?: 0),
-                        "networkState" to networkState,
-                        "localOnlyPathVerified" to true,
-                        "cloudUsed" to false,
-                        "physicalDevice" to true,
-                        "emulatorDetected" to false,
-                        "cancellationVerified" to cancellationVerified,
-                        "unloadReloadVerified" to unloadReloadVerified,
-                        "modelLoadMs" to measuredLoadMs,
-                        "timeToFirstTokenMs" to ttftMs,
-                        "generationMs" to generationMs,
-                        "generatedTokenEvents" to tokenEvents,
-                        "tokenEventsPerSecond" to tokenRate,
-                        "generatedTextSha256" to sha256Text(normalizedAcceptanceOutput),
-                        "acceptancePromptSha256" to sha256Text(prompt),
-                        "acceptanceOutputSha256" to sha256Text(normalizedAcceptanceOutput),
-                        "acceptanceOutputMatched" to true,
-                        "deviceEvidenceLevel" to "heuristic",
-                    ),
-                )
-            } catch (error: Exception) {
-                result.error(
-                    "LOCAL_AI_ACCEPTANCE_FAILED",
-                    error.message ?: "Pandora physical acceptance failed.",
-                    null,
-                )
-            } finally {
-                activeAcceptance = null
+                // Kept as a compatibility denial; customer navigation has no model controls.
+                "pickModel", "runAcceptance" -> result.error("INTERNAL_ONLY", "Unavailable", null)
+                else -> result.notImplemented()
             }
         }
+        bind()
+        handler.post(watchdog)
     }
 
-    private fun acceptanceNetworkState(): String {
-        val manager =
-            activity.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val active = manager.activeNetwork ?: return "offline"
-        val capabilities = manager.getNetworkCapabilities(active) ?: return "offline"
-        return when {
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "mobile_data"
-            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) -> "online"
-            else -> "offline"
-        }
-    }
-
-    private fun isLikelyEmulator(): Boolean {
-        val fingerprint = Build.FINGERPRINT.lowercase()
-        val model = Build.MODEL.lowercase()
-        val hardware = Build.HARDWARE.lowercase()
-        val product = Build.PRODUCT.lowercase()
-        return fingerprint.startsWith("generic") ||
-            fingerprint.contains("emulator") ||
-            model.contains("google_sdk") ||
-            model.contains("emulator") ||
-            model.contains("android sdk built for") ||
-            hardware.contains("goldfish") ||
-            hardware.contains("ranchu") ||
-            product.contains("sdk_gphone") ||
-            product.contains("emulator")
-    }
-
-    private fun sha256Text(value: String): String =
-        MessageDigest.getInstance("SHA-256")
-            .digest(value.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
-
-    private fun sha256File(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        file.inputStream().buffered(4 * 1024 * 1024).use { input ->
-            val buffer = ByteArray(4 * 1024 * 1024)
-            while (true) {
-                val count = input.read(buffer)
-                if (count < 0) break
-                if (count > 0) digest.update(buffer, 0, count)
-            }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }
-    }
-
-    private fun startModelPicker(result: MethodChannel.Result) {
-        if (pendingModelResult != null) {
-            result.error(
-                "LOCAL_MODEL_PICK_BUSY",
-                "A local model picker is already open.",
-                null,
-            )
-            return
-        }
-        if (activeGeneration?.isActive == true || activeAcceptance?.isActive == true) {
-            result.error(
-                "LOCAL_AI_BUSY",
-                "Wait for the current local response to finish.",
-                null,
-            )
-            return
-        }
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "*/*"
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        pendingModelResult = result
+    private fun bind() {
+        if (bound || closed || suspended) return
+        status = unavailable()
         try {
-            // Do not preflight with PackageManager.resolveActivity(). On recent
-            // Android builds, package visibility can return null even when the
-            // system document picker is available. The benchmark app on this
-            // same device already proved ACTION_OPEN_DOCUMENT works.
-            activity.startActivityForResult(intent, MODEL_PICK_REQUEST)
-        } catch (_: ActivityNotFoundException) {
-            pendingModelResult = null
-            result.error(
-                "LOCAL_MODEL_PICK_UNAVAILABLE",
-                "Android could not open the document picker.",
-                null,
+            bound = activity.bindService(
+                Intent(activity, PandoraInferenceService::class.java),
+                connection, Context.BIND_AUTO_CREATE,
             )
-        }
+        } catch (_: Exception) { bound = false }
     }
 
-    private fun warm(result: MethodChannel.Result) {
-        scope.launch {
-            try {
-                result.success(warmInternal())
-            } catch (error: Throwable) {
-                recordWarmFailure(
-                    lastWarmFailurePhase ?: "warm",
-                    error,
-                )
-                result.error(
-                    "LOCAL_AI_WARM_FAILED",
-                    localFailureMessage(error),
-                    statusMap(),
-                )
-            }
+    private fun send(value: JSONObject): Boolean = try {
+        val target = remote
+        if (target == null) false else {
+            target.send(Message.obtain(null, PandoraInferenceService.COMMAND).apply {
+                replyTo = inbox
+                data = Bundle().apply { putString("json", value.toString()) }
+            })
+            true
         }
-    }
+    } catch (_: RemoteException) { false }
 
-    private fun localFailureMessage(error: Throwable): String {
-        val detail = error.message?.trim().orEmpty()
-        return if (detail.isNotEmpty()) {
-            detail
-        } else {
-            "Local AI failed in " +
-                (lastWarmFailurePhase ?: "unknown phase") +
-                " (" +
-                error.javaClass.simpleName +
-                ")."
-        }
-    }
-
-    private fun recordWarmFailure(phase: String, error: Throwable) {
-        lastWarmFailurePhase = phase
-        lastWarmFailureClass = error.javaClass.simpleName
-        lastWarmFailureMessage = localFailureMessage(error)
-    }
-
-    private fun engineErrorMessage(state: InferenceEngine.State.Error): String {
-        val error = state.exception
-        val detail = error.message?.trim().orEmpty()
-        return if (detail.isNotEmpty()) {
-            detail
-        } else {
-            error.javaClass.simpleName
-        }
-    }
-
-    private fun engineStateName(state: InferenceEngine.State): String =
-        when (state) {
-            is InferenceEngine.State.Uninitialized -> "uninitialized"
-            is InferenceEngine.State.Initializing -> "initializing"
-            is InferenceEngine.State.Initialized -> "initialized"
-            is InferenceEngine.State.LoadingModel -> "loading_model"
-            is InferenceEngine.State.UnloadingModel -> "unloading_model"
-            is InferenceEngine.State.ModelReady -> "model_ready"
-            is InferenceEngine.State.Benchmarking -> "benchmarking"
-            is InferenceEngine.State.ProcessingSystemPrompt -> "processing_system_prompt"
-            is InferenceEngine.State.ProcessingUserPrompt -> "processing_user_prompt"
-            is InferenceEngine.State.Generating -> "generating"
-            is InferenceEngine.State.Error -> "error"
-        }
-
-    private fun nativeRuntimeDiagnostics(): Map<String, Any?> {
-        return try {
-            val payload = JSONObject(engine.runtimeDiagnostics())
-            mapOf(
-                "configuredBackend" to payload.optString("configuredBackend", "unknown"),
-                "activeBackend" to payload.optString("activeBackend", "unknown"),
-                "vulkanDeviceAvailable" to payload.optBoolean("vulkanDeviceAvailable", false),
-                "accelerationAttempted" to payload.optBoolean("accelerationAttempted", false),
-                "cpuFallbackUsed" to payload.optBoolean("cpuFallbackUsed", false),
-                "gpuLayersRequested" to payload.optInt("gpuLayersRequested", 0),
-                "gpuLayersActive" to payload.optInt("gpuLayersActive", 0),
-                "contextTokens" to payload.optInt("contextTokens", 2048),
-            )
-        } catch (_: Throwable) {
-            emptyMap()
-        }
-    }
-
-    private fun generate(call: MethodCall, result: MethodChannel.Result) {
-        if (activeGeneration?.isActive == true || activeAcceptance?.isActive == true) {
-            result.error(
-                "LOCAL_AI_BUSY",
-                "Pandora local AI is already generating.",
-                null,
-            )
-            return
-        }
-        val requestId = call.argument<String>("requestId")?.trim().orEmpty()
-        val prompt = call.argument<String>("prompt")?.trim().orEmpty()
-        val predictLength =
-            (call.argument<Number>("predictLength")?.toInt() ?: 192).coerceIn(32, 512)
-        if (requestId.isEmpty() || prompt.isEmpty()) {
-            result.error(
-                "LOCAL_AI_INVALID_PROMPT",
-                "Pandora local AI received an invalid prompt.",
-                null,
-            )
-            return
-        }
-
-        activeGeneration = scope.launch {
-            val generationStarted = SystemClock.elapsedRealtime()
-            var firstTokenAt: Long? = null
-            var emittedTokenEvents = 0
-            lastTimeToFirstTokenMs = null
-            lastGeneratedTokenEvents = null
-            lastTokenEventsPerSecond = null
-            lastGenerationErrorClass = null
-            lastGenerationErrorMessage = null
-            lastGenerationBackend = null
-            lastGenerationGpuLayers = null
-            acceleratorVerifiedByGeneration = false
-            lastGenerationOutcome = "running"
-            lastGenerationPhase = "warming"
-            try {
-                if (!warmInternal()) {
-                    throw IllegalStateException("No local GGUF model is configured.")
-                }
-                val generationRuntime = nativeRuntimeDiagnostics()
-                lastGenerationBackend = generationRuntime["activeBackend"]?.toString()
-                lastGenerationGpuLayers =
-                    (generationRuntime["gpuLayersActive"] as? Number)?.toInt()
-                lastGenerationPhase = "processing_user_prompt"
-                engine.sendUserPrompt(prompt, predictLength).collect { token ->
-                    if (token.isNotEmpty()) {
-                        val now = SystemClock.elapsedRealtime()
-                        if (firstTokenAt == null) {
-                            firstTokenAt = now
-                            lastTimeToFirstTokenMs = now - generationStarted
-                        }
-                        lastGenerationPhase = "generating"
-                        emittedTokenEvents += 1
-                        eventSink?.success(
-                            mapOf(
-                                "requestId" to requestId,
-                                "type" to "token",
-                                "text" to token,
-                            ),
-                        )
-                    }
-                }
-                check(emittedTokenEvents > 0) {
-                    "Local llama.cpp generation completed without emitting a token."
-                }
-                val runtime = nativeRuntimeDiagnostics()
-                lastGenerationBackend = runtime["activeBackend"]?.toString()
-                lastGenerationGpuLayers = (runtime["gpuLayersActive"] as? Number)?.toInt()
-                acceleratorVerifiedByGeneration =
-                    lastGenerationBackend == "vulkan" &&
-                        (lastGenerationGpuLayers ?: 0) > 0
-                lastGenerationPhase = "completed"
-                lastGenerationOutcome = "completed"
-                eventSink?.success(
-                    mapOf("requestId" to requestId, "type" to "done"),
-                )
-            } catch (_: CancellationException) {
-                lastGenerationPhase = "cancelled"
-                lastGenerationOutcome = "cancelled"
-                eventSink?.success(
-                    mapOf("requestId" to requestId, "type" to "done"),
-                )
-            } catch (error: Exception) {
-                lastGenerationPhase = "failed"
-                lastGenerationOutcome = "failed"
-                lastGenerationErrorClass = error.javaClass.simpleName
-                lastGenerationErrorMessage =
-                    error.message ?: "Pandora local inference failed."
-                eventSink?.success(
-                    mapOf(
-                        "requestId" to requestId,
-                        "type" to "error",
-                        "message" to lastGenerationErrorMessage,
-                    ),
-                )
-            } finally {
-                val elapsedMs =
-                    (SystemClock.elapsedRealtime() - generationStarted).coerceAtLeast(1L)
-                lastGenerationMs = elapsedMs
-                lastGeneratedTokenEvents = emittedTokenEvents
-                lastTokenEventsPerSecond =
-                    emittedTokenEvents.toDouble() * 1000.0 / elapsedMs.toDouble()
-                activeGeneration = null
-            }
-        }
-        result.success(true)
-    }
-
-    private fun resetConversation(result: MethodChannel.Result) {
-        scope.launch {
-            try {
-                activeGeneration?.cancelAndJoin()
-                activeGeneration = null
-                if (!warmInternal()) {
-                    throw IllegalStateException("No local GGUF model is configured.")
-                }
-                // Reset only the conversational KV state. Keep the 2.3 GiB
-                // model resident so a route transition does not pay another
-                // cold model load.
-                engine.setSystemPrompt(SYSTEM_PROMPT.trim())
-                result.success(true)
-            } catch (error: Exception) {
-                result.error(
-                    "LOCAL_AI_RESET_FAILED",
-                    error.message ?: "Pandora could not reset local context.",
-                    null,
-                )
-            }
-        }
-    }
-
-    private fun unload(result: MethodChannel.Result) {
-        scope.launch {
-            try {
-                activeGeneration?.cancel()
-                activeGeneration = null
-                unloadInternal()
-                result.success(null)
-            } catch (error: Exception) {
-                result.error(
-                    "LOCAL_AI_UNLOAD_FAILED",
-                    error.message ?: "Pandora could not unload the local model.",
-                    null,
-                )
-            }
-        }
-    }
-
-    private suspend fun warmInternal(): Boolean {
-        require(modelFile.isFile && modelFile.length() > 0L) {
-            "Private GGUF missing or empty: \${modelFile.absolutePath}"
-        }
-        val canonicalPath = modelFile.canonicalPath
-        if (loadedModelPath == canonicalPath &&
-            engine.state.value is InferenceEngine.State.ModelReady
-        ) {
-            return true
-        }
-
-        if (engine.state.value is InferenceEngine.State.Error && loadedModelPath != null) {
-            unloadInternal()
-        }
-        awaitEngineInitialized()
-        if (loadedModelPath != null) unloadInternal()
-        val loadStarted = SystemClock.elapsedRealtime()
-        engine.loadModel(canonicalPath)
-        val loadedState = engine.state.value
-        require(loadedState is InferenceEngine.State.ModelReady) {
-            "llama.cpp did not reach ModelReady after loading the GGUF; state=" +
-                engineStateName(loadedState)
-        }
-        engine.setSystemPrompt(SYSTEM_PROMPT.trim())
-        lastModelLoadMs = SystemClock.elapsedRealtime() - loadStarted
-        loadedModelPath = canonicalPath
-        return true
-    }
-
-    private suspend fun awaitEngineInitialized() {
-        try {
-            withTimeout(30_000L) {
-                when (val current = engine.state.value) {
-                    is InferenceEngine.State.Initialized -> return@withTimeout
-                    is InferenceEngine.State.ModelReady -> return@withTimeout
-                    is InferenceEngine.State.Error -> {
-                        throw IllegalStateException(
-                            "Local inference engine initialization failed: " +
-                                engineErrorMessage(current),
-                            current.exception,
-                        )
-                    }
-                    else -> {
-                        when (
-                            val ready = engine.state.first {
-                                it is InferenceEngine.State.Initialized ||
-                                    it is InferenceEngine.State.ModelReady ||
-                                    it is InferenceEngine.State.Error
-                            }
-                        ) {
-                            is InferenceEngine.State.Initialized -> Unit
-                            is InferenceEngine.State.ModelReady -> Unit
-                            is InferenceEngine.State.Error -> {
-                                throw IllegalStateException(
-                                    "Local inference engine initialization failed: " +
-                                        engineErrorMessage(ready),
-                                    ready.exception,
-                                )
-                            }
-                            else -> Unit
-                        }
-                    }
+    private fun receive(value: JSONObject) {
+        when (value.optString("type")) {
+            "hello" -> workerPid = value.optInt("pid").takeIf { it > 0 && it != Process.myPid() }
+            "status" -> {
+                status = jsonMap(value)
+                if (status["localReady"] == true) retries = 0
+                // After cold-cache preparation finishes, retry any grant received while it was busy.
+                if (requestId == null && status["engineState"] == "WAITING") {
+                    manifest?.let { send(JSONObject().put("command", "manifest").put("manifest", it)) }
                 }
             }
-        } catch (error: Throwable) {
-            recordWarmFailure("engine_initialization", error)
-            throw error
-        }
-    }
-
-    private suspend fun unloadInternal() {
-        val state = engine.state.value
-        if (loadedModelPath != null &&
-            (state is InferenceEngine.State.ModelReady ||
-                state is InferenceEngine.State.Error)
-        ) {
-            engine.cleanUp()
-        }
-        loadedModelPath = null
-    }
-
-    private fun importModel(uri: Uri): Map<String, Any?> {
-        val metadata = queryModelMetadata(uri)
-        val displayName = metadata.first
-        val declaredBytes = metadata.second
-        require(displayName.lowercase().endsWith(".gguf")) {
-            "Choose a .gguf model file."
-        }
-        if (declaredBytes != null) {
-            require(declaredBytes in MIN_MODEL_BYTES..MAX_MODEL_BYTES) {
-                "The selected GGUF size is outside Pandora's supported range."
-            }
-        }
-
-        modelDirectory.mkdirs()
-        val initialUsableBytes = modelDirectory.usableSpace
-        require(initialUsableBytes > STORAGE_RESERVE_BYTES + MIN_MODEL_BYTES) {
-            "Pandora does not have enough free storage for a local GGUF model."
-        }
-        if (declaredBytes != null) {
-            require(declaredBytes + STORAGE_RESERVE_BYTES <= initialUsableBytes) {
-                "Pandora does not have enough free storage for this GGUF model."
-            }
-        }
-        val temporary = File(modelDirectory, "model.gguf.importing")
-        if (temporary.exists()) temporary.delete()
-
-        val digest = MessageDigest.getInstance("SHA-256")
-        var copied = 0L
-        activity.contentResolver.openInputStream(uri).use { input ->
-            require(input != null) { "Android could not read the selected GGUF." }
-            temporary.outputStream().buffered(4 * 1024 * 1024).use { output ->
-                val buffer = ByteArray(4 * 1024 * 1024)
-                while (true) {
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    if (count == 0) continue
-                    copied += count
-                    require(copied <= MAX_MODEL_BYTES) {
-                        "The selected GGUF is too large."
-                    }
-                    require(modelDirectory.usableSpace > STORAGE_RESERVE_BYTES) {
-                        "Pandora ran out of safe free storage while importing the GGUF."
-                    }
-                    digest.update(buffer, 0, count)
-                    output.write(buffer, 0, count)
-                }
-                output.flush()
-            }
-        }
-
-        require(copied >= MIN_MODEL_BYTES) {
-            "The selected file is too small to be a supported GGUF model."
-        }
-        if (modelFile.exists() && !modelFile.delete()) {
-            temporary.delete()
-            error("Pandora could not replace the previous local model.")
-        }
-        if (!temporary.renameTo(modelFile)) {
-            temporary.copyTo(modelFile, overwrite = true)
-            temporary.delete()
-        }
-
-        val sha256 = digest.digest().joinToString("") { "%02x".format(it) }
-        preferences.edit()
-            .putString(MODEL_NAME, displayName)
-            .putLong(MODEL_BYTES, copied)
-            .putString(MODEL_SHA256, sha256)
-            .apply()
-        return statusMap()
-    }
-
-    private fun queryModelMetadata(uri: Uri): Pair<String, Long?> {
-        var name = "model.gguf"
-        var size: Long? = null
-        activity.contentResolver.query(
-            uri,
-            arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE),
-            null,
-            null,
-            null,
-        )?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
-                if (nameIndex >= 0) {
-                    name = cursor.getString(nameIndex)?.trim().orEmpty().ifEmpty {
-                        name
-                    }
-                }
-                if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) {
-                    size = cursor.getLong(sizeIndex)
+            "token", "done", "error" -> {
+                if (value.optString("requestId") != requestId) return
+                val kind = value.optString("type")
+                if (kind == "token") { firstToken = true; lastTokenAt = SystemClock.elapsedRealtime() }
+                sink?.success(jsonMap(value))
+                if (kind != "token") {
+                    requestId = null
+                    if (kind == "error") retire(recover = true)
                 }
             }
         }
-        return name to size
     }
 
-    private fun statusMap(): Map<String, Any?> {
-        val configured = modelFile.isFile && modelFile.length() > 0L
-        val activityManager =
-            activity.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        val memory = ActivityManager.MemoryInfo().also(activityManager::getMemoryInfo)
-        val processMemory = Debug.MemoryInfo().also(Debug::getMemoryInfo)
-        val batteryManager =
-            activity.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-        val powerManager =
-            activity.getSystemService(Context.POWER_SERVICE) as PowerManager
-        val featureNames =
-            activity.packageManager.systemAvailableFeatures
-                .mapNotNull { it.name }
-                .toSet()
-        val vulkanFeatureExposed =
-            featureNames.any {
-                it == "android.hardware.vulkan.level" ||
-                    it == "android.hardware.vulkan.version"
-            }
-        val thermalStatus =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                thermalStatusName(powerManager.currentThermalStatus)
-            } else {
-                null
-            }
-        val batteryPercent =
-            batteryManager
-                .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-                .takeIf { it in 0..100 }
-        val nativeRuntime = nativeRuntimeDiagnostics()
-        val activeBackend = nativeRuntime["activeBackend"]?.toString() ?: "unknown"
-        val activeGpuLayers =
-            (nativeRuntime["gpuLayersActive"] as? Number)?.toInt() ?: 0
-        val configuredBackend =
-            nativeRuntime["configuredBackend"]?.toString() ?: "auto_vulkan_cpu_fallback"
-        val contextTokens =
-            (nativeRuntime["contextTokens"] as? Number)?.toInt() ?: 2048
-
-        return mapOf(
-            "supported" to true,
-            "configured" to configured,
-            "loaded" to
-                (loadedModelPath != null &&
-                    engine.state.value is InferenceEngine.State.ModelReady),
-            "modelName" to preferences.getString(MODEL_NAME, null),
-            "modelPath" to if (configured) modelFile.absolutePath else null,
-            "modelBytes" to
-                if (configured) {
-                    preferences.getLong(MODEL_BYTES, modelFile.length())
-                } else {
-                    null
-                },
-            "modelSha256" to preferences.getString(MODEL_SHA256, null),
-            "recommendedModelName" to RECOMMENDED_MODEL_NAME,
-            "recommendedModelSha256" to RECOMMENDED_MODEL_SHA256,
-            "safeModelMaxBytes" to SAFE_MODEL_MAX_BYTES,
-            "requiresModelImport" to !configured,
-            "modelImportMethod" to "android_document_picker",
-            "modelDownloadSupported" to false,
-            "modelDownloadResumeSupported" to false,
-            "engineState" to engineStateName(engine.state.value),
-            "nativeRuntime" to "llama.cpp",
-            "runtimeBackendConfigured" to configuredBackend,
-            "runtimeBackendActive" to activeBackend,
-            "cpuOptimizationConfigured" to "static-arm64-cpu-fallback",
-            "runtimeNativeAbi" to "arm64-v8a",
-            "runtimeContextTokens" to contextTokens,
-            "runtimeBatchTokens" to 64,
-            "runtimeModelLoadMode" to "mmap_with_non_mmap_fallback",
-            "runtimeGpuLayers" to activeGpuLayers,
-            "runtimeGpuLayersRequested" to
-                ((nativeRuntime["gpuLayersRequested"] as? Number)?.toInt() ?: 0),
-            "runtimeVulkanDeviceAvailable" to
-                (nativeRuntime["vulkanDeviceAvailable"] == true),
-            "runtimeAccelerationAttempted" to
-                (nativeRuntime["accelerationAttempted"] == true),
-            "runtimeCpuFallbackUsed" to
-                (nativeRuntime["cpuFallbackUsed"] == true),
-            "runtimeExtraBufferRepack" to false,
-            "runtimeLazyMode" to "off",
-            "runtimeContextFallback" to "2048->1536->1024",
-            "runtimeSystemPolicyMode" to "native_system_prompt",
-            "acceptanceModelName" to ACCEPTANCE_MODEL_NAME,
-            "acceptanceModelSha256" to ACCEPTANCE_MODEL_SHA256,
-            "gpuAccelerationUsed" to (activeBackend == "vulkan" && activeGpuLayers > 0),
-            "npuAccelerationUsed" to false,
-            "nnapiAccelerationUsed" to false,
-            "acceleratorVerified" to acceleratorVerifiedByGeneration,
-            "lastModelLoadMs" to lastModelLoadMs,
-            "lastTimeToFirstTokenMs" to lastTimeToFirstTokenMs,
-            "lastGenerationMs" to lastGenerationMs,
-            "lastGeneratedTokenEvents" to lastGeneratedTokenEvents,
-            "tokensPerSecond" to lastTokenEventsPerSecond,
-            "tokensPerSecondBasis" to "non_empty_inference_flow_emissions",
-            "lastGenerationOutcome" to lastGenerationOutcome,
-            "lastGenerationPhase" to lastGenerationPhase,
-            "lastGenerationErrorClass" to lastGenerationErrorClass,
-            "lastGenerationErrorMessage" to lastGenerationErrorMessage,
-            "lastGenerationBackend" to lastGenerationBackend,
-            "lastGenerationGpuLayers" to lastGenerationGpuLayers,
-            "lastWarmFailurePhase" to lastWarmFailurePhase,
-            "lastWarmFailureClass" to lastWarmFailureClass,
-            "lastWarmFailureMessage" to lastWarmFailureMessage,
-            "androidVersion" to Build.VERSION.RELEASE,
-            "androidSdk" to Build.VERSION.SDK_INT,
-            "manufacturer" to Build.MANUFACTURER,
-            "model" to Build.MODEL,
-            "device" to Build.DEVICE,
-            "product" to Build.PRODUCT,
-            "hardware" to Build.HARDWARE,
-            "board" to Build.BOARD,
-            "socManufacturer" to
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Build.SOC_MANUFACTURER
-                } else {
-                    null
-                },
-            "socModel" to
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Build.SOC_MODEL
-                } else {
-                    null
-                },
-            "supportedAbis" to Build.SUPPORTED_ABIS.toList(),
-            "cpuArchitecture" to Build.SUPPORTED_ABIS.firstOrNull(),
-            "cpuCores" to Runtime.getRuntime().availableProcessors(),
-            "totalRamBytes" to memory.totalMem,
-            "availableRamBytes" to memory.availMem,
-            "memoryLow" to memory.lowMemory,
-            "memoryPressureThresholdBytes" to memory.threshold,
-            "processPssBytes" to processMemory.totalPss.toLong() * 1024L,
-            "totalStorageBytes" to modelDirectory.totalSpace,
-            "availableStorageBytes" to modelDirectory.usableSpace,
-            "batteryPercent" to batteryPercent,
-            "charging" to
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    batteryManager.isCharging
-                } else {
-                    null
-                },
-            "thermalStatus" to thermalStatus,
-            "nnapiApiAvailable" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1),
-            "vulkanFeatureExposed" to vulkanFeatureExposed,
-            "openClSupport" to null,
-            "openClProbe" to "not_exposed_by_public_android_api",
-            "gpu" to null,
-            "gpuProbe" to "not_exposed_without_runtime_graphics_probe",
-            "npu" to null,
-            "npuProbe" to "not_exposed_by_standard_android_api",
-        )
+    private fun failRequest() {
+        val id = requestId ?: return
+        requestId = null
+        sink?.success(mapOf("type" to "error", "requestId" to id, "message" to "route_retry"))
     }
 
-    private fun thermalStatusName(status: Int): String =
-        when (status) {
-            PowerManager.THERMAL_STATUS_NONE -> "none"
-            PowerManager.THERMAL_STATUS_LIGHT -> "light"
-            PowerManager.THERMAL_STATUS_MODERATE -> "moderate"
-            PowerManager.THERMAL_STATUS_SEVERE -> "severe"
-            PowerManager.THERMAL_STATUS_CRITICAL -> "critical"
-            PowerManager.THERMAL_STATUS_EMERGENCY -> "emergency"
-            PowerManager.THERMAL_STATUS_SHUTDOWN -> "shutdown"
-            else -> "unknown"
+    private fun lost() {
+        if (closed) return
+        failRequest()
+        retire(recover = true)
+    }
+
+    private fun retire(recover: Boolean) {
+        status = unavailable()
+        remote = null
+        val pid = workerPid
+        workerPid = null
+        if (bound) {
+            bound = false
+            try { activity.unbindService(connection) } catch (_: Exception) { }
+        }
+        if (pid != null && pid != Process.myPid()) {
+            try { Process.killProcess(pid) } catch (_: Exception) { }
+        }
+        if (recover && !closed && !suspended) {
+            retries++
+            val delay = (5000L * (1L shl retries.coerceAtMost(4))).coerceAtMost(60_000)
+            handler.postDelayed({ bind() }, delay)
+        }
+    }
+
+    fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean = false
+    fun close() {
+        closed = true
+        failRequest()
+        retire(recover = false)
+        methods.setMethodCallHandler(null)
+        events.setStreamHandler(null)
+        handler.removeCallbacksAndMessages(null)
+    }
+
+    private fun unavailable(): Map<String, Any?> = mapOf(
+        "supported" to true, "configured" to false, "loaded" to false,
+        "localReady" to false, "engineState" to "RECOVERING",
+        "modelDownloadSupported" to true, "modelDownloadResumeSupported" to true,
+        "requiresModelImport" to false,
+    )
+
+    private fun jsonMap(value: JSONObject): Map<String, Any?> =
+        value.keys().asSequence().associateWith { key ->
+            when (val item = value.get(key)) {
+                JSONObject.NULL -> null
+                is JSONObject -> jsonMap(item)
+                is JSONArray -> (0 until item.length()).map { item.opt(it) }
+                else -> item
+            }
         }
 }

@@ -1,0 +1,15 @@
+export const MODEL = {
+  "schema": "pandora.phone-model.v1",
+  "version": "phone-q25-3b-q4km-20260920",
+  "bytes": 2104932768,
+  "sha256": "626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d",
+  "minSdk": 29,
+  "minRamBytes": 6442450944,
+  "reserveBytes": 536870912,
+  "abi": "arm64-v8a",
+  "bucket": "pandora-models",
+  "object": "626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d/model.gguf",
+  "upstream": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf",
+  "license": "qwen-research",
+  "commercialLicenseVerified": false
+} as const;
