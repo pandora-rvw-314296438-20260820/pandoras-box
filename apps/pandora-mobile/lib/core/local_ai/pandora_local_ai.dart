@@ -112,7 +112,19 @@ class PandoraLocalAi {
 
   Future<bool> warm() async {
     try {
-      final warmed = await _methods.invokeMethod<bool>('warm');
+      final warmed = await _methods.invokeMethod<bool>('warm').timeout(
+        const Duration(seconds: 18),
+        onTimeout: () async {
+          try {
+            await cancel();
+          } catch (_) {
+            // The native watchdog is authoritative if channel cancellation races.
+          }
+          throw const PandoraLocalAiException(
+            'Local model warm exceeded its safety deadline.',
+          );
+        },
+      );
       if (warmed == true) return true;
 
       final current = await status();
