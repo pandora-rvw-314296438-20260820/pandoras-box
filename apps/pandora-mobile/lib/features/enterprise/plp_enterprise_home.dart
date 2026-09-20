@@ -79,7 +79,9 @@ class PlpEnterpriseHome extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(20, 86, 20, 146),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: (constraints.maxHeight - 232).clamp(0, double.infinity),
+                      minHeight: constraints.maxHeight > 232
+                          ? constraints.maxHeight - 232
+                          : 0.0,
                     ),
                     child: Center(
                       child: ConstrainedBox(
