@@ -81,6 +81,12 @@ def patch_impl(path: Path) -> int:
     private external fun nativeRuntimeDiagnostics(): String
 
     @FastNative
+    private external fun requestCancelNative()
+
+    @FastNative
+    private external fun clearCancelNative()
+
+    @FastNative
     private external fun unload()
 """
 
@@ -123,6 +129,10 @@ def patch_impl(path: Path) -> int:
 """
     bench_replacement = bench_anchor + """
     override fun runtimeDiagnostics(): String = nativeRuntimeDiagnostics()
+
+    override fun requestCancel() = requestCancelNative()
+
+    override fun clearCancelRequest() = clearCancelNative()
 """
 
     cleanup_error_old = """                is InferenceEngine.State.Error -> {
@@ -173,7 +183,11 @@ def patch_impl(path: Path) -> int:
         "Native llama.cpp context preparation failed with code ",
         "Native llama.cpp user prompt failed with code ",
         "nativeRuntimeDiagnostics()",
+        "requestCancelNative()",
+        "clearCancelNative()",
         "override fun runtimeDiagnostics(): String",
+        "override fun requestCancel() = requestCancelNative()",
+        "override fun clearCancelRequest() = clearCancelNative()",
         "Pandora reuses processSystemPrompt() as a warm conversation reset.",
         "Unloading native resources after error...",
         "_state.value = InferenceEngine.State.Error(error)",
@@ -210,6 +224,12 @@ def patch_interface(path: Path) -> int:
      * Returns bounded native runtime diagnostics for the currently loaded model.
      */
     fun runtimeDiagnostics(): String
+
+    /** Requests cooperative cancellation of native prompt/generation work. */
+    fun requestCancel()
+
+    /** Clears a prior cooperative cancellation request before new work starts. */
+    fun clearCancelRequest()
 
     /**
      * Unloads the currently loaded model.

@@ -41,11 +41,13 @@ class PlpEnterpriseIsolationTest(unittest.TestCase):
         self.assertIn("plp_enterprise_mobile_bootstrap_v1", combined)
         self.assertIn("allowCharacterContext: false", combined)
         self.assertIn("allowProjectContext: false", combined)
-        self.assertIn("label: 'Home'", combined)
-        self.assertIn("label: 'Alfred'", combined)
-        self.assertIn("label: 'Operations'", combined)
-        self.assertIn("label: 'Vision'", combined)
-        self.assertIn("label: 'Local AI'", combined)
+        self.assertIn("homeMode: _index == 0", combined)
+        self.assertIn("showPersistentComposer: _index != 1", combined)
+        self.assertIn("plp-persistent-command-bar", combined)
+        self.assertIn("plp_guests_screen.dart", combined)
+        self.assertIn("PlpGuestsScreen", combined)
+        self.assertNotIn("showNavigation", combined)
+        self.assertNotIn("onDestinationSelected", combined)
 
 
 if __name__ == "__main__":

@@ -23,11 +23,12 @@ jobs:
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       FLUTTER_VERSION: '3.47.0'
-      EXPECTED_APP_VERSION: '0.4.0-rc.6+13'
+      EXPECTED_APP_VERSION: '0.4.0-rc.11+18'
       EXPECTED_PACKAGE: 'com.banataosystems.pandora.plp'
       EXPECTED_LABEL: 'PLP Pandora Enterprise'
       LLAMA_CPP_SHA: '44be98f057e9f9902a8ee12630e181c7f8ec2953'
-      LOCAL_MODEL_SHA256: '1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6'
+      LOCAL_MODEL_SHA256: '626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d'
+      LOCAL_MODEL_NAME: 'qwen2.5-3b-instruct-q4_k_m.gguf'
       APK_FILENAME: 'PLP-Pandora-Enterprise.apk'
     steps:
       - name: Check out exact candidate
@@ -163,7 +164,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          flutter test --reporter expanded             test/core/local_ai/plp_local_router_test.dart             test/core/local_ai/plp_chat_fallback_test.dart             test/features/enterprise/plp_staff_task_action_test.dart             test/features/enterprise/plp_enterprise_home_test.dart             test/features/enterprise/plp_workspace_layout_test.dart             test/features/enterprise/enterprise_vision_demo_contract_test.dart             test/features/operations/operations_room_test.dart             test/app/plp_navigation_drawer_test.dart
+          flutter test --reporter expanded             test/core/local_ai/plp_local_router_test.dart             test/core/local_ai/plp_chat_fallback_test.dart             test/features/enterprise/plp_staff_task_action_test.dart             test/features/enterprise/plp_enterprise_home_test.dart             test/features/enterprise/plp_guests_screen_test.dart             test/features/enterprise/plp_workspace_layout_test.dart             test/features/enterprise/enterprise_vision_demo_contract_test.dart             test/features/operations/operations_room_test.dart             test/app/plp_navigation_drawer_test.dart
 
       - name: Build exact PLP native APK
         working-directory: .plp-android-build
@@ -192,8 +193,8 @@ jobs:
           grep -Fq "package: name='$EXPECTED_PACKAGE'" "$evidence/badging.txt"
           grep -Fq "application-label:'$EXPECTED_LABEL'" "$evidence/badging.txt"
           grep -Fq "launchable-activity: name='$EXPECTED_PACKAGE.MainActivity'" "$evidence/badging.txt"
-          grep -Fq "versionCode='13'" "$evidence/badging.txt"
-          grep -Fq "versionName='0.4.0-rc.6'" "$evidence/badging.txt"
+          grep -Fq "versionCode='18'" "$evidence/badging.txt"
+          grep -Fq "versionName='0.4.0-rc.11'" "$evidence/badging.txt"
 
           grep -Fq 'lib/arm64-v8a/' "$evidence/apk-files.txt"
           ! grep -Eq 'lib/(x86|x86_64|armeabi-v7a)/' "$evidence/apk-files.txt"
@@ -224,7 +225,8 @@ jobs:
             echo "application_label=$EXPECTED_LABEL"
             echo "dart_entrypoint=lib/main_plp.dart"
             echo "llama_cpp_sha=$LLAMA_CPP_SHA"
-            echo "accepted_local_model_sha256=$LOCAL_MODEL_SHA256"
+            echo "recommended_local_model=$LOCAL_MODEL_NAME"
+            echo "recommended_local_model_sha256=$LOCAL_MODEL_SHA256"
             echo "local_ai_model_bundled=false"
             echo "android_platform=android-36"
             echo "android_build_tools=36.0.0"

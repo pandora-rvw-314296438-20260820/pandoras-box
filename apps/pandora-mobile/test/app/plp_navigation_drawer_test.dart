@@ -47,6 +47,8 @@ void main() {
         expect(find.text('Pandora'), findsOneWidget);
         expect(find.text('PLP Boracay'), findsOneWidget);
         expect(find.text('Owner workspace'), findsOneWidget);
+        expect(find.text('PLP Boracay owner workspace'), findsOneWidget);
+        expect(find.text('BUSINESS'), findsNothing);
         expect(find.text('Recent chats'), findsOneWidget);
         expect(find.text('Connect to GitHub'), findsOneWidget);
         expect(find.bySemanticsLabel('Home, selected'), findsOneWidget);
@@ -55,7 +57,8 @@ void main() {
           'Home',
           'Overview',
           'Operations',
-          'Guests',
+          'Vision',
+          'Guest Experience',
           'Team & Access',
           'Revenue',
           'Needs You',
@@ -81,7 +84,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Privileged technical surfaces'), findsOneWidget);
         expect(find.text('Local AI'), findsOneWidget);
-          expect(find.text('Developer diagnostics'), findsOneWidget);
+        expect(find.text('Developer diagnostics'), findsOneWidget);
       } finally {
         semantics.dispose();
       }

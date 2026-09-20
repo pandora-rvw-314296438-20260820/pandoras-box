@@ -36,46 +36,34 @@ void main() {
             bootstrap: bootstrap,
             onRefresh: () {},
             onAskAlfred: () {},
-            onOperations: () {},
-            onVision: () {},
+            onBookings: () {},
+            onBusinessPerformance: () {},
+            onGuestExperience: () {},
           ),
         ),
       ),
     );
 
     expect(find.byKey(const ValueKey('plp-enterprise-home')), findsOneWidget);
-    expect(find.text('Welcome, Doctora'), findsOneWidget);
-    expect(find.text('66.67%'), findsOneWidget);
-    expect(find.text('2 of 3 rooms occupied'), findsOneWidget);
+    expect(find.text('PLP Boracay'), findsOneWidget);
+    expect(find.text('What can I help with?'), findsOneWidget);
+    expect(find.textContaining('Doctora'), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('plp-metric-sales')),
-      320,
-      scrollable: find.byType(Scrollable),
-    );
-    expect(find.text('₱300,000'), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-release-background')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-release-logo')), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.text('1 OTA conflict'),
-      260,
-      scrollable: find.byType(Scrollable),
+    expect(
+      find.byKey(const ValueKey('plp-home-bookings')),
+      findsOneWidget,
     );
-    expect(find.text('1 OTA conflict'), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.text('2 open staff tasks'),
-      220,
-      scrollable: find.byType(Scrollable),
+    expect(
+      find.byKey(const ValueKey('plp-home-business-performance')),
+      findsOneWidget,
     );
-    expect(find.text('2 open staff tasks'), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('plp-open-alfred')),
-      320,
-      scrollable: find.byType(Scrollable),
-    );
+    expect(find.text('Ask Pandora'), findsOneWidget);
+    expect(find.text('Sales, occupancy & priorities'), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-open-alfred')), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-open-operations-room')), findsOneWidget);
-    expect(find.byKey(const ValueKey('plp-open-vision')), findsOneWidget);
   });
 }

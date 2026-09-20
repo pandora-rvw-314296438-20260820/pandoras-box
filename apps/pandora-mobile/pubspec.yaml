@@ -1,7 +1,7 @@
 name: pandora_mobile
 publish_to: none
 description: Premium owner and admin control center for Pandora's Box.
-version: 0.4.0-rc.6+13
+version: 0.4.0-rc.11+18
 environment:
   sdk: '>=3.4.0 <4.0.0'
 
@@ -26,3 +26,4 @@ flutter:
   assets:
     - assets/brand/pandora-product-mark-ui-1024.png
     - assets/workspaces/
+    - assets/enterprise/
