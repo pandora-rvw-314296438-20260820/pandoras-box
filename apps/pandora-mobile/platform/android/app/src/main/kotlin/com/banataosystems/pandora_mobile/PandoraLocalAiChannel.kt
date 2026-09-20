@@ -556,6 +556,10 @@ If required information is missing locally, needs an authoritative provider muta
                 if (!warmInternal()) {
                     throw IllegalStateException("No local GGUF model is configured.")
                 }
+                val generationRuntime = nativeRuntimeDiagnostics()
+                lastGenerationBackend = generationRuntime["activeBackend"]?.toString()
+                lastGenerationGpuLayers =
+                    (generationRuntime["gpuLayersActive"] as? Number)?.toInt()
                 lastGenerationPhase = "processing_user_prompt"
                 engine.sendUserPrompt(prompt, predictLength).collect { token ->
                     if (token.isNotEmpty()) {
