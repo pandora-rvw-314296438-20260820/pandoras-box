@@ -117,12 +117,35 @@ def patch_impl(path: Path) -> int:
     override fun runtimeDiagnostics(): String = nativeRuntimeDiagnostics()
 """
 
+    cleanup_error_old = """                is InferenceEngine.State.Error -> {
+                    Log.i(TAG, "Resetting error states...")
+                    _state.value = InferenceEngine.State.Initialized
+                    Log.i(TAG, "States reset!")
+                    Unit
+                }
+"""
+    cleanup_error_new = """                is InferenceEngine.State.Error -> {
+                    Log.i(TAG, "Unloading native resources after error...")
+                    _readyForSystemPrompt = false
+                    unload()
+                    _state.value = InferenceEngine.State.Initialized
+                    Log.i(TAG, "Native resources unloaded and state reset.")
+                    Unit
+                }
+"""
+
     try:
         text = replace_exact(text, init_old, init_new, "native initialization catch block")
         text = replace_exact(text, load_old, load_new, "native model load/prepare block")
         text = replace_exact(text, native_anchor, native_replacement, "native diagnostics declaration anchor")
         text = replace_exact(text, user_prompt_old, user_prompt_new, "user prompt fail-closed block")
         text = replace_exact(text, bench_anchor, bench_replacement, "benchmark implementation")
+        text = replace_exact(
+            text,
+            cleanup_error_old,
+            cleanup_error_new,
+            "error cleanup block",
+        )
     except ValueError as error:
         print(str(error), file=sys.stderr)
         return 1
@@ -137,6 +160,7 @@ def patch_impl(path: Path) -> int:
         "Native llama.cpp user prompt failed with code ",
         "nativeRuntimeDiagnostics()",
         "override fun runtimeDiagnostics(): String",
+        "Unloading native resources after error...",
         "_state.value = InferenceEngine.State.Error(error)",
     )
     if any(item not in verified for item in required):
