@@ -610,6 +610,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   }
 
   Future<bool> _trySubmitLocalAi(String objective) async {
+    if (_isPlpEnterpriseContext) {
+      await _unloadLocalAiQuietly();
+      return false;
+    }
     final status = await (() async {
       try {
         return await PandoraLocalAi.instance.status();
