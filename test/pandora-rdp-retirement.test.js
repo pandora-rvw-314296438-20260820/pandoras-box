@@ -31,7 +31,11 @@ test('retired RDP publisher is fail-closed in source and database', () => {
   assert.match(migration, /PANDORA_RDP_TRANSPORT_RETIRED/g);
   assert.match(
     migration,
-    /delete from public\.pandora_local_ai_workers[\s\S]*rdp-ec2amaz-spae2vg/,
+    /to_regclass\('public\.pandora_local_ai_workers'\) is not null/,
+  );
+  assert.match(
+    migration,
+    /execute 'delete from public\.pandora_local_ai_workers where worker_id = \$1'[\s\S]*rdp-ec2amaz-spae2vg/,
   );
 });
 
