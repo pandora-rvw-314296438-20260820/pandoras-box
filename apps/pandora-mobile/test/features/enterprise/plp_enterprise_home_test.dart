@@ -52,7 +52,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('plp-home-todays-briefing')),
       300,
-      scrollable: find.byType(SingleChildScrollView),
+      scrollable: find.byType(Scrollable),
     );
     expect(find.byKey(const ValueKey('plp-release-background')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-release-logo')), findsOneWidget);
@@ -65,7 +65,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('plp-home-business-performance')),
       180,
-      scrollable: find.byType(SingleChildScrollView),
+      scrollable: find.byType(Scrollable),
     );
     expect(
       find.byKey(const ValueKey('plp-home-business-performance')),
@@ -75,7 +75,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('plp-open-alfred')),
       180,
-      scrollable: find.byType(SingleChildScrollView),
+      scrollable: find.byType(Scrollable),
     );
     expect(find.text('Ask Pandora'), findsOneWidget);
     expect(find.text('Sales, occupancy & priorities'), findsOneWidget);
