@@ -46,7 +46,7 @@ class _PlpEnterpriseAppState extends State<PlpEnterpriseApp> {
         title: 'PLP Pandora Enterprise',
         color: PandoraPalette.porcelain.canvas,
         debugShowCheckedModeBanner: false,
-        themeMode: ThemeMode.system,
+        themeMode: ThemeMode.dark,
         theme: PandoraTheme.porcelain,
         darkTheme: PandoraTheme.graphite,
         home: const PlpAuthGate(),
