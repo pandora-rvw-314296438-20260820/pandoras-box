@@ -127,7 +127,20 @@ jobs:
 
       - name: Analyze dedicated PLP source
         working-directory: .plp-android-build
-        run: flutter analyze
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          flutter analyze > flutter-analyze.log 2>&1
+          ANALYZE_EXIT=$?
+          set -e
+          cat flutter-analyze.log
+          if grep -Eq '^[[:space:]]*error[[:space:]]+•' flutter-analyze.log; then
+            exit 31
+          fi
+          if [[ "$ANALYZE_EXIT" -ne 0 ]] && ! grep -Fq 'issues found.' flutter-analyze.log; then
+            exit "$ANALYZE_EXIT"
+          fi
 
       - name: Run PLP architecture and UI tests
         working-directory: .plp-android-build
@@ -223,6 +236,7 @@ jobs:
           path: |
             .plp-android-build/PLP-Pandora-Enterprise.apk
             .plp-android-build/PLP-Pandora-Enterprise.manifest.txt
+            .plp-android-build/flutter-analyze.log
             .plp-android-build/plp-package-evidence
           if-no-files-found: error
           include-hidden-files: true
