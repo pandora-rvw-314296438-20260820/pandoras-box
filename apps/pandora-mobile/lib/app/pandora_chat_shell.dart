@@ -59,14 +59,18 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
   final GlobalKey<AskPandoraScreenState> _chatKey =
       GlobalKey<AskPandoraScreenState>();
   final Map<int, Widget> _roots = <int, Widget>{};
-  Map<String, Object?>? _activeEnterpriseContext;
-  EnterpriseWorkspaceSelection? _activeWorkspaceSelection;
-  final Set<int> _visited = <int>{9};
+  Map<String, Object?>? _activeEnterpriseContext =
+      resolveEnterpriseWorkspaceHome()?.enterpriseContext;
+  EnterpriseWorkspaceSelection? _activeWorkspaceSelection =
+      resolveEnterpriseWorkspaceHome();
+  final Set<int> _visited = resolveEnterpriseWorkspaceHome() == null
+      ? <int>{9}
+      : <int>{0};
   List<PandoraIntelligenceThread> _threads =
       const <PandoraIntelligenceThread>[];
   bool _historyLoading = false;
   bool _historyLoaded = false;
-  int _index = 9;
+  int _index = resolveEnterpriseWorkspaceHome() == null ? 9 : 0;
 
   @override
   void initState() {
@@ -107,6 +111,13 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
 
   void _select(int value) {
     if (value < 0 || value >= _destinations.length) return;
+    if (value == 9) {
+      final configuredHome = resolveEnterpriseWorkspaceHome();
+      if (configuredHome != null) {
+        _openWorkspace(configuredHome);
+        return;
+      }
+    }
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
       _scaffoldKey.currentState?.closeDrawer();
     }
@@ -140,8 +151,9 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
 
   void _newChat() {
     setState(() {
-      _activeEnterpriseContext = null;
-      _activeWorkspaceSelection = null;
+      final configuredHome = resolveEnterpriseWorkspaceHome();
+      _activeEnterpriseContext = configuredHome?.enterpriseContext;
+      _activeWorkspaceSelection = configuredHome;
       _roots.remove(0);
       _visited.add(0);
     });
@@ -167,8 +179,9 @@ class _PandoraChatShellState extends State<PandoraChatShell> {
 
   Future<void> _openThread(PandoraIntelligenceThread thread) async {
     setState(() {
-      _activeEnterpriseContext = null;
-      _activeWorkspaceSelection = null;
+      final configuredHome = resolveEnterpriseWorkspaceHome();
+      _activeEnterpriseContext = configuredHome?.enterpriseContext;
+      _activeWorkspaceSelection = configuredHome;
       _roots.remove(0);
       _visited.add(0);
     });
@@ -760,7 +773,9 @@ class _PandoraSidePanel extends StatelessWidget {
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Divider(height: 1, color: PandoraV2Colors.line),
                   ),
-                  for (final index in const <int>[9, 10, 0, 8, 1, 2, 4, 5, 6, 7, 3])
+                  for (final index in (enterpriseWorkspaceTarget.isEmpty
+                      ? const <int>[9, 10, 0, 8, 1, 2, 4, 5, 6, 7, 3]
+                      : const <int>[9, 0, 2, 4, 10, 3]))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: ListTile(
