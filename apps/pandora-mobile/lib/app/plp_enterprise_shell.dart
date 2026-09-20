@@ -38,6 +38,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   static const _surfaceByDestination = <String, int>{
     'home': 0,
     'operations': 2,
+    'vision': 3,
     'local-ai': 4,
     'overview': 5,
     'guests': 6,
