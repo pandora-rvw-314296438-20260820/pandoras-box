@@ -75,8 +75,14 @@ class _PlpEnterpriseOverviewState extends State<PlpEnterpriseOverview> {
     return const <String, Object?>{};
   }
 
-  num _number(Object? value) =>
-      value is num ? value : num.tryParse(value?.toString() ?? '') ?? 0;
+  num? _numberOrNull(Object? value) {
+    if (value is num) return value;
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) return null;
+    return num.tryParse(text);
+  }
+
+  num _number(Object? value) => _numberOrNull(value) ?? 0;
 
   String _text(Object? value, {String fallback = '—'}) {
     final result = value?.toString().trim();
@@ -139,26 +145,30 @@ class _PlpEnterpriseOverviewState extends State<PlpEnterpriseOverview> {
   }
 
   String _insight({
-    required num occupancy,
-    required int available,
-    required int tasks,
-    required int conflicts,
-    required int notReady,
+    required num? occupancy,
+    required int? available,
+    required int? tasks,
+    required int? conflicts,
+    required int? notReady,
   }) {
-    if (conflicts > 0) {
+    if (conflicts != null && conflicts > 0) {
       return '$conflicts booking conflict${conflicts == 1 ? '' : 's'} need review. '
           'Resolve channel discrepancies before the next arrival window.';
     }
-    if (notReady > 0) {
+    if (notReady != null && notReady > 0) {
       return '$notReady room${notReady == 1 ? ' is' : 's are'} not ready in the '
           'latest hospitality snapshot. Operations should clear readiness before demand tightens.';
     }
-    if (tasks > 0) {
+    if (tasks != null && tasks > 0 && occupancy != null) {
       return '$tasks staff task${tasks == 1 ? ' remains' : 's remain'} open while '
           'occupancy is ${_percent(occupancy)}. The workload is ready to review.';
     }
-    return 'No open OTA conflicts are currently reported. Occupancy is '
-        '${_percent(occupancy)} with $available room${available == 1 ? '' : 's'} available.';
+    if (occupancy != null && available != null && conflicts != null) {
+      return 'No open OTA conflicts are currently reported. Occupancy is '
+          '${_percent(occupancy)} with $available room${available == 1 ? '' : 's'} available.';
+    }
+    return 'Pandora is waiting for a complete verified resort snapshot before '
+        'drawing an operational conclusion.';
   }
 
   @override
@@ -175,17 +185,17 @@ class _PlpEnterpriseOverviewState extends State<PlpEnterpriseOverview> {
     final displayName = _text(user['displayName'], fallback: 'Owner');
     final firstName = _firstName(displayName);
 
-    final occupancy = _number(today['occupancy_percent']);
-    final occupied = _number(today['occupied_rooms']).round();
-    final totalRooms = _number(today['rooms_total']).round();
-    final available = _number(today['rooms_available']).round();
-    final arrivals = _number(today['arrivals_today']).round();
-    final departures = _number(today['departures_today']).round();
-    final revenue = _number(today['sales_today_php']);
-    final tasks = _number(today['open_staff_tasks']).round();
-    final conflicts = _number(today['open_ota_conflicts']).round();
-    final unpaid = _number(today['unpaid_active_bookings']).round();
-    final notReady = _number(hospitality['rooms_not_ready']).round();
+    final occupancy = _numberOrNull(today['occupancy_percent']);
+    final occupied = _numberOrNull(today['occupied_rooms'])?.round();
+    final totalRooms = _numberOrNull(today['rooms_total'])?.round();
+    final available = _numberOrNull(today['rooms_available'])?.round();
+    final arrivals = _numberOrNull(today['arrivals_today'])?.round();
+    final departures = _numberOrNull(today['departures_today'])?.round();
+    final revenue = _numberOrNull(today['sales_today_php']);
+    final tasks = _numberOrNull(today['open_staff_tasks'])?.round();
+    final conflicts = _numberOrNull(today['open_ota_conflicts'])?.round();
+    final unpaid = _numberOrNull(today['unpaid_active_bookings'])?.round();
+    final notReady = _numberOrNull(hospitality['rooms_not_ready'])?.round();
 
     final offline = widget.bootstrap['offlineBootstrap'] == true;
     final sourceState = _text(source['state'], fallback: 'unknown');
@@ -239,10 +249,10 @@ class _PlpEnterpriseOverviewState extends State<PlpEnterpriseOverview> {
                       width: width,
                       icon: Icons.hotel_rounded,
                       label: 'Occupancy',
-                      value: _percent(occupancy),
-                      detail: totalRooms > 0
+                      value: occupancy == null ? '—' : _percent(occupancy),
+                      detail: occupied != null && totalRooms != null && totalRooms > 0
                           ? '$occupied of $totalRooms rooms occupied'
-                          : 'Current verified snapshot',
+                          : 'Occupancy detail unavailable',
                       onTap: widget.onOpenOccupancy,
                     ),
                     _Kpi(
@@ -250,8 +260,10 @@ class _PlpEnterpriseOverviewState extends State<PlpEnterpriseOverview> {
                       width: width,
                       icon: Icons.bed_outlined,
                       label: 'Rooms available',
-                      value: '$available',
-                      detail: totalRooms > 0 ? 'of $totalRooms rooms' : 'Current verified snapshot',
+                      value: available?.toString() ?? '—',
+                      detail: totalRooms != null && totalRooms > 0
+                          ? 'of $totalRooms rooms'
+                          : 'Room inventory unavailable',
                       onTap: widget.onOpenRooms,
                     ),
                     _Kpi(
@@ -259,8 +271,10 @@ class _PlpEnterpriseOverviewState extends State<PlpEnterpriseOverview> {
                       width: width,
                       icon: Icons.meeting_room_outlined,
                       label: 'Occupied rooms',
-                      value: '$occupied',
-                      detail: 'Current in-house room count',
+                      value: occupied?.toString() ?? '—',
+                      detail: occupied == null
+                          ? 'Occupied-room count unavailable'
+                          : 'Current in-house room count',
                       onTap: widget.onOpenOccupancy,
                     ),
                     _Kpi(
@@ -268,8 +282,12 @@ class _PlpEnterpriseOverviewState extends State<PlpEnterpriseOverview> {
                       width: width,
                       icon: Icons.assignment_outlined,
                       label: 'Open staff tasks',
-                      value: '$tasks',
-                      detail: tasks == 0 ? 'No staff tasks waiting' : 'Ready to review or assign',
+                      value: tasks?.toString() ?? '—',
+                      detail: tasks == null
+                          ? 'Task data unavailable'
+                          : tasks == 0
+                              ? 'No staff tasks waiting'
+                              : 'Ready to review or assign',
                       onTap: widget.onOpenTasks,
                     ),
                   ],
@@ -280,7 +298,7 @@ class _PlpEnterpriseOverviewState extends State<PlpEnterpriseOverview> {
             LayoutBuilder(
               builder: (context, constraints) {
                 final revenueCard = _Revenue(
-                  value: _peso(revenue),
+                  value: revenue == null ? '—' : _peso(revenue),
                   onTap: widget.onOpenRevenue,
                 );
                 final bookings = _Bookings(
@@ -839,9 +857,9 @@ class _Bookings extends StatelessWidget {
     required this.onTap,
   });
 
-  final int arrivals;
-  final int departures;
-  final int occupied;
+  final int? arrivals;
+  final int? departures;
+  final int? occupied;
   final VoidCallback onTap;
 
   @override
@@ -856,11 +874,11 @@ class _Bookings extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 15),
-            _BookingRow(label: 'Arrivals', value: '$arrivals', tone: _PlpEnterpriseOverviewState.bronze),
+            _BookingRow(label: 'Arrivals', value: arrivals?.toString() ?? '—', tone: _PlpEnterpriseOverviewState.bronze),
             const SizedBox(height: 12),
-            _BookingRow(label: 'Departures', value: '$departures', tone: Color(0xFF8A7A6A)),
+            _BookingRow(label: 'Departures', value: departures?.toString() ?? '—', tone: Color(0xFF8A7A6A)),
             const SizedBox(height: 12),
-            _BookingRow(label: 'Occupied rooms', value: '$occupied', tone: _PlpEnterpriseOverviewState.green),
+            _BookingRow(label: 'Occupied rooms', value: occupied?.toString() ?? '—', tone: _PlpEnterpriseOverviewState.green),
           ],
         ),
       );
@@ -952,10 +970,10 @@ class _Attention extends StatelessWidget {
     required this.onOperations,
   });
 
-  final int conflicts;
-  final int tasks;
-  final int unpaid;
-  final int notReady;
+  final int? conflicts;
+  final int? tasks;
+  final int? unpaid;
+  final int? notReady;
   final VoidCallback onBookings;
   final VoidCallback onTasks;
   final VoidCallback onRevenue;
@@ -964,7 +982,7 @@ class _Attention extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = <Widget>[
-      if (conflicts > 0)
+      if (conflicts != null && conflicts! > 0)
         _AttentionRow(
           icon: Icons.sync_problem_outlined,
           tone: _PlpEnterpriseOverviewState.amber,
@@ -972,7 +990,7 @@ class _Attention extends StatelessWidget {
           detail: 'Booking-channel discrepancy · current snapshot',
           onTap: onBookings,
         ),
-      if (notReady > 0)
+      if (notReady != null && notReady! > 0)
         _AttentionRow(
           icon: Icons.cleaning_services_outlined,
           tone: _PlpEnterpriseOverviewState.red,
@@ -980,7 +998,7 @@ class _Attention extends StatelessWidget {
           detail: 'Housekeeping readiness · latest hospitality snapshot',
           onTap: onOperations,
         ),
-      if (tasks > 0)
+      if (tasks != null && tasks! > 0)
         _AttentionRow(
           icon: Icons.assignment_late_outlined,
           tone: _PlpEnterpriseOverviewState.bronze,
@@ -988,7 +1006,7 @@ class _Attention extends StatelessWidget {
           detail: 'Team workload · current snapshot',
           onTap: onTasks,
         ),
-      if (unpaid > 0)
+      if (unpaid != null && unpaid! > 0)
         _AttentionRow(
           icon: Icons.payments_outlined,
           tone: _PlpEnterpriseOverviewState.amber,
@@ -998,6 +1016,8 @@ class _Attention extends StatelessWidget {
         ),
     ];
     if (rows.isEmpty) {
+      final complete =
+          conflicts != null && tasks != null && unpaid != null && notReady != null;
       return Container(
         key: const ValueKey<String>('plp-overview-attention-empty'),
         padding: const EdgeInsets.all(18),
@@ -1006,14 +1026,26 @@ class _Attention extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: _PlpEnterpriseOverviewState.line),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.check_circle_outline_rounded, color: _PlpEnterpriseOverviewState.green),
-            SizedBox(width: 11),
+            Icon(
+              complete
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.info_outline_rounded,
+              color: complete
+                  ? _PlpEnterpriseOverviewState.green
+                  : _PlpEnterpriseOverviewState.amber,
+            ),
+            const SizedBox(width: 11),
             Expanded(
               child: Text(
-                'No items need your attention in the current verified snapshot.',
-                style: TextStyle(color: _PlpEnterpriseOverviewState.muted, fontSize: 12.5),
+                complete
+                    ? 'No items need your attention in the current verified snapshot.'
+                    : 'Attention data is incomplete. Pandora will not treat missing values as zero.',
+                style: const TextStyle(
+                  color: _PlpEnterpriseOverviewState.muted,
+                  fontSize: 12.5,
+                ),
               ),
             ),
           ],
