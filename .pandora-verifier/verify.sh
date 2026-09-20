@@ -77,7 +77,7 @@ mkdir -p android/app/src/main/kotlin/com/arm/aichat/internal
 cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/AiChat.kt   android/app/src/main/kotlin/com/arm/aichat/AiChat.kt
 cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/InferenceEngine.kt   android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
 cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/internal/InferenceEngineImpl.kt   android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt
-python3 "$ROOT/apps/pandora-mobile/tool/patch_inference_engine_android.py"   android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt
+python3 "$ROOT/apps/pandora-mobile/tool/patch_inference_engine_android.py"   android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt   android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
 
 rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
 cp -R "$ROOT/apps/pandora-mobile/lib" ./lib
