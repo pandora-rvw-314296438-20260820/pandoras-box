@@ -1,0 +1,17 @@
+{
+  "apk_sha256": "a0d4d033f1e94ef2f5853b1addee03091ced5a457607cd206dcdf7db12e0dcaf",
+  "apk_size_bytes": 119957669,
+  "detail": "Exact-source arm64 Android debug APK compiled. Physical-device inference is not yet verified.",
+  "flutter_analyze_exit": 0,
+  "generated_at_utc": "2026-09-20T02:23:53.678616+00:00",
+  "gpu_acceleration_verified": false,
+  "local_ai_router_test_exit": 0,
+  "local_inference_verified": false,
+  "native_backend_configured": "cpu",
+  "npu_acceleration_verified": false,
+  "outcome": "passed",
+  "phase": "build",
+  "physical_device_verified": false,
+  "source_sha": "42c2ff8e1e0cd929f07a0317b5ce023a827f7ee6",
+  "source_tree_sha": "8225f6c635fa2478cf9e1c272708f49f88a334c4"
+}
