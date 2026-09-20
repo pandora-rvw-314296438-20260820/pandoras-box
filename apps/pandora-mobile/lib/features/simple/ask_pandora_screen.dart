@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/pandora_dependencies.dart';
 import '../../core/activity/pandora_activity_presentation_policy.dart';
@@ -625,6 +626,35 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     };
   }
 
+  Future<void> _recordLocalAiTurn({
+    required String phase,
+    required String outcome,
+    required String reason,
+    PandoraLocalAiStatus? status,
+  }) async {
+    if (!_isPlpEnterpriseContext) return;
+    final organization = widget.enterpriseContext?['organization'];
+    final organizationId = organization is Map
+        ? organization['id']?.toString().trim()
+        : null;
+    if (organizationId == null || organizationId.isEmpty) return;
+    try {
+      await Supabase.instance.client.rpc(
+        'record_phone_local_ai_turn_v1',
+        params: <String, Object?>{
+          'p_organization_id': organizationId,
+          'p_phase': phase,
+          'p_outcome': outcome,
+          'p_reason': reason.length > 160 ? reason.substring(0, 160) : reason,
+          'p_model_name': status?.modelName,
+          'p_model_sha256': status?.modelSha256,
+        },
+      );
+    } catch (_) {
+      // Local inference must never depend on telemetry delivery.
+    }
+  }
+
   String? _plpActionPendingRequestId;
   String? _plpActionPendingObjective;
 
@@ -706,9 +736,25 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       status: status,
     );
     if (!route.useLocal) {
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'route',
+          outcome: 'bypassed',
+          reason: route.reason,
+          status: status,
+        ),
+      );
       if (status.loaded) await _unloadLocalAiQuietly();
       return false;
     }
+    unawaited(
+      _recordLocalAiTurn(
+        phase: 'route',
+        outcome: 'started',
+        reason: route.reason,
+        status: status,
+      ),
+    );
 
     _localAiIdleUnloadTimer?.cancel();
     _localAiIdleUnloadTimer = null;
@@ -719,16 +765,48 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     // made cold-start failures harder to recover.
     try {
       if (!await PandoraLocalAi.instance.warm()) {
+        unawaited(
+          _recordLocalAiTurn(
+            phase: 'warm',
+            outcome: 'failed',
+            reason: 'warm_returned_false',
+            status: status,
+          ),
+        );
         await _unloadLocalAiQuietly();
         return false;
       }
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'warm',
+          outcome: 'success',
+          reason: 'model_ready',
+          status: status,
+        ),
+      );
     } on PandoraLocalAiException catch (error) {
       if (error.message.contains('already preparing or generating')) {
+        unawaited(
+          _recordLocalAiTurn(
+            phase: 'warm',
+            outcome: 'cloud',
+            reason: 'background_prewarm_in_progress',
+            status: status,
+          ),
+        );
         // The background prewarm owns the model load. Let this turn continue
         // through cloud without cancelling that load; the next eligible turn
         // can use the now-warm Qwen model.
         return false;
       }
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'warm',
+          outcome: 'failed',
+          reason: error.message,
+          status: status,
+        ),
+      );
       await _unloadLocalAiQuietly();
       return false;
     } catch (_) {
@@ -781,7 +859,15 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           }
         });
       }
-    } catch (_) {
+    } catch (error) {
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'generation',
+          outcome: 'failed',
+          reason: error.toString(),
+          status: status,
+        ),
+      );
       await _unloadLocalAiQuietly();
       if (!mounted) return true;
       if (started && _messages.length >= 2) {
@@ -807,6 +893,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           _pendingMessage = objective;
         });
       }
+      unawaited(
+        _recordLocalAiTurn(
+          phase: 'fallback',
+          outcome: 'cloud',
+          reason: 'model_requested_cloud',
+          status: status,
+        ),
+      );
       await _unloadLocalAiQuietly();
       return false;
     }
@@ -822,6 +916,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _pendingMessage = null;
       _lastTurnUsedLocalAi = true;
     });
+    unawaited(
+      _recordLocalAiTurn(
+        phase: 'success',
+        outcome: 'success',
+        reason: route.reason,
+        status: status,
+      ),
+    );
     _scheduleLocalAiIdleUnload();
     return true;
   }
