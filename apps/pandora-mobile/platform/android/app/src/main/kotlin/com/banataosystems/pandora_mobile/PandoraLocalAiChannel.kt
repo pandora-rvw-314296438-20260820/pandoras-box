@@ -550,6 +550,9 @@ If required information is missing locally, needs an authoritative provider muta
             lastTokenEventsPerSecond = null
             lastGenerationErrorClass = null
             lastGenerationErrorMessage = null
+            lastGenerationBackend = null
+            lastGenerationGpuLayers = null
+            acceleratorVerifiedByGeneration = false
             lastGenerationOutcome = "running"
             lastGenerationPhase = "warming"
             try {
