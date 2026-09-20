@@ -1,13 +1,7 @@
 {
-  "name": "Pandora exact-source Android builder",
+  "name": "Pandora public APK handoff",
   "image": "mcr.microsoft.com/devcontainers/universal:2",
-  "postCreateCommand": "bash .devcontainer/build-phone-local-apk.sh",
-  "forwardPorts": [9114],
-  "portsAttributes": {
-    "9114": {
-      "label": "Pandora Android artifact evidence",
-      "onAutoForward": "silent",
-      "visibility": "public"
-    }
-  }
+  "forwardPorts": [8080],
+  "portsAttributes": {"8080": {"label": "Pandora verified APK", "onAutoForward": "notify"}},
+  "postCreateCommand": "bash .devcontainer/serve-fixed-apk.sh"
 }
