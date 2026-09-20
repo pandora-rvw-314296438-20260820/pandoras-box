@@ -696,6 +696,15 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         await _unloadLocalAiQuietly();
         return false;
       }
+    } on PandoraLocalAiException catch (error) {
+      if (error.message.contains('already preparing or generating')) {
+        // The background prewarm owns the model load. Let this turn continue
+        // through cloud without cancelling that load; the next eligible turn
+        // can use the now-warm Qwen model.
+        return false;
+      }
+      await _unloadLocalAiQuietly();
+      return false;
     } catch (_) {
       await _unloadLocalAiQuietly();
       return false;
