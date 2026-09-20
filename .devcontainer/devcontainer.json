@@ -1,13 +1,5 @@
 {
-  "name": "Pandora exact-source Android builder",
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
-  "postCreateCommand": "bash .devcontainer/build-phone-local-apk.sh",
-  "forwardPorts": [9114],
-  "portsAttributes": {
-    "9114": {
-      "label": "Pandora Android artifact evidence",
-      "onAutoForward": "silent",
-      "visibility": "public"
-    }
-  }
+  "name":"Pandora Qwen3 APK public-link verifier",
+  "image":"mcr.microsoft.com/devcontainers/universal:2",
+  "postCreateCommand":"bash .devcontainer/verify-public-apk-link.sh"
 }
