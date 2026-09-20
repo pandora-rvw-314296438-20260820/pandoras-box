@@ -60,6 +60,7 @@ class PandoraLocalAiChannel(
         private const val MIN_MODEL_BYTES = 64L * 1024L * 1024L
         private const val MAX_MODEL_BYTES = 8L * 1024L * 1024L * 1024L
         private const val STORAGE_RESERVE_BYTES = 256L * 1024L * 1024L
+        private const val WARM_DEADLINE_MS = 15_000L
         private const val SYSTEM_PROMPT = """
 You are Pandora's fast on-device conversational layer.
 Answer naturally, directly, and concisely.
@@ -145,8 +146,10 @@ If required information is missing locally, needs an authoritative provider muta
     }
 
     fun close() {
+        engine.requestCancel()
         activeGeneration?.cancel()
         activeAcceptance?.cancel()
+        activeWarm?.cancel()
         methodChannel.setMethodCallHandler(null)
         eventChannel.setStreamHandler(null)
         scope.cancel()
@@ -161,10 +164,13 @@ If required information is missing locally, needs an authoritative provider muta
             "runAcceptance" -> runAcceptance(call, result)
             "cancel" -> {
                 scope.launch {
+                    engine.requestCancel()
                     activeGeneration?.cancelAndJoin()
                     activeAcceptance?.cancelAndJoin()
+                    activeWarm?.cancelAndJoin()
                     activeGeneration = null
                     activeAcceptance = null
+                    activeWarm = null
                     result.success(null)
                 }
             }
@@ -460,7 +466,7 @@ If required information is missing locally, needs an authoritative provider muta
         }
         activeWarm = scope.launch {
             try {
-                result.success(warmWithRecovery())
+                result.success(warmWithDeadline())
             } catch (error: Throwable) {
                 recordWarmFailure(
                     lastWarmFailurePhase ?: "warm",
@@ -576,7 +582,7 @@ If required information is missing locally, needs an authoritative provider muta
             lastGenerationOutcome = "running"
             lastGenerationPhase = "warming"
             try {
-                if (!warmWithRecovery()) {
+                if (!warmWithDeadline()) {
                     throw IllegalStateException("No local GGUF model is configured.")
                 }
                 val generationRuntime = nativeRuntimeDiagnostics()
@@ -653,7 +659,7 @@ If required information is missing locally, needs an authoritative provider muta
             try {
                 activeGeneration?.cancelAndJoin()
                 activeGeneration = null
-                if (!warmWithRecovery()) {
+                if (!warmWithDeadline()) {
                     throw IllegalStateException("No local GGUF model is configured.")
                 }
                 // Reset only the conversational KV state. Keep the 2.3 GiB
@@ -674,6 +680,7 @@ If required information is missing locally, needs an authoritative provider muta
     private fun unload(result: MethodChannel.Result) {
         scope.launch {
             try {
+                engine.requestCancel()
                 activeGeneration?.cancelAndJoin()
                 activeGeneration = null
                 activeWarm?.cancelAndJoin()
@@ -690,12 +697,33 @@ If required information is missing locally, needs an authoritative provider muta
         }
     }
 
+    private suspend fun warmWithDeadline(): Boolean {
+        engine.clearCancelRequest()
+        val watchdog = scope.launch(Dispatchers.Default) {
+            delay(WARM_DEADLINE_MS)
+            engine.requestCancel()
+        }
+        return try {
+            withTimeout(WARM_DEADLINE_MS + 3_000L) {
+                warmWithRecovery()
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            recordWarmFailure("warm_deadline", error)
+            throw error
+        } finally {
+            watchdog.cancel()
+        }
+    }
+
     private suspend fun warmWithRecovery(): Boolean {
         var firstFailure: Throwable? = null
         repeat(2) { attempt ->
             try {
                 return warmInternal()
             } catch (error: Throwable) {
+                if (error is CancellationException) throw error
                 if (firstFailure == null) firstFailure = error
                 if (attempt == 1) throw error
                 try {
