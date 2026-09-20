@@ -54,8 +54,14 @@ void main() {
       scrollable: find.byType(Scrollable),
     );
     expect(find.text('₱300,000'), findsOneWidget);
-    expect(find.text('2'), findsWidgets);
-    expect(find.text('1'), findsWidgets);
+
+    await tester.scrollUntilVisible(
+      find.text('1 OTA conflict'),
+      260,
+      scrollable: find.byType(Scrollable),
+    );
+    expect(find.text('1 OTA conflict'), findsOneWidget);
+    expect(find.text('2 open staff tasks'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('plp-open-alfred')),
