@@ -15,11 +15,13 @@ class PlpActivityScreen extends StatefulWidget {
   const PlpActivityScreen({
     super.key,
     required this.onOpenNavigation,
+    this.organizationId,
     this.businessLoader,
     this.logLoader,
   });
 
   final VoidCallback onOpenNavigation;
+  final String? organizationId;
   final PlpBusinessActivityLoader? businessLoader;
   final PlpPandoraActivityLogLoader? logLoader;
 
@@ -39,6 +41,9 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
   static const _red = Color(0xFFB94B43);
 
   final TextEditingController _search = TextEditingController();
+  RealtimeChannel? _realtimeChannel;
+  Timer? _realtimeReloadDebounce;
+  String? _realtimeOrganizationId;
 
   int _tab = 0;
   bool _searching = false;
@@ -58,13 +63,67 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
   @override
   void initState() {
     super.initState();
+    _bindRealtime();
     scheduleMicrotask(_loadBusiness);
   }
 
   @override
+  void didUpdateWidget(covariant PlpActivityScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.organizationId != widget.organizationId) {
+      _bindRealtime();
+    }
+  }
+
+  @override
   void dispose() {
+    _realtimeReloadDebounce?.cancel();
+    final channel = _realtimeChannel;
+    if (channel != null) {
+      unawaited(channel.unsubscribe().then<void>((_) {}));
+    }
     _search.dispose();
     super.dispose();
+  }
+
+  void _bindRealtime() {
+    final organizationId = widget.organizationId?.trim();
+    if (organizationId == null || organizationId.isEmpty) return;
+    if (_realtimeOrganizationId == organizationId) return;
+
+    final previous = _realtimeChannel;
+    if (previous != null) {
+      unawaited(previous.unsubscribe().then<void>((_) {}));
+    }
+
+    _realtimeOrganizationId = organizationId;
+    _realtimeChannel = Supabase.instance.client
+        .channel('plp-activity-live-$organizationId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'enterprise_realtime_signals',
+          callback: (payload) {
+            final eventOrganizationId =
+                payload.newRecord['organization_id']?.toString();
+            if (eventOrganizationId == organizationId) {
+              _scheduleRealtimeReload();
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  void _scheduleRealtimeReload() {
+    _realtimeReloadDebounce?.cancel();
+    _realtimeReloadDebounce = Timer(
+      const Duration(milliseconds: 220),
+      () {
+        if (!mounted) return;
+        unawaited(_loadBusiness());
+        if (_logsLoaded) unawaited(_loadLogs());
+      },
+    );
   }
 
   Map<String, Object?> _map(Object? value) {
