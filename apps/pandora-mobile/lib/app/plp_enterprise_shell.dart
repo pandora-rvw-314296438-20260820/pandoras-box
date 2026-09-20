@@ -61,6 +61,9 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   bool _recentChatsLoading = false;
   bool _recentChatsLoaded = false;
   String? _recentChatsError;
+  RealtimeChannel? _plpRealtimeChannel;
+  Timer? _plpRealtimeRefreshDebounce;
+  String? _plpRealtimeOrganizationId;
 
   @override
   void didChangeDependencies() {
@@ -72,6 +75,11 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   @override
   void dispose() {
+    _plpRealtimeRefreshDebounce?.cancel();
+    final channel = _plpRealtimeChannel;
+    if (channel != null) {
+      unawaited(channel.unsubscribe().then<void>((_) {}));
+    }
     _commandController.dispose();
     _commandFocus.dispose();
     super.dispose();
@@ -86,6 +94,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         'plp_enterprise_mobile_bootstrap_v1',
       );
       final normalized = _normalizeBootstrap(value);
+      _ensureRealtime(normalized);
       if (cache != null) {
         try {
           await cache.cacheMemoryContext(
@@ -136,6 +145,54 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       },
       'offlineBootstrap': true,
     };
+  }
+
+  String? _organizationId(Map<String, Object?> bootstrap) {
+    final raw = bootstrap['organization'];
+    if (raw is! Map) return null;
+    final value = raw['id']?.toString().trim();
+    return value == null || value.isEmpty ? null : value;
+  }
+
+  void _ensureRealtime(Map<String, Object?> bootstrap) {
+    final organizationId = _organizationId(bootstrap);
+    if (organizationId == null ||
+        organizationId == _plpRealtimeOrganizationId) {
+      return;
+    }
+
+    final previous = _plpRealtimeChannel;
+    if (previous != null) {
+      unawaited(previous.unsubscribe().then<void>((_) {}));
+    }
+
+    _plpRealtimeOrganizationId = organizationId;
+    _plpRealtimeChannel = Supabase.instance.client
+        .channel('plp-enterprise-live-$organizationId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'enterprise_realtime_signals',
+          callback: (payload) {
+            final eventOrganizationId =
+                payload.newRecord['organization_id']?.toString();
+            if (eventOrganizationId == organizationId) {
+              _scheduleRealtimeRefresh();
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  void _scheduleRealtimeRefresh() {
+    _plpRealtimeRefreshDebounce?.cancel();
+    _plpRealtimeRefreshDebounce = Timer(
+      const Duration(milliseconds: 250),
+      () {
+        if (!mounted) return;
+        setState(() => _bootstrapFuture = _loadBootstrap());
+      },
+    );
   }
 
   void _refresh() {
@@ -366,6 +423,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             const ApprovalsScreen(key: ValueKey('plp-needs-you')),
             PlpActivityScreen(
               key: const ValueKey('plp-activity'),
+              organizationId: _organizationId(bootstrap),
               onOpenNavigation: _openDrawer,
             ),
             const SettingsScreen(key: ValueKey('plp-settings')),
