@@ -84,6 +84,14 @@ def patch_impl(path: Path) -> int:
     private external fun unload()
 """
 
+    system_prompt_guard_old = """            check(_readyForSystemPrompt) { "System prompt must be set ** RIGHT AFTER ** model loaded!" }
+"""
+    system_prompt_guard_new = """            // Pandora reuses processSystemPrompt() as a warm conversation reset.
+            // The native implementation clears chat/KV state before decoding the
+            // system prompt, so ModelReady is the real safety invariant here.
+            // Requiring a fresh model load made every route transition fail.
+"""
+
     user_prompt_old = """            processUserPrompt(message, predictLength).let { result ->
                 if (result != 0) {
                     Log.e(TAG, "Failed to process user prompt: $result")
@@ -138,6 +146,12 @@ def patch_impl(path: Path) -> int:
         text = replace_exact(text, init_old, init_new, "native initialization catch block")
         text = replace_exact(text, load_old, load_new, "native model load/prepare block")
         text = replace_exact(text, native_anchor, native_replacement, "native diagnostics declaration anchor")
+        text = replace_exact(
+            text,
+            system_prompt_guard_old,
+            system_prompt_guard_new,
+            "system prompt warm-reset guard",
+        )
         text = replace_exact(text, user_prompt_old, user_prompt_new, "user prompt fail-closed block")
         text = replace_exact(text, bench_anchor, bench_replacement, "benchmark implementation")
         text = replace_exact(
@@ -160,6 +174,7 @@ def patch_impl(path: Path) -> int:
         "Native llama.cpp user prompt failed with code ",
         "nativeRuntimeDiagnostics()",
         "override fun runtimeDiagnostics(): String",
+        "Pandora reuses processSystemPrompt() as a warm conversation reset.",
         "Unloading native resources after error...",
         "_state.value = InferenceEngine.State.Error(error)",
     )
@@ -168,6 +183,9 @@ def patch_impl(path: Path) -> int:
         return 1
     if "return@flow" in verified and "Failed to process user prompt" in verified:
         print("Silent user-prompt completion path remains.", file=sys.stderr)
+        return 1
+    if 'System prompt must be set ** RIGHT AFTER ** model loaded!' in verified:
+        print("Warm conversation reset guard remains.", file=sys.stderr)
         return 1
 
     print("Patched pinned llama.cpp Android wrapper with fail-loud generation diagnostics.")
