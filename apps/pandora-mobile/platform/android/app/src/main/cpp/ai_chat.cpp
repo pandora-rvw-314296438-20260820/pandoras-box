@@ -30,7 +30,7 @@ constexpr int   N_THREADS_MIN           = 2;
 constexpr int   N_THREADS_MAX           = 4;
 constexpr int   N_THREADS_HEADROOM      = 2;
 
-constexpr int   DEFAULT_CONTEXT_SIZE    = 2048;
+constexpr int   DEFAULT_CONTEXT_SIZE    = 4096;
 constexpr int   OVERFLOW_HEADROOM       = 4;
 constexpr int   BATCH_SIZE              = 128;
 constexpr int   PREFERRED_GPU_LAYERS    = 16;
@@ -181,7 +181,7 @@ static common_sampler *new_sampler(float temp) {
 }
 
 static llama_context *prepare_context_with_fallback_sizes() {
-    const int context_candidates[] = { 2048, 1536, 1024 };
+    const int context_candidates[] = { 4096, 3072, 2048 };
     for (const int candidate : context_candidates) {
         LOGi("%s: trying context size %d", __func__, candidate);
         auto *context = init_context(g_model, candidate);
@@ -559,26 +559,54 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
         LOGv("token: `%s`\t -> `%d`", common_token_to_piece(g_context, id).c_str(), id);
     }
 
-    // Ensure user prompt doesn't exceed the actual allocated context size.
+    // Reserve generation headroom before decoding the prompt. PLP can attach
+    // synchronized business context, so prompt size must be bounded against the
+    // *remaining* context, not just the total context size.
+    const int generation_reserve = std::max(1, std::min((int) n_predict, g_context_size / 2));
+    const int prompt_end_limit = g_context_size - OVERFLOW_HEADROOM - generation_reserve;
+
+    // Reclaim old conversational KV state first while preserving the system
+    // prompt. This keeps a warm model useful across many short local turns.
+    int shift_attempts = 0;
+    while (current_position > system_prompt_position &&
+           current_position + (int) user_tokens.size() > prompt_end_limit &&
+           shift_attempts < 8) {
+        const llama_pos before = current_position;
+        shift_context();
+        shift_attempts++;
+        if (current_position >= before) {
+            break;
+        }
+    }
+
+    const int available_prompt_tokens = std::max(1, prompt_end_limit - (int) current_position);
     const int original_user_prompt_size = (int) user_tokens.size();
-    const int max_batch_size = g_context_size - OVERFLOW_HEADROOM;
-    if (original_user_prompt_size > max_batch_size) {
-        const int skipped_tokens = original_user_prompt_size - max_batch_size;
-        user_tokens.resize(max_batch_size);
-        LOGw("%s: User prompt too long! Skipped %d tokens!", __func__, skipped_tokens);
+    if (original_user_prompt_size > available_prompt_tokens) {
+        const int skipped_tokens = original_user_prompt_size - available_prompt_tokens;
+        // Keep the tail. Pandora places the current user request after bounded
+        // route/business context, so this preserves the actual request and the
+        // chat-template generation suffix under memory pressure.
+        user_tokens.erase(user_tokens.begin(), user_tokens.begin() + skipped_tokens);
+        LOGw(
+            "%s: User prompt exceeded remaining context; kept newest %d tokens and skipped %d.",
+            __func__,
+            available_prompt_tokens,
+            skipped_tokens);
     }
     const int user_prompt_size = (int) user_tokens.size();
 
-    // Decode user tokens in batches
+    // Decode user tokens in batches.
     if (decode_tokens_in_batches(g_context, g_batch, user_tokens, current_position, true)) {
         LOGe("%s: llama_decode() failed!", __func__);
         return 2;
     }
 
-    // Update position exactly once. The previous path double-counted the user
-    // prompt when calculating the generation stop position.
+    // Update position exactly once and cap generation inside the allocated
+    // context. This prevents the old silent zero-token failure mode.
     current_position += user_prompt_size;
-    stop_generation_position = current_position + n_predict;
+    stop_generation_position = std::min(
+        (llama_pos) (current_position + generation_reserve),
+        (llama_pos) (g_context_size - OVERFLOW_HEADROOM));
     return 0;
 }
 
