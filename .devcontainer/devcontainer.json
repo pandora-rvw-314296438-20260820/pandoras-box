@@ -1,5 +1,5 @@
 {
-  "name": "Pandora public APK handoff",
+  "name": "Pandora verified public APK handoff",
   "image": "mcr.microsoft.com/devcontainers/universal:2",
   "forwardPorts": [9114],
   "portsAttributes": {"9114": {"label": "Pandora verified APK", "onAutoForward": "notify"}},
