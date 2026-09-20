@@ -221,6 +221,48 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
     return raw.toString();
   }
 
+  bool _safeToWarm(PandoraLocalAiStatus? status) {
+    if (status == null || !status.configured) return false;
+    final selectedSha = status.modelSha256?.toLowerCase();
+    final recommendedSha =
+        status.diagnostics['recommendedModelSha256']?.toString().toLowerCase();
+    if (selectedSha == null ||
+        recommendedSha == null ||
+        selectedSha != recommendedSha) {
+      return false;
+    }
+    final modelBytes = status.modelBytes;
+    final safeMaxRaw = status.diagnostics['safeModelMaxBytes'];
+    final safeMax = safeMaxRaw is num
+        ? safeMaxRaw.toInt()
+        : int.tryParse(safeMaxRaw?.toString() ?? '');
+    if (modelBytes != null && safeMax != null && modelBytes > safeMax) {
+      return false;
+    }
+    if (status.diagnostics['memoryLow'] == true) return false;
+    if (!status.loaded && modelBytes != null) {
+      final availableRaw = status.diagnostics['availableRamBytes'];
+      final available = availableRaw is num
+          ? availableRaw.toInt()
+          : int.tryParse(availableRaw?.toString() ?? '');
+      if (available != null &&
+          available < modelBytes + (1024 * 1024 * 1024)) {
+        return false;
+      }
+    }
+    final thermal =
+        status.diagnostics['thermalStatus']?.toString().toLowerCase();
+    if (const <String>{
+      'severe',
+      'critical',
+      'emergency',
+      'shutdown',
+    }.contains(thermal)) {
+      return false;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = _status;
@@ -463,7 +505,9 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                   ? null
                   : loaded
                   ? _unload
-                  : _warm,
+                  : _safeToWarm(status)
+                  ? _warm
+                  : null,
               icon: Icon(
                 loaded ? Icons.power_settings_new_rounded : Icons.bolt_rounded,
               ),
