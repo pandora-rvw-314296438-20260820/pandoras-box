@@ -61,6 +61,12 @@ void main() {
       scrollable: find.byType(Scrollable),
     );
     expect(find.text('1 OTA conflict'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('2 open staff tasks'),
+      220,
+      scrollable: find.byType(Scrollable),
+    );
     expect(find.text('2 open staff tasks'), findsOneWidget);
 
     await tester.scrollUntilVisible(
