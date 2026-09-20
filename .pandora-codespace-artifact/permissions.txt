@@ -1,0 +1,12 @@
+package: com.banataosystems.pandora_mobile
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.READ_CONTACTS'
+uses-permission: name='android.permission.SEND_SMS'
+uses-permission: name='android.permission.CALL_PHONE'
+uses-permission: name='android.permission.SCHEDULE_EXACT_ALARM'
+uses-permission: name='android.permission.POST_NOTIFICATIONS'
+uses-permission: name='android.permission.WRITE_CALENDAR'
+uses-permission: name='android.permission.READ_CALENDAR'
+uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
+permission: com.banataosystems.pandora_mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+uses-permission: name='com.banataosystems.pandora_mobile.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'

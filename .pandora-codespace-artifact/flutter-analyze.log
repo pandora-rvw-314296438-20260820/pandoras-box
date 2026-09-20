@@ -1,0 +1,36 @@
+Analyzing .pandora-mobile-codespace-build...                    
+
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/app/pandora_chat_shell.dart:435:22 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/app/pandora_chat_shell.dart:437:13 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/enterprise/batalla_workspace_screen.dart:232:18 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/enterprise/batalla_workspace_screen.dart:413:23 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/enterprise/batalla_workspace_screen.dart:502:27 • prefer_interpolation_to_compose_strings
+   info • 'dart:html' is deprecated and shouldn't be used. Use package:web and dart:js_interop instead. Try replacing the use of the deprecated member with the replacement • lib/features/enterprise/enterprise_vision_embed_web.dart:3:1 • deprecated_member_use
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/enterprise/enterprise_workspace_home.dart:54:18 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/enterprise/enterprise_workspace_home.dart:56:13 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/enterprise/enterprise_workspace_home.dart:428:29 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/enterprise/enterprise_workspace_home.dart:480:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/enterprise/enterprise_workspace_home.dart:495:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/enterprise/enterprise_workspace_home.dart:537:33 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:218:12 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:300:23 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:302:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:304:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:308:23 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:310:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:312:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:317:23 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:319:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:321:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:326:23 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:328:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:330:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:334:23 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:336:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:338:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:346:23 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:351:25 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/settings/local_ai_settings_screen.dart:367:17 • prefer_interpolation_to_compose_strings
+warning • A value for optional parameter 'enterpriseContext' isn't ever given. Try removing the unused parameter • lib/features/simple/ask_pandora_screen.dart:1194:10 • unused_element_parameter
+
+32 issues found. (ran in 13.4s)
