@@ -1,0 +1,31 @@
+name: APK Chat Handoff
+on:
+  push:
+    branches:
+      - build/apk-chat-handoff-ef373c82-20260920
+
+permissions:
+  contents: read
+
+jobs:
+  handoff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download verified release APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          gh release download phone-local-ai-ef373c82d436-20260920             --repo "${{ github.repository }}"             --pattern 'pandora-phone-local-ef373c82d436ae06fd459b5356272bcab84bcc66.apk'             --dir out
+          echo "497ce08beb987e1704d096d9b4d942df03da495fdd8a76794f84c5cbd5a55ba8  out/pandora-phone-local-ef373c82d436ae06fd459b5356272bcab84bcc66.apk" | sha256sum -c -
+          test "$(stat -c '%s' out/pandora-phone-local-ef373c82d436ae06fd459b5356272bcab84bcc66.apk)" = "119958129"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pandora-qwen3-apk-chat-handoff
+          path: out/pandora-phone-local-ef373c82d436ae06fd459b5356272bcab84bcc66.apk
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
