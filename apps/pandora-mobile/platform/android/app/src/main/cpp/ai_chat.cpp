@@ -2,6 +2,7 @@
 #include <jni.h>
 #include <iomanip>
 #include <cmath>
+#include <sstream>
 #include <string>
 #include <unistd.h>
 #include <sampling.h>
@@ -9,6 +10,7 @@
 #include "logging.h"
 #include "chat.h"
 #include "common.h"
+#include "ggml-backend.h"
 #include "llama.h"
 
 template<class T>
@@ -31,6 +33,7 @@ constexpr int   N_THREADS_HEADROOM      = 2;
 constexpr int   DEFAULT_CONTEXT_SIZE    = 2048;
 constexpr int   OVERFLOW_HEADROOM       = 4;
 constexpr int   BATCH_SIZE              = 128;
+constexpr int   PREFERRED_GPU_LAYERS    = 16;
 constexpr float DEFAULT_SAMPLER_TEMP    = 0.3f;
 
 static llama_model                      * g_model;
@@ -38,6 +41,13 @@ static llama_context                    * g_context;
 static llama_batch                        g_batch;
 static common_chat_templates_ptr          g_chat_templates;
 static common_sampler                   * g_sampler;
+static int                                g_context_size = DEFAULT_CONTEXT_SIZE;
+static bool                               g_vulkan_device_available = false;
+static bool                               g_acceleration_attempted = false;
+static bool                               g_cpu_fallback_used = false;
+static int                                g_gpu_layers_requested = 0;
+static int                                g_gpu_layers_active = 0;
+static std::string                        g_model_path;
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -45,43 +55,91 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_init(JNIEnv *env, jobject /*unu
     // Set llama log handler to Android
     llama_log_set(aichat_android_log_callback, nullptr);
 
-    // Reliability baseline: use the statically linked arm64 CPU backend.
-    // Dynamic variant discovery added linker/runtime failure surface on Android
-    // without being required for the CPU acceptance path.
+    // CPU remains statically linked as the fail-safe path. Vulkan is also
+    // statically compiled and is selected only when llama.cpp exposes a real
+    // GPU/IGPU device at runtime.
     const auto *native_lib_dir = env->GetStringUTFChars(nativeLibDir, 0);
     LOGi("Native library directory: %s", native_lib_dir);
     env->ReleaseStringUTFChars(nativeLibDir, native_lib_dir);
 
     llama_backend_init();
-    LOGi("Static CPU backend initiated; log handler set.");
+    LOGi("Static CPU fallback + Vulkan-capable backend set initiated.");
+}
+
+static bool has_gpu_device() {
+    for (size_t i = 0; i < ggml_backend_dev_count(); ++i) {
+        auto *device = ggml_backend_dev_get(i);
+        const auto type = ggml_backend_dev_type(device);
+        LOGi(
+            "Backend device %zu: %s (%s), type=%d",
+            i,
+            ggml_backend_dev_name(device),
+            ggml_backend_dev_description(device),
+            (int) type);
+        if (type == GGML_BACKEND_DEVICE_TYPE_GPU ||
+            type == GGML_BACKEND_DEVICE_TYPE_IGPU) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static llama_model *load_model_with_profile(const char *model_path, const int gpu_layers) {
+    llama_model_params model_params = llama_model_default_params();
+    model_params.n_gpu_layers = gpu_layers;
+    model_params.load_mode = LLAMA_LOAD_MODE_MMAP;
+    model_params.lazy_mode = LLAMA_LAZY_MODE_OFF;
+    model_params.use_extra_bufts = false;
+
+    LOGi(
+        "%s: load profile mmap, gpu_layers=%d, extra_bufts=false, lazy=off",
+        __func__,
+        gpu_layers);
+    auto *model = llama_model_load_from_file(model_path, model_params);
+    if (!model) {
+        LOGw(
+            "%s: mmap load failed for gpu_layers=%d; retrying non-mmap",
+            __func__,
+            gpu_layers);
+        model_params.load_mode = LLAMA_LOAD_MODE_NONE;
+        model = llama_model_load_from_file(model_path, model_params);
+    }
+    return model;
 }
 
 extern "C"
 JNIEXPORT jint JNICALL
 Java_com_arm_aichat_internal_InferenceEngineImpl_load(JNIEnv *env, jobject, jstring jmodel_path) {
-    llama_model_params model_params = llama_model_default_params();
-    // Physical-phone acceptance baseline: reliable CPU mmap fit before acceleration.
-    model_params.n_gpu_layers = 0;
-    model_params.load_mode = LLAMA_LOAD_MODE_MMAP;
-    model_params.lazy_mode = LLAMA_LAZY_MODE_OFF;
-    model_params.use_extra_bufts = false;
-
     const auto *model_path = env->GetStringUTFChars(jmodel_path, 0);
-    LOGi("%s: CPU baseline load profile: mmap, gpu_layers=0, extra_bufts=false, lazy=off", __func__);
+    g_model_path = model_path;
     LOGd("%s: Loading model from: \n%s\n", __func__, model_path);
 
-    auto *model = llama_model_load_from_file(model_path, model_params);
-    if (!model) {
-        LOGw("%s: mmap model load failed; retrying with non-mmap load mode", __func__);
-        model_params.load_mode = LLAMA_LOAD_MODE_NONE;
-        model = llama_model_load_from_file(model_path, model_params);
+    g_vulkan_device_available = has_gpu_device();
+    g_gpu_layers_requested = g_vulkan_device_available ? PREFERRED_GPU_LAYERS : 0;
+    g_acceleration_attempted = g_gpu_layers_requested > 0;
+    g_cpu_fallback_used = false;
+
+    auto *model = load_model_with_profile(model_path, g_gpu_layers_requested);
+    if (!model && g_gpu_layers_requested > 0) {
+        LOGw("%s: Vulkan/offload model load failed; falling back to CPU", __func__);
+        g_cpu_fallback_used = true;
+        model = load_model_with_profile(model_path, 0);
     }
     env->ReleaseStringUTFChars(jmodel_path, model_path);
+
     if (!model) {
-        LOGe("%s: both mmap and non-mmap model loads failed", __func__);
+        LOGe("%s: accelerated and CPU fallback model loads failed", __func__);
+        g_gpu_layers_active = 0;
         return 2;
     }
+
     g_model = model;
+    g_gpu_layers_active = g_cpu_fallback_used ? 0 : g_gpu_layers_requested;
+    LOGi(
+        "%s: model ready backend=%s gpu_layers=%d",
+        __func__,
+        g_gpu_layers_active > 0 ? "vulkan" : "cpu",
+        g_gpu_layers_active);
     return 0;
 }
 
@@ -122,27 +180,44 @@ static common_sampler *new_sampler(float temp) {
     return common_sampler_init(g_model, sparams);
 }
 
-extern "C"
-JNIEXPORT jint JNICALL
-Java_com_arm_aichat_internal_InferenceEngineImpl_prepare(JNIEnv * /*env*/, jobject /*unused*/) {
-    // Prefer the normal 2048-token context, but fail down gracefully under
-    // device memory pressure instead of making the whole local runtime unusable.
+static llama_context *prepare_context_with_fallback_sizes() {
     const int context_candidates[] = { 2048, 1536, 1024 };
-    llama_context *context = nullptr;
     for (const int candidate : context_candidates) {
         LOGi("%s: trying context size %d", __func__, candidate);
-        context = init_context(g_model, candidate);
+        auto *context = init_context(g_model, candidate);
         if (context != nullptr) {
             LOGi("%s: context size %d ready", __func__, candidate);
-            break;
+            return context;
         }
         LOGw("%s: context size %d failed", __func__, candidate);
     }
+    return nullptr;
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_prepare(JNIEnv * /*env*/, jobject /*unused*/) {
+    auto *context = prepare_context_with_fallback_sizes();
+
+    // Model upload may succeed while context allocation fails on a driver.
+    // Reload on CPU so acceleration cannot make local chat unavailable.
+    if (!context && g_gpu_layers_active > 0 && !g_model_path.empty()) {
+        LOGw("%s: Vulkan context allocation failed; reloading model on CPU", __func__);
+        llama_model_free(g_model);
+        g_model = load_model_with_profile(g_model_path.c_str(), 0);
+        g_gpu_layers_active = 0;
+        g_cpu_fallback_used = true;
+        if (g_model != nullptr) {
+            context = prepare_context_with_fallback_sizes();
+        }
+    }
+
     if (!context) {
-        LOGe("%s: all context allocation profiles failed", __func__);
+        LOGe("%s: all accelerated/CPU context allocation profiles failed", __func__);
         return 2;
     }
     g_context = context;
+    g_context_size = (int) llama_n_ctx(context);
     g_batch = llama_batch_init(BATCH_SIZE, 0, 1);
     g_chat_templates = common_chat_templates_init(g_model, "");
     g_sampler = new_sampler(DEFAULT_SAMPLER_TEMP);
@@ -150,6 +225,12 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_prepare(JNIEnv * /*env*/, jobje
         LOGe("%s: sampler initialization failed", __func__);
         return 3;
     }
+    LOGi(
+        "%s: runtime ready backend=%s gpu_layers=%d context=%d",
+        __func__,
+        g_gpu_layers_active > 0 ? "vulkan" : "cpu",
+        g_gpu_layers_active,
+        g_context_size);
     return 0;
 }
 
@@ -169,6 +250,25 @@ extern "C"
 JNIEXPORT jstring JNICALL
 Java_com_arm_aichat_internal_InferenceEngineImpl_systemInfo(JNIEnv *env, jobject /*unused*/) {
     return env->NewStringUTF(llama_print_system_info());
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_nativeRuntimeDiagnostics(
+        JNIEnv *env,
+        jobject /*unused*/) {
+    std::ostringstream result;
+    result << "{"
+           << "\"configuredBackend\":\"auto_vulkan_cpu_fallback\","
+           << "\"activeBackend\":\"" << (g_gpu_layers_active > 0 ? "vulkan" : "cpu") << "\","
+           << "\"vulkanDeviceAvailable\":" << (g_vulkan_device_available ? "true" : "false") << ","
+           << "\"accelerationAttempted\":" << (g_acceleration_attempted ? "true" : "false") << ","
+           << "\"cpuFallbackUsed\":" << (g_cpu_fallback_used ? "true" : "false") << ","
+           << "\"gpuLayersRequested\":" << g_gpu_layers_requested << ","
+           << "\"gpuLayersActive\":" << g_gpu_layers_active << ","
+           << "\"contextTokens\":" << g_context_size
+           << "}";
+    return env->NewStringUTF(result.str().c_str());
 }
 
 extern "C"
@@ -358,7 +458,7 @@ static int decode_tokens_in_batches(
         LOGv("%s: Preparing a batch size of %d starting at: %d", __func__, cur_batch_size, i);
 
         // Shift context if current batch cannot fit into the context
-        if (start_pos + i + cur_batch_size >= DEFAULT_CONTEXT_SIZE - OVERFLOW_HEADROOM) {
+        if (start_pos + i + cur_batch_size >= g_context_size - OVERFLOW_HEADROOM) {
             LOGw("%s: Current batch won't fit into context! Shifting...", __func__);
             shift_context();
         }
@@ -411,8 +511,8 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processSystemPrompt(
         LOGv("token: `%s`\t -> `%d`", common_token_to_piece(g_context, id).c_str(), id);
     }
 
-    // Handle context overflow
-    const int max_batch_size = DEFAULT_CONTEXT_SIZE - OVERFLOW_HEADROOM;
+    // Handle context overflow against the actual allocated context.
+    const int max_batch_size = g_context_size - OVERFLOW_HEADROOM;
     if ((int) system_tokens.size() > max_batch_size) {
         LOGe("%s: System prompt too long for context! %d tokens, max: %d",
              __func__, (int) system_tokens.size(), max_batch_size);
@@ -459,14 +559,15 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
         LOGv("token: `%s`\t -> `%d`", common_token_to_piece(g_context, id).c_str(), id);
     }
 
-    // Ensure user prompt doesn't exceed the context size by truncating if necessary.
-    const int user_prompt_size = (int) user_tokens.size();
-    const int max_batch_size = DEFAULT_CONTEXT_SIZE - OVERFLOW_HEADROOM;
-    if (user_prompt_size > max_batch_size) {
-        const int skipped_tokens = user_prompt_size - max_batch_size;
+    // Ensure user prompt doesn't exceed the actual allocated context size.
+    const int original_user_prompt_size = (int) user_tokens.size();
+    const int max_batch_size = g_context_size - OVERFLOW_HEADROOM;
+    if (original_user_prompt_size > max_batch_size) {
+        const int skipped_tokens = original_user_prompt_size - max_batch_size;
         user_tokens.resize(max_batch_size);
         LOGw("%s: User prompt too long! Skipped %d tokens!", __func__, skipped_tokens);
     }
+    const int user_prompt_size = (int) user_tokens.size();
 
     // Decode user tokens in batches
     if (decode_tokens_in_batches(g_context, g_batch, user_tokens, current_position, true)) {
@@ -474,9 +575,10 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
         return 2;
     }
 
-    // Update position
+    // Update position exactly once. The previous path double-counted the user
+    // prompt when calculating the generation stop position.
     current_position += user_prompt_size;
-    stop_generation_position = current_position + user_prompt_size + n_predict;
+    stop_generation_position = current_position + n_predict;
     return 0;
 }
 
@@ -521,7 +623,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
         jobject /*unused*/
 ) {
     // Infinite text generation via context shifting
-    if (current_position >= DEFAULT_CONTEXT_SIZE - OVERFLOW_HEADROOM) {
+    if (current_position >= g_context_size - OVERFLOW_HEADROOM) {
         LOGw("%s: Context full! Shifting...", __func__);
         shift_context();
     }
@@ -587,6 +689,15 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_unload(JNIEnv * /*unused*/, job
     llama_batch_free(g_batch);
     llama_free(g_context);
     llama_model_free(g_model);
+    g_model = nullptr;
+    g_context = nullptr;
+    g_sampler = nullptr;
+    g_context_size = DEFAULT_CONTEXT_SIZE;
+    g_gpu_layers_active = 0;
+    g_gpu_layers_requested = 0;
+    g_acceleration_attempted = false;
+    g_cpu_fallback_used = false;
+    g_model_path.clear();
 }
 
 extern "C"
