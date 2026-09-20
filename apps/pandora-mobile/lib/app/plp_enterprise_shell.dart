@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/local/pandora_local_state_cache.dart';
 import '../features/enterprise/enterprise_vision_screen.dart';
+import 'pandora_dependencies.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/settings/local_ai_settings_screen.dart';
@@ -22,15 +24,18 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   static const _text = Color(0xFFF4F7FB);
   static const _accent = Color(0xFF5ED8E6);
 
-  late Future<Map<String, Object?>> _bootstrapFuture;
+  Future<Map<String, Object?>>? _bootstrapFuture;
+  bool _bootstrapInitialized = false;
   final _alfredKey = GlobalKey<AskPandoraScreenState>();
   final _commandController = TextEditingController();
   final _commandFocus = FocusNode();
   int _index = 0;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_bootstrapInitialized) return;
+    _bootstrapInitialized = true;
     _bootstrapFuture = _loadBootstrap();
   }
 
@@ -42,14 +47,64 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }
 
   Future<Map<String, Object?>> _loadBootstrap() async {
-    final value = await Supabase.instance.client.rpc(
-      'plp_enterprise_mobile_bootstrap_v1',
-    );
+    final localStore = PandoraDependencies.of(context).localStore;
+    final cache =
+        localStore == null ? null : PandoraLocalStateCache(localStore);
+    try {
+      final value = await Supabase.instance.client.rpc(
+        'plp_enterprise_mobile_bootstrap_v1',
+      );
+      final normalized = _normalizeBootstrap(value);
+      if (cache != null) {
+        try {
+          await cache.cacheMemoryContext(
+            contextId: 'plp-enterprise-bootstrap',
+            boundedContext: normalized,
+          );
+        } catch (_) {
+          // Live PLP access remains authoritative even if local caching fails.
+        }
+      }
+      return normalized;
+    } catch (_) {
+      if (cache != null) {
+        try {
+          final value = await cache.loadMemoryContext(
+            contextId: 'plp-enterprise-bootstrap',
+          );
+          if (value != null) return _offlineBootstrap(value);
+        } catch (_) {
+          // Fall through to the original live bootstrap error.
+        }
+      }
+      rethrow;
+    }
+  }
+
+  Map<String, Object?> _normalizeBootstrap(Object? value) {
     if (value is Map<String, Object?>) return value;
     if (value is Map) {
       return value.map((key, item) => MapEntry(key.toString(), item));
     }
     throw StateError('PLP bootstrap returned an invalid payload.');
+  }
+
+  Map<String, Object?> _offlineBootstrap(Object? value) {
+    final cached = _normalizeBootstrap(value);
+    final rawSource = cached['source'];
+    final source = rawSource is Map
+        ? rawSource.map((key, item) => MapEntry(key.toString(), item))
+        : <String, Object?>{};
+    return <String, Object?>{
+      ...cached,
+      'source': <String, Object?>{
+        ...source,
+        'state': 'cached_offline',
+        'message':
+            'Using the last verified PLP snapshot while the live provider is unavailable.',
+      },
+      'offlineBootstrap': true,
+    };
   }
 
   void _refresh() {
