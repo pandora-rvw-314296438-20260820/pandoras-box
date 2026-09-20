@@ -643,6 +643,12 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
     common_batch_add(g_batch, new_token_id, current_position, {0}, true);
     if (llama_decode(g_context, g_batch) != 0) {
         LOGe("%s: llama_decode() failed for generated token", __func__);
+        const auto exception_class = env->FindClass("java/lang/RuntimeException");
+        if (exception_class != nullptr) {
+            env->ThrowNew(
+                exception_class,
+                "Native llama.cpp token decode failed during generation.");
+        }
         return nullptr;
     }
 
@@ -683,12 +689,19 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_unload(JNIEnv * /*unused*/, job
     reset_long_term_states();
     reset_short_term_states();
 
-    // Free up resources
-    common_sampler_free(g_sampler);
+    // Free up resources. Error-state cleanup can arrive after a partially
+    // initialized load, so every native resource must be nullable-safe.
+    if (g_sampler != nullptr) {
+        common_sampler_free(g_sampler);
+    }
     g_chat_templates.reset();
     llama_batch_free(g_batch);
-    llama_free(g_context);
-    llama_model_free(g_model);
+    if (g_context != nullptr) {
+        llama_free(g_context);
+    }
+    if (g_model != nullptr) {
+        llama_model_free(g_model);
+    }
     g_model = nullptr;
     g_context = nullptr;
     g_sampler = nullptr;
