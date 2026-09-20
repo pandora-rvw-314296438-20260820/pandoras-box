@@ -111,6 +111,28 @@ class PandoraLocalStateCache {
     );
   }
 
+  Future<Object?> loadMemoryContext({
+    required String contextId,
+  }) async {
+    final key = 'memory_${_digest(contextId)}';
+    final record = await _store.getCache(
+      PandoraLocalNamespace.memoryContext,
+      key,
+    );
+    if (record == null) return null;
+    final now = _clock().toUtc();
+    if (!record.expiresAt.toUtc().isAfter(now)) {
+      await _store.deleteCache(PandoraLocalNamespace.memoryContext, key);
+      return null;
+    }
+    try {
+      return jsonDecode(record.payloadJson);
+    } on FormatException {
+      await _store.deleteCache(PandoraLocalNamespace.memoryContext, key);
+      return null;
+    }
+  }
+
   String _digest(String value) =>
       sha256.convert(utf8.encode(value.trim())).toString().substring(0, 32);
 }
