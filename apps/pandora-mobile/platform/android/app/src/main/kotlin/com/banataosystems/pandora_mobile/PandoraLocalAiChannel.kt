@@ -14,7 +14,6 @@ import android.os.Debug
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.OpenableColumns
-import android.provider.Settings
 import com.arm.aichat.AiChat
 import com.arm.aichat.InferenceEngine
 import io.flutter.plugin.common.BinaryMessenger
@@ -23,6 +22,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 import java.security.MessageDigest
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -49,6 +49,9 @@ class PandoraLocalAiChannel(
         private const val MODEL_SHA256 = "model_sha256"
         private const val ACCEPTANCE_MODEL_NAME = "Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
         private const val ACCEPTANCE_MODEL_SHA256 = "1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6"
+        private const val ACCEPTANCE_PROMPT =
+            "Reply with exactly one short sentence confirming Pandora local AI inference is running."
+        private const val ACCEPTANCE_OUTPUT = "Pandora local AI inference is running."
         private const val MIN_MODEL_BYTES = 64L * 1024L * 1024L
         private const val MAX_MODEL_BYTES = 8L * 1024L * 1024L * 1024L
         private const val STORAGE_RESERVE_BYTES = 256L * 1024L * 1024L
@@ -56,7 +59,8 @@ class PandoraLocalAiChannel(
 You are Pandora's fast on-device conversational layer.
 Answer naturally, directly, and concisely.
 Never claim you checked the internet, an account, a provider, or a device action unless verified results are included in the prompt.
-If the request clearly requires live data, connected services, account data, external actions, or current web information, reply exactly [[PANDORA_CLOUD_REQUIRED]].
+Authorized local business context already supplied in the prompt is valid local context and may be reasoned over on-device.
+If required information is missing locally, needs an authoritative provider mutation/refresh, needs current external information, exceeds safe local context/resources, or needs advanced cloud capability, reply exactly [[PANDORA_CLOUD_REQUIRED]].
 """
     }
 
@@ -221,9 +225,7 @@ If the request clearly requires live data, connected services, account data, ext
                 var firstTokenAt: Long? = null
                 var tokenEvents = 0
                 val generated = StringBuilder()
-                val prompt =
-                    "Offline physical acceptance challenge $challengeNonce. " +
-                        "Reply with one short sentence confirming local execution."
+                val prompt = ACCEPTANCE_PROMPT
                 engine.sendUserPrompt(prompt, 96).collect { token ->
                     if (token.isNotEmpty()) {
                         val now = SystemClock.elapsedRealtime()
@@ -240,6 +242,10 @@ If the request clearly requires live data, connected services, account data, ext
                     )) - generationStarted
                 require(tokenEvents > 0 && generated.isNotEmpty()) {
                     "Local acceptance generated no output."
+                }
+                val normalizedAcceptanceOutput = generated.toString().trim()
+                require(normalizedAcceptanceOutput == ACCEPTANCE_OUTPUT) {
+                    "Local acceptance output did not match the required confirmation sentence."
                 }
                 val tokenRate = tokenEvents.toDouble() * 1000.0 / generationMs.toDouble()
 
@@ -283,20 +289,7 @@ If the request clearly requires live data, connected services, account data, ext
                 lastTokenEventsPerSecond = tokenRate
                 lastGenerationOutcome = "acceptance_completed"
 
-                val androidId =
-                    Settings.Secure.getString(
-                        activity.contentResolver,
-                        Settings.Secure.ANDROID_ID,
-                    ).orEmpty()
-                val deviceIdHash = sha256Text(
-                    listOf(
-                        androidId,
-                        Build.FINGERPRINT,
-                        Build.MANUFACTURER,
-                        Build.MODEL,
-                        activity.packageName,
-                    ).joinToString("|"),
-                )
+                val runNonce = UUID.randomUUID().toString()
 
                 result.success(
                     statusMap() + mapOf(
@@ -306,7 +299,7 @@ If the request clearly requires live data, connected services, account data, ext
                         "packageName" to activity.packageName,
                         "modelName" to modelName,
                         "modelSha256" to modelSha256,
-                        "deviceIdHash" to deviceIdHash,
+                        "runNonce" to runNonce,
                         "runtimeBackend" to "cpu",
                         "networkState" to networkState,
                         "localOnlyPathVerified" to true,
@@ -320,8 +313,11 @@ If the request clearly requires live data, connected services, account data, ext
                         "generationMs" to generationMs,
                         "generatedTokenEvents" to tokenEvents,
                         "tokenEventsPerSecond" to tokenRate,
-                        "generatedTextSha256" to sha256Text(generated.toString()),
+                        "generatedTextSha256" to sha256Text(normalizedAcceptanceOutput),
                         "acceptancePromptSha256" to sha256Text(prompt),
+                        "acceptanceOutputSha256" to sha256Text(normalizedAcceptanceOutput),
+                        "acceptanceOutputMatched" to true,
+                        "deviceEvidenceLevel" to "heuristic",
                     ),
                 )
             } catch (error: Exception) {
