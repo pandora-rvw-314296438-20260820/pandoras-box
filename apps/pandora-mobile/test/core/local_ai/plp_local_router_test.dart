@@ -172,7 +172,7 @@ void main() {
     expect(apiSource, contains('recoverCompletedChatTurn('));
     expect(
       apiSource,
-      contains("'terminal_state', 'execution_state', 'execution_result'"),
+      contains(".select('terminal_state,execution_state,execution_result')"),
     );
     expect(apiSource, contains("terminal_state']) != 'result'"));
     expect(apiSource, contains("execution_state']) != 'complete'"));
@@ -225,7 +225,7 @@ void main() {
     );
     expect(
       screenSource,
-      contains('DO NOT request cloud merely because the user says today'),
+      contains('NOT request cloud merely because the user says today'),
     );
     expect(
       screenSource,
