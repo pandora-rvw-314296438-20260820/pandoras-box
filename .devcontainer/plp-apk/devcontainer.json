@@ -1,0 +1,12 @@
+
+{
+  "name": "PLP Pandora Enterprise APK Builder",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "postCreateCommand": "bash .devcontainer/plp-apk/build.sh",
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb",
+    "storage": "32gb"
+  },
+  "remoteUser": "codespace"
+}
