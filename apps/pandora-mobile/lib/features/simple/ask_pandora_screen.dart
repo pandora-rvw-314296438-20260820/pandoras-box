@@ -610,10 +610,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   }
 
   Future<bool> _trySubmitLocalAi(String objective) async {
-    if (_isPlpEnterpriseContext) {
-      await _unloadLocalAiQuietly();
-      return false;
-    }
     final status = await (() async {
       try {
         return await PandoraLocalAi.instance.status();
@@ -895,7 +891,20 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         enterpriseContext: _cloudEnterpriseContext(),
       );
       await _watchActivity(execution);
-      final turn = await execution.turn;
+      PandoraIntelligenceTurn turn;
+      try {
+        turn = await execution.turn;
+      } on PandoraIntelligenceException {
+        final recovered =
+            await intelligence.recoverCompletedChatTurn(execution.jobId);
+        if (recovered == null) rethrow;
+        turn = recovered;
+      } catch (_) {
+        final recovered =
+            await intelligence.recoverCompletedChatTurn(execution.jobId);
+        if (recovered == null) rethrow;
+        turn = recovered;
+      }
       if (!mounted) return;
       setState(() {
         _threadId = turn.threadId;
