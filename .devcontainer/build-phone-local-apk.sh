@@ -98,7 +98,12 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   ca-certificates curl git unzip xz-utils zip libglu1-mesa \
   openjdk-17-jdk-headless python3 ninja-build glslc libvulkan-dev spirv-headers
 
-SPIRV_CONFIG="$(dpkg -L spirv-headers | grep -E '/(SPIRV-HeadersConfig|spirv-headers-config)\.cmakeexport PATH="$JAVA_HOME/bin:$PATH"
+SPIRV_CONFIG="$(find /usr -type f -name SPIRV-HeadersConfig.cmake -print -quit)"
+test -n "$SPIRV_CONFIG"
+export PANDORA_SPIRV_HEADERS_DIR="$(dirname "$SPIRV_CONFIG")"
+
+export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")"
+export PATH="$JAVA_HOME/bin:$PATH"
 
 FLUTTER_HOME="$HOME/flutter-$FLUTTER_VERSION"
 if [[ ! -x "$FLUTTER_HOME/bin/flutter" ]]; then
