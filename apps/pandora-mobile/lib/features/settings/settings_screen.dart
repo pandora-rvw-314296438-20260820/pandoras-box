@@ -12,6 +12,7 @@ import '../connections/connections_screen.dart';
 import '../diagnostics/developer_diagnostics_screen.dart';
 import '../intelligence/owner_intelligence_screen.dart';
 import '../safety/safety_screen.dart';
+import 'local_ai_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -129,6 +130,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       initialSection: OwnerIntelligenceSection.release,
                     ),
                   ),
+                ),
+                _SettingsAction(
+                  icon: Icons.memory_rounded,
+                  title: 'On-device AI',
+                  subtitle: 'Choose, warm, and inspect Pandora local inference',
+                  onTap: () => _open(const LocalAiSettingsScreen()),
                 ),
               ],
             ),

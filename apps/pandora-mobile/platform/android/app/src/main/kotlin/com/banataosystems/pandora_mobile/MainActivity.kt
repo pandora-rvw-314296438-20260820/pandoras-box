@@ -80,9 +80,14 @@ class MainActivity : FlutterFragmentActivity() {
     )
     private var pendingResult: MethodChannel.Result? = null
     private var pendingSaveBytes: ByteArray? = null
+    private var localAiChannel: PandoraLocalAiChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        localAiChannel = PandoraLocalAiChannel(
+            this,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
         PandoraDeviceAgentChannel.install(
             this,
             flutterEngine.dartExecutor.binaryMessenger
@@ -105,6 +110,12 @@ class MainActivity : FlutterFragmentActivity() {
         )
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler(::handleCall)
+    }
+
+    override fun onDestroy() {
+        localAiChannel?.close()
+        localAiChannel = null
+        super.onDestroy()
     }
 
     private fun handleCall(call: MethodCall, result: MethodChannel.Result) {
@@ -367,6 +378,7 @@ class MainActivity : FlutterFragmentActivity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (localAiChannel?.onActivityResult(requestCode, resultCode, data) == true) return
         val result = pendingResult ?: return
         if (requestCode !in setOf(speechRequest, documentRequest, photoRequest, cameraRequest, saveDocumentRequest, phoneContactRequest)) return
         if (requestCode == saveDocumentRequest) {
