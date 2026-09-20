@@ -650,16 +650,17 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
         JNIEnv *env,
         jobject /*unused*/
 ) {
+    // Stop before context shifting so the absolute generation budget remains
+    // authoritative even when the prompt reaches the overflow threshold.
+    if (current_position >= stop_generation_position) {
+        LOGw("%s: STOP: hitting stop position: %d", __func__, stop_generation_position);
+        return nullptr;
+    }
+
     // Infinite text generation via context shifting
     if (current_position >= g_context_size - OVERFLOW_HEADROOM) {
         LOGw("%s: Context full! Shifting...", __func__);
         shift_context();
-    }
-
-    // Stop if reaching the marked position
-    if (current_position >= stop_generation_position) {
-        LOGw("%s: STOP: hitting stop position: %d", __func__, stop_generation_position);
-        return nullptr;
     }
 
     // Sample next token
