@@ -143,7 +143,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     if (!mounted || !_isPlpEnterpriseContext) return;
     try {
       final status = await PandoraLocalAi.instance.status();
-      if (!status.supported || !status.configured || status.loaded) return;
+      if (!status.supported || !status.configured) return;
       final decision = PandoraLocalAiRouter.decide(
         message: 'Prepare PLP local resort intelligence.',
         hasAttachment: false,
@@ -153,12 +153,38 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         status: status,
       );
       if (!decision.useLocal) return;
-      if (await PandoraLocalAi.instance.warm()) {
-        _scheduleLocalAiIdleUnload();
+
+      if (!status.loaded && !await PandoraLocalAi.instance.warm()) return;
+
+      // Exercise the exact native user-prompt + token-stream path once before
+      // the owner needs it. This is not a synthetic benchmark: it proves the
+      // installed Qwen model can actually emit a local inference result in the
+      // running APK. The generated smoke turn is discarded and the KV state is
+      // reset before any real conversation.
+      var smoke = '';
+      await for (final chunk in PandoraLocalAi.instance
+          .generate(
+            'Local readiness check. Reply with exactly LOCAL_READY.',
+            predictLength: 32,
+          )
+          .timeout(const Duration(seconds: 45))) {
+        smoke += chunk;
       }
+      if (smoke.trim().isEmpty ||
+          smoke.trim() == '[[PANDORA_CLOUD_REQUIRED]]') {
+        throw const PandoraLocalAiException(
+          'Local Qwen readiness generation produced no usable result.',
+        );
+      }
+      await PandoraLocalAi.instance.resetConversation();
+      _scheduleLocalAiIdleUnload();
     } catch (_) {
-      // Prewarm is opportunistic. A real user turn still gets a fresh local
-      // attempt and then seamless cloud continuation if local is unavailable.
+      try {
+        await PandoraLocalAi.instance.cancel();
+      } catch (_) {}
+      await _unloadLocalAiQuietly();
+      // A real user turn still continues through cloud if the local self-test
+      // cannot prove the phone-local path.
     }
   }
 
