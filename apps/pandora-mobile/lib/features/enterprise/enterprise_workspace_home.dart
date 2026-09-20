@@ -365,21 +365,25 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
                           key: const ValueKey<String>('workspace-home-brand'),
                           onTap: openDrawer,
                           borderRadius: BorderRadius.circular(18),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              PandoraMark(size: 48),
-                              SizedBox(width: 14),
-                              Text(
-                                'Pandora',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -.7,
+                          child: const FittedBox(
+                            alignment: Alignment.centerLeft,
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                PandoraMark(size: 48),
+                                SizedBox(width: 14),
+                                Text(
+                                  'Pandora',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -.7,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
