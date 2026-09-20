@@ -193,8 +193,8 @@ jobs:
           grep -Fq "package: name='$EXPECTED_PACKAGE'" "$evidence/badging.txt"
           grep -Fq "application-label:'$EXPECTED_LABEL'" "$evidence/badging.txt"
           grep -Fq "launchable-activity: name='$EXPECTED_PACKAGE.MainActivity'" "$evidence/badging.txt"
-          grep -Fq "versionCode='13'" "$evidence/badging.txt"
-          grep -Fq "versionName='0.4.0-rc.6'" "$evidence/badging.txt"
+          grep -Fq "versionCode='14'" "$evidence/badging.txt"
+          grep -Fq "versionName='0.4.0-rc.7'" "$evidence/badging.txt"
 
           grep -Fq 'lib/arm64-v8a/' "$evidence/apk-files.txt"
           ! grep -Eq 'lib/(x86|x86_64|armeabi-v7a)/' "$evidence/apk-files.txt"
