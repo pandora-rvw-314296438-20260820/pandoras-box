@@ -1,7 +1,7 @@
 -- Safe Realtime invalidation transport for the PLP enterprise workspace.
 -- Clients receive only organization/property/topic signals and then refetch
--- existing protected RPC projections. Guest PII, provider secrets, prompts,
--- model/provider routing, and raw audit payloads are never replicated.
+-- existing protected RPC projections. Guest PII, provider secrets, AI request
+-- content, provider routing, and raw audit payloads are never replicated.
 
 create table if not exists public.enterprise_realtime_signals (
   id bigint generated always as identity primary key,
