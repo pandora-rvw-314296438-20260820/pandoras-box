@@ -44,7 +44,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
     _PlpDrawerDestination('home', 'Home', Icons.home_outlined),
     _PlpDrawerDestination('overview', 'Overview', Icons.dashboard_outlined),
     _PlpDrawerDestination('operations', 'Operations', Icons.hub_outlined),
-    _PlpDrawerDestination('guests', 'Guests', Icons.people_alt_outlined),
+    _PlpDrawerDestination('guests', 'Guest Experience', Icons.room_service_outlined),
     _PlpDrawerDestination('team-access', 'Team & Access', Icons.group_outlined),
     _PlpDrawerDestination('revenue', 'Revenue', Icons.payments_outlined),
     _PlpDrawerDestination('needs-you', 'Needs You', Icons.priority_high_rounded),
