@@ -1,13 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/data/pandora_intelligence_api.dart';
 import '../core/local/pandora_local_state_cache.dart';
+import '../core/widgets/pandora_navigation.dart';
+import '../features/activity/activity_screen.dart';
+import '../features/approvals/approvals_screen.dart';
+import '../features/diagnostics/developer_diagnostics_screen.dart';
 import '../features/enterprise/enterprise_vision_screen.dart';
-import 'pandora_dependencies.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/settings/local_ai_settings_screen.dart';
+import '../features/settings/settings_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
+import 'pandora_dependencies.dart';
+import 'plp_navigation_drawer.dart';
 
 class PlpEnterpriseShell extends StatefulWidget {
   const PlpEnterpriseShell({super.key});
@@ -24,12 +33,32 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   static const _text = Color(0xFFF4F7FB);
   static const _accent = Color(0xFF5ED8E6);
 
-  Future<Map<String, Object?>>? _bootstrapFuture;
-  bool _bootstrapInitialized = false;
+  static const _surfaceByDestination = <String, int>{
+    'home': 0,
+    'operations': 2,
+    'local-ai': 4,
+    'overview': 5,
+    'guests': 6,
+    'team-access': 7,
+    'revenue': 8,
+    'needs-you': 9,
+    'activity': 10,
+    'settings': 11,
+    'developer': 12,
+  };
+
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final _alfredKey = GlobalKey<AskPandoraScreenState>();
   final _commandController = TextEditingController();
   final _commandFocus = FocusNode();
+
+  Future<Map<String, Object?>>? _bootstrapFuture;
+  bool _bootstrapInitialized = false;
   int _index = 0;
+  List<PlpRecentChatItem> _recentChats = const <PlpRecentChatItem>[];
+  bool _recentChatsLoading = false;
+  bool _recentChatsLoaded = false;
+  String? _recentChatsError;
 
   @override
   void didChangeDependencies() {
@@ -116,6 +145,10 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     setState(() => _index = index);
   }
 
+  void _openDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
+  }
+
   Future<void> _submitPersistentCommand() async {
     final command = _commandController.text.trim();
     if (command.isEmpty) {
@@ -138,6 +171,73 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           'routing': 'local-first governed execution',
         },
       };
+
+  String? get _drawerSelection {
+    for (final entry in _surfaceByDestination.entries) {
+      if (entry.value == _index) return entry.key;
+    }
+    return null;
+  }
+
+  void _selectDrawerDestination(String destination) {
+    final target = _surfaceByDestination[destination];
+    if (target == null) return;
+    _scaffoldKey.currentState?.closeDrawer();
+    _open(target);
+  }
+
+  Future<void> _openRecentThread(PlpRecentChatItem item) async {
+    _scaffoldKey.currentState?.closeDrawer();
+    _open(1);
+    await WidgetsBinding.instance.endOfFrame;
+    await _alfredKey.currentState?.loadThread(item.id);
+  }
+
+  Future<void> _loadRecentChats({bool force = false}) async {
+    if (_recentChatsLoading || (_recentChatsLoaded && !force)) return;
+    final intelligence = PandoraDependencies.of(context).intelligence;
+    if (intelligence == null) {
+      setState(() {
+        _recentChatsLoaded = true;
+        _recentChatsError = 'Recent chats are unavailable.';
+      });
+      return;
+    }
+
+    setState(() {
+      _recentChatsLoading = true;
+      _recentChatsError = null;
+    });
+
+    try {
+      final threads = await intelligence.recentThreadsForWorkspace(
+        'plp-boracay',
+        limit: 8,
+      );
+      if (!mounted) return;
+      setState(() {
+        _recentChats = threads
+            .map(
+              (thread) => PlpRecentChatItem(
+                id: thread.id,
+                title: thread.title.trim().isEmpty
+                    ? 'Untitled conversation'
+                    : thread.title.trim(),
+              ),
+            )
+            .toList(growable: false);
+        _recentChatsLoaded = true;
+      });
+    } on PandoraIntelligenceException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _recentChatsLoaded = true;
+        _recentChatsError = error.message;
+      });
+    } finally {
+      if (mounted) setState(() => _recentChatsLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) => FutureBuilder<Map<String, Object?>>(
@@ -205,6 +305,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           final screens = <Widget>[
             PlpEnterpriseHome(
               bootstrap: bootstrap,
+              onOpenNavigation: _openDrawer,
               onRefresh: _refresh,
               onAskAlfred: () => _open(1),
               onOperations: () => _open(2),
@@ -229,22 +330,83 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             const LocalAiSettingsScreen(
               key: ValueKey('plp-local-ai-settings'),
             ),
+            _PlpBusinessSurface(
+              key: const ValueKey('plp-overview'),
+              destination: 'overview',
+              title: 'Overview',
+              icon: Icons.dashboard_outlined,
+              bootstrap: bootstrap,
+              onOpenNavigation: _openDrawer,
+            ),
+            _PlpBusinessSurface(
+              key: const ValueKey('plp-guests'),
+              destination: 'guests',
+              title: 'Guests',
+              icon: Icons.people_alt_outlined,
+              bootstrap: bootstrap,
+              onOpenNavigation: _openDrawer,
+            ),
+            _PlpBusinessSurface(
+              key: const ValueKey('plp-team-access'),
+              destination: 'team-access',
+              title: 'Team & Access',
+              icon: Icons.group_outlined,
+              bootstrap: bootstrap,
+              onOpenNavigation: _openDrawer,
+            ),
+            _PlpBusinessSurface(
+              key: const ValueKey('plp-revenue'),
+              destination: 'revenue',
+              title: 'Revenue',
+              icon: Icons.payments_outlined,
+              bootstrap: bootstrap,
+              onOpenNavigation: _openDrawer,
+            ),
+            const ApprovalsScreen(key: ValueKey('plp-needs-you')),
+            const ActivityScreen(key: ValueKey('plp-activity')),
+            const SettingsScreen(key: ValueKey('plp-settings')),
+            const DeveloperDiagnosticsScreen(key: ValueKey('plp-developer')),
           ];
 
-          return Scaffold(
+          return KeyedSubtree(
             key: const ValueKey('plp-enterprise-shell'),
-            backgroundColor: _canvas,
-            body: IndexedStack(
-              index: _index,
-              children: screens,
-            ),
-            bottomNavigationBar: _PlpCommandDock(
-              selectedIndex: _index,
-              controller: _commandController,
-              focusNode: _commandFocus,
-              showPersistentComposer: _index != 1,
-              onSubmit: _submitPersistentCommand,
-              onDestinationSelected: _open,
+            child: Scaffold(
+              key: _scaffoldKey,
+              backgroundColor: _canvas,
+              drawerEnableOpenDragGesture: true,
+              drawerEdgeDragWidth: 28,
+              drawerScrimColor: const Color(0x99000000),
+              onDrawerChanged: (open) {
+                if (open) unawaited(_loadRecentChats());
+              },
+              drawer: PlpNavigationDrawer(
+                selectedDestination: _drawerSelection,
+                recentChats: _recentChats,
+                recentChatsLoading: _recentChatsLoading,
+                recentChatsError: _recentChatsError,
+                onRetryRecentChats: () {
+                  unawaited(_loadRecentChats(force: true));
+                },
+                onSelectDestination: _selectDrawerDestination,
+                onSelectThread: (item) {
+                  unawaited(_openRecentThread(item));
+                },
+              ),
+              body: PandoraNavigationScope(
+                openDrawer: _openDrawer,
+                child: IndexedStack(
+                  index: _index,
+                  children: screens,
+                ),
+              ),
+              bottomNavigationBar: _PlpCommandDock(
+                selectedIndex: _index,
+                controller: _commandController,
+                focusNode: _commandFocus,
+                showPersistentComposer: _index != 1,
+                onSubmit: _submitPersistentCommand,
+                onDestinationSelected: _open,
+              ),
             ),
           );
         },
@@ -402,4 +564,153 @@ class _PlpCommandDock extends StatelessWidget {
           ),
         ),
       );
+}
+
+
+class _PlpBusinessSurface extends StatelessWidget {
+  const _PlpBusinessSurface({
+    super.key,
+    required this.destination,
+    required this.title,
+    required this.icon,
+    required this.bootstrap,
+    required this.onOpenNavigation,
+  });
+
+  final String destination;
+  final String title;
+  final IconData icon;
+  final Map<String, Object?> bootstrap;
+  final VoidCallback onOpenNavigation;
+
+  Map<String, Object?> _map(Object? value) {
+    if (value is Map<String, Object?>) return value;
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    return const <String, Object?>{};
+  }
+
+  String _text(Object? value, {String fallback = '—'}) {
+    final normalized = value?.toString().trim();
+    return normalized == null || normalized.isEmpty ? fallback : normalized;
+  }
+
+  List<MapEntry<String, String>> _metrics() {
+    final today = _map(bootstrap['today']);
+    switch (destination) {
+      case 'guests':
+        return <MapEntry<String, String>>[
+          MapEntry(
+            'Arrivals today',
+            _text(today['arrivals_today'], fallback: '0'),
+          ),
+          MapEntry(
+            'Departures today',
+            _text(today['departures_today'], fallback: '0'),
+          ),
+          MapEntry(
+            'OTA conflicts',
+            _text(today['open_ota_conflicts'], fallback: '0'),
+          ),
+        ];
+      case 'team-access':
+        return <MapEntry<String, String>>[
+          MapEntry(
+            'Open staff tasks',
+            _text(today['open_staff_tasks'], fallback: '0'),
+          ),
+          const MapEntry('Access scope', 'PLP owner workspace'),
+        ];
+      case 'revenue':
+        return <MapEntry<String, String>>[
+          MapEntry(
+            'Sales today',
+            '₱${_text(today['sales_today_php'], fallback: '0')}',
+          ),
+          MapEntry(
+            'Occupancy',
+            '${_text(today['occupancy_percent'], fallback: '0')}%',
+          ),
+        ];
+      default:
+        return <MapEntry<String, String>>[
+          MapEntry(
+            'Occupancy',
+            '${_text(today['occupancy_percent'], fallback: '0')}%',
+          ),
+          MapEntry(
+            'Rooms available',
+            _text(today['rooms_available'], fallback: '0'),
+          ),
+          MapEntry(
+            'Open staff tasks',
+            _text(today['open_staff_tasks'], fallback: '0'),
+          ),
+        ];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final metrics = _metrics();
+    return SafeArea(
+      child: ListView(
+        key: ValueKey<String>('plp-business-$destination'),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 180),
+        children: [
+          Row(
+            children: [
+              IconButton(
+                tooltip: 'Open navigation',
+                onPressed: onOpenNavigation,
+                icon: const Icon(Icons.menu_rounded, size: 28),
+              ),
+              const SizedBox(width: 4),
+              Icon(icon, size: 25),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'PLP Boracay',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Luxury Resort · live owner workspace',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 20),
+          for (final metric in metrics) ...[
+            Card(
+              child: ListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+                title: Text(metric.key),
+                trailing: Text(
+                  metric.value,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
 }

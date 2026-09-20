@@ -4,6 +4,7 @@ class PlpEnterpriseHome extends StatelessWidget {
   const PlpEnterpriseHome({
     super.key,
     required this.bootstrap,
+    this.onOpenNavigation,
     required this.onRefresh,
     required this.onAskAlfred,
     required this.onOperations,
@@ -11,6 +12,7 @@ class PlpEnterpriseHome extends StatelessWidget {
   });
 
   final Map<String, Object?> bootstrap;
+  final VoidCallback? onOpenNavigation;
   final VoidCallback onRefresh;
   final VoidCallback onAskAlfred;
   final VoidCallback onOperations;
@@ -99,6 +101,15 @@ class PlpEnterpriseHome extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  if (onOpenNavigation != null) ...[
+                    IconButton(
+                      key: const ValueKey<String>('plp-open-navigation'),
+                      tooltip: 'Open navigation',
+                      onPressed: onOpenNavigation,
+                      icon: const Icon(Icons.menu_rounded, size: 28),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
                   Container(
                     width: 42,
                     height: 42,
