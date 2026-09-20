@@ -33,7 +33,7 @@ constexpr int   N_THREADS_HEADROOM      = 2;
 constexpr int   DEFAULT_CONTEXT_SIZE    = 4096;
 constexpr int   OVERFLOW_HEADROOM       = 4;
 constexpr int   BATCH_SIZE              = 128;
-constexpr int   PREFERRED_GPU_LAYERS    = 16;
+constexpr int   PREFERRED_GPU_LAYERS    = 4; // conservative first offload profile for mobile Vulkan stability
 constexpr float DEFAULT_SAMPLER_TEMP    = 0.3f;
 
 static llama_model                      * g_model;
