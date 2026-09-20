@@ -22,10 +22,10 @@ const _roomThreadPrefix = 'Operations Room';
 const _internalRoomMarker = '[OPERATIONS_ROOM_INTERNAL]';
 const operationsRoomActiveArchitecture =
     'Phone-resident local AI first when appropriate. '
-    'The accepted PLP phone-local model is Qwen3-4B-Instruct-2507-Q4_K_M.gguf '
-    'with SHA-256 1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6 '
+    'The accepted PLP phone-local model is qwen2.5-3b-instruct-q4_k_m.gguf '
+    'with SHA-256 626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d '
     'through the pinned llama.cpp Android runtime. Actual availability, loaded '
-    'state, and engine state must come from live phone runtime evidence. '
+    'state, and engine state must come from live phone runtime evidence. Local admission is RAM/thermal guarded, the model is retired after idle/background, and unsafe turns bypass local before they can pressure Android. '
     'Escalate to approved cloud capability only when local authorized context '
     'is insufficient, a provider mutation or refresh is required, information '
     'is external/current, or the workload exceeds safe local capability. '
@@ -485,9 +485,9 @@ class _PandoraOperationsRoomScreenState
           'roomRosterVersion': 'operations-room-v2-14',
           'architectureVersion': 'phone-local-v2',
           'executionTopology': 'phone-local-first-cloud-escalation',
-          'acceptedLocalModel': 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
+          'acceptedLocalModel': 'qwen2.5-3b-instruct-q4_k_m.gguf',
           'acceptedLocalModelSha256':
-              '1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6',
+              '626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d',
           'localRuntimeEvidence': _localRuntimeEvidence,
           'infrastructurePolicy': 'github-supabase-vercel-only',
           'accelerationPolicy': 'physical-device-verification-required',
