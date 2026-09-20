@@ -64,6 +64,14 @@ void main() {
     );
     expect(find.text('Guests'), findsOneWidget);
     expect(find.text('Guest Experience'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.drag(
+      find.byKey(const ValueKey<String>('plp-guests-light-page')),
+      const Offset(0, -280),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('QA Maria Santos'), findsOneWidget);
     expect(find.text('Grand Ocean Villa · Day 3 of 3'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -89,7 +97,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Requests'));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('plp-guests-filter-requests')),
+    );
     await tester.pumpAndSettle();
 
     expect(
