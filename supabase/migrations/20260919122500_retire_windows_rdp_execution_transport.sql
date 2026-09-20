@@ -3,8 +3,14 @@
 -- names are retained only as fail-closed tombstones so stale callers cannot
 -- mutate source if an old machine comes back online.
 
-delete from public.pandora_local_ai_workers
-where worker_id = 'rdp-ec2amaz-spae2vg';
+do $pandora_rdp_retirement$
+begin
+  if to_regclass('public.pandora_local_ai_workers') is not null then
+    execute 'delete from public.pandora_local_ai_workers where worker_id = $1'
+      using 'rdp-ec2amaz-spae2vg';
+  end if;
+end;
+$pandora_rdp_retirement$;
 
 create or replace function public.pandora_rdp_github_request_v1(
   p_method text,
