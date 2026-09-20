@@ -30,8 +30,6 @@ class PandoraApp extends StatefulWidget {
     this.projectExperienceProjection,
     this.projectExperienceRepository,
     this.domainRegistrar,
-    this.authenticatedHomeBuilder,
-    this.appTitle = "Pandora's Box",
   });
 
   final PandoraAuth auth;
@@ -45,8 +43,6 @@ class PandoraApp extends StatefulWidget {
   final DomainRegistrarApi? domainRegistrar;
   final DiagnosticsStore diagnostics;
   final PandoraLocalStore? localStore;
-  final WidgetBuilder? authenticatedHomeBuilder;
-  final String appTitle;
 
   @override
   State<PandoraApp> createState() => _PandoraAppState();
@@ -75,15 +71,13 @@ class _PandoraAppState extends State<PandoraApp> {
         diagnostics: widget.diagnostics,
         localStore: widget.localStore,
         child: MaterialApp(
-          title: widget.appTitle,
+          title: "Pandora's Box",
           color: PandoraPalette.porcelain.canvas,
           debugShowCheckedModeBanner: false,
           themeMode: ThemeMode.system,
           theme: PandoraTheme.porcelain,
           darkTheme: PandoraTheme.graphite,
-          home: AuthGate(
-            authenticatedHomeBuilder: widget.authenticatedHomeBuilder,
-          ),
+          home: const AuthGate(),
         ),
       );
 }
