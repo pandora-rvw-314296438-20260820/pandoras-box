@@ -195,7 +195,7 @@ class _PlpEnterpriseOverviewState extends State<PlpEnterpriseOverview> {
         ?.round();
     final occupied = _numberOrNull(today['occupied_rooms'])?.round() ??
         (totalRooms != null && available != null
-            ? (totalRooms - available).clamp(0, totalRooms)
+            ? (totalRooms - available).clamp(0, totalRooms).toInt()
             : null);
     final arrivals = (_numberOrNull(today['arrivals_today']) ??
             _numberOrNull(hospitality['arrivals_today']))
