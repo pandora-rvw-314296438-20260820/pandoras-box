@@ -54,8 +54,8 @@ void main() {
       300,
       scrollable: find.byType(Scrollable),
     );
-    expect(find.textContaining('₱300,000'), findsOneWidget);
-    expect(find.textContaining('66.67%'), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-release-background')), findsOneWidget);
+    expect(find.byKey(const ValueKey('plp-release-logo')), findsOneWidget);
 
     expect(
       find.byKey(const ValueKey('plp-home-bookings')),
@@ -73,20 +73,12 @@ void main() {
     );
 
     await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('plp-home-guest-experience')),
-      120,
-      scrollable: find.byType(Scrollable),
-    );
-    expect(
-      find.byKey(const ValueKey('plp-home-guest-experience')),
-      findsOneWidget,
-    );
-
-    await tester.scrollUntilVisible(
       find.byKey(const ValueKey('plp-open-alfred')),
       180,
       scrollable: find.byType(Scrollable),
     );
+    expect(find.text('Ask Pandora'), findsOneWidget);
+    expect(find.text('Sales, occupancy &\npriorities'), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-open-alfred')), findsOneWidget);
   });
 }
