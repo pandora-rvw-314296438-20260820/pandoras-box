@@ -97,7 +97,13 @@ grep -Fq "android:label=\"$EXPECTED_LABEL\"" android/app/src/main/AndroidManifes
 
 cp pubspec.lock /tmp/plp-pubspec.lock.expected
 flutter pub get --enforce-lockfile | tee "$OUT/pub-get.log"
-cmp /tmp/plp-pubspec.lock.expected pubspec.lock
+python3 - <<'PY'
+from pathlib import Path
+expected = Path('/tmp/plp-pubspec.lock.expected').read_bytes()
+actual = Path('pubspec.lock').read_bytes()
+if expected != actual:
+    raise SystemExit('pubspec.lock changed after flutter pub get --enforce-lockfile')
+PY
 
 set +e
 flutter analyze > "$OUT/flutter-analyze.log" 2>&1
