@@ -35,6 +35,8 @@ class AskPandoraScreen extends StatefulWidget {
     this.onSearchChats,
     this.onMore,
     this.enterpriseContext,
+    this.allowCharacterContext = true,
+    this.allowProjectContext = true,
   });
 
   final String? initialPrompt;
@@ -43,6 +45,8 @@ class AskPandoraScreen extends StatefulWidget {
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
   final Map<String, Object?>? enterpriseContext;
+  final bool allowCharacterContext;
+  final bool allowProjectContext;
 
   @override
   State<AskPandoraScreen> createState() => AskPandoraScreenState();
@@ -1185,9 +1189,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
                 onCamera: () => _pickImage(camera: true),
                 onPhotos: () => _pickImage(camera: false),
                 onAttach: _attach,
-                onCharacters: _pickCharacterContext,
+                onCharacters:
+                    widget.allowCharacterContext ? _pickCharacterContext : null,
                 onServices: _pickServiceContext,
-                onProjectContext: _pickProjectContext,
+                onProjectContext:
+                    widget.allowProjectContext ? _pickProjectContext : null,
                 onDictate: _dictate,
                 onSubmit: _submit,
                 onRemoveAttachment: () => setState(() => _attachment = null),
@@ -1213,6 +1219,8 @@ class _ChatHeader extends StatelessWidget {
     this.onSearchChats,
     this.onMore,
     this.enterpriseContext,
+    this.allowCharacterContext = true,
+    this.allowProjectContext = true,
   });
 
   final bool active;
@@ -1220,6 +1228,8 @@ class _ChatHeader extends StatelessWidget {
   final VoidCallback? onSearchChats;
   final VoidCallback? onMore;
   final Map<String, Object?>? enterpriseContext;
+  final bool allowCharacterContext;
+  final bool allowProjectContext;
 
   @override
   Widget build(BuildContext context) => PandoraPageHeader(
@@ -1773,9 +1783,9 @@ class _Composer extends StatelessWidget {
   final VoidCallback onCamera;
   final VoidCallback onPhotos;
   final VoidCallback onAttach;
-  final VoidCallback onCharacters;
+  final VoidCallback? onCharacters;
   final VoidCallback onServices;
-  final VoidCallback onProjectContext;
+  final VoidCallback? onProjectContext;
   final VoidCallback onDictate;
   final VoidCallback onSubmit;
   final VoidCallback onRemoveAttachment;
@@ -1954,14 +1964,15 @@ class _Composer extends StatelessWidget {
                             icon: Icons.insert_drive_file_outlined,
                             onPressed: onAttach,
                           ),
-                          _ComposerMenuItem(
-                            key: const ValueKey<String>(
-                              'ask' '-pandora-menu-characters',
+                          if (onCharacters != null)
+                            _ComposerMenuItem(
+                              key: const ValueKey<String>(
+                                'ask' '-pandora-menu-characters',
+                              ),
+                              label: 'Characters',
+                              icon: Icons.face_retouching_natural_outlined,
+                              onPressed: onCharacters!,
                             ),
-                            label: 'Characters',
-                            icon: Icons.face_retouching_natural_outlined,
-                            onPressed: onCharacters,
-                          ),
                           _ComposerMenuItem(
                             key: const ValueKey<String>(
                               'ask' '-pandora-menu-services',
@@ -1970,14 +1981,15 @@ class _Composer extends StatelessWidget {
                             icon: Icons.extension_outlined,
                             onPressed: onServices,
                           ),
-                          _ComposerMenuItem(
-                            key: const ValueKey<String>(
-                              'ask' '-pandora-menu-project-context',
+                          if (onProjectContext != null)
+                            _ComposerMenuItem(
+                              key: const ValueKey<String>(
+                                'ask' '-pandora-menu-project-context',
+                              ),
+                              label: 'Project context',
+                              icon: Icons.workspaces_outline,
+                              onPressed: onProjectContext!,
                             ),
-                            label: 'Project context',
-                            icon: Icons.workspaces_outline,
-                            onPressed: onProjectContext,
-                          ),
                         ],
                         builder: (context, controller, child) =>
                             SizedBox.square(
