@@ -129,7 +129,7 @@ test('public projection boundary strips internal writer fields', () => {
 test('runtime terminalizes failures, handoffs, and clarification turns', () => {
   assert.match(edge, /emitActivityFailure/);
   assert.match(edge, /state:"result"/);
-  assert.match(edge, /Execution handoff persisted; downstream action is not complete\./);
+  assert.match(edge, /Requested action was prepared, but execution is not yet verified\./);
   assert.match(edge, /Pandora needs one more detail before acting\./);
   assert.match(edgeActivity, /state: 'failed'/);
   assert.match(edgeActivity, /relation: 'failure'/);
