@@ -63,6 +63,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set +o pipefail
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          set -o pipefail
           "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"             'platforms;android-36'             'build-tools;36.0.0'             'ndk;29.0.13113456'             'cmake;3.31.6'
 
       - name: Install pinned Flutter
