@@ -79,7 +79,7 @@ python3 "$ROOT/apps/pandora-mobile/tool/configure_validation_android.py"   andro
 
 cp pubspec.lock pubspec.lock.expected
 flutter pub get --enforce-lockfile
-cmp pubspec.lock.expected pubspec.lock
+test "$(sha256sum pubspec.lock.expected | cut -d ' ' -f1)" = "$(sha256sum pubspec.lock | cut -d ' ' -f1)"
 
 echo "PANDORA_PLP_APK_BUILD stage=analyze"
 flutter analyze
