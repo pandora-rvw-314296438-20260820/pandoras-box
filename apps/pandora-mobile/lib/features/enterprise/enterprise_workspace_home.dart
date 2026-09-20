@@ -334,6 +334,13 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
                   padding: const EdgeInsets.fromLTRB(18, 10, 12, 10),
                   child: Row(
                     children: [
+                      if (openDrawer != null)
+                        IconButton(
+                          key: const ValueKey<String>('workspace-home-navigation'),
+                          tooltip: 'Open navigation',
+                          onPressed: openDrawer,
+                          icon: const Icon(Icons.menu_rounded, size: 28),
+                        ),
                       Expanded(
                         child: InkWell(
                           key: const ValueKey<String>('workspace-home-brand'),
