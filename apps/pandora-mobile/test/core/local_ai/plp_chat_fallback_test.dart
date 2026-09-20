@@ -18,7 +18,7 @@ void main() {
       'open_staff_tasks': 2,
       'open_ota_conflicts': 1,
     },
-    'source': <String, Object?>{
+    'sourceHealth': <String, Object?>{
       'state': 'healthy',
       'message': 'Reservations and payments are available.',
     },
@@ -72,4 +72,13 @@ void main() {
       isFalse,
     );
   });
+  test('reports synchronized provider status', () {
+    final reply = PlpChatFallback.deterministicReply(
+      message: 'What is the provider status?',
+      enterpriseContext: context,
+    );
+    expect(reply, contains('healthy'));
+    expect(reply, contains('Reservations and payments are available.'));
+  });
+
 }
