@@ -24,6 +24,7 @@ import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
+import '../enterprise/plp_staff_task_action.dart';
 import 'pandora_simple_ui.dart';
 
 class AskPandoraScreen extends StatefulWidget {
@@ -437,6 +438,77 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     }
   }
 
+  bool get _isPlpEnterpriseContext {
+    final context = widget.enterpriseContext;
+    final organization = context?['organization'];
+    if (organization is Map) {
+      return organization['propertySlug']?.toString().trim() == 'plp-boracay';
+    }
+    return false;
+  }
+
+  String? _plpActionPendingRequestId;
+  String? _plpActionPendingObjective;
+
+  Future<bool> _trySubmitPlpStaffTask(String objective) async {
+    if (!_isPlpEnterpriseContext) return false;
+    final command = PlpStaffTaskCommand.tryParse(objective);
+    if (command == null) return false;
+
+    final priorObjective = _plpActionPendingObjective;
+    final priorRequestId = _plpActionPendingRequestId;
+    if (priorRequestId != null &&
+        priorObjective != null &&
+        priorObjective != objective) {
+      setState(() {
+        _error =
+            'A prior PLP staff-task outcome is still unconfirmed. Check Activity before creating another task.';
+        _pendingMessage = null;
+      });
+      return true;
+    }
+
+    final requestId = priorRequestId ?? _keys.create('plp-staff-task');
+    _plpActionPendingRequestId = requestId;
+    _plpActionPendingObjective = objective;
+
+    try {
+      final result = await const PlpStaffTaskAction().execute(
+        requestId: requestId,
+        command: command,
+      );
+      if (!mounted) return true;
+      setState(() {
+        _messages.add(_ChatMessage.user(objective));
+        _messages.add(
+          _ChatMessage.pandora(
+            'Staff task created for ' +
+                result.bookingReference +
+                ': ' +
+                result.title +
+                '. Supabase provider readback is verified and the real execution is recorded in Activity.',
+          ),
+        );
+        _pendingMessage = null;
+        _submissionKey = null;
+        _outcomeUnknown = false;
+        _lastTurnUsedLocalAi = false;
+        _plpActionPendingRequestId = null;
+        _plpActionPendingObjective = null;
+      });
+      return true;
+    } on PlpStaffTaskActionException catch (error) {
+      if (!mounted) return true;
+      setState(() {
+        _outcomeUnknown = true;
+        _pendingMessage = null;
+        _error = error.message +
+            ' Pandora retained the same idempotency key. Check Activity before retrying the same command.';
+      });
+      return true;
+    }
+  }
+
   Future<bool> _trySubmitLocalAi(String objective) async {
     final status = await PandoraLocalAi.instance.status();
     final route = PandoraLocalAiRouter.decide(
@@ -564,6 +636,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         await _submitCharacter(objective);
         return;
       }
+      if (await _trySubmitPlpStaffTask(objective)) return;
       final calendarParse = PandoraCalendarCommand.tryParse(
         objective,
         now: DateTime.now(),
