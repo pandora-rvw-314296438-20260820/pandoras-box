@@ -178,4 +178,70 @@ void main() {
     expect(apiSource, contains("execution_state']) != 'complete'"));
   });
 
+  test('Qwen warm recovery clears poisoned Error state and serializes cleanup', () {
+    final kotlinSource = File(
+      'platform/android/app/src/main/kotlin/com/banataosystems/pandora_mobile/'
+      'PandoraLocalAiChannel.kt',
+    ).readAsStringSync();
+
+    expect(kotlinSource, contains('private suspend fun warmWithRecovery()'));
+    expect(
+      kotlinSource,
+      contains('if (engine.state.value is InferenceEngine.State.Error)'),
+    );
+    expect(
+      kotlinSource,
+      contains('activeGeneration?.cancelAndJoin()'),
+    );
+    expect(
+      kotlinSource,
+      isNot(contains(
+        'if (loadedModelPath != null &&\n'
+        '            (state is InferenceEngine.State.ModelReady ||\n'
+        '                state is InferenceEngine.State.Error)',
+      )),
+    );
+
+    final modelResident = kotlinSource.indexOf(
+      'loadedModelPath = canonicalPath',
+      kotlinSource.indexOf('private suspend fun warmInternal()'),
+    );
+    final systemPrompt = kotlinSource.indexOf(
+      'engine.setSystemPrompt(SYSTEM_PROMPT.trim())',
+      modelResident,
+    );
+    expect(modelResident, greaterThanOrEqualTo(0));
+    expect(systemPrompt, greaterThan(modelResident));
+  });
+
+  test('PLP local prompt keeps verified resort snapshot and prewarms Qwen', () {
+    final screenSource =
+        File('lib/features/simple/ask_pandora_screen.dart').readAsStringSync();
+
+    expect(screenSource, contains('_prewarmPlpLocalAiIfSafe()'));
+    expect(
+      screenSource,
+      contains('Verified PLP resort snapshot already synchronized to this phone.'),
+    );
+    expect(
+      screenSource,
+      contains('DO NOT request cloud merely because the user says today'),
+    );
+    expect(
+      screenSource,
+      contains('.timeout(const Duration(seconds: 45))'),
+    );
+
+    final warm = screenSource.indexOf(
+      'if (!await PandoraLocalAi.instance.warm())',
+      screenSource.indexOf('Future<bool> _trySubmitLocalAi'),
+    );
+    final reset = screenSource.indexOf(
+      'await PandoraLocalAi.instance.resetConversation()',
+      warm,
+    );
+    expect(warm, greaterThanOrEqualTo(0));
+    expect(reset, greaterThan(warm));
+  });
+
 }
