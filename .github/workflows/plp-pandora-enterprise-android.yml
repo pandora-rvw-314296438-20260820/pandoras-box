@@ -23,7 +23,7 @@ jobs:
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       FLUTTER_VERSION: '3.47.0'
-      EXPECTED_APP_VERSION: '0.4.0-rc.4+11'
+      EXPECTED_APP_VERSION: '0.4.0-rc.5+12'
       EXPECTED_PACKAGE: 'com.banataosystems.pandora.plp'
       EXPECTED_LABEL: 'PLP Pandora Enterprise'
       LLAMA_CPP_SHA: '44be98f057e9f9902a8ee12630e181c7f8ec2953'
@@ -159,8 +159,8 @@ jobs:
           grep -Fq "package: name='$EXPECTED_PACKAGE'" "$evidence/badging.txt"
           grep -Fq "application-label:'$EXPECTED_LABEL'" "$evidence/badging.txt"
           grep -Fq "launchable-activity: name='$EXPECTED_PACKAGE.MainActivity'" "$evidence/badging.txt"
-          grep -Fq "versionCode='11'" "$evidence/badging.txt"
-          grep -Fq "versionName='0.4.0-rc.4'" "$evidence/badging.txt"
+          grep -Fq "versionCode='12'" "$evidence/badging.txt"
+          grep -Fq "versionName='0.4.0-rc.5'" "$evidence/badging.txt"
 
           grep -Fq 'lib/arm64-v8a/' "$evidence/apk-files.txt"
           ! grep -Eq 'lib/(x86|x86_64|armeabi-v7a)/' "$evidence/apk-files.txt"
