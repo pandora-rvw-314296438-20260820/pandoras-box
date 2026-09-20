@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -418,12 +419,27 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         '$bounded\n\nCurrent user request:\n$objective';
   }
 
+  String _boundedLocalEnterpriseContext() {
+    final context = widget.enterpriseContext;
+    if (context == null || context.isEmpty) return '';
+    try {
+      final encoded = jsonEncode(context);
+      final bounded = encoded.length > 9000 ? encoded.substring(0, 9000) : encoded;
+      return 'Authorized PLP business context already synchronized to this phone. '
+          'Treat it as local context; do not claim it was refreshed during this turn.\n'
+          '$bounded';
+    } catch (_) {
+      return '';
+    }
+  }
+
   Future<bool> _trySubmitLocalAi(String objective) async {
     final status = await PandoraLocalAi.instance.status();
     final route = PandoraLocalAiRouter.decide(
       message: objective,
       hasAttachment: _attachment != null || _imageAttachment != null,
-      hasProjectContext: _projectContext != null,
+      hasProjectContext:
+          _projectContext != null || (widget.enterpriseContext?.isNotEmpty ?? false),
       hasSelectedCapability: _serviceContext != null,
       hasCharacterContext: _characterContext != null,
       status: status,
@@ -435,8 +451,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       await PandoraLocalAi.instance.unload();
     }
     if (!await PandoraLocalAi.instance.warm()) return false;
-    final localPrompt =
+    final routedPrompt =
         bridgeFromOtherRoute ? _boundedRouteBridge(objective) : objective;
+    final enterpriseBridge = _boundedLocalEnterpriseContext();
+    final localPrompt = enterpriseBridge.isEmpty
+        ? routedPrompt
+        : '$enterpriseBridge\n\nCurrent user request:\n$routedPrompt';
 
     var response = '';
     var started = false;
@@ -518,7 +538,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       objective,
       hasAttachment: _attachment != null || _imageAttachment != null,
       hasSelectedCapability: _serviceContext != null,
-      hasProjectContext: _projectContext != null,
+      hasProjectContext:
+          _projectContext != null || (widget.enterpriseContext?.isNotEmpty ?? false),
     );
     // A completed user turn must never inherit a prior turn's request identity.
     _submissionKey = null;
