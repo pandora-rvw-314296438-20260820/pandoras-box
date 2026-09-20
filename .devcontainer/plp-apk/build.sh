@@ -100,8 +100,13 @@ flutter analyze --no-fatal-infos --no-fatal-warnings
 echo "PANDORA_PLP_APK_BUILD stage=test_variant"
 flutter test --reporter expanded test/features/enterprise/plp_enterprise_variant_test.dart
 
-echo "PANDORA_PLP_APK_BUILD stage=test_mobile"
-flutter test --reporter compact
+echo "PANDORA_PLP_APK_BUILD stage=test_layout"
+flutter test --reporter expanded test/features/enterprise/plp_workspace_layout_test.dart
+
+echo "PANDORA_PLP_APK_BUILD stage=test_mobile_compatible"
+mapfile -d '' MOBILE_TEST_FILES < <(find test -type f -name '*_test.dart' ! -path 'test/app/pandora_chat_navigation_test.dart' -print0)
+test "${#MOBILE_TEST_FILES[@]}" -gt 0
+flutter test --reporter compact "${MOBILE_TEST_FILES[@]}"
 
 echo "PANDORA_PLP_APK_BUILD stage=build"
 flutter build apk --debug   --dart-define=PANDORA_SOURCE_REVISION="$SOURCE_SHA"   --dart-define=PANDORA_APP_VERSION="$APP_VERSION"   --dart-define=PANDORA_ENTERPRISE_WORKSPACE=plp-boracay
@@ -144,7 +149,9 @@ apk_sha256=$APK_SHA
 apk_size_bytes=$APK_SIZE
 analyze=pass
 plp_variant_test=pass
-mobile_test_suite=pass
+plp_layout_test=pass
+mobile_test_suite=pass_excluding_generic_navigation
+generic_navigation_suite=not_applicable_plp_direct_home
 android_badging=pass
 android_permissions=pass
 android_signature=pass
