@@ -69,6 +69,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   bool _overlayMeasureScheduled = false;
   final IdempotencyKeyFactory _keys = IdempotencyKeyFactory();
   final List<_ChatMessage> _messages = <_ChatMessage>[];
+  final GlobalKey _headerKey = GlobalKey();
+  final GlobalKey _composerKey = GlobalKey();
+  double _headerHeight = 0;
+  double _composerHeight = 0;
+  bool _overlayMeasureScheduled = false;
   PandoraTextAttachment? _attachment;
   PandoraImageAttachment? _imageAttachment;
   PandoraProjectContext? _projectContext;
@@ -103,6 +108,33 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       _objective.text = initial;
       _objective.selection = TextSelection.collapsed(offset: initial.length);
     }
+  }
+
+  @override
+  void didChangeMetrics() {
+    _scheduleOverlayMeasure();
+  }
+
+  void _scheduleOverlayMeasure() {
+    if (_overlayMeasureScheduled) return;
+    _overlayMeasureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlayMeasureScheduled = false;
+      if (!mounted) return;
+
+      final headerHeight = _headerKey.currentContext?.size?.height;
+      final composerHeight = _composerKey.currentContext?.size?.height;
+      if (headerHeight == null || composerHeight == null) return;
+
+      final headerChanged = (_headerHeight - headerHeight).abs() > 0.5;
+      final composerChanged = (_composerHeight - composerHeight).abs() > 0.5;
+      if (!headerChanged && !composerChanged) return;
+
+      setState(() {
+        _headerHeight = headerHeight;
+        _composerHeight = composerHeight;
+      });
+    });
   }
 
   void _handleActivityTimelineChanged() {
