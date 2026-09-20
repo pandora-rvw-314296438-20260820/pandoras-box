@@ -85,15 +85,25 @@ class PandoraLocalStateCache {
     final bounded = messages.length <= 30
         ? messages
         : messages.sublist(messages.length - 30);
+    final payload = <String, Object?>{
+      'messages': bounded,
+      'capturedAt': now.toIso8601String(),
+    };
+    final expiresAt = now.add(const Duration(days: 7));
     await _store.putCache(
       namespace: PandoraLocalNamespace.recentConversation,
       key: 'thread_${_digest(threadIdentity)}',
-      payload: <String, Object?>{
-        'messages': bounded,
-        'capturedAt': now.toIso8601String(),
-      },
-      expiresAt: now.add(const Duration(days: 7)),
+      payload: payload,
+      expiresAt: expiresAt,
     );
+    if (threadIdentity.trim() != 'local-chat') {
+      await _store.putCache(
+        namespace: PandoraLocalNamespace.recentConversation,
+        key: 'thread_${_digest('local-chat')}',
+        payload: payload,
+        expiresAt: expiresAt,
+      );
+    }
   }
 
   Future<List<Map<String, Object?>>> loadRecentConversation({
