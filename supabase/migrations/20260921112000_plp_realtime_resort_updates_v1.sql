@@ -130,44 +130,86 @@ $$;
 revoke all on function private.emit_plp_runtime_realtime_signal() from public;
 grant execute on function private.emit_plp_runtime_realtime_signal() to service_role;
 
-drop trigger if exists plp_realtime_bookings_signal on plp_runtime.plp_bookings;
-create trigger plp_realtime_bookings_signal
-after insert or update or delete on plp_runtime.plp_bookings
-for each row execute function private.emit_plp_runtime_realtime_signal('bookings');
+do $$
+begin
+  if to_regclass('plp_runtime.plp_bookings') is not null then
+    execute 'drop trigger if exists plp_realtime_bookings_signal on plp_runtime.plp_bookings';
+    execute 'create trigger plp_realtime_bookings_signal
+      after insert or update or delete on plp_runtime.plp_bookings
+      for each row execute function private.emit_plp_runtime_realtime_signal(''bookings'')';
+  end if;
+end;
+$$;
 
-drop trigger if exists plp_realtime_guests_signal on plp_runtime.plp_guests;
-create trigger plp_realtime_guests_signal
-after insert or update or delete on plp_runtime.plp_guests
-for each row execute function private.emit_plp_runtime_realtime_signal('guests');
+do $$
+begin
+  if to_regclass('plp_runtime.plp_guests') is not null then
+    execute 'drop trigger if exists plp_realtime_guests_signal on plp_runtime.plp_guests';
+    execute 'create trigger plp_realtime_guests_signal
+      after insert or update or delete on plp_runtime.plp_guests
+      for each row execute function private.emit_plp_runtime_realtime_signal(''guests'')';
+  end if;
+end;
+$$;
 
-drop trigger if exists plp_realtime_staff_tasks_signal on plp_runtime.plp_staff_tasks;
-create trigger plp_realtime_staff_tasks_signal
-after insert or update or delete on plp_runtime.plp_staff_tasks
-for each row execute function private.emit_plp_runtime_realtime_signal('staff_tasks');
+do $$
+begin
+  if to_regclass('plp_runtime.plp_staff_tasks') is not null then
+    execute 'drop trigger if exists plp_realtime_staff_tasks_signal on plp_runtime.plp_staff_tasks';
+    execute 'create trigger plp_realtime_staff_tasks_signal
+      after insert or update or delete on plp_runtime.plp_staff_tasks
+      for each row execute function private.emit_plp_runtime_realtime_signal(''staff_tasks'')';
+  end if;
+end;
+$$;
 
-drop trigger if exists enterprise_realtime_hospitality_signal
-  on public.enterprise_hospitality_snapshots;
-create trigger enterprise_realtime_hospitality_signal
-after insert or update or delete on public.enterprise_hospitality_snapshots
-for each row execute function private.emit_enterprise_realtime_signal('hospitality');
+do $$
+begin
+  if to_regclass('public.enterprise_hospitality_snapshots') is not null then
+    execute 'drop trigger if exists enterprise_realtime_hospitality_signal
+      on public.enterprise_hospitality_snapshots';
+    execute 'create trigger enterprise_realtime_hospitality_signal
+      after insert or update or delete on public.enterprise_hospitality_snapshots
+      for each row execute function private.emit_enterprise_realtime_signal(''hospitality'')';
+  end if;
+end;
+$$;
 
-drop trigger if exists enterprise_realtime_business_activity_signal
-  on public.enterprise_business_activity;
-create trigger enterprise_realtime_business_activity_signal
-after insert or update or delete on public.enterprise_business_activity
-for each row execute function private.emit_enterprise_realtime_signal('business_activity');
+do $$
+begin
+  if to_regclass('public.enterprise_business_activity') is not null then
+    execute 'drop trigger if exists enterprise_realtime_business_activity_signal
+      on public.enterprise_business_activity';
+    execute 'create trigger enterprise_realtime_business_activity_signal
+      after insert or update or delete on public.enterprise_business_activity
+      for each row execute function private.emit_enterprise_realtime_signal(''business_activity'')';
+  end if;
+end;
+$$;
 
-drop trigger if exists enterprise_realtime_source_health_signal
-  on public.enterprise_properties;
-create trigger enterprise_realtime_source_health_signal
-after insert or update or delete on public.enterprise_properties
-for each row execute function private.emit_enterprise_realtime_signal('source_health');
+do $$
+begin
+  if to_regclass('public.enterprise_properties') is not null then
+    execute 'drop trigger if exists enterprise_realtime_source_health_signal
+      on public.enterprise_properties';
+    execute 'create trigger enterprise_realtime_source_health_signal
+      after insert or update or delete on public.enterprise_properties
+      for each row execute function private.emit_enterprise_realtime_signal(''source_health'')';
+  end if;
+end;
+$$;
 
-drop trigger if exists enterprise_realtime_pandora_activity_signal
-  on public.pandora_activity_events;
-create trigger enterprise_realtime_pandora_activity_signal
-after insert or update or delete on public.pandora_activity_events
-for each row execute function private.emit_enterprise_realtime_signal('pandora_activity');
+do $$
+begin
+  if to_regclass('public.pandora_activity_events') is not null then
+    execute 'drop trigger if exists enterprise_realtime_pandora_activity_signal
+      on public.pandora_activity_events';
+    execute 'create trigger enterprise_realtime_pandora_activity_signal
+      after insert or update or delete on public.pandora_activity_events
+      for each row execute function private.emit_enterprise_realtime_signal(''pandora_activity'')';
+  end if;
+end;
+$$;
 
 do $$
 begin
