@@ -617,17 +617,12 @@ class _Hero extends StatelessWidget {
 class _PlpHeroImage extends StatelessWidget {
   const _PlpHeroImage();
 
-  static const _verifiedPlpHero =
-      'https://plp-boracay-dusky.vercel.app/images/plp-hero-sunset.webp';
-
   @override
-  Widget build(BuildContext context) => Image.network(
-        _verifiedPlpHero,
+  Widget build(BuildContext context) => Image.asset(
+        'assets/workspaces/plp-hero.webp',
         fit: BoxFit.cover,
         filterQuality: FilterQuality.high,
         errorBuilder: (_, __, ___) => const _HeroFallback(),
-        loadingBuilder: (context, child, progress) =>
-            progress == null ? child : const _HeroFallback(),
       );
 }
 
