@@ -5,7 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 typedef PlpBusinessActivityLoader = Future<Map<String, Object?>> Function();
 typedef PlpPandoraActivityLogLoader = Future<Map<String, Object?>> Function({
-  int? beforeId,
+  String? beforeAt,
+  String? beforeJobId,
+  int? beforeSequence,
   String? query,
 });
 
@@ -45,7 +47,9 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
   bool _logsLoaded = false;
   String? _businessError;
   String? _logsError;
-  int? _nextBeforeId;
+  String? _nextBeforeAt;
+  String? _nextBeforeJobId;
+  int? _nextBeforeSequence;
   bool _logsHasMore = false;
   List<Map<String, Object?>> _business =
       const <Map<String, Object?>>[];
@@ -114,13 +118,17 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
   }
 
   Future<Map<String, Object?>> _providerLogLoader({
-    int? beforeId,
+    String? beforeAt,
+    String? beforeJobId,
+    int? beforeSequence,
     String? query,
   }) async {
     final value = await Supabase.instance.client.rpc(
-      'plp_pandora_activity_logs_v1',
+      'plp_pandora_activity_logs_v2',
       params: <String, Object?>{
-        'p_before_id': beforeId,
+        'p_before_at': beforeAt,
+        'p_before_job_id': beforeJobId,
+        'p_before_sequence': beforeSequence,
         'p_limit': 60,
         'p_query': query,
       },
@@ -157,7 +165,9 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
     try {
       final query = _search.text.trim();
       final payload = await (widget.logLoader ?? _providerLogLoader)(
-        beforeId: append ? _nextBeforeId : null,
+        beforeAt: append ? _nextBeforeAt : null,
+        beforeJobId: append ? _nextBeforeJobId : null,
+        beforeSequence: append ? _nextBeforeSequence : null,
         query: query.isEmpty ? null : query,
       );
       if (!mounted) return;
@@ -167,7 +177,9 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
             ? <Map<String, Object?>>[..._logs, ...page]
             : page;
         _logsHasMore = _bool(payload['hasMore']);
-        _nextBeforeId = _int(payload['nextBeforeId']);
+        _nextBeforeAt = payload['nextBeforeAt']?.toString();
+        _nextBeforeJobId = payload['nextBeforeJobId']?.toString();
+        _nextBeforeSequence = _int(payload['nextBeforeSequence']);
         _logsLoaded = true;
       });
     } catch (_) {
@@ -975,11 +987,17 @@ class _PandoraLogRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final eventType = textFor(item['eventType'], fallback: 'pandora.activity');
-    final resourceType = textFor(item['resourceType'], fallback: 'Pandora');
+    final message = textFor(item['message'], fallback: _eventLabel(eventType));
+    final capability = textFor(
+      item['capability'] ?? item['resourceType'],
+      fallback: 'Pandora',
+    );
+    final domain = textFor(item['domain'], fallback: 'activity');
     final actor = textFor(item['actorLabel'], fallback: 'Pandora');
     final status = textFor(item['status'], fallback: 'recorded').toLowerCase();
     final occurredAt = dateFor(item['occurredAt']);
     final failed = status == 'failed';
+    final completed = status == 'result' || status == 'completed';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 11),
@@ -996,7 +1014,7 @@ class _PandoraLogRow extends StatelessWidget {
                   : _PlpActivityScreenState._goldSoft,
             ),
             child: Icon(
-              _icon(resourceType, eventType),
+              _icon(capability, domain),
               color: failed
                   ? _PlpActivityScreenState._red
                   : _PlpActivityScreenState._gold,
@@ -1009,7 +1027,7 @@ class _PandoraLogRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _eventLabel(eventType),
+                  message,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -1022,7 +1040,7 @@ class _PandoraLogRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$actor · ${_resourceLabel(resourceType)}',
+                  '\$actor · \${_resourceLabel(capability)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -1054,7 +1072,7 @@ class _PandoraLogRow extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-              ] else if (status == 'completed') ...[
+              ] else if (completed) ...[
                 const SizedBox(height: 4),
                 const Icon(
                   Icons.check_circle_rounded,
@@ -1168,6 +1186,7 @@ String _resourceLabel(String raw) {
   final value = raw
       .replaceFirst(RegExp(r'^pandora_'), '')
       .replaceAll('_', ' ')
+      .replaceAll('.', ' · ')
       .trim();
   if (value.isEmpty) return 'Pandora';
   return '${value[0].toUpperCase()}${value.substring(1)}';
