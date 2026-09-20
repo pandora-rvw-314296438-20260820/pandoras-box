@@ -44,6 +44,8 @@ void main() {
         expect(drawer, findsOneWidget);
         expect(tester.getSize(drawer).width, closeTo(296.4, .6));
         expect(tester.getSize(drawer).height, closeTo(844, .6));
+        final drawerWidget = tester.widget<Drawer>(drawer);
+        expect(drawerWidget.backgroundColor, const Color(0xFF000000));
 
         expect(find.text('Pandora'), findsOneWidget);
         expect(find.text('PLP Boracay'), findsOneWidget);

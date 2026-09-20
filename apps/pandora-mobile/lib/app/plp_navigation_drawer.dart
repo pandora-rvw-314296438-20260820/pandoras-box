@@ -113,7 +113,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
       width: drawerWidth,
       elevation: 0,
       shadowColor: Colors.transparent,
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFF000000),
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: ClipRect(
@@ -121,7 +121,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
           filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: DecoratedBox(
             decoration: const BoxDecoration(
-              color: Color(0xE50A0F16),
+              color: Color(0xFF000000),
               border: Border(
                 right: BorderSide(color: Color(0x1FFFFFFF)),
               ),
