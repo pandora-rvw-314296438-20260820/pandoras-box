@@ -48,6 +48,32 @@ void main() {
 
   final menu = find.byTooltip('Open navigation');
 
+  Future<Finder> drawerTile(WidgetTester tester, String title) async {
+    final drawer = find.byType(Drawer);
+    final scrollable = find.descendant(
+      of: drawer,
+      matching: find.byType(Scrollable),
+    ).first;
+    final state = tester.state<ScrollableState>(scrollable);
+    state.position.jumpTo(state.position.minScrollExtent);
+    await tester.pump();
+    final tile = find.descendant(
+      of: drawer,
+      matching: find.widgetWithText(ListTile, title),
+    );
+    if (tile.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        tile,
+        180,
+        scrollable: scrollable,
+      );
+    }
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+    expect(tile, findsOneWidget);
+    return tile;
+  }
+
   for (final width in <double>[360, 390, 600]) {
     testWidgets('phone $width uses full-width chat and one drawer',
         (tester) async {
@@ -74,31 +100,15 @@ void main() {
         'Operations Room',
         'Settings & More',
       ]) {
-        expect(
-          find.descendant(
-            of: drawer,
-            matching: find.widgetWithText(ListTile, title),
-          ),
-          findsOneWidget,
-        );
+        expect(await drawerTile(tester, title), findsOneWidget);
       }
-      await tester.tap(
-        find.descendant(
-          of: drawer,
-          matching: find.widgetWithText(ListTile, 'Projects'),
-        ),
-      );
+      await tester.tap(await drawerTile(tester, 'Projects'));
       await tester.pumpAndSettle();
       expect(menu, findsOneWidget);
       expect(find.byTooltip('Create project'), findsOneWidget);
       await tester.tap(menu);
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.descendant(
-          of: drawer,
-          matching: find.widgetWithText(ListTile, 'Pandora'),
-        ),
-      );
+      await tester.tap(await drawerTile(tester, 'Pandora'));
       await tester.pumpAndSettle();
       expect(find.text('Keep this draft'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -126,12 +136,7 @@ void main() {
     await mount(tester, const Size(390, 800));
     await tester.tap(menu);
     await tester.pumpAndSettle();
-    await tester.tap(
-      find.descendant(
-        of: find.byType(Drawer),
-        matching: find.widgetWithText(ListTile, 'Operations Room'),
-      ),
-    );
+    await tester.tap(await drawerTile(tester, 'Operations Room'));
     await tester.pumpAndSettle();
 
     expect(find.byType(PandoraOperationsRoomScreen), findsOneWidget);
@@ -175,12 +180,7 @@ void main() {
     ]) {
       await tester.tap(menu);
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.descendant(
-          of: find.byType(Drawer),
-          matching: find.widgetWithText(ListTile, title),
-        ),
-      );
+      await tester.tap(await drawerTile(tester, title));
       await tester.pumpAndSettle();
       expect(menu, findsOneWidget);
       expect(tester.takeException(), isNull, reason: '$title layout');
