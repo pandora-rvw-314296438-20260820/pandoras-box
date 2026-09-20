@@ -148,7 +148,7 @@ void main() {
       find.byKey(const ValueKey<String>('operations-room-composer')),
       findsOneWidget,
     );
-    expect(find.text('ATHENA leads the room'), findsOneWidget);
+    expect(find.textContaining('The Operations Room is ready.'), findsOneWidget);
     for (final role in <String>[
       'ATHENA',
       'APOLLO',
