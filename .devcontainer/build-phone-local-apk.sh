@@ -8,7 +8,7 @@ ARTIFACT_DIR="$ROOT/.pandora-codespace-artifact"
 BUILD_DIR="$ROOT/.pandora-mobile-codespace-build"
 LOG="$ARTIFACT_DIR/build.log"
 FLUTTER_VERSION="3.47.0"
-EXPECTED_APP_VERSION="0.4.0-rc.4+11"
+EXPECTED_APP_VERSION="0.4.0-rc.5+12"
 LLAMA_CPP_SHA="44be98f057e9f9902a8ee12630e181c7f8ec2953"
 ANDROID_PLATFORM="android-36"
 ANDROID_BUILD_TOOLS="36.0.0"
@@ -162,6 +162,19 @@ cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/Inf
   android/app/src/main/kotlin/com/arm/aichat/InferenceEngine.kt
 cp android/llama.cpp/examples/llama.android/lib/src/main/java/com/arm/aichat/internal/InferenceEngineImpl.kt \
   android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt
+python3 - android/app/src/main/kotlin/com/arm/aichat/internal/InferenceEngineImpl.kt <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+old = "if (it != 0) throw UnsupportedArchitectureException()"
+new = 'if (it != 0) throw IOException("llama.cpp model load failed with code $it")'
+if text.count(old) != 1:
+    raise SystemExit("Pinned InferenceEngineImpl load-error anchor changed")
+text = text.replace(old, new, 1)
+text = text.replace("import com.arm.aichat.UnsupportedArchitectureException\\n", "", 1)
+path.write_text(text, encoding="utf-8")
+PY
 
 rm -rf lib test assets pubspec.yaml pubspec.lock analysis_options.yaml
 cp -R "$ROOT/apps/pandora-mobile/lib" ./lib
@@ -218,8 +231,8 @@ APKSIGNER="$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS/apksigner"
 "$APKSIGNER" verify --verbose --print-certs "$APK" >"$ARTIFACT_DIR/signing.txt"
 
 grep -Fq "package: name='com.banataosystems.pandora_mobile'" "$ARTIFACT_DIR/badging.txt"
-grep -Fq "versionCode='11'" "$ARTIFACT_DIR/badging.txt"
-grep -Fq "versionName='0.4.0-rc.4'" "$ARTIFACT_DIR/badging.txt"
+grep -Fq "versionCode='12'" "$ARTIFACT_DIR/badging.txt"
+grep -Fq "versionName='0.4.0-rc.5'" "$ARTIFACT_DIR/badging.txt"
 
 if grep -Eiq \
   'ACCESS_(FINE|COARSE|BACKGROUND)_LOCATION|WRITE_CONTACTS|READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|MANAGE_EXTERNAL_STORAGE|READ_MEDIA_|CAMERA|RECORD_AUDIO|BLUETOOTH_(SCAN|CONNECT|ADVERTISE)|QUERY_ALL_PACKAGES|REQUEST_INSTALL_PACKAGES|SYSTEM_ALERT_WINDOW' \

@@ -297,6 +297,26 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                     ),
                     const SizedBox(height: PandoraSpacing.xs),
                     Text(
+                      'Build ' +
+                          PandoraConfig.appVersion +
+                          ' · source ' +
+                          (PandoraConfig.sourceRevision.length > 12
+                              ? PandoraConfig.sourceRevision.substring(0, 12)
+                              : PandoraConfig.sourceRevision),
+                    ),
+                    Text(
+                      'Load ' +
+                          (status.diagnostics['runtimeModelLoadMode']?.toString() ?? 'unknown') +
+                          ' · GPU layers ' +
+                          (status.diagnostics['runtimeGpuLayers']?.toString() ?? 'unknown') +
+                          ' · extra repack ' +
+                          (status.diagnostics['runtimeExtraBufferRepack']?.toString() ?? 'unknown') +
+                          ' · ctx ' +
+                          (status.diagnostics['runtimeContextTokens']?.toString() ?? 'unknown') +
+                          ' · batch ' +
+                          (status.diagnostics['runtimeBatchTokens']?.toString() ?? 'unknown'),
+                    ),
+                    Text(
                       'Backend ' +
                           (status.diagnostics['runtimeBackendConfigured']?.toString() ?? 'unknown') +
                           ' · ABI ' +
