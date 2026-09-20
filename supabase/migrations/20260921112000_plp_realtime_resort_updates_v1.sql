@@ -211,9 +211,13 @@ begin
 end;
 $$;
 
-do $$
+do $
 begin
-  if not exists (
+  if exists (
+    select 1
+    from pg_publication
+    where pubname = 'supabase_realtime'
+  ) and not exists (
     select 1
     from pg_publication_tables
     where pubname = 'supabase_realtime'
@@ -224,4 +228,4 @@ begin
       add table public.enterprise_realtime_signals;
   end if;
 end;
-$$;
+$;
