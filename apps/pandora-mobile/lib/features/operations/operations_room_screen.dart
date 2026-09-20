@@ -9,6 +9,7 @@ import '../../core/activity/pandora_activity_timeline_controller.dart';
 import '../../core/activity/pandora_activity_timeline_view.dart';
 import '../../core/data/pandora_intelligence_api.dart';
 import '../../core/network/idempotency_key.dart';
+import '../../core/local_ai/pandora_local_ai.dart';
 import '../../core/widgets/pandora_navigation.dart';
 import '../simple/pandora_v2_ui.dart';
 import 'operations_room_roles.dart';
@@ -21,12 +22,14 @@ const _roomThreadPrefix = 'Operations Room';
 const _internalRoomMarker = '[OPERATIONS_ROOM_INTERNAL]';
 const operationsRoomActiveArchitecture =
     'Phone-resident local AI first when appropriate. '
-    'Qwen2.5 3B Q4_K_M is the primary phone-local candidate. '
-    'Escalate to Gemini or another approved cloud model only when the phone '
-    'should not handle the workload. No RDP-hosted LLMs, AWS, Bedrock, or '
-    'continuously available desktop compute. GitHub, Supabase, and Vercel '
-    'are the active infrastructure and control providers. GPU/NPU '
-    'acceleration remains unverified until measured on the physical phone.';
+    'The accepted PLP phone-local model is Qwen3-4B-Instruct-2507-Q4_K_M.gguf '
+    'with SHA-256 1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6 '
+    'through the pinned llama.cpp Android runtime. Actual availability, loaded '
+    'state, and engine state must come from live phone runtime evidence. '
+    'Escalate to approved cloud capability only when local authorized context '
+    'is insufficient, a provider mutation or refresh is required, information '
+    'is external/current, or the workload exceeds safe local capability. '
+    'No RDP-hosted LLMs, AWS, Bedrock, or desktop-hosted LLM execution.';
 
 class OperationsRoomParsedMessage {
   const OperationsRoomParsedMessage({
@@ -299,11 +302,13 @@ class _PandoraOperationsRoomScreenState
   bool _restoring = false;
   bool _expandedRoster = false;
   Set<String> _activeRoles = const <String>{};
+  PandoraLocalAiStatus? _localAiStatus;
 
   @override
   void initState() {
     super.initState();
     _activity.addListener(_onActivityChanged);
+    unawaited(_refreshLocalAiStatus());
     _messages.add(
       _RoomMessage.agent(
         role: 'ATHENA',
@@ -319,6 +324,23 @@ class _PandoraOperationsRoomScreenState
     if (_restoreStarted) return;
     _restoreStarted = true;
     unawaited(_restoreRoom());
+  }
+
+  Future<void> _refreshLocalAiStatus() async {
+    final status = await PandoraLocalAi.instance.status();
+    if (!mounted) return;
+    setState(() => _localAiStatus = status);
+  }
+
+  String get _localRuntimeEvidence {
+    final status = _localAiStatus;
+    if (status == null) return 'not-sampled';
+    return 'supported=${status.supported};'
+        'configured=${status.configured};'
+        'loaded=${status.loaded};'
+        'model=${status.modelName ?? 'none'};'
+        'modelSha256=${status.modelSha256 ?? 'none'};'
+        'engineState=${status.engineState ?? 'unknown'}';
   }
 
   void _onActivityChanged() {
@@ -461,9 +483,12 @@ class _PandoraOperationsRoomScreenState
           'orchestrationStage': stage,
           'targetRole': targetRole,
           'roomRosterVersion': 'operations-room-v2-14',
-          'architectureVersion': 'phone-local-v1',
+          'architectureVersion': 'phone-local-v2',
           'executionTopology': 'phone-local-first-cloud-escalation',
-          'localModelCandidate': 'Qwen2.5 3B Q4_K_M',
+          'acceptedLocalModel': 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
+          'acceptedLocalModelSha256':
+              '1571ec5115bcfed4b4327fc27b5f44ea284806caf5331eef89326191c9b031d6',
+          'localRuntimeEvidence': _localRuntimeEvidence,
           'infrastructurePolicy': 'github-supabase-vercel-only',
           'accelerationPolicy': 'physical-device-verification-required',
           'forbiddenCompute': 'rdp-hosted-llm,aws,bedrock,desktop-hosted-llm',
@@ -497,7 +522,8 @@ class _PandoraOperationsRoomScreenState
     return '$objective\n\n$_internalRoomMarker\n'
         'Take the next real Operations Room turn as $role. '
         'Respond only from $role authority. Do not claim actions that did not run. '
-        'Active architecture constraint: $operationsRoomActiveArchitecture'
+        'Active architecture constraint: $operationsRoomActiveArchitecture '
+        'Live phone-local runtime evidence: $_localRuntimeEvidence.'
         '$handoff';
   }
 
@@ -511,7 +537,8 @@ class _PandoraOperationsRoomScreenState
       '${findings.join('\n\n')}\n\n'
       'ATHENA: coordinate these real specialist findings into the next owner-facing result. '
       '${allowExecution ? 'Execution mode is active: use only real admitted capability routes when the owner objective requires action, and report provider/runtime evidence rather than promises.' : 'This is an advisory synthesis turn. Preserve material disagreement and do not execute capabilities.'} '
-      'Active architecture constraint: $operationsRoomActiveArchitecture';
+      'Active architecture constraint: $operationsRoomActiveArchitecture '
+      'Live phone-local runtime evidence: $_localRuntimeEvidence.';
 
   Future<void> _submit(String value) async {
     final message = value.trim();
@@ -522,6 +549,8 @@ class _PandoraOperationsRoomScreenState
       return;
     }
 
+    await _refreshLocalAiStatus();
+    if (!mounted) return;
     final mentions = operationsRoomMentions(message);
     final roles = operationsRoomRecommendedRoles(message, _mode);
     await _activity.clear();
