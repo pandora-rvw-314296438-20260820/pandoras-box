@@ -1,0 +1,10 @@
+Artifact handoff only; no model inference.
+github.com
+  ✓ Logged in to github.com account pandora-rvw-314296438-20260820 (GITHUB_TOKEN)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: ghu_************************************
+actual_sha256=db895ee8f3d9f0954e520a5bf03c76dab00bc36d9b2bfbe7b716df159d03ba6f
+actual_size=119940817
+https://github.com/pandora-rvw-314296438-20260820/pandoras-box/releases/tag/phone-local-ai-9b682e3593af-20260920
+fatal: unable to read tree (9b682e3593afc2c0f53630d6ec95454d886afbe9)

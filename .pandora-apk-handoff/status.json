@@ -1,0 +1,11 @@
+{
+  "outcome": "passed",
+  "detail": "Verified fixed APK copied and published as private GitHub prerelease.",
+  "sourceSha": "9b682e3593afc2c0f53630d6ec95454d886afbe9",
+  "expectedApkSha256": "db895ee8f3d9f0954e520a5bf03c76dab00bc36d9b2bfbe7b716df159d03ba6f",
+  "actualApkSha256": "db895ee8f3d9f0954e520a5bf03c76dab00bc36d9b2bfbe7b716df159d03ba6f",
+  "actualApkSizeBytes": 119940817,
+  "sourceCodespace": "pandora-apk-phone-local-9b682e35-pgv447759jc96xg",
+  "releaseTag": "phone-local-ai-9b682e3593af-20260920",
+  "generatedAtUtc": "2026-09-20T00:29:34.775188+00:00"
+}
