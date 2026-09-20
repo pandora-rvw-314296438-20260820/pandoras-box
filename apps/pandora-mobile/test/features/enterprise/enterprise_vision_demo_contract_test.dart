@@ -67,11 +67,12 @@ void main() {
     );
   });
 
-  test('public demo is display-only and contains no abandoned feed sources', () {
-    expect(screen, contains('Automated analysis is'));
-    expect(screen, contains('not connected to this public source.'));
-    expect(screen, contains("value: 'Off'"));
-    expect(screen, contains("value: 'None'"));
+  test('public demo exposes display analysis and verified-event states', () {
+    expect(screen, contains('DISPLAY ONLY'));
+    expect(screen, contains('ANALYSIS ACTIVE'));
+    expect(screen, contains('VERIFIED EVENT'));
+    expect(screen, contains('frames are not being processed by Pandora'));
+    expect(screen, contains('no verified incident exists for this display source'));
     for (final oldSource in <String>[
       'Times Square',
       'Perdido',
