@@ -56,6 +56,8 @@ flutter {
         self.assertIn('abiFilters += "arm64-v8a"', configured)
         self.assertIn('src/main/cpp/CMakeLists.txt', configured)
         self.assertIn('kotlinx-coroutines-android:1.10.2', configured)
+        self.assertIn('-DGGML_BACKEND_DL=OFF', configured)
+        self.assertIn('-DGGML_CPU_ALL_VARIANTS=OFF', configured)
 
     def test_preserves_arm64_filter_from_flutter_plugin(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
