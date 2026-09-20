@@ -39,12 +39,12 @@ trap publish_status EXIT
   test "$ACTUAL_SHA" = "$EXPECTED_SHA256"
   test "$ACTUAL_SIZE" = "$EXPECTED_SIZE"
 
-  TOKEN_JSON="$(curl --fail --silent --show-error --retry 3 --retry-all-errors -X POST     -H 'content-type: application/json'     --data '{}'     "$TOKEN_ENDPOINT")"
+  TOKEN_JSON="$(curl --fail --silent --show-error --retry 3 -X POST     -H 'content-type: application/json'     --data '{}'     "$TOKEN_ENDPOINT")"
   TOKEN="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])' <<<"$TOKEN_JSON")"
   test -n "$TOKEN"
 
   UPLOAD_URL="$UPLOAD_BASE/$APK_NAME?token=$TOKEN"
-  curl --fail --silent --show-error     --retry 5 --retry-all-errors --retry-delay 2     --connect-timeout 30 --max-time 900     -X PUT     -H 'Expect:'     -H 'x-upsert: true'     -H 'content-type: application/vnd.android.package-archive'     -H 'cache-control: public, max-age=31536000, immutable'     --data-binary @"$APK"     "$UPLOAD_URL" > "$STATUS_DIR/upload-response.json"
+  curl --fail --silent --show-error     --retry 5 --retry-delay 2     --connect-timeout 30 --max-time 900     -X PUT     -H 'Expect:'     -H 'x-upsert: true'     -H 'content-type: application/vnd.android.package-archive'     -H 'cache-control: public, max-age=31536000, immutable'     --data-binary @"$APK"     "$UPLOAD_URL" > "$STATUS_DIR/upload-response.json"
 
   for i in $(seq 1 20); do
     CODE="$(curl -L --silent --show-error --output /dev/null --write-out '%{http_code}' "$PUBLIC_URL" || true)"
