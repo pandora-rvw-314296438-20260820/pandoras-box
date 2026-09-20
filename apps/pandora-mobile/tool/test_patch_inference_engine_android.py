@@ -38,7 +38,7 @@ class PatchInferenceEngineAndroidTest(unittest.TestCase):
                 }
             }
 
-    override suspend fun bench(pp: Int, tg: Int, pl: Int, nr: Int = 1): String =
+    override suspend fun bench(pp: Int, tg: Int, pl: Int, nr: Int): String =
         withContext(llamaDispatcher) {
             check(_state.value is InferenceEngine.State.ModelReady) {
                 "Benchmark request discarded due to: $state"
