@@ -96,7 +96,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   String? _error;
   Timer? _localAiIdleUnloadTimer;
 
-  static const Duration _localAiIdleUnloadDelay = Duration(minutes: 2);
+  static const Duration _localAiIdleUnloadDelay = Duration(minutes: 5);
 
   Future<void> _unloadLocalAiQuietly() async {
     _localAiIdleUnloadTimer?.cancel();
@@ -141,7 +141,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
       unawaited(PandoraLocalAi.instance.cancel());
-      unawaited(_unloadLocalAiQuietly());
+      _scheduleLocalAiIdleUnload();
+    } else if (state == AppLifecycleState.resumed) {
+      _localAiIdleUnloadTimer?.cancel();
+      unawaited(PandoraLocalAi.instance.prepare());
     }
   }
 
@@ -628,7 +631,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       status: status,
     );
     if (!route.useLocal) {
-      if (status.loaded) await _unloadLocalAiQuietly();
       return false;
     }
 
@@ -639,18 +641,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       try {
         await PandoraLocalAi.instance.resetConversation();
       } catch (_) {
-        await _unloadLocalAiQuietly();
+        unawaited(_unloadLocalAiQuietly());
         return false;
       }
-    }
-    try {
-      if (!await PandoraLocalAi.instance.warm()) {
-        await _unloadLocalAiQuietly();
-        return false;
-      }
-    } catch (_) {
-      await _unloadLocalAiQuietly();
-      return false;
     }
     final routedPrompt =
         bridgeFromOtherRoute ? _boundedRouteBridge(objective) : objective;
@@ -666,6 +659,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       await for (final chunk in PandoraLocalAi.instance.generate(localPrompt)) {
         if (!mounted) return true;
         response += chunk;
+        // A routing sentinel is internal and must never flash in customer chat.
+        if ('[[PANDORA_CLOUD_REQUIRED]]'.startsWith(response.trim()) ||
+            response.trim().startsWith('[[PANDORA_CLOUD_REQUIRED]]')) continue;
         setState(() {
           if (!started) {
             started = true;

@@ -11,6 +11,8 @@ void main() {
           hasProjectContext: false,
           hasSelectedCapability: false,
           hasCharacterContext: false,
+          status: const PandoraLocalAiStatus(supported: true, configured: true, loaded: true,
+            diagnostics: {'localReady': true, 'healthTokenEvents': 2}),
         ),
         isTrue,
       );
@@ -24,6 +26,8 @@ void main() {
           hasProjectContext: false,
           hasSelectedCapability: false,
           hasCharacterContext: false,
+          status: const PandoraLocalAiStatus(supported: true, configured: true, loaded: true,
+            diagnostics: {'localReady': true, 'healthTokenEvents': 2}),
         ),
         isFalse,
       );
@@ -37,6 +41,8 @@ void main() {
           hasProjectContext: false,
           hasSelectedCapability: false,
           hasCharacterContext: false,
+          status: const PandoraLocalAiStatus(supported: true, configured: true, loaded: true,
+            diagnostics: {'localReady': true, 'healthTokenEvents': 2}),
         ),
         isFalse,
       );
@@ -53,7 +59,8 @@ void main() {
           supported: true,
           configured: true,
           loaded: true,
-          diagnostics: <String, Object?>{'memoryLow': true},
+          diagnostics: <String, Object?>{
+      'localReady': true, 'healthTokenEvents': 2,'memoryLow': true},
         ),
       );
       expect(decision.useLocal, isFalse);
@@ -71,7 +78,8 @@ void main() {
           supported: true,
           configured: true,
           loaded: true,
-          diagnostics: <String, Object?>{'thermalStatus': 'severe'},
+          diagnostics: <String, Object?>{
+      'localReady': true, 'healthTokenEvents': 2,'thermalStatus': 'severe'},
         ),
       );
       expect(decision.useLocal, isFalse);
@@ -90,6 +98,7 @@ void main() {
           configured: true,
           loaded: true,
           diagnostics: <String, Object?>{
+      'localReady': true, 'healthTokenEvents': 2,
             'batteryPercent': 10,
             'charging': false,
           },
@@ -111,6 +120,7 @@ void main() {
           configured: true,
           loaded: true,
           diagnostics: <String, Object?>{
+      'localReady': true, 'healthTokenEvents': 2,
             'batteryPercent': 10,
             'charging': true,
           },
@@ -128,6 +138,8 @@ void main() {
           hasProjectContext: false,
           hasSelectedCapability: false,
           hasCharacterContext: false,
+          status: const PandoraLocalAiStatus(supported: true, configured: true, loaded: true,
+            diagnostics: {'localReady': true, 'healthTokenEvents': 2}),
         ),
         isFalse,
       );

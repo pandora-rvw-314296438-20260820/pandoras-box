@@ -13,7 +13,6 @@ import '../features/enterprise/enterprise_vision_screen.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_enterprise_overview.dart';
 import '../features/operations/operations_room_screen.dart';
-import '../features/settings/local_ai_settings_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
 import 'pandora_dependencies.dart';
@@ -322,7 +321,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             AskPandoraScreen(
               key: _alfredKey,
               onHome: () => _open(0),
-              onMore: () => _open(4),
+              onMore: () => _open(11),
               enterpriseContext: alfredContext,
               allowCharacterContext: false,
               allowProjectContext: false,
@@ -335,9 +334,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               key: const ValueKey('plp-vision-intelligence'),
               onAskPandora: () => _open(1),
             ),
-            const LocalAiSettingsScreen(
-              key: ValueKey('plp-local-ai-settings'),
-            ),
+            const SettingsScreen(key: ValueKey('plp-intelligence-settings')),
             PlpEnterpriseOverview(
               key: const ValueKey('plp-overview'),
               bootstrap: bootstrap,

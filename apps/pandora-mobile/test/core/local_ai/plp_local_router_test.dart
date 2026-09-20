@@ -12,6 +12,7 @@ void main() {
         '626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d',
     engineState: 'ready',
     diagnostics: <String, Object?>{
+      'localReady': true, 'healthTokenEvents': 2,
       'recommendedModelSha256':
           '626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d',
       'safeModelMaxBytes': 2300 * 1024 * 1024,
@@ -58,6 +59,7 @@ void main() {
           'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       engineState: 'initialized',
       diagnostics: <String, Object?>{
+      'localReady': true, 'healthTokenEvents': 2,
         'recommendedModelSha256':
             '626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d',
         'safeModelMaxBytes': 2300 * 1024 * 1024,
@@ -86,6 +88,7 @@ void main() {
       modelBytes: 2497279136,
       engineState: 'ready',
       diagnostics: <String, Object?>{
+      'localReady': true, 'healthTokenEvents': 2,
         'safeModelMaxBytes': 2300 * 1024 * 1024,
       },
     );
@@ -113,6 +116,7 @@ void main() {
           '626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d',
       engineState: 'initialized',
       diagnostics: <String, Object?>{
+      'localReady': true, 'healthTokenEvents': 2,
         'recommendedModelSha256':
             '626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d',
         'safeModelMaxBytes': 2300 * 1024 * 1024,

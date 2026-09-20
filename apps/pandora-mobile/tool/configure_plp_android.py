@@ -57,7 +57,8 @@ def configure(gradle: Path, manifest: Path, kotlin_root: Path) -> int:
         print(str(error), file=sys.stderr)
         return 1
 
-    kotlin_files = sorted(kotlin_root.rglob("*.kt"))
+    test_root = kotlin_root.parent.parent / "test" / "kotlin"
+    kotlin_files = sorted(kotlin_root.rglob("*.kt")) + sorted(test_root.rglob("*.kt"))
     pandora_files = []
     for path in kotlin_files:
         text = path.read_text(encoding="utf-8")

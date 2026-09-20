@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/pandora_runtime_bootstrap.dart';
 import 'app/plp_enterprise_app.dart';
 import 'core/local/pandora_local_store.dart';
+import 'core/local_ai/pandora_model_lifecycle.dart';
 import 'core/security/mobile_auth_storage.dart';
 import 'pandora_config.dart';
 
@@ -33,4 +34,7 @@ Future<void> main() async {
   );
 
   runApp(PlpEnterpriseApp(runtime: runtime));
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    PandoraModelLifecycle.start(Supabase.instance.client);
+  });
 }

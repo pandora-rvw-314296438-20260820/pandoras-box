@@ -53,7 +53,6 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
   ];
 
   static const _systemItems = <_PlpDrawerDestination>[
-    _PlpDrawerDestination('local-ai', 'Local AI', Icons.memory_outlined),
     _PlpDrawerDestination(
       'developer',
       'Developer diagnostics',
