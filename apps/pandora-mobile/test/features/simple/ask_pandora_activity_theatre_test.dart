@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/pandora_dependencies.dart';
 import 'package:pandora_mobile/core/data/pandora_activity_stream_api.dart';
@@ -106,6 +107,26 @@ Future<void> _waitForRequestCount(
 }
 
 void main() {
+  const localAiChannel = MethodChannel('pandora/local_ai');
+
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(localAiChannel, (call) async {
+      if (call.method == 'status') {
+        return <String, Object?>{
+          'supported': false,
+          'configured': false,
+          'loaded': false,
+        };
+      }
+      return null;
+    });
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(localAiChannel, null);
+  });
   testWidgets(
     'Ask Pandora renders one live Activity stage and clears it for the reply',
     (tester) async {
