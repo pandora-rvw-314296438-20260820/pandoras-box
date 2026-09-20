@@ -295,7 +295,6 @@ class PandoraLocalAiRouter {
       return _record(false, 'context_exceeds_local_guard');
     }
     if (hasAttachment) return _record(false, 'multimodal_or_attachment');
-    if (hasProjectContext) return _record(false, 'project_context');
     if (hasSelectedCapability) return _record(false, 'connected_capability');
     if (hasCharacterContext) return _record(false, 'character_context');
 
@@ -326,14 +325,10 @@ class PandoraLocalAiRouter {
     }
 
     final lower = value.toLowerCase();
-    const liveTerms = <String>[
-      'latest',
-      'today',
-      'right now',
-      'current',
+    const externalOrConnectedTerms = <String>[
       'weather',
       'stock',
-      'price',
+      'market average',
       'what time',
       'time in',
       'score',
@@ -350,8 +345,12 @@ class PandoraLocalAiRouter {
       'calendar',
       'email',
     ];
-    if (liveTerms.any(lower.contains)) {
+    if (externalOrConnectedTerms.any(lower.contains)) {
       return _record(false, 'live_or_connected_data');
+    }
+    const temporalTerms = <String>['latest', 'today', 'right now', 'current'];
+    if (temporalTerms.any(lower.contains) && !hasProjectContext) {
+      return _record(false, 'fresh_context_not_available_locally');
     }
 
     const heavyTerms = <String>[
@@ -382,7 +381,12 @@ class PandoraLocalAiRouter {
       return _record(false, 'external_action');
     }
 
-    return _record(true, 'routine_local_sufficient');
+    return _record(
+      true,
+      hasProjectContext
+          ? 'authorized_local_business_context'
+          : 'routine_local_sufficient',
+    );
   }
 
   static bool shouldUseLocal({
