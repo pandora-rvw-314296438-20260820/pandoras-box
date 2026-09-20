@@ -22,11 +22,11 @@ set(GGML_CPU_ALL_VARIANTS OFF CACHE BOOL "" FORCE)
 set(GGML_VULKAN ON CACHE BOOL "" FORCE)
 
 # Android cross-compilation finds target Vulkan from the NDK, while
-# SPIRV-Headers is a host-side CMake package used to generate shaders.
-# The workflow exports the discovered host package directory explicitly so
-# CMake does not incorrectly restrict package lookup to the Android sysroot.
-if(DEFINED ENV{PANDORA_SPIRV_HEADERS_DIR})
-    set(SPIRV-Headers_DIR "$ENV{PANDORA_SPIRV_HEADERS_DIR}" CACHE PATH "" FORCE)
+# SPIRV-Headers is a host-side package used by the shader generator. Ubuntu's
+# spirv-headers package installs its CMake config here; pin it explicitly so
+# Android's sysroot-only package search cannot hide the host package.
+if(EXISTS "/usr/share/cmake/SPIRV-Headers/SPIRV-HeadersConfig.cmake")
+    set(SPIRV-Headers_DIR "/usr/share/cmake/SPIRV-Headers" CACHE PATH "" FORCE)
 endif()
 
 set(LLAMA_SRC "${CMAKE_CURRENT_LIST_DIR}/../../../../llama.cpp")
