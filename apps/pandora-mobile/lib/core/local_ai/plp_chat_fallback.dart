@@ -11,7 +11,7 @@ class PlpChatFallback {
 
     final context = enterpriseContext!;
     final today = _map(context['today']);
-    final source = _map(context['source']);
+    final source = _map(context['sourceHealth']);
 
     final occupancy = _text(today['occupancy_percent']);
     final occupied = _integer(today['occupied_rooms']);
