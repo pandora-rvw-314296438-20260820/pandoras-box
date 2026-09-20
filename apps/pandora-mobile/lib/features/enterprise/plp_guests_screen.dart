@@ -202,9 +202,6 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
                         initials: _initials(
                           _text(guests[index]['fullName'], fallback: 'Guest'),
                         ),
-                        text: _text,
-                        integer: _integer,
-                        boolean: _bool,
                       ),
                       if (index != guests.length - 1)
                         const Divider(height: 1, color: _line),
@@ -633,28 +630,38 @@ class _GuestRow extends StatelessWidget {
   const _GuestRow({
     required this.guest,
     required this.initials,
-    required this.text,
-    required this.integer,
-    required this.boolean,
   });
 
   final Map<String, Object?> guest;
   final String initials;
-  final String Function(Object?, {String fallback}) text;
-  final int Function(Object?) integer;
-  final bool Function(Object?) boolean;
+
+  String _text(Object? value, {String fallback = '—'}) {
+    final normalized = value?.toString().trim();
+    return normalized == null || normalized.isEmpty ? fallback : normalized;
+  }
+
+  int _integer(Object? value) {
+    if (value is num) return value.round();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  bool _boolean(Object? value) {
+    if (value is bool) return value;
+    return const {'true', '1', 'yes'}
+        .contains(value?.toString().trim().toLowerCase());
+  }
 
   @override
   Widget build(BuildContext context) {
-    final name = text(guest['fullName'], fallback: 'Guest');
+    final name = _text(guest['fullName'], fallback: 'Guest');
     final accommodation =
-        text(guest['accommodationName'], fallback: 'Accommodation');
-    final day = integer(guest['dayOfStay']);
-    final stayDays = integer(guest['stayDays']);
-    final request = text(guest['specialRequest'], fallback: '')
+        _text(guest['accommodationName'], fallback: 'Accommodation');
+    final day = _integer(guest['dayOfStay']);
+    final stayDays = _integer(guest['stayDays']);
+    final request = _text(guest['specialRequest'], fallback: '')
         .replaceFirst(RegExp(r'^\[MOCK QA\]\s*'), '');
-    final status = text(guest['displayStatus'], fallback: 'In-house');
-    final isMock = boolean(guest['isMock']);
+    final status = _text(guest['displayStatus'], fallback: 'In-house');
+    final isMock = _boolean(guest['isMock']);
 
     return Material(
       color: Colors.transparent,
