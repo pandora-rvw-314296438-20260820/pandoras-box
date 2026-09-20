@@ -418,6 +418,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
   }) {
     return Semantics(
       button: true,
+      excludeSemantics: true,
       label: '$semanticTitle, ${expanded ? 'expanded' : 'collapsed'}',
       child: Material(
         color: Colors.transparent,
@@ -493,6 +494,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
       child: Semantics(
         button: true,
         selected: selected,
+        excludeSemantics: true,
         label: selected ? '${item.label}, selected' : item.label,
         child: Material(
           color: selected ? const Color(0xC52A313B) : Colors.transparent,
@@ -547,6 +549,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
         padding: const EdgeInsets.only(left: 42),
         child: Semantics(
           button: true,
+          excludeSemantics: true,
           label: 'Recent chat, ${chat.title}',
           child: InkWell(
             key: ValueKey<String>('plp-recent-chat-${chat.id}'),
