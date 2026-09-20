@@ -466,8 +466,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         .sublist(start)
         .map((message) => '${message.isUser ? 'User' : 'Pandora'}: ${message.text}')
         .join('\n');
-    final bounded = context.length > 2800
-        ? context.substring(context.length - 2800)
+    final bounded = context.length > 1600
+        ? context.substring(context.length - 1600)
         : context;
     return 'Recent conversation context from the other inference route:\n'
         '$bounded\n\nCurrent user request:\n$objective';
@@ -478,7 +478,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     if (context == null || context.isEmpty) return '';
     try {
       final encoded = jsonEncode(context);
-      final bounded = encoded.length > 9000 ? encoded.substring(0, 9000) : encoded;
+      final bounded = encoded.length > 6000 ? encoded.substring(0, 6000) : encoded;
       return 'Authorized PLP business context already synchronized to this phone. '
           'Treat it as local context; do not claim it was refreshed during this turn.\n'
           '$bounded';
@@ -581,7 +581,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     final bridgeFromOtherRoute = !_lastTurnUsedLocalAi && _messages.isNotEmpty;
     if (bridgeFromOtherRoute) {
       try {
-        await PandoraLocalAi.instance.unload();
+        await PandoraLocalAi.instance.resetConversation();
       } on PandoraLocalAiException {
         return false;
       }

@@ -313,10 +313,6 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                     Text(
                       'Load ' +
                           (status.diagnostics['runtimeModelLoadMode']?.toString() ?? 'unknown') +
-                          ' · GPU layers ' +
-                          (status.diagnostics['runtimeGpuLayers']?.toString() ?? 'unknown') +
-                          ' · extra repack ' +
-                          (status.diagnostics['runtimeExtraBufferRepack']?.toString() ?? 'unknown') +
                           ' · ctx ' +
                           (status.diagnostics['runtimeContextTokens']?.toString() ?? 'unknown') +
                           ' · batch ' +
@@ -324,11 +320,27 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                     ),
                     Text(
                       'Backend ' +
-                          (status.diagnostics['runtimeBackendConfigured']?.toString() ?? 'unknown') +
-                          ' · ABI ' +
-                          (status.diagnostics['runtimeNativeAbi']?.toString() ?? 'unknown') +
-                          ' · accelerator verified ' +
+                          (status.diagnostics['runtimeBackendActive']?.toString() ?? 'unknown') +
+                          ' · requested GPU layers ' +
+                          (status.diagnostics['runtimeGpuLayersRequested']?.toString() ?? '0') +
+                          ' · active ' +
+                          (status.diagnostics['runtimeGpuLayers']?.toString() ?? '0'),
+                    ),
+                    Text(
+                      'Vulkan device ' +
+                          (status.diagnostics['runtimeVulkanDeviceAvailable'] == true ? 'yes' : 'no') +
+                          ' · attempted ' +
+                          (status.diagnostics['runtimeAccelerationAttempted'] == true ? 'yes' : 'no') +
+                          ' · CPU fallback ' +
+                          (status.diagnostics['runtimeCpuFallbackUsed'] == true ? 'yes' : 'no') +
+                          ' · verified ' +
                           (status.diagnostics['acceleratorVerified'] == true ? 'yes' : 'no'),
+                    ),
+                    Text(
+                      'ABI ' +
+                          (status.diagnostics['runtimeNativeAbi']?.toString() ?? 'unknown') +
+                          ' · policy ' +
+                          (status.diagnostics['runtimeSystemPolicyMode']?.toString() ?? 'unknown'),
                     ),
                     Text(
                       (status.diagnostics['manufacturer']?.toString() ?? '') +
@@ -375,9 +387,30 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                           ' token-events/s',
                     ),
                     Text(
-                      'GPU used no · NPU used no · NNAPI used no · Vulkan exposed ' +
+                      'GPU used ' +
+                          (status.diagnostics['gpuAccelerationUsed'] == true ? 'yes' : 'no') +
+                          ' · NPU used ' +
+                          (status.diagnostics['npuAccelerationUsed'] == true ? 'yes' : 'no') +
+                          ' · NNAPI used ' +
+                          (status.diagnostics['nnapiAccelerationUsed'] == true ? 'yes' : 'no') +
+                          ' · Vulkan exposed ' +
                           (status.diagnostics['vulkanFeatureExposed']?.toString() ?? 'unknown'),
                     ),
+                    Text(
+                      'Generation ' +
+                          (status.diagnostics['lastGenerationOutcome']?.toString() ?? 'not run') +
+                          ' · phase ' +
+                          (status.diagnostics['lastGenerationPhase']?.toString() ?? 'n/a') +
+                          ' · backend ' +
+                          (status.diagnostics['lastGenerationBackend']?.toString() ?? 'n/a') +
+                          ' · GPU layers ' +
+                          (status.diagnostics['lastGenerationGpuLayers']?.toString() ?? 'n/a'),
+                    ),
+                    if ((status.diagnostics['lastGenerationErrorMessage']?.toString() ?? '').isNotEmpty)
+                      Text(
+                        'Last local error: ' +
+                            status.diagnostics['lastGenerationErrorMessage'].toString(),
+                      ),
                     if (PandoraLocalAiRouter.lastDecision != null)
                       Text(
                         'Last routing reason: ' +
