@@ -21,6 +21,14 @@ set(GGML_BACKEND_DL OFF CACHE BOOL "" FORCE)
 set(GGML_CPU_ALL_VARIANTS OFF CACHE BOOL "" FORCE)
 set(GGML_VULKAN ON CACHE BOOL "" FORCE)
 
+# Android cross-compilation finds target Vulkan from the NDK, while
+# SPIRV-Headers is a host-side CMake package used to generate shaders.
+# The workflow exports the discovered host package directory explicitly so
+# CMake does not incorrectly restrict package lookup to the Android sysroot.
+if(DEFINED ENV{PANDORA_SPIRV_HEADERS_DIR})
+    set(SPIRV-Headers_DIR "$ENV{PANDORA_SPIRV_HEADERS_DIR}" CACHE PATH "" FORCE)
+endif()
+
 set(LLAMA_SRC "${CMAKE_CURRENT_LIST_DIR}/../../../../llama.cpp")
 if(NOT EXISTS "${LLAMA_SRC}/CMakeLists.txt")
     message(FATAL_ERROR "Pinned llama.cpp source is missing from android/llama.cpp")
