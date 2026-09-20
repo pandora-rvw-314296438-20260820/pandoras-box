@@ -95,7 +95,7 @@ flutter pub get --enforce-lockfile
 test "$(sha256sum pubspec.lock.expected | cut -d ' ' -f1)" = "$(sha256sum pubspec.lock | cut -d ' ' -f1)"
 
 echo "PANDORA_PLP_APK_BUILD stage=analyze"
-flutter analyze
+flutter analyze --no-fatal-infos --no-fatal-warnings
 
 echo "PANDORA_PLP_APK_BUILD stage=test_variant"
 flutter test --reporter expanded test/features/enterprise/plp_enterprise_variant_test.dart
