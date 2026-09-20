@@ -1,6 +1,9 @@
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../core/data/plp_graphql_api.dart';
 import '../../core/widgets/pandora_mark.dart';
 import '../../core/widgets/pandora_navigation.dart';
 
@@ -275,6 +278,29 @@ class EnterpriseWorkspaceHome extends StatefulWidget {
 
 class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
   String? _expandedKey;
+  Map<String, Map<String, Object?>> _dashboardBySlug =
+      const <String, Map<String, Object?>>{};
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadOwnerDashboards());
+  }
+
+  Future<void> _loadOwnerDashboards() async {
+    try {
+      final rows = await PlpGraphqlApi().loadOwnerDashboards();
+      if (!mounted) return;
+      final next = <String, Map<String, Object?>>{};
+      for (final row in rows) {
+        final slug = row['property_slug']?.toString().trim();
+        if (slug != null && slug.isNotEmpty) next[slug] = row;
+      }
+      setState(() => _dashboardBySlug = next);
+    } on PlpGraphqlException {
+      // Workspace navigation remains usable if live dashboard reads fail.
+    }
+  }
 
   void _toggle(EnterpriseWorkspaceProfile workspace) {
     setState(() {
@@ -402,6 +428,7 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
                       final workspace = enterpriseWorkspaces[index];
                       return _WorkspaceCard(
                         workspace: workspace,
+                        dashboard: _dashboardBySlug[workspace.key],
                         expanded: _expandedKey == workspace.key,
                         onToggle: () => _toggle(workspace),
                         onOpen: (section) => _open(workspace, section),
@@ -421,12 +448,14 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
 class _WorkspaceCard extends StatelessWidget {
   const _WorkspaceCard({
     required this.workspace,
+    required this.dashboard,
     required this.expanded,
     required this.onToggle,
     required this.onOpen,
   });
 
   final EnterpriseWorkspaceProfile workspace;
+  final Map<String, Object?>? dashboard;
   final bool expanded;
   final VoidCallback onToggle;
   final ValueChanged<EnterpriseWorkspaceSection> onOpen;
@@ -434,6 +463,7 @@ class _WorkspaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final home = workspace.sections.first;
+    final dashboardSummary = _ownerDashboardSummary(dashboard);
     return Material(
       key: ValueKey<String>('workspace-card-' + workspace.key),
       color: const Color(0xC90B0E12),
@@ -482,6 +512,23 @@ class _WorkspaceCard extends StatelessWidget {
                               fontWeight: FontWeight.w400,
                             ),
                           ),
+                          if (dashboardSummary != null) ...[
+                            const SizedBox(height: 5),
+                            Text(
+                              dashboardSummary,
+                              key: ValueKey<String>(
+                                'workspace-dashboard-' + workspace.key,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFFD8C7B3),
+                                fontSize: 11.5,
+                                height: 1.12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -617,4 +664,30 @@ class _WorkspaceLogo extends StatelessWidget {
           ),
         ),
       );
+}
+
+
+String? _ownerDashboardSummary(Map<String, Object?>? dashboard) {
+  if (dashboard == null || dashboard.isEmpty) return null;
+  final parts = <String>[];
+  final source = dashboard['source_status']?.toString().trim().toLowerCase();
+  if (source == 'healthy') parts.add('Connected');
+
+  final occupancy = num.tryParse(
+    dashboard['occupancy_percent']?.toString() ?? '',
+  );
+  if (occupancy != null) {
+    final value = occupancy == occupancy.roundToDouble()
+        ? occupancy.toStringAsFixed(0)
+        : occupancy.toStringAsFixed(1);
+    parts.add('$value% occupancy');
+  }
+
+  final arrivals = int.tryParse(
+    dashboard['arrivals_today']?.toString() ?? '',
+  );
+  if (arrivals != null) {
+    parts.add('$arrivals arrival${arrivals == 1 ? '' : 's'}');
+  }
+  return parts.isEmpty ? null : parts.join(' · ');
 }

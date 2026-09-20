@@ -382,6 +382,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260920205603_plp_snapshot_tenant_and_active_occupancy_fix.sql',
     '20260921102000_plp_team_access_bootstrap_v3.sql',
     '20260921103500_plp_team_access_visible_count_v4.sql',
+    '20260921110000_plp_graphql_dashboard_reads_v1.sql',
     '20260921112000_plp_realtime_resort_updates_v1.sql',
   ]);
   const manifestBoundFiles = activeFiles.filter(
@@ -698,6 +699,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260920205603_plp_snapshot_tenant_and_active_occupancy_fix.sql',
     '20260921102000_plp_team_access_bootstrap_v3.sql',
     '20260921103500_plp_team_access_visible_count_v4.sql',
+    '20260921110000_plp_graphql_dashboard_reads_v1.sql',
     '20260921112000_plp_realtime_resort_updates_v1.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
@@ -966,6 +968,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260920205603_plp_snapshot_tenant_and_active_occupancy_fix.sql',
     '20260921102000_plp_team_access_bootstrap_v3.sql',
     '20260921103500_plp_team_access_visible_count_v4.sql',
+    '20260921110000_plp_graphql_dashboard_reads_v1.sql',
     '20260921112000_plp_realtime_resort_updates_v1.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
