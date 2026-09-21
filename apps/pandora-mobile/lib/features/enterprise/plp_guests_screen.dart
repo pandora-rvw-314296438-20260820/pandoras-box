@@ -276,31 +276,25 @@ class _PlpWordmark extends StatelessWidget {
   Widget build(BuildContext context) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 43,
-            height: 43,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFF68401F),
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/workspaces/plp.webp',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Center(
-                  child: Text(
-                    'PLP',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                    ),
+          SizedBox(
+            width: 42,
+            height: 48,
+            child: Image.asset(
+              'assets/workspaces/plp.webp',
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Center(
+                child: Text(
+                  'PLP',
+                  style: TextStyle(
+                    color: _PlpGuestsScreenState._ink,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 7),
           const Text(
             'PUEBLO\nLA PERLA\nBORACAY',
             style: TextStyle(
@@ -369,115 +363,66 @@ class _GuestExperienceHero extends StatelessWidget {
   const _GuestExperienceHero();
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
-        borderRadius: BorderRadius.zero,
-        child: SizedBox(
-          height: 152,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF23342E),
-                      Color(0xFF557D79),
-                      Color(0xFFD4B078),
-                    ],
-                    stops: [0, .58, 1],
-                  ),
-                ),
-              ),
-              Positioned(
-                right: -2,
-                top: 8,
-                child: Icon(
-                  Icons.villa_rounded,
-                  size: 124,
-                  color: Colors.white.withValues(alpha: .23),
-                ),
-              ),
-              Positioned(
-                right: -24,
-                bottom: -34,
-                child: Container(
-                  width: 245,
-                  height: 82,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(60),
-                    color: const Color(0xFF8DC1C1).withValues(alpha: .58),
-                  ),
-                ),
-              ),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      Color(0xB0000000),
-                      Color(0x3A000000),
-                      Color(0x00000000),
-                    ],
-                  ),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 0, 14, 16),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Guest Experience',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 25,
-                        fontStyle: FontStyle.italic,
-                        fontWeight: FontWeight.w700,
-                        height: 1,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    SizedBox(height: 7),
-                    Text(
-                      'Personal stays. Thoughtful service.',
-                      style: TextStyle(
-                        color: Color(0xFFF6EFE8),
-                        fontSize: 14.5,
-                      ),
-                    ),
-                    SizedBox(height: 12),
-                    SizedBox(
-                      width: 45,
-                      child: Divider(
-                        height: 2,
-                        thickness: 2,
-                        color: Color(0xFFD5A14A),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Positioned(
-                right: 13,
-                bottom: 12,
-                child: Text(
-                  'BORACAY\nPHILIPPINES',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: Color(0xFFF4EEE8),
-                    fontSize: 7.5,
-                    height: 1.3,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2.2,
-                  ),
-                ),
-              ),
-            ],
+  Widget build(BuildContext context) => Container(
+        key: const ValueKey<String>('plp-guests-editorial-hero'),
+        decoration: const BoxDecoration(
+          color: _PlpGuestsScreenState._paper,
+          border: Border(
+            top: BorderSide(color: _PlpGuestsScreenState._line),
+            bottom: BorderSide(color: _PlpGuestsScreenState._line),
           ),
+        ),
+        padding: const EdgeInsets.fromLTRB(4, 25, 4, 24),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'GUEST EXPERIENCE',
+                    style: TextStyle(
+                      color: _PlpGuestsScreenState._gold,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2.1,
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'Personal stays.\nThoughtful service.',
+                    style: TextStyle(
+                      color: _PlpGuestsScreenState._ink,
+                      fontFamily: 'serif',
+                      fontSize: 34,
+                      height: .98,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: -.8,
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'Arrivals, in-house guests, requests and departures — organized around the guest journey.',
+                    style: TextStyle(
+                      color: _PlpGuestsScreenState._muted,
+                      fontSize: 12.5,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 14),
+            SizedBox(
+              width: 74,
+              height: 92,
+              child: Image.asset(
+                'assets/workspaces/plp.webp',
+                fit: BoxFit.contain,
+              ),
+            ),
+          ],
         ),
       );
 }
@@ -523,13 +468,12 @@ class _GuestFilters extends StatelessWidget {
               const SizedBox(width: 3),
               InkWell(
                 key: const ValueKey<String>('plp-guests-filter-search'),
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.zero,
                 onTap: () => onSelect('search'),
                 child: Container(
                   width: compact ? 36 : 40,
                   height: compact ? 38 : 42,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
                     color: selected == 'search'
                         ? _PlpGuestsScreenState._goldSoft
                         : _PlpGuestsScreenState._paper,
@@ -566,7 +510,7 @@ class _FilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => InkWell(
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.zero,
         onTap: onTap,
         child: Container(
           height: compact ? 38 : 42,
@@ -575,7 +519,7 @@ class _FilterPill extends StatelessWidget {
             color: selected
                 ? _PlpGuestsScreenState._goldSoft
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.zero,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -752,7 +696,7 @@ class _GuestRow extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF8E9C9),
-                              borderRadius: BorderRadius.circular(999),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: const Text(
                               'QA',
@@ -1031,7 +975,7 @@ class _AttentionItem extends StatelessWidget {
               color: high
                   ? const Color(0xFFF8E2D5)
                   : const Color(0xFFFFEDC3),
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.zero,
             ),
             child: Text(
               high ? 'Pending' : 'Due today',
