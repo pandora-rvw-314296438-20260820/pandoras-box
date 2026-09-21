@@ -1,4 +1,4 @@
-﻿const assert = require('node:assert/strict');
+const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const { existsSync, readFileSync, readdirSync } = require('node:fs');
 const { basename, join } = require('node:path');
@@ -372,6 +372,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260920062415_plp_enterprise_mobile_bootstrap_v1.sql',
     '20260920070224_plp_staff_task_governed_action_v1.sql',
     '20260920070932_plp_staff_task_activity_state_fix_v1.sql',
+    '20260920180430_phone_local_ai_turn_telemetry_v1.sql',
     '20260920180000_plp_guest_experience_bootstrap_v2.sql',
     '20260920185423_plp_activity_page_and_logs_v1.sql',
     '20260920185511_plp_activity_logs_enum_fix_v2.sql',
