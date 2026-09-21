@@ -52,7 +52,7 @@ void main() {
           const ValueKey<String>('plp-navigation-drawer'),
         );
         expect(drawer, findsOneWidget);
-        expect(tester.getSize(drawer).width, closeTo(296.4, .6));
+        expect(tester.getSize(drawer).width, closeTo(390, .6));
         expect(tester.getSize(drawer).height, closeTo(844, .6));
         final drawerWidget = tester.widget<Drawer>(drawer);
         expect(drawerWidget.backgroundColor, Colors.transparent);
@@ -93,11 +93,12 @@ void main() {
           greaterThan(headerRect.bottom),
         );
 
-        expect(find.text('Pandora'), findsOneWidget);
-        expect(find.text('PLP Boracay'), findsOneWidget);
-        expect(find.text('Owner workspace'), findsOneWidget);
-        expect(find.text('PLP Boracay owner workspace'), findsOneWidget);
+        expect(find.text('PUEBLO LA PERLA'), findsOneWidget);
+        expect(find.text('BORACAY'), findsOneWidget);
+        expect(find.text('OWNER WORKSPACE'), findsOneWidget);
+        expect(find.text('Pandora'), findsNothing);
         expect(find.text('BUSINESS'), findsNothing);
+        expect(find.byKey(const ValueKey<String>('plp-drawer-close')), findsOneWidget);
         expect(find.text('Recent chats'), findsOneWidget);
         expect(find.text('Connect to GitHub'), findsOneWidget);
         expect(find.bySemanticsLabel('Home, selected'), findsOneWidget);
