@@ -21,12 +21,12 @@ class PlpTeamAccessScreen extends StatefulWidget {
 class _PlpTeamAccessScreenState extends State<PlpTeamAccessScreen> {
   static const _canvas = Color(0xFFFBF8F2);
   static const _paper = Color(0xFFFFFDFC);
-  static const _ink = Color(0xFF101B33);
-  static const _muted = Color(0xFF72767C);
-  static const _gold = Color(0xFF9D6928);
-  static const _goldSoft = Color(0xFFF1E1CD);
-  static const _line = Color(0xFFE9E2D8);
-  static const _green = Color(0xFF2FB45F);
+  static const _ink = Color(0xFF171512);
+  static const _muted = Color(0xFF746F67);
+  static const _gold = Color(0xFF82764F);
+  static const _goldSoft = Color(0xFFF2EEE6);
+  static const _line = Color(0xFFE1DBD1);
+  static const _green = Color(0xFF657965);
   static const _grayDot = Color(0xFF9EA3AA);
 
   int _tab = 0;
@@ -59,7 +59,7 @@ class _PlpTeamAccessScreenState extends State<PlpTeamAccessScreen> {
         .toList(growable: false);
   }
 
-  String _text(Object? value, {String fallback = '—'}) {
+  String _text(Object? value, {String fallback = ''}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -146,11 +146,11 @@ class _PlpTeamAccessScreenState extends State<PlpTeamAccessScreen> {
                     filled: true,
                     fillColor: _paper,
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.zero,
                       borderSide: const BorderSide(color: _line),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.zero,
                       borderSide: const BorderSide(color: _gold),
                     ),
                   ),
@@ -216,6 +216,7 @@ class _Header extends StatelessWidget {
         children: [
           if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
             PandoraMenuButton(
+              editorial: true,
               key: const ValueKey<String>('plp-team-open-navigation'),
               onPressed: onOpenNavigation,
             )
@@ -905,7 +906,7 @@ class _AccessSummaryCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
         decoration: BoxDecoration(
           color: _PlpTeamAccessScreenState._paper,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
           border: Border.all(color: _PlpTeamAccessScreenState._line),
         ),
         child: Row(
