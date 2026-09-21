@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/data/domain_registrar_api.dart';
@@ -12,6 +14,7 @@ import '../core/design/pandora_theme.dart';
 import '../core/design/pandora_tokens.dart';
 import '../core/diagnostics/diagnostics_store.dart';
 import '../core/local/pandora_local_store.dart';
+import '../core/local_ai/pandora_local_ai_runtime.dart';
 import '../core/security/pandora_auth.dart';
 import '../features/auth/auth_gate.dart';
 import 'pandora_dependencies.dart';
@@ -50,7 +53,14 @@ class PandoraApp extends StatefulWidget {
 
 class _PandoraAppState extends State<PandoraApp> {
   @override
+  void initState() {
+    super.initState();
+    PandoraLocalAiRuntime.instance.start();
+  }
+
+  @override
   void dispose() {
+    unawaited(PandoraLocalAiRuntime.instance.stop());
     widget.projectRuntime?.close();
     widget.repository.dispose();
     widget.localStore?.close();
