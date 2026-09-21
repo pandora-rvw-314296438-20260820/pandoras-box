@@ -59,7 +59,7 @@ class _PlpTeamAccessScreenState extends State<PlpTeamAccessScreen> {
         .toList(growable: false);
   }
 
-  String _text(Object? value, {String fallback = ''}) {
+  String _text(Object? value, {String fallback = '—'}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
