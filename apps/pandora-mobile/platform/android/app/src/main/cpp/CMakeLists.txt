@@ -60,7 +60,7 @@ target_include_directories(ai-chat PRIVATE
     "${LLAMA_SRC}/ggml/src"
 )
 
-target_link_libraries(ai-chat
+target_link_libraries(ai-chat PRIVATE
     llama
     llama-common
     android
