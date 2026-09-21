@@ -52,6 +52,17 @@ test('mobile chat dispatches universal capabilities before model fallback withou
   assert.ok(fallbackIndex > dispatchIndex, 'universal capability dispatch must run before model fallback');
 });
 
+test('native capability routing classifies only the owner message, never the Enterprise context envelope', () => {
+  assert.match(
+    edge,
+    /dispatchMessage=controlledMessage\(controlState\.message,controlState\.constraints\)/,
+  );
+  assert.doesNotMatch(
+    edge,
+    /dispatchMessage=.*contextualMessage\(controlledMessage\(controlState\.message,controlState\.constraints\),i\.enterpriseContext\)/,
+  );
+});
+
 test('current product doctrine is not delegated to builder-era roadmap inventories', () => {
   assert.match(roadmap, /HISTORICAL ROADMAP EVIDENCE/);
   assert.match(screenPlan, /HISTORICAL IMPLEMENTATION INVENTORY/);
