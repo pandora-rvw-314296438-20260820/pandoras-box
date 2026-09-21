@@ -22,9 +22,9 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
   static const _ink = Color(0xFF171512);
   static const _muted = Color(0xFF706B64);
   static const _line = Color(0xFFE9E1D6);
-  static const _gold = Color(0xFF9A692F);
-  static const _goldSoft = Color(0xFFF2E3D1);
-  static const _green = Color(0xFF52A05E);
+  static const _gold = Color(0xFF82764F);
+  static const _goldSoft = Color(0xFFF2EEE6);
+  static const _green = Color(0xFF657965);
 
   String _filter = 'in-house';
   final TextEditingController _searchController = TextEditingController();
@@ -55,7 +55,7 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
         .toList(growable: false);
   }
 
-  String _text(Object? value, {String fallback = '—'}) {
+  String _text(Object? value, {String fallback = ''}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -161,11 +161,11 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.zero,
                     borderSide: const BorderSide(color: _line),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.zero,
                     borderSide: const BorderSide(color: _gold),
                   ),
                 ),
@@ -177,8 +177,8 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
             else ...[
               _SectionLead(
                 title: switch (_filter) {
-                  'arriving' => 'Today’s arrivals',
-                  'departing' => 'Today’s departures',
+                  'arriving' => 'Todays arrivals',
+                  'departing' => 'Todays departures',
                   'search' => 'Guest search',
                   _ => 'In-house guests',
                 },
@@ -237,6 +237,7 @@ class _GuestHeader extends StatelessWidget {
         children: [
           if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
             PandoraMenuButton(
+              editorial: true,
               key: const ValueKey<String>('plp-guests-open-navigation'),
               onPressed: onOpenNavigation,
             )
@@ -340,7 +341,7 @@ class _PropertyIdentity extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Luxury Resort · guest experience workspace',
+                  'Luxury Resort � guest experience workspace',
                   style: TextStyle(
                     color: _PlpGuestsScreenState._muted,
                     fontSize: 12.8,
@@ -370,7 +371,7 @@ class _GuestExperienceHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         child: SizedBox(
           height: 152,
           child: Stack(
@@ -655,7 +656,7 @@ class _GuestRow extends StatelessWidget {
   final Map<String, Object?> guest;
   final String initials;
 
-  String _text(Object? value, {String fallback = '—'}) {
+  String _text(Object? value, {String fallback = ''}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -686,7 +687,7 @@ class _GuestRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.zero,
         onTap: () {},
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
@@ -769,7 +770,7 @@ class _GuestRow extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       stayDays > 0
-                          ? '$accommodation · Day ${day.clamp(1, stayDays)} of $stayDays'
+                          ? '$accommodation � Day ${day.clamp(1, stayDays)} of $stayDays'
                           : accommodation,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -841,7 +842,7 @@ class _AttentionPanel extends StatelessWidget {
 
   final List<Map<String, Object?>> items;
 
-  String _text(Object? value, {String fallback = '—'}) {
+  String _text(Object? value, {String fallback = ''}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -1065,7 +1066,7 @@ class _ArrivalPanel extends StatelessWidget {
   final List<Map<String, Object?>> items;
   final String businessDate;
 
-  String _text(Object? value, {String fallback = '—'}) {
+  String _text(Object? value, {String fallback = ''}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -1075,7 +1076,7 @@ class _ArrivalPanel extends StatelessWidget {
     final visible = items.take(3).toList(growable: false);
     return _LuxuryPanel(
       key: const ValueKey<String>('plp-guests-arrivals'),
-      title: 'Today’s arrivals',
+      title: 'Todays arrivals',
       icon: Icons.flight_land_rounded,
       child: visible.isEmpty
           ? _PanelEmpty(
@@ -1242,7 +1243,7 @@ class _EmptyRoster extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: _PlpGuestsScreenState._paper,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: _PlpGuestsScreenState._line),
       ),
       child: Row(
