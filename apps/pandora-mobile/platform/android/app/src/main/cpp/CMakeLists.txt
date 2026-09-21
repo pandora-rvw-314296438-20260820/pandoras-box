@@ -60,9 +60,16 @@ target_include_directories(ai-chat PRIVATE
     "${LLAMA_SRC}/ggml/src"
 )
 
-target_link_libraries(ai-chat
+target_link_libraries(ai-chat PRIVATE
     llama
     llama-common
     android
     log
 )
+
+# With GGML_BACKEND_DL disabled, explicitly retain the statically-built
+# Vulkan backend in libai-chat.so. Otherwise link-time dead stripping can
+# leave Android reporting Vulkan support while ggml enumerates CPU only.
+if(TARGET ggml-vulkan)
+    target_link_libraries(ai-chat PRIVATE ggml-vulkan)
+endif()

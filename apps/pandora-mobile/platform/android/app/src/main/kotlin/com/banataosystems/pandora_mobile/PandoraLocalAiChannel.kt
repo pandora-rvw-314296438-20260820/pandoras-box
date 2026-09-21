@@ -5,6 +5,7 @@ import android.app.ActivityManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -60,7 +61,10 @@ class PandoraLocalAiChannel(
         private const val MIN_MODEL_BYTES = 64L * 1024L * 1024L
         private const val MAX_MODEL_BYTES = 8L * 1024L * 1024L * 1024L
         private const val STORAGE_RESERVE_BYTES = 256L * 1024L * 1024L
-        private const val WARM_DEADLINE_MS = 15_000L
+        // Cold loading a ~2 GiB Q4 model can legitimately take tens of seconds on
+        // phone storage. User turns never wait for this cold path: they fall
+        // through to cloud while this bounded background warm completes.
+        private const val WARM_DEADLINE_MS = 75_000L
         private const val SYSTEM_PROMPT = """
 You are Pandora's fast on-device conversational layer.
 Answer naturally, directly, and concisely.
@@ -965,10 +969,61 @@ If required information is missing locally, needs an authoritative provider muta
             } else {
                 null
             }
+        val batteryIntent =
+            activity.registerReceiver(
+                null,
+                IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+            )
+        val batteryBroadcastLevel =
+            batteryIntent
+                ?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                ?.takeIf { it >= 0 }
+        val batteryBroadcastScale =
+            batteryIntent
+                ?.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                ?.takeIf { it > 0 }
         val batteryPercent =
-            batteryManager
-                .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-                .takeIf { it in 0..100 }
+            if (batteryBroadcastLevel != null && batteryBroadcastScale != null) {
+                ((batteryBroadcastLevel * 100.0) / batteryBroadcastScale)
+                    .toInt()
+                    .coerceIn(0, 100)
+            } else {
+                batteryManager
+                    .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                    .takeIf { it in 0..100 }
+            }
+        val batteryStatus =
+            batteryIntent?.getIntExtra(
+                BatteryManager.EXTRA_STATUS,
+                BatteryManager.BATTERY_STATUS_UNKNOWN,
+            )
+        val batteryPlugged =
+            batteryIntent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
+        val chargingByStatus =
+            batteryStatus == BatteryManager.BATTERY_STATUS_CHARGING ||
+                batteryStatus == BatteryManager.BATTERY_STATUS_FULL
+        val chargingByManager =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                batteryManager.isCharging
+            } else {
+                false
+            }
+        val charging = chargingByManager || chargingByStatus || batteryPlugged != 0
+        val chargingSource =
+            when {
+                chargingByStatus -> "battery_broadcast_status"
+                batteryPlugged != 0 -> "battery_broadcast_plugged"
+                chargingByManager -> "battery_manager"
+                else -> "none"
+            }
+        val pluggedSource =
+            when (batteryPlugged) {
+                BatteryManager.BATTERY_PLUGGED_AC -> "ac"
+                BatteryManager.BATTERY_PLUGGED_USB -> "usb"
+                BatteryManager.BATTERY_PLUGGED_WIRELESS -> "wireless"
+                0 -> "battery"
+                else -> "other"
+            }
         val nativeRuntime = nativeRuntimeDiagnostics()
         val activeBackend = nativeRuntime["activeBackend"]?.toString() ?: "unknown"
         val activeGpuLayers =
@@ -1074,12 +1129,10 @@ If required information is missing locally, needs an authoritative provider muta
             "totalStorageBytes" to modelDirectory.totalSpace,
             "availableStorageBytes" to modelDirectory.usableSpace,
             "batteryPercent" to batteryPercent,
-            "charging" to
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    batteryManager.isCharging
-                } else {
-                    null
-                },
+            "charging" to charging,
+            "chargingSource" to chargingSource,
+            "batteryPlugged" to pluggedSource,
+            "batteryStatus" to batteryStatus,
             "thermalStatus" to thermalStatus,
             "nnapiApiAvailable" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1),
             "vulkanFeatureExposed" to vulkanFeatureExposed,

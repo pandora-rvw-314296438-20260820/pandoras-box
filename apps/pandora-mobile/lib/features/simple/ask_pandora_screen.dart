@@ -173,7 +173,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
             'Local readiness check. Reply with exactly LOCAL_READY.',
             predictLength: 32,
           )
-          .timeout(const Duration(seconds: 15))) {
+          .timeout(const Duration(seconds: 30))) {
         smoke += chunk;
       }
       if (smoke.trim().isEmpty ||
