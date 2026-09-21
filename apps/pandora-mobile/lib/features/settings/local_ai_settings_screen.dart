@@ -46,17 +46,14 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
       final selected = await PandoraLocalAi.instance.chooseModel();
       if (!mounted) return;
       if (selected != null) {
-        setState(() => _status = selected);
-        final warmed = await PandoraLocalAi.instance.warm();
-        if (!mounted) return;
-        if (!warmed) {
-          setState(() {
-            _error =
-                'The model was imported, but Pandora could not warm it yet.';
-          });
-        } else {
-          await _refresh();
-        }
+        setState(() {
+          _status = selected;
+          _acceptanceChallenge = null;
+          _pendingAcceptanceEvidence = null;
+          _acceptanceReceipt = null;
+          _acceptanceStatus = null;
+        });
+        await _refresh();
       }
     } on PandoraLocalAiException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -224,6 +221,48 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
     return raw.toString();
   }
 
+  bool _safeToWarm(PandoraLocalAiStatus? status) {
+    if (status == null || !status.configured) return false;
+    final selectedSha = status.modelSha256?.toLowerCase();
+    final recommendedSha =
+        status.diagnostics['recommendedModelSha256']?.toString().toLowerCase();
+    if (selectedSha == null ||
+        recommendedSha == null ||
+        selectedSha != recommendedSha) {
+      return false;
+    }
+    final modelBytes = status.modelBytes;
+    final safeMaxRaw = status.diagnostics['safeModelMaxBytes'];
+    final safeMax = safeMaxRaw is num
+        ? safeMaxRaw.toInt()
+        : int.tryParse(safeMaxRaw?.toString() ?? '');
+    if (modelBytes != null && safeMax != null && modelBytes > safeMax) {
+      return false;
+    }
+    if (status.diagnostics['memoryLow'] == true) return false;
+    if (!status.loaded && modelBytes != null) {
+      final availableRaw = status.diagnostics['availableRamBytes'];
+      final available = availableRaw is num
+          ? availableRaw.toInt()
+          : int.tryParse(availableRaw?.toString() ?? '');
+      if (available != null &&
+          available < modelBytes + (1024 * 1024 * 1024)) {
+        return false;
+      }
+    }
+    final thermal =
+        status.diagnostics['thermalStatus']?.toString().toLowerCase();
+    if (const <String>{
+      'severe',
+      'critical',
+      'emergency',
+      'shutdown',
+    }.contains(thermal)) {
+      return false;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = _status;
@@ -246,7 +285,7 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                 : 'Choose your local model',
             message: loaded
                 ? 'Routine chat can start on your phone and escalate to cloud intelligence only when needed.'
-                : 'Qwen3 4B Instruct 2507 Q4_K_M is the physical-phone acceptance target; its exact SHA-256 is verified before acceptance.',
+                : 'For this phone, use Qwen2.5 3B Instruct Q4_K_M. Pandora loads it only for safe local turns and routes heavier or unsafe work to cloud intelligence.',
             icon: Icons.memory_rounded,
             tone: loaded
                 ? PandoraStatusTone.verified
@@ -305,7 +344,13 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                               : PandoraConfig.sourceRevision),
                     ),
                     Text(
-                      'Acceptance model ' +
+                      'Recommended model ' +
+                          (status.diagnostics['recommendedModelName']?.toString() ?? 'unknown') +
+                          ' · SHA ' +
+                          (status.diagnostics['recommendedModelSha256']?.toString() ?? 'unknown'),
+                    ),
+                    Text(
+                      'Legacy acceptance model ' +
                           (status.diagnostics['acceptanceModelName']?.toString() ?? 'unknown') +
                           ' · SHA ' +
                           (status.diagnostics['acceptanceModelSha256']?.toString() ?? 'unknown'),
@@ -460,22 +505,27 @@ class _LocalAiSettingsScreenState extends State<LocalAiSettingsScreen> {
                   ? null
                   : loaded
                   ? _unload
-                  : _warm,
+                  : _safeToWarm(status)
+                  ? _warm
+                  : null,
               icon: Icon(
                 loaded ? Icons.power_settings_new_rounded : Icons.bolt_rounded,
               ),
               label: Text(loaded ? 'Unload local model' : 'Warm local model'),
             ),
-            const SizedBox(height: PandoraSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _runPhysicalAcceptance,
-              icon: const Icon(Icons.verified_user_outlined),
-              label: Text(
-                _pendingAcceptanceEvidence != null
-                    ? 'Submit physical acceptance'
-                    : _acceptanceChallenge != null
-                    ? 'Run offline acceptance'
-                    : 'Prepare physical acceptance',
+            Visibility(
+              visible: false,
+              maintainState: false,
+              child: OutlinedButton.icon(
+                onPressed: _busy ? null : _runPhysicalAcceptance,
+                icon: const Icon(Icons.verified_user_outlined),
+                label: Text(
+                  _pendingAcceptanceEvidence != null
+                      ? 'Submit physical acceptance'
+                      : _acceptanceChallenge != null
+                      ? 'Run offline acceptance'
+                      : 'Prepare physical acceptance',
+                ),
               ),
             ),
           ],
