@@ -68,6 +68,7 @@ class PlpEditorialHeader extends StatelessWidget {
   Widget build(BuildContext context) => Row(
         children: [
           PandoraMenuButton(
+              editorial: true,
             key: ValueKey<String>('plp-editorial-menu-${title.toLowerCase()}'),
             onPressed: onOpenNavigation,
           ),
