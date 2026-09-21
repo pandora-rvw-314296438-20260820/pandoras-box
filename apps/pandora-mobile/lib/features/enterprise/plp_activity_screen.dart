@@ -607,7 +607,6 @@ class _ActivityHeader extends StatelessWidget {
         children: [
           if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
             PandoraMenuButton(
-              editorial: true,
               key: const ValueKey<String>('plp-activity-open-navigation'),
               onPressed: onOpenNavigation,
             )
