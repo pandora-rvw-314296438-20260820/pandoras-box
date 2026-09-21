@@ -47,6 +47,33 @@ void main() {
         final drawerWidget = tester.widget<Drawer>(drawer);
         expect(drawerWidget.backgroundColor, const Color(0xFF000000));
 
+        final scrollView = find.byKey(
+          const ValueKey<String>('plp-drawer-scroll'),
+        );
+        final headerOverlay = find.byKey(
+          const ValueKey<String>('plp-drawer-header-overlay'),
+        );
+        expect(scrollView, findsOneWidget);
+        expect(headerOverlay, findsOneWidget);
+        expect(
+          tester.getTopLeft(scrollView).dy,
+          closeTo(tester.getTopLeft(headerOverlay).dy, .5),
+        );
+
+        final underlayTarget = find.text('Guest Experience');
+        final headerRect = tester.getRect(headerOverlay);
+        final targetBefore = tester.getCenter(underlayTarget).dy;
+        final desiredTargetY = headerRect.bottom - 18;
+        await tester.drag(
+          scrollView,
+          Offset(0, -(targetBefore - desiredTargetY)),
+        );
+        await tester.pumpAndSettle();
+
+        final targetAfter = tester.getRect(underlayTarget);
+        expect(targetAfter.top, lessThan(headerRect.bottom));
+        expect(targetAfter.bottom, greaterThan(headerRect.top));
+
         expect(find.text('Pandora'), findsOneWidget);
         expect(find.text('PLP Boracay'), findsOneWidget);
         expect(find.text('Owner workspace'), findsOneWidget);
