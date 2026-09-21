@@ -122,7 +122,7 @@ static llama_model *load_model_with_profile(const char *model_path, const int gp
         __func__,
         gpu_layers);
     auto *model = llama_model_load_from_file(model_path, model_params);
-    if (!model) {
+    if (!model && !g_cancel_requested.load(std::memory_order_relaxed)) {
         LOGw(
             "%s: mmap load failed for gpu_layers=%d; retrying non-mmap",
             __func__,
