@@ -214,10 +214,13 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          PandoraMenuButton(
-            key: const ValueKey<String>('plp-team-open-navigation'),
-            onPressed: onOpenNavigation,
-          ),
+          if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
+            PandoraMenuButton(
+              key: const ValueKey<String>('plp-team-open-navigation'),
+              onPressed: onOpenNavigation,
+            )
+          else
+            const SizedBox.square(dimension: 44),
           const SizedBox(width: 5),
           Container(
             width: 43,

@@ -104,10 +104,13 @@ class PlpEnterpriseHome extends StatelessWidget {
               Row(
                 children: [
                   if (onOpenNavigation != null) ...[
-                    PandoraMenuButton(
-                      key: const ValueKey<String>('plp-open-navigation'),
-                      onPressed: onOpenNavigation!,
-                    ),
+                    if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
+                      PandoraMenuButton(
+                        key: const ValueKey<String>('plp-open-navigation'),
+                        onPressed: onOpenNavigation!,
+                      )
+                    else
+                      const SizedBox.square(dimension: 44),
                     const SizedBox(width: 4),
                   ],
                   Container(
