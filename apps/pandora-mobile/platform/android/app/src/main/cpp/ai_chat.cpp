@@ -34,7 +34,7 @@ constexpr int   N_THREADS_HEADROOM      = 2;
 constexpr int   DEFAULT_CONTEXT_SIZE    = 2048;
 constexpr int   OVERFLOW_HEADROOM       = 4;
 constexpr int   BATCH_SIZE              = 64;
-constexpr int   PREFERRED_GPU_LAYERS    = 2; // bounded mobile Vulkan offload; CPU remains authoritative fallback
+constexpr int   PREFERRED_GPU_LAYERS    = 0; // Redmi-safe cold load; Vulkan remains compiled until physical acceleration is re-verified
 constexpr float DEFAULT_SAMPLER_TEMP    = 0.3f;
 
 static llama_model                      * g_model;
@@ -100,19 +100,29 @@ static bool has_gpu_device() {
     return false;
 }
 
+static bool model_load_progress(float progress, void * /*user_data*/) {
+    if (g_cancel_requested.load(std::memory_order_relaxed)) {
+        LOGw("%s: cooperative model-load cancellation at %.1f%%", __func__, progress * 100.0f);
+        return false;
+    }
+    return true;
+}
+
 static llama_model *load_model_with_profile(const char *model_path, const int gpu_layers) {
     llama_model_params model_params = llama_model_default_params();
     model_params.n_gpu_layers = gpu_layers;
     model_params.load_mode = LLAMA_LOAD_MODE_MMAP;
     model_params.lazy_mode = LLAMA_LAZY_MODE_OFF;
     model_params.use_extra_bufts = false;
+    model_params.progress_callback = model_load_progress;
+    model_params.progress_callback_user_data = nullptr;
 
     LOGi(
         "%s: load profile mmap, gpu_layers=%d, extra_bufts=false, lazy=off",
         __func__,
         gpu_layers);
     auto *model = llama_model_load_from_file(model_path, model_params);
-    if (!model) {
+    if (!model && !g_cancel_requested.load(std::memory_order_relaxed)) {
         LOGw(
             "%s: mmap load failed for gpu_layers=%d; retrying non-mmap",
             __func__,
@@ -275,7 +285,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_nativeRuntimeDiagnostics(
         jobject /*unused*/) {
     std::ostringstream result;
     result << "{"
-           << "\"configuredBackend\":\"auto_vulkan_cpu_fallback\","
+           << "\"configuredBackend\":\"cpu_safe_vulkan_compiled\","
            << "\"activeBackend\":\"" << (g_gpu_layers_active > 0 ? "vulkan" : "cpu") << "\","
            << "\"vulkanDeviceAvailable\":" << (g_vulkan_device_available ? "true" : "false") << ","
            << "\"accelerationAttempted\":" << (g_acceleration_attempted ? "true" : "false") << ","

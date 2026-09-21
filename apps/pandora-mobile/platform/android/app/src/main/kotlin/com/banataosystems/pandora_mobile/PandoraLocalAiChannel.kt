@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 
 class PandoraLocalAiChannel(
     private val activity: Activity,
@@ -64,7 +65,7 @@ class PandoraLocalAiChannel(
         // Cold loading a ~2 GiB Q4 model can legitimately take tens of seconds on
         // phone storage. User turns never wait for this cold path: they fall
         // through to cloud while this bounded background warm completes.
-        private const val WARM_DEADLINE_MS = 75_000L
+        private const val WARM_DEADLINE_MS = 120_000L
         private const val SYSTEM_PROMPT = """
 You are Pandora's fast on-device conversational layer.
 Answer naturally, directly, and concisely.
@@ -169,12 +170,9 @@ If required information is missing locally, needs an authoritative provider muta
             "cancel" -> {
                 scope.launch {
                     engine.requestCancel()
-                    activeGeneration?.cancelAndJoin()
-                    activeAcceptance?.cancelAndJoin()
-                    activeWarm?.cancelAndJoin()
-                    activeGeneration = null
-                    activeAcceptance = null
-                    activeWarm = null
+                    activeGeneration?.cancel()
+                    activeAcceptance?.cancel()
+                    activeWarm?.cancel()
                     result.success(null)
                 }
             }
@@ -685,11 +683,16 @@ If required information is missing locally, needs an authoritative provider muta
         scope.launch {
             try {
                 engine.requestCancel()
-                activeGeneration?.cancelAndJoin()
-                activeGeneration = null
-                activeWarm?.cancelAndJoin()
-                activeWarm = null
-                unloadInternal()
+                val generationJob = activeGeneration
+                val warmJob = activeWarm
+                generationJob?.cancel()
+                warmJob?.cancel()
+                val settled = withTimeoutOrNull(5_000L) {
+                    generationJob?.join()
+                    warmJob?.join()
+                    true
+                } ?: false
+                if (settled) unloadInternal()
                 result.success(null)
             } catch (error: Exception) {
                 result.error(
@@ -1029,7 +1032,7 @@ If required information is missing locally, needs an authoritative provider muta
         val activeGpuLayers =
             (nativeRuntime["gpuLayersActive"] as? Number)?.toInt() ?: 0
         val configuredBackend =
-            nativeRuntime["configuredBackend"]?.toString() ?: "auto_vulkan_cpu_fallback"
+            nativeRuntime["configuredBackend"]?.toString() ?: "cpu_safe_vulkan_compiled"
         val contextTokens =
             (nativeRuntime["contextTokens"] as? Number)?.toInt() ?: 2048
 
