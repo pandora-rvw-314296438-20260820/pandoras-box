@@ -26,6 +26,15 @@ void main() {
                     id: 'thread-1',
                     title: 'Connect to GitHub',
                   ),
+                  PlpRecentChatItem(id: 'thread-2', title: 'Guest arrival briefing'),
+                  PlpRecentChatItem(id: 'thread-3', title: 'Today occupancy'),
+                  PlpRecentChatItem(id: 'thread-4', title: 'Restaurant operations'),
+                  PlpRecentChatItem(id: 'thread-5', title: 'VIP guest requests'),
+                  PlpRecentChatItem(id: 'thread-6', title: 'Revenue summary'),
+                  PlpRecentChatItem(id: 'thread-7', title: 'Housekeeping priorities'),
+                  PlpRecentChatItem(id: 'thread-8', title: 'Airport transfers'),
+                  PlpRecentChatItem(id: 'thread-9', title: 'Tomorrow arrivals'),
+                  PlpRecentChatItem(id: 'thread-10', title: 'Owner follow-ups'),
                 ],
                 recentChatsLoading: false,
                 recentChatsError: null,
@@ -73,6 +82,13 @@ void main() {
         final targetAfter = tester.getRect(underlayTarget);
         expect(targetAfter.top, lessThan(headerRect.bottom));
         expect(targetAfter.bottom, greaterThan(headerRect.top));
+
+        await tester.drag(scrollView, const Offset(0, 220));
+        await tester.pumpAndSettle();
+        expect(
+          tester.getRect(underlayTarget).top,
+          greaterThan(headerRect.bottom),
+        );
 
         expect(find.text('Pandora'), findsOneWidget);
         expect(find.text('PLP Boracay'), findsOneWidget);
