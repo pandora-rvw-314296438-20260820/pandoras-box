@@ -193,9 +193,19 @@ void main() {
       kotlinSource,
       contains('activeGeneration?.cancelAndJoin()'),
     );
-    expect(kotlinSource, contains('private const val WARM_DEADLINE_MS = 75_000L'));
+    expect(kotlinSource, contains('private const val WARM_DEADLINE_MS = 120_000L'));
     expect(kotlinSource, contains('engine.requestCancel()'));
     expect(kotlinSource, contains('engine.clearCancelRequest()'));
+    expect(kotlinSource, contains('activeWarm?.cancel()'));
+    expect(kotlinSource, contains('withTimeoutOrNull(5_000L)'));
+    expect(kotlinSource, isNot(contains('activeWarm?.cancelAndJoin()')));
+    final cppSource = File('platform/android/app/src/main/cpp/ai_chat.cpp').readAsStringSync();
+    expect(cppSource, contains('PREFERRED_GPU_LAYERS    = 0'));
+    expect(cppSource, contains('model_params.progress_callback = model_load_progress;'));
+    expect(cppSource, contains('g_cancel_requested.load(std::memory_order_relaxed)'));
+    expect(cppSource, contains('cpu_safe_vulkan_compiled'));
+    final localAiSource = File('lib/core/local_ai/pandora_local_ai.dart').readAsStringSync();
+    expect(localAiSource, contains('const Duration(seconds: 128)'));
     expect(kotlinSource, contains('private suspend fun warmWithDeadline()'));
     expect(
       kotlinSource,
