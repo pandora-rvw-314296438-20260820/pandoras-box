@@ -55,7 +55,7 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
         .toList(growable: false);
   }
 
-  String _text(Object? value, {String fallback = ''}) {
+  String _text(Object? value, {String fallback = '—'}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -177,8 +177,8 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
             else ...[
               _SectionLead(
                 title: switch (_filter) {
-                  'arriving' => 'Todays arrivals',
-                  'departing' => 'Todays departures',
+                  'arriving' => 'Today’s arrivals',
+                  'departing' => 'Today’s departures',
                   'search' => 'Guest search',
                   _ => 'In-house guests',
                 },
@@ -341,7 +341,7 @@ class _PropertyIdentity extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Luxury Resort � guest experience workspace',
+                  'Luxury Resort · guest experience workspace',
                   style: TextStyle(
                     color: _PlpGuestsScreenState._muted,
                     fontSize: 12.8,
@@ -656,7 +656,7 @@ class _GuestRow extends StatelessWidget {
   final Map<String, Object?> guest;
   final String initials;
 
-  String _text(Object? value, {String fallback = ''}) {
+  String _text(Object? value, {String fallback = '—'}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -770,7 +770,7 @@ class _GuestRow extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       stayDays > 0
-                          ? '$accommodation � Day ${day.clamp(1, stayDays)} of $stayDays'
+                          ? '$accommodation · Day ${day.clamp(1, stayDays)} of $stayDays'
                           : accommodation,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -842,7 +842,7 @@ class _AttentionPanel extends StatelessWidget {
 
   final List<Map<String, Object?>> items;
 
-  String _text(Object? value, {String fallback = ''}) {
+  String _text(Object? value, {String fallback = '—'}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -1066,7 +1066,7 @@ class _ArrivalPanel extends StatelessWidget {
   final List<Map<String, Object?>> items;
   final String businessDate;
 
-  String _text(Object? value, {String fallback = ''}) {
+  String _text(Object? value, {String fallback = '—'}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -1076,7 +1076,7 @@ class _ArrivalPanel extends StatelessWidget {
     final visible = items.take(3).toList(growable: false);
     return _LuxuryPanel(
       key: const ValueKey<String>('plp-guests-arrivals'),
-      title: 'Todays arrivals',
+      title: 'Today’s arrivals',
       icon: Icons.flight_land_rounded,
       child: visible.isEmpty
           ? _PanelEmpty(
