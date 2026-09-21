@@ -34,12 +34,12 @@ class PlpActivityScreen extends StatefulWidget {
 class _PlpActivityScreenState extends State<PlpActivityScreen> {
   static const _canvas = Color(0xFFFAF7F1);
   static const _paper = Color(0xFFFFFDFC);
-  static const _ink = Color(0xFF171B29);
-  static const _muted = Color(0xFF77736D);
-  static const _gold = Color(0xFF99682C);
-  static const _goldSoft = Color(0xFFF3EADF);
-  static const _line = Color(0xFFE5DDD2);
-  static const _green = Color(0xFF2AA65A);
+  static const _ink = Color(0xFF171512);
+  static const _muted = Color(0xFF746F67);
+  static const _gold = Color(0xFF82764F);
+  static const _goldSoft = Color(0xFFF2EEE6);
+  static const _line = Color(0xFFE1DBD1);
+  static const _green = Color(0xFF657965);
   static const _red = Color(0xFFB94B43);
 
   final TextEditingController _search = TextEditingController();
@@ -148,7 +148,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
         .toList(growable: false);
   }
 
-  String _text(Object? value, {String fallback = '—'}) {
+  String _text(Object? value, {String fallback = ''}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -358,11 +358,11 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
                         filled: true,
                         fillColor: _paper,
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.zero,
                           borderSide: const BorderSide(color: _line),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(18),
+                          borderRadius: BorderRadius.zero,
                           borderSide: const BorderSide(color: _gold),
                         ),
                       ),
@@ -607,6 +607,7 @@ class _ActivityHeader extends StatelessWidget {
         children: [
           if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
             PandoraMenuButton(
+              editorial: true,
               key: const ValueKey<String>('plp-activity-open-navigation'),
               onPressed: onOpenNavigation,
             )
@@ -1098,7 +1099,7 @@ class _PandoraLogRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$actor · ${_resourceLabel(capability)}',
+                  '$actor � ${_resourceLabel(capability)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -1168,7 +1169,7 @@ class _ActivityEmptyState extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: _PlpActivityScreenState._paper,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.zero,
             border: Border.all(color: _PlpActivityScreenState._line),
           ),
           child: Row(
@@ -1244,14 +1245,14 @@ String _resourceLabel(String raw) {
   final value = raw
       .replaceFirst(RegExp(r'^pandora_'), '')
       .replaceAll('_', ' ')
-      .replaceAll('.', ' · ')
+      .replaceAll('.', ' � ')
       .trim();
   if (value.isEmpty) return 'Pandora';
   return '${value[0].toUpperCase()}${value.substring(1)}';
 }
 
 String _relativeTime(DateTime? value) {
-  if (value == null) return '—';
+  if (value == null) return '';
   final diff = DateTime.now().difference(value);
   if (diff.isNegative) return 'now';
   if (diff.inMinutes < 1) return 'now';
