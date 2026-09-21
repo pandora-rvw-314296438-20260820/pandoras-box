@@ -62,19 +62,20 @@ class PandoraIntelligenceApi {
           .select('thread_id,structured_response,created_at')
           .eq('organization_id', _organizationId)
           .eq('author_role', 'assistant')
-          .contains('structured_response', <String, Object?>{
-            'enterpriseContext': <String, Object?>{
-              'selectedObject': <String, Object?>{
-                'workspaceKey': normalized,
-              },
-            },
-          })
           .order('created_at', ascending: false)
-          .limit((safeLimit * 8).clamp(8, 200).toInt());
+          .limit((safeLimit * 20).clamp(20, 200).toInt());
 
       final threadIds = <String>[];
       for (final value in messageRows as List<dynamic>) {
-        final id = _optionalText(_map(value)['thread_id']);
+        final row = _map(value);
+        final structured = _map(row['structured_response']);
+        final enterprise = _map(structured['enterpriseContext']);
+        final selected = _map(enterprise['selectedObject']);
+        final messageWorkspace = _optionalText(selected['workspaceSlug']) ??
+            _optionalText(selected['workspaceKey']);
+        if (messageWorkspace != normalized) continue;
+
+        final id = _optionalText(row['thread_id']);
         if (id == null || threadIds.contains(id)) continue;
         threadIds.add(id);
         if (threadIds.length >= safeLimit) break;
