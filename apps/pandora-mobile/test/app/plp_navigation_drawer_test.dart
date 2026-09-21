@@ -26,6 +26,15 @@ void main() {
                     id: 'thread-1',
                     title: 'Connect to GitHub',
                   ),
+                  PlpRecentChatItem(id: 'thread-2', title: 'Guest arrival briefing'),
+                  PlpRecentChatItem(id: 'thread-3', title: 'Today occupancy'),
+                  PlpRecentChatItem(id: 'thread-4', title: 'Restaurant operations'),
+                  PlpRecentChatItem(id: 'thread-5', title: 'VIP guest requests'),
+                  PlpRecentChatItem(id: 'thread-6', title: 'Revenue summary'),
+                  PlpRecentChatItem(id: 'thread-7', title: 'Housekeeping priorities'),
+                  PlpRecentChatItem(id: 'thread-8', title: 'Airport transfers'),
+                  PlpRecentChatItem(id: 'thread-9', title: 'Tomorrow arrivals'),
+                  PlpRecentChatItem(id: 'thread-10', title: 'Owner follow-ups'),
                 ],
                 recentChatsLoading: false,
                 recentChatsError: null,
@@ -44,6 +53,42 @@ void main() {
         expect(drawer, findsOneWidget);
         expect(tester.getSize(drawer).width, closeTo(296.4, .6));
         expect(tester.getSize(drawer).height, closeTo(844, .6));
+        final drawerWidget = tester.widget<Drawer>(drawer);
+        expect(drawerWidget.backgroundColor, const Color(0xFF000000));
+
+        final scrollView = find.byKey(
+          const ValueKey<String>('plp-drawer-scroll'),
+        );
+        final headerOverlay = find.byKey(
+          const ValueKey<String>('plp-drawer-header-overlay'),
+        );
+        expect(scrollView, findsOneWidget);
+        expect(headerOverlay, findsOneWidget);
+        expect(
+          tester.getTopLeft(scrollView).dy,
+          closeTo(tester.getTopLeft(headerOverlay).dy, .5),
+        );
+
+        final underlayTarget = find.text('Guest Experience');
+        final headerRect = tester.getRect(headerOverlay);
+        final targetBefore = tester.getCenter(underlayTarget).dy;
+        final desiredTargetY = headerRect.bottom - 18;
+        await tester.drag(
+          scrollView,
+          Offset(0, -(targetBefore - desiredTargetY)),
+        );
+        await tester.pumpAndSettle();
+
+        final targetAfter = tester.getRect(underlayTarget);
+        expect(targetAfter.top, lessThan(headerRect.bottom));
+        expect(targetAfter.bottom, greaterThan(headerRect.top));
+
+        await tester.drag(scrollView, const Offset(0, 220));
+        await tester.pumpAndSettle();
+        expect(
+          tester.getRect(underlayTarget).top,
+          greaterThan(headerRect.bottom),
+        );
 
         expect(find.text('Pandora'), findsOneWidget);
         expect(find.text('PLP Boracay'), findsOneWidget);
