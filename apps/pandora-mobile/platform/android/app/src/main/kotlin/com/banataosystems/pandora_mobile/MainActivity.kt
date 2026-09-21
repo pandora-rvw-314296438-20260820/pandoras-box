@@ -7,11 +7,14 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
 import android.util.Base64
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -958,13 +961,35 @@ private class PandoraCamStreamerView(
                 view: WebView?,
                 request: WebResourceRequest?
             ): Boolean {
-                val uri = request?.url ?: return true
+                request ?: return true
+                val uri = request.url
+
+                // CamStreamer's player can delegate playback to a secure
+                // nested media frame. Keep top-level navigation locked to
+                // CamStreamer without cancelling the HTTPS player subframe.
+                if (!request.isForMainFrame) {
+                    return uri.scheme != "https"
+                }
+
                 val host = uri.host?.lowercase(Locale.ROOT).orEmpty()
                 val allowedHost =
                     host == "camstreamer.com" || host.endsWith(".camstreamer.com")
                 return uri.scheme != "https" || !allowedHost
             }
         }
+
+        // Embedded HTML5 media needs WebChromeClient support. Modern Android
+        // WebView also blocks third-party cookies by default, which can break
+        // the provider's nested media session.
+        webChromeClient = WebChromeClient()
+        val playerWebView = this
+        CookieManager.getInstance().apply {
+            setAcceptCookie(true)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                setAcceptThirdPartyCookies(playerWebView, true)
+            }
+        }
+
         loadUrl(
             "https://camstreamer.com/embed/VSnOa4OubclxMcFKpTws6Yv7U2rt0VbMfcrHomkq?rel=0"
         )

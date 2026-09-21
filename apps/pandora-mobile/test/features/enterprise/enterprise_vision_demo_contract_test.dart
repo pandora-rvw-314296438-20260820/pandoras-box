@@ -65,6 +65,12 @@ void main() {
         'https://camstreamer.com/embed/VSnOa4OubclxMcFKpTws6Yv7U2rt0VbMfcrHomkq?rel=0',
       ),
     );
+    expect(androidHost, contains('if (!request.isForMainFrame)'));
+    expect(androidHost, contains('webChromeClient = WebChromeClient()'));
+    expect(
+      androidHost,
+      contains('setAcceptThirdPartyCookies(playerWebView, true)'),
+    );
   });
 
   test('public demo exposes display analysis and verified-event states', () {
