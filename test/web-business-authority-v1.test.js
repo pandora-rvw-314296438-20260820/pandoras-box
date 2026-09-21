@@ -49,9 +49,9 @@ test('Business owner projection minimizes sensitive/raw ledger fields', () => {
   assert.doesNotMatch(business, /model_run_id/);
   assert.doesNotMatch(business, /build_job_id/);
   assert.doesNotMatch(business, /cost_category/);
-  assert.doesNotMatch(business, /provider,/);
-  assert.match(business, /revenue: true/);
-  assert.match(business, /roi: true/);
+  assert.doesNotMatch(business, /ip_hash|visitor_hash|user_agent|referrer|platform_click_ids/);
+  assert.match(business, /revenue: !tracking\.available/);
+  assert.match(business, /roi: !tracking\.available/);
   assert.match(business, /adoption: true/);
   assert.match(business, /retention: true/);
   assert.match(business, /customerOutcomes: true/);
@@ -94,4 +94,18 @@ test('zero-valued cost rows remain unknown rather than fabricated as zero spend'
 test('protected Business data is cleared on sign-out through owner app state reset', () => {
   const app = read('apps/control-tower/owner-app.js');
   assert.ok((app.match(/state\.business = \{ data: null, loading: false, error: null, loadedAt: null \}/g) || []).length >= 2);
+});
+
+
+test('first-party tracking Business truth is organization-scoped and currency-safe', () => {
+  assert.match(business, /TRACKING_TENANT_LIMIT = 100/);
+  assert.match(business, /pandora_tracking_tenants/);
+  assert.match(business, /pandora_tracking_campaign_traffic_daily_v2/);
+  assert.match(business, /pandora_tracking_campaign_financial_daily_v2/);
+  assert.match(business, /\.eq\("organization_id", context\.organizationId\)/);
+  assert.match(business, /trackingRatio4/);
+  assert.match(business, /trackingAmountPerSale4/);
+  assert.match(business, /trackingUrl: \`https:\/\/mcpmaster\.vercel\.app\/t\//);
+  assert.match(business, /tracking,/);
+  assert.doesNotMatch(business, /ip_hash|visitor_hash|user_agent|referrer|platform_click_ids/);
 });

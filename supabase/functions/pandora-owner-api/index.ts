@@ -678,6 +678,9 @@ async function loadDomainSummaries(context: UserContext, projectItems: unknown[]
 
 const BUSINESS_PROJECT_LIMIT = 500;
 const BUSINESS_ROW_LIMIT = 5000;
+const TRACKING_TENANT_LIMIT = 100;
+const TRACKING_CAMPAIGN_LIMIT = 1000;
+const TRACKING_DAILY_LIMIT = 5000;
 
 function microsValue(value: unknown) {
   const text = String(value ?? "0").trim();
@@ -687,6 +690,298 @@ function microsValue(value: unknown) {
 
 function microsText(value: bigint) {
   return value.toString();
+}
+
+function trackingInteger(value: unknown): bigint {
+  const text = String(value ?? "0").trim();
+  if (!/^-?[0-9]+$/.test(text)) throw new Error("BUSINESS_DATA_INVALID");
+  return BigInt(text);
+}
+
+function trackingDecimal4(value: unknown): bigint {
+  const text = String(value ?? "0").trim();
+  const match = text.match(/^(-?)([0-9]+)(?:\.([0-9]{1,4}))?$/);
+  if (!match) throw new Error("BUSINESS_DATA_INVALID");
+  const sign = match[1] === "-" ? -1n : 1n;
+  const whole = BigInt(match[2]);
+  const fraction = BigInt((match[3] || "").padEnd(4, "0"));
+  return sign * ((whole * 10000n) + fraction);
+}
+
+function trackingDecimal4Text(value: bigint): string {
+  const negative = value < 0n;
+  const absolute = negative ? -value : value;
+  const whole = absolute / 10000n;
+  const rawFraction = String(absolute % 10000n).padStart(4, "0");
+  const fraction = rawFraction.replace(/0+$/, "");
+  return `${negative ? "-" : ""}${whole}${fraction ? `.${fraction}` : ""}`;
+}
+
+function trackingRatio4(numerator: bigint, denominator: bigint): string | null {
+  if (denominator <= 0n) return null;
+  return trackingDecimal4Text((numerator * 10000n) / denominator);
+}
+
+function trackingAmountPerSale4(spend: bigint, sales: bigint): string | null {
+  if (sales <= 0n) return null;
+  return trackingDecimal4Text(spend / sales);
+}
+
+type TrackingTrafficBucket = {
+  clicks: bigint;
+  uniqueVisitors: bigint;
+  leads: bigint;
+  qualifiedLeads: bigint;
+  bookings: bigint;
+  sales: bigint;
+  refunds: bigint;
+};
+
+type TrackingMoneyBucket = {
+  spend: bigint;
+  netRevenue: bigint;
+  impressions: bigint;
+  providerClicks: bigint;
+};
+
+function trackingTrafficBucket(): TrackingTrafficBucket {
+  return {
+    clicks: 0n,
+    uniqueVisitors: 0n,
+    leads: 0n,
+    qualifiedLeads: 0n,
+    bookings: 0n,
+    sales: 0n,
+    refunds: 0n,
+  };
+}
+
+function trackingMoneyBucket(): TrackingMoneyBucket {
+  return { spend: 0n, netRevenue: 0n, impressions: 0n, providerClicks: 0n };
+}
+
+function addTrackingTraffic(target: TrackingTrafficBucket, row: JsonRecord) {
+  target.clicks += trackingInteger(row.clicks);
+  target.uniqueVisitors += trackingInteger(row.unique_visitors);
+  target.leads += trackingInteger(row.leads);
+  target.qualifiedLeads += trackingInteger(row.qualified_leads);
+  target.bookings += trackingInteger(row.bookings);
+  target.sales += trackingInteger(row.sales);
+  target.refunds += trackingInteger(row.refunds);
+}
+
+function trackingTrafficJson(bucket: TrackingTrafficBucket) {
+  return {
+    clicks: bucket.clicks.toString(),
+    uniqueVisitors: bucket.uniqueVisitors.toString(),
+    leads: bucket.leads.toString(),
+    qualifiedLeads: bucket.qualifiedLeads.toString(),
+    bookings: bucket.bookings.toString(),
+    sales: bucket.sales.toString(),
+    refunds: bucket.refunds.toString(),
+  };
+}
+
+function trackingFinancialJson(
+  currency: string,
+  bucket: TrackingMoneyBucket,
+  sales: bigint,
+) {
+  return {
+    currency,
+    spend: trackingDecimal4Text(bucket.spend),
+    netRevenue: trackingDecimal4Text(bucket.netRevenue),
+    impressions: bucket.impressions.toString(),
+    providerClicks: bucket.providerClicks.toString(),
+    cac: trackingAmountPerSale4(bucket.spend, sales),
+    roas: trackingRatio4(bucket.netRevenue, bucket.spend),
+  };
+}
+
+async function trackingBusiness(
+  admin: UntypedSupabaseClient,
+  context: UserContext,
+) {
+  const tenantResult = await admin.from("pandora_tracking_tenants")
+    .select("id,workspace_key,display_name,project_id,status", { count: "exact" })
+    .eq("organization_id", context.organizationId)
+    .neq("status", "archived")
+    .order("created_at", { ascending: true })
+    .limit(TRACKING_TENANT_LIMIT);
+  if (tenantResult.error) throw new Error("BACKEND_READ_FAILED");
+
+  const tenantCount = tenantResult.count ?? 0;
+  const tenantsComplete = tenantCount <= TRACKING_TENANT_LIMIT;
+  const tenants = tenantsComplete ? (tenantResult.data || []) as JsonRecord[] : [];
+  if (!tenants.length) {
+    return {
+      available: false,
+      complete: tenantsComplete,
+      observedAt: new Date().toISOString(),
+      completeness: {
+        tenants: tenantsComplete,
+        campaigns: true,
+        traffic: true,
+        financials: true,
+      },
+      counts: {
+        tenants: tenantCount,
+        campaigns: 0,
+        clicks: "0",
+        uniqueVisitors: "0",
+        leads: "0",
+        qualifiedLeads: "0",
+        bookings: "0",
+        sales: "0",
+        refunds: "0",
+      },
+      currencies: [],
+      campaigns: [],
+    };
+  }
+
+  const tenantIds = tenants.map((row) => textValue(row.id)).filter(Boolean);
+  const tenantById = new Map(
+    tenants.map((row) => [textValue(row.id), row]),
+  );
+
+  const [campaignResult, trafficResult, financialResult] = await Promise.all([
+    admin.from("pandora_tracking_campaigns")
+      .select(
+        "id,tenant_id,slug,name,source,medium,provider,status,provider_campaign_id",
+        { count: "exact" },
+      )
+      .in("tenant_id", tenantIds)
+      .order("created_at", { ascending: true })
+      .limit(TRACKING_CAMPAIGN_LIMIT),
+    admin.from("pandora_tracking_campaign_traffic_daily_v2")
+      .select(
+        "tenant_id,campaign_id,day,clicks,unique_visitors,leads,qualified_leads,bookings,sales,refunds",
+        { count: "exact" },
+      )
+      .in("tenant_id", tenantIds)
+      .order("day", { ascending: false })
+      .limit(TRACKING_DAILY_LIMIT),
+    admin.from("pandora_tracking_campaign_financial_daily_v2")
+      .select(
+        "tenant_id,campaign_id,day,currency,impressions,provider_clicks,spend,net_revenue",
+        { count: "exact" },
+      )
+      .in("tenant_id", tenantIds)
+      .order("day", { ascending: false })
+      .limit(TRACKING_DAILY_LIMIT),
+  ]);
+  if (campaignResult.error || trafficResult.error || financialResult.error) {
+    throw new Error("BACKEND_READ_FAILED");
+  }
+
+  const campaignCount = campaignResult.count ?? 0;
+  const trafficRowCount = trafficResult.count ?? 0;
+  const financialRowCount = financialResult.count ?? 0;
+  const campaignsComplete = campaignCount <= TRACKING_CAMPAIGN_LIMIT;
+  const trafficComplete = trafficRowCount <= TRACKING_DAILY_LIMIT;
+  const financialsComplete = financialRowCount <= TRACKING_DAILY_LIMIT;
+  const complete = tenantsComplete && campaignsComplete && trafficComplete &&
+    financialsComplete;
+
+  const campaigns = (campaignResult.data || []) as JsonRecord[];
+  const trafficRows = (trafficResult.data || []) as JsonRecord[];
+  const financialRows = (financialResult.data || []) as JsonRecord[];
+
+  const trafficTotals = trackingTrafficBucket();
+  const trafficByCampaign = new Map<string, TrackingTrafficBucket>();
+  for (const row of trafficRows) {
+    const campaignId = textValue(row.campaign_id);
+    if (!campaignId) throw new Error("BUSINESS_DATA_INVALID");
+    const bucket = trafficByCampaign.get(campaignId) || trackingTrafficBucket();
+    trafficByCampaign.set(campaignId, bucket);
+    addTrackingTraffic(bucket, row);
+    addTrackingTraffic(trafficTotals, row);
+  }
+
+  const portfolioMoney = new Map<string, TrackingMoneyBucket>();
+  const campaignMoney = new Map<string, Map<string, TrackingMoneyBucket>>();
+  for (const row of financialRows) {
+    const campaignId = textValue(row.campaign_id);
+    const currency = textValue(row.currency).toUpperCase();
+    if (!campaignId || !/^[A-Z]{3}$/.test(currency)) {
+      throw new Error("BUSINESS_DATA_INVALID");
+    }
+
+    const portfolioBucket = portfolioMoney.get(currency) || trackingMoneyBucket();
+    portfolioMoney.set(currency, portfolioBucket);
+
+    const perCampaign = campaignMoney.get(campaignId) ||
+      new Map<string, TrackingMoneyBucket>();
+    campaignMoney.set(campaignId, perCampaign);
+    const campaignBucket = perCampaign.get(currency) || trackingMoneyBucket();
+    perCampaign.set(currency, campaignBucket);
+
+    for (const bucket of [portfolioBucket, campaignBucket]) {
+      bucket.spend += trackingDecimal4(row.spend);
+      bucket.netRevenue += trackingDecimal4(row.net_revenue);
+      bucket.impressions += trackingInteger(row.impressions);
+      bucket.providerClicks += trackingInteger(row.provider_clicks);
+    }
+  }
+
+  const campaignItems = campaigns.map((row) => {
+    const campaignId = textValue(row.id);
+    const tenantId = textValue(row.tenant_id);
+    const slug = textValue(row.slug);
+    const tenant = tenantById.get(tenantId) || {};
+    const traffic = trafficByCampaign.get(campaignId) || trackingTrafficBucket();
+    const financials = [...(campaignMoney.get(campaignId) || new Map()).entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([currency, bucket]) =>
+        trackingFinancialJson(currency, bucket, traffic.sales)
+      );
+    return {
+      campaignId,
+      tenantId,
+      workspaceKey: textValue(tenant.workspace_key),
+      workspaceName: textValue(tenant.display_name, "Workspace"),
+      projectId: textValue(tenant.project_id) || null,
+      slug,
+      name: textValue(row.name, "Campaign"),
+      source: textValue(row.source) || null,
+      medium: textValue(row.medium) || null,
+      provider: textValue(row.provider) || null,
+      providerCampaignId: textValue(row.provider_campaign_id) || null,
+      status: textValue(row.status, "active"),
+      trackingPath: `/t/${slug}`,
+      trackingUrl: `https://mcpmaster.vercel.app/t/${slug}`,
+      ...trackingTrafficJson(traffic),
+      financials,
+    };
+  }).sort((a, b) => {
+    const left = trackingInteger(a.clicks);
+    const right = trackingInteger(b.clicks);
+    return left === right ? a.name.localeCompare(b.name) : left > right ? -1 : 1;
+  });
+
+  return {
+    available: true,
+    complete,
+    observedAt: new Date().toISOString(),
+    completeness: {
+      tenants: tenantsComplete,
+      campaigns: campaignsComplete,
+      traffic: trafficComplete,
+      financials: financialsComplete,
+    },
+    counts: {
+      tenants: tenantCount,
+      campaigns: campaignCount,
+      ...trackingTrafficJson(trafficTotals),
+    },
+    currencies: [...portfolioMoney.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([currency, bucket]) =>
+        trackingFinancialJson(currency, bucket, trafficTotals.sales)
+      ),
+    campaigns: campaignItems,
+  };
 }
 
 async function business(context: UserContext) {
@@ -842,6 +1137,8 @@ async function business(context: UserContext) {
     };
   });
 
+  const tracking = await trackingBusiness(admin, context);
+
   return {
     contractVersion: "pandora-owner-business-v1",
     observedAt: new Date().toISOString(),
@@ -850,6 +1147,7 @@ async function business(context: UserContext) {
       objectives: objectivesComplete,
       budgets: budgetsComplete,
       costs: costsComplete,
+      tracking: tracking.complete,
     },
     counts: {
       projects: projectCount,
@@ -857,17 +1155,22 @@ async function business(context: UserContext) {
       projectsWithObjectives: objectivesComplete ? latestObjective.size : null,
       budgetLimits: budgetCount,
       costEntries: costEntryCount,
+      trackingTenants: tracking.counts.tenants,
+      trackingCampaigns: tracking.counts.campaigns,
     },
     costs: costsComplete ? costRows(portfolioCosts) : [],
     budgets: budgetsComplete ? budgetRows(portfolioBudgets) : [],
     projects: projectItems,
+    tracking,
     unavailable: {
-      revenue: true,
-      roi: true,
+      revenue: !tracking.available,
+      roi: !tracking.available,
       adoption: true,
       retention: true,
       customerOutcomes: true,
-      reason: "No bounded first-party measurement source is part of this owner Business contract yet.",
+      reason: tracking.available
+        ? "First-party revenue and ROAS are available only from recorded Pandora Tracking conversions and currency-matched costs."
+        : "No bounded first-party measurement source is part of this owner Business contract yet.",
     },
   };
 }
