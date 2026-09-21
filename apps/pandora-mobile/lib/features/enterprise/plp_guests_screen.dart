@@ -641,19 +641,8 @@ class _GuestRow extends StatelessWidget {
                 height: 52,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFFF3DDBF), Color(0xFFBD7B49)],
-                  ),
-                  border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x14000000),
-                      blurRadius: 8,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
+                  color: _PlpGuestsScreenState._goldSoft,
+                  border: Border.all(color: _PlpGuestsScreenState._line),
                 ),
                 child: Center(
                   child: Text(
@@ -846,15 +835,8 @@ class _LuxuryPanel extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         decoration: BoxDecoration(
           color: _PlpGuestsScreenState._paper,
-          borderRadius: BorderRadius.circular(19),
+          borderRadius: BorderRadius.zero,
           border: Border.all(color: _PlpGuestsScreenState._line),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0B000000),
-              blurRadius: 15,
-              offset: Offset(0, 6),
-            ),
-          ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
