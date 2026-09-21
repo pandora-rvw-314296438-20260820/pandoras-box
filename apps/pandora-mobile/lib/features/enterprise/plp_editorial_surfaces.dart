@@ -67,12 +67,16 @@ class PlpEditorialHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          PandoraMenuButton(
-              editorial: true,
-            key: ValueKey<String>('plp-editorial-menu-${title.toLowerCase()}'),
-            onPressed: onOpenNavigation,
-          ),
-          const SizedBox(width: 12),
+          if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null) ...[
+            PandoraMenuButton(
+              key: ValueKey<String>(
+                'plp-editorial-menu-${title.toLowerCase()}',
+              ),
+              onPressed: onOpenNavigation,
+            ),
+            const SizedBox(width: 12),
+          ] else
+            const SizedBox.square(dimension: 44),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
