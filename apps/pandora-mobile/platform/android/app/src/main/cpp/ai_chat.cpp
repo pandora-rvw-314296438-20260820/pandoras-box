@@ -1,5 +1,6 @@
 #include <android/log.h>
 #include <jni.h>
+#include <atomic>
 #include <iomanip>
 #include <cmath>
 #include <sstream>
@@ -30,10 +31,10 @@ constexpr int   N_THREADS_MIN           = 2;
 constexpr int   N_THREADS_MAX           = 4;
 constexpr int   N_THREADS_HEADROOM      = 2;
 
-constexpr int   DEFAULT_CONTEXT_SIZE    = 4096;
+constexpr int   DEFAULT_CONTEXT_SIZE    = 2048;
 constexpr int   OVERFLOW_HEADROOM       = 4;
-constexpr int   BATCH_SIZE              = 128;
-constexpr int   PREFERRED_GPU_LAYERS    = 4; // conservative first offload profile for mobile Vulkan stability
+constexpr int   BATCH_SIZE              = 64;
+constexpr int   PREFERRED_GPU_LAYERS    = 2; // bounded mobile Vulkan offload; CPU remains authoritative fallback
 constexpr float DEFAULT_SAMPLER_TEMP    = 0.3f;
 
 static llama_model                      * g_model;
@@ -48,6 +49,7 @@ static bool                               g_cpu_fallback_used = false;
 static int                                g_gpu_layers_requested = 0;
 static int                                g_gpu_layers_active = 0;
 static std::string                        g_model_path;
+static std::atomic_bool                    g_cancel_requested{false};
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -64,6 +66,20 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_init(JNIEnv *env, jobject /*unu
 
     llama_backend_init();
     LOGi("Static CPU fallback + Vulkan-capable backend set initiated.");
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_requestCancelNative(
+        JNIEnv *, jobject /*unused*/) {
+    g_cancel_requested.store(true, std::memory_order_relaxed);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_clearCancelNative(
+        JNIEnv *, jobject /*unused*/) {
+    g_cancel_requested.store(false, std::memory_order_relaxed);
 }
 
 static bool has_gpu_device() {
@@ -181,7 +197,7 @@ static common_sampler *new_sampler(float temp) {
 }
 
 static llama_context *prepare_context_with_fallback_sizes() {
-    const int context_candidates[] = { 4096, 3072, 2048 };
+    const int context_candidates[] = { 2048, 1536, 1024 };
     for (const int candidate : context_candidates) {
         LOGi("%s: trying context size %d", __func__, candidate);
         auto *context = init_context(g_model, candidate);
@@ -453,6 +469,10 @@ static int decode_tokens_in_batches(
     // Process tokens in batches using the global batch
     LOGd("%s: Decode %d tokens starting at position %d", __func__, (int) tokens.size(), start_pos);
     for (int i = 0; i < (int) tokens.size(); i += BATCH_SIZE) {
+        if (g_cancel_requested.load(std::memory_order_relaxed)) {
+            LOGw("%s: cooperative cancellation requested", __func__);
+            return 9;
+        }
         const int cur_batch_size = std::min((int) tokens.size() - i, BATCH_SIZE);
         common_batch_clear(batch);
         LOGv("%s: Preparing a batch size of %d starting at: %d", __func__, cur_batch_size, i);
@@ -476,6 +496,10 @@ static int decode_tokens_in_batches(
         if (decode_result) {
             LOGe("%s: llama_decode failed w/ %d", __func__, decode_result);
             return 1;
+        }
+        if (g_cancel_requested.load(std::memory_order_relaxed)) {
+            LOGw("%s: cooperative cancellation observed after decode", __func__);
+            return 9;
         }
     }
     return 0;
@@ -650,10 +674,8 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
         JNIEnv *env,
         jobject /*unused*/
 ) {
-    // Stop before context shifting so the absolute generation budget remains
-    // authoritative even when the prompt reaches the overflow threshold.
-    if (current_position >= stop_generation_position) {
-        LOGw("%s: STOP: hitting stop position: %d", __func__, stop_generation_position);
+    if (g_cancel_requested.load(std::memory_order_relaxed)) {
+        LOGw("%s: cooperative cancellation requested", __func__);
         return nullptr;
     }
 
@@ -661,6 +683,12 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
     if (current_position >= g_context_size - OVERFLOW_HEADROOM) {
         LOGw("%s: Context full! Shifting...", __func__);
         shift_context();
+    }
+
+    // Stop if reaching the marked position
+    if (current_position >= stop_generation_position) {
+        LOGw("%s: STOP: hitting stop position: %d", __func__, stop_generation_position);
+        return nullptr;
     }
 
     // Sample next token

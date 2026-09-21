@@ -11,7 +11,7 @@ class PlpChatFallback {
 
     final context = enterpriseContext!;
     final today = _map(context['today']);
-    final source = _map(context['sourceHealth']);
+    final source = _map(context['sourceHealth'] ?? context['source']);
 
     final occupancy = _text(today['occupancy_percent']);
     final occupied = _integer(today['occupied_rooms']);
@@ -68,6 +68,9 @@ class PlpChatFallback {
       return 'PLP source state is ${state}. ${detail}.${suffix}';
     }
     if (normalized == 'today' ||
+        normalized.contains('summarize') ||
+        normalized.contains('summary') ||
+        normalized.contains('brief me') ||
         normalized.contains("today's briefing") ||
         normalized.contains('today briefing') ||
         normalized.contains('resort summary') ||
@@ -93,9 +96,9 @@ class PlpChatFallback {
     required bool actionLike,
   }) {
     if (actionLike) {
-      return 'Pandora could not reach a verified execution route for that request. I kept the request in this conversation, but I did not claim or repeat the action. Check Activity before retrying.';
+      return 'Pandora is preserving this request without repeating the action or claiming completion. Check Activity for any verified provider result before you send the same action again.';
     }
-    return 'Local Qwen and the cloud intelligence routes are unavailable for this turn. I kept your message in this conversation. You can keep chatting; Pandora will use the next available route without claiming work that did not run.';
+    return 'I kept this turn in the conversation and will use the next available intelligence route without claiming work that did not run. You can keep chatting.';
   }
 
   static bool _isPlpContext(Map<String, Object?>? context) {
