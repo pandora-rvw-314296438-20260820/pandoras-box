@@ -137,7 +137,7 @@ test('runtime terminalizes failures, handoffs, and clarification turns', () => {
 
 test('Chat subscribes before awaiting the final intelligence turn', () => {
   const subscribeAt = chat.indexOf('await _watchActivity(execution)');
-  const awaitTurnAt = chat.indexOf('final turn = await execution.turn');
+  const awaitTurnAt = chat.indexOf('await execution.turn');
   assert.ok(subscribeAt >= 0);
   assert.ok(awaitTurnAt > subscribeAt);
   assert.match(chat, /await _activityController\.bind\(/);
