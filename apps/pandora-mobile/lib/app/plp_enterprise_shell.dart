@@ -667,7 +667,7 @@ class _PlpBusinessSurface extends StatelessWidget {
     return const <String, Object?>{};
   }
 
-  String _text(Object? value, {String fallback = ''}) {
+  String _text(Object? value, {String fallback = 'â€”'}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -702,7 +702,7 @@ class _PlpBusinessSurface extends StatelessWidget {
         return <MapEntry<String, String>>[
           MapEntry(
             'Sales today',
-            '±${_text(today['sales_today_php'], fallback: '0')}',
+            'â‚±${_text(today['sales_today_php'], fallback: '0')}',
           ),
           MapEntry(
             'Occupancy',
@@ -768,7 +768,7 @@ class _PlpBusinessSurface extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Luxury Resort · live owner workspace',
+            'Luxury Resort Â· live owner workspace',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 20),
