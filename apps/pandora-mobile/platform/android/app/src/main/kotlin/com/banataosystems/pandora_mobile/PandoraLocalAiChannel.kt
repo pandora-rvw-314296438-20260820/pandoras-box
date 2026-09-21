@@ -61,7 +61,10 @@ class PandoraLocalAiChannel(
         private const val MIN_MODEL_BYTES = 64L * 1024L * 1024L
         private const val MAX_MODEL_BYTES = 8L * 1024L * 1024L * 1024L
         private const val STORAGE_RESERVE_BYTES = 256L * 1024L * 1024L
-        private const val WARM_DEADLINE_MS = 15_000L
+        // Cold loading a ~2 GiB Q4 model can legitimately take tens of seconds on
+        // phone storage. User turns never wait for this cold path: they fall
+        // through to cloud while this bounded background warm completes.
+        private const val WARM_DEADLINE_MS = 75_000L
         private const val SYSTEM_PROMPT = """
 You are Pandora's fast on-device conversational layer.
 Answer naturally, directly, and concisely.
