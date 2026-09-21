@@ -2,6 +2,8 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const fs = require("node:fs");
+const path = require("node:path");
 const {
   createPandoraTrackingRouter,
   _trackingInternals: {
@@ -89,4 +91,19 @@ test("tracking hashes are deterministic and non-plaintext", () => {
   assert.match(digest, /^[0-9a-f]{64}$/);
   assert.notEqual(digest, "private-input");
   assert.equal(digest, sha256("private-input"));
+});
+
+
+test("tracking server APIs expose Vercel-safe non-reserved route aliases", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "src", "pandora-tracking-http.js"), "utf8");
+  for (const route of [
+    "/tracking/health",
+    "/tracking/event",
+    "/tracking/conversion",
+    "/tracking/cost",
+    "/tracking/report",
+  ]) {
+    assert.ok(source.includes(route), route + " must be mounted");
+  }
+  assert.ok(source.includes("/api/tracking/health"), "legacy local API alias remains available");
 });
