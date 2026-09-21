@@ -1,6 +1,6 @@
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   void (async () => {
-    const assetVersion = 'pandora-provider-policy-v1-20260919-1';
+    const assetVersion = 'pandora-tracking-dashboard-v1-20260921-1';
     const versioned = (asset) => `${asset}?v=${assetVersion}`;
 
     // The legacy advanced Control Tower depended on retired control-plane code.

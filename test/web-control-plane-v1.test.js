@@ -58,5 +58,13 @@ test('web control plane design preserves verified Live semantics and Admin safet
 test('experience assets are loaded through the owner-first shell', () => {
   assert.match(ownerFirst, /owner-screens-experience\.js/);
   assert.match(index, /owner-experience\.css/);
-  assert.match(index, /web-theatre-status-truth-v1-20260910-1/);
+  assert.match(index, /pandora-tracking-dashboard-v1-20260921-1/);
+});
+
+
+test('Business surfaces verified first-party Pandora Tracking when connected', () => {
+  assert.match(ownerExperience, /Pandora Tracking/);
+  assert.match(ownerExperience, /Verified first-party attribution is connected/);
+  assert.match(ownerExperience, /No cross-currency totals/);
+  assert.match(ownerExperience, /Tracked link:/);
 });

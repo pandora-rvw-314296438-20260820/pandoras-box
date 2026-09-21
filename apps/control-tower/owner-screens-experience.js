@@ -62,7 +62,7 @@ function compactAsk() {
   return `<section class="owner-card owner-command-card">
     <div class="owner-command-heading"><span class="owner-command-icon">${icons.ask}</span><div><strong>Ask Pandora</strong><span>Describe the result or change you want.</span></div></div>
     <form class="owner-command-form" data-ask-form>
-      <input class="owner-command-input" data-ask-message maxlength="12000" autocomplete="off" placeholder="Tell Pandora what you want to make real…" value="${esc(state.ask.message)}" />
+      <input class="owner-command-input" data-ask-message maxlength="12000" autocomplete="off" placeholder="Tell Pandora what you want to make realâ€¦" value="${esc(state.ask.message)}" />
       <button class="owner-command-send" type="submit" aria-label="Send to Pandora" ${state.ask.sending ? 'disabled' : ''}>${icons.arrow}</button>
     </form>
   </section>`;
@@ -104,8 +104,8 @@ function renderAsk() {
     <section class="owner-card owner-ask-composer">
       <form data-ask-form>
         <label for="owner-ask-message">What do you want?</label>
-        <textarea id="owner-ask-message" data-ask-message maxlength="12000" rows="6" placeholder="Build, fix, change, analyze, publish, or operate something…">${esc(state.ask.message)}</textarea>
-        <div class="owner-ask-actions"><span>${state.ask.threadId ? 'Continuing this Pandora thread' : 'New Pandora thread'}</span><button type="submit" class="owner-button primary" ${state.ask.sending ? 'disabled' : ''}>${state.ask.sending ? 'Working…' : 'Send'}</button></div>
+        <textarea id="owner-ask-message" data-ask-message maxlength="12000" rows="6" placeholder="Build, fix, change, analyze, publish, or operate somethingâ€¦">${esc(state.ask.message)}</textarea>
+        <div class="owner-ask-actions"><span>${state.ask.threadId ? 'Continuing this Pandora thread' : 'New Pandora thread'}</span><button type="submit" class="owner-button primary" ${state.ask.sending ? 'disabled' : ''}>${state.ask.sending ? 'Workingâ€¦' : 'Send'}</button></div>
       </form>
     </section>
   </div>`;
@@ -148,7 +148,7 @@ function businessMoney(micros, currency) {
     const fraction = String(cents % 100n).padStart(2, '0');
     return `${String(currency || 'USD').toUpperCase()} ${whole.toLocaleString()}.${fraction}`;
   } catch {
-    return '—';
+    return 'â€”';
   }
 }
 
@@ -159,7 +159,7 @@ function businessCostFact(cost) {
   if (charged > 0n) return { label: 'Charged', value: businessMoney(cost.chargedMicros, cost.currency) };
   if (billed > 0n) return { label: 'Billed', value: businessMoney(cost.billedMicros, cost.currency) };
   if (estimated > 0n) return { label: 'Estimated', value: businessMoney(cost.estimatedMicros, cost.currency) };
-  return { label: 'Unknown cost', value: '�' };
+  return { label: 'Unknown cost', value: '—' };
 }
 
 function businessProjectRow(project) {
@@ -176,10 +176,89 @@ function businessProjectRow(project) {
       <span>${esc(project.status || 'Recorded')}</span>
       <strong>${esc(project.name)}</strong>
       <p>${esc(objective?.objective || 'No current business objective recorded')}</p>
-      <small>${esc(objective?.successMetric ? `Metric: ${objective.successMetric}${objective.baseline || objective.target ? ` · ${objective.baseline || '—'} → ${objective.target || '—'}` : ''}` : 'Success metric not recorded')}</small>
-      ${facts.length ? `<small>${esc(facts.join(' · '))}</small>` : '<small>No cost or budget facts recorded for this project.</small>'}
+      <small>${esc(objective?.successMetric ? `Metric: ${objective.successMetric}${objective.baseline || objective.target ? ` Â· ${objective.baseline || 'â€”'} â†’ ${objective.target || 'â€”'}` : ''}` : 'Success metric not recorded')}</small>
+      ${facts.length ? `<small>${esc(facts.join(' Â· '))}</small>` : '<small>No cost or budget facts recorded for this project.</small>'}
     </div>
   </article>`;
+}
+
+function trackingCountText(value) {
+  try {
+    return BigInt(String(value ?? '0')).toLocaleString();
+  } catch {
+    return '—';
+  }
+}
+
+function trackingMoneyText(value, currency) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '—';
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: String(currency || 'USD').toUpperCase(),
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    }).format(amount);
+  } catch {
+    return `${String(currency || '').toUpperCase()} ${amount.toFixed(4)}`;
+  }
+}
+
+function trackingRatioText(value) {
+  const ratio = Number(value);
+  return Number.isFinite(ratio) ? `${ratio.toFixed(2)}×` : '—';
+}
+
+function trackingCampaignRow(campaign) {
+  const financials = Array.isArray(campaign.financials) ? campaign.financials : [];
+  const money = financials.length
+    ? financials.map((item) =>
+        `${item.currency}: spend ${trackingMoneyText(item.spend, item.currency)} · revenue ${trackingMoneyText(item.netRevenue, item.currency)} · ROAS ${trackingRatioText(item.roas)}`
+      ).join(' · ')
+    : 'No recorded spend or revenue yet';
+  return `<article class="owner-card owner-need-card">
+    <div class="owner-need-mark">${esc(String(campaign.provider || campaign.source || 'TR').slice(0, 2).toUpperCase())}</div>
+    <div class="owner-need-copy">
+      <span>${esc(campaign.status || 'active')} · ${esc(campaign.provider || campaign.source || 'first-party')}</span>
+      <strong>${esc(campaign.name || 'Campaign')}</strong>
+      <p>${trackingCountText(campaign.clicks)} clicks · ${trackingCountText(campaign.leads)} leads · ${trackingCountText(campaign.bookings)} bookings · ${trackingCountText(campaign.sales)} sales</p>
+      <small>${esc(money)}</small>
+      <small>Tracked link: ${esc(campaign.trackingUrl || campaign.trackingPath || 'Unavailable')}</small>
+    </div>
+  </article>`;
+}
+
+function trackingBusinessSection(tracking) {
+  if (!tracking?.available) return '';
+  if (!tracking.complete) {
+    return `<section class="owner-section">
+      <div class="professional-section-head"><div><span class="owner-kicker">First-party attribution</span><h2>Pandora Tracking</h2></div><span>Bounded read incomplete</span></div>
+      <div class="owner-card owner-business-empty"><span class="owner-business-icon">${icons.alert}</span><div><h3>Tracking data is temporarily incomplete</h3><p>Pandora will not calculate partial commercial totals as if they were complete.</p></div></div>
+    </section>`;
+  }
+  const counts = tracking.counts || {};
+  const currencies = Array.isArray(tracking.currencies) ? tracking.currencies : [];
+  const campaigns = Array.isArray(tracking.campaigns) ? tracking.campaigns : [];
+  const moneyCards = currencies.length
+    ? currencies.map((item) => `<article class="owner-card professional-metric">
+        <span>${esc(item.currency)} attribution</span>
+        <strong>${esc(trackingRatioText(item.roas))} ROAS</strong>
+        <small>Spend ${esc(trackingMoneyText(item.spend, item.currency))} · net revenue ${esc(trackingMoneyText(item.netRevenue, item.currency))} · CAC ${esc(trackingMoneyText(item.cac, item.currency))}</small>
+      </article>`).join('')
+    : '<div class="owner-card owner-empty compact"><h3>No financial attribution yet</h3><p>Clicks and funnel events can be tracked before ad cost or revenue is recorded.</p></div>';
+
+  return `<section class="owner-section">
+    <div class="professional-section-head"><div><span class="owner-kicker">First-party attribution</span><h2>Pandora Tracking</h2></div><span>${esc(String(counts.campaigns ?? campaigns.length))} campaigns</span></div>
+    <div class="professional-metrics-grid" aria-label="Pandora Tracking overview">
+      <article class="owner-card professional-metric"><span>Clicks</span><strong>${trackingCountText(counts.clicks)}</strong><small>${trackingCountText(counts.uniqueVisitors)} unique visitors</small></article>
+      <article class="owner-card professional-metric"><span>Leads</span><strong>${trackingCountText(counts.leads)}</strong><small>${trackingCountText(counts.qualifiedLeads)} qualified</small></article>
+      <article class="owner-card professional-metric"><span>Bookings</span><strong>${trackingCountText(counts.bookings)}</strong><small>first-party conversions</small></article>
+      <article class="owner-card professional-metric"><span>Sales</span><strong>${trackingCountText(counts.sales)}</strong><small>${trackingCountText(counts.refunds)} refunds</small></article>
+    </div>
+    <div class="professional-metrics-grid">${moneyCards}</div>
+    <div class="owner-needs-list">${campaigns.length ? campaigns.slice(0, 20).map(trackingCampaignRow).join('') : '<div class="owner-card owner-empty"><h3>No campaigns yet</h3><p>Create a tracked campaign before promoting a link.</p></div>'}</div>
+  </section>`;
 }
 
 function renderBusiness() {
@@ -190,7 +269,7 @@ function renderBusiness() {
   }
   if (!data || data.contractVersion !== 'pandora-owner-business-v1') {
     return `<div class="owner-screen">
-      <div class="owner-page-intro"><span class="owner-kicker">Commercial truth</span><h1>Business</h1><p>Objectives, budgets, and costs appear only from Pandora’s protected owner contract.</p></div>
+      <div class="owner-page-intro"><span class="owner-kicker">Commercial truth</span><h1>Business</h1><p>Objectives, budgets, and costs appear only from Pandoraâ€™s protected owner contract.</p></div>
       <section class="owner-card owner-business-empty"><span class="owner-business-icon">${icons.business}</span><div><h2>Business facts are unavailable</h2><p>${esc(item?.error || 'Pandora could not read the bounded Business contract right now.')}</p></div></section>
     </div>`;
   }
@@ -202,21 +281,24 @@ function renderBusiness() {
   const costCards = costs.length
     ? costs.map((cost) => {
         const fact = businessCostFact(cost);
-        return `<article class="owner-card professional-metric"><span>${esc(fact.label)} · ${esc(cost.currency)}</span><strong>${esc(fact.value)}</strong><small>${esc(String(cost.entryCount || 0))} recorded cost entr${Number(cost.entryCount) === 1 ? 'y' : 'ies'}</small></article>`;
+        return `<article class="owner-card professional-metric"><span>${esc(fact.label)} Â· ${esc(cost.currency)}</span><strong>${esc(fact.value)}</strong><small>${esc(String(cost.entryCount || 0))} recorded cost entr${Number(cost.entryCount) === 1 ? 'y' : 'ies'}</small></article>`;
       }).join('')
     : '<div class="owner-card owner-empty compact"><h3>No cost entries recorded</h3><p>Pandora will not estimate spend when the cost ledger is empty.</p></div>';
 
   return `<div class="owner-screen">
     <div class="owner-page-intro"><span class="owner-kicker">Commercial truth</span><h1>Business</h1><p>Recorded objectives, budgets, and cost ledger facts. No inferred revenue, ROI, adoption, retention, or customer outcomes.</p></div>
     <section class="professional-metrics-grid" aria-label="Business overview">
-      <article class="owner-card professional-metric"><span>Projects</span><strong>${esc(data.counts?.projects ?? '—')}</strong><small>non-archived</small></article>
-      <article class="owner-card professional-metric"><span>With objectives</span><strong>${esc(data.counts?.projectsWithObjectives ?? '—')}</strong><small>recorded ProjectSpec truth</small></article>
-      <article class="owner-card professional-metric"><span>Cost entries</span><strong>${esc(data.counts?.costEntries ?? '—')}</strong><small>append-only ledger</small></article>
+      <article class="owner-card professional-metric"><span>Projects</span><strong>${esc(data.counts?.projects ?? 'â€”')}</strong><small>non-archived</small></article>
+      <article class="owner-card professional-metric"><span>With objectives</span><strong>${esc(data.counts?.projectsWithObjectives ?? 'â€”')}</strong><small>recorded ProjectSpec truth</small></article>
+      <article class="owner-card professional-metric"><span>Cost entries</span><strong>${esc(data.counts?.costEntries ?? 'â€”')}</strong><small>append-only ledger</small></article>
       <article class="owner-card professional-metric"><span>Exhausted budgets</span><strong>${esc(exhausted)}</strong><small>recorded hard-limit state</small></article>
     </section>
     <section class="owner-section"><div class="professional-section-head"><div><span class="owner-kicker">Cost ledger</span><h2>Recorded spend by currency</h2></div><span>No cross-currency totals</span></div><div class="professional-metrics-grid">${costCards}</div></section>
+    ${trackingBusinessSection(data.tracking)}
     <section class="owner-section"><div class="professional-section-head"><div><span class="owner-kicker">Projects</span><h2>Objectives and economics</h2></div><span>${projects.length} shown</span></div><div class="owner-needs-list">${projects.length ? projects.map(businessProjectRow).join('') : '<div class="owner-card owner-empty"><h3>No project business facts to show</h3><p>Objectives, costs, and budgets will appear here when recorded.</p></div>'}</div></section>
-    <section class="owner-card professional-boundary-note"><span>${icons.shield}</span><div><strong>Outcome metrics are still unavailable</strong><p>Revenue, ROI, adoption, retention, and customer outcomes remain unavailable until a bounded first-party measurement source is connected. Pandora does not infer them from spend or objectives.</p></div></section>
+    ${data.tracking?.available
+      ? `<section class="owner-card professional-boundary-note"><span>${icons.shield}</span><div><strong>Verified first-party attribution is connected</strong><p>Revenue and ROAS appear only from recorded Pandora Tracking conversions and currency-matched costs. Different currencies are never combined into one financial total.</p></div></section>`
+      : `<section class="owner-card professional-boundary-note"><span>${icons.shield}</span><div><strong>Outcome metrics are still unavailable</strong><p>Revenue, ROI, adoption, retention, and customer outcomes remain unavailable until a bounded first-party measurement source is connected. Pandora does not infer them from spend or objectives.</p></div></section>`}
   </div>`;
 }
 

@@ -116,13 +116,22 @@ test('Admin advanced link resolves through the Pandora-native owner shell', () =
 test('Professional Mode assets are composed under one distinct revision', () => {
   assert.ok(first.includes('owner-professional.js'));
   assert.ok(screens.includes('PandorasOwnerProfessional'));
-  assert.ok(first.includes('web-theatre-status-truth-v1-20260910-1'));
+  assert.ok(first.includes('pandora-tracking-dashboard-v1-20260921-1'));
   assert.ok(index.includes('owner-experience.css?v=web-professional-mode-v1-20260907-1'));
-  assert.ok(index.includes('bootstrap.js?v=web-theatre-status-truth-v1-20260910-1'));
+  assert.ok(index.includes('bootstrap.js?v=pandora-tracking-dashboard-v1-20260921-1'));
 });
 
 test('shared project workspace returns to the active presentation mode', () => {
   const workspace = read('apps/control-tower/owner-project-workspace.js');
   assert.ok(workspace.includes("state.mode === 'professional' ? 'build' : 'projects'"));
   assert.ok(workspace.includes("state.mode === 'professional' ? 'Build' : 'Projects'"));
+});
+
+
+test('Professional Business renders first-party campaign attribution without a second backend', () => {
+  assert.match(professional, /Pandora Tracking/);
+  assert.match(professional, /First-party commercial attribution is verified/);
+  assert.match(professional, /No cross-currency totals/);
+  assert.match(professional, /trackingUrl/);
+  assert.doesNotMatch(professional, /fetch\s*\(/);
 });

@@ -44,7 +44,7 @@ function metricCard(label, value, detail = '', kind = 'neutral') {
 }
 
 function projectBuildRow(project) {
-  const progress = project.progress === null ? '—' : `${project.progress}%`;
+  const progress = project.progress === null ? 'â€”' : `${project.progress}%`;
   return `<button type="button" class="professional-build-row" data-action="open-project" data-id="${esc(project.id)}">
     <span class="owner-project-mark">${esc(project.initials)}</span>
     <span class="professional-build-copy">
@@ -65,10 +65,10 @@ function professionalHome() {
 
   const body = `
     <section class="professional-metrics-grid" aria-label="Operational overview">
-      ${metricCard('Projects', state.projection ? projects.length : '—', 'canonical status')}
-      ${metricCard('Active', state.projection ? active : '—', 'recorded active work')}
-      ${metricCard('Needs attention', state.projection ? blocked : '—', 'recorded blockers', blocked ? 'warning' : 'neutral')}
-      ${metricCard('Approvals', approvals === null ? '—' : approvals, 'durable plans', approvals ? 'warning' : 'neutral')}
+      ${metricCard('Projects', state.projection ? projects.length : 'â€”', 'canonical status')}
+      ${metricCard('Active', state.projection ? active : 'â€”', 'recorded active work')}
+      ${metricCard('Needs attention', state.projection ? blocked : 'â€”', 'recorded blockers', blocked ? 'warning' : 'neutral')}
+      ${metricCard('Approvals', approvals === null ? 'â€”' : approvals, 'durable plans', approvals ? 'warning' : 'neutral')}
     </section>
     <section class="owner-section">
       <div class="professional-section-head"><div><span class="owner-kicker">Cross-project operations</span><h2>Current work</h2></div><button type="button" data-route="build">Open Build</button></div>
@@ -76,16 +76,16 @@ function professionalHome() {
     </section>
     <section class="owner-section">
       <div class="professional-section-head"><div><span class="owner-kicker">Verification and operations</span><h2>Recent protected events</h2></div><button type="button" data-route="run">Open Run</button></div>
-      <div class="owner-card professional-event-list">${state.live ? (recent.length ? recent.map((event) => `<button type="button" data-action="open-activity" data-sequence="${esc(event.sequence ?? '')}"><span>${icons.activity}</span><span><strong>${esc(eventMessage(event))}</strong><small>${esc(projectForEvent(event))} · ${esc(timeAgo(event.occurredAt))}</small></span>${icons.arrow}</button>`).join('') : '<div class="owner-empty compact"><h3>No recent protected events</h3><p>New verified events will appear here.</p></div>') : '<div class="owner-empty compact"><h3>Protected events unavailable</h3><p>No audit activity is shown until the protected live checks are verified.</p></div>'}</div>
+      <div class="owner-card professional-event-list">${state.live ? (recent.length ? recent.map((event) => `<button type="button" data-action="open-activity" data-sequence="${esc(event.sequence ?? '')}"><span>${icons.activity}</span><span><strong>${esc(eventMessage(event))}</strong><small>${esc(projectForEvent(event))} Â· ${esc(timeAgo(event.occurredAt))}</small></span>${icons.arrow}</button>`).join('') : '<div class="owner-empty compact"><h3>No recent protected events</h3><p>New verified events will appear here.</p></div>') : '<div class="owner-empty compact"><h3>Protected events unavailable</h3><p>No audit activity is shown until the protected live checks are verified.</p></div>'}</div>
     </section>`;
-  return professionalShell('Home', 'Cross-project operations, blockers, connections and verification signals from Pandora’s protected sources.', body);
+  return professionalShell('Home', 'Cross-project operations, blockers, connections and verification signals from Pandoraâ€™s protected sources.', body);
 }
 
 function professionalBuild() {
   const projects = deriveProjects();
   const body = `
     <section class="owner-card professional-callout">
-      <div><span class="owner-kicker">Intent → artifact → preview → publish</span><h2>Build stays bound to exact project runtime</h2><p>Open a project to see its Build Theatre, current candidate, verified preview, Current / Live / History, Undo and Publish controls.</p></div>
+      <div><span class="owner-kicker">Intent â†’ artifact â†’ preview â†’ publish</span><h2>Build stays bound to exact project runtime</h2><p>Open a project to see its Build Theatre, current candidate, verified preview, Current / Live / History, Undo and Publish controls.</p></div>
       <div>${button('Ask Pandora', { kind: 'primary', route: 'ask', icon: icons.ask })}</div>
     </section>
     <section class="owner-section">
@@ -124,7 +124,7 @@ function professionalRun() {
     </section>
     <section class="owner-section">
       <div class="professional-section-head"><div><span class="owner-kicker">Protected audit stream</span><h2>Recent operations</h2></div><span>${events.length} shown</span></div>
-      <div class="owner-card professional-event-list">${events.length ? events.map((event) => `<button type="button" data-action="open-activity" data-sequence="${esc(event.sequence ?? '')}"><span>${icons.activity}</span><span><strong>${esc(eventMessage(event))}</strong><small>${esc(projectForEvent(event))} · ${esc(timeAgo(event.occurredAt))}</small></span>${icons.arrow}</button>`).join('') : '<div class="owner-empty compact"><h3>No recent protected operations</h3><p>Verified events will appear here.</p></div>'}</div>
+      <div class="owner-card professional-event-list">${events.length ? events.map((event) => `<button type="button" data-action="open-activity" data-sequence="${esc(event.sequence ?? '')}"><span>${icons.activity}</span><span><strong>${esc(eventMessage(event))}</strong><small>${esc(projectForEvent(event))} Â· ${esc(timeAgo(event.occurredAt))}</small></span>${icons.arrow}</button>`).join('') : '<div class="owner-empty compact"><h3>No recent protected operations</h3><p>Verified events will appear here.</p></div>'}</div>
     </section>`;
   return professionalShell('Run', 'Operational health, protected audit activity, failures and recovery signals.', body);
 }
@@ -157,7 +157,7 @@ function professionalConnect() {
 
 function compactMemoryId(value) {
   const id = String(value || '');
-  return id.length > 16 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id || 'Unavailable';
+  return id.length > 16 ? `${id.slice(0, 8)}â€¦${id.slice(-4)}` : id || 'Unavailable';
 }
 
 function professionalMemory() {
@@ -165,7 +165,7 @@ function professionalMemory() {
   if (!state.live || !memory || memory.ok !== true) {
     return professionalShell(
       'Memory',
-      'Canonical Memory health, freshness, approved lineage and conflicts from Pandora’s protected status authority.',
+      'Canonical Memory health, freshness, approved lineage and conflicts from Pandoraâ€™s protected status authority.',
       unavailable(
         'Protected Memory status is unavailable',
         state.error?.message || 'Pandora could not verify the bounded Memory status envelope for this protected session.',
@@ -222,7 +222,7 @@ function professionalMemory() {
     </section>`;
   return professionalShell(
     'Memory',
-    'Canonical Memory health, freshness, approved lineage and conflicts from Pandora’s protected status authority.',
+    'Canonical Memory health, freshness, approved lineage and conflicts from Pandoraâ€™s protected status authority.',
     body,
   );
 }
@@ -270,7 +270,7 @@ function professionalBusinessMoney(micros, currency) {
     const fraction = String(cents % 100n).padStart(2, '0');
     return `${String(currency || 'USD').toUpperCase()} ${whole.toLocaleString()}.${fraction}`;
   } catch {
-    return '—';
+    return 'â€”';
   }
 }
 
@@ -281,7 +281,7 @@ function professionalCostFact(cost) {
   if (charged > 0n) return { label: 'Charged', value: professionalBusinessMoney(cost.chargedMicros, cost.currency) };
   if (billed > 0n) return { label: 'Billed', value: professionalBusinessMoney(cost.billedMicros, cost.currency) };
   if (estimated > 0n) return { label: 'Estimated', value: professionalBusinessMoney(cost.estimatedMicros, cost.currency) };
-  return { label: 'Unknown cost', value: '�' };
+  return { label: 'Unknown cost', value: '—' };
 }
 
 function professionalBusinessProject(project) {
@@ -297,10 +297,87 @@ function professionalBusinessProject(project) {
       <span class="owner-kicker">${esc(project.status || 'Recorded')}</span>
       <h2>${esc(project.name)}</h2>
       <p>${esc(objective?.objective || 'No current business objective recorded')}</p>
-      <small>${esc(objective?.successMetric ? `Metric: ${objective.successMetric}${objective.baseline || objective.target ? ` · ${objective.baseline || '—'} → ${objective.target || '—'}` : ''}` : 'Success metric not recorded')}</small>
+      <small>${esc(objective?.successMetric ? `Metric: ${objective.successMetric}${objective.baseline || objective.target ? ` Â· ${objective.baseline || 'â€”'} â†’ ${objective.target || 'â€”'}` : ''}` : 'Success metric not recorded')}</small>
     </div>
-    <div><strong>${esc(economics.join(' · ') || 'No cost or budget facts recorded')}</strong></div>
+    <div><strong>${esc(economics.join(' Â· ') || 'No cost or budget facts recorded')}</strong></div>
   </article>`;
+}
+
+function professionalTrackingCount(value) {
+  try {
+    return BigInt(String(value ?? '0')).toLocaleString();
+  } catch {
+    return '—';
+  }
+}
+
+function professionalTrackingMoney(value, currency) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '—';
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: String(currency || 'USD').toUpperCase(),
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    }).format(amount);
+  } catch {
+    return `${String(currency || '').toUpperCase()} ${amount.toFixed(4)}`;
+  }
+}
+
+function professionalTrackingRatio(value) {
+  const ratio = Number(value);
+  return Number.isFinite(ratio) ? `${ratio.toFixed(2)}×` : '—';
+}
+
+function professionalTrackingCampaign(campaign) {
+  const financials = Array.isArray(campaign.financials) ? campaign.financials : [];
+  const finance = financials.length
+    ? financials.map((item) =>
+        `${item.currency}: ${professionalTrackingMoney(item.spend, item.currency)} spend · ${professionalTrackingMoney(item.netRevenue, item.currency)} revenue · ${professionalTrackingRatio(item.roas)} ROAS`
+      ).join(' · ')
+    : 'No financial attribution yet';
+  return `<article class="owner-card professional-callout">
+    <div>
+      <span class="owner-kicker">${esc(campaign.provider || campaign.source || 'First-party')} · ${esc(campaign.status || 'active')}</span>
+      <h2>${esc(campaign.name || 'Campaign')}</h2>
+      <p>${professionalTrackingCount(campaign.clicks)} clicks · ${professionalTrackingCount(campaign.leads)} leads · ${professionalTrackingCount(campaign.bookings)} bookings · ${professionalTrackingCount(campaign.sales)} sales</p>
+      <small>${esc(finance)}</small>
+    </div>
+    <div><strong>${esc(campaign.trackingUrl || campaign.trackingPath || 'Tracking link unavailable')}</strong></div>
+  </article>`;
+}
+
+function professionalTrackingSection(tracking) {
+  if (!tracking?.available) return '';
+  if (!tracking.complete) {
+    return `<section class="owner-section"><div class="professional-section-head"><div><span class="owner-kicker">First-party attribution</span><h2>Pandora Tracking</h2></div><span>Bounded read incomplete</span></div>
+      ${unavailable('Tracking totals are incomplete', 'Pandora will not present partial traffic or money as complete business truth.', icons.alert)}
+    </section>`;
+  }
+  const counts = tracking.counts || {};
+  const currencies = Array.isArray(tracking.currencies) ? tracking.currencies : [];
+  const campaigns = Array.isArray(tracking.campaigns) ? tracking.campaigns : [];
+  const moneyCards = currencies.length
+    ? currencies.map((item) => metricCard(
+        `${item.currency} ROAS`,
+        professionalTrackingRatio(item.roas),
+        `Spend ${professionalTrackingMoney(item.spend, item.currency)} · revenue ${professionalTrackingMoney(item.netRevenue, item.currency)} · CAC ${professionalTrackingMoney(item.cac, item.currency)}`,
+      )).join('')
+    : metricCard('Financial attribution', '—', 'No spend or revenue recorded yet');
+
+  return `<section class="owner-section">
+    <div class="professional-section-head"><div><span class="owner-kicker">First-party attribution</span><h2>Pandora Tracking</h2></div><span>No cross-currency totals</span></div>
+    <div class="professional-metrics-grid">
+      ${metricCard('Clicks', professionalTrackingCount(counts.clicks), `${professionalTrackingCount(counts.uniqueVisitors)} unique visitors`)}
+      ${metricCard('Leads', professionalTrackingCount(counts.leads), `${professionalTrackingCount(counts.qualifiedLeads)} qualified`)}
+      ${metricCard('Bookings', professionalTrackingCount(counts.bookings), 'first-party conversions')}
+      ${metricCard('Sales', professionalTrackingCount(counts.sales), `${professionalTrackingCount(counts.refunds)} refunds`)}
+    </div>
+    <div class="professional-metrics-grid">${moneyCards}</div>
+    <div class="professional-build-list">${campaigns.length ? campaigns.slice(0, 30).map(professionalTrackingCampaign).join('') : '<div class="owner-card owner-empty"><h3>No tracked campaigns yet</h3><p>Create a campaign before promoting a tracked link.</p></div>'}</div>
+  </section>`;
 }
 
 function professionalBusiness() {
@@ -309,14 +386,14 @@ function professionalBusiness() {
   if (item?.loading && !data) {
     return professionalShell(
       'Business',
-      'Recorded objectives, budgets and append-only cost facts from Pandora’s protected owner contract.',
+      'Recorded objectives, budgets and append-only cost facts from Pandoraâ€™s protected owner contract.',
       '<section class="owner-card owner-skeleton-card"><div class="owner-skeleton wide"></div><div class="owner-skeleton medium"></div></section>',
     );
   }
   if (!data || data.contractVersion !== 'pandora-owner-business-v1') {
     return professionalShell(
       'Business',
-      'Recorded objectives, budgets and append-only cost facts from Pandora’s protected owner contract.',
+      'Recorded objectives, budgets and append-only cost facts from Pandoraâ€™s protected owner contract.',
       unavailable('Protected Business facts are unavailable', item?.error || 'Pandora could not read the bounded Business contract right now.', icons.business),
     );
   }
@@ -331,32 +408,33 @@ function professionalBusiness() {
   const costCards = costs.length
     ? costs.map((cost) => {
         const fact = professionalCostFact(cost);
-        return metricCard(`${fact.label} · ${cost.currency}`, fact.value, `${cost.entryCount || 0} ledger entries`);
+        return metricCard(`${fact.label} Â· ${cost.currency}`, fact.value, `${cost.entryCount || 0} ledger entries`);
       }).join('')
-    : metricCard('Recorded cost', '—', 'No cost entries');
+    : metricCard('Recorded cost', 'â€”', 'No cost entries');
 
   const body = `
     <section class="professional-metrics-grid" aria-label="Business authority overview">
-      ${metricCard('Projects', data.counts?.projects ?? '—', 'non-archived')}
-      ${metricCard('With objectives', data.counts?.projectsWithObjectives ?? '—', 'ProjectSpec business truth')}
-      ${metricCard('Budget limits', data.counts?.budgetLimits ?? '—', `${activeBudgets} active · ${exhausted} exhausted`, exhausted ? 'warning' : 'neutral')}
-      ${metricCard('Cost entries', data.counts?.costEntries ?? '—', 'append-only ledger')}
+      ${metricCard('Projects', data.counts?.projects ?? 'â€”', 'non-archived')}
+      ${metricCard('With objectives', data.counts?.projectsWithObjectives ?? 'â€”', 'ProjectSpec business truth')}
+      ${metricCard('Budget limits', data.counts?.budgetLimits ?? 'â€”', `${activeBudgets} active Â· ${exhausted} exhausted`, exhausted ? 'warning' : 'neutral')}
+      ${metricCard('Cost entries', data.counts?.costEntries ?? 'â€”', 'append-only ledger')}
     </section>
     <section class="owner-section">
       <div class="professional-section-head"><div><span class="owner-kicker">Economics</span><h2>Recorded spend by currency</h2></div><span>No cross-currency totals</span></div>
       <div class="professional-metrics-grid">${costCards}</div>
     </section>
+    ${professionalTrackingSection(data.tracking)}
     <section class="owner-section">
       <div class="professional-section-head"><div><span class="owner-kicker">Objectives</span><h2>Project business truth</h2></div><span>${projects.length} shown</span></div>
       <div class="professional-build-list">${projects.length ? projects.map(professionalBusinessProject).join('') : '<div class="owner-card owner-empty"><h3>No project business facts to show</h3><p>Objectives, costs, and budgets will appear here only when recorded.</p></div>'}</div>
     </section>
-    <section class="owner-card professional-boundary-note">
-      <span>${icons.shield}</span><div><strong>Commercial outcomes are not inferred</strong><p>Revenue, ROI, adoption, retention, and customer outcomes remain explicitly unavailable until a bounded first-party measurement source is connected. Spend, budgets, and objectives are not treated as proof of business success.</p></div>
-    </section>`;
+    ${data.tracking?.available
+      ? `<section class="owner-card professional-boundary-note"><span>${icons.shield}</span><div><strong>First-party commercial attribution is verified</strong><p>Pandora shows only recorded conversions, revenue, refunds, and currency-matched cost. ROAS is never calculated across different currencies.</p></div></section>`
+      : `<section class="owner-card professional-boundary-note"><span>${icons.shield}</span><div><strong>Commercial outcomes are not inferred</strong><p>Revenue, ROI, adoption, retention, and customer outcomes remain explicitly unavailable until a bounded first-party measurement source is connected. Spend, budgets, and objectives are not treated as proof of business success.</p></div></section>`}`;
 
   return professionalShell(
     'Business',
-    'Recorded objectives, budgets and append-only cost facts from Pandora’s protected owner contract.',
+    'Recorded objectives, budgets and append-only cost facts from Pandoraâ€™s protected owner contract.',
     body,
   );
 }
@@ -366,7 +444,7 @@ function professionalLibrary() {
   if (!session.authenticated) {
     return professionalShell(
       'Library',
-      'Immutable artifact metadata and project-version lineage from Pandora’s member-RLS control plane.',
+      'Immutable artifact metadata and project-version lineage from Pandoraâ€™s member-RLS control plane.',
       unavailable('Sign in to view Library', 'Library metadata is protected and is not retained in the owner surface after sign-out.', icons.projects),
     );
   }
@@ -374,14 +452,14 @@ function professionalLibrary() {
   if (library.loading && !library.loadedAt) {
     return professionalShell(
       'Library',
-      'Immutable artifact metadata and project-version lineage from Pandora’s member-RLS control plane.',
+      'Immutable artifact metadata and project-version lineage from Pandoraâ€™s member-RLS control plane.',
       '<div class="owner-card owner-workspace-loading"><span class="owner-spinner"></span><h2>Loading bounded Library index</h2><p>Pandora is reading member-safe artifact and release metadata.</p></div>',
     );
   }
   if (library.error) {
     return professionalShell(
       'Library',
-      'Immutable artifact metadata and project-version lineage from Pandora’s member-RLS control plane.',
+      'Immutable artifact metadata and project-version lineage from Pandoraâ€™s member-RLS control plane.',
       unavailable('Library index is unavailable', library.error.message || 'Pandora could not load the bounded Library index.', icons.projects),
     );
   }
@@ -398,8 +476,8 @@ function professionalLibrary() {
       <div class="owner-card professional-verification-list">
         ${artifacts.length ? artifacts.map((artifact) => `<div class="professional-verification-row">
           <span>
-            <strong>${esc(artifact.projectName || 'Project')} · ${esc(artifact.logicalKey || 'artifact')}</strong>
-            <small>${esc(cleanName(artifact.artifactKind || 'other'))} · v${esc(artifact.version ?? '—')} · ${esc(formatBytes(artifact.byteSize))} · ${esc(artifact.mediaType || 'media type unavailable')} · ${esc(compactDigest(artifact.sha256))} · ${esc(artifact.createdAt ? timeAgo(artifact.createdAt) : 'time unavailable')}</small>
+            <strong>${esc(artifact.projectName || 'Project')} Â· ${esc(artifact.logicalKey || 'artifact')}</strong>
+            <small>${esc(cleanName(artifact.artifactKind || 'other'))} Â· v${esc(artifact.version ?? 'â€”')} Â· ${esc(formatBytes(artifact.byteSize))} Â· ${esc(artifact.mediaType || 'media type unavailable')} Â· ${esc(compactDigest(artifact.sha256))} Â· ${esc(artifact.createdAt ? timeAgo(artifact.createdAt) : 'time unavailable')}</small>
           </span>
           ${badge('Immutable', 'success')}
         </div>`).join('') : '<div class="owner-empty compact"><h3>No artifact versions returned</h3><p>The bounded member-safe index currently contains no artifact versions.</p></div>'}
@@ -410,8 +488,8 @@ function professionalLibrary() {
       <div class="owner-card professional-verification-list">
         ${releases.length ? releases.map((release) => `<div class="professional-verification-row">
           <span>
-            <strong>${esc(release.projectName || 'Project')} · version ${esc(release.sequenceNo ?? '—')}</strong>
-            <small>${esc(cleanName(release.lifecycleStatus || 'unknown'))} · ${esc(cleanName(release.kind || 'preview'))} · artifact ${esc(compactDigest(release.artifactDigest))} · source ${esc(release.sourceCommit ? release.sourceCommit.slice(0, 10) : compactDigest(release.sourceSha256))} · ${esc(release.createdAt ? timeAgo(release.createdAt) : 'time unavailable')}</small>
+            <strong>${esc(release.projectName || 'Project')} Â· version ${esc(release.sequenceNo ?? 'â€”')}</strong>
+            <small>${esc(cleanName(release.lifecycleStatus || 'unknown'))} Â· ${esc(cleanName(release.kind || 'preview'))} Â· artifact ${esc(compactDigest(release.artifactDigest))} Â· source ${esc(release.sourceCommit ? release.sourceCommit.slice(0, 10) : compactDigest(release.sourceSha256))} Â· ${esc(release.createdAt ? timeAgo(release.createdAt) : 'time unavailable')}</small>
           </span>
           ${badge(cleanName(release.lifecycleStatus || 'unknown'), ['live','preview_ready','verified'].includes(String(release.lifecycleStatus || '').toLowerCase()) ? 'success' : 'neutral')}
         </div>`).join('') : '<div class="owner-empty compact"><h3>No project versions returned</h3><p>The bounded member-safe index currently contains no project-version lineage.</p></div>'}
@@ -422,7 +500,7 @@ function professionalLibrary() {
     </section>`;
   return professionalShell(
     'Library',
-    'Immutable artifact metadata and project-version lineage from Pandora’s member-RLS control plane.',
+    'Immutable artifact metadata and project-version lineage from Pandoraâ€™s member-RLS control plane.',
     body,
   );
 }

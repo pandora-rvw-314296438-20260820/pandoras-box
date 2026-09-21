@@ -1,6 +1,6 @@
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   void (async () => {
-    const assetVersion = 'web-theatre-status-truth-v1-20260910-1';
+    const assetVersion = 'pandora-tracking-dashboard-v1-20260921-1';
     const versioned = (asset) => `${asset}?v=${assetVersion}`;
 
     await import(versioned('/control-tower/owner-data.js'));
