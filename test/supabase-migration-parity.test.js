@@ -383,6 +383,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260921102000_plp_team_access_bootstrap_v3.sql',
     '20260921103500_plp_team_access_visible_count_v4.sql',
     '20260921112000_plp_realtime_resort_updates_v1.sql',
+    '20260921121500_openrouter_provider_failover_v4.sql',
   ]);
   const manifestBoundFiles = activeFiles.filter(
     (filename) => !governedForwardFiles.has(filename),
@@ -699,6 +700,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260921102000_plp_team_access_bootstrap_v3.sql',
     '20260921103500_plp_team_access_visible_count_v4.sql',
     '20260921112000_plp_realtime_resort_updates_v1.sql',
+    '20260921121500_openrouter_provider_failover_v4.sql',
   ]);
   assert.deepEqual(postSnapshotFiles, [
     '20260820085400_plp_vercel_env_metadata_probe_20260820.sql',
@@ -967,6 +969,7 @@ test('active Supabase history preserves the captured 52-file recovery chain and 
     '20260921102000_plp_team_access_bootstrap_v3.sql',
     '20260921103500_plp_team_access_visible_count_v4.sql',
     '20260921112000_plp_realtime_resort_updates_v1.sql',
+    '20260921121500_openrouter_provider_failover_v4.sql',
   ]);
   assert.equal(historicalCurrentFiles.length, currentReplayResult.migration_count);
   assert.equal(
