@@ -586,17 +586,41 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     final context = widget.enterpriseContext;
     if (context == null || context.isEmpty) return '';
     try {
-      final encoded = jsonEncode(context);
-      final bounded = encoded.length > 6000 ? encoded.substring(0, 6000) : encoded;
-      return 'Authorized PLP business context already synchronized to this phone. '
-          'Treat it as local context; do not claim it was refreshed during this turn.\n'
-          '$bounded';
+      final localAi = context['localAiContext'];
+      final localAiMap = localAi is Map
+          ? localAi.map((key, value) => MapEntry(key.toString(), value))
+          : const <String, Object?>{};
+      final localPayload = localAiMap['payload'];
+      final today = context['today'];
+      final snapshot = localPayload is Map && localPayload.isNotEmpty
+          ? localPayload
+          : today is Map
+              ? today
+              : const <String, Object?>{};
+      final sourceHealth = context['sourceHealth'];
+      final organization = context['organization'];
+      final boundedContext = <String, Object?>{
+        'property': organization,
+        'authoritativeAsOf': localAiMap['authoritativeAsOf'],
+        'sourceHealth': sourceHealth,
+        'snapshot': snapshot,
+      };
+      final encoded = jsonEncode(boundedContext);
+      final bounded =
+          encoded.length > 3600 ? encoded.substring(0, 3600) : encoded;
+      return 'Verified PLP resort snapshot already synchronized to this phone. '
+          'Use fields present in this snapshot directly for PLP occupancy, rooms, '
+          'arrivals, departures, revenue/sales, tasks, conflicts, and booking '
+          'questions. If the requested field is present, answer from it and do '
+          'NOT request cloud merely because the user says today, current, now, '
+          'or so far. Do not claim the snapshot was refreshed during this turn. '
+          'Request cloud only when required data is absent, an external action '
+          'is required, or the task exceeds safe local reasoning.\n$bounded';
     } catch (_) {
       return '';
     }
   }
-
-  bool get _isPlpEnterpriseContext {
+  bool get _isPlpEnterpriseContext  bool get _isPlpEnterpriseContext {
     final context = widget.enterpriseContext;
     final organization = context?['organization'];
     if (organization is Map) {
@@ -605,6 +629,19 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     return false;
   }
 
+  Map<String, Object?>? _cloudEnterpriseContext() {
+    if (!_isPlpEnterpriseContext) return widget.enterpriseContext;
+    return <String, Object?>{
+      'surface': 'enterprise_overview',
+      'route': '/enterprise/plp-boracay/alfred',
+      'selectedObject': const <String, Object?>{
+        'workspaceSlug': 'plp-boracay',
+        'assistant': 'alfred',
+      },
+      'capabilities': const <String>['intelligence.chat'],
+      'identityScope': 'enterprise_workspace',
+    };
+  }
   Future<void> _recordLocalAiTurn({
     required String phase,
     required String outcome,
@@ -1078,10 +1115,23 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         projectId: _projectContext?.id,
         textAttachment: _attachment,
         imageAttachment: _imageAttachment,
-        enterpriseContext: widget.enterpriseContext,
+        enterpriseContext: _cloudEnterpriseContext(),
       );
       await _watchActivity(execution);
-      final turn = await execution.turn;
+      PandoraIntelligenceTurn turn;
+      try {
+        turn = await execution.turn;
+      } on PandoraIntelligenceException {
+        final recovered =
+            await intelligence.recoverCompletedChatTurn(execution.jobId);
+        if (recovered == null) rethrow;
+        turn = recovered;
+      } catch (_) {
+        final recovered =
+            await intelligence.recoverCompletedChatTurn(execution.jobId);
+        if (recovered == null) rethrow;
+        turn = recovered;
+      }
       if (!mounted) return;
       setState(() {
         _threadId = turn.threadId;
