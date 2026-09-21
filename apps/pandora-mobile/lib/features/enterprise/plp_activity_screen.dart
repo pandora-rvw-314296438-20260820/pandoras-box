@@ -613,25 +613,19 @@ class _ActivityHeader extends StatelessWidget {
           else
             const SizedBox.square(dimension: 44),
           const SizedBox(width: 5),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFF68401F),
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/workspaces/plp.webp',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Center(
-                  child: Text(
-                    'PLP',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                    ),
+          SizedBox(
+            width: 42,
+            height: 48,
+            child: Image.asset(
+              'assets/workspaces/plp.webp',
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Center(
+                child: Text(
+                  'PLP',
+                  style: TextStyle(
+                    color: _PlpActivityScreenState._ink,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
@@ -663,25 +657,7 @@ class _ActivityHeader extends StatelessWidget {
             ),
             icon: const Icon(Icons.search_rounded, size: 26),
           ),
-          const SizedBox(width: 8),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF8FC7C3), Color(0xFFC6A06A)],
-              ),
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-            child: const Icon(
-              Icons.villa_outlined,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
+
         ],
       );
 }
@@ -690,115 +666,66 @@ class _ActivityHero extends StatelessWidget {
   const _ActivityHero();
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-        height: 260,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 350;
-            return Stack(
-              fit: StackFit.expand,
-              children: [
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        Color(0xFFFFFEFA),
-                        Color(0xFFF9F4EB),
-                        Color(0xFFDDEDEF),
-                      ],
-                      stops: [0, .54, 1],
+  Widget build(BuildContext context) => Container(
+        key: const ValueKey<String>('plp-activity-editorial-hero'),
+        decoration: const BoxDecoration(
+          color: _PlpActivityScreenState._paper,
+          border: Border(
+            top: BorderSide(color: _PlpActivityScreenState._line),
+            bottom: BorderSide(color: _PlpActivityScreenState._line),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 28, 20, 26),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ACTIVITY',
+                    style: TextStyle(
+                      color: _PlpActivityScreenState._gold,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2.2,
                     ),
                   ),
-                ),
-                Positioned(
-                  right: -35,
-                  bottom: 3,
-                  child: Container(
-                    width: 250,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(58),
-                      color: const Color(0xFF9FCFD0).withValues(alpha: .50),
+                  SizedBox(height: 13),
+                  Text(
+                    'Recent activity',
+                    style: TextStyle(
+                      color: _PlpActivityScreenState._ink,
+                      fontFamily: 'serif',
+                      fontSize: 42,
+                      height: .96,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: -1.1,
                     ),
                   ),
-                ),
-                Positioned(
-                  right: 35,
-                  bottom: 26,
-                  child: Icon(
-                    Icons.villa_rounded,
-                    size: compact ? 100 : 122,
-                    color: const Color(0xFFAD8A63).withValues(alpha: .25),
+                  SizedBox(height: 13),
+                  Text(
+                    'A quiet, verified chronology of what has been happening across the resort and inside Pandora.',
+                    style: TextStyle(
+                      color: _PlpActivityScreenState._muted,
+                      fontSize: 13,
+                      height: 1.45,
+                    ),
                   ),
-                ),
-                Positioned(
-                  right: 40,
-                  top: 10,
-                  child: Icon(
-                    Icons.park_rounded,
-                    size: compact ? 128 : 150,
-                    color: const Color(0xFF718B67).withValues(alpha: .28),
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    compact ? 22 : 28,
-                    30,
-                    compact ? 104 : 135,
-                    22,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'A C T I V I T Y',
-                          maxLines: 1,
-                          style: TextStyle(
-                            color: Color(0xFF8D642E),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 2.4,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: compact ? 13 : 18),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Recent activity',
-                          maxLines: 1,
-                          style: TextStyle(
-                            color: _PlpActivityScreenState._ink,
-                            fontSize: compact ? 38 : 47,
-                            height: .96,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: -1.5,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: compact ? 11 : 15),
-                      Text(
-                        'A quiet view of what has been happening across the resort.',
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: const Color(0xFF595A5C),
-                          fontSize: compact ? 13.5 : 15.5,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            SizedBox(
+              width: 78,
+              height: 96,
+              child: Image.asset(
+                'assets/workspaces/plp.webp',
+                fit: BoxFit.contain,
+              ),
+            ),
+          ],
         ),
       );
 }
