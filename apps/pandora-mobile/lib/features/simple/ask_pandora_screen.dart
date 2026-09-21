@@ -141,6 +141,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       );
       if (!decision.useLocal) return;
 
+      if (status.readyForLocalTurns) {
+        PandoraLocalAiRuntime.instance.keepResident();
+        return;
+      }
       if (!status.loaded && !await PandoraLocalAi.instance.warm()) return;
 
       // Exercise the exact native user-prompt + token-stream path once before
@@ -154,7 +158,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
             'Local readiness check. Reply with exactly LOCAL_READY.',
             predictLength: 32,
           )
-          .timeout(const Duration(seconds: 30))) {
+          .timeout(const Duration(seconds: 45))) {
         smoke += chunk;
       }
       if (smoke.trim().isEmpty ||
@@ -164,12 +168,18 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         );
       }
       await PandoraLocalAi.instance.resetConversation();
+      final verifiedStatus = await PandoraLocalAi.instance.status();
+      if (!verifiedStatus.readyForLocalTurns) {
+        throw const PandoraLocalAiException(
+          'Local Qwen emitted output but readiness was not verified.',
+        );
+      }
       unawaited(
         _recordLocalAiTurn(
           phase: 'self_test',
           outcome: 'success',
           reason: 'token_generation_verified',
-          status: status,
+          status: verifiedStatus,
         ),
       );
       PandoraLocalAiRuntime.instance.keepResident();
@@ -182,11 +192,40 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           status: probeStatus,
         ),
       );
-      await PandoraLocalAiRuntime.instance.unload();
+      try {
+        await PandoraLocalAi.instance.cancel();
+        final current = await PandoraLocalAi.instance.status();
+        if (current.loaded) {
+          // Keep a resident-but-unverified model so the next background smoke
+          // test does not pay another 60+ second cold load.
+          PandoraLocalAiRuntime.instance.keepResident();
+        } else {
+          await PandoraLocalAiRuntime.instance.unload();
+        }
+      } catch (_) {
+        await PandoraLocalAiRuntime.instance.unload();
+      }
       // A real user turn still continues through cloud if the local self-test
       // cannot prove the phone-local path.
     } finally {
       _localAiPrewarmInFlight = false;
+    }
+  }
+
+  Future<void> _recoverLocalAiAfterGenerationFailure() async {
+    try {
+      await PandoraLocalAi.instance.cancel();
+      final current = await PandoraLocalAi.instance.status();
+      if (current.loaded) {
+        PandoraLocalAiRuntime.instance.keepResident();
+      } else {
+        await PandoraLocalAiRuntime.instance.unload();
+      }
+    } catch (_) {
+      await PandoraLocalAiRuntime.instance.unload();
+    }
+    if (_isPlpEnterpriseContext) {
+      unawaited(_prewarmPlpLocalAiIfSafe());
     }
   }
 
@@ -540,8 +579,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         .sublist(start)
         .map((message) => '${message.isUser ? 'User' : 'Pandora'}: ${message.text}')
         .join('\n');
-    final bounded = context.length > 1600
-        ? context.substring(context.length - 1600)
+    final bounded = context.length > 800
+        ? context.substring(context.length - 800)
         : context;
     return 'Recent conversation context from the other inference route:\n'
         '$bounded\n\nCurrent user request:\n$objective';
@@ -557,22 +596,80 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           : const <String, Object?>{};
       final localPayload = localAiMap['payload'];
       final today = context['today'];
-      final snapshot = localPayload is Map && localPayload.isNotEmpty
+      final rawSnapshot = localPayload is Map && localPayload.isNotEmpty
           ? localPayload
           : today is Map
               ? today
               : const <String, Object?>{};
+
+      Map<String, Object?> compactRecord(
+        Object? raw,
+        Iterable<String> allowed,
+      ) {
+        if (raw is! Map) return const <String, Object?>{};
+        final result = <String, Object?>{};
+        for (final key in allowed) {
+          if (raw.containsKey(key)) result[key] = raw[key];
+        }
+        return result;
+      }
+
+      Object? compactBookings(Object? raw) {
+        if (raw is! List) return raw;
+        const fields = <String>[
+          'bookingReference',
+          'status',
+          'checkIn',
+          'checkOut',
+          'guestName',
+          'accommodation',
+        ];
+        return raw.take(3).map((item) => compactRecord(item, fields)).toList();
+      }
+
+      const snapshotFields = <String>[
+        'business_date',
+        'generated_at',
+        'rooms_total',
+        'occupied_rooms',
+        'rooms_available',
+        'occupancy_percent',
+        'arrivals_today',
+        'departures_today',
+        'sales_today_php',
+        'revenue_today_php',
+        'open_staff_tasks',
+        'open_ota_conflicts',
+        'unpaid_active_bookings',
+        'upcoming_arrivals',
+        'upcoming_departures',
+      ];
+      final snapshot = compactRecord(rawSnapshot, snapshotFields);
+      if (snapshot.containsKey('upcoming_arrivals')) {
+        snapshot['upcoming_arrivals'] =
+            compactBookings(snapshot['upcoming_arrivals']);
+      }
+      if (snapshot.containsKey('upcoming_departures')) {
+        snapshot['upcoming_departures'] =
+            compactBookings(snapshot['upcoming_departures']);
+      }
+
       final sourceHealth = context['sourceHealth'];
       final organization = context['organization'];
       final boundedContext = <String, Object?>{
-        'property': organization,
+        'property': organization is Map
+            ? organization['name'] ?? organization['propertySlug']
+            : null,
         'authoritativeAsOf': localAiMap['authoritativeAsOf'],
-        'sourceHealth': sourceHealth,
+        'sourceHealth': sourceHealth is Map ? sourceHealth['state'] : null,
         'snapshot': snapshot,
       };
-      final encoded = jsonEncode(boundedContext);
-      final bounded =
-          encoded.length > 3600 ? encoded.substring(0, 3600) : encoded;
+      var encoded = jsonEncode(boundedContext);
+      if (encoded.length > 2400) {
+        snapshot.remove('upcoming_arrivals');
+        snapshot.remove('upcoming_departures');
+        encoded = jsonEncode(boundedContext);
+      }
       return 'Verified PLP resort snapshot already synchronized to this phone. '
           'Use fields present in this snapshot directly for PLP occupancy, rooms, '
           'arrivals, departures, revenue/sales, tasks, conflicts, and booking '
@@ -580,7 +677,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           'NOT request cloud merely because the user says today, current, now, '
           'or so far. Do not claim the snapshot was refreshed during this turn. '
           'Request cloud only when required data is absent, an external action '
-          'is required, or the task exceeds safe local reasoning.\n$bounded';
+          'is required, or the task exceeds safe local reasoning.\n$encoded';
     } catch (_) {
       return '';
     }
@@ -737,12 +834,15 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       ),
     );
 
-    if (!status.loaded) {
+    if (!status.readyForLocalTurns) {
+      final readinessReason = status.loaded
+          ? 'local_generation_unverified_background_self_test'
+          : 'local_cold_background_prewarm';
       unawaited(
         _recordLocalAiTurn(
           phase: 'fallback',
           outcome: 'cloud',
-          reason: 'local_cold_background_prewarm',
+          reason: readinessReason,
           status: status,
         ),
       );
@@ -840,7 +940,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
             localPrompt,
             predictLength: _isPlpEnterpriseContext ? 128 : 192,
           )
-          .timeout(const Duration(seconds: 15))) {
+          .timeout(const Duration(seconds: 45))) {
         if (!mounted) return true;
         response += chunk;
         setState(() {
@@ -863,7 +963,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           status: status,
         ),
       );
-      await PandoraLocalAiRuntime.instance.unload();
+      await _recoverLocalAiAfterGenerationFailure();
       if (!mounted) return true;
       if (started && _messages.length >= 2) {
         setState(() {
@@ -900,7 +1000,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       return false;
     }
     if (!started || normalized.isEmpty) {
-      await PandoraLocalAiRuntime.instance.unload();
+      await _recoverLocalAiAfterGenerationFailure();
       return false;
     }
 
