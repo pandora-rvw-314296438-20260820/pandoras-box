@@ -237,7 +237,6 @@ class _GuestHeader extends StatelessWidget {
         children: [
           if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
             PandoraMenuButton(
-              editorial: true,
               key: const ValueKey<String>('plp-guests-open-navigation'),
               onPressed: onOpenNavigation,
             )
