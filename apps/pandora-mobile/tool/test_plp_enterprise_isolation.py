@@ -41,11 +41,18 @@ class PlpEnterpriseIsolationTest(unittest.TestCase):
         self.assertIn("plp_enterprise_mobile_bootstrap_v1", combined)
         self.assertIn("allowCharacterContext: false", combined)
         self.assertIn("allowProjectContext: false", combined)
-        self.assertIn("label: 'Home'", combined)
-        self.assertIn("label: 'Alfred'", combined)
-        self.assertIn("label: 'Operations'", combined)
-        self.assertIn("label: 'Vision'", combined)
-        self.assertIn("label: 'Local AI'", combined)
+        self.assertIn("hintText: 'Message Pandora'", combined)
+        self.assertIn("Icons.view_in_ar_outlined", combined)
+        self.assertIn("Icons.mic_none_rounded", combined)
+        self.assertIn("Icons.arrow_upward_rounded", combined)
+        for removed_nav in (
+            "label: 'Home'",
+            "label: 'Alfred'",
+            "label: 'Operations'",
+            "label: 'Vision'",
+            "label: 'Local AI'",
+        ):
+            self.assertNotIn(removed_nav, combined)
 
 
 if __name__ == "__main__":
