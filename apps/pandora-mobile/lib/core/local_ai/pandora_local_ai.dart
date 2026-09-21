@@ -113,7 +113,7 @@ class PandoraLocalAi {
   Future<bool> warm() async {
     try {
       final warmed = await _methods.invokeMethod<bool>('warm').timeout(
-        const Duration(seconds: 82),
+        const Duration(seconds: 128),
         onTimeout: () async {
           try {
             await cancel();
