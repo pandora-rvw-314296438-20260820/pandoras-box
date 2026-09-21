@@ -193,7 +193,7 @@ void main() {
       kotlinSource,
       contains('activeGeneration?.cancelAndJoin()'),
     );
-    expect(kotlinSource, contains('private const val WARM_DEADLINE_MS = 15_000L'));
+    expect(kotlinSource, contains('private const val WARM_DEADLINE_MS = 75_000L'));
     expect(kotlinSource, contains('engine.requestCancel()'));
     expect(kotlinSource, contains('engine.clearCancelRequest()'));
     expect(kotlinSource, contains('private suspend fun warmWithDeadline()'));
@@ -233,7 +233,7 @@ void main() {
     );
     expect(
       screenSource,
-      contains('.timeout(const Duration(seconds: 15))'),
+      contains('.timeout(const Duration(seconds: 30))'),
     );
 
     final localStart = screenSource.indexOf(
