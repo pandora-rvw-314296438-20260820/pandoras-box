@@ -40,6 +40,9 @@ test('PLP shell refetches protected bootstrap after live resort changes', () => 
   assert.match(shell, /channel\('plp-enterprise-live-\$organizationId'\)/);
   assert.match(shell, /table: 'enterprise_realtime_signals'/);
   assert.match(shell, /_scheduleRealtimeRefresh\(\)/);
+  assert.match(shell, /topic != 'pandora_activity'/);
+  assert.match(shell, /Map<String, Object\?>\? _lastBootstrap/);
+  assert.match(shell, /snapshot\.data \?\? _lastBootstrap/);
   assert.match(shell, /organizationId: _organizationId\(bootstrap\)/);
 });
 

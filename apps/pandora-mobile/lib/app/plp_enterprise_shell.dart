@@ -56,6 +56,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   final _commandFocus = FocusNode();
 
   Future<Map<String, Object?>>? _bootstrapFuture;
+  Map<String, Object?>? _lastBootstrap;
   bool _bootstrapInitialized = false;
   int _index = 0;
   List<PlpRecentChatItem> _recentChats = const <PlpRecentChatItem>[];
@@ -71,7 +72,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     super.didChangeDependencies();
     if (_bootstrapInitialized) return;
     _bootstrapInitialized = true;
-    _bootstrapFuture = _loadBootstrap();
+    _bootstrapFuture = _loadBootstrapAndRemember();
+  }
+
+  Future<Map<String, Object?>> _loadBootstrapAndRemember() async {
+    final value = await _loadBootstrap();
+    _lastBootstrap = value;
+    return value;
   }
 
   @override
@@ -177,7 +184,9 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
           callback: (payload) {
             final eventOrganizationId =
                 payload.newRecord['organization_id']?.toString();
-            if (eventOrganizationId == organizationId) {
+            final topic = payload.newRecord['topic']?.toString();
+            if (eventOrganizationId == organizationId &&
+                topic != 'pandora_activity') {
               _scheduleRealtimeRefresh();
             }
           },
@@ -191,13 +200,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
       const Duration(milliseconds: 250),
       () {
         if (!mounted) return;
-        setState(() => _bootstrapFuture = _loadBootstrap());
+        setState(() => _bootstrapFuture = _loadBootstrapAndRemember());
       },
     );
   }
 
   void _refresh() {
-    setState(() => _bootstrapFuture = _loadBootstrap());
+    setState(() => _bootstrapFuture = _loadBootstrapAndRemember());
   }
 
   void _open(int index) {
@@ -319,7 +328,9 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   Widget build(BuildContext context) => FutureBuilder<Map<String, Object?>>(
         future: _bootstrapFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          final bootstrap = snapshot.data ?? _lastBootstrap;
+          if (bootstrap == null &&
+              snapshot.connectionState != ConnectionState.done) {
             return const Scaffold(
               backgroundColor: _canvas,
               body: Center(
@@ -330,8 +341,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             );
           }
 
-          final bootstrap = snapshot.data;
-          if (snapshot.hasError || bootstrap == null) {
+          if (bootstrap == null) {
             return Scaffold(
               backgroundColor: _canvas,
               body: SafeArea(
