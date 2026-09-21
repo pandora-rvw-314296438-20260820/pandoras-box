@@ -203,6 +203,7 @@ void main() {
     expect(cppSource, contains('PREFERRED_GPU_LAYERS    = 0'));
     expect(cppSource, contains('model_params.progress_callback = model_load_progress;'));
     expect(cppSource, contains('g_cancel_requested.load(std::memory_order_relaxed)'));
+    expect(cppSource, contains('if (!model && !g_cancel_requested.load(std::memory_order_relaxed))'));
     expect(cppSource, contains('cpu_safe_vulkan_compiled'));
     final localAiSource = File('lib/core/local_ai/pandora_local_ai.dart').readAsStringSync();
     expect(localAiSource, contains('const Duration(seconds: 128)'));
