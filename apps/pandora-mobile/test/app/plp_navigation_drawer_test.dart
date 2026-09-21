@@ -136,49 +136,74 @@ void main() {
       }
     },
   );
-  testWidgets('PLP command dock exposes destination button semantics', (tester) async {
+  testWidgets('PLP command dock is the universal Pandora composer', (tester) async {
     final controller = TextEditingController();
     final focusNode = FocusNode();
+    var submitted = false;
     addTearDown(controller.dispose);
     addTearDown(focusNode.dispose);
-    final semantics = tester.ensureSemantics();
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           bottomNavigationBar: PlpCommandDock(
-            selectedIndex: 0,
             controller: controller,
             focusNode: focusNode,
-            showPersistentComposer: false,
-            onSubmit: () async {},
-            onDestinationSelected: (_) {},
+            onSubmit: () async {
+              submitted = true;
+            },
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    for (final entry in <(String, bool)>[
-      ('Home', true),
-      ('Alfred', false),
-      ('Operations', false),
-      ('Vision', false),
-      ('Local AI', false),
+    expect(
+      find.byKey(const ValueKey<String>('plp-persistent-command-bar')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('plp-command-field')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('plp-command-submit')),
+      findsOneWidget,
+    );
+    expect(find.text('Message Pandora'), findsOneWidget);
+    expect(find.byIcon(Icons.view_in_ar_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.mic_none_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
+
+    for (final legacyLabel in <String>[
+      'Home',
+      'Alfred',
+      'Operations',
+      'Vision',
+      'Local AI',
+      'Who needs attention?',
+      'Show VIP guests',
+      'Who arrives next?',
+      'Who has access?',
+      'Add team member',
+      'Recent activity',
+      'What needs attention?',
+      'Show guest activity',
+      'Show team updates',
     ]) {
-      final finder = find.bySemanticsLabel(entry.$1);
-      expect(finder, findsOneWidget);
-      expect(
-        tester.getSemantics(finder),
-        matchesSemantics(
-          label: entry.$1,
-          isButton: true,
-          hasSelectedState: true,
-          isSelected: entry.$2,
-        ),
-      );
+      expect(find.text(legacyLabel), findsNothing);
     }
-    semantics.dispose();
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('plp-command-field')),
+      'Check today arrivals',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('plp-command-submit')),
+    );
+    await tester.pump();
+
+    expect(submitted, isTrue);
   });
 
 }
