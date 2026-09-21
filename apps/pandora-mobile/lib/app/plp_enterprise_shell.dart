@@ -514,10 +514,31 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 },
               ),
               body: PandoraNavigationScope(
-                openDrawer: _openDrawer,
-                child: IndexedStack(
-                  index: _index,
-                  children: screens,
+                openDrawer: _index == 1 ? _openDrawer : null,
+                child: Stack(
+                  children: [
+                    IndexedStack(
+                      index: _index,
+                      children: screens,
+                    ),
+                    if (_index != 1)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: SafeArea(
+                          bottom: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
+                            child: PandoraMenuButton(
+                              key: const ValueKey<String>(
+                                'pandora-side-panel-open',
+                              ),
+                              onPressed: _openDrawer,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               bottomNavigationBar: _index == 1
