@@ -100,7 +100,12 @@ class PandoraPage extends StatelessWidget {
     return PandoraRouteBoundary(
       child: Stack(
         children: [
-          Positioned.fill(child: scrollable),
+          Positioned.fill(
+            child: SafeArea(
+              top: false,
+              child: scrollable,
+            ),
+          ),
           Positioned(
             top: 0,
             left: 0,
