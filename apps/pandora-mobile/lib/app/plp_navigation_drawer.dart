@@ -383,6 +383,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                           ),
                       ],
                     ),
+                  ),
                   Positioned(
                     left: 0,
                     right: 0,
@@ -411,7 +412,6 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                         ),
                       ),
                     ),
-                  ),
                   ),
                 ],
               ),

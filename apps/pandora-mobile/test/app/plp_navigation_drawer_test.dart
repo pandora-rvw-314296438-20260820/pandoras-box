@@ -41,7 +41,7 @@ void main() {
                 onRetryRecentChats: () {},
                 onSelectDestination: (value) => selected = value,
                 onSelectThread: (_) {},
-              onNewChat: () {},
+                onNewChat: () {},
               ),
             ),
           ),
@@ -55,7 +55,7 @@ void main() {
         expect(tester.getSize(drawer).width, closeTo(296.4, .6));
         expect(tester.getSize(drawer).height, closeTo(844, .6));
         final drawerWidget = tester.widget<Drawer>(drawer);
-        expect(drawerWidget.backgroundColor, const Color(0xFF000000));
+        expect(drawerWidget.backgroundColor, Colors.transparent);
 
         final scrollView = find.byKey(
           const ValueKey<String>('plp-drawer-scroll'),
@@ -65,6 +65,8 @@ void main() {
         );
         expect(scrollView, findsOneWidget);
         expect(headerOverlay, findsOneWidget);
+        expect(find.byKey(const ValueKey<String>('plp-drawer-bottom-overlay')), findsOneWidget);
+        expect(find.byKey(const ValueKey<String>('plp-drawer-new-chat')), findsOneWidget);
         expect(
           tester.getTopLeft(scrollView).dy,
           closeTo(tester.getTopLeft(headerOverlay).dy, .5),
