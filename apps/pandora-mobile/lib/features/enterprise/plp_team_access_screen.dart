@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/widgets/pandora_navigation.dart';
+
 class PlpTeamAccessScreen extends StatefulWidget {
   const PlpTeamAccessScreen({
     super.key,
@@ -212,16 +214,13 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          IconButton(
-            key: const ValueKey<String>('plp-team-open-navigation'),
-            tooltip: 'Open navigation',
-            onPressed: onOpenNavigation,
-            style: IconButton.styleFrom(
-              foregroundColor: _PlpTeamAccessScreenState._ink,
-              backgroundColor: Colors.white.withValues(alpha: .64),
-            ),
-            icon: const Icon(Icons.menu_rounded, size: 28),
-          ),
+          if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
+            PandoraMenuButton(
+              key: const ValueKey<String>('plp-team-open-navigation'),
+              onPressed: onOpenNavigation,
+            )
+          else
+            const SizedBox.square(dimension: 44),
           const SizedBox(width: 5),
           Container(
             width: 43,

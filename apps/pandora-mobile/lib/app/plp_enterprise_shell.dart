@@ -255,6 +255,20 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     await _alfredKey.currentState?.loadThread(item.id);
   }
 
+  Future<void> _startNewChat() async {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      _scaffoldKey.currentState?.closeDrawer();
+    }
+    _open(1);
+    await WidgetsBinding.instance.endOfFrame;
+    _alfredKey.currentState?.newChat();
+    if (!mounted) return;
+    setState(() {
+      _recentChatsLoaded = false;
+      _recentChatsError = null;
+    });
+  }
+
   Future<void> _loadRecentChats({bool force = false}) async {
     if (_recentChatsLoading || (_recentChatsLoaded && !force)) return;
     final intelligence = PandoraDependencies.of(context).intelligence;
@@ -437,7 +451,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               key: _scaffoldKey,
               backgroundColor: _canvas,
               drawerEnableOpenDragGesture: true,
-              drawerEdgeDragWidth: 28,
+              drawerEdgeDragWidth: 32,
               drawerScrimColor: const Color(0x99000000),
               onDrawerChanged: (open) {
                 if (open) unawaited(_loadRecentChats());
@@ -454,12 +468,36 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 onSelectThread: (item) {
                   unawaited(_openRecentThread(item));
                 },
+                onNewChat: () {
+                  unawaited(_startNewChat());
+                },
               ),
               body: PandoraNavigationScope(
-                openDrawer: _openDrawer,
-                child: IndexedStack(
-                  index: _index,
-                  children: screens,
+                openDrawer: _index == 1 ? _openDrawer : null,
+                child: Stack(
+                  children: [
+                    IndexedStack(
+                      index: _index,
+                      children: screens,
+                    ),
+                    if (_index != 1)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: SafeArea(
+                          bottom: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
+                            child: PandoraMenuButton(
+                              key: const ValueKey<String>(
+                                'pandora-side-panel-open',
+                              ),
+                              onPressed: _openDrawer,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               bottomNavigationBar: _index == 1
@@ -674,11 +712,15 @@ class _PlpBusinessSurface extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconButton(
-                tooltip: 'Open navigation',
-                onPressed: onOpenNavigation,
-                icon: const Icon(Icons.menu_rounded, size: 28),
-              ),
+              if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
+                PandoraMenuButton(
+                  key: ValueKey<String>(
+                    'plp-business-open-navigation-$destination',
+                  ),
+                  onPressed: onOpenNavigation,
+                )
+              else
+                const SizedBox.square(dimension: 44),
               const SizedBox(width: 4),
               Icon(icon, size: 25),
               const SizedBox(width: 10),

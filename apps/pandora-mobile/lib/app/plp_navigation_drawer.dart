@@ -25,6 +25,7 @@ class PlpNavigationDrawer extends StatefulWidget {
     required this.onRetryRecentChats,
     required this.onSelectDestination,
     required this.onSelectThread,
+    required this.onNewChat,
   });
 
   final String? selectedDestination;
@@ -34,6 +35,7 @@ class PlpNavigationDrawer extends StatefulWidget {
   final VoidCallback onRetryRecentChats;
   final ValueChanged<String> onSelectDestination;
   final ValueChanged<PlpRecentChatItem> onSelectThread;
+  final VoidCallback onNewChat;
 
   @override
   State<PlpNavigationDrawer> createState() => _PlpNavigationDrawerState();
@@ -113,7 +115,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
       width: drawerWidth,
       elevation: 0,
       shadowColor: Colors.transparent,
-      backgroundColor: const Color(0xFF000000),
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: ClipRect(
@@ -121,7 +123,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
           filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: DecoratedBox(
             decoration: const BoxDecoration(
-              color: Color(0xFF000000),
+              color: Color(0xF20A0C10),
               border: Border(
                 right: BorderSide(color: Color(0x1FFFFFFF)),
               ),
@@ -132,7 +134,7 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                 children: [
                   SingleChildScrollView(
                     key: const ValueKey<String>('plp-drawer-scroll'),
-                    padding: EdgeInsets.fromLTRB(14, _searchOpen ? 136 : 76, 14, 22),
+                    padding: EdgeInsets.fromLTRB(14, _searchOpen ? 136 : 76, 14, 112),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -380,6 +382,35 @@ class _PlpNavigationDrawerState extends State<PlpNavigationDrawer> {
                             ),
                           ),
                       ],
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Padding(
+                      key: const ValueKey<String>('plp-drawer-bottom-overlay'),
+                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+                      child: Material(
+                        color: const Color(0xD9181C22),
+                        surfaceTintColor: Colors.transparent,
+                        borderRadius: BorderRadius.circular(18),
+                        child: InkWell(
+                          key: const ValueKey<String>('plp-drawer-new-chat'),
+                          onTap: widget.onNewChat,
+                          borderRadius: BorderRadius.circular(18),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_square, size: 21, color: Color(0xFFF4F6F8)),
+                                SizedBox(width: 12),
+                                Text('New chat', style: TextStyle(color: Color(0xFFF4F6F8), fontSize: 15, fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],

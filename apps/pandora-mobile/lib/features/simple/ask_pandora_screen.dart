@@ -2584,13 +2584,6 @@ class _Composer extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 6),
-              const Text(
-                'Pandora can make mistakes. Review important changes before publishing.',
-                textAlign: TextAlign.center,
-                style:
-                    TextStyle(color: PandoraSimpleColors.muted, fontSize: 10.5),
-              ),
             ],
           ),
         ),

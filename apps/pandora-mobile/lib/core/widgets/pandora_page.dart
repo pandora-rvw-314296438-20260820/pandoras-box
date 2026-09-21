@@ -26,44 +26,17 @@ class PandoraPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final navigation = PandoraNavigationScope.maybeOf(context);
+    final openDrawer = navigation?.openDrawer;
+    final topInset = MediaQuery.paddingOf(context).top;
+    const chromeHeight = 60.0;
+
     final content = CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
-        SliverAppBar(
-          toolbarHeight: 68,
-          automaticallyImplyLeading: navigation == null,
-          leading: navigation?.openDrawer == null
-              ? null
-              : IconButton(
-                  key: const ValueKey<String>('pandora-side-panel-open'),
-                  tooltip: 'Open navigation',
-                  onPressed: navigation!.openDrawer,
-                  icon: const Icon(Icons.menu_rounded),
-                ),
-          titleSpacing: navigation?.openDrawer == null ? PandoraSpacing.md : 0,
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (showProductMark) ...[
-                const PandoraMark(size: 36),
-                const SizedBox(width: PandoraSpacing.sm),
-              ],
-              Flexible(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          actions: actions,
-          pinned: true,
-        ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(
+          padding: EdgeInsets.fromLTRB(
             PandoraSpacing.md,
-            PandoraSpacing.md,
+            topInset + chromeHeight + PandoraSpacing.sm,
             PandoraSpacing.md,
             PandoraSpacing.xxl,
           ),
@@ -76,7 +49,30 @@ class PandoraPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (showProductMark) ...[
+                          const PandoraMark(size: 36),
+                          const SizedBox(width: PandoraSpacing.sm),
+                        ],
+                        Expanded(
+                          child: Text(
+                            title,
+                            key: const ValueKey<String>('pandora-page-title'),
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -.45,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
                     if (subtitle != null) ...[
+                      const SizedBox(height: PandoraSpacing.sm),
                       Text(
                         subtitle!,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -85,8 +81,8 @@ class PandoraPage extends StatelessWidget {
                                   .onSurfaceVariant,
                             ),
                       ),
-                      const SizedBox(height: PandoraSpacing.md),
                     ],
+                    const SizedBox(height: PandoraSpacing.md),
                     child,
                   ],
                 ),
@@ -96,9 +92,51 @@ class PandoraPage extends StatelessWidget {
         ),
       ],
     );
+
     final scrollable = onRefresh == null
         ? content
         : RefreshIndicator(onRefresh: onRefresh!, child: content);
-    return PandoraRouteBoundary(child: SafeArea(top: false, child: scrollable));
+
+    return PandoraRouteBoundary(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: SafeArea(
+              top: false,
+              child: scrollable,
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Row(
+                  children: [
+                    if (openDrawer != null)
+                      PandoraMenuButton(
+                        key: const ValueKey<String>('pandora-side-panel-open'),
+                        onPressed: openDrawer,
+                      )
+                    else if (Navigator.of(context).canPop())
+                      const SizedBox.square(
+                        dimension: 44,
+                        child: BackButton(),
+                      )
+                    else
+                      const SizedBox.square(dimension: 44),
+                    const Spacer(),
+                    ...actions,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
