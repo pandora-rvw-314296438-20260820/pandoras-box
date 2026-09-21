@@ -590,19 +590,8 @@ class _TeamMemberRow extends StatelessWidget {
             height: 54,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFE9D7C5), Color(0xFF9BC7C4)],
-              ),
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x10000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 3),
-                ),
-              ],
+              color: _PlpTeamAccessScreenState._goldSoft,
+              border: Border.all(color: _PlpTeamAccessScreenState._line),
             ),
             child: Center(
               child: Text(
@@ -645,7 +634,7 @@ class _TeamMemberRow extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: _PlpTeamAccessScreenState._goldSoft,
-                          borderRadius: BorderRadius.circular(999),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: const Text(
                           'You',
@@ -677,7 +666,7 @@ class _TeamMemberRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
             decoration: BoxDecoration(
               color: const Color(0xFFF7F7F5),
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.zero,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1030,7 +1019,7 @@ class _ActivityRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: const Color(0xFFF8E9C9),
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.zero,
               ),
               child: const Text(
                 'QA',
@@ -1070,7 +1059,7 @@ class _EmptyState extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: _PlpTeamAccessScreenState._paper,
-          borderRadius: BorderRadius.circular(17),
+          borderRadius: BorderRadius.zero,
           border: Border.all(color: _PlpTeamAccessScreenState._line),
         ),
         child: Row(
