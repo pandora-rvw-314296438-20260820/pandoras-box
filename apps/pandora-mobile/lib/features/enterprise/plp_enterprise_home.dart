@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../core/widgets/pandora_navigation.dart';
@@ -20,25 +21,24 @@ class PlpEnterpriseHome extends StatelessWidget {
   final VoidCallback onOperations;
   final VoidCallback onVision;
 
-  static const _canvas = Color(0xFF070A0F);
-  static const _panel = Color(0xFF10151D);
-  static const _panelRaised = Color(0xFF151B25);
-  static const _line = Color(0xFF263040);
-  static const _muted = Color(0xFF93A0B2);
-  static const _text = Color(0xFFF4F7FB);
-  static const _accent = Color(0xFF5ED8E6);
-  static const _good = Color(0xFF6FE0A4);
-  static const _warn = Color(0xFFF2C66D);
+  static const _canvas = Color(0xFFFAF7F1);
+  static const _paper = Color(0xFFFFFDFC);
+  static const _ink = Color(0xFF171512);
+  static const _muted = Color(0xFF706B64);
+  static const _line = Color(0xFFE6DED2);
+  static const _accent = Color(0xFF82764F);
+  static const _good = Color(0xFF5E765F);
+  static const _warn = Color(0xFFA56B2C);
 
   Map<String, Object?> _map(Object? value) {
     if (value is Map<String, Object?>) return value;
     if (value is Map) {
-      return value.map((key, value) => MapEntry(key.toString(), value));
+      return value.map((key, item) => MapEntry(key.toString(), item));
     }
     return const <String, Object?>{};
   }
 
-  String _textValue(Object? value, {String fallback = '—'}) {
+  String _text(Object? value, {String fallback = '—'}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -51,14 +51,14 @@ class PlpEnterpriseHome extends StatelessWidget {
   String _integer(Object? value) => _number(value).round().toString();
 
   String _peso(Object? value) {
-    final amount = _number(value).round().abs().toString();
+    final amount = _number(value).round();
+    final raw = amount.abs().toString();
     final buffer = StringBuffer();
-    for (var i = 0; i < amount.length; i++) {
-      if (i > 0 && (amount.length - i) % 3 == 0) buffer.write(',');
-      buffer.write(amount[i]);
+    for (var i = 0; i < raw.length; i++) {
+      if (i > 0 && (raw.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(raw[i]);
     }
-    final prefix = _number(value) < 0 ? '-₱' : '₱';
-    return '$prefix$buffer';
+    return (amount < 0 ? '-₱' : '₱') + buffer.toString();
   }
 
   @override
@@ -68,14 +68,19 @@ class PlpEnterpriseHome extends StatelessWidget {
     final today = _map(bootstrap['today']);
     final source = _map(bootstrap['sourceHealth']);
 
-    final displayName =
-        _textValue(user['displayName'], fallback: 'PLP administrator');
-    final propertyName =
-        _textValue(organization['propertyName'], fallback: 'PLP Boracay');
-    final businessIdentity =
-        _textValue(organization['businessIdentity'], fallback: 'Luxury Resort');
-
-    final occupancy = _textValue(today['occupancy_percent'], fallback: '0');
+    final displayName = _text(
+      user['displayName'],
+      fallback: 'PLP administrator',
+    );
+    final propertyName = _text(
+      organization['propertyName'],
+      fallback: 'PLP Boracay',
+    );
+    final businessIdentity = _text(
+      organization['businessIdentity'],
+      fallback: 'Luxury Resort',
+    );
+    final occupancy = _text(today['occupancy_percent'], fallback: '0');
     final occupied = _integer(today['occupied_rooms']);
     final rooms = _integer(today['rooms_total']);
     final available = _integer(today['rooms_available']);
@@ -84,306 +89,159 @@ class PlpEnterpriseHome extends StatelessWidget {
     final sales = _peso(today['sales_today_php']);
     final tasks = _integer(today['open_staff_tasks']);
     final conflicts = _integer(today['open_ota_conflicts']);
-    final sourceState = _textValue(source['state'], fallback: 'unknown');
-    final sourceMessage = _textValue(
+    final sourceState = _text(source['state'], fallback: 'unknown');
+    final sourceMessage = _text(
       source['message'],
       fallback: 'No provider status message',
     );
 
-    return ColoredBox(
+    return Material(
       color: _canvas,
       child: SafeArea(
         key: const ValueKey('plp-enterprise-home'),
         bottom: false,
         child: RefreshIndicator(
+          color: _ink,
+          backgroundColor: _paper,
           onRefresh: () async => onRefresh(),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 190),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 190),
             children: [
-              Row(
-                children: [
-                  if (onOpenNavigation != null) ...[
-                    if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
-                      PandoraMenuButton(
-                        key: const ValueKey<String>('plp-open-navigation'),
-                        onPressed: onOpenNavigation!,
-                      )
-                    else
-                      const SizedBox.square(dimension: 44),
-                    const SizedBox(width: 4),
-                  ],
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: _panelRaised,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: _line),
-                    ),
-                    child: const Icon(
-                      Icons.hotel_class_rounded,
-                      color: _accent,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          propertyName,
-                          style: const TextStyle(
-                            color: _text,
-                            fontSize: 21,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                        Text(
-                          businessIdentity,
-                          style: const TextStyle(
-                            color: _muted,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton.filledTonal(
-                    tooltip: 'Refresh PLP data',
-                    onPressed: onRefresh,
-                    icon: const Icon(Icons.refresh_rounded),
-                  ),
-                ],
+              _HomeHeader(
+                propertyName: propertyName,
+                businessIdentity: businessIdentity,
+                onOpenNavigation: onOpenNavigation,
+                onRefresh: onRefresh,
               ),
-              const SizedBox(height: 26),
+              const SizedBox(height: 38),
+              const _Eyebrow('OWNER’S HOME'),
+              const SizedBox(height: 13),
               Text(
                 'Welcome, $displayName',
                 key: const ValueKey('plp-authenticated-greeting'),
                 style: const TextStyle(
-                  color: _text,
-                  fontSize: 28,
-                  height: 1.05,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.8,
+                  color: _ink,
+                  fontFamily: 'serif',
+                  fontSize: 43,
+                  height: 0.98,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: -1.5,
                 ),
               ),
-              const SizedBox(height: 7),
+              const SizedBox(height: 16),
               const Text(
-                'Here is what needs your attention at the resort today.',
+                'A quiet view of what matters at the resort today — performance, movement, attention, and the next action.',
                 style: TextStyle(
                   color: _muted,
-                  fontSize: 15,
-                  height: 1.4,
+                  fontSize: 14.5,
+                  height: 1.55,
                 ),
               ),
-              const SizedBox(height: 22),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF152532), Color(0xFF101A25)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFF294453)),
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.insights_rounded, color: _accent, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'TODAY AT A GLANCE',
-                          style: TextStyle(
-                            color: _accent,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.1,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: _HeroMetric(
-                            label: 'Occupancy',
-                            value: '$occupancy%',
-                            detail: '$occupied of $rooms rooms occupied',
-                            valueKey:
-                                const ValueKey('plp-metric-occupancy'),
-                          ),
-                        ),
-                        const SizedBox(width: 18),
-                        Expanded(
-                          child: _HeroMetric(
-                            label: 'Sales',
-                            value: sales,
-                            detail: 'today',
-                            valueKey: const ValueKey('plp-metric-sales'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: _FlowCard(
-                      icon: Icons.login_rounded,
-                      label: 'Arrivals',
-                      value: arrivals,
-                      detail: 'today',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _FlowCard(
-                      icon: Icons.logout_rounded,
-                      label: 'Departures',
-                      value: departures,
-                      detail: 'today',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _FlowCard(
-                      icon: Icons.bed_outlined,
-                      label: 'Available',
-                      value: available,
-                      detail: 'rooms',
-                    ),
-                  ),
-                ],
-              ),
+              const SizedBox(height: 30),
+              const Divider(height: 1, color: _line),
               const SizedBox(height: 24),
-              const Text(
-                'Needs attention',
-                style: TextStyle(
-                  color: _text,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _AttentionRow(
-                icon: Icons.sync_problem_rounded,
-                title:
-                    '$conflicts OTA conflict${conflicts == '1' ? '' : 's'}',
-                subtitle: conflicts == '0'
-                    ? 'No channel conflicts are open.'
-                    : 'Review the conflicting booking before the next arrival.',
-                tone: conflicts == '0' ? _good : _warn,
-                onTap: onAskAlfred,
-              ),
-              const SizedBox(height: 10),
-              _AttentionRow(
-                icon: Icons.assignment_outlined,
-                title:
-                    '$tasks open staff task${tasks == '1' ? '' : 's'}',
-                subtitle: tasks == '0'
-                    ? 'No staff tasks are waiting.'
-                    : 'Alfred can summarize, assign, or create the next task.',
-                tone: tasks == '0' ? _good : _accent,
-                onTap: onAskAlfred,
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Command center',
-                style: TextStyle(
-                  color: _text,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _CommandTile(
-                      key: const ValueKey('plp-open-alfred'),
-                      icon: Icons.auto_awesome_rounded,
-                      label: 'Alfred',
-                      detail: 'Ask or act',
-                      onTap: onAskAlfred,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _CommandTile(
-                      key: const ValueKey('plp-open-operations-room'),
-                      icon: Icons.hub_rounded,
-                      label: 'Operations',
-                      detail: 'Live execution',
-                      onTap: onOperations,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _CommandTile(
-                      key: const ValueKey('plp-open-vision'),
-                      icon: Icons.visibility_rounded,
-                      label: 'Vision',
-                      detail: 'Observe',
-                      onTap: onVision,
-                    ),
-                  ),
-                ],
-              ),
+              const _Eyebrow('TODAY AT PUEBLO LA PERLA'),
               const SizedBox(height: 18),
-              Container(
-                key: const ValueKey('plp-source-health'),
-                decoration: BoxDecoration(
-                  color: _panel,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: _line),
-                ),
-                padding: const EdgeInsets.all(15),
+              IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.verified_outlined,
-                      color: _good,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
                     Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                            color: _muted,
-                            fontSize: 12.5,
-                            height: 1.35,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: sourceState.toUpperCase(),
-                              style: const TextStyle(
-                                color: _good,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            TextSpan(text: ' · $sourceMessage'),
-                          ],
-                        ),
+                      child: _Metric(
+                        label: 'Occupancy',
+                        value: '$occupancy%',
+                        detail: '$occupied of $rooms rooms occupied',
+                        valueKey: const ValueKey('plp-metric-occupancy'),
+                      ),
+                    ),
+                    const VerticalDivider(
+                      width: 24,
+                      thickness: 1,
+                      color: _line,
+                    ),
+                    Expanded(
+                      child: _Metric(
+                        label: 'Revenue',
+                        value: sales,
+                        detail: 'today',
+                        valueKey: const ValueKey('plp-metric-sales'),
+                      ),
+                    ),
+                    const VerticalDivider(
+                      width: 24,
+                      thickness: 1,
+                      color: _line,
+                    ),
+                    Expanded(
+                      child: _Metric(
+                        label: 'Available',
+                        value: available,
+                        detail: 'rooms',
+                        valueKey: const ValueKey('plp-metric-available'),
                       ),
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 28),
+              const Divider(height: 1, color: _line),
+              const SizedBox(height: 25),
+              const _Eyebrow('MOVEMENT TODAY'),
+              const SizedBox(height: 8),
+              _Movement(
+                label: 'Arrivals',
+                value: arrivals,
+                detail: 'Guests expected today',
+              ),
+              const Divider(height: 1, color: _line),
+              _Movement(
+                label: 'Departures',
+                value: departures,
+                detail: 'Guests leaving today',
+              ),
+              const Divider(height: 1, color: _line),
+              const SizedBox(height: 31),
+              _Attention(
+                conflicts: conflicts,
+                tasks: tasks,
+                onTap: onAskAlfred,
+              ),
+              const SizedBox(height: 34),
+              const _Eyebrow('COMMAND PLP'),
+              const SizedBox(height: 7),
+              const Text(
+                'Move from insight to action without leaving the owner workspace.',
+                style: TextStyle(
+                  color: _muted,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 15),
+              _Command(
+                key: const ValueKey('plp-open-alfred'),
+                title: 'Pandora',
+                detail: 'Ask, decide, or act across the resort',
+                onTap: onAskAlfred,
+                primary: true,
+              ),
+              _Command(
+                key: const ValueKey('plp-open-operations-room'),
+                title: 'Operations',
+                detail: 'See live execution and operating work',
+                onTap: onOperations,
+              ),
+              _Command(
+                key: const ValueKey('plp-open-vision'),
+                title: 'Vision',
+                detail: 'Observe the property and visual intelligence',
+                onTap: onVision,
+              ),
+              const SizedBox(height: 28),
+              _SourceHealth(
+                state: sourceState,
+                message: sourceMessage,
               ),
             ],
           ),
@@ -393,8 +251,125 @@ class PlpEnterpriseHome extends StatelessWidget {
   }
 }
 
-class _HeroMetric extends StatelessWidget {
-  const _HeroMetric({
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({
+    required this.propertyName,
+    required this.businessIdentity,
+    required this.onOpenNavigation,
+    required this.onRefresh,
+  });
+
+  final String propertyName;
+  final String businessIdentity;
+  final VoidCallback? onOpenNavigation;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          if (onOpenNavigation != null &&
+              PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
+            PandoraMenuButton(
+              key: const ValueKey<String>('plp-open-navigation'),
+              onPressed: onOpenNavigation!,
+            )
+          else
+            const SizedBox.square(dimension: 44),
+          const SizedBox(width: 7),
+          Container(
+            width: 43,
+            height: 43,
+            decoration: BoxDecoration(
+              color: PlpEnterpriseHome._paper,
+              border: Border.all(color: PlpEnterpriseHome._line),
+            ),
+            child: Image.asset(
+              'assets/workspaces/plp.webp',
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Center(
+                child: Text(
+                  'PLP',
+                  style: TextStyle(
+                    color: PlpEnterpriseHome._ink,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  propertyName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PlpEnterpriseHome._ink,
+                    fontFamily: 'serif',
+                    fontSize: 21,
+                    height: 1,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.35,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  businessIdentity.toUpperCase(),
+                  style: const TextStyle(
+                    color: PlpEnterpriseHome._accent,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.7,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox.square(
+            dimension: 42,
+            child: IconButton(
+              tooltip: 'Refresh PLP data',
+              onPressed: onRefresh,
+              style: IconButton.styleFrom(
+                foregroundColor: PlpEnterpriseHome._ink,
+                backgroundColor: PlpEnterpriseHome._paper,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.zero,
+                  side: BorderSide(color: PlpEnterpriseHome._line),
+                ),
+              ),
+              icon: const Icon(Icons.refresh_rounded, size: 20),
+            ),
+          ),
+        ],
+      );
+}
+
+class _Eyebrow extends StatelessWidget {
+  const _Eyebrow(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: const TextStyle(
+          color: PlpEnterpriseHome._accent,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 2,
+        ),
+      );
+}
+
+class _Metric extends StatelessWidget {
+  const _Metric({
     required this.label,
     required this.value,
     required this.detail,
@@ -414,11 +389,11 @@ class _HeroMetric extends StatelessWidget {
             label,
             style: const TextStyle(
               color: PlpEnterpriseHome._muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 7),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -426,75 +401,78 @@ class _HeroMetric extends StatelessWidget {
               value,
               key: valueKey,
               style: const TextStyle(
-                color: PlpEnterpriseHome._text,
+                color: PlpEnterpriseHome._ink,
+                fontFamily: 'serif',
                 fontSize: 31,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -1,
+                height: 1,
+                fontWeight: FontWeight.w400,
+                letterSpacing: -0.8,
               ),
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 7),
           Text(
             detail,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: PlpEnterpriseHome._muted,
-              fontSize: 11.5,
+              fontSize: 10.5,
+              height: 1.35,
             ),
           ),
         ],
       );
 }
 
-class _FlowCard extends StatelessWidget {
-  const _FlowCard({
-    required this.icon,
+class _Movement extends StatelessWidget {
+  const _Movement({
     required this.label,
     required this.value,
     required this.detail,
   });
 
-  final IconData icon;
   final String label;
   final String value;
   final String detail;
 
   @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: PlpEnterpriseHome._panel,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: PlpEnterpriseHome._line),
-        ),
-        padding: const EdgeInsets.fromLTRB(13, 14, 13, 13),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        child: Row(
           children: [
-            Icon(icon, color: PlpEnterpriseHome._accent, size: 18),
-            const SizedBox(height: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: PlpEnterpriseHome._ink,
+                      fontFamily: 'serif',
+                      fontSize: 22,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    detail,
+                    style: const TextStyle(
+                      color: PlpEnterpriseHome._muted,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Text(
               value,
               style: const TextStyle(
-                color: PlpEnterpriseHome._text,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: PlpEnterpriseHome._text,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              detail,
-              style: const TextStyle(
-                color: PlpEnterpriseHome._muted,
-                fontSize: 10.5,
+                color: PlpEnterpriseHome._ink,
+                fontFamily: 'serif',
+                fontSize: 35,
+                height: 1,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ],
@@ -502,73 +480,221 @@ class _FlowCard extends StatelessWidget {
       );
 }
 
-class _AttentionRow extends StatelessWidget {
-  const _AttentionRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.tone,
+class _Attention extends StatelessWidget {
+  const _Attention({
+    required this.conflicts,
+    required this.tasks,
     required this.onTap,
   });
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color tone;
+  final String conflicts;
+  final String tasks;
   final VoidCallback onTap;
 
   @override
+  Widget build(BuildContext context) {
+    final clear = conflicts == '0' && tasks == '0';
+    return Material(
+      color: PlpEnterpriseHome._ink,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 21),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                clear ? 'RESORT STATUS' : 'NEEDS YOUR ATTENTION',
+                style: const TextStyle(
+                  color: Color(0xFFD5CCB7),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                clear
+                    ? 'Everything important is clear.'
+                    : 'A few things need a decision.',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'serif',
+                  fontSize: 29,
+                  height: 1.03,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 19),
+              _Status(
+                title: conflicts +
+                    ' OTA conflict' +
+                    (conflicts == '1' ? '' : 's'),
+                detail: conflicts == '0'
+                    ? 'No channel conflicts are open.'
+                    : 'Review the conflicting booking before the next arrival.',
+                tone: conflicts == '0'
+                    ? PlpEnterpriseHome._good
+                    : PlpEnterpriseHome._warn,
+              ),
+              const Divider(height: 25, color: Color(0xFF393631)),
+              _Status(
+                title: tasks +
+                    ' open staff task' +
+                    (tasks == '1' ? '' : 's'),
+                detail: tasks == '0'
+                    ? 'No staff tasks are waiting.'
+                    : 'Pandora can summarize, assign, or create the next task.',
+                tone: tasks == '0'
+                    ? PlpEnterpriseHome._good
+                    : const Color(0xFFC8B98F),
+              ),
+              const SizedBox(height: 18),
+              const Row(
+                children: [
+                  Text(
+                    'OPEN IN PANDORA',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.7,
+                    ),
+                  ),
+                  SizedBox(width: 7),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 17,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Status extends StatelessWidget {
+  const _Status({
+    required this.title,
+    required this.detail,
+    required this.tone,
+  });
+
+  final String title;
+  final String detail;
+  final Color tone;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            margin: const EdgeInsets.only(top: 5),
+            color: tone,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  detail,
+                  style: const TextStyle(
+                    color: Color(0xFFBEB8AE),
+                    fontSize: 11.5,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+}
+
+class _Command extends StatelessWidget {
+  const _Command({
+    super.key,
+    required this.title,
+    required this.detail,
+    required this.onTap,
+    this.primary = false,
+  });
+
+  final String title;
+  final String detail;
+  final VoidCallback onTap;
+  final bool primary;
+
+  @override
   Widget build(BuildContext context) => Material(
-        color: PlpEnterpriseHome._panel,
-        borderRadius: BorderRadius.circular(18),
+        color: primary ? PlpEnterpriseHome._ink : Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
           onTap: onTap,
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: PlpEnterpriseHome._line),
+              border: primary
+                  ? null
+                  : const Border(
+                      top: BorderSide(color: PlpEnterpriseHome._line),
+                    ),
             ),
-            padding: const EdgeInsets.all(15),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 15,
+              vertical: 16,
+            ),
             child: Row(
               children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: tone.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: tone, size: 20),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
-                          color: PlpEnterpriseHome._text,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
+                        style: TextStyle(
+                          color: primary
+                              ? Colors.white
+                              : PlpEnterpriseHome._ink,
+                          fontFamily: 'serif',
+                          fontSize: 20,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        subtitle,
-                        style: const TextStyle(
-                          color: PlpEnterpriseHome._muted,
+                        detail,
+                        style: TextStyle(
+                          color: primary
+                              ? const Color(0xFFBEB8AE)
+                              : PlpEnterpriseHome._muted,
                           fontSize: 11.5,
-                          height: 1.3,
+                          height: 1.35,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: PlpEnterpriseHome._muted,
+                const SizedBox(width: 12),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  color: primary ? Colors.white : PlpEnterpriseHome._ink,
+                  size: 20,
                 ),
               ],
             ),
@@ -577,56 +703,60 @@ class _AttentionRow extends StatelessWidget {
       );
 }
 
-class _CommandTile extends StatelessWidget {
-  const _CommandTile({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.detail,
-    required this.onTap,
+class _SourceHealth extends StatelessWidget {
+  const _SourceHealth({
+    required this.state,
+    required this.message,
   });
 
-  final IconData icon;
-  final String label;
-  final String detail;
-  final VoidCallback onTap;
+  final String state;
+  final String message;
 
   @override
-  Widget build(BuildContext context) => Material(
-        color: PlpEnterpriseHome._panelRaised,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: PlpEnterpriseHome._line),
+  Widget build(BuildContext context) => Container(
+        key: const ValueKey('plp-source-health'),
+        decoration: const BoxDecoration(
+          border: Border(
+            top: BorderSide(color: PlpEnterpriseHome._line),
+            bottom: BorderSide(color: PlpEnterpriseHome._line),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              margin: const EdgeInsets.only(top: 4),
+              color: state.toLowerCase() == 'healthy'
+                  ? PlpEnterpriseHome._good
+                  : PlpEnterpriseHome._warn,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            child: Column(
-              children: [
-                Icon(icon, color: PlpEnterpriseHome._accent, size: 22),
-                const SizedBox(height: 8),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: PlpEnterpriseHome._text,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  detail,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
                   style: const TextStyle(
                     color: PlpEnterpriseHome._muted,
-                    fontSize: 9.5,
+                    fontSize: 10.5,
+                    height: 1.4,
                   ),
+                  children: [
+                    TextSpan(
+                      text: state.toUpperCase(),
+                      style: const TextStyle(
+                        color: PlpEnterpriseHome._ink,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    TextSpan(text: ' · $message'),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       );
 }

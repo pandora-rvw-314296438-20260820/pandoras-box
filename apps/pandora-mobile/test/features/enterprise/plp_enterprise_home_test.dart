@@ -44,6 +44,11 @@ void main() {
     );
 
     expect(find.byKey(const ValueKey('plp-enterprise-home')), findsOneWidget);
+    expect(find.text('OWNER’S HOME'), findsOneWidget);
+    expect(find.text('TODAY AT PUEBLO LA PERLA'), findsOneWidget);
+    expect(find.text('MOVEMENT TODAY'), findsOneWidget);
+    expect(find.text('TODAY AT A GLANCE'), findsNothing);
+    expect(find.text('Command center'), findsNothing);
     expect(find.text('Welcome, Doctora'), findsOneWidget);
     expect(find.text('66.67%'), findsOneWidget);
     expect(find.text('2 of 3 rooms occupied'), findsOneWidget);
@@ -74,7 +79,14 @@ void main() {
       320,
       scrollable: find.byType(Scrollable),
     );
+    expect(find.text('COMMAND PLP'), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-open-alfred')), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('plp-open-vision')),
+      180,
+      scrollable: find.byType(Scrollable),
+    );
     expect(find.byKey(const ValueKey('plp-open-operations-room')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-open-vision')), findsOneWidget);
   });
