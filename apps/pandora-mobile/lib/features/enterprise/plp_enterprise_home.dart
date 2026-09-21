@@ -38,7 +38,7 @@ class PlpEnterpriseHome extends StatelessWidget {
     return const <String, Object?>{};
   }
 
-  String _text(Object? value, {String fallback = '—'}) {
+  String _text(Object? value, {String fallback = ''}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -58,7 +58,7 @@ class PlpEnterpriseHome extends StatelessWidget {
       if (i > 0 && (raw.length - i) % 3 == 0) buffer.write(',');
       buffer.write(raw[i]);
     }
-    return (amount < 0 ? '-₱' : '₱') + buffer.toString();
+    return (amount < 0 ? '-�' : '�') + buffer.toString();
   }
 
   @override
@@ -115,7 +115,7 @@ class PlpEnterpriseHome extends StatelessWidget {
                 onRefresh: onRefresh,
               ),
               const SizedBox(height: 38),
-              const _Eyebrow('OWNER’S HOME'),
+              const _Eyebrow('OWNERS HOME'),
               const SizedBox(height: 13),
               Text(
                 'Welcome, $displayName',
@@ -131,7 +131,7 @@ class PlpEnterpriseHome extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               const Text(
-                'A quiet view of what matters at the resort today — performance, movement, attention, and the next action.',
+                'A quiet view of what matters at the resort today  performance, movement, attention, and the next action.',
                 style: TextStyle(
                   color: _muted,
                   fontSize: 14.5,
@@ -270,6 +270,7 @@ class _HomeHeader extends StatelessWidget {
           if (onOpenNavigation != null &&
               PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
             PandoraMenuButton(
+              editorial: true,
               key: const ValueKey<String>('plp-open-navigation'),
               onPressed: onOpenNavigation!,
             )
@@ -751,7 +752,7 @@ class _SourceHealth extends StatelessWidget {
                         letterSpacing: 1.2,
                       ),
                     ),
-                    TextSpan(text: ' · $message'),
+                    TextSpan(text: ' � $message'),
                   ],
                 ),
               ),
