@@ -23,45 +23,35 @@ class PandoraMenuButton extends StatelessWidget {
     super.key,
     required this.onPressed,
     this.tooltip = 'Open navigation',
-    this.editorial = false,
   });
 
   final VoidCallback onPressed;
   final String tooltip;
-  final bool editorial;
 
   @override
-  Widget build(BuildContext context) {
-    final foreground =
-        editorial ? const Color(0xFF171512) : const Color(0xFFF2F4F7);
-    return Tooltip(
-      message: tooltip,
-      child: Semantics(
-        button: true,
-        label: tooltip,
-        child: Material(
-          color: editorial ? Colors.transparent : const Color(0xD914171C),
-          surfaceTintColor: Colors.transparent,
-          shape: editorial
-              ? const RoundedRectangleBorder(borderRadius: BorderRadius.zero)
-              : RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(13),
-                  side: const BorderSide(color: Color(0x22FFFFFF)),
-                ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onPressed,
-            child: SizedBox.square(
-              dimension: 44,
-              child: Center(
-                child: _PandoraMenuGlyph(color: foreground),
+  Widget build(BuildContext context) => Tooltip(
+        message: tooltip,
+        child: Semantics(
+          button: true,
+          label: tooltip,
+          child: Material(
+            color: const Color(0xD914171C),
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(13),
+              side: const BorderSide(color: Color(0x22FFFFFF)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onPressed,
+              child: const SizedBox.square(
+                dimension: 44,
+                child: Center(child: _PandoraMenuGlyph()),
               ),
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class PandoraPageHeader extends StatelessWidget {
@@ -134,13 +124,11 @@ class PandoraPageHeader extends StatelessWidget {
 }
 
 class _PandoraMenuGlyph extends StatelessWidget {
-  const _PandoraMenuGlyph({this.color = const Color(0xFFF2F4F7)});
-
-  final Color color;
+  const _PandoraMenuGlyph();
 
   @override
   Widget build(BuildContext context) {
-    final foreground = color;
+    const foreground = Color(0xFFF2F4F7);
     return SizedBox(
       width: 20,
       height: 16,
