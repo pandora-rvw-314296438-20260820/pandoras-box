@@ -255,6 +255,20 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     await _alfredKey.currentState?.loadThread(item.id);
   }
 
+  Future<void> _startNewChat() async {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      _scaffoldKey.currentState?.closeDrawer();
+    }
+    _open(1);
+    await WidgetsBinding.instance.endOfFrame;
+    _alfredKey.currentState?.newChat();
+    if (!mounted) return;
+    setState(() {
+      _recentChatsLoaded = false;
+      _recentChatsError = null;
+    });
+  }
+
   Future<void> _loadRecentChats({bool force = false}) async {
     if (_recentChatsLoading || (_recentChatsLoaded && !force)) return;
     final intelligence = PandoraDependencies.of(context).intelligence;
@@ -437,7 +451,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               key: _scaffoldKey,
               backgroundColor: _canvas,
               drawerEnableOpenDragGesture: true,
-              drawerEdgeDragWidth: 28,
+              drawerEdgeDragWidth: 32,
               drawerScrimColor: const Color(0x99000000),
               onDrawerChanged: (open) {
                 if (open) unawaited(_loadRecentChats());
@@ -453,6 +467,9 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 onSelectDestination: _selectDrawerDestination,
                 onSelectThread: (item) {
                   unawaited(_openRecentThread(item));
+                },
+                onNewChat: () {
+                  unawaited(_startNewChat());
                 },
               ),
               body: PandoraNavigationScope(
@@ -674,10 +691,9 @@ class _PlpBusinessSurface extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconButton(
-                tooltip: 'Open navigation',
+              PandoraMenuButton(
+                key: ValueKey<String>('plp-business-open-navigation-$destination'),
                 onPressed: onOpenNavigation,
-                icon: const Icon(Icons.menu_rounded, size: 28),
               ),
               const SizedBox(width: 4),
               Icon(icon, size: 25),

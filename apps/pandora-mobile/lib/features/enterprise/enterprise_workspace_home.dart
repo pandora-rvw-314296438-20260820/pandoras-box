@@ -335,11 +335,9 @@ class _EnterpriseWorkspaceHomeState extends State<EnterpriseWorkspaceHome> {
                   child: Row(
                     children: [
                       if (openDrawer != null)
-                        IconButton(
+                        PandoraMenuButton(
                           key: const ValueKey<String>('workspace-home-navigation'),
-                          tooltip: 'Open navigation',
                           onPressed: openDrawer,
-                          icon: const Icon(Icons.menu_rounded, size: 28),
                         ),
                       Expanded(
                         child: InkWell(

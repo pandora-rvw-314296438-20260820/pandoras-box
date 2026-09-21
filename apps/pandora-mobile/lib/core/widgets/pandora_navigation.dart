@@ -18,6 +18,42 @@ class PandoraNavigationScope extends InheritedWidget {
       openDrawer != oldWidget.openDrawer;
 }
 
+class PandoraMenuButton extends StatelessWidget {
+  const PandoraMenuButton({
+    super.key,
+    required this.onPressed,
+    this.tooltip = 'Open navigation',
+  });
+
+  final VoidCallback onPressed;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: tooltip,
+        child: Semantics(
+          button: true,
+          label: tooltip,
+          child: Material(
+            color: const Color(0xD914171C),
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(13),
+              side: const BorderSide(color: Color(0x22FFFFFF)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onPressed,
+              child: const SizedBox.square(
+                dimension: 44,
+                child: Center(child: _PandoraMenuGlyph()),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
 class PandoraPageHeader extends StatelessWidget {
   const PandoraPageHeader({
     super.key,
@@ -40,12 +76,9 @@ class PandoraPageHeader extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: openDrawer != null
-                ? IconButton(
+                ? PandoraMenuButton(
                     key: const ValueKey<String>('pandora-side-panel-open'),
-                    tooltip: 'Open navigation',
                     onPressed: openDrawer,
-                    padding: const EdgeInsets.all(4),
-                    icon: const _PandoraMenuGlyph(),
                   )
                 : const SizedBox(width: 48),
           ),
@@ -95,34 +128,21 @@ class _PandoraMenuGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final foreground = scheme.onSurface;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: foreground.withValues(alpha: .06),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: foreground.withValues(alpha: .10)),
-      ),
-      child: SizedBox.square(
-        dimension: 40,
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 16,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _MenuBar(width: 20, color: foreground),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: _MenuBar(width: 14, color: foreground),
-                ),
-                _MenuBar(width: 17, color: foreground),
-              ],
-            ),
+    const foreground = Color(0xFFF2F4F7);
+    return SizedBox(
+      width: 20,
+      height: 16,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _MenuBar(width: 20, color: foreground),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _MenuBar(width: 14, color: foreground),
           ),
-        ),
+          _MenuBar(width: 17, color: foreground),
+        ],
       ),
     );
   }

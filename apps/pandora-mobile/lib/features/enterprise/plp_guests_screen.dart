@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/widgets/pandora_navigation.dart';
+
 class PlpGuestsScreen extends StatefulWidget {
   const PlpGuestsScreen({
     super.key,
@@ -233,15 +235,9 @@ class _GuestHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          IconButton(
+          PandoraMenuButton(
             key: const ValueKey<String>('plp-guests-open-navigation'),
-            tooltip: 'Open navigation',
             onPressed: onOpenNavigation,
-            style: IconButton.styleFrom(
-              foregroundColor: _PlpGuestsScreenState._ink,
-              backgroundColor: const Color(0xFFFFFCF8),
-            ),
-            icon: const Icon(Icons.menu_rounded, size: 28),
           ),
           const SizedBox(width: 6),
           const Icon(

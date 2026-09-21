@@ -124,13 +124,11 @@ class _PluginsScreenState extends State<PluginsScreen> {
                             if (navigation?.openDrawer == null) {
                               return const SizedBox(width: 48);
                             }
-                            return IconButton(
+                            return PandoraMenuButton(
                               key: const ValueKey<String>(
                                 'pandora-side-panel-open',
                               ),
-                              tooltip: 'Open navigation',
-                              onPressed: navigation!.openDrawer,
-                              icon: const Icon(Icons.menu_rounded),
+                              onPressed: navigation!.openDrawer!,
                             );
                           },
                         ),

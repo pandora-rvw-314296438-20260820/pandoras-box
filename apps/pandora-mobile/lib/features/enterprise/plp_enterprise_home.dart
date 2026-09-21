@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/widgets/pandora_navigation.dart';
+
 class PlpEnterpriseHome extends StatelessWidget {
   const PlpEnterpriseHome({
     super.key,
@@ -102,11 +104,9 @@ class PlpEnterpriseHome extends StatelessWidget {
               Row(
                 children: [
                   if (onOpenNavigation != null) ...[
-                    IconButton(
+                    PandoraMenuButton(
                       key: const ValueKey<String>('plp-open-navigation'),
-                      tooltip: 'Open navigation',
-                      onPressed: onOpenNavigation,
-                      icon: const Icon(Icons.menu_rounded, size: 28),
+                      onPressed: onOpenNavigation!,
                     ),
                     const SizedBox(width: 4),
                   ],

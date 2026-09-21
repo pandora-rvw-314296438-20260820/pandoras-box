@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/widgets/pandora_navigation.dart';
+
 typedef PlpBusinessActivityLoader = Future<Map<String, Object?>> Function();
 typedef PlpPandoraActivityLogLoader = Future<Map<String, Object?>> Function({
   String? beforeAt,
@@ -603,15 +605,9 @@ class _ActivityHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          IconButton(
+          PandoraMenuButton(
             key: const ValueKey<String>('plp-activity-open-navigation'),
-            tooltip: 'Open navigation',
             onPressed: onOpenNavigation,
-            style: IconButton.styleFrom(
-              foregroundColor: _PlpActivityScreenState._ink,
-              backgroundColor: Colors.white.withValues(alpha: .60),
-            ),
-            icon: const Icon(Icons.menu_rounded, size: 29),
           ),
           const SizedBox(width: 5),
           Container(

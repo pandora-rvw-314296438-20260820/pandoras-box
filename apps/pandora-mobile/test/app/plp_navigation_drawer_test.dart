@@ -41,6 +41,7 @@ void main() {
                 onRetryRecentChats: () {},
                 onSelectDestination: (value) => selected = value,
                 onSelectThread: (_) {},
+              onNewChat: () {},
               ),
             ),
           ),
