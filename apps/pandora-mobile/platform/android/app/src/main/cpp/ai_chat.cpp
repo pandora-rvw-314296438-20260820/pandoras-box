@@ -108,22 +108,12 @@ static bool model_load_progress(float progress, void * /*user_data*/) {
     return true;
 }
 
-static bool model_load_progress(float progress, void * /*user_data*/) {
-    if (g_cancel_requested.load(std::memory_order_relaxed)) {
-        LOGw("%s: cooperative model-load cancellation at %.1f%%", __func__, progress * 100.0f);
-        return false;
-    }
-    return true;
-}
-
 static llama_model *load_model_with_profile(const char *model_path, const int gpu_layers) {
     llama_model_params model_params = llama_model_default_params();
     model_params.n_gpu_layers = gpu_layers;
     model_params.load_mode = LLAMA_LOAD_MODE_MMAP;
     model_params.lazy_mode = LLAMA_LAZY_MODE_OFF;
     model_params.use_extra_bufts = false;
-    model_params.progress_callback = model_load_progress;
-    model_params.progress_callback_user_data = nullptr;
     model_params.progress_callback = model_load_progress;
     model_params.progress_callback_user_data = nullptr;
 
