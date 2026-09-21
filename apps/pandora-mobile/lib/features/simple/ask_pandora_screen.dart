@@ -620,7 +620,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       return '';
     }
   }
-  bool get _isPlpEnterpriseContext  bool get _isPlpEnterpriseContext {
+  bool get _isPlpEnterpriseContext {
     final context = widget.enterpriseContext;
     final organization = context?['organization'];
     if (organization is Map) {
@@ -642,6 +642,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       'identityScope': 'enterprise_workspace',
     };
   }
+
   Future<void> _recordLocalAiTurn({
     required String phase,
     required String outcome,
