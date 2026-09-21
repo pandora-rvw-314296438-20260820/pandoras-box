@@ -6,9 +6,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/local/pandora_local_state_cache.dart';
 import '../core/widgets/pandora_navigation.dart';
-import '../features/enterprise/plp_activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/diagnostics/developer_diagnostics_screen.dart';
+import '../features/enterprise/plp_activity_screen.dart';
 import '../features/enterprise/plp_editorial_surfaces.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_guests_screen.dart';
@@ -29,8 +29,6 @@ class PlpEnterpriseShell extends StatefulWidget {
 
 class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   static const _canvas = Color(0xFFFAF8F3);
-  static const _panel = Color(0xFFFFFDFC);
-  static const _line = Color(0xFFE1DBD1);
   static const _muted = Color(0xFF746F67);
   static const _text = Color(0xFF171512);
   static const _accent = Color(0xFF82764F);
@@ -640,157 +638,4 @@ class PlpCommandDock extends StatelessWidget {
           ),
         ),
       );
-}
-
-
-class _PlpBusinessSurface extends StatelessWidget {
-  const _PlpBusinessSurface({
-    super.key,
-    required this.destination,
-    required this.title,
-    required this.icon,
-    required this.bootstrap,
-    required this.onOpenNavigation,
-  });
-
-  final String destination;
-  final String title;
-  final IconData icon;
-  final Map<String, Object?> bootstrap;
-  final VoidCallback onOpenNavigation;
-
-  Map<String, Object?> _map(Object? value) {
-    if (value is Map<String, Object?>) return value;
-    if (value is Map) {
-      return value.map((key, item) => MapEntry(key.toString(), item));
-    }
-    return const <String, Object?>{};
-  }
-
-  String _text(Object? value, {String fallback = '—'}) {
-    final normalized = value?.toString().trim();
-    return normalized == null || normalized.isEmpty ? fallback : normalized;
-  }
-
-  List<MapEntry<String, String>> _metrics() {
-    final today = _map(bootstrap['today']);
-    switch (destination) {
-      case 'guests':
-        return <MapEntry<String, String>>[
-          MapEntry(
-            'Arrivals today',
-            _text(today['arrivals_today'], fallback: '0'),
-          ),
-          MapEntry(
-            'Departures today',
-            _text(today['departures_today'], fallback: '0'),
-          ),
-          MapEntry(
-            'OTA conflicts',
-            _text(today['open_ota_conflicts'], fallback: '0'),
-          ),
-        ];
-      case 'team-access':
-        return <MapEntry<String, String>>[
-          MapEntry(
-            'Open staff tasks',
-            _text(today['open_staff_tasks'], fallback: '0'),
-          ),
-          const MapEntry('Access scope', 'PLP owner workspace'),
-        ];
-      case 'revenue':
-        return <MapEntry<String, String>>[
-          MapEntry(
-            'Sales today',
-            '₱${_text(today['sales_today_php'], fallback: '0')}',
-          ),
-          MapEntry(
-            'Occupancy',
-            '${_text(today['occupancy_percent'], fallback: '0')}%',
-          ),
-        ];
-      default:
-        return <MapEntry<String, String>>[
-          MapEntry(
-            'Occupancy',
-            '${_text(today['occupancy_percent'], fallback: '0')}%',
-          ),
-          MapEntry(
-            'Rooms available',
-            _text(today['rooms_available'], fallback: '0'),
-          ),
-          MapEntry(
-            'Open staff tasks',
-            _text(today['open_staff_tasks'], fallback: '0'),
-          ),
-        ];
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final metrics = _metrics();
-    return SafeArea(
-      child: ListView(
-        key: ValueKey<String>('plp-business-$destination'),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 180),
-        children: [
-          Row(
-            children: [
-              if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
-                PandoraMenuButton(
-                  key: ValueKey<String>(
-                    'plp-business-open-navigation-$destination',
-                  ),
-                  onPressed: onOpenNavigation,
-                )
-              else
-                const SizedBox.square(dimension: 44),
-              const SizedBox(width: 4),
-              Icon(icon, size: 25),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'PLP Boracay',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Luxury Resort · live owner workspace',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 20),
-          for (final metric in metrics) ...[
-            Card(
-              child: ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-                title: Text(metric.key),
-                trailing: Text(
-                  metric.value,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ),
-    );
-  }
 }
