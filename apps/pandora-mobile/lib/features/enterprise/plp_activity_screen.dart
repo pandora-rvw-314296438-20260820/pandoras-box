@@ -148,7 +148,7 @@ class _PlpActivityScreenState extends State<PlpActivityScreen> {
         .toList(growable: false);
   }
 
-  String _text(Object? value, {String fallback = ''}) {
+  String _text(Object? value, {String fallback = '—'}) {
     final normalized = value?.toString().trim();
     return normalized == null || normalized.isEmpty ? fallback : normalized;
   }
@@ -1099,7 +1099,7 @@ class _PandoraLogRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$actor � ${_resourceLabel(capability)}',
+                  '$actor · ${_resourceLabel(capability)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -1245,14 +1245,14 @@ String _resourceLabel(String raw) {
   final value = raw
       .replaceFirst(RegExp(r'^pandora_'), '')
       .replaceAll('_', ' ')
-      .replaceAll('.', ' � ')
+      .replaceAll('.', ' · ')
       .trim();
   if (value.isEmpty) return 'Pandora';
   return '${value[0].toUpperCase()}${value.substring(1)}';
 }
 
 String _relativeTime(DateTime? value) {
-  if (value == null) return '';
+  if (value == null) return '—';
   final diff = DateTime.now().difference(value);
   if (diff.isNegative) return 'now';
   if (diff.inMinutes < 1) return 'now';
