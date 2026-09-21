@@ -43,6 +43,9 @@ test("web and Android use the same provider-controlled CamStreamer feed", () => 
   assert.match(stub, /Platform\.isAndroid/);
   assert.match(stub, /AndroidView/);
   assert.match(androidHost, /PandoraCamStreamerViewFactory/);
+  assert.match(androidHost, /if \(!request\.isForMainFrame\)/);
+  assert.match(androidHost, /webChromeClient = WebChromeClient\(\)/);
+  assert.match(androidHost, /setAcceptThirdPartyCookies\(playerWebView, true\)/);
 });
 
 test("abandoned feeds are absent from the converged Vision source", () => {
