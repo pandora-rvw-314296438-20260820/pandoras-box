@@ -464,7 +464,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               drawerEdgeDragWidth: 32,
               drawerScrimColor: const Color(0x99000000),
               onDrawerChanged: (open) {
-                if (open) unawaited(_loadRecentChats());
+                if (open) unawaited(_loadRecentChats(force: true));
               },
               drawer: PlpNavigationDrawer(
                 selectedDestination: _drawerSelection,
