@@ -541,7 +541,7 @@ class _DrawerEyebrow extends StatelessWidget {
         text,
         textAlign: TextAlign.center,
         style: const TextStyle(
-          color: _accent,
+          color: _PlpNavigationDrawerState._accent,
           fontSize: 9,
           fontWeight: FontWeight.w700,
           letterSpacing: 2.1,
