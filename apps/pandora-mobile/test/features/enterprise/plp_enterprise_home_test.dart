@@ -81,6 +81,12 @@ void main() {
     );
     expect(find.text('COMMAND PLP'), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-open-alfred')), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('plp-open-vision')),
+      180,
+      scrollable: find.byType(Scrollable),
+    );
     expect(find.byKey(const ValueKey('plp-open-operations-room')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-open-vision')), findsOneWidget);
   });
