@@ -280,7 +280,6 @@ class _HomeHeader extends StatelessWidget {
           if (onOpenNavigation != null &&
               PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
             PandoraMenuButton(
-              editorial: true,
               key: const ValueKey<String>('plp-open-navigation'),
               onPressed: onOpenNavigation!,
             )
