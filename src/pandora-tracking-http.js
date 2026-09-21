@@ -4,7 +4,6 @@ const crypto = require("node:crypto");
 const express = require("express");
 
 const CLICK_ID_RE = /^pdc_[0-9a-f]{32}$/;
-const API_KEY_RE = /^ptk_[0-9a-f]{64}$/i;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EVENT_NAME_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 const PROVIDER_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/;
@@ -199,8 +198,15 @@ function createPandoraTrackingRouter(options = {}) {
   const environment = options.environment || process.env;
   const fetchFn = options.fetchFn || globalThis.fetch;
   if (typeof fetchFn !== "function") throw new Error("fetch is required");
-  const rest = createRestClient(environment, fetchFn);
-  const hashPepper = String(environment.PANDORA_TRACKING_HASH_PEPPER || rest.serviceKey);
+  let rest = null;
+  function storage() {
+    if (!rest) rest = createRestClient(environment, fetchFn);
+    return rest;
+  }
+  function hashPepper() {
+    const active = storage();
+    return String(environment.PANDORA_TRACKING_HASH_PEPPER || active.serviceKey);
+  }
 
   async function authenticate(req, requiredScope) {
     const rawKey = parseBearerKey(req.get("authorization"));
@@ -212,7 +218,7 @@ function createPandoraTrackingRouter(options = {}) {
       status: "eq.active",
       limit: 1,
     });
-    const record = firstRow(await rest.request(resource));
+    const record = firstRow(await storage().request(resource));
     if (!record) throw new TrackingError(401, "unauthorized");
     if (record.expires_at && new Date(record.expires_at).getTime() <= Date.now()) {
       throw new TrackingError(401, "unauthorized");
@@ -221,7 +227,7 @@ function createPandoraTrackingRouter(options = {}) {
     if (!scopes.includes("*") && !scopes.includes(requiredScope)) {
       throw new TrackingError(403, "scope_denied");
     }
-    await rest.request("pandora_tracking_api_keys?" + queryString({ id: "eq." + record.id }), {
+    await storage().request("pandora_tracking_api_keys?" + queryString({ id: "eq." + record.id }), {
       method: "PATCH",
       body: { last_used_at: new Date().toISOString() },
       prefer: "return=minimal",
@@ -238,14 +244,14 @@ function createPandoraTrackingRouter(options = {}) {
       id: "eq." + campaignId,
       limit: 1,
     });
-    const record = firstRow(await rest.request(resource));
+    const record = firstRow(await storage().request(resource));
     if (!record) throw new TrackingError(404, "campaign_not_found");
     return record.id;
   }
 
   router.get("/api/tracking/health", async (_req, res) => {
     try {
-      const payload = await rest.request("pandora_tracking_releases?" + queryString({
+      const payload = await storage().request("pandora_tracking_releases?" + queryString({
         select: "version,source_base_sha,provider_state,source_state,deployed_at",
         order: "deployed_at.desc",
         limit: 1,
@@ -272,10 +278,10 @@ function createPandoraTrackingRouter(options = {}) {
         status: "eq.active",
         limit: 1,
       });
-      const campaign = firstRow(await rest.request(campaignResource));
+      const campaign = firstRow(await storage().request(campaignResource));
       if (!campaign) throw new TrackingError(404, "campaign_not_found");
 
-      const tenant = firstRow(await rest.request("pandora_tracking_tenants?" + queryString({
+      const tenant = firstRow(await storage().request("pandora_tracking_tenants?" + queryString({
         select: "status",
         id: "eq." + campaign.tenant_id,
         limit: 1,
@@ -292,7 +298,7 @@ function createPandoraTrackingRouter(options = {}) {
       const userAgent = stringValue(req.get("user-agent"), 1000);
       const referrer = stringValue(req.get("referer"), 1500);
 
-      await rest.request("pandora_tracking_clicks", {
+      await storage().request("pandora_tracking_clicks", {
         method: "POST",
         body: {
           tenant_id: campaign.tenant_id,
@@ -301,8 +307,8 @@ function createPandoraTrackingRouter(options = {}) {
           landing_url: campaign.destination_url,
           referrer,
           user_agent: userAgent,
-          ip_hash: ip ? sha256(hashPepper + "|ip|" + ip) : null,
-          visitor_hash: sha256(hashPepper + "|visitor|" + (ip || "-") + "|" + (userAgent || "-")),
+          ip_hash: ip ? sha256(hashPepper() + "|ip|" + ip) : null,
+          visitor_hash: sha256(hashPepper() + "|visitor|" + (ip || "-") + "|" + (userAgent || "-")),
           platform_click_ids: platformClickIds,
           query_params: incoming,
           metadata: { collector: "vercel" },
@@ -339,14 +345,14 @@ function createPandoraTrackingRouter(options = {}) {
       if (!eventName || !EVENT_NAME_RE.test(eventName)) throw new TrackingError(400, "event_name_invalid");
       if (eventType !== "event") throw new TrackingError(403, "conversion_auth_required");
 
-      const click = firstRow(await rest.request("pandora_tracking_clicks?" + queryString({
+      const click = firstRow(await storage().request("pandora_tracking_clicks?" + queryString({
         select: "tenant_id,campaign_id",
         click_id: "eq." + clickId,
         limit: 1,
       })));
       if (!click) throw new TrackingError(404, "click_not_found");
 
-      await rest.request("pandora_tracking_events", {
+      await storage().request("pandora_tracking_events", {
         method: "POST",
         body: {
           tenant_id: click.tenant_id,
@@ -379,7 +385,7 @@ function createPandoraTrackingRouter(options = {}) {
 
       let campaignId = await campaignForTenant(principal.tenantId, stringValue(req.body?.campaign_id, 40));
       if (clickId) {
-        const click = firstRow(await rest.request("pandora_tracking_clicks?" + queryString({
+        const click = firstRow(await storage().request("pandora_tracking_clicks?" + queryString({
           select: "campaign_id",
           tenant_id: "eq." + principal.tenantId,
           click_id: "eq." + clickId,
@@ -392,7 +398,7 @@ function createPandoraTrackingRouter(options = {}) {
       const value = parseNumber(req.body?.value, "value");
       const currency = parseCurrency(req.body?.currency, value !== null);
       try {
-        const inserted = await rest.request("pandora_tracking_events", {
+        const inserted = await storage().request("pandora_tracking_events", {
           method: "POST",
           body: {
             tenant_id: principal.tenantId,
@@ -415,7 +421,7 @@ function createPandoraTrackingRouter(options = {}) {
           && error.status === 409
           && error.details?.providerCode === "23505";
         if (!duplicate) throw error;
-        const existing = firstRow(await rest.request("pandora_tracking_events?" + queryString({
+        const existing = firstRow(await storage().request("pandora_tracking_events?" + queryString({
           select: "id",
           tenant_id: "eq." + principal.tenantId,
           event_name: "eq." + eventName,
@@ -441,7 +447,7 @@ function createPandoraTrackingRouter(options = {}) {
       const campaignId = await campaignForTenant(principal.tenantId, stringValue(req.body?.campaign_id, 40));
       const currency = parseCurrency(req.body?.currency, true);
 
-      await rest.request("pandora_tracking_costs?on_conflict=tenant_id%2Cprovider%2Cexternal_record_id", {
+      await storage().request("pandora_tracking_costs?on_conflict=tenant_id%2Cprovider%2Cexternal_record_id", {
         method: "POST",
         body: {
           tenant_id: principal.tenantId,
@@ -481,7 +487,7 @@ function createPandoraTrackingRouter(options = {}) {
         order: "day.desc",
         limit: 500,
       });
-      let rows = await rest.request(resource);
+      let rows = await storage().request(resource);
       if (to) rows = (Array.isArray(rows) ? rows : []).filter((row) => String(row.day) <= to);
       return sendJson(res, 200, { ok: true, rows: Array.isArray(rows) ? rows : [] });
     } catch (error) {

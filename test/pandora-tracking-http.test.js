@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
+  createPandoraTrackingRouter,
   _trackingInternals: {
     buildDestinationUrl,
     createClickId,
@@ -12,6 +13,16 @@ const {
     sha256,
   },
 } = require("../src/pandora-tracking-http.js");
+
+test("tracking router constructs without production credentials", () => {
+  assert.doesNotThrow(() => createPandoraTrackingRouter({
+    environment: {},
+    fetchFn: async () => {
+      throw new Error("network should not be reached during construction");
+    },
+  }));
+});
+
 
 test("tracking click IDs are opaque fixed-size identifiers", () => {
   assert.match(createClickId(), /^pdc_[0-9a-f]{32}$/);
