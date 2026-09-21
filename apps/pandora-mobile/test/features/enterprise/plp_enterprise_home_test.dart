@@ -47,7 +47,6 @@ void main() {
     expect(find.text('OWNER’S HOME'), findsOneWidget);
     expect(find.text('TODAY AT PUEBLO LA PERLA'), findsOneWidget);
     expect(find.text('MOVEMENT TODAY'), findsOneWidget);
-    expect(find.text('COMMAND PLP'), findsOneWidget);
     expect(find.text('TODAY AT A GLANCE'), findsNothing);
     expect(find.text('Command center'), findsNothing);
     expect(find.text('Welcome, Doctora'), findsOneWidget);
@@ -80,6 +79,7 @@ void main() {
       320,
       scrollable: find.byType(Scrollable),
     );
+    expect(find.text('COMMAND PLP'), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-open-alfred')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-open-operations-room')), findsOneWidget);
     expect(find.byKey(const ValueKey('plp-open-vision')), findsOneWidget);
