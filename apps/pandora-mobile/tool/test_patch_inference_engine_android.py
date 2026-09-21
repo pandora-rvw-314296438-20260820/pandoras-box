@@ -90,6 +90,10 @@ class PatchInferenceEngineAndroidTest(unittest.TestCase):
         self.assertIn("Native llama.cpp user prompt failed with code ", patched)
         self.assertIn("nativeRuntimeDiagnostics()", patched)
         self.assertIn("override fun runtimeDiagnostics(): String", patched)
+        self.assertIn("override fun requestCancel() = requestCancelNative()", patched)
+        self.assertIn("override fun clearCancelRequest() = clearCancelNative()", patched)
+        self.assertIn("requestCancelNative()", patched)
+        self.assertIn("clearCancelNative()", patched)
         self.assertIn("Unloading native resources after error...", patched)
         self.assertIn("Pandora reuses processSystemPrompt() as a warm conversation reset.", patched)
         self.assertNotIn("System prompt must be set ** RIGHT AFTER ** model loaded!", patched)
@@ -99,6 +103,8 @@ class PatchInferenceEngineAndroidTest(unittest.TestCase):
             patched_interface.count("fun runtimeDiagnostics(): String"),
             1,
         )
+        self.assertEqual(patched_interface.count("fun requestCancel()"), 1)
+        self.assertEqual(patched_interface.count("fun clearCancelRequest()"), 1)
 
 
 if __name__ == "__main__":
