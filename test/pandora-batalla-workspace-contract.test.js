@@ -127,7 +127,8 @@ test("Matters, paper files, scan, print, conflict and reports keep their legal b
 
 test("Recent chats are workspace-scoped before appearing in Batalla", () => {
   assert.match(api, /recentThreadsForWorkspace/);
-  assert.match(api, /'workspaceKey': normalized/);
+  assert.match(api, /selected\['workspaceSlug'\]/);
+  assert.match(api, /selected\['workspaceKey'\]/);
   assert.match(screen, /recentThreadsForWorkspace/);
   assert.match(screen, /batalla-recent-chats/);
 });
