@@ -462,41 +462,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                   children: screens,
                 ),
               ),
-              bottomNavigationBar: _index == 6
-                  ? _PlpGuestCommandDock(
+              bottomNavigationBar: _index == 1
+                  ? null
+                  : PlpCommandDock(
                       controller: _commandController,
                       focusNode: _commandFocus,
                       onSubmit: _submitPersistentCommand,
-                      onSuggestion: (prompt) {
-                        unawaited(_submitCommand(prompt));
-                      },
-                    )
-                  : _index == 7
-                      ? _PlpTeamCommandDock(
-                          controller: _commandController,
-                          focusNode: _commandFocus,
-                          onSubmit: _submitPersistentCommand,
-                          onSuggestion: (prompt) {
-                            unawaited(_submitCommand(prompt));
-                          },
-                        )
-                      : _index == 10
-                          ? _PlpActivityCommandDock(
-                              controller: _commandController,
-                              focusNode: _commandFocus,
-                              onSubmit: _submitPersistentCommand,
-                              onSuggestion: (prompt) {
-                                unawaited(_submitCommand(prompt));
-                              },
-                            )
-                          : PlpCommandDock(
-                              selectedIndex: _index,
-                              controller: _commandController,
-                              focusNode: _commandFocus,
-                              showPersistentComposer: _index != 1,
-                              onSubmit: _submitPersistentCommand,
-                              onDestinationSelected: _open,
-                            ),
+                    ),
             ),
           );
         },
@@ -504,705 +476,104 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 }
 
 
-class _PlpGuestCommandDock extends StatelessWidget {
-  const _PlpGuestCommandDock({
-    required this.controller,
-    required this.focusNode,
-    required this.onSubmit,
-    required this.onSuggestion,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final Future<void> Function() onSubmit;
-  final ValueChanged<String> onSuggestion;
-
-  static const _canvas = Color(0xFFFAF7F1);
-  static const _paper = Color(0xFFFFFDFC);
-  static const _ink = Color(0xFF171512);
-  static const _muted = Color(0xFF7A756E);
-  static const _line = Color(0xFFE7DDD0);
-  static const _gold = Color(0xFF9A692F);
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-        top: false,
-        child: Container(
-          key: const ValueKey<String>('plp-guests-command-dock'),
-          decoration: const BoxDecoration(
-            color: _canvas,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Color(0x12000000),
-                blurRadius: 20,
-                offset: Offset(0, -6),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: _paper,
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: const Color(0xFFD9C6AD)),
-                ),
-                padding: const EdgeInsets.fromLTRB(8, 4, 5, 4),
-                child: Row(
-                  children: [
-                    ClipOval(
-                      child: Image.asset(
-                        'assets/brand/pandora-product-mark-ui-1024.png',
-                        width: 34,
-                        height: 34,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox(
-                          width: 34,
-                          height: 34,
-                          child: Icon(
-                            Icons.auto_awesome_rounded,
-                            color: _ink,
-                            size: 21,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        key: const ValueKey<String>(
-                          'plp-guests-command-field',
-                        ),
-                        controller: controller,
-                        focusNode: focusNode,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => onSubmit(),
-                        style: const TextStyle(
-                          color: _ink,
-                          fontSize: 13.5,
-                        ),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          isDense: true,
-                          hintText: 'Ask Pandora about guests…',
-                          hintStyle: TextStyle(
-                            color: _muted,
-                            fontSize: 13.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(
-                        Icons.mic_none_rounded,
-                        color: _ink,
-                        size: 23,
-                      ),
-                    ),
-                    IconButton(
-                      key: const ValueKey<String>(
-                        'plp-guests-command-submit',
-                      ),
-                      tooltip: 'Ask Pandora',
-                      onPressed: onSubmit,
-                      style: IconButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: _gold,
-                      ),
-                      icon: const Icon(Icons.arrow_upward_rounded),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 7),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _GuestSuggestionChip(
-                      icon: Icons.auto_awesome_rounded,
-                      label: 'Who needs attention?',
-                      onTap: () => onSuggestion('Who needs attention?'),
-                    ),
-                    const SizedBox(width: 7),
-                    _GuestSuggestionChip(
-                      icon: Icons.people_alt_rounded,
-                      label: 'Show VIP guests',
-                      onTap: () => onSuggestion('Show VIP guests'),
-                    ),
-                    const SizedBox(width: 7),
-                    _GuestSuggestionChip(
-                      icon: Icons.flight_land_rounded,
-                      label: 'Who arrives next?',
-                      onTap: () => onSuggestion('Who arrives next?'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-}
-
-class _GuestSuggestionChip extends StatelessWidget {
-  const _GuestSuggestionChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: const Color(0xFFFFFDFC),
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(999),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0xFFE7DDD0)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 16, color: const Color(0xFF9A692F)),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFF3F3A34),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-}
-
-class _PlpTeamCommandDock extends StatelessWidget {
-  const _PlpTeamCommandDock({
-    required this.controller,
-    required this.focusNode,
-    required this.onSubmit,
-    required this.onSuggestion,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final Future<void> Function() onSubmit;
-  final ValueChanged<String> onSuggestion;
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-        top: false,
-        child: Container(
-          key: const ValueKey<String>('plp-team-command-dock'),
-          decoration: const BoxDecoration(
-            color: Color(0xFFFBF8F2),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Color(0x12000000),
-                blurRadius: 20,
-                offset: Offset(0, -6),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFDFC),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: const Color(0xFFD9C6AD)),
-                ),
-                padding: const EdgeInsets.fromLTRB(8, 4, 5, 4),
-                child: Row(
-                  children: [
-                    ClipOval(
-                      child: Image.asset(
-                        'assets/brand/pandora-product-mark-ui-1024.png',
-                        width: 34,
-                        height: 34,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox(
-                          width: 34,
-                          height: 34,
-                          child: Icon(
-                            Icons.auto_awesome_rounded,
-                            color: Color(0xFF101B33),
-                            size: 21,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        key: const ValueKey<String>('plp-team-command-field'),
-                        controller: controller,
-                        focusNode: focusNode,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => onSubmit(),
-                        style: const TextStyle(
-                          color: Color(0xFF101B33),
-                          fontSize: 13.5,
-                        ),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          isDense: true,
-                          hintText: 'Ask Pandora about team & access…',
-                          hintStyle: TextStyle(
-                            color: Color(0xFF77736C),
-                            fontSize: 13.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      key: const ValueKey<String>('plp-team-command-submit'),
-                      tooltip: 'Ask Pandora',
-                      onPressed: onSubmit,
-                      style: IconButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: const Color(0xFF9D6928),
-                      ),
-                      icon: const Icon(Icons.arrow_upward_rounded),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 7),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _TeamSuggestionChip(
-                      icon: Icons.shield_outlined,
-                      label: 'Who has access?',
-                      onTap: () => onSuggestion('Who has access to PLP?'),
-                    ),
-                    const SizedBox(width: 7),
-                    _TeamSuggestionChip(
-                      icon: Icons.person_add_alt_1_rounded,
-                      label: 'Add team member',
-                      onTap: () => onSuggestion('Add a person to the PLP team'),
-                    ),
-                    const SizedBox(width: 7),
-                    _TeamSuggestionChip(
-                      icon: Icons.history_rounded,
-                      label: 'Recent activity',
-                      onTap: () => onSuggestion('Show recent PLP team activity'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-}
-
-class _TeamSuggestionChip extends StatelessWidget {
-  const _TeamSuggestionChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: const Color(0xFFFFFDFC),
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(999),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0xFFE7DDD0)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 16, color: const Color(0xFF9D6928)),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFF3F3A34),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-}
-
-class _PlpActivityCommandDock extends StatelessWidget {
-  const _PlpActivityCommandDock({
-    required this.controller,
-    required this.focusNode,
-    required this.onSubmit,
-    required this.onSuggestion,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final Future<void> Function() onSubmit;
-  final ValueChanged<String> onSuggestion;
-
-  static const _canvas = Color(0xFFFAF7F1);
-  static const _paper = Color(0xFFFFFDFC);
-  static const _ink = Color(0xFF171B29);
-  static const _muted = Color(0xFF77736D);
-  static const _gold = Color(0xFF99682C);
-  static const _line = Color(0xFFE5DDD2);
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-        top: false,
-        child: Container(
-          key: const ValueKey<String>('plp-activity-command-dock'),
-          decoration: const BoxDecoration(
-            color: _canvas,
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Color(0x12000000),
-                blurRadius: 20,
-                offset: Offset(0, -6),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: _paper,
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: const Color(0xFFD9C6AD)),
-                ),
-                padding: const EdgeInsets.fromLTRB(8, 4, 5, 4),
-                child: Row(
-                  children: [
-                    ClipOval(
-                      child: Image.asset(
-                        'assets/brand/pandora-product-mark-ui-1024.png',
-                        width: 34,
-                        height: 34,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox(
-                          width: 34,
-                          height: 34,
-                          child: Icon(
-                            Icons.auto_awesome_rounded,
-                            color: _ink,
-                            size: 21,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        key: const ValueKey<String>(
-                          'plp-activity-command-field',
-                        ),
-                        controller: controller,
-                        focusNode: focusNode,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => onSubmit(),
-                        style: const TextStyle(
-                          color: _ink,
-                          fontSize: 13.5,
-                        ),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          isDense: true,
-                          hintText: 'Ask Pandora about activity…',
-                          hintStyle: TextStyle(
-                            color: _muted,
-                            fontSize: 13.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(
-                        Icons.mic_none_rounded,
-                        color: _ink,
-                        size: 23,
-                      ),
-                    ),
-                    IconButton(
-                      key: const ValueKey<String>(
-                        'plp-activity-command-submit',
-                      ),
-                      tooltip: 'Ask Pandora',
-                      onPressed: onSubmit,
-                      style: IconButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: _gold,
-                      ),
-                      icon: const Icon(Icons.arrow_upward_rounded),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 7),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _ActivitySuggestionChip(
-                      icon: Icons.notifications_none_rounded,
-                      label: 'What needs attention?',
-                      onTap: () => onSuggestion('What needs attention?'),
-                    ),
-                    const SizedBox(width: 7),
-                    _ActivitySuggestionChip(
-                      icon: Icons.groups_2_outlined,
-                      label: 'Show guest activity',
-                      onTap: () => onSuggestion('Show recent guest activity'),
-                    ),
-                    const SizedBox(width: 7),
-                    _ActivitySuggestionChip(
-                      icon: Icons.receipt_long_outlined,
-                      label: 'Show team updates',
-                      onTap: () => onSuggestion('Show recent team updates'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-}
-
-class _ActivitySuggestionChip extends StatelessWidget {
-  const _ActivitySuggestionChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: const Color(0xFFFFFDFC),
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(999),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0xFFE5DDD2)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 16, color: const Color(0xFF99682C)),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFF3F3A34),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-}
-
 class PlpCommandDock extends StatelessWidget {
   const PlpCommandDock({
-    required this.selectedIndex,
+    super.key,
     required this.controller,
     required this.focusNode,
-    required this.showPersistentComposer,
     required this.onSubmit,
-    required this.onDestinationSelected,
   });
 
-  final int selectedIndex;
   final TextEditingController controller;
   final FocusNode focusNode;
-  final bool showPersistentComposer;
   final Future<void> Function() onSubmit;
-  final ValueChanged<int> onDestinationSelected;
-
-  static const _items = <({IconData icon, String label})>[
-    (icon: Icons.home_rounded, label: 'Home'),
-    (icon: Icons.auto_awesome_rounded, label: 'Alfred'),
-    (icon: Icons.hub_rounded, label: 'Operations'),
-    (icon: Icons.visibility_rounded, label: 'Vision'),
-    (icon: Icons.memory_rounded, label: 'Local AI'),
-  ];
 
   @override
   Widget build(BuildContext context) => SafeArea(
         top: false,
         child: Container(
-          decoration: const BoxDecoration(
-            color: _PlpEnterpriseShellState._panel,
-            border: Border(
-              top: BorderSide(color: _PlpEnterpriseShellState._line),
+          key: const ValueKey<String>('plp-command-dock'),
+          color: _PlpEnterpriseShellState._canvas,
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+          child: DecoratedBox(
+            key: const ValueKey<String>('plp-persistent-command-bar'),
+            decoration: BoxDecoration(
+              color: const Color(0xFF050505),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: const Color(0xFF252A31)),
             ),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            10,
-            showPersistentComposer ? 10 : 7,
-            10,
-            7,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (showPersistentComposer) ...[
-                Container(
-                  key: const ValueKey('plp-persistent-command-bar'),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF151B25),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: _PlpEnterpriseShellState._line),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const SizedBox.square(
+                    dimension: 44,
+                    child: Icon(
+                      Icons.view_in_ar_outlined,
+                      color: Colors.white,
+                      size: 26,
+                    ),
                   ),
-                  padding: const EdgeInsets.fromLTRB(13, 3, 5, 3),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.auto_awesome_rounded,
-                        color: _PlpEnterpriseShellState._accent,
-                        size: 18,
+                  const SizedBox(width: 2),
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey<String>('plp-command-field'),
+                      controller: controller,
+                      focusNode: focusNode,
+                      minLines: 1,
+                      maxLines: 4,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => onSubmit(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        height: 1.35,
                       ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: TextField(
-                          controller: controller,
-                          focusNode: focusNode,
-                          style: const TextStyle(
-                            color: _PlpEnterpriseShellState._text,
-                            fontSize: 14,
-                          ),
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) => onSubmit(),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            hintText: 'Ask Alfred or tell Pandora what to do…',
-                            hintStyle: TextStyle(
-                              color: _PlpEnterpriseShellState._muted,
-                            ),
-                            isDense: true,
-                          ),
+                      decoration: const InputDecoration(
+                        hintText: 'Message Pandora',
+                        hintStyle: TextStyle(
+                          color: Color(0xFF9AA0AA),
+                          fontSize: 16,
                         ),
-                      ),
-                      IconButton(
-                        tooltip: 'Send to Alfred',
-                        onPressed: onSubmit,
-                        icon: const Icon(
-                          Icons.arrow_upward_rounded,
-                          color: _PlpEnterpriseShellState._text,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 6),
-              ],
-              Row(
-                children: List<Widget>.generate(_items.length, (index) {
-                  final item = _items[index];
-                  final selected = selectedIndex == index;
-                  return Expanded(
-                    child: Semantics(
-                      button: true,
-                      selected: selected,
-                      excludeSemantics: true,
-                      label: item.label,
-                      child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => onDestinationSelected(index),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 7),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 160),
-                              width: 38,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? _PlpEnterpriseShellState._accent
-                                        .withValues(alpha: 0.15)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                item.icon,
-                                size: 20,
-                                color: selected
-                                    ? _PlpEnterpriseShellState._accent
-                                    : _PlpEnterpriseShellState._muted,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              item.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.fade,
-                              style: TextStyle(
-                                color: selected
-                                    ? _PlpEnterpriseShellState._text
-                                    : _PlpEnterpriseShellState._muted,
-                                fontSize: 9.5,
-                                fontWeight:
-                                    selected ? FontWeight.w800 : FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.fromLTRB(4, 11, 4, 10),
                       ),
                     ),
-                  );
-                }),
+                  ),
+                  const SizedBox(width: 2),
+                  const SizedBox.square(
+                    dimension: 44,
+                    child: Icon(
+                      Icons.mic_none_rounded,
+                      color: Colors.white,
+                      size: 27,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  SizedBox.square(
+                    dimension: 44,
+                    child: FilledButton(
+                      key: const ValueKey<String>('plp-command-submit'),
+                      onPressed: onSubmit,
+                      style: FilledButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        backgroundColor: Colors.white,
+                        shape: const CircleBorder(),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_upward_rounded,
+                        color: Colors.black,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       );
