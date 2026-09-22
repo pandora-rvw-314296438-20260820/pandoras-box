@@ -325,7 +325,8 @@ class PandoraIntelligenceApi {
     if (activityJobId == null &&
         textAttachment == null &&
         imageAttachment == null &&
-        auditAttachments.isEmpty) {
+        auditAttachments.isEmpty &&
+        !_isTeamAdministrationRequest(message)) {
       final capabilityTurn = await _dispatchCapability(
         message: message,
         threadId: threadId,
@@ -453,6 +454,18 @@ class PandoraIntelligenceApi {
         'Pandora could not verify project context right now.',
       );
     }
+  }
+
+  bool _isTeamAdministrationRequest(String message) {
+    final value = message.trim();
+    return RegExp(
+      r'\b(team|member|staff|user|access|invite)\b',
+      caseSensitive: false,
+    ).hasMatch(value) &&
+        RegExp(
+          r'\b(add|invite|create|change|make|set|promote|demote|suspend|disable|revoke|remove|reactivate|activate|restore)\b',
+          caseSensitive: false,
+        ).hasMatch(value);
   }
 
   bool _isRepositoryAuditRequest(String message) {
