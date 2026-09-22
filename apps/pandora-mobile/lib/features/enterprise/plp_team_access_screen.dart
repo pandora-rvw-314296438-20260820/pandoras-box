@@ -23,7 +23,7 @@ class _PlpTeamAccessScreenState extends State<PlpTeamAccessScreen> {
   static const _paper = Color(0xFFFFFDFC);
   static const _ink = Color(0xFF171512);
   static const _muted = Color(0xFF746F67);
-  static const _gold = Color(0xFF82764F);
+  static const _gold = Color(0xFF70643F);
   static const _goldSoft = Color(0xFFF2EEE6);
   static const _line = Color(0xFFE1DBD1);
   static const _green = Color(0xFF657965);
