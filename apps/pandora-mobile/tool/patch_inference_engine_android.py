@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Patch the pinned llama.cpp Android wrapper with fail-closed diagnostics."""
+"""Patch the pinned llama.cpp Android wrapper with fail-closed, ART-safe diagnostics."""
 
 from __future__ import annotations
 
@@ -174,6 +174,21 @@ def patch_impl(path: Path) -> int:
         print(str(error), file=sys.stderr)
         return 1
 
+    # llama.cpp's Android wrapper marks JNI calls @FastNative upstream.
+    # Pandora's model load, prompt decode, and token generation calls are
+    # long-running; FastNative prevents ART from suspending the managed caller
+    # for GC and can trigger Android 16 SuspendAll aborts during real inference.
+    fast_native_count = text.count("    @FastNative\n")
+    if fast_native_count < 1:
+        print(
+            "Pinned llama.cpp wrapper no longer contains @FastNative annotations; "
+            "review the ART-safety patch contract.",
+            file=sys.stderr,
+        )
+        return 1
+    text = text.replace("    @FastNative\n", "")
+    text = text.replace("import dalvik.annotation.optimization.FastNative\n", "")
+
     path.write_text(text, encoding="utf-8")
 
     verified = path.read_text(encoding="utf-8")
@@ -201,8 +216,16 @@ def patch_impl(path: Path) -> int:
     if 'System prompt must be set ** RIGHT AFTER ** model loaded!' in verified:
         print("Warm conversation reset guard remains.", file=sys.stderr)
         return 1
+    if "@FastNative" in verified or "dalvik.annotation.optimization.FastNative" in verified:
+        print(
+            "Unsafe @FastNative annotation remains on Pandora llama.cpp JNI calls.",
+            file=sys.stderr,
+        )
+        return 1
 
-    print("Patched pinned llama.cpp Android wrapper with fail-loud generation diagnostics.")
+    print(
+        "Patched pinned llama.cpp Android wrapper with fail-loud, ART-safe generation diagnostics."
+    )
     return 0
 
 
