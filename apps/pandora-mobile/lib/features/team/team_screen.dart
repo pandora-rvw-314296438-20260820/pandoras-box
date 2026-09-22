@@ -6,9 +6,14 @@ import '../../core/widgets/pandora_page.dart';
 import '../../core/widgets/pandora_surface.dart';
 
 class TeamScreen extends StatefulWidget {
-  const TeamScreen({super.key, this.gateway});
+  const TeamScreen({
+    super.key,
+    this.gateway,
+    this.openInviteOnLoad = false,
+  });
 
   final PandoraUserAdminGateway? gateway;
+  final bool openInviteOnLoad;
 
   @override
   State<TeamScreen> createState() => _TeamScreenState();
@@ -23,6 +28,7 @@ class _TeamScreenState extends State<TeamScreen> {
   bool _loading = true;
   bool _refreshing = false;
   bool _inviting = false;
+  bool _initialInviteOpened = false;
 
   PandoraOrganizationAccess? get _selectedOrganization {
     final id = _selectedOrganizationId;
@@ -84,6 +90,17 @@ class _TeamScreenState extends State<TeamScreen> {
           _refreshing = false;
         });
       }
+    }
+
+    if (initial &&
+        widget.openInviteOnLoad &&
+        !_initialInviteOpened &&
+        mounted &&
+        _selectedOrganization != null) {
+      _initialInviteOpened = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (mounted) await _openInvite();
+      });
     }
   }
 
