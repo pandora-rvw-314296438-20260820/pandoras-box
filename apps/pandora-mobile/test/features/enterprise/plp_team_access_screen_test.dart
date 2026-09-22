@@ -61,6 +61,7 @@ void main() {
           bootstrap: fixture(),
           onOpenNavigation: () {},
           onAddPeople: () {},
+          onManageTeam: () {},
         ),
       ),
     );
@@ -100,6 +101,7 @@ void main() {
           bootstrap: fixture(),
           onOpenNavigation: () {},
           onAddPeople: () {},
+          onManageTeam: () {},
         ),
       ),
     );
@@ -122,4 +124,61 @@ void main() {
     expect(find.text('QA'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('team controls route into real management callbacks',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 860);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    var addCalls = 0;
+    var manageCalls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PlpTeamAccessScreen(
+          bootstrap: fixture(),
+          onOpenNavigation: () {},
+          onAddPeople: () => addCalls += 1,
+          onManageTeam: () => manageCalls += 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey<String>('plp-team-add-people')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('plp-team-add-people')),
+    );
+    expect(addCalls, 1);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey<String>('plp-team-view-all')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('plp-team-view-all')),
+    );
+    expect(manageCalls, 1);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey<String>('plp-team-tab-access')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('plp-team-tab-access')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey<String>('plp-access-manage-team')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey<String>('plp-access-manage-team')),
+    );
+    expect(manageCalls, 2);
+    expect(tester.takeException(), isNull);
+  });
+
 }
