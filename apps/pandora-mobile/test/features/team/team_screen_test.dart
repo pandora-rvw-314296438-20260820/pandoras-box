@@ -94,6 +94,28 @@ void main() {
         findsOneWidget);
   });
 
+
+  testWidgets('opens the invite flow immediately when launched for Add people',
+      (tester) async {
+    final gateway = _FakeGateway();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TeamScreen(
+          gateway: gateway,
+          openInviteOnLoad: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.widgetWithText(TextFormField, 'Email address'),
+      findsOneWidget,
+    );
+    expect(find.text('Send invitation'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('More account navigation opens the real Team screen',
       (tester) async {
     final gateway = _FakeGateway();
