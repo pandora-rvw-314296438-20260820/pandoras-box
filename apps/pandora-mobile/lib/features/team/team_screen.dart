@@ -28,6 +28,7 @@ class _TeamScreenState extends State<TeamScreen> {
   bool _loading = true;
   bool _refreshing = false;
   bool _inviting = false;
+  bool _updating = false;
   bool _initialInviteOpened = false;
 
   PandoraOrganizationAccess? get _selectedOrganization {
@@ -168,6 +169,61 @@ class _TeamScreenState extends State<TeamScreen> {
     }
   }
 
+  Future<void> _openMember(PandoraTeamMember member) async {
+    final organization = _selectedOrganization;
+    if (organization == null || _updating || member.isCurrentUser) return;
+    if (!organization.isOwner &&
+        (member.role == 'owner' || member.role == 'admin')) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Only an owner can change owner or administrator access.',
+            ),
+          ),
+        );
+      return;
+    }
+
+    final request = await showModalBottomSheet<PandoraMemberUpdateRequest>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (context) => _ManageMemberSheet(
+        member: member,
+        isOwner: organization.isOwner,
+      ),
+    );
+    if (request == null || !mounted) return;
+
+    setState(() {
+      _updating = true;
+      _failure = null;
+    });
+    try {
+      final result = await _gateway.updateMember(organization.id, request);
+      final members = await _gateway.loadMembers(organization.id);
+      if (!mounted) return;
+      setState(() => _members = members);
+      final message = result.changed
+          ? '${member.primaryLabel} access was updated.'
+          : 'No access changes were needed.';
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+    } on PandoraUserAdminFailure catch (failure) {
+      if (!mounted) return;
+      setState(() => _failure = failure);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(failure.message)));
+    } finally {
+      if (mounted) setState(() => _updating = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         body: PandoraPage(
@@ -257,7 +313,12 @@ class _TeamScreenState extends State<TeamScreen> {
                         for (var index = 0;
                             index < _members.length;
                             index++) ...[
-                          _MemberTile(member: _members[index]),
+                          _MemberTile(
+                            member: _members[index],
+                            onTap: _members[index].isCurrentUser
+                                ? null
+                                : () => _openMember(_members[index]),
+                          ),
                           if (index != _members.length - 1)
                             const Divider(height: 1),
                         ],
@@ -358,9 +419,13 @@ class _Metric extends StatelessWidget {
 }
 
 class _MemberTile extends StatelessWidget {
-  const _MemberTile({required this.member});
+  const _MemberTile({
+    required this.member,
+    required this.onTap,
+  });
 
   final PandoraTeamMember member;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -369,11 +434,15 @@ class _MemberTile extends StatelessWidget {
         : Theme.of(context).colorScheme.tertiary;
     return Semantics(
       container: true,
+      button: onTap != null,
       label:
           '${member.primaryLabel}, ${_roleLabel(member.role)}, ${_statusLabel(member.status)}',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.xs),
-        child: Row(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: PandoraSpacing.xs),
+          child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             CircleAvatar(child: Text(member.initials)),
@@ -406,9 +475,20 @@ class _MemberTile extends StatelessWidget {
                 ],
               ),
             ),
+            if (member.isCurrentUser)
+              const Padding(
+                padding: EdgeInsets.only(left: PandoraSpacing.xs),
+                child: _Tag(label: 'You'),
+              )
+            else if (onTap != null)
+              const Padding(
+                padding: EdgeInsets.only(left: PandoraSpacing.xs),
+                child: Icon(Icons.chevron_right_rounded),
+              ),
           ],
         ),
       ),
+    ),
     );
   }
 }
@@ -435,6 +515,140 @@ class _Tag extends StatelessWidget {
               ),
         ),
       );
+}
+
+class _ManageMemberSheet extends StatefulWidget {
+  const _ManageMemberSheet({
+    required this.member,
+    required this.isOwner,
+  });
+
+  final PandoraTeamMember member;
+  final bool isOwner;
+
+  @override
+  State<_ManageMemberSheet> createState() => _ManageMemberSheetState();
+}
+
+class _ManageMemberSheetState extends State<_ManageMemberSheet> {
+  late String _role;
+  late String _status;
+
+  bool get _pendingInvite => widget.member.isInvited;
+
+  List<String> get _roles => widget.isOwner
+      ? const ['owner', 'admin', 'operator', 'member', 'viewer']
+      : const ['operator', 'member', 'viewer'];
+
+  List<String> get _statuses => _pendingInvite
+      ? const ['revoked']
+      : const ['active', 'suspended', 'revoked'];
+
+  @override
+  void initState() {
+    super.initState();
+    _role = widget.member.role;
+    _status = _pendingInvite ? 'revoked' : widget.member.status;
+    if (!_statuses.contains(_status)) _status = _statuses.first;
+  }
+
+  void _submit() {
+    Navigator.of(context).pop(
+      PandoraMemberUpdateRequest(
+        userId: widget.member.id,
+        role: _pendingInvite ? null : _role,
+        status: _status,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        PandoraSpacing.lg,
+        PandoraSpacing.sm,
+        PandoraSpacing.lg,
+        PandoraSpacing.lg + bottom,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Manage access',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: PandoraSpacing.xs),
+          Text(
+            widget.member.primaryLabel,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          if (widget.member.email != null) ...[
+            const SizedBox(height: PandoraSpacing.xxs),
+            Text(
+              widget.member.email!,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          const SizedBox(height: PandoraSpacing.lg),
+          if (_pendingInvite)
+            const Text(
+              'This invitation is still pending. You can revoke it here; role changes become available after the membership is active.',
+            )
+          else
+            DropdownButtonFormField<String>(
+              key: const ValueKey<String>('team-member-role'),
+              initialValue: _role,
+              decoration: const InputDecoration(
+                labelText: 'Role',
+                prefixIcon: Icon(Icons.admin_panel_settings_outlined),
+              ),
+              items: _roles
+                  .map(
+                    (value) => DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(_roleLabel(value)),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) => setState(() => _role = value ?? _role),
+            ),
+          const SizedBox(height: PandoraSpacing.md),
+          DropdownButtonFormField<String>(
+            key: const ValueKey<String>('team-member-status'),
+            initialValue: _status,
+            decoration: InputDecoration(
+              labelText: _pendingInvite ? 'Invitation' : 'Access status',
+              prefixIcon: const Icon(Icons.verified_user_outlined),
+            ),
+            items: _statuses
+                .map(
+                  (value) => DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(_statusLabel(value)),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: (value) => setState(() => _status = value ?? _status),
+          ),
+          const SizedBox(height: PandoraSpacing.lg),
+          FilledButton.icon(
+            key: const ValueKey<String>('team-member-save'),
+            onPressed: _submit,
+            icon: const Icon(Icons.save_outlined),
+            label: Text(_pendingInvite ? 'Revoke invitation' : 'Save changes'),
+          ),
+          const SizedBox(height: PandoraSpacing.sm),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _InviteMemberSheet extends StatefulWidget {
