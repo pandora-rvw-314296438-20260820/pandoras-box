@@ -458,14 +458,27 @@ class PandoraIntelligenceApi {
 
   bool _isTeamAdministrationRequest(String message) {
     final value = message.trim();
-    return RegExp(
+    final scoped = RegExp(
       r'\b(team|member|staff|user|access|invite)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final action = RegExp(
+      r'\b(add|invite|create|change|make|set|give|promote|demote|suspend|disable|deactivate|revoke|remove|reactivate|activate|restore)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final directAccessChange = RegExp(
+      r'\b(suspend|disable|deactivate|revoke|reactivate|activate|restore|promote|demote)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final roleChange = RegExp(
+      r'\b(change|make|set|give|promote|demote)\b',
       caseSensitive: false,
     ).hasMatch(value) &&
         RegExp(
-          r'\b(add|invite|create|change|make|set|promote|demote|suspend|disable|revoke|remove|reactivate|activate|restore)\b',
+          r'\b(owner|admin|operator|member|viewer)\b',
           caseSensitive: false,
         ).hasMatch(value);
+    return (scoped && action) || directAccessChange || roleChange;
   }
 
   bool _isRepositoryAuditRequest(String message) {
