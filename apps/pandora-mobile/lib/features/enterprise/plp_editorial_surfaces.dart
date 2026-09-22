@@ -9,7 +9,7 @@ const plpWarm = Color(0xFFF2EEE6);
 const plpInk = Color(0xFF171512);
 const plpMuted = Color(0xFF746F67);
 const plpLine = Color(0xFFE1DBD1);
-const plpAccent = Color(0xFF82764F);
+const plpAccent = Color(0xFF70643F);
 const plpGood = Color(0xFF657965);
 const plpWarn = Color(0xFFA56B2C);
 
@@ -704,11 +704,13 @@ class PlpVisionScreen extends StatelessWidget {
             'Vision state',
             detail: 'Keep machine observation separate from verified fact.',
           ),
-          const PlpEditorialRow(
+          PlpEditorialRow(
             title: 'Display',
-            detail: 'Live source is visible in the owner workspace.',
-            value: 'Live',
-            tone: plpGood,
+            detail: enterpriseVisionEmbedAvailable
+                ? 'Live source is visible in the owner workspace.'
+                : 'Live public camera preview is unavailable on this platform.',
+            value: enterpriseVisionEmbedAvailable ? 'Live' : 'Unavailable',
+            tone: enterpriseVisionEmbedAvailable ? plpGood : plpAccent,
           ),
           const PlpEditorialRow(
             title: 'Automated analysis',
