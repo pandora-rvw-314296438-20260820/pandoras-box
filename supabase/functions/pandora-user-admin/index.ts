@@ -9,7 +9,9 @@ const SUPABASE_ANON_KEY = requiredEnv("SUPABASE_ANON_KEY");
 const SUPABASE_SERVICE_ROLE_KEY = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
 const FUNCTION_NAME = "pandora-user-admin";
 const ROLES = ["owner", "admin", "operator", "member", "viewer"] as const;
+const MEMBER_STATUSES = ["active", "suspended", "revoked"] as const;
 type MemberRole = typeof ROLES[number];
+type MemberStatus = typeof MEMBER_STATUSES[number];
 type Json = Record<string, unknown>;
 // Untyped client matches other governed Edge functions (Deno check without generated DB types).
 type Client = SupabaseClient<any, "public", "public", any, any>;
@@ -72,7 +74,7 @@ const ALLOWED_ORIGINS = parseOrigins();
 const CORS_HEADERS = {
   "access-control-allow-headers":
     "authorization, apikey, content-type, x-client-info, x-organization-id",
-  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-methods": "GET, POST, PATCH, OPTIONS",
   "access-control-max-age": "86400",
   "vary": "Origin",
 };
@@ -150,6 +152,30 @@ function role(value: unknown): MemberRole {
   return value as MemberRole;
 }
 
+function optionalRole(value: unknown): MemberRole | null {
+  if (value === undefined || value === null) return null;
+  return role(value);
+}
+
+function memberStatus(value: unknown): MemberStatus {
+  if (
+    typeof value !== "string" ||
+    !MEMBER_STATUSES.includes(value as MemberStatus)
+  ) {
+    throw new ApiError(
+      400,
+      "INVALID_STATUS",
+      "A supported membership status is required.",
+    );
+  }
+  return value as MemberStatus;
+}
+
+function optionalMemberStatus(value: unknown): MemberStatus | null {
+  if (value === undefined || value === null) return null;
+  return memberStatus(value);
+}
+
 async function jsonBody(req: Request): Promise<Json> {
   const declared = Number(req.headers.get("content-length") || "0");
   if (Number.isFinite(declared) && declared > 8192) {
@@ -222,14 +248,17 @@ async function sha256(value: string): Promise<string> {
     .join("");
 }
 
-async function rateLimit(context: Context, method: "GET" | "POST"): Promise<void> {
+async function rateLimit(
+  context: Context,
+  method: "GET" | "POST" | "PATCH",
+): Promise<void> {
   const keyHash = await sha256(
     `${context.userId}:${context.organizationId}:${method}:${FUNCTION_NAME}`,
   );
   const { data, error } = await context.adminClient.rpc("consume_runtime_rate_limit", {
     p_organization_id: context.organizationId,
     p_key_hash: keyHash,
-    p_limit: method === "GET" ? 60 : 10,
+    p_limit: method === "GET" ? 60 : method === "POST" ? 10 : 20,
     p_window_seconds: 60,
   });
   if (error) {
@@ -318,7 +347,19 @@ function membershipError(error: { message?: string } | null): ApiError {
   if (message.includes("cannot change your own membership")) {
     return new ApiError(409, "SELF_MEMBERSHIP_CHANGE_FORBIDDEN", "Use the dedicated ownership workflow to change your own role.");
   }
-  return new ApiError(500, "MEMBERSHIP_CREATE_FAILED", "Pandora could not add this user to the organization.");
+  if (message.includes("administrators cannot modify owner or admin memberships")) {
+    return new ApiError(403, "MEMBERSHIP_CHANGE_NOT_ALLOWED", "Administrators cannot change owner or administrator memberships.");
+  }
+  if (message.includes("cannot remove the last active owner")) {
+    return new ApiError(409, "LAST_OWNER_REQUIRED", "At least one active owner must remain.");
+  }
+  if (message.includes("target membership not found")) {
+    return new ApiError(404, "MEMBERSHIP_NOT_FOUND", "This team member no longer belongs to the organization.");
+  }
+  if (message.includes("use invitation workflow for invited membership")) {
+    return new ApiError(409, "INVITED_MEMBERSHIP_RESTRICTED", "Pending invitations can only be revoked from this screen.");
+  }
+  return new ApiError(500, "MEMBERSHIP_CHANGE_FAILED", "Pandora could not change this organization membership.");
 }
 
 async function invite(req: Request, context: Context, requestId: string, origin: string | null): Promise<Response> {
@@ -384,6 +425,62 @@ async function invite(req: Request, context: Context, requestId: string, origin:
   );
 }
 
+async function updateMember(
+  req: Request,
+  context: Context,
+  requestId: string,
+  origin: string | null,
+): Promise<Response> {
+  await rateLimit(context, "PATCH");
+  const body = await jsonBody(req);
+  const targetUserId = optionalText(body.userId ?? body.user_id, 64) || "";
+  if (!uuid(targetUserId)) {
+    throw new ApiError(400, "INVALID_USER", "A valid team member is required.");
+  }
+  const targetRole = optionalRole(body.role);
+  const targetStatus = optionalMemberStatus(body.status);
+  if (targetRole === null && targetStatus === null) {
+    throw new ApiError(
+      400,
+      "CHANGE_REQUIRED",
+      "Choose a role or access-status change.",
+    );
+  }
+  if (
+    context.role === "admin" &&
+    targetRole !== null &&
+    ["owner", "admin"].includes(targetRole)
+  ) {
+    throw new ApiError(
+      403,
+      "ROLE_GRANT_NOT_ALLOWED",
+      "Only an owner can grant this role.",
+    );
+  }
+
+  const { data, error } = await context.adminClient.rpc(
+    "pandora_admin_update_organization_member",
+    {
+      p_actor_user_id: context.userId,
+      p_organization_id: context.organizationId,
+      p_target_user_id: targetUserId,
+      p_role: targetRole,
+      p_status: targetStatus,
+    },
+  );
+  if (error) throw membershipError(error);
+
+  return response(
+    {
+      membership: record(data),
+      requestId,
+    },
+    200,
+    requestId,
+    origin,
+  );
+}
+
 async function members(context: Context, requestId: string, origin: string | null): Promise<Response> {
   await rateLimit(context, "GET");
   const { data: memberships, error } = await context.userClient
@@ -422,6 +519,7 @@ async function members(context: Context, requestId: string, origin: string | nul
       joinedAt: membership.joined_at,
       createdAt: membership.created_at,
       updatedAt: membership.updated_at,
+      isCurrentUser: String(membership.user_id) === context.userId,
     };
   });
   return response(
@@ -454,6 +552,9 @@ Deno.serve(async (req: Request) => {
     }
     if (req.method === "POST" && (pathname === "/" || pathname === "/invite")) {
       return await invite(req, context, requestId, origin);
+    }
+    if (req.method === "PATCH" && (pathname === "/" || pathname === "/member")) {
+      return await updateMember(req, context, requestId, origin);
     }
     return response(
       { code: "NOT_FOUND", plainMessage: "This user-administration operation is not available.", requestId },
