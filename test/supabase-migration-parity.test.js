@@ -1,1 +1,1 @@
-PLACEHOLDER
+const assert = require('node:assert/strict');
