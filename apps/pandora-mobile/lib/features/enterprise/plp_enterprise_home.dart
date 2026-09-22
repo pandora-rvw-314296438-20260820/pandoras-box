@@ -26,7 +26,7 @@ class PlpEnterpriseHome extends StatelessWidget {
   static const _ink = Color(0xFF171512);
   static const _muted = Color(0xFF706B64);
   static const _line = Color(0xFFE6DED2);
-  static const _accent = Color(0xFF82764F);
+  static const _accent = Color(0xFF70643F);
   static const _good = Color(0xFF5E765F);
   static const _warn = Color(0xFFA56B2C);
 
@@ -117,21 +117,31 @@ class PlpEnterpriseHome extends StatelessWidget {
               const SizedBox(height: 38),
               const _Eyebrow('OWNER’S HOME'),
               const SizedBox(height: 13),
+              const Text(
+                'Pueblo La Perla',
+                style: TextStyle(
+                  color: _ink,
+                  fontFamily: 'serif',
+                  fontSize: 48,
+                  height: 0.94,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: -1.8,
+                ),
+              ),
+              const SizedBox(height: 12),
               Text(
                 'Welcome, $displayName',
                 key: const ValueKey('plp-authenticated-greeting'),
                 style: const TextStyle(
-                  color: _ink,
-                  fontFamily: 'serif',
-                  fontSize: 43,
-                  height: 0.98,
-                  fontWeight: FontWeight.w400,
-                  letterSpacing: -1.5,
+                  color: _accent,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.7,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               const Text(
-                'A quiet view of what matters at the resort today — performance, movement, attention, and the next action.',
+                'Your private operating view of the resort — performance, movement, attention, and the next action.',
                 style: TextStyle(
                   color: _muted,
                   fontSize: 14.5,

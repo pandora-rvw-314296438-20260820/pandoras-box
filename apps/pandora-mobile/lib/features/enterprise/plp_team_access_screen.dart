@@ -21,12 +21,12 @@ class PlpTeamAccessScreen extends StatefulWidget {
 class _PlpTeamAccessScreenState extends State<PlpTeamAccessScreen> {
   static const _canvas = Color(0xFFFBF8F2);
   static const _paper = Color(0xFFFFFDFC);
-  static const _ink = Color(0xFF101B33);
-  static const _muted = Color(0xFF72767C);
-  static const _gold = Color(0xFF9D6928);
-  static const _goldSoft = Color(0xFFF1E1CD);
-  static const _line = Color(0xFFE9E2D8);
-  static const _green = Color(0xFF2FB45F);
+  static const _ink = Color(0xFF171512);
+  static const _muted = Color(0xFF746F67);
+  static const _gold = Color(0xFF70643F);
+  static const _goldSoft = Color(0xFFF2EEE6);
+  static const _line = Color(0xFFE1DBD1);
+  static const _green = Color(0xFF657965);
   static const _grayDot = Color(0xFF9EA3AA);
 
   int _tab = 0;
@@ -146,11 +146,11 @@ class _PlpTeamAccessScreenState extends State<PlpTeamAccessScreen> {
                     filled: true,
                     fillColor: _paper,
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.zero,
                       borderSide: const BorderSide(color: _line),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.zero,
                       borderSide: const BorderSide(color: _gold),
                     ),
                   ),
@@ -222,25 +222,19 @@ class _Header extends StatelessWidget {
           else
             const SizedBox.square(dimension: 44),
           const SizedBox(width: 5),
-          Container(
-            width: 43,
-            height: 43,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFF68401F),
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/workspaces/plp.webp',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Center(
-                  child: Text(
-                    'PLP',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                    ),
+          SizedBox(
+            width: 42,
+            height: 48,
+            child: Image.asset(
+              'assets/workspaces/plp.webp',
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Center(
+                child: Text(
+                  'PLP',
+                  style: TextStyle(
+                    color: _PlpTeamAccessScreenState._ink,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
@@ -274,24 +268,20 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Container(
-            width: 42,
-            height: 42,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF8ECAC7), Color(0xFFC9A36F)],
-              ),
-              border: Border.all(color: Colors.white, width: 2),
+              color: _PlpTeamAccessScreenState._ink,
+              border: Border.all(color: _PlpTeamAccessScreenState._line),
             ),
             child: Center(
               child: Text(
                 _initials(currentUserName),
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: .5,
                 ),
               ),
             ),
@@ -304,133 +294,66 @@ class _PeopleHero extends StatelessWidget {
   const _PeopleHero();
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-        height: 260,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 350;
-            return Stack(
-              fit: StackFit.expand,
-              children: [
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        Color(0xFFFFFEFB),
-                        Color(0xFFF8F2E9),
-                        Color(0xFFE5F2F1),
-                      ],
-                      stops: [0, .52, 1],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: -40,
-                  bottom: -18,
-                  child: Container(
-                    width: 250,
-                    height: 112,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(62),
-                      color: const Color(0xFF91C9CC).withValues(alpha: .48),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 18,
-                  bottom: 35,
-                  child: Icon(
-                    Icons.villa_rounded,
-                    size: compact ? 110 : 132,
-                    color: const Color(0xFF9C754D).withValues(alpha: .26),
-                  ),
-                ),
-                Positioned(
-                  right: 65,
-                  top: -16,
-                  child: Transform.rotate(
-                    angle: -.16,
-                    child: Icon(
-                      Icons.park_rounded,
-                      size: 168,
-                      color: const Color(0xFF7F9C77).withValues(alpha: .25),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    compact ? 22 : 28,
-                    32,
-                    compact ? 118 : 142,
-                    22,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'T E A M   &   A C C E S S',
-                          maxLines: 1,
-                          style: TextStyle(
-                            color: Color(0xFF8D642E),
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: compact ? 13 : 18),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Our People',
-                          maxLines: 1,
-                          style: TextStyle(
-                            color: _PlpTeamAccessScreenState._ink,
-                            fontSize: compact ? 39 : 48,
-                            height: .95,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -1.7,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: compact ? 11 : 15),
-                      Text(
-                        'Exceptional stays are made by extraordinary people.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: const Color(0xFF4E5053),
-                          fontSize: compact ? 13.5 : 15.5,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Positioned(
-                  right: 17,
-                  top: 60,
-                  child: Text(
-                    'P E O P L E\n\nH O S P I T A L I T Y\n\nA   B R I G H T E R\n\nT O M O R R O W',
-                    textAlign: TextAlign.center,
+  Widget build(BuildContext context) => Container(
+        key: const ValueKey<String>('plp-team-editorial-hero'),
+        decoration: const BoxDecoration(
+          color: _PlpTeamAccessScreenState._paper,
+          border: Border(
+            top: BorderSide(color: _PlpTeamAccessScreenState._line),
+            bottom: BorderSide(color: _PlpTeamAccessScreenState._line),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 28, 20, 26),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'TEAM & ACCESS',
                     style: TextStyle(
-                      color: Color(0xFF7A684E),
-                      fontSize: 6.8,
-                      height: 1.2,
+                      color: _PlpTeamAccessScreenState._gold,
+                      fontSize: 9.5,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 1.25,
+                      letterSpacing: 2.1,
                     ),
                   ),
-                ),
-              ],
-            );
-          },
+                  SizedBox(height: 13),
+                  Text(
+                    'Our People',
+                    style: TextStyle(
+                      color: _PlpTeamAccessScreenState._ink,
+                      fontFamily: 'serif',
+                      fontSize: 42,
+                      height: .96,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: -1.1,
+                    ),
+                  ),
+                  SizedBox(height: 13),
+                  Text(
+                    'The people who shape every stay, with access kept clear, deliberate and accountable.',
+                    style: TextStyle(
+                      color: _PlpTeamAccessScreenState._muted,
+                      fontSize: 13,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            SizedBox(
+              width: 78,
+              height: 96,
+              child: Image.asset(
+                'assets/workspaces/plp.webp',
+                fit: BoxFit.contain,
+              ),
+            ),
+          ],
         ),
       );
 }
@@ -667,19 +590,8 @@ class _TeamMemberRow extends StatelessWidget {
             height: 54,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFE9D7C5), Color(0xFF9BC7C4)],
-              ),
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x10000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 3),
-                ),
-              ],
+              color: _PlpTeamAccessScreenState._goldSoft,
+              border: Border.all(color: _PlpTeamAccessScreenState._line),
             ),
             child: Center(
               child: Text(
@@ -722,7 +634,7 @@ class _TeamMemberRow extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: _PlpTeamAccessScreenState._goldSoft,
-                          borderRadius: BorderRadius.circular(999),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: const Text(
                           'You',
@@ -754,7 +666,7 @@ class _TeamMemberRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
             decoration: BoxDecoration(
               color: const Color(0xFFF7F7F5),
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.zero,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -905,7 +817,7 @@ class _AccessSummaryCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
         decoration: BoxDecoration(
           color: _PlpTeamAccessScreenState._paper,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
           border: Border.all(color: _PlpTeamAccessScreenState._line),
         ),
         child: Row(
@@ -1107,7 +1019,7 @@ class _ActivityRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: const Color(0xFFF8E9C9),
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.zero,
               ),
               child: const Text(
                 'QA',
@@ -1147,7 +1059,7 @@ class _EmptyState extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: _PlpTeamAccessScreenState._paper,
-          borderRadius: BorderRadius.circular(17),
+          borderRadius: BorderRadius.zero,
           border: Border.all(color: _PlpTeamAccessScreenState._line),
         ),
         child: Row(

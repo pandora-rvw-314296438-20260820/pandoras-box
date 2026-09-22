@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 
 const String _androidVisionViewType = 'pandora/camstreamer_kabukicho';
 
+bool get enterpriseVisionEmbedAvailable => Platform.isAndroid;
+
 Widget buildEnterpriseVisionEmbed() {
   if (Platform.isAndroid) {
     return const AndroidView(

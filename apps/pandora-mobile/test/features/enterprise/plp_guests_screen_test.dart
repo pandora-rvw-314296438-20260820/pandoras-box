@@ -63,12 +63,21 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Guests'), findsOneWidget);
-    expect(find.text('Guest Experience'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('plp-guests-editorial-hero')),
+      findsOneWidget,
+    );
+    expect(find.text('GUEST EXPERIENCE'), findsOneWidget);
+    expect(
+      find.text('Personal stays.\nThoughtful service.'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
 
-    await tester.drag(
-      find.byKey(const ValueKey<String>('plp-guests-light-page')),
-      const Offset(0, -280),
+    await tester.scrollUntilVisible(
+      find.text('QA Maria Santos'),
+      220,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
 

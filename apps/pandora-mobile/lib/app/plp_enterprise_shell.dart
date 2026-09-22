@@ -6,10 +6,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/data/pandora_intelligence_api.dart';
 import '../core/local/pandora_local_state_cache.dart';
 import '../core/widgets/pandora_navigation.dart';
-import '../features/enterprise/plp_activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/diagnostics/developer_diagnostics_screen.dart';
-import '../features/enterprise/enterprise_vision_screen.dart';
+import '../features/enterprise/plp_activity_screen.dart';
+import '../features/enterprise/plp_editorial_surfaces.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_guests_screen.dart';
 import '../features/enterprise/plp_team_access_screen.dart';
@@ -28,12 +28,10 @@ class PlpEnterpriseShell extends StatefulWidget {
 }
 
 class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
-  static const _canvas = Color(0xFF070A0F);
-  static const _panel = Color(0xF20D1219);
-  static const _line = Color(0xFF263040);
-  static const _muted = Color(0xFF8D9AAB);
-  static const _text = Color(0xFFF4F7FB);
-  static const _accent = Color(0xFF5ED8E6);
+  static const _canvas = Color(0xFFFAF8F3);
+  static const _muted = Color(0xFF746F67);
+  static const _text = Color(0xFF171512);
+  static const _accent = Color(0xFF82764F);
 
   static const _surfaceByDestination = <String, int>{
     'home': 0,
@@ -51,6 +49,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   };
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<NavigatorState> _contentNavigatorKey =
+      GlobalKey<NavigatorState>();
   final _alfredKey = GlobalKey<AskPandoraScreenState>();
   final _commandController = TextEditingController();
   final _commandFocus = FocusNode();
@@ -59,6 +59,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   Map<String, Object?>? _lastBootstrap;
   bool _bootstrapInitialized = false;
   int _index = 0;
+  Widget? _routedTool;
+  String? _routedToolKey;
   List<PlpRecentChatItem> _recentChats = const <PlpRecentChatItem>[];
   bool _recentChatsLoading = false;
   bool _recentChatsLoaded = false;
@@ -210,8 +212,27 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }
 
   void _open(int index) {
-    if (_index == index) return;
-    setState(() => _index = index);
+    if (_index == index && _routedTool == null) return;
+    setState(() {
+      _index = index;
+      _routedTool = null;
+      _routedToolKey = null;
+    });
+  }
+
+  void _openTool(String key, Widget tool) {
+    setState(() {
+      _routedToolKey = key;
+      _routedTool = tool;
+    });
+  }
+
+  void _closeTool() {
+    if (_routedTool == null) return;
+    setState(() {
+      _routedTool = null;
+      _routedToolKey = null;
+    });
   }
 
   void _openDrawer() {
@@ -226,7 +247,11 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     }
     _commandController.clear();
     _commandFocus.unfocus();
-    setState(() => _index = 1);
+    setState(() {
+      _index = 1;
+      _routedTool = null;
+      _routedToolKey = null;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _alfredKey.currentState?.submitExternalPrompt(command);
     });
@@ -405,24 +430,31 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               allowCharacterContext: false,
               allowProjectContext: false,
             ),
-            PandoraOperationsRoomScreen(
+            PlpOperationsScreen(
               key: const ValueKey('plp-operations-room'),
-              onHome: () => _open(0),
+              bootstrap: bootstrap,
+              onOpenNavigation: _openDrawer,
+              onAskPandora: () => _open(1),
+              onOpenRoom: () {
+                _openTool(
+                  'operations-room',
+                  PandoraOperationsRoomScreen(onHome: _closeTool),
+                );
+              },
             ),
-            EnterpriseVisionScreen(
+            PlpVisionScreen(
               key: const ValueKey('plp-vision-intelligence'),
+              onOpenNavigation: _openDrawer,
               onAskPandora: () => _open(1),
             ),
             const LocalAiSettingsScreen(
               key: ValueKey('plp-local-ai-settings'),
             ),
-            _PlpBusinessSurface(
+            PlpOverviewScreen(
               key: const ValueKey('plp-overview'),
-              destination: 'overview',
-              title: 'Overview',
-              icon: Icons.dashboard_outlined,
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
+              onAskPandora: () => _open(1),
             ),
             PlpGuestsScreen(
               key: const ValueKey('plp-guests'),
@@ -437,21 +469,36 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 unawaited(_submitCommand('Add a person to the PLP team'));
               },
             ),
-            _PlpBusinessSurface(
+            PlpRevenueScreen(
               key: const ValueKey('plp-revenue'),
-              destination: 'revenue',
-              title: 'Revenue',
-              icon: Icons.payments_outlined,
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
+              onAskPandora: () => _open(1),
             ),
-            const ApprovalsScreen(key: ValueKey('plp-needs-you')),
+            PlpNeedsYouScreen(
+              key: const ValueKey('plp-needs-you'),
+              bootstrap: bootstrap,
+              onOpenNavigation: _openDrawer,
+              onAskPandora: () => _open(1),
+              onOpenApprovals: () {
+                _openTool('approvals', const ApprovalsScreen());
+              },
+            ),
             PlpActivityScreen(
               key: const ValueKey('plp-activity'),
               organizationId: _organizationId(bootstrap),
               onOpenNavigation: _openDrawer,
             ),
-            const SettingsScreen(key: ValueKey('plp-settings')),
+            PlpSettingsScreen(
+              key: const ValueKey('plp-settings'),
+              bootstrap: bootstrap,
+              onOpenNavigation: _openDrawer,
+              onOpenLocalAi: () => _open(4),
+              onOpenDeveloper: () => _open(12),
+              onOpenFullSettings: () {
+                _openTool('full-settings', const SettingsScreen());
+              },
+            ),
             const DeveloperDiagnosticsScreen(key: ValueKey('plp-developer')),
           ];
 
@@ -486,9 +533,33 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 openDrawer: _index == 1 ? _openDrawer : null,
                 child: Stack(
                   children: [
-                    IndexedStack(
-                      index: _index,
-                      children: screens,
+                    Navigator(
+                      key: _contentNavigatorKey,
+                      pages: <Page<void>>[
+                        MaterialPage<void>(
+                          key: const ValueKey<String>('plp-shell-base-route'),
+                          child: IndexedStack(
+                            index: _index,
+                            children: screens,
+                          ),
+                        ),
+                        if (_routedTool != null)
+                          MaterialPage<void>(
+                            key: ValueKey<String>(
+                              'plp-shell-tool-${_routedToolKey!}',
+                            ),
+                            child: _routedTool!,
+                          ),
+                      ],
+                      onDidRemovePage: (page) {
+                        final routeKey = page.key;
+                        if (_routedTool == null ||
+                            routeKey is! ValueKey<String> ||
+                            !routeKey.value.startsWith('plp-shell-tool-')) {
+                          return;
+                        }
+                        _closeTool();
+                      },
                     ),
                     if (_index != 1)
                       Positioned(
@@ -541,241 +612,91 @@ class PlpCommandDock extends StatelessWidget {
         top: false,
         child: Container(
           key: const ValueKey<String>('plp-command-dock'),
-          color: _PlpEnterpriseShellState._canvas,
+          decoration: const BoxDecoration(
+            color: _PlpEnterpriseShellState._canvas,
+            border: Border(
+              top: BorderSide(color: Color(0xFFE1DBD1)),
+            ),
+          ),
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
           child: DecoratedBox(
             key: const ValueKey<String>('plp-persistent-command-bar'),
-            decoration: BoxDecoration(
-              color: const Color(0xFF050505),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: const Color(0xFF252A31)),
+            decoration: const BoxDecoration(
+              color: Color(0xFF171512),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const SizedBox.square(
-                    dimension: 44,
-                    child: Icon(
-                      Icons.view_in_ar_outlined,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox.square(
+                  dimension: 50,
+                  child: Icon(
+                    Icons.view_in_ar_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey<String>('plp-command-field'),
+                    controller: controller,
+                    focusNode: focusNode,
+                    minLines: 1,
+                    maxLines: 4,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => onSubmit(),
+                    style: const TextStyle(
                       color: Colors.white,
-                      size: 26,
+                      fontSize: 15.5,
+                      height: 1.35,
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: 'Message Pandora',
+                      hintStyle: TextStyle(
+                        color: Color(0xFFB6B0A7),
+                        fontSize: 15.5,
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.fromLTRB(2, 15, 6, 14),
                     ),
                   ),
-                  const SizedBox(width: 2),
-                  Expanded(
-                    child: TextField(
-                      key: const ValueKey<String>('plp-command-field'),
-                      controller: controller,
-                      focusNode: focusNode,
-                      minLines: 1,
-                      maxLines: 4,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => onSubmit(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        height: 1.35,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: 'Message Pandora',
-                        hintStyle: TextStyle(
-                          color: Color(0xFF9AA0AA),
-                          fontSize: 16,
-                        ),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.fromLTRB(4, 11, 4, 10),
+                ),
+                const SizedBox.square(
+                  dimension: 46,
+                  child: Icon(
+                    Icons.mic_none_rounded,
+                    color: Color(0xFFD6D0C7),
+                    size: 25,
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 34,
+                  color: const Color(0xFF3D3934),
+                ),
+                SizedBox.square(
+                  dimension: 50,
+                  child: IconButton(
+                    key: const ValueKey<String>('plp-command-submit'),
+                    onPressed: onSubmit,
+                    style: IconButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 2),
-                  const SizedBox.square(
-                    dimension: 44,
-                    child: Icon(
-                      Icons.mic_none_rounded,
+                    icon: const Icon(
+                      Icons.arrow_upward_rounded,
                       color: Colors.white,
-                      size: 27,
+                      size: 24,
                     ),
                   ),
-                  const SizedBox(width: 2),
-                  SizedBox.square(
-                    dimension: 44,
-                    child: FilledButton(
-                      key: const ValueKey<String>('plp-command-submit'),
-                      onPressed: onSubmit,
-                      style: FilledButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        backgroundColor: Colors.white,
-                        shape: const CircleBorder(),
-                      ),
-                      child: const Icon(
-                        Icons.arrow_upward_rounded,
-                        color: Colors.black,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
       );
-}
-
-
-class _PlpBusinessSurface extends StatelessWidget {
-  const _PlpBusinessSurface({
-    super.key,
-    required this.destination,
-    required this.title,
-    required this.icon,
-    required this.bootstrap,
-    required this.onOpenNavigation,
-  });
-
-  final String destination;
-  final String title;
-  final IconData icon;
-  final Map<String, Object?> bootstrap;
-  final VoidCallback onOpenNavigation;
-
-  Map<String, Object?> _map(Object? value) {
-    if (value is Map<String, Object?>) return value;
-    if (value is Map) {
-      return value.map((key, item) => MapEntry(key.toString(), item));
-    }
-    return const <String, Object?>{};
-  }
-
-  String _text(Object? value, {String fallback = '—'}) {
-    final normalized = value?.toString().trim();
-    return normalized == null || normalized.isEmpty ? fallback : normalized;
-  }
-
-  List<MapEntry<String, String>> _metrics() {
-    final today = _map(bootstrap['today']);
-    switch (destination) {
-      case 'guests':
-        return <MapEntry<String, String>>[
-          MapEntry(
-            'Arrivals today',
-            _text(today['arrivals_today'], fallback: '0'),
-          ),
-          MapEntry(
-            'Departures today',
-            _text(today['departures_today'], fallback: '0'),
-          ),
-          MapEntry(
-            'OTA conflicts',
-            _text(today['open_ota_conflicts'], fallback: '0'),
-          ),
-        ];
-      case 'team-access':
-        return <MapEntry<String, String>>[
-          MapEntry(
-            'Open staff tasks',
-            _text(today['open_staff_tasks'], fallback: '0'),
-          ),
-          const MapEntry('Access scope', 'PLP owner workspace'),
-        ];
-      case 'revenue':
-        return <MapEntry<String, String>>[
-          MapEntry(
-            'Sales today',
-            '₱${_text(today['sales_today_php'], fallback: '0')}',
-          ),
-          MapEntry(
-            'Occupancy',
-            '${_text(today['occupancy_percent'], fallback: '0')}%',
-          ),
-        ];
-      default:
-        return <MapEntry<String, String>>[
-          MapEntry(
-            'Occupancy',
-            '${_text(today['occupancy_percent'], fallback: '0')}%',
-          ),
-          MapEntry(
-            'Rooms available',
-            _text(today['rooms_available'], fallback: '0'),
-          ),
-          MapEntry(
-            'Open staff tasks',
-            _text(today['open_staff_tasks'], fallback: '0'),
-          ),
-        ];
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final metrics = _metrics();
-    return SafeArea(
-      child: ListView(
-        key: ValueKey<String>('plp-business-$destination'),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 180),
-        children: [
-          Row(
-            children: [
-              if (PandoraNavigationScope.maybeOf(context)?.openDrawer != null)
-                PandoraMenuButton(
-                  key: ValueKey<String>(
-                    'plp-business-open-navigation-$destination',
-                  ),
-                  onPressed: onOpenNavigation,
-                )
-              else
-                const SizedBox.square(dimension: 44),
-              const SizedBox(width: 4),
-              Icon(icon, size: 25),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'PLP Boracay',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Luxury Resort · live owner workspace',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 20),
-          for (final metric in metrics) ...[
-            Card(
-              child: ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-                title: Text(metric.key),
-                trailing: Text(
-                  metric.value,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ),
-    );
-  }
 }
