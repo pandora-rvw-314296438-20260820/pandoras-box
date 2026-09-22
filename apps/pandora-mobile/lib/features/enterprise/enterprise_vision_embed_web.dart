@@ -11,6 +11,8 @@ const String _embedUrl =
 
 bool _registered = false;
 
+bool get enterpriseVisionEmbedAvailable => true;
+
 Widget buildEnterpriseVisionEmbed() {
   if (!_registered) {
     ui_web.platformViewRegistry.registerViewFactory(
