@@ -17,6 +17,7 @@ import '../features/operations/operations_room_screen.dart';
 import '../features/settings/local_ai_settings_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
+import '../features/team/team_screen.dart';
 import 'pandora_dependencies.dart';
 import 'plp_navigation_drawer.dart';
 
@@ -229,10 +230,14 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
   void _closeTool() {
     if (_routedTool == null) return;
+    final closedKey = _routedToolKey;
     setState(() {
       _routedTool = null;
       _routedToolKey = null;
     });
+    if (closedKey == 'team-management') {
+      _refresh();
+    }
   }
 
   void _openDrawer() {
@@ -466,7 +471,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
               onAddPeople: () {
-                unawaited(_submitCommand('Add a person to the PLP team'));
+                _openTool(
+                  'team-management',
+                  const TeamScreen(openInviteOnLoad: true),
+                );
+              },
+              onManageTeam: () {
+                _openTool('team-management', const TeamScreen());
               },
             ),
             PlpRevenueScreen(
