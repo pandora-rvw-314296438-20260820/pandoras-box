@@ -161,6 +161,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Front Desk'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Front Desk'));
     await tester.pumpAndSettle();
     expect(find.text('Manage access'), findsOneWidget);
