@@ -20,10 +20,19 @@ class _FakeGateway implements PandoraUserAdminGateway {
       email: 'owner@example.com',
       role: 'owner',
       status: 'active',
+      isCurrentUser: true,
+    ),
+    PandoraTeamMember(
+      id: '44444444-4444-4444-8444-444444444444',
+      displayName: 'Front Desk',
+      email: 'frontdesk@example.com',
+      role: 'operator',
+      status: 'active',
     ),
   ];
 
   PandoraInviteRequest? lastInvite;
+  PandoraMemberUpdateRequest? lastUpdate;
 
   @override
   Future<List<PandoraOrganizationAccess>> loadOrganizations() async =>
@@ -59,6 +68,34 @@ class _FakeGateway implements PandoraUserAdminGateway {
       existingAccount: false,
     );
   }
+  @override
+  Future<PandoraMemberUpdateResult> updateMember(
+    String organizationId,
+    PandoraMemberUpdateRequest request,
+  ) async {
+    lastUpdate = request;
+    members = members
+        .map(
+          (member) => member.id != request.userId
+              ? member
+              : PandoraTeamMember(
+                  id: member.id,
+                  displayName: member.displayName,
+                  email: member.email,
+                  role: request.role ?? member.role,
+                  status: request.status ?? member.status,
+                  isCurrentUser: member.isCurrentUser,
+                ),
+        )
+        .toList(growable: false);
+    final changed = members.firstWhere((member) => member.id == request.userId);
+    return PandoraMemberUpdateResult(
+      userId: changed.id,
+      role: changed.role,
+      status: changed.status,
+      changed: true,
+    );
+  }
 }
 
 void main() {
@@ -92,6 +129,68 @@ void main() {
     expect(find.text('Invited'), findsWidgets);
     expect(find.text('Invitation sent to new.person@example.com.'),
         findsOneWidget);
+  });
+
+
+  testWidgets('opens the invite flow immediately when launched for Add people',
+      (tester) async {
+    final gateway = _FakeGateway();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TeamScreen(
+          gateway: gateway,
+          openInviteOnLoad: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.widgetWithText(TextFormField, 'Email address'),
+      findsOneWidget,
+    );
+    expect(find.text('Send invitation'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('owner can change a member role and access status',
+      (tester) async {
+    final gateway = _FakeGateway();
+    await tester.pumpWidget(
+      MaterialApp(home: TeamScreen(gateway: gateway)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Front Desk'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Front Desk'));
+    await tester.pumpAndSettle();
+    expect(find.text('Manage access'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('team-member-role')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Viewer').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('team-member-status')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Suspended').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('team-member-save')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(gateway.lastUpdate?.role, 'viewer');
+    expect(gateway.lastUpdate?.status, 'suspended');
+    expect(find.text('Viewer'), findsWidgets);
+    expect(find.text('Suspended'), findsWidgets);
+    expect(find.text('Front Desk access was updated.'), findsOneWidget);
   });
 
   testWidgets('More account navigation opens the real Team screen',

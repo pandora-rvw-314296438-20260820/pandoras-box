@@ -8,11 +8,13 @@ class PlpTeamAccessScreen extends StatefulWidget {
     required this.bootstrap,
     required this.onOpenNavigation,
     required this.onAddPeople,
+    required this.onManageTeam,
   });
 
   final Map<String, Object?> bootstrap;
   final VoidCallback onOpenNavigation;
   final VoidCallback onAddPeople;
+  final VoidCallback onManageTeam;
 
   @override
   State<PlpTeamAccessScreen> createState() => _PlpTeamAccessScreenState();
@@ -166,6 +168,7 @@ class _PlpTeamAccessScreenState extends State<PlpTeamAccessScreen> {
                 members: members,
                 allMemberCount: allMembers.length,
                 onAddPeople: widget.onAddPeople,
+                onManageTeam: widget.onManageTeam,
                 initialsFor: _initials,
                 textFor: _text,
                 boolFor: _bool,
@@ -174,6 +177,7 @@ class _PlpTeamAccessScreenState extends State<PlpTeamAccessScreen> {
               _AccessTab(
                 teamAccess: teamAccess,
                 members: members,
+                onManageTeam: widget.onManageTeam,
                 textFor: _text,
                 boolFor: _bool,
               )
@@ -446,6 +450,7 @@ class _TeamTab extends StatelessWidget {
     required this.members,
     required this.allMemberCount,
     required this.onAddPeople,
+    required this.onManageTeam,
     required this.initialsFor,
     required this.textFor,
     required this.boolFor,
@@ -454,6 +459,7 @@ class _TeamTab extends StatelessWidget {
   final List<Map<String, Object?>> members;
   final int allMemberCount;
   final VoidCallback onAddPeople;
+  final VoidCallback onManageTeam;
   final String Function(String) initialsFor;
   final String Function(Object?, {String fallback}) textFor;
   final bool Function(Object?) boolFor;
@@ -506,14 +512,22 @@ class _TeamTab extends StatelessWidget {
               )
             else
               for (var index = 0; index < members.length; index++) ...[
-                _TeamMemberRow(
-                  member: members[index],
-                  initials: initialsFor(
-                    textFor(members[index]['displayName'],
-                        fallback: 'PLP team member'),
+                InkWell(
+                  key: ValueKey<String>(
+                    'plp-team-member-${members[index]['id']}',
                   ),
-                  textFor: textFor,
-                  boolFor: boolFor,
+                  onTap: onManageTeam,
+                  child: _TeamMemberRow(
+                    member: members[index],
+                    initials: initialsFor(
+                      textFor(
+                        members[index]['displayName'],
+                        fallback: 'PLP team member',
+                      ),
+                    ),
+                    textFor: textFor,
+                    boolFor: boolFor,
+                  ),
                 ),
                 if (index != members.length - 1)
                   const Divider(
@@ -525,35 +539,42 @@ class _TeamTab extends StatelessWidget {
             const SizedBox(height: 20),
             const Divider(height: 1, color: _PlpTeamAccessScreenState._line),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'View all team members',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Color(0xFF735126),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+            InkWell(
+              key: const ValueKey<String>('plp-team-view-all'),
+              onTap: onManageTeam,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'View all team members',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Color(0xFF735126),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 5),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: _PlpTeamAccessScreenState._gold,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$allMemberCount',
+                      style: const TextStyle(
+                        color: _PlpTeamAccessScreenState._muted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 5),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: _PlpTeamAccessScreenState._gold,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '$allMemberCount',
-                  style: const TextStyle(
-                    color: _PlpTeamAccessScreenState._muted,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
@@ -711,12 +732,14 @@ class _AccessTab extends StatelessWidget {
   const _AccessTab({
     required this.teamAccess,
     required this.members,
+    required this.onManageTeam,
     required this.textFor,
     required this.boolFor,
   });
 
   final Map<String, Object?> teamAccess;
   final List<Map<String, Object?>> members;
+  final VoidCallback onManageTeam;
   final String Function(Object?, {String fallback}) textFor;
   final bool Function(Object?) boolFor;
 
@@ -762,10 +785,14 @@ class _AccessTab extends StatelessWidget {
             icon: Icons.admin_panel_settings_outlined,
           ),
           const SizedBox(height: 9),
-          _AccessSummaryCard(
-            label: 'Manage team',
-            value: canManage ? 'Allowed' : 'View only',
-            icon: Icons.verified_user_outlined,
+          InkWell(
+            key: const ValueKey<String>('plp-access-manage-team'),
+            onTap: canManage ? onManageTeam : null,
+            child: _AccessSummaryCard(
+              label: 'Manage team',
+              value: canManage ? 'Allowed' : 'View only',
+              icon: Icons.verified_user_outlined,
+            ),
           ),
           const SizedBox(height: 22),
           const Text(
@@ -785,9 +812,15 @@ class _AccessTab extends StatelessWidget {
             )
           else
             for (var index = 0; index < members.length; index++) ...[
-              _AccessMemberRow(
-                member: members[index],
-                textFor: textFor,
+              InkWell(
+                key: ValueKey<String>(
+                  'plp-access-member-${members[index]['id']}',
+                ),
+                onTap: canManage ? onManageTeam : null,
+                child: _AccessMemberRow(
+                  member: members[index],
+                  textFor: textFor,
+                ),
               ),
               if (index != members.length - 1)
                 const Divider(
