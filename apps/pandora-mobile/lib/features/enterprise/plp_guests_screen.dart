@@ -22,7 +22,7 @@ class _PlpGuestsScreenState extends State<PlpGuestsScreen> {
   static const _ink = Color(0xFF171512);
   static const _muted = Color(0xFF706B64);
   static const _line = Color(0xFFE9E1D6);
-  static const _gold = Color(0xFF82764F);
+  static const _gold = Color(0xFF70643F);
   static const _goldSoft = Color(0xFFF2EEE6);
   static const _green = Color(0xFF657965);
 
