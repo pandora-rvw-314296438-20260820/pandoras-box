@@ -21,6 +21,7 @@ import '../../core/local/pandora_device_activity_local_sync.dart';
 import '../../core/local/pandora_local_state_cache.dart';
 import '../../core/local/pandora_local_sync_coordinator.dart';
 import '../../core/local_ai/pandora_local_ai.dart';
+import '../../core/local_ai/pandora_local_ai_runtime.dart';
 import '../../core/local_ai/plp_chat_fallback.dart';
 import '../../core/network/idempotency_key.dart';
 import '../../core/platform/pandora_native_io.dart';
@@ -96,26 +97,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   bool _outcomeUnknown = false;
   String? _submissionKey;
   String? _error;
-  Timer? _localAiIdleUnloadTimer;
-
-  static const Duration _localAiIdleUnloadDelay = Duration(minutes: 2);
-
-  Future<void> _unloadLocalAiQuietly() async {
-    _localAiIdleUnloadTimer?.cancel();
-    _localAiIdleUnloadTimer = null;
-    try {
-      await PandoraLocalAi.instance.unload();
-    } catch (_) {
-      // Local cleanup must never surface as a chat failure.
-    }
-  }
-
-  void _scheduleLocalAiIdleUnload() {
-    _localAiIdleUnloadTimer?.cancel();
-    _localAiIdleUnloadTimer = Timer(_localAiIdleUnloadDelay, () {
-      unawaited(_unloadLocalAiQuietly());
-    });
-  }
 
   @override
   void initState() {
@@ -191,7 +172,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           status: status,
         ),
       );
-      _scheduleLocalAiIdleUnload();
+      PandoraLocalAiRuntime.instance.keepResident();
     } catch (error) {
       unawaited(
         _recordLocalAiTurn(
@@ -201,24 +182,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           status: probeStatus,
         ),
       );
-      try {
-        await PandoraLocalAi.instance.cancel();
-      } catch (_) {}
-      await _unloadLocalAiQuietly();
+      await PandoraLocalAiRuntime.instance.unload();
       // A real user turn still continues through cloud if the local self-test
       // cannot prove the phone-local path.
     } finally {
       _localAiPrewarmInFlight = false;
-    }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.detached) {
-      unawaited(PandoraLocalAi.instance.cancel());
-      unawaited(_unloadLocalAiQuietly());
     }
   }
 
@@ -277,9 +245,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     WidgetsBinding.instance.removeObserver(this);
     _activityController.removeListener(_handleActivityTimelineChanged);
     _activityController.dispose();
-    _localAiIdleUnloadTimer?.cancel();
-    unawaited(PandoraLocalAi.instance.cancel());
-    unawaited(_unloadLocalAiQuietly());
     _objective.dispose();
     _objectiveFocus.dispose();
     super.dispose();
@@ -761,7 +726,6 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           status: status,
         ),
       );
-      if (status.loaded) await _unloadLocalAiQuietly();
       return false;
     }
     unawaited(
@@ -790,8 +754,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       return false;
     }
 
-    _localAiIdleUnloadTimer?.cancel();
-    _localAiIdleUnloadTimer = null;
+    PandoraLocalAiRuntime.instance.cancelIdleUnload();
     final bridgeFromOtherRoute = !_lastTurnUsedLocalAi && _messages.isNotEmpty;
 
     // Warm first. The old order asked a cold engine to reset conversation,
@@ -807,7 +770,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
             status: status,
           ),
         );
-        await _unloadLocalAiQuietly();
+        await PandoraLocalAiRuntime.instance.unload();
         return false;
       }
       unawaited(
@@ -841,10 +804,10 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           status: status,
         ),
       );
-      await _unloadLocalAiQuietly();
+      await PandoraLocalAiRuntime.instance.unload();
       return false;
     } catch (_) {
-      await _unloadLocalAiQuietly();
+      await PandoraLocalAiRuntime.instance.unload();
       return false;
     }
 
@@ -854,7 +817,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       } catch (_) {
         // Do not cold-warm on the user's response path. A failed warm reset
         // falls through to cloud and background prewarm repairs local state.
-        await _unloadLocalAiQuietly();
+        await PandoraLocalAiRuntime.instance.unload();
         if (_isPlpEnterpriseContext) {
           unawaited(_prewarmPlpLocalAiIfSafe());
         }
@@ -900,7 +863,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           status: status,
         ),
       );
-      await _unloadLocalAiQuietly();
+      await PandoraLocalAiRuntime.instance.unload();
       if (!mounted) return true;
       if (started && _messages.length >= 2) {
         setState(() {
@@ -933,11 +896,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
           status: status,
         ),
       );
-      await _unloadLocalAiQuietly();
+      PandoraLocalAiRuntime.instance.keepResident();
       return false;
     }
     if (!started || normalized.isEmpty) {
-      await _unloadLocalAiQuietly();
+      await PandoraLocalAiRuntime.instance.unload();
       return false;
     }
 
@@ -956,7 +919,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         status: status,
       ),
     );
-    _scheduleLocalAiIdleUnload();
+    PandoraLocalAiRuntime.instance.keepResident();
     return true;
   }
 

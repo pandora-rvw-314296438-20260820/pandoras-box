@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/design/pandora_theme.dart';
 import '../core/design/pandora_tokens.dart';
+import '../core/local_ai/pandora_local_ai_runtime.dart';
 import '../features/auth/plp_auth_gate.dart';
 import 'pandora_dependencies.dart';
 import 'pandora_runtime_bootstrap.dart';
@@ -20,7 +23,14 @@ class PlpEnterpriseApp extends StatefulWidget {
 
 class _PlpEnterpriseAppState extends State<PlpEnterpriseApp> {
   @override
+  void initState() {
+    super.initState();
+    PandoraLocalAiRuntime.instance.start();
+  }
+
+  @override
   void dispose() {
+    unawaited(PandoraLocalAiRuntime.instance.stop());
     widget.runtime.projectRuntime.close();
     widget.runtime.repository.dispose();
     widget.runtime.localStore.close();

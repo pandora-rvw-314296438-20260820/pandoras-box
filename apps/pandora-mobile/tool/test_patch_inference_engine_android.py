@@ -10,8 +10,10 @@ SCRIPT = Path(__file__).with_name("patch_inference_engine_android.py")
 
 
 class PatchInferenceEngineAndroidTest(unittest.TestCase):
-    def test_rewrites_native_diagnostics_and_fail_loud_generation(self) -> None:
+    def test_rewrites_native_diagnostics_fail_loud_generation_and_art_safe_jni(self) -> None:
         implementation = """
+import dalvik.annotation.optimization.FastNative
+
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load native library", e)
                 throw e
@@ -99,6 +101,8 @@ class PatchInferenceEngineAndroidTest(unittest.TestCase):
         self.assertNotIn("System prompt must be set ** RIGHT AFTER ** model loaded!", patched)
         self.assertNotIn("Failed to process user prompt: $result", patched)
         self.assertNotIn("return@flow", patched)
+        self.assertNotIn("@FastNative", patched)
+        self.assertNotIn("dalvik.annotation.optimization.FastNative", patched)
         self.assertEqual(
             patched_interface.count("fun runtimeDiagnostics(): String"),
             1,
