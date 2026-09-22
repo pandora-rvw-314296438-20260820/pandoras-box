@@ -49,6 +49,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   };
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<NavigatorState> _contentNavigatorKey =
+      GlobalKey<NavigatorState>();
   final _alfredKey = GlobalKey<AskPandoraScreenState>();
   final _commandController = TextEditingController();
   final _commandFocus = FocusNode();
@@ -57,6 +59,8 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   Map<String, Object?>? _lastBootstrap;
   bool _bootstrapInitialized = false;
   int _index = 0;
+  Widget? _routedTool;
+  String? _routedToolKey;
   List<PlpRecentChatItem> _recentChats = const <PlpRecentChatItem>[];
   bool _recentChatsLoading = false;
   bool _recentChatsLoaded = false;
@@ -208,8 +212,27 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }
 
   void _open(int index) {
-    if (_index == index) return;
-    setState(() => _index = index);
+    if (_index == index && _routedTool == null) return;
+    setState(() {
+      _index = index;
+      _routedTool = null;
+      _routedToolKey = null;
+    });
+  }
+
+  void _openTool(String key, Widget tool) {
+    setState(() {
+      _routedToolKey = key;
+      _routedTool = tool;
+    });
+  }
+
+  void _closeTool() {
+    if (_routedTool == null) return;
+    setState(() {
+      _routedTool = null;
+      _routedToolKey = null;
+    });
   }
 
   void _openDrawer() {
@@ -224,7 +247,11 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     }
     _commandController.clear();
     _commandFocus.unfocus();
-    setState(() => _index = 1);
+    setState(() {
+      _index = 1;
+      _routedTool = null;
+      _routedToolKey = null;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _alfredKey.currentState?.submitExternalPrompt(command);
     });
@@ -409,12 +436,9 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenNavigation: _openDrawer,
               onAskPandora: () => _open(1),
               onOpenRoom: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => PandoraOperationsRoomScreen(
-                      onHome: () => Navigator.of(context).pop(),
-                    ),
-                  ),
+                _openTool(
+                  'operations-room',
+                  PandoraOperationsRoomScreen(onHome: _closeTool),
                 );
               },
             ),
@@ -457,11 +481,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenNavigation: _openDrawer,
               onAskPandora: () => _open(1),
               onOpenApprovals: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const ApprovalsScreen(),
-                  ),
-                );
+                _openTool('approvals', const ApprovalsScreen());
               },
             ),
             PlpActivityScreen(
@@ -476,11 +496,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenLocalAi: () => _open(4),
               onOpenDeveloper: () => _open(12),
               onOpenFullSettings: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const SettingsScreen(),
-                  ),
-                );
+                _openTool('full-settings', const SettingsScreen());
               },
             ),
             const DeveloperDiagnosticsScreen(key: ValueKey('plp-developer')),
@@ -517,9 +533,33 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
                 openDrawer: _index == 1 ? _openDrawer : null,
                 child: Stack(
                   children: [
-                    IndexedStack(
-                      index: _index,
-                      children: screens,
+                    Navigator(
+                      key: _contentNavigatorKey,
+                      pages: <Page<void>>[
+                        MaterialPage<void>(
+                          key: const ValueKey<String>('plp-shell-base-route'),
+                          child: IndexedStack(
+                            index: _index,
+                            children: screens,
+                          ),
+                        ),
+                        if (_routedTool != null)
+                          MaterialPage<void>(
+                            key: ValueKey<String>(
+                              'plp-shell-tool-${_routedToolKey!}',
+                            ),
+                            child: _routedTool!,
+                          ),
+                      ],
+                      onDidRemovePage: (page) {
+                        final routeKey = page.key;
+                        if (_routedTool == null ||
+                            routeKey is! ValueKey<String> ||
+                            !routeKey.value.startsWith('plp-shell-tool-')) {
+                          return;
+                        }
+                        _closeTool();
+                      },
                     ),
                     if (_index != 1)
                       Positioned(
