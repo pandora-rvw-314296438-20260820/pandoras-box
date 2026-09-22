@@ -26,7 +26,7 @@ class PlpEnterpriseHome extends StatelessWidget {
   static const _ink = Color(0xFF171512);
   static const _muted = Color(0xFF706B64);
   static const _line = Color(0xFFE6DED2);
-  static const _accent = Color(0xFF82764F);
+  static const _accent = Color(0xFF70643F);
   static const _good = Color(0xFF5E765F);
   static const _warn = Color(0xFFA56B2C);
 
