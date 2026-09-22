@@ -325,7 +325,8 @@ class PandoraIntelligenceApi {
     if (activityJobId == null &&
         textAttachment == null &&
         imageAttachment == null &&
-        auditAttachments.isEmpty) {
+        auditAttachments.isEmpty &&
+        !_isTeamAdministrationRequest(message)) {
       final capabilityTurn = await _dispatchCapability(
         message: message,
         threadId: threadId,
@@ -453,6 +454,31 @@ class PandoraIntelligenceApi {
         'Pandora could not verify project context right now.',
       );
     }
+  }
+
+  bool _isTeamAdministrationRequest(String message) {
+    final value = message.trim();
+    final scoped = RegExp(
+      r'\b(team|member|staff|user|access|invite)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final action = RegExp(
+      r'\b(add|invite|create|change|make|set|give|promote|demote|suspend|disable|deactivate|revoke|remove|reactivate|activate|restore)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final directAccessChange = RegExp(
+      r'\b(suspend|disable|deactivate|revoke|reactivate|activate|restore|promote|demote)\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final roleChange = RegExp(
+      r'\b(change|make|set|give|promote|demote)\b',
+      caseSensitive: false,
+    ).hasMatch(value) &&
+        RegExp(
+          r'\b(owner|admin|operator|member|viewer)\b',
+          caseSensitive: false,
+        ).hasMatch(value);
+    return (scoped && action) || directAccessChange || roleChange;
   }
 
   bool _isRepositoryAuditRequest(String message) {
