@@ -1164,8 +1164,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       if (!mounted) return;
       setState(() {
         _threadId = turn.threadId;
-        _teamAdministrationPending =
-            turn.conversationLane == 'team_admin' && turn.needsClarification;
+        _teamAdministrationPending = turn.needsClarification &&
+            (turn.conversationLane == 'team_admin' ||
+                _isTeamAdministrationClarification(turn.reply));
         _messages.add(_ChatMessage.user(objective));
         _messages.add(_ChatMessage.pandora(turn.reply));
         _pendingMessage = null;
