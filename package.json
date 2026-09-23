@@ -92,7 +92,7 @@
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.30.0",
         "@slack/web-api": "^8.1.1",
-        "@vercel/oidc": "^3.8.7",
+        "@vercel/oidc": "^3.8.8",
         "cors": "^2.8.6",
         "express": "^5.2.1",
         "helmet": "^8.1.0",
