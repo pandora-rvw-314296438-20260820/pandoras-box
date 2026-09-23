@@ -442,7 +442,8 @@ class PandoraLocalAiRouter {
 
     final externalAction = RegExp(
       r'^\s*(build|deploy|publish|merge|commit|push|send|call|text|'
-      r'create|delete|remove|update|change|fix|install|download|upload|'
+      r'create|add|invite|delete|remove|update|change|fix|install|download|upload|'
+      r'suspend|disable|deactivate|revoke|reactivate|activate|restore|promote|demote|'
       r'open|run|execute|schedule|remind|book|buy)\b',
       caseSensitive: false,
     );
