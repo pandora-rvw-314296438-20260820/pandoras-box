@@ -313,12 +313,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
         requestFocus: false,
       );
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _commandBusy = false;
-        _commandReply = reply;
-      });
-      _refresh();
+      if (mounted) {
+        setState(() {
+          _commandBusy = false;
+          _commandReply = reply;
+        });
+        _refresh();
+      }
     }
   }
 
@@ -593,8 +594,13 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
           return KeyedSubtree(
             key: const ValueKey('plp-enterprise-shell'),
-            child: WillPopScope(
-              onWillPop: () async => !_handleWorkspaceBack(),
+            child: PopScope<void>(
+              canPop: _index == 0 &&
+                  _surfaceHistory.isEmpty &&
+                  _routedTool == null,
+              onPopInvokedWithResult: (didPop, result) {
+                if (!didPop) _handleWorkspaceBack();
+              },
               child: Scaffold(
               key: _scaffoldKey,
               backgroundColor: _canvas,
