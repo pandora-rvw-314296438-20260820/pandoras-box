@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pandora_mobile/app/plp_enterprise_shell.dart';
 
 void main() {
-  testWidgets('persistent command dock stays above the keyboard', (tester) async {
+  testWidgets('persistent command dock stays above the keyboard while typing',
+      (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -32,6 +33,10 @@ void main() {
         ),
       ),
     );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('plp-command-field')),
+    );
     await tester.pumpAndSettle();
 
     final dock = tester.getRect(
@@ -42,5 +47,56 @@ void main() {
       find.byKey(const ValueKey<String>('plp-command-keyboard-offset')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('another PLP field does not pull the command dock over its form',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final commandController = TextEditingController();
+    final commandFocus = FocusNode();
+    final otherController = TextEditingController();
+    final otherFocus = FocusNode();
+    addTearDown(commandController.dispose);
+    addTearDown(commandFocus.dispose);
+    addTearDown(otherController.dispose);
+    addTearDown(otherFocus.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 844),
+            viewInsets: EdgeInsets.only(bottom: 320),
+          ),
+          child: Scaffold(
+            resizeToAvoidBottomInset: false,
+            body: TextField(
+              key: const ValueKey<String>('other-plp-field'),
+              controller: otherController,
+              focusNode: otherFocus,
+            ),
+            bottomNavigationBar: PlpCommandDock(
+              controller: commandController,
+              focusNode: commandFocus,
+              onSubmit: () async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('other-plp-field')));
+    await tester.pumpAndSettle();
+
+    final dock = tester.getRect(
+      find.byKey(const ValueKey<String>('plp-persistent-command-bar')),
+    );
+    expect(commandFocus.hasFocus, isFalse);
+    expect(otherFocus.hasFocus, isTrue);
+    expect(dock.bottom, greaterThan(844 - 320));
   });
 }
