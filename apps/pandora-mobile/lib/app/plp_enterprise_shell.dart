@@ -619,7 +619,18 @@ class PlpCommandDock extends StatelessWidget {
   final Future<void> Function() onSubmit;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: focusNode,
+        builder: (context, _) {
+          final keyboardInset = focusNode.hasFocus
+              ? MediaQuery.viewInsetsOf(context).bottom
+              : 0.0;
+          return AnimatedPadding(
+      key: const ValueKey<String>('plp-command-keyboard-offset'),
+      duration: const Duration(milliseconds: 140),
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: SafeArea(
         top: false,
         child: Container(
           key: const ValueKey<String>('plp-command-dock'),
@@ -709,5 +720,7 @@ class PlpCommandDock extends StatelessWidget {
             ),
           ),
         ),
-      );
-}
+      ),
+    );
+        },
+      );}

@@ -239,6 +239,9 @@ void main() {
     expect(voice, findsOneWidget);
     expect(submit, findsOneWidget);
     expect(find.byType(Divider), findsNothing);
+    final composerRect = tester.getRect(composer);
+    expect(composerRect.bottom, lessThanOrEqualTo(844 - 320));
+    expect(tester.getRect(objective).bottom, lessThanOrEqualTo(844 - 320));
     final field = tester.widget<TextField>(objective);
     expect(field.minLines, 1);
     expect(field.maxLines, 6);
