@@ -1,5 +1,4 @@
-{
-  "version": "4",
+{"version": "4",
   "specifiers": {
     "jsr:@supabase/functions-js@*": "2.4.5",
     "jsr:@supabase/functions-js@2.4.5": "2.4.5",
