@@ -226,13 +226,28 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     }
   }
 
-  Future<void> submitExternalPrompt(String prompt) async {
+  Future<String?> submitExternalPrompt(
+    String prompt, {
+    bool requestFocus = true,
+  }) async {
     final normalized = prompt.trim();
-    if (normalized.isEmpty) return;
+    if (normalized.isEmpty) return null;
+    final before = _messages.length;
     _objective.text = normalized;
     _objective.selection = TextSelection.collapsed(offset: normalized.length);
-    _objectiveFocus.requestFocus();
+    if (requestFocus) {
+      _objectiveFocus.requestFocus();
+    } else {
+      _objectiveFocus.unfocus();
+    }
     await _submit();
+    if (!mounted) return null;
+    if (_messages.length > before) {
+      for (final message in _messages.skip(before).toList().reversed) {
+        if (!message.isUser) return message.text;
+      }
+    }
+    return _error;
   }
 
   void _handleActivityTimelineChanged() {
