@@ -620,7 +620,9 @@ class PlpCommandDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final keyboardInset = focusNode.hasFocus
+        ? MediaQuery.viewInsetsOf(context).bottom
+        : 0.0;
     return AnimatedPadding(
       key: const ValueKey<String>('plp-command-keyboard-offset'),
       duration: const Duration(milliseconds: 140),
