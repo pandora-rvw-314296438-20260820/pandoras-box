@@ -817,6 +817,7 @@ class PandoraIntelligenceTurn {
     required this.confidence,
     required this.needsClarification,
     this.clarifyingQuestion,
+    this.conversationLane,
     this.handoff,
   });
 
@@ -826,6 +827,7 @@ class PandoraIntelligenceTurn {
   final double confidence;
   final bool needsClarification;
   final String? clarifyingQuestion;
+  final String? conversationLane;
   final PandoraIntelligenceHandoff? handoff;
 
   factory PandoraIntelligenceTurn.fromJson(Map<String, dynamic> json) {
@@ -837,6 +839,7 @@ class PandoraIntelligenceTurn {
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0,
       needsClarification: json['needsClarification'] == true,
       clarifyingQuestion: _optionalText(json['clarifyingQuestion']),
+      conversationLane: _optionalText(json['conversationLane']),
       handoff: handoffJson['required'] == true
           ? PandoraIntelligenceHandoff(
               request: _requiredText(handoffJson['request']),
