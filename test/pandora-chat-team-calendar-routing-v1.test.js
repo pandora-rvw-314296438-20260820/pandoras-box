@@ -19,7 +19,7 @@ test('multi-turn team clarification remains on the governed cloud lane', () => {
   assert.match(edge, /conversationLane:"team_admin"/);
   assert.match(api, /final String\? conversationLane;/);
   assert.match(api, /conversationLane: _optionalText\(json\['conversationLane'\]\)/);
-  assert.match(ask, /turn\.conversationLane == 'team_admin' && turn\.needsClarification/);
+  assert.match(ask, /turn\.needsClarification\s*&&[\s\S]*turn\.conversationLane == 'team_admin'/);
   assert.match(ask, /_isTeamAdministrationClarification\(history\.last\.content\)/);
 });
 
