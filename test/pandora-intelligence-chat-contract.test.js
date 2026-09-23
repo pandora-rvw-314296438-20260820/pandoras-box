@@ -93,7 +93,7 @@ test('mobile chat uses a full-height floating overlay with keyboard-aware bottom
   assert.match(askPandoraScreen, /jump:\s*threadChanged\s*\|\|\s*viewportChanged/);
   assert.match(askPandoraScreen, /force:\s*threadChanged\s*\|\|\s*userSubmitted/);
   assert.match(askPandoraScreen, /notification\.dragDetails\s*!=\s*null/);
-  assert.match(askPandoraScreen, /bottom:\s*0,[\s\S]*?key:\s*_composerKey/);
+  assert.match(askPandoraScreen, /bottom:\s*keyboardInset,[\s\S]*?key:\s*_composerKey/);
 });
 
 test('internal Enterprise context is sanitized before persistence, API response, and mobile rendering', () => {
