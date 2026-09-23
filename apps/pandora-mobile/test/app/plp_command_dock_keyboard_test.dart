@@ -98,5 +98,29 @@ void main() {
     expect(commandFocus.hasFocus, isFalse);
     expect(otherFocus.hasFocus, isTrue);
     expect(dock.bottom, greaterThan(844 - 320));
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('plp-command-field')),
+    );
+    await tester.pumpAndSettle();
+    final liftedDock = tester.getRect(
+      find.byKey(const ValueKey<String>('plp-persistent-command-bar')),
+    );
+    expect(commandFocus.hasFocus, isTrue);
+    expect(liftedDock.bottom, lessThanOrEqualTo(844 - 320));
+
+    await tester.tap(find.byKey(const ValueKey<String>('other-plp-field')));
+    await tester.pumpAndSettle();
+    final restoredDock = tester.getRect(
+      find.byKey(const ValueKey<String>('plp-persistent-command-bar')),
+    );
+    expect(commandFocus.hasFocus, isFalse);
+    expect(otherFocus.hasFocus, isTrue);
+    expect(
+      restoredDock.bottom,
+      greaterThan(844 - 320),
+      reason:
+          'Switching to another PLP field must immediately release the shared dock.',
+    );
   });
 }
