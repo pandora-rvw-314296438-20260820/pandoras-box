@@ -77,9 +77,25 @@ class PandoraCalendarCommand {
   static bool _looksLikeUpdate(String lower) =>
       RegExp(r'^(?:please\s+)?(?:move|reschedule)\b').hasMatch(lower);
 
-  static bool _looksLikeCreate(String lower) =>
-      RegExp(r'^(?:please\s+)?(?:set|schedule|add|create)\b').hasMatch(lower) &&
-      !RegExp(r'\b(reminder|alarm)\b').hasMatch(lower);
+  static bool _looksLikeCreate(String lower) {
+    final startsLikeCreate =
+        RegExp(r'^(?:please\s+)?(?:set|schedule|add|create)\b').hasMatch(lower);
+    if (!startsLikeCreate ||
+        RegExp(r'\b(reminder|alarm)\b').hasMatch(lower)) {
+      return false;
+    }
+    final teamAdministration = RegExp(
+      r'\b(team|member|staff|user|access|invite)\b|'
+      r'\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b',
+    ).hasMatch(lower);
+    final explicitCalendarContext = lower.contains('calendar') ||
+        lower.contains('event') ||
+        _containsDateWord(lower) ||
+        RegExp(r'\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b').hasMatch(lower) ||
+        RegExp(r'\b(?:at|@)\s*\d{1,2}(?::\d{2})?\b').hasMatch(lower);
+    if (teamAdministration && !explicitCalendarContext) return false;
+    return true;
+  }
 
   static PandoraCalendarParseResult _parseQuery(String input, DateTime now) {
     final day = _resolveDay(input, now) ?? _dayStart(now);
