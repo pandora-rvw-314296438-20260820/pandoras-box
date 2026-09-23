@@ -92,6 +92,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
   bool _localAiGenerating = false;
   bool _localAiPrewarmInFlight = false;
   bool _lastTurnUsedLocalAi = false;
+  bool _teamAdministrationPending = false;
   bool _loadingThread = false;
   bool _localConversationRestoreStarted = false;
   bool _outcomeUnknown = false;
@@ -214,7 +215,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         }
       }
       if (restored.isEmpty) return;
-      setState(() => _messages.addAll(restored));
+      final teamPending = !restored.last.isUser &&
+          _isTeamAdministrationClarification(restored.last.text);
+      setState(() {
+        _messages.addAll(restored);
+        _teamAdministrationPending = teamPending;
+      });
     } catch (_) {
       // Local conversation recovery must never prevent a fresh chat.
     }
@@ -923,6 +929,57 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     return true;
   }
 
+  bool _looksLikeTeamAdministrationTurn(String message) {
+    final value = message.trim();
+    if (value.isEmpty) return false;
+    final hasScope = RegExp(
+      r'\\b(team|member|staff|user|access|invite)\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final hasEmail = RegExp(
+      r'\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final hasRole = RegExp(
+      r'\\b(owner|admin|operator|member|viewer)\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final inviteAction = RegExp(
+      r'\\b(add|invite|create)\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final accessAction = RegExp(
+      r'\\b(suspend|disable|deactivate|revoke|remove|reactivate|activate|restore)\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final roleAction = RegExp(
+      r'\\b(change|make|set|give|promote|demote)\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    final staffTask = RegExp(
+      r'\\bstaff\\s+task\\b|\\btask\\s+for\\s+staff\\b',
+      caseSensitive: false,
+    ).hasMatch(value);
+    if (staffTask) return false;
+    return ((hasScope || hasEmail) &&
+            (inviteAction || accessAction || roleAction)) ||
+        (hasRole && roleAction);
+  }
+
+  bool _isTeamAdministrationClarification(String message) {
+    final value = message.trim();
+    return value == 'What email address should I invite?' ||
+        value ==
+            'What role should I give them: owner, admin, operator, member, or viewer?' ||
+        value ==
+            'Which team member should I change? Give me their name or email address.' ||
+        value == 'What should I change: their role, or their access status?' ||
+        (value.startsWith("I couldn't find ") &&
+            value.endsWith('Give me the exact email address.')) ||
+        (value.startsWith('I found more than one match for ') &&
+            value.endsWith('Give me the exact email address.'));
+  }
+
   bool _applyPlpContinuityFallback(String objective) {
     if (!_isPlpEnterpriseContext || !mounted) return false;
     final actionLike = !PlpChatFallback.isReadOnlyTurn(objective);
@@ -1002,10 +1059,14 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         return;
       }
       if (await _trySubmitPlpStaffTask(objective)) return;
-      final calendarParse = PandoraCalendarCommand.tryParse(
-        objective,
-        now: DateTime.now(),
-      );
+      final teamAdministrationTurn =
+          _teamAdministrationPending || _looksLikeTeamAdministrationTurn(objective);
+      final calendarParse = teamAdministrationTurn
+          ? null
+          : PandoraCalendarCommand.tryParse(
+              objective,
+              now: DateTime.now(),
+            );
       if (calendarParse != null) {
         _lastTurnUsedLocalAi = false;
         if (!calendarParse.isReady) {
@@ -1030,9 +1091,11 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         );
         return;
       }
-      final deviceCommunication = PandoraDeviceCommunicationCommand.tryParse(
-        objective,
-      );
+      final deviceCommunication = teamAdministrationTurn
+          ? null
+          : PandoraDeviceCommunicationCommand.tryParse(
+              objective,
+            );
       if (deviceCommunication != null) {
         _lastTurnUsedLocalAi = false;
         await _handleDeviceCommunication(
@@ -1040,7 +1103,9 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
         return;
       }
       final priorTurnUsedLocalAi = _lastTurnUsedLocalAi;
-      if (await _trySubmitLocalAi(objective)) return;
+      if (!teamAdministrationTurn && await _trySubmitLocalAi(objective)) {
+        return;
+      }
 
       final routedObjective = priorTurnUsedLocalAi && _messages.isNotEmpty
           ? _boundedRouteBridge(objective)
@@ -1099,6 +1164,8 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
       if (!mounted) return;
       setState(() {
         _threadId = turn.threadId;
+        _teamAdministrationPending =
+            turn.conversationLane == 'team_admin' && turn.needsClarification;
         _messages.add(_ChatMessage.user(objective));
         _messages.add(_ChatMessage.pandora(turn.reply));
         _pendingMessage = null;
@@ -1470,6 +1537,7 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     unawaited(PandoraLocalAi.instance.resetConversation());
     _lastTurnUsedLocalAi = false;
     setState(() {
+      _teamAdministrationPending = false;
       _messages.clear();
       _objective.clear();
       _attachment = null;
@@ -1503,8 +1571,12 @@ class AskPandoraScreenState extends State<AskPandoraScreen> with WidgetsBindingO
     try {
       final history = await intelligence.messages(threadId);
       if (!mounted) return;
+      final teamPending = history.isNotEmpty &&
+          !history.last.isUser &&
+          _isTeamAdministrationClarification(history.last.content);
       setState(() {
         _threadId = threadId;
+        _teamAdministrationPending = teamPending;
         _messages
           ..clear()
           ..addAll(
