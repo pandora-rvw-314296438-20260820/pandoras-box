@@ -701,10 +701,10 @@ class PlpCommandDock extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.onSubmit,
-    required this.busy,
-    required this.reply,
-    required this.onDismissReply,
-    required this.onOpenChat,
+    this.busy = false,
+    this.reply,
+    this.onDismissReply,
+    this.onOpenChat,
   });
 
   final TextEditingController controller;
@@ -712,8 +712,8 @@ class PlpCommandDock extends StatelessWidget {
   final Future<void> Function() onSubmit;
   final bool busy;
   final String? reply;
-  final VoidCallback onDismissReply;
-  final VoidCallback onOpenChat;
+  final VoidCallback? onDismissReply;
+  final VoidCallback? onOpenChat;
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -745,8 +745,8 @@ class PlpCommandDock extends StatelessWidget {
                 _PlpCommandResult(
                   busy: busy,
                   reply: reply,
-                  onDismiss: onDismissReply,
-                  onOpenChat: onOpenChat,
+                  onDismiss: onDismissReply ?? () {},
+                  onOpenChat: onOpenChat ?? () {},
                 ),
               DecoratedBox(
                 key: const ValueKey<String>('plp-persistent-command-bar'),
