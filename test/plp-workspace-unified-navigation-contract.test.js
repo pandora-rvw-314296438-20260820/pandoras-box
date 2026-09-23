@@ -39,7 +39,7 @@ test('PLP navigation remembers origin and Android back restores it', () => {
   assert.match(shell, /_surfaceHistory\.add\(_index\)/);
   assert.match(shell, /_surfaceHistory\.removeLast\(\)/);
   assert.match(shell, /bool _handleWorkspaceBack\(\)/);
-  assert.match(shell, /WillPopScope\([\s\S]*_handleWorkspaceBack/);
+  assert.match(shell, /PopScope<void>\([\s\S]*_handleWorkspaceBack/);
   assert.match(shell, /void _openHome\(\)/);
 });
 
