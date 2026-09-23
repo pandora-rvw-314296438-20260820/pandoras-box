@@ -10,8 +10,17 @@ const chat = readFileSync(
   'apps/pandora-mobile/lib/features/simple/ask_pandora_screen.dart',
   'utf8',
 );
+const team = readFileSync(
+  'apps/pandora-mobile/lib/features/team/team_screen.dart',
+  'utf8',
+);
+const operationsRoom = readFileSync(
+  'apps/pandora-mobile/lib/features/operations/operations_room_screen.dart',
+  'utf8',
+);
 
 test('shared PLP command dock follows the keyboard only while its field owns focus', () => {
+  assert.match(shell, /AnimatedBuilder\([\s\S]*animation: focusNode/);
   assert.match(shell, /focusNode\.hasFocus[\s\S]*MediaQuery\.viewInsetsOf\(context\)\.bottom/);
   assert.match(shell, /plp-command-keyboard-offset/);
   assert.match(shell, /AnimatedPadding\(/);
@@ -44,4 +53,18 @@ test('shared command dock remains shell-level across every non-chat PLP destinat
   ]) {
     assert.ok(shell.includes(destination), `missing PLP destination ${destination}`);
   }
+});
+
+test('nested PLP tool inputs own their keyboard space without the shared dock taking over', () => {
+  assert.ok(
+    (team.match(/MediaQuery\.viewInsetsOf\(context\)\.bottom/g) ?? []).length >= 2,
+    'Team invite and access sheets must pad for the keyboard',
+  );
+  assert.match(operationsRoom, /return Scaffold\(/);
+  assert.match(operationsRoom, /operations-room-composer/);
+  assert.doesNotMatch(
+    operationsRoom,
+    /resizeToAvoidBottomInset:\s*false/,
+    'Operations Room should retain Scaffold keyboard resizing',
+  );
 });
