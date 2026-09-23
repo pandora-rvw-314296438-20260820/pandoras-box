@@ -844,7 +844,7 @@ Deno.serve(async (req) => {
     const user = userClient(authorization);
     const { data: auth, error: authError } = await user.auth.getUser();
     if (authError || !auth.user) throw new Error("SIGN_IN_REQUIRED");
-    const { data: project, error: projectError } = await user.from("projectos_projects")
+    const { data: project, error: projectError } = await user.from("pandora_projects")
       .select("id,organization_id,name,objective").eq("id", projectId).maybeSingle();
     if (projectError || !project) throw new Error("PROJECT_NOT_AVAILABLE");
     const admin = adminClient();
