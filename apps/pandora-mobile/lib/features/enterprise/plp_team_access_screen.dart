@@ -600,6 +600,10 @@ class _TeamMemberRow extends StatelessWidget {
         textFor(member['displayName'], fallback: 'PLP team member');
     final role = textFor(member['roleLabel'], fallback: 'Team member');
     final active = boolFor(member['active']);
+    final status = textFor(
+      member['accessStatus'],
+      fallback: active ? 'active' : 'inactive',
+    );
     final current = boolFor(member['isCurrentUser']);
 
     return Padding(
@@ -706,7 +710,7 @@ class _TeamMemberRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 7),
                 Text(
-                  active ? 'Active' : 'Inactive',
+                  status[0].toUpperCase() + status.substring(1),
                   style: const TextStyle(
                     color: Color(0xFF5D626A),
                     fontSize: 10.5,

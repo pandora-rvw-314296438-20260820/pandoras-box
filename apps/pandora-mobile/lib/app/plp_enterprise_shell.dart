@@ -13,11 +13,11 @@ import '../features/enterprise/plp_editorial_surfaces.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_guests_screen.dart';
 import '../features/enterprise/plp_team_access_screen.dart';
+import '../features/enterprise/plp_team_management_screen.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/settings/local_ai_settings_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/simple/ask_pandora_screen.dart';
-import '../features/team/team_screen.dart';
 import 'pandora_dependencies.dart';
 import 'plp_navigation_drawer.dart';
 
@@ -60,8 +60,11 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   Map<String, Object?>? _lastBootstrap;
   bool _bootstrapInitialized = false;
   int _index = 0;
+  final List<int> _surfaceHistory = <int>[];
   Widget? _routedTool;
   String? _routedToolKey;
+  bool _commandBusy = false;
+  String? _commandReply;
   List<PlpRecentChatItem> _recentChats = const <PlpRecentChatItem>[];
   bool _recentChatsLoading = false;
   bool _recentChatsLoaded = false;
@@ -212,13 +215,58 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     setState(() => _bootstrapFuture = _loadBootstrapAndRemember());
   }
 
-  void _open(int index) {
+  void _open(
+    int index, {
+    bool remember = true,
+    bool clearHistory = false,
+  }) {
     if (_index == index && _routedTool == null) return;
     setState(() {
+      if (clearHistory) {
+        _surfaceHistory.clear();
+      } else if (remember && index != _index) {
+        if (_surfaceHistory.isEmpty || _surfaceHistory.last != _index) {
+          _surfaceHistory.add(_index);
+        }
+      }
       _index = index;
       _routedTool = null;
       _routedToolKey = null;
+      _commandReply = null;
     });
+  }
+
+  void _openHome() => _open(
+        0,
+        remember: false,
+        clearHistory: true,
+      );
+
+  bool _handleWorkspaceBack() {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      _scaffoldKey.currentState?.closeDrawer();
+      return true;
+    }
+    if (_routedTool != null) {
+      _closeTool();
+      return true;
+    }
+    if (_surfaceHistory.isNotEmpty) {
+      final target = _surfaceHistory.removeLast();
+      setState(() {
+        _index = target;
+        _commandReply = null;
+      });
+      return true;
+    }
+    if (_index != 0) {
+      setState(() {
+        _index = 0;
+        _commandReply = null;
+      });
+      return true;
+    }
+    return false;
   }
 
   void _openTool(String key, Widget tool) {
@@ -245,6 +293,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
   }
 
   Future<void> _submitCommand([String? preset]) async {
+    if (_commandBusy) return;
     final command = (preset ?? _commandController.text).trim();
     if (command.isEmpty) {
       _open(1);
@@ -253,13 +302,25 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     _commandController.clear();
     _commandFocus.unfocus();
     setState(() {
-      _index = 1;
-      _routedTool = null;
-      _routedToolKey = null;
+      _commandBusy = true;
+      _commandReply = null;
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _alfredKey.currentState?.submitExternalPrompt(command);
-    });
+    await WidgetsBinding.instance.endOfFrame;
+    String? reply;
+    try {
+      reply = await _alfredKey.currentState?.submitExternalPrompt(
+        command,
+        requestFocus: false,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _commandBusy = false;
+          _commandReply = reply;
+        });
+        _refresh();
+      }
+    }
   }
 
   Future<void> _submitPersistentCommand() => _submitCommand();
@@ -284,7 +345,11 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
     final target = _surfaceByDestination[destination];
     if (target == null) return;
     _scaffoldKey.currentState?.closeDrawer();
-    _open(target);
+    if (target == 0) {
+      _openHome();
+    } else {
+      _open(target);
+    }
   }
 
   Future<void> _openRecentThread(PlpRecentChatItem item) async {
@@ -429,7 +494,7 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
             ),
             AskPandoraScreen(
               key: _alfredKey,
-              onHome: () => _open(0),
+              onHome: _openHome,
               onMore: () => _open(4),
               enterpriseContext: alfredContext,
               allowCharacterContext: false,
@@ -467,17 +532,31 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               onOpenNavigation: _openDrawer,
             ),
             PlpTeamAccessScreen(
-              key: const ValueKey('plp-team-access'),
+              key: ValueKey<String>(
+                'plp-team-access-${bootstrap['generatedAt'] ?? ''}',
+              ),
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
               onAddPeople: () {
                 _openTool(
                   'team-management',
-                  const TeamScreen(openInviteOnLoad: true),
+                  PlpTeamManagementScreen(
+                    organizationId: _organizationId(bootstrap) ?? '',
+                    openInviteOnLoad: true,
+                    onBack: _closeTool,
+                    onChanged: _refresh,
+                  ),
                 );
               },
               onManageTeam: () {
-                _openTool('team-management', const TeamScreen());
+                _openTool(
+                  'team-management',
+                  PlpTeamManagementScreen(
+                    organizationId: _organizationId(bootstrap) ?? '',
+                    onBack: _closeTool,
+                    onChanged: _refresh,
+                  ),
+                );
               },
             ),
             PlpRevenueScreen(
@@ -515,96 +594,110 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
 
           return KeyedSubtree(
             key: const ValueKey('plp-enterprise-shell'),
-            child: Scaffold(
-              key: _scaffoldKey,
-              backgroundColor: _canvas,
-              drawerEnableOpenDragGesture: true,
-              drawerEdgeDragWidth: 32,
-              drawerScrimColor: const Color(0x99000000),
-              onDrawerChanged: (open) {
-                if (open) unawaited(_loadRecentChats(force: true));
+            child: PopScope<void>(
+              canPop:
+                  _index == 0 && _surfaceHistory.isEmpty && _routedTool == null,
+              onPopInvokedWithResult: (didPop, result) {
+                if (!didPop) _handleWorkspaceBack();
               },
-              drawer: PlpNavigationDrawer(
-                selectedDestination: _drawerSelection,
-                recentChats: _recentChats,
-                recentChatsLoading: _recentChatsLoading,
-                recentChatsError: _recentChatsError,
-                onRetryRecentChats: () {
-                  unawaited(_loadRecentChats(force: true));
+              child: Scaffold(
+                key: _scaffoldKey,
+                backgroundColor: _canvas,
+                drawerEnableOpenDragGesture: true,
+                drawerEdgeDragWidth: 32,
+                drawerScrimColor: const Color(0x99000000),
+                onDrawerChanged: (open) {
+                  if (open) unawaited(_loadRecentChats(force: true));
                 },
-                onSelectDestination: _selectDrawerDestination,
-                onSelectThread: (item) {
-                  unawaited(_openRecentThread(item));
-                },
-                onNewChat: () {
-                  unawaited(_startNewChat());
-                },
-              ),
-              body: PandoraNavigationScope(
-                openDrawer: _index == 1 ? _openDrawer : null,
-                child: Stack(
-                  children: [
-                    Navigator(
-                      key: _contentNavigatorKey,
-                      pages: <Page<void>>[
-                        MaterialPage<void>(
-                          key: const ValueKey<String>('plp-shell-base-route'),
-                          child: IndexedStack(
-                            index: _index,
-                            children: screens,
-                          ),
-                        ),
-                        if (_routedTool != null)
-                          MaterialPage<void>(
-                            key: ValueKey<String>(
-                              'plp-shell-tool-${_routedToolKey!}',
-                            ),
-                            child: _routedTool!,
-                          ),
-                      ],
-                      onDidRemovePage: (page) {
-                        final routeKey = page.key;
-                        if (_routedTool == null ||
-                            routeKey is! ValueKey<String> ||
-                            !routeKey.value.startsWith('plp-shell-tool-')) {
-                          return;
-                        }
-                        _closeTool();
-                      },
-                    ),
-                    if (_index != 1)
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        child: SafeArea(
-                          bottom: false,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
-                            child: PandoraMenuButton(
-                              key: const ValueKey<String>(
-                                'pandora-side-panel-open',
-                              ),
-                              onPressed: _openDrawer,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
+                drawer: PlpNavigationDrawer(
+                  selectedDestination: _drawerSelection,
+                  recentChats: _recentChats,
+                  recentChatsLoading: _recentChatsLoading,
+                  recentChatsError: _recentChatsError,
+                  onRetryRecentChats: () {
+                    unawaited(_loadRecentChats(force: true));
+                  },
+                  onSelectDestination: _selectDrawerDestination,
+                  onSelectThread: (item) {
+                    unawaited(_openRecentThread(item));
+                  },
+                  onNewChat: () {
+                    unawaited(_startNewChat());
+                  },
                 ),
+                body: PandoraNavigationScope(
+                  openDrawer: _index == 1 ? _openDrawer : null,
+                  child: Stack(
+                    children: [
+                      Navigator(
+                        key: _contentNavigatorKey,
+                        pages: <Page<void>>[
+                          MaterialPage<void>(
+                            key: const ValueKey<String>('plp-shell-base-route'),
+                            child: IndexedStack(
+                              index: _index,
+                              children: screens,
+                            ),
+                          ),
+                          if (_routedTool != null)
+                            MaterialPage<void>(
+                              key: ValueKey<String>(
+                                'plp-shell-tool-${_routedToolKey!}',
+                              ),
+                              child: _routedTool!,
+                            ),
+                        ],
+                        onDidRemovePage: (page) {
+                          final routeKey = page.key;
+                          if (_routedTool == null ||
+                              routeKey is! ValueKey<String> ||
+                              !routeKey.value.startsWith('plp-shell-tool-')) {
+                            return;
+                          }
+                          _closeTool();
+                        },
+                      ),
+                      if (_index != 1)
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          child: SafeArea(
+                            bottom: false,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
+                              child: PandoraMenuButton(
+                                key: const ValueKey<String>(
+                                  'pandora-side-panel-open',
+                                ),
+                                onPressed: _openDrawer,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                bottomNavigationBar: _index == 1
+                    ? null
+                    : PlpCommandDock(
+                        controller: _commandController,
+                        focusNode: _commandFocus,
+                        onSubmit: _submitPersistentCommand,
+                        busy: _commandBusy,
+                        reply: _commandReply,
+                        onDismissReply: () {
+                          if (_commandReply != null) {
+                            setState(() => _commandReply = null);
+                          }
+                        },
+                        onOpenChat: () => _open(1),
+                      ),
               ),
-              bottomNavigationBar: _index == 1
-                  ? null
-                  : PlpCommandDock(
-                      controller: _commandController,
-                      focusNode: _commandFocus,
-                      onSubmit: _submitPersistentCommand,
-                    ),
             ),
           );
         },
       );
 }
-
 
 class PlpCommandDock extends StatelessWidget {
   const PlpCommandDock({
@@ -612,11 +705,19 @@ class PlpCommandDock extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.onSubmit,
+    this.busy = false,
+    this.reply,
+    this.onDismissReply,
+    this.onOpenChat,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
   final Future<void> Function() onSubmit;
+  final bool busy;
+  final String? reply;
+  final VoidCallback? onDismissReply;
+  final VoidCallback? onOpenChat;
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -626,101 +727,191 @@ class PlpCommandDock extends StatelessWidget {
               ? MediaQuery.viewInsetsOf(context).bottom
               : 0.0;
           return AnimatedPadding(
-      key: const ValueKey<String>('plp-command-keyboard-offset'),
-      duration: const Duration(milliseconds: 140),
-      curve: Curves.easeOutCubic,
-      padding: EdgeInsets.only(bottom: keyboardInset),
-      child: SafeArea(
-        top: false,
-        child: Container(
-          key: const ValueKey<String>('plp-command-dock'),
-          decoration: const BoxDecoration(
-            color: _PlpEnterpriseShellState._canvas,
-            border: Border(
-              top: BorderSide(color: Color(0xFFE1DBD1)),
-            ),
-          ),
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-          child: DecoratedBox(
-            key: const ValueKey<String>('plp-persistent-command-bar'),
-            decoration: const BoxDecoration(
-              color: Color(0xFF171512),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox.square(
-                  dimension: 50,
-                  child: Icon(
-                    Icons.view_in_ar_outlined,
-                    color: Colors.white,
-                    size: 24,
+            key: const ValueKey<String>('plp-command-keyboard-offset'),
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
+            padding: EdgeInsets.only(bottom: keyboardInset),
+            child: SafeArea(
+              top: false,
+              child: Container(
+                key: const ValueKey<String>('plp-command-dock'),
+                decoration: const BoxDecoration(
+                  color: _PlpEnterpriseShellState._canvas,
+                  border: Border(
+                    top: BorderSide(color: Color(0xFFE1DBD1)),
                   ),
                 ),
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey<String>('plp-command-field'),
-                    controller: controller,
-                    focusNode: focusNode,
-                    minLines: 1,
-                    maxLines: 4,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => onSubmit(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15.5,
-                      height: 1.35,
-                    ),
-                    decoration: const InputDecoration(
-                      hintText: 'Message Pandora',
-                      hintStyle: TextStyle(
-                        color: Color(0xFFB6B0A7),
-                        fontSize: 15.5,
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (busy || (reply?.trim().isNotEmpty ?? false))
+                      _PlpCommandResult(
+                        busy: busy,
+                        reply: reply,
+                        onDismiss: onDismissReply ?? () {},
+                        onOpenChat: onOpenChat ?? () {},
                       ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.fromLTRB(2, 15, 6, 14),
-                    ),
-                  ),
-                ),
-                const SizedBox.square(
-                  dimension: 46,
-                  child: Icon(
-                    Icons.mic_none_rounded,
-                    color: Color(0xFFD6D0C7),
-                    size: 25,
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 34,
-                  color: const Color(0xFF3D3934),
-                ),
-                SizedBox.square(
-                  dimension: 50,
-                  child: IconButton(
-                    key: const ValueKey<String>('plp-command-submit'),
-                    onPressed: onSubmit,
-                    style: IconButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
+                    DecoratedBox(
+                      key: const ValueKey<String>('plp-persistent-command-bar'),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF171512),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const SizedBox.square(
+                            dimension: 50,
+                            child: Icon(
+                              Icons.view_in_ar_outlined,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          Expanded(
+                            child: TextField(
+                              key: const ValueKey<String>('plp-command-field'),
+                              controller: controller,
+                              focusNode: focusNode,
+                              minLines: 1,
+                              maxLines: 4,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: (_) => onSubmit(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15.5,
+                                height: 1.35,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: 'Message Pandora',
+                                hintStyle: TextStyle(
+                                  color: Color(0xFFB6B0A7),
+                                  fontSize: 15.5,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                isDense: true,
+                                contentPadding:
+                                    EdgeInsets.fromLTRB(2, 15, 6, 14),
+                              ),
+                            ),
+                          ),
+                          const SizedBox.square(
+                            dimension: 46,
+                            child: Icon(
+                              Icons.mic_none_rounded,
+                              color: Color(0xFFD6D0C7),
+                              size: 25,
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 34,
+                            color: const Color(0xFF3D3934),
+                          ),
+                          SizedBox.square(
+                            dimension: 50,
+                            child: IconButton(
+                              key: const ValueKey<String>('plp-command-submit'),
+                              onPressed: busy ? null : onSubmit,
+                              style: IconButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.zero,
+                                ),
+                              ),
+                              icon: const Icon(
+                                Icons.arrow_upward_rounded,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    icon: const Icon(
-                      Icons.arrow_upward_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+          );
+        },
+      );
+}
+
+class _PlpCommandResult extends StatelessWidget {
+  const _PlpCommandResult({
+    required this.busy,
+    required this.reply,
+    required this.onDismiss,
+    required this.onOpenChat,
+  });
+
+  final bool busy;
+  final String? reply;
+  final VoidCallback onDismiss;
+  final VoidCallback onOpenChat;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = busy
+        ? 'Pandora is working on this request…'
+        : (reply?.trim().isNotEmpty ?? false)
+            ? reply!.trim()
+            : '';
+    return Container(
+      key: const ValueKey<String>('plp-command-result'),
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFFDFC),
+        border: Border(
+          left: BorderSide(color: Color(0xFFE1DBD1)),
+          right: BorderSide(color: Color(0xFFE1DBD1)),
+          top: BorderSide(color: Color(0xFFE1DBD1)),
         ),
       ),
+      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(
+              Icons.auto_awesome_outlined,
+              color: Color(0xFF70643F),
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              text,
+              key: const ValueKey<String>('plp-command-result-text'),
+              maxLines: busy ? 1 : 4,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF35312C),
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
+          ),
+          if (!busy) ...[
+            TextButton(
+              key: const ValueKey<String>('plp-command-open-chat'),
+              onPressed: onOpenChat,
+              child: const Text('Open chat'),
+            ),
+            IconButton(
+              key: const ValueKey<String>('plp-command-dismiss-result'),
+              tooltip: 'Dismiss',
+              onPressed: onDismiss,
+              icon: const Icon(Icons.close_rounded, size: 18),
+            ),
+          ],
+        ],
+      ),
     );
-        },
-      );}
+  }
+}
