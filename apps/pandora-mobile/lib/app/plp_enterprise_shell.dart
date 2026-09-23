@@ -13,6 +13,7 @@ import '../features/enterprise/plp_editorial_surfaces.dart';
 import '../features/enterprise/plp_enterprise_home.dart';
 import '../features/enterprise/plp_guests_screen.dart';
 import '../features/enterprise/plp_team_access_screen.dart';
+import '../features/enterprise/plp_team_management_screen.dart';
 import '../features/operations/operations_room_screen.dart';
 import '../features/settings/local_ai_settings_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -535,7 +536,27 @@ class _PlpEnterpriseShellState extends State<PlpEnterpriseShell> {
               ),
               bootstrap: bootstrap,
               onOpenNavigation: _openDrawer,
-              onTeamChanged: _refresh,
+              onAddPeople: () {
+                _openTool(
+                  'team-management',
+                  PlpTeamManagementScreen(
+                    organizationId: _organizationId(bootstrap) ?? '',
+                    openInviteOnLoad: true,
+                    onBack: _closeTool,
+                    onChanged: _refresh,
+                  ),
+                );
+              },
+              onManageTeam: () {
+                _openTool(
+                  'team-management',
+                  PlpTeamManagementScreen(
+                    organizationId: _organizationId(bootstrap) ?? '',
+                    onBack: _closeTool,
+                    onChanged: _refresh,
+                  ),
+                );
+              },
             ),
             PlpRevenueScreen(
               key: const ValueKey('plp-revenue'),
